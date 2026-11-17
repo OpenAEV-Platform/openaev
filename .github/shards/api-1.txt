@@ -1,6 +1,6 @@
-io/openaev/api/xtmhub/**/*Test.java
-io/openaev/injects/**/*Test.java
-io/openaev/rest/domain/**/*Test.java
-io/openaev/rest/expectation/**/*Test.java
+io/openaev/rest/comcheck/**/*Test.java
 io/openaev/rest/inject/**/*Test.java
-io/openaev/rest/role/**/*Test.java
+io/openaev/rest/injector/**/*Test.java
+io/openaev/rest/url_access_token/**/*Test.java
+io/openaev/secrets/**/*Test.java
+io/openaev/service/expectation/**/*Test.java

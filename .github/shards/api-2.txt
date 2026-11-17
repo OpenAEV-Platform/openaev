@@ -1,7 +1,10 @@
-io/openaev/api/notification/**/*Test.java
-io/openaev/database/model/**/*Test.java
-io/openaev/notification/**/*Test.java
-io/openaev/opencti/**/*Test.java
-io/openaev/ratelimit/**/*Test.java
+io/openaev/api/news_feed/**/*Test.java
+io/openaev/api/stix_process/**/*Test.java
+io/openaev/database/audit/**/*Test.java
+io/openaev/export/**/*Test.java
+io/openaev/jsonapi/**/*Test.java
 io/openaev/rest/*Test.java
-io/openaev/security/**/*Test.java
+io/openaev/rest/rbac/**/*Test.java
+io/openaev/service/inject/**/*Test.java
+io/openaev/service/marking/**/*Test.java
+io/openaev/telemetry/**/*Test.java

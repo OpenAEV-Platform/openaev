@@ -1,9 +1,10 @@
-io/openaev/api/credentials/**/*Test.java
-io/openaev/api/marking_definition/**/*Test.java
+io/openaev/api/notifier/**/*Test.java
+io/openaev/api/snapshot/**/*Test.java
+io/openaev/datapack/**/*Test.java
+io/openaev/integration/**/*Test.java
 io/openaev/processor/**/*Test.java
-io/openaev/rest/dashboard/**/*Test.java
+io/openaev/ratelimit/**/*Test.java
+io/openaev/rest/lessons_template/**/*Test.java
 io/openaev/rest/payload/**/*Test.java
-io/openaev/rest/scenario/**/*Test.java
-io/openaev/service/attackpath/**/*Test.java
-io/openaev/service/expectation/**/*Test.java
-io/openaev/service/marking_definition/**/*Test.java
+io/openaev/rest/user/**/*Test.java
+io/openaev/sso/**/*Test.java

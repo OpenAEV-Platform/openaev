@@ -84,11 +84,11 @@
     "tests": 14
   },
   "io.openaev.api.asset.AssetOptionsApiTest": {
-    "seconds": 0.59,
+    "seconds": 0.56,
     "tests": 7
   },
   "io.openaev.api.attack_pattern.AttackPatternCoverageApiTest": {
-    "seconds": 65.15,
+    "seconds": 11.83,
     "tests": 3
   },
   "io.openaev.api.attackpath.AttackPathApiRbacTest": {
@@ -156,39 +156,39 @@
     "tests": 5
   },
   "io.openaev.api.autonomous.AutonomousDefaultAgentsNoSelectorCallersTest": {
-    "seconds": 73.27,
+    "seconds": 19.33,
     "tests": 8
   },
   "io.openaev.api.autonomous.AutonomousDefaultAgentsSingleTenantTest": {
-    "seconds": 1.68,
+    "seconds": 1.49,
     "tests": 2
   },
   "io.openaev.api.autonomous.AutonomousDefaultAgentsTenantRoutesTest": {
-    "seconds": 10.53,
+    "seconds": 9.77,
     "tests": 8
   },
   "io.openaev.api.autonomous.AutonomousObjectiveTemplateHttpIsolationTest": {
-    "seconds": 20.69,
+    "seconds": 17.48,
     "tests": 7
   },
   "io.openaev.api.autonomous.AutonomousObjectiveTemplateNonAdminIsolationTest": {
-    "seconds": 1.14,
+    "seconds": 1.13,
     "tests": 1
   },
   "io.openaev.api.autonomous.AutonomousPromoteFindingTenantTest": {
-    "seconds": 19.91,
+    "seconds": 17.92,
     "tests": 6
   },
   "io.openaev.api.autonomous.AutonomousRunApiRunTenantScopeTest": {
-    "seconds": 0.02,
+    "seconds": 0.01,
     "tests": 4
   },
   "io.openaev.api.autonomous.AutonomousRunChildRowHttpIsolationTest": {
-    "seconds": 3.58,
+    "seconds": 3.44,
     "tests": 3
   },
   "io.openaev.api.autonomous.AutonomousRunHttpIsolationTest": {
-    "seconds": 44.06,
+    "seconds": 43.94,
     "tests": 38
   },
   "io.openaev.api.autonomous.AutonomousRunNonAdminIsolationTest": {
@@ -200,7 +200,7 @@
     "tests": 3
   },
   "io.openaev.api.autonomous.AutonomousStepEventTenantTest": {
-    "seconds": 3.56,
+    "seconds": 3.55,
     "tests": 3
   },
   "io.openaev.api.autonomous.CapabilityResolveTenantScopeTest": {
@@ -208,7 +208,7 @@
     "tests": 7
   },
   "io.openaev.api.capabilities.CapabilityTreeBuilderTest": {
-    "seconds": 0.27,
+    "seconds": 0.22,
     "tests": 20
   },
   "io.openaev.api.catalog.CatalogHttpIsolationTest": {
@@ -216,11 +216,11 @@
     "tests": 3
   },
   "io.openaev.api.catalog.CatalogSettingsApiTest": {
-    "seconds": 13.96,
+    "seconds": 13.74,
     "tests": 1
   },
   "io.openaev.api.catalog.CatalogSyncApiTest": {
-    "seconds": 1.98,
+    "seconds": 1.9,
     "tests": 15
   },
   "io.openaev.api.catalog.payload.CatalogPayloadInstallApiTest": {
@@ -292,11 +292,11 @@
     "tests": 1
   },
   "io.openaev.api.custom_domain.CustomDomainHttpIsolationTest": {
-    "seconds": 72.12,
+    "seconds": 17.67,
     "tests": 9
   },
   "io.openaev.api.detection_remediation.DetectionRemediationApiTest": {
-    "seconds": 59.98,
+    "seconds": 13.88,
     "tests": 29
   },
   "io.openaev.api.expectations.ExpectationsDriftServiceTest": {
@@ -304,7 +304,7 @@
     "tests": 12
   },
   "io.openaev.api.groups.TenantGroupMarkingsApiTest": {
-    "seconds": 74.34,
+    "seconds": 61.92,
     "tests": 9
   },
   "io.openaev.api.marking_definition.MarkingDefinitionApiTest": {
@@ -312,11 +312,11 @@
     "tests": 39
   },
   "io.openaev.api.news_feed.NewsFeedItemApiTest": {
-    "seconds": 63.06,
+    "seconds": 21.25,
     "tests": 20
   },
   "io.openaev.api.news_feed.NewsFeedSettingsApiTest": {
-    "seconds": 7.1,
+    "seconds": 6.95,
     "tests": 15
   },
   "io.openaev.api.notification.NotificationHttpIsolationTest": {
@@ -348,15 +348,15 @@
     "tests": 11
   },
   "io.openaev.api.payload.PayloadApiExporterTest": {
-    "seconds": 74.86,
+    "seconds": 12.33,
     "tests": 1
   },
   "io.openaev.api.payload.PayloadExpectedSecurityPlatformsStorageTest": {
-    "seconds": 0.65,
+    "seconds": 0.3,
     "tests": 3
   },
   "io.openaev.api.payload.PayloadRevocationApiTest": {
-    "seconds": 18.9,
+    "seconds": 11.35,
     "tests": 4
   },
   "io.openaev.api.platform.sessions.PlatformSessionApiTest": {
@@ -388,7 +388,7 @@
     "tests": 3
   },
   "io.openaev.api.snapshot.SnapshotObservationServiceTest": {
-    "seconds": 1.87,
+    "seconds": 1.79,
     "tests": 25
   },
   "io.openaev.api.snapshot.SnapshotObservationTenantScopeTest": {
@@ -404,19 +404,19 @@
     "tests": 1
   },
   "io.openaev.api.stix_process.SimulationChallengeApiSecurityCoverageIsolationTest": {
-    "seconds": 10.84,
+    "seconds": 9.84,
     "tests": 1
   },
   "io.openaev.api.stix_process.StixApiNonAdminIsolationTest": {
-    "seconds": 10.54,
+    "seconds": 9.43,
     "tests": 1
   },
   "io.openaev.api.stix_process.StixApiTenantIsolationTest": {
-    "seconds": 0.84,
+    "seconds": 0.82,
     "tests": 1
   },
   "io.openaev.api.stix_process.StixApiTest": {
-    "seconds": 18.42,
+    "seconds": 16.14,
     "tests": 29
   },
   "io.openaev.api.threat_arsenal.PrimitiveTypeDescriptorMapperTest": {
@@ -436,7 +436,7 @@
     "tests": 1
   },
   "io.openaev.api.threat_arsenal.ThreatArsenalApiTenantIsolationTest": {
-    "seconds": 0.74,
+    "seconds": 0.63,
     "tests": 1
   },
   "io.openaev.api.threat_arsenal.ThreatArsenalApiTenantScopeTest": {
@@ -444,23 +444,23 @@
     "tests": 3
   },
   "io.openaev.api.threat_arsenal.ThreatArsenalApiTest": {
-    "seconds": 21.27,
+    "seconds": 18.68,
     "tests": 50
   },
   "io.openaev.api.threat_arsenal.ThreatArsenalBulkDeleteEligibilityTenantTest": {
-    "seconds": 3.74,
+    "seconds": 3.28,
     "tests": 13
   },
   "io.openaev.api.threat_arsenal.ThreatArsenalGrantLookupScopeTest": {
-    "seconds": 8.89,
+    "seconds": 8.01,
     "tests": 6
   },
   "io.openaev.api.threat_arsenal.ThreatArsenalImportFormatClosureTest": {
-    "seconds": 0.53,
+    "seconds": 0.43,
     "tests": 2
   },
   "io.openaev.api.threat_arsenal.ThreatArsenalImportFormatScopeTest": {
-    "seconds": 2.03,
+    "seconds": 1.8,
     "tests": 18
   },
   "io.openaev.api.threat_arsenal.ThreatArsenalPrimitiveTypesApiTest": {
@@ -468,7 +468,7 @@
     "tests": 2
   },
   "io.openaev.api.url_access_token.UrlAccessTokenApiTest": {
-    "seconds": 65.73,
+    "seconds": 7.94,
     "tests": 10
   },
   "io.openaev.api.users.dto.UserResponseViewProxyTest": {
@@ -532,7 +532,7 @@
     "tests": 6
   },
   "io.openaev.architecture.ChainingEndpointsAccessControlArchTest": {
-    "seconds": 0.78,
+    "seconds": 0.71,
     "tests": 1
   },
   "io.openaev.architecture.ChainingIsolatedTransactionTxCtxArchTest": {
@@ -564,7 +564,7 @@
     "tests": 1
   },
   "io.openaev.architecture.HookedDeleteArchTest": {
-    "seconds": 0.08,
+    "seconds": 0.07,
     "tests": 1
   },
   "io.openaev.architecture.InjectCreationTenantArchTest": {
@@ -672,7 +672,7 @@
     "tests": 31
   },
   "io.openaev.architecture.TenantNonOrmAccessArchTest": {
-    "seconds": 0.61,
+    "seconds": 0.6,
     "tests": 1
   },
   "io.openaev.architecture.TenantScopedEntrypointsTxCtxArchTest": {
@@ -708,7 +708,7 @@
     "tests": 1
   },
   "io.openaev.authorisation.HttpClientFactoryTest": {
-    "seconds": 0.7,
+    "seconds": 0.59,
     "tests": 1
   },
   "io.openaev.config.ActuatorSecurityTest": {
@@ -716,11 +716,11 @@
     "tests": 4
   },
   "io.openaev.config.AppConfigSortSchemaTest": {
-    "seconds": 0.01,
+    "seconds": 0.0,
     "tests": 3
   },
   "io.openaev.config.AppSecurityConfigOidcUserServiceTest": {
-    "seconds": 1.24,
+    "seconds": 1.21,
     "tests": 3
   },
   "io.openaev.config.AppSecurityConfigTest": {
@@ -772,7 +772,7 @@
     "tests": 5
   },
   "io.openaev.config.HttpMarkingScopeSupplierTest": {
-    "seconds": 0.47,
+    "seconds": 0.17,
     "tests": 4
   },
   "io.openaev.config.ImportMapperActivationConfigTest": {
@@ -816,7 +816,7 @@
     "tests": 15
   },
   "io.openaev.config.MarkingLinkedTablesTest": {
-    "seconds": 0.06,
+    "seconds": 0.05,
     "tests": 39
   },
   "io.openaev.config.MarkingRewriteHypothesisTest": {
@@ -872,7 +872,7 @@
     "tests": 7
   },
   "io.openaev.config.TenantFilteredBagCollectionsTest": {
-    "seconds": 0.22,
+    "seconds": 0.2,
     "tests": 1
   },
   "io.openaev.config.TenantFilteringConfigTest": {
@@ -912,7 +912,7 @@
     "tests": 10
   },
   "io.openaev.config.TenantSelectorMembershipTest": {
-    "seconds": 1.52,
+    "seconds": 1.44,
     "tests": 2
   },
   "io.openaev.config.TenantSqlLeakOracleTest": {
@@ -924,11 +924,11 @@
     "tests": 1
   },
   "io.openaev.config.TenantStatementInspectorTest": {
-    "seconds": 0.8,
+    "seconds": 0.7,
     "tests": 148
   },
   "io.openaev.config.TenantTablesModelTest": {
-    "seconds": 0.03,
+    "seconds": 0.02,
     "tests": 1
   },
   "io.openaev.config.TenantTablesTest": {
@@ -1024,7 +1024,7 @@
     "tests": 7
   },
   "io.openaev.config.cache.LicenseCacheManagerTest": {
-    "seconds": 0.77,
+    "seconds": 0.76,
     "tests": 17
   },
   "io.openaev.config.cache.MarkingClearanceCacheManagerCachingTest": {
@@ -1040,15 +1040,15 @@
     "tests": 11
   },
   "io.openaev.config.security.OpenSamlAuthenticationTest": {
-    "seconds": 6.51,
+    "seconds": 2.66,
     "tests": 6
   },
   "io.openaev.config.security.OpenSamlMetadataTest": {
-    "seconds": 0.03,
+    "seconds": 0.02,
     "tests": 4
   },
   "io.openaev.config.security.SecurityServiceTest": {
-    "seconds": 53.46,
+    "seconds": 12.47,
     "tests": 10
   },
   "io.openaev.config.tls.client.TlsTrustedCertificateTest": {
@@ -1056,31 +1056,31 @@
     "tests": 1
   },
   "io.openaev.config.tls.client.TlsUntrustedCertificateTest": {
-    "seconds": 0.31,
+    "seconds": 0.3,
     "tests": 1
   },
   "io.openaev.config.tls.rabbitmq.RabbitMQSslConfigurationTest": {
-    "seconds": 0.39,
+    "seconds": 0.31,
     "tests": 6
   },
   "io.openaev.config.tls.rabbitmq.RabbitmqManagementClientConfigTest": {
-    "seconds": 0.55,
+    "seconds": 0.41,
     "tests": 5
   },
   "io.openaev.config.tls.trustmanager.TlsConfigIdenticalCertsTest": {
-    "seconds": 9.63,
+    "seconds": 9.14,
     "tests": 1
   },
   "io.openaev.config.tls.trustmanager.TlsConfigInvalidCertsTest": {
-    "seconds": 9.17,
+    "seconds": 8.74,
     "tests": 1
   },
   "io.openaev.config.tls.trustmanager.TlsConfigNonExistingDirTest": {
-    "seconds": 8.83,
+    "seconds": 8.4,
     "tests": 1
   },
   "io.openaev.config.tls.trustmanager.TlsConfigOneExtraCertTest": {
-    "seconds": 9.2,
+    "seconds": 8.32,
     "tests": 1
   },
   "io.openaev.context.AmbientTenantBridgeTest": {
@@ -1112,7 +1112,7 @@
     "tests": 15
   },
   "io.openaev.context.TenantScopedTransactionMarkingScopeTest": {
-    "seconds": 8.99,
+    "seconds": 0.35,
     "tests": 9
   },
   "io.openaev.context.TxCtxTest": {
@@ -1120,11 +1120,11 @@
     "tests": 19
   },
   "io.openaev.database.audit.BaseEventTest": {
-    "seconds": 0.1,
+    "seconds": 0.06,
     "tests": 14
   },
   "io.openaev.database.audit.TenantBaseListenerActiveTableTest": {
-    "seconds": 9.99,
+    "seconds": 9.55,
     "tests": 1
   },
   "io.openaev.database.audit.TenantBaseListenerTest": {
@@ -1132,11 +1132,11 @@
     "tests": 4
   },
   "io.openaev.database.helper.ExecutionTraceRepositoryHelperTest": {
-    "seconds": 61.46,
+    "seconds": 0.52,
     "tests": 2
   },
   "io.openaev.database.helper.QueryPlanHelperTest": {
-    "seconds": 0.34,
+    "seconds": 0.17,
     "tests": 2
   },
   "io.openaev.database.model.AssetTest": {
@@ -1160,7 +1160,7 @@
     "tests": 1
   },
   "io.openaev.database.model.ContractOutputTypeTest": {
-    "seconds": 0.11,
+    "seconds": 0.1,
     "tests": 49
   },
   "io.openaev.database.model.EndpointHashCodeTest": {
@@ -1180,7 +1180,7 @@
     "tests": 7
   },
   "io.openaev.database.model.InjectTest": {
-    "seconds": 5.91,
+    "seconds": 5.12,
     "tests": 3
   },
   "io.openaev.database.model.InjectorContractTest": {
@@ -1188,15 +1188,15 @@
     "tests": 18
   },
   "io.openaev.database.model.JsonAttributeDirtyCheckTest": {
-    "seconds": 0.23,
+    "seconds": 0.21,
     "tests": 1
   },
   "io.openaev.database.model.JsonColumnTypesSerializableTest": {
-    "seconds": 0.31,
+    "seconds": 0.27,
     "tests": 1
   },
   "io.openaev.database.model.NewsFeedItemRepositoryTest": {
-    "seconds": 0.51,
+    "seconds": 0.44,
     "tests": 11
   },
   "io.openaev.database.model.SecretToStringSecurityTest": {
@@ -1204,11 +1204,11 @@
     "tests": 7
   },
   "io.openaev.database.model.SimulationTest": {
-    "seconds": 0.23,
+    "seconds": 0.19,
     "tests": 1
   },
   "io.openaev.database.model.StepRepositoryTest": {
-    "seconds": 0.5,
+    "seconds": 0.38,
     "tests": 8
   },
   "io.openaev.database.model.UserOrganizationTest": {
@@ -1216,7 +1216,7 @@
     "tests": 5
   },
   "io.openaev.database.model.WorkflowRepositoryTest": {
-    "seconds": 0.2,
+    "seconds": 0.18,
     "tests": 2
   },
   "io.openaev.database.repository.CollectorRepositoryTest": {
@@ -1248,11 +1248,11 @@
     "tests": 12
   },
   "io.openaev.datapack.MigrationProcessorTest": {
-    "seconds": 10.27,
+    "seconds": 0.29,
     "tests": 2
   },
   "io.openaev.datapack.PresetTenantDataTest": {
-    "seconds": 0.02,
+    "seconds": 0.01,
     "tests": 6
   },
   "io.openaev.datapack.V20260914DefaultTenantMarkingsTest": {
@@ -1264,7 +1264,7 @@
     "tests": 4
   },
   "io.openaev.datapack.V20261028GroupsReceivingEveryMarkingTest": {
-    "seconds": 0.35,
+    "seconds": 0.33,
     "tests": 2
   },
   "io.openaev.datapack.packs.StarterPackDomainNamesTest": {
@@ -1308,7 +1308,7 @@
     "tests": 4
   },
   "io.openaev.debug.DebugModeOffE2ETest": {
-    "seconds": 9.63,
+    "seconds": 0.25,
     "tests": 3
   },
   "io.openaev.debug.DebugModeReadOnlyFsE2ETest": {
@@ -1360,7 +1360,7 @@
     "tests": 8
   },
   "io.openaev.debug.RequestQueryStatsTest": {
-    "seconds": 0.01,
+    "seconds": 0.0,
     "tests": 5
   },
   "io.openaev.debug.SensitiveDataMaskerTest": {
@@ -1384,15 +1384,15 @@
     "tests": 1
   },
   "io.openaev.diagnostics.PoolExhaustionWatchdogTest": {
-    "seconds": 0.6,
+    "seconds": 0.57,
     "tests": 6
   },
   "io.openaev.driver.MinioDriverTest": {
-    "seconds": 0.55,
+    "seconds": 0.43,
     "tests": 4
   },
   "io.openaev.ee.EnterpriseEditionServiceExecutorTest": {
-    "seconds": 0.05,
+    "seconds": 0.02,
     "tests": 12
   },
   "io.openaev.ee.XtmLicenseVerifierTest": {
@@ -1400,7 +1400,7 @@
     "tests": 47
   },
   "io.openaev.engine.AttackObservationIndexingFlagOffTest": {
-    "seconds": 8.84,
+    "seconds": 0.27,
     "tests": 1
   },
   "io.openaev.engine.AttackObservationIndexingTest": {
@@ -1428,7 +1428,7 @@
     "tests": 3
   },
   "io.openaev.engine.EngineListenerTest": {
-    "seconds": 0.32,
+    "seconds": 0.31,
     "tests": 7
   },
   "io.openaev.engine.EngineServiceIntegrationTest": {
@@ -1444,7 +1444,7 @@
     "tests": 11
   },
   "io.openaev.engine.IndexingContractLinkTenantScopeTest": {
-    "seconds": 0.55,
+    "seconds": 0.53,
     "tests": 4
   },
   "io.openaev.engine.IndexingRegressionIntegrationTest": {
@@ -1476,27 +1476,27 @@
     "tests": 3
   },
   "io.openaev.execution.ExecutableInjectDTOMapperTest": {
-    "seconds": 0.56,
+    "seconds": 0.45,
     "tests": 4
   },
   "io.openaev.execution.ExecutionTraceScopedPathsTest": {
-    "seconds": 10.85,
+    "seconds": 8.96,
     "tests": 10
   },
   "io.openaev.execution.ExecutionTraceTenantAttributionTest": {
-    "seconds": 0.83,
+    "seconds": 0.52,
     "tests": 14
   },
   "io.openaev.execution.ExecutionTraceUnarmedParityTest": {
-    "seconds": 9.56,
+    "seconds": 7.74,
     "tests": 2
   },
   "io.openaev.executors.BatchExecutorContextServiceTest": {
-    "seconds": 1.01,
+    "seconds": 0.93,
     "tests": 5
   },
   "io.openaev.executors.ExecutorHelperTest": {
-    "seconds": 0.02,
+    "seconds": 0.01,
     "tests": 12
   },
   "io.openaev.executors.ExecutorServiceTest": {
@@ -1508,7 +1508,7 @@
     "tests": 12
   },
   "io.openaev.executors.caldera.service.CalderaBannerAcrossTenantsTest": {
-    "seconds": 18.36,
+    "seconds": 10.66,
     "tests": 9
   },
   "io.openaev.executors.caldera.service.CalderaExecutorServiceTest": {
@@ -1532,7 +1532,7 @@
     "tests": 9
   },
   "io.openaev.executors.mde.service.MdeExecutorServiceTest": {
-    "seconds": 0.33,
+    "seconds": 0.32,
     "tests": 12
   },
   "io.openaev.executors.model.AgentRegisterInputTest": {
@@ -1540,7 +1540,7 @@
     "tests": 4
   },
   "io.openaev.executors.openaev.service.OpenAEVExecutorContextServiceTest": {
-    "seconds": 0.02,
+    "seconds": 0.01,
     "tests": 8
   },
   "io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorContextServiceTest": {
@@ -1548,7 +1548,7 @@
     "tests": 8
   },
   "io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorServiceTest": {
-    "seconds": 0.01,
+    "seconds": 0.0,
     "tests": 1
   },
   "io.openaev.executors.paloaltocortex.service.PaloAltoCortexGarbageCollectorServiceTest": {
@@ -1564,7 +1564,7 @@
     "tests": 4
   },
   "io.openaev.executors.sentinelone.service.SentinelOneGarbageCollectorServiceTest": {
-    "seconds": 0.15,
+    "seconds": 0.14,
     "tests": 4
   },
   "io.openaev.executors.tanium.service.TaniumExecutorServiceTest": {
@@ -1576,11 +1576,11 @@
     "tests": 1
   },
   "io.openaev.expectation.ExpectationPropertiesConfigTest": {
-    "seconds": 0.02,
+    "seconds": 0.01,
     "tests": 3
   },
   "io.openaev.expectation.ExpectationTypeTest": {
-    "seconds": 0.02,
+    "seconds": 0.01,
     "tests": 3
   },
   "io.openaev.export.WorkflowExportContractTenantTest": {
@@ -1620,7 +1620,7 @@
     "tests": 2
   },
   "io.openaev.helper.InjectHelperTest": {
-    "seconds": 10.2,
+    "seconds": 0.19,
     "tests": 1
   },
   "io.openaev.helper.TemplateHelperTest": {
@@ -1628,35 +1628,35 @@
     "tests": 2
   },
   "io.openaev.importer.DocumentImportAttributionTest": {
-    "seconds": 13.82,
+    "seconds": 9.97,
     "tests": 1
   },
   "io.openaev.importer.DocumentImportFileNameSanitizationTest": {
-    "seconds": 1.37,
+    "seconds": 1.05,
     "tests": 2
   },
   "io.openaev.importer.DocumentJsonApiImportAttributionTest": {
-    "seconds": 15.79,
+    "seconds": 3.37,
     "tests": 4
   },
   "io.openaev.importer.ImportBundleAttributionTest": {
-    "seconds": 24.32,
+    "seconds": 20.92,
     "tests": 13
   },
   "io.openaev.importer.InjectImportSaveTenantTest": {
-    "seconds": 11.29,
+    "seconds": 8.8,
     "tests": 3
   },
   "io.openaev.importer.InjectImportStepReferenceScopeTest": {
-    "seconds": 16.18,
+    "seconds": 13.13,
     "tests": 5
   },
   "io.openaev.importer.InjectImportWriteScopeTest": {
-    "seconds": 25.02,
+    "seconds": 21.24,
     "tests": 22
   },
   "io.openaev.importer.V1_DataImporterContractTenantTest": {
-    "seconds": 15.88,
+    "seconds": 12.14,
     "tests": 6
   },
   "io.openaev.importer.V1_DataImporterInjectTenantTest": {
@@ -1668,7 +1668,7 @@
     "tests": 2
   },
   "io.openaev.importer.V1_DataImporterTest": {
-    "seconds": 8.47,
+    "seconds": 6.79,
     "tests": 90
   },
   "io.openaev.injector_contract.ContractSerializationTest": {
@@ -1696,11 +1696,11 @@
     "tests": 3
   },
   "io.openaev.injectors.email.service.ImapServiceTenantScopeTest": {
-    "seconds": 1.71,
+    "seconds": 1.69,
     "tests": 5
   },
   "io.openaev.injectors.email.service.PlatformMailSenderTest": {
-    "seconds": 0.19,
+    "seconds": 0.18,
     "tests": 5
   },
   "io.openaev.injectors.email.service.TransientRecipientDeliveryTest": {
@@ -1708,7 +1708,7 @@
     "tests": 1
   },
   "io.openaev.injectors.openaev.OpenAEVImplantExecutorAssetsCacheTest": {
-    "seconds": 0.7,
+    "seconds": 0.66,
     "tests": 3
   },
   "io.openaev.injectors.phishing.PhishingExecutorTest": {
@@ -1760,27 +1760,27 @@
     "tests": 6
   },
   "io.openaev.injects.InjectCrudTest": {
-    "seconds": 15.33,
+    "seconds": 11.47,
     "tests": 1
   },
   "io.openaev.injects.atomic_testing.ResultUtilsTest": {
-    "seconds": 1.18,
+    "seconds": 1.16,
     "tests": 1
   },
   "io.openaev.injects.email.EmailExecutorTest": {
-    "seconds": 1.08,
+    "seconds": 1.03,
     "tests": 2
   },
   "io.openaev.injects.manual.ManualExecutorTest": {
-    "seconds": 0.83,
+    "seconds": 0.81,
     "tests": 1
   },
   "io.openaev.injects.technical_inject.OpenAEVImplantExecutorTest": {
-    "seconds": 0.75,
+    "seconds": 0.67,
     "tests": 3
   },
   "io.openaev.integration.IntegrationConnectorTest": {
-    "seconds": 8.8,
+    "seconds": 7.59,
     "tests": 3
   },
   "io.openaev.integration.ManagerFactoryTest": {
@@ -1788,59 +1788,59 @@
     "tests": 5
   },
   "io.openaev.integration.ManagerTest": {
-    "seconds": 9.69,
+    "seconds": 8.24,
     "tests": 15
   },
   "io.openaev.integration.impl.executor.CalderaExecutorIntegrationTest": {
-    "seconds": 8.29,
+    "seconds": 7.22,
     "tests": 10
   },
   "io.openaev.integration.impl.executor.CrowdStrikeExecutorIntegrationTest": {
-    "seconds": 8.05,
+    "seconds": 7.33,
     "tests": 8
   },
   "io.openaev.integration.impl.executor.OpenAEVExecutorIntegrationTest": {
-    "seconds": 0.07,
+    "seconds": 0.05,
     "tests": 5
   },
   "io.openaev.integration.impl.executor.PaloAltoCortexExecutorIntegrationTest": {
-    "seconds": 7.74,
+    "seconds": 6.96,
     "tests": 6
   },
   "io.openaev.integration.impl.executor.SentinelOneExecutorIntegrationTest": {
-    "seconds": 7.85,
+    "seconds": 7.36,
     "tests": 9
   },
   "io.openaev.integration.impl.executor.TaniumExecutorIntegrationTest": {
-    "seconds": 7.53,
+    "seconds": 6.67,
     "tests": 8
   },
   "io.openaev.integration.impl.secret.LocalSecretsProviderIntegrationTest": {
-    "seconds": 7.14,
+    "seconds": 6.08,
     "tests": 3
   },
   "io.openaev.integration.migration.CalderaExecutorConfigurationMigrationTest": {
-    "seconds": 14.5,
+    "seconds": 13.4,
     "tests": 4
   },
   "io.openaev.integration.migration.ConfigurationMigrationTest": {
-    "seconds": 7.27,
+    "seconds": 6.26,
     "tests": 5
   },
   "io.openaev.integration.migration.CrowdStrikeExecutorConfigurationMigrationTest": {
-    "seconds": 13.86,
+    "seconds": 12.07,
     "tests": 3
   },
   "io.openaev.integration.migration.SentinelOneExecutorConfigurationMigrationTest": {
-    "seconds": 13.79,
+    "seconds": 12.52,
     "tests": 3
   },
   "io.openaev.integration.migration.TaniumExecutorConfigurationMigrationTest": {
-    "seconds": 14.33,
+    "seconds": 12.33,
     "tests": 3
   },
   "io.openaev.jsonapi.GenericJsonApiImporterDeniedTypesTest": {
-    "seconds": 0.01,
+    "seconds": 0.0,
     "tests": 1
   },
   "io.openaev.killChainPhase.KillChainPhaseApiTest": {
@@ -1856,7 +1856,7 @@
     "tests": 5
   },
   "io.openaev.migration.AddFindingValueDisplayMigrationTest": {
-    "seconds": 0.82,
+    "seconds": 0.8,
     "tests": 6
   },
   "io.openaev.migration.AddTenantIdToChainingTablesMigrationTest": {
@@ -1876,11 +1876,11 @@
     "tests": 7
   },
   "io.openaev.migration.FindingRefeedMigrationTest": {
-    "seconds": 0.45,
+    "seconds": 0.44,
     "tests": 7
   },
   "io.openaev.migration.MakeInjectorContractUniqueIndexesTenantAwareMigrationTest": {
-    "seconds": 0.32,
+    "seconds": 0.3,
     "tests": 7
   },
   "io.openaev.migration.MakePlatformRowsReadableWithoutScopeMigrationTest": {
@@ -1888,7 +1888,7 @@
     "tests": 8
   },
   "io.openaev.migration.MergePresetDomainDuplicatesConcurrencyTest": {
-    "seconds": 0.3,
+    "seconds": 0.29,
     "tests": 2
   },
   "io.openaev.migration.MergePresetDomainDuplicatesMappingTest": {
@@ -1900,7 +1900,7 @@
     "tests": 4
   },
   "io.openaev.migration.MigrateWorkflowStateToNormalizedEntriesMigrationTest": {
-    "seconds": 0.85,
+    "seconds": 0.81,
     "tests": 9
   },
   "io.openaev.migration.MigrateWorkflowStateTupleHashTest": {
@@ -1912,11 +1912,11 @@
     "tests": 3
   },
   "io.openaev.migration.PayloadIdentitiesMigrationTest": {
-    "seconds": 0.22,
+    "seconds": 0.19,
     "tests": 1
   },
   "io.openaev.migration.RenameDefaultVulnerabilityExpectationsMigrationTest": {
-    "seconds": 0.21,
+    "seconds": 0.2,
     "tests": 5
   },
   "io.openaev.migration.ResetXtmHubConnectivityEmailMarkersMigrationTest": {
@@ -1924,7 +1924,7 @@
     "tests": 1
   },
   "io.openaev.migration.RetypeDocumentArgumentContractFieldsMigrationTest": {
-    "seconds": 0.21,
+    "seconds": 0.19,
     "tests": 3
   },
   "io.openaev.migration.SanitizeDocumentNamesMigrationTest": {
@@ -1932,27 +1932,27 @@
     "tests": 13
   },
   "io.openaev.migration.ThreatArsenalGrantsOnPayloadIdentitiesMigrationTest": {
-    "seconds": 0.19,
+    "seconds": 0.17,
     "tests": 1
   },
   "io.openaev.migration.UsersOrganizationsLegacySyncTest": {
-    "seconds": 5.63,
+    "seconds": 5.5,
     "tests": 7
   },
   "io.openaev.notification.catalog.CatalogNotificationListenerTest": {
-    "seconds": 0.17,
+    "seconds": 0.14,
     "tests": 4
   },
   "io.openaev.notification.engine.NotificationDigestServiceTest": {
-    "seconds": 0.51,
+    "seconds": 0.38,
     "tests": 4
   },
   "io.openaev.notification.engine.NotificationEngineServiceTest": {
-    "seconds": 0.52,
+    "seconds": 0.39,
     "tests": 5
   },
   "io.openaev.notification.engine.NotificationEventRetentionIsolationTest": {
-    "seconds": 10.37,
+    "seconds": 10.32,
     "tests": 1
   },
   "io.openaev.notification.engine.NotificationEventScopeIsolationTest": {
@@ -1960,7 +1960,7 @@
     "tests": 2
   },
   "io.openaev.notification.engine.NotificationEventTriggerScopeTest": {
-    "seconds": 0.31,
+    "seconds": 0.29,
     "tests": 3
   },
   "io.openaev.notification.engine.NotificationFindingValueMatchingTest": {
@@ -1968,7 +1968,7 @@
     "tests": 2
   },
   "io.openaev.notification.engine.NotificationLiveTriggerTenantScopeTest": {
-    "seconds": 10.13,
+    "seconds": 9.06,
     "tests": 2
   },
   "io.openaev.notification.engine.NotificationTriggerTimeUtilsTest": {
@@ -1976,7 +1976,7 @@
     "tests": 16
   },
   "io.openaev.notification.engine.NotifierBackgroundIsolationTest": {
-    "seconds": 10.05,
+    "seconds": 9.18,
     "tests": 1
   },
   "io.openaev.notification.engine.WebhookTargetValidatorTest": {
@@ -1988,7 +1988,7 @@
     "tests": 7
   },
   "io.openaev.opencti.OpenCTIApiTest": {
-    "seconds": 1.64,
+    "seconds": 1.35,
     "tests": 7
   },
   "io.openaev.opencti.client.OpenCTIClientTest": {
@@ -2012,7 +2012,7 @@
     "tests": 2
   },
   "io.openaev.opencti.connectors.impl.SecurityCoverageConnectorTest": {
-    "seconds": 8.64,
+    "seconds": 7.97,
     "tests": 5
   },
   "io.openaev.opencti.connectors.service.OpenCTIConnectorPrivilegeScopeTest": {
@@ -2024,11 +2024,11 @@
     "tests": 1
   },
   "io.openaev.opencti.connectors.service.OpenCTIConnectorServiceTest": {
-    "seconds": 8.89,
+    "seconds": 8.87,
     "tests": 7
   },
   "io.openaev.opencti.service.OpenCTIServiceTest": {
-    "seconds": 9.35,
+    "seconds": 9.14,
     "tests": 23
   },
   "io.openaev.output_processor.AbstractOutputProcessorTest": {
@@ -2036,7 +2036,7 @@
     "tests": 5
   },
   "io.openaev.output_processor.AccountWithPasswordNotRequiredOutputProcessorTest": {
-    "seconds": 0.18,
+    "seconds": 0.16,
     "tests": 10
   },
   "io.openaev.output_processor.ActionOutputOutputProcessorTest": {
@@ -2052,7 +2052,7 @@
     "tests": 9
   },
   "io.openaev.output_processor.AssetOutputProcessorTest": {
-    "seconds": 1.03,
+    "seconds": 0.97,
     "tests": 15
   },
   "io.openaev.output_processor.CVEOutputProcessorTest": {
@@ -2124,7 +2124,7 @@
     "tests": 8
   },
   "io.openaev.output_processor.SignatureOutputProcessorTest": {
-    "seconds": 1.2,
+    "seconds": 0.96,
     "tests": 21
   },
   "io.openaev.output_processor.TextOutputProcessorTest": {
@@ -2144,11 +2144,11 @@
     "tests": 15
   },
   "io.openaev.processor.core.V20260725_Fix_starter_pack_payload_contractsTest": {
-    "seconds": 13.82,
+    "seconds": 9.52,
     "tests": 3
   },
   "io.openaev.processor.core.V20260811_Add_phishing_reporting_capabilities_to_default_rolesTest": {
-    "seconds": 0.36,
+    "seconds": 0.24,
     "tests": 4
   },
   "io.openaev.processor.core.V20261030_Move_catalog_connectors_to_service_accountTest": {
@@ -2156,19 +2156,19 @@
     "tests": 3
   },
   "io.openaev.processor.datapack.V20260708DynamicInjectorsBaseUrlIntegrationTest": {
-    "seconds": 0.82,
+    "seconds": 0.52,
     "tests": 12
   },
   "io.openaev.processor.datapack.V20261001_Default_tenant_roles_and_groupsTest": {
-    "seconds": 0.5,
+    "seconds": 0.45,
     "tests": 9
   },
   "io.openaev.ratelimit.RateLimitIntegrationTest": {
-    "seconds": 10.25,
+    "seconds": 9.25,
     "tests": 6
   },
   "io.openaev.rest.AiTargetApiTest": {
-    "seconds": 0.91,
+    "seconds": 0.73,
     "tests": 7
   },
   "io.openaev.rest.AtomicTestingApiTest": {
@@ -2176,27 +2176,27 @@
     "tests": 24
   },
   "io.openaev.rest.CapabilityDecisionTenantTest": {
-    "seconds": 13.36,
+    "seconds": 10.71,
     "tests": 3
   },
   "io.openaev.rest.CatalogConnectorApiTenantIsolationTest": {
-    "seconds": 14.36,
+    "seconds": 13.21,
     "tests": 4
   },
   "io.openaev.rest.CatalogConnectorApiTest": {
-    "seconds": 0.96,
+    "seconds": 0.89,
     "tests": 6
   },
   "io.openaev.rest.ChallengeApiSecurityCoverageIsolationTest": {
-    "seconds": 12.79,
+    "seconds": 11.71,
     "tests": 2
   },
   "io.openaev.rest.ChallengeApiTest": {
-    "seconds": 14.06,
+    "seconds": 11.73,
     "tests": 5
   },
   "io.openaev.rest.ChannelApiTest": {
-    "seconds": 10.89,
+    "seconds": 8.64,
     "tests": 4
   },
   "io.openaev.rest.CollectorApiTest": {
@@ -2204,111 +2204,111 @@
     "tests": 21
   },
   "io.openaev.rest.ConnectorInstanceApiTest": {
-    "seconds": 13.71,
+    "seconds": 11.1,
     "tests": 31
   },
   "io.openaev.rest.ConnectorInstanceHttpIsolationTest": {
-    "seconds": 18.03,
+    "seconds": 16.07,
     "tests": 9
   },
   "io.openaev.rest.CrawlerProtectionApiTest": {
-    "seconds": 1.2,
+    "seconds": 1.09,
     "tests": 5
   },
   "io.openaev.rest.CveApiTest": {
-    "seconds": 0.36,
+    "seconds": 0.31,
     "tests": 0
   },
   "io.openaev.rest.DocumentApiTest": {
-    "seconds": 0.99,
+    "seconds": 0.94,
     "tests": 21
   },
   "io.openaev.rest.DomainApiTest": {
-    "seconds": 11.66,
+    "seconds": 9.07,
     "tests": 2
   },
   "io.openaev.rest.EndpointApiTest": {
-    "seconds": 33.84,
+    "seconds": 29.99,
     "tests": 47
   },
   "io.openaev.rest.ExecutorApiTest": {
-    "seconds": 2.07,
+    "seconds": 1.75,
     "tests": 65
   },
   "io.openaev.rest.ExecutorApiUnauthenticatedAccessTest": {
-    "seconds": 0.21,
+    "seconds": 0.16,
     "tests": 3
   },
   "io.openaev.rest.ExerciseLessonsApiTest": {
-    "seconds": 10.8,
+    "seconds": 9.21,
     "tests": 1
   },
   "io.openaev.rest.ExpectationApiTest": {
-    "seconds": 4.6,
+    "seconds": 4.33,
     "tests": 21
   },
   "io.openaev.rest.HealthCheckApiTest": {
-    "seconds": 0.42,
+    "seconds": 0.35,
     "tests": 6
   },
   "io.openaev.rest.ImportExportMapperApiTest": {
-    "seconds": 0.67,
+    "seconds": 0.56,
     "tests": 4
   },
   "io.openaev.rest.InHandlerPermissionTenantTest": {
-    "seconds": 25.95,
+    "seconds": 23.56,
     "tests": 28
   },
   "io.openaev.rest.InjectExpectationTraceApiTest": {
-    "seconds": 0.54,
+    "seconds": 0.4,
     "tests": 8
   },
   "io.openaev.rest.InjectImportStoreApiTest": {
-    "seconds": 1.84,
+    "seconds": 1.55,
     "tests": 10
   },
   "io.openaev.rest.InjectorApiTest": {
-    "seconds": 4.46,
+    "seconds": 4.29,
     "tests": 32
   },
   "io.openaev.rest.LogApiTest": {
-    "seconds": 0.2,
+    "seconds": 0.18,
     "tests": 2
   },
   "io.openaev.rest.MapperApiTest": {
-    "seconds": 1.28,
+    "seconds": 1.18,
     "tests": 8
   },
   "io.openaev.rest.NonPrefixedCreateCapabilityTenantTest": {
-    "seconds": 27.73,
+    "seconds": 17.13,
     "tests": 33
   },
   "io.openaev.rest.NonPrefixedCreateTenantPostureTest": {
-    "seconds": 34.31,
+    "seconds": 33.57,
     "tests": 53
   },
   "io.openaev.rest.PayloadApiSearchTest": {
-    "seconds": 0.69,
+    "seconds": 0.62,
     "tests": 9
   },
   "io.openaev.rest.PlatformSettingsApiTest": {
-    "seconds": 0.26,
+    "seconds": 0.23,
     "tests": 7
   },
   "io.openaev.rest.PlatformSettingsSafeModeApiTest": {
-    "seconds": 10.11,
+    "seconds": 8.86,
     "tests": 1
   },
   "io.openaev.rest.PlayerApiTest": {
-    "seconds": 0.93,
+    "seconds": 0.87,
     "tests": 32
   },
   "io.openaev.rest.SecurityPlatformApiTest": {
-    "seconds": 0.58,
+    "seconds": 0.47,
     "tests": 13
   },
   "io.openaev.rest.SimulationScenarioListDecisionTenantTest": {
-    "seconds": 16.96,
+    "seconds": 15.33,
     "tests": 12
   },
   "io.openaev.rest.TagApiCapabilityTest": {
@@ -2316,27 +2316,27 @@
     "tests": 9
   },
   "io.openaev.rest.TagApiTest": {
-    "seconds": 0.16,
+    "seconds": 0.13,
     "tests": 1
   },
   "io.openaev.rest.TeamApiTest": {
-    "seconds": 18.52,
+    "seconds": 17.92,
     "tests": 32
   },
   "io.openaev.rest.UserApiTest": {
-    "seconds": 11.21,
+    "seconds": 9.84,
     "tests": 11
   },
   "io.openaev.rest.VariableApiTest": {
-    "seconds": 3.78,
+    "seconds": 3.62,
     "tests": 9
   },
   "io.openaev.rest.VulnerabilityApiTest": {
-    "seconds": 0.36,
+    "seconds": 0.31,
     "tests": 0
   },
   "io.openaev.rest.XtmHubApiTest": {
-    "seconds": 10.39,
+    "seconds": 9.31,
     "tests": 6
   },
   "io.openaev.rest.asset.AgentAssetAssociationTenantScopeTest": {
@@ -2348,7 +2348,7 @@
     "tests": 1
   },
   "io.openaev.rest.asset.AssetHttpIsolationTest": {
-    "seconds": 11.64,
+    "seconds": 11.07,
     "tests": 10
   },
   "io.openaev.rest.asset.AssetNonAdminIsolationTest": {
@@ -2372,15 +2372,15 @@
     "tests": 5
   },
   "io.openaev.rest.asset.ai_targets.AiTargetTenantRouteTest": {
-    "seconds": 1.93,
+    "seconds": 1.84,
     "tests": 3
   },
   "io.openaev.rest.asset.endpoint.AgentHttpIsolationTest": {
-    "seconds": 16.24,
+    "seconds": 6.18,
     "tests": 5
   },
   "io.openaev.rest.asset.endpoint.EndpointMacLookupTenantScopeTest": {
-    "seconds": 0.39,
+    "seconds": 0.38,
     "tests": 3
   },
   "io.openaev.rest.asset.endpoint.EndpointQueriesRequestScopeTest": {
@@ -2436,7 +2436,7 @@
     "tests": 6
   },
   "io.openaev.rest.atomic_testing.AtomicTestingApiNonAdminTenantScopeTest": {
-    "seconds": 10.5,
+    "seconds": 7.82,
     "tests": 1
   },
   "io.openaev.rest.atomic_testing.AtomicTestingApiTenantIsolationTest": {
@@ -2476,7 +2476,7 @@
     "tests": 3
   },
   "io.openaev.rest.attack_pattern.service.AttackPatternServiceTest": {
-    "seconds": 1.99,
+    "seconds": 1.84,
     "tests": 13
   },
   "io.openaev.rest.attack_pattern.service.AttackPatternUpsertServiceTest": {
@@ -2484,7 +2484,7 @@
     "tests": 3
   },
   "io.openaev.rest.challenge.ChallengeDocumentLinkTenantTest": {
-    "seconds": 11.48,
+    "seconds": 1.48,
     "tests": 2
   },
   "io.openaev.rest.challenge.ChallengeDocumentsBulkLoadTest": {
@@ -2492,7 +2492,7 @@
     "tests": 4
   },
   "io.openaev.rest.challenge.ChallengeDocumentsSerializationTenantScopeTest": {
-    "seconds": 11.05,
+    "seconds": 10.23,
     "tests": 3
   },
   "io.openaev.rest.challenge.ChallengeFindBulkDocumentsTest": {
@@ -2512,7 +2512,7 @@
     "tests": 7
   },
   "io.openaev.rest.challenge.SimulationChallengeApiPlayerLegacyRouteTest": {
-    "seconds": 0.33,
+    "seconds": 0.29,
     "tests": 1
   },
   "io.openaev.rest.channel.ChannelArticleLinksTenantScopeTest": {
@@ -2528,11 +2528,11 @@
     "tests": 1
   },
   "io.openaev.rest.channel.ChannelReaderDocumentsSerializationTenantScopeTest": {
-    "seconds": 12.81,
+    "seconds": 12.56,
     "tests": 6
   },
   "io.openaev.rest.channel.ChannelScopeAuthorizationTest": {
-    "seconds": 2.29,
+    "seconds": 2.22,
     "tests": 4
   },
   "io.openaev.rest.collector.CollectorHttpIsolationTest": {
@@ -2548,7 +2548,7 @@
     "tests": 2
   },
   "io.openaev.rest.collector.service.CollectorServiceDeleteTest": {
-    "seconds": 1.76,
+    "seconds": 1.24,
     "tests": 5
   },
   "io.openaev.rest.collector.service.CollectorServiceMultiTenantScopeTest": {
@@ -2572,31 +2572,31 @@
     "tests": 2
   },
   "io.openaev.rest.custom_dashboard.CustomDashboardApiTest": {
-    "seconds": 13.73,
+    "seconds": 0.65,
     "tests": 8
   },
   "io.openaev.rest.custom_dashboard.CustomDashboardHttpIsolationTest": {
-    "seconds": 20.2,
+    "seconds": 16.84,
     "tests": 8
   },
   "io.openaev.rest.custom_dashboard.CustomDashboardNonAdminIsolationTest": {
-    "seconds": 1.16,
+    "seconds": 1.01,
     "tests": 1
   },
   "io.openaev.rest.custom_dashboard.CustomDashboardServiceResourceScopeTest": {
-    "seconds": 0.93,
+    "seconds": 0.65,
     "tests": 3
   },
   "io.openaev.rest.custom_dashboard.CustomDashboardWidgetApiTest": {
-    "seconds": 0.44,
+    "seconds": 0.38,
     "tests": 6
   },
   "io.openaev.rest.custom_dashboard.CustomDashboardWidgetHttpIsolationTest": {
-    "seconds": 2.84,
+    "seconds": 2.5,
     "tests": 3
   },
   "io.openaev.rest.custom_dashboard.CustomDashboardWidgetsRoundTripTenantScopeTest": {
-    "seconds": 13.69,
+    "seconds": 2.47,
     "tests": 2
   },
   "io.openaev.rest.custom_dashboard.WidgetServiceTest": {
@@ -2608,19 +2608,19 @@
     "tests": 3
   },
   "io.openaev.rest.dashboard.DashboardApiTenantScopeTest": {
-    "seconds": 14.29,
+    "seconds": 11.35,
     "tests": 1
   },
   "io.openaev.rest.dashboard.DashboardApiTest": {
-    "seconds": 50.67,
+    "seconds": 49.46,
     "tests": 23
   },
   "io.openaev.rest.dashboard.DashboardAttackPathIsolationTest": {
-    "seconds": 14.95,
+    "seconds": 14.31,
     "tests": 2
   },
   "io.openaev.rest.dashboard.DashboardSearchApiTest": {
-    "seconds": 37.14,
+    "seconds": 36.06,
     "tests": 17
   },
   "io.openaev.rest.document.DocumentAgentFileHttpIsolationTest": {
@@ -2628,19 +2628,19 @@
     "tests": 1
   },
   "io.openaev.rest.document.DocumentByIdEmptyScopeTest": {
-    "seconds": 0.22,
+    "seconds": 0.21,
     "tests": 2
   },
   "io.openaev.rest.document.DocumentByIdScopeTest": {
-    "seconds": 11.5,
+    "seconds": 11.24,
     "tests": 18
   },
   "io.openaev.rest.document.DocumentByParentResourceScopeTest": {
-    "seconds": 6.39,
+    "seconds": 6.38,
     "tests": 8
   },
   "io.openaev.rest.document.DocumentCreateAttributionTest": {
-    "seconds": 1.41,
+    "seconds": 1.35,
     "tests": 3
   },
   "io.openaev.rest.document.DocumentDeleteFileScopeTest": {
@@ -2648,11 +2648,11 @@
     "tests": 1
   },
   "io.openaev.rest.document.DocumentDeleteInUseScopeTest": {
-    "seconds": 2.45,
+    "seconds": 2.32,
     "tests": 5
   },
   "io.openaev.rest.document.DocumentHttpIsolationTest": {
-    "seconds": 13.34,
+    "seconds": 12.57,
     "tests": 13
   },
   "io.openaev.rest.document.DocumentNativeQueryTenantScopeTest": {
@@ -2660,15 +2660,15 @@
     "tests": 12
   },
   "io.openaev.rest.document.DocumentNoSelectorWriteScopeTest": {
-    "seconds": 1.83,
+    "seconds": 1.71,
     "tests": 3
   },
   "io.openaev.rest.document.DocumentReportOutputGuardScopeTest": {
-    "seconds": 12.16,
+    "seconds": 9.38,
     "tests": 5
   },
   "io.openaev.rest.document.DocumentSerializationTenantScopeTest": {
-    "seconds": 16.8,
+    "seconds": 13.31,
     "tests": 14
   },
   "io.openaev.rest.document.DocumentServiceTest": {
@@ -2676,19 +2676,19 @@
     "tests": 11
   },
   "io.openaev.rest.document.DocumentTagLinkTenantTest": {
-    "seconds": 3.73,
+    "seconds": 3.62,
     "tests": 6
   },
   "io.openaev.rest.document.DocumentWriteAssociationScopeTest": {
-    "seconds": 4.88,
+    "seconds": 4.56,
     "tests": 9
   },
   "io.openaev.rest.document.PlayerDocumentsAnonymousRouteTest": {
-    "seconds": 9.53,
+    "seconds": 7.43,
     "tests": 6
   },
   "io.openaev.rest.document.PlayerPagesAnonymousRouteBeforeDocumentsTest": {
-    "seconds": 9.1,
+    "seconds": 7.33,
     "tests": 2
   },
   "io.openaev.rest.domain.DomainHttpIsolationTest": {
@@ -2704,7 +2704,7 @@
     "tests": 3
   },
   "io.openaev.rest.domain.DomainServiceUpsertTest": {
-    "seconds": 0.25,
+    "seconds": 0.22,
     "tests": 14
   },
   "io.openaev.rest.domain.enums.PresetDomainTest": {
@@ -2716,55 +2716,55 @@
     "tests": 10
   },
   "io.openaev.rest.executor.ExecutorHttpIsolationTest": {
-    "seconds": 24.8,
+    "seconds": 11.32,
     "tests": 11
   },
   "io.openaev.rest.executor.ExecutorNonAdminIsolationTest": {
-    "seconds": 1.4,
+    "seconds": 1.18,
     "tests": 1
   },
   "io.openaev.rest.exercise.ByIdRequestScopeArmedTest": {
-    "seconds": 16.98,
+    "seconds": 12.12,
     "tests": 9
   },
   "io.openaev.rest.exercise.ByIdRequestScopePrimaryKeyTest": {
-    "seconds": 20.44,
+    "seconds": 14.08,
     "tests": 13
   },
   "io.openaev.rest.exercise.ByIdRequestScopeTest": {
-    "seconds": 20.27,
+    "seconds": 16.15,
     "tests": 31
   },
   "io.openaev.rest.exercise.ChainedDetailsNameTheirWorkflowTest": {
-    "seconds": 9.77,
+    "seconds": 0.35,
     "tests": 2
   },
   "io.openaev.rest.exercise.ChainedSimulationLifecycleReachesItsWorkflowTest": {
-    "seconds": 11.98,
+    "seconds": 8.35,
     "tests": 11
   },
   "io.openaev.rest.exercise.ChainedSimulationWorkflowFollowsItsTenantTest": {
-    "seconds": 11.78,
+    "seconds": 8.95,
     "tests": 7
   },
   "io.openaev.rest.exercise.DirectInjectExecutionTenantTest": {
-    "seconds": 10.86,
+    "seconds": 8.04,
     "tests": 1
   },
   "io.openaev.rest.exercise.ExerciseApiExportTest": {
-    "seconds": 5.55,
+    "seconds": 4.52,
     "tests": 20
   },
   "io.openaev.rest.exercise.ExerciseApiSearchTest": {
-    "seconds": 0.87,
+    "seconds": 0.57,
     "tests": 10
   },
   "io.openaev.rest.exercise.ExerciseApiStatusTest": {
-    "seconds": 12.34,
+    "seconds": 9.25,
     "tests": 12
   },
   "io.openaev.rest.exercise.ExerciseApiTest": {
-    "seconds": 17.55,
+    "seconds": 13.79,
     "tests": 29
   },
   "io.openaev.rest.exercise.ExerciseDashboardTenantScopeTest": {
@@ -2772,51 +2772,51 @@
     "tests": 1
   },
   "io.openaev.rest.exercise.ExerciseDocumentsSerializationTenantScopeTest": {
-    "seconds": 12.75,
+    "seconds": 2.88,
     "tests": 6
   },
   "io.openaev.rest.exercise.ExerciseImportApiTenantIsolationTest": {
-    "seconds": 12.96,
+    "seconds": 9.78,
     "tests": 4
   },
   "io.openaev.rest.exercise.ExerciseInjectTestApiTest": {
-    "seconds": 1.77,
+    "seconds": 1.61,
     "tests": 10
   },
   "io.openaev.rest.exercise.ExerciseLessonsApiTenantIsolationTest": {
-    "seconds": 11.43,
+    "seconds": 8.85,
     "tests": 2
   },
   "io.openaev.rest.exercise.ExerciseLogTagsSerializationTenantScopeTest": {
-    "seconds": 11.25,
+    "seconds": 8.17,
     "tests": 3
   },
   "io.openaev.rest.exercise.ExerciseTeamApiTest": {
-    "seconds": 0.35,
+    "seconds": 0.28,
     "tests": 2
   },
   "io.openaev.rest.exercise.exports.ExportOptionsTest": {
-    "seconds": 0.22,
+    "seconds": 0.15,
     "tests": 2
   },
   "io.openaev.rest.exercise.imports.ExerciseApiImportWithExistingItemsTest": {
-    "seconds": 4.56,
+    "seconds": 3.76,
     "tests": 17
   },
   "io.openaev.rest.exercise.imports.ExerciseApiImportWithoutExistingItemsTest": {
-    "seconds": 5.24,
+    "seconds": 4.34,
     "tests": 25
   },
   "io.openaev.rest.exercise.service.ExerciseServiceDuplicateUnitTest": {
-    "seconds": 0.56,
+    "seconds": 0.37,
     "tests": 3
   },
   "io.openaev.rest.exercise.service.ExerciseServiceTest": {
-    "seconds": 5.3,
+    "seconds": 4.78,
     "tests": 8
   },
   "io.openaev.rest.exercise.service.ExerciseServiceUnitTest": {
-    "seconds": 1.12,
+    "seconds": 1.01,
     "tests": 21
   },
   "io.openaev.rest.expectation.AiDefenseFeedTenantScopeTest": {
@@ -2840,7 +2840,7 @@
     "tests": 11
   },
   "io.openaev.rest.finding.FindingOccurrenceWritePathTest": {
-    "seconds": 0.58,
+    "seconds": 0.54,
     "tests": 4
   },
   "io.openaev.rest.finding.FindingOrphanRemovalTest": {
@@ -2852,7 +2852,7 @@
     "tests": 5
   },
   "io.openaev.rest.finding.FindingSearchablePropertiesTest": {
-    "seconds": 0.02,
+    "seconds": 0.01,
     "tests": 3
   },
   "io.openaev.rest.finding.FindingServiceTest": {
@@ -2860,7 +2860,7 @@
     "tests": 9
   },
   "io.openaev.rest.finding.FindingWriteAttributionTest": {
-    "seconds": 1.8,
+    "seconds": 1.67,
     "tests": 2
   },
   "io.openaev.rest.finding.FindingWriterTest": {
@@ -2884,7 +2884,7 @@
     "tests": 57
   },
   "io.openaev.rest.helper.queue.BatchQueueServiceBatchProcessingTest": {
-    "seconds": 1.93,
+    "seconds": 1.92,
     "tests": 16
   },
   "io.openaev.rest.helper.queue.BatchQueueServiceConcurrencyTest": {
@@ -2984,7 +2984,7 @@
     "tests": 52
   },
   "io.openaev.rest.inject.InjectsPlayedSearchApiTest": {
-    "seconds": 0.93,
+    "seconds": 0.76,
     "tests": 9
   },
   "io.openaev.rest.inject.ResponseCollectionsTenantScopeTest": {
@@ -3004,11 +3004,11 @@
     "tests": 14
   },
   "io.openaev.rest.inject.service.AgentExecutionProcessingHandlerTest": {
-    "seconds": 1.16,
+    "seconds": 1.13,
     "tests": 7
   },
   "io.openaev.rest.inject.service.BatchingInjectStatusServiceTest": {
-    "seconds": 1.0,
+    "seconds": 0.8,
     "tests": 19
   },
   "io.openaev.rest.inject.service.ExecutableInjectServiceTest": {
@@ -3016,7 +3016,7 @@
     "tests": 5
   },
   "io.openaev.rest.inject.service.ExecutionProcessingContextTest": {
-    "seconds": 0.54,
+    "seconds": 0.36,
     "tests": 2
   },
   "io.openaev.rest.inject.service.InjectAssetsMarkingUpdateTest": {
@@ -3024,7 +3024,7 @@
     "tests": 4
   },
   "io.openaev.rest.inject.service.InjectCallbackContractTest": {
-    "seconds": 0.52,
+    "seconds": 0.38,
     "tests": 8
   },
   "io.openaev.rest.inject.service.InjectExecutionServiceTest": {
@@ -3032,7 +3032,7 @@
     "tests": 4
   },
   "io.openaev.rest.inject.service.InjectExecutionTraceTargetTypeTest": {
-    "seconds": 0.26,
+    "seconds": 0.23,
     "tests": 10
   },
   "io.openaev.rest.inject.service.InjectLaunchClearanceOutsideSessionTest": {
@@ -3044,7 +3044,7 @@
     "tests": 75
   },
   "io.openaev.rest.inject.service.InjectStatusServiceTest": {
-    "seconds": 0.31,
+    "seconds": 0.06,
     "tests": 26
   },
   "io.openaev.rest.inject.service.InjectorExecutionProcessingHandlerTest": {
@@ -3060,7 +3060,7 @@
     "tests": 12
   },
   "io.openaev.rest.inject_expectation.ExpectationsExpirationManagerServiceTest": {
-    "seconds": 18.55,
+    "seconds": 17.21,
     "tests": 17
   },
   "io.openaev.rest.inject_expectation.InjectExpectationGlobalScoreTest": {
@@ -3080,7 +3080,7 @@
     "tests": 8
   },
   "io.openaev.rest.injector_contract.InjectorContractApiCopyRankingTenantScopeTest": {
-    "seconds": 17.85,
+    "seconds": 16.85,
     "tests": 8
   },
   "io.openaev.rest.injector_contract.InjectorContractApiRawListTenantScopeTest": {
@@ -3092,7 +3092,7 @@
     "tests": 5
   },
   "io.openaev.rest.injector_contract.InjectorContractApiSingularEndpointsCallerShapesTest": {
-    "seconds": 18.96,
+    "seconds": 18.38,
     "tests": 25
   },
   "io.openaev.rest.injector_contract.InjectorContractApiSingularEndpointsTenantScopeTest": {
@@ -3104,7 +3104,7 @@
     "tests": 55
   },
   "io.openaev.rest.injector_contract.InjectorContractAuthorshipTest": {
-    "seconds": 2.15,
+    "seconds": 1.79,
     "tests": 7
   },
   "io.openaev.rest.injector_contract.InjectorContractCollectorTypeGroupByTest": {
@@ -3128,7 +3128,7 @@
     "tests": 10
   },
   "io.openaev.rest.injector_contract.InjectorContractLinkTableIsolationTest": {
-    "seconds": 14.85,
+    "seconds": 14.82,
     "tests": 15
   },
   "io.openaev.rest.injector_contract.InjectorContractPayloadGroupByTest": {
@@ -3148,7 +3148,7 @@
     "tests": 51
   },
   "io.openaev.rest.injector_contract.InjectorContractTenantProvisioningDomainTest": {
-    "seconds": 1.14,
+    "seconds": 1.12,
     "tests": 2
   },
   "io.openaev.rest.injector_contract.InjectorContractUniqueKeysTenantScopeTest": {
@@ -3172,11 +3172,11 @@
     "tests": 2
   },
   "io.openaev.rest.kill_chain_phase.KillChainPhaseNonAdminIsolationTest": {
-    "seconds": 0.93,
+    "seconds": 0.92,
     "tests": 1
   },
   "io.openaev.rest.kill_chain_phase.KillChainPhaseUpsertIsolationTest": {
-    "seconds": 13.46,
+    "seconds": 12.69,
     "tests": 5
   },
   "io.openaev.rest.lessons.LessonsCategoryTeamLinkTenantTest": {
@@ -3196,15 +3196,15 @@
     "tests": 1
   },
   "io.openaev.rest.mapper.ImportMapperHttpInertWhenInactiveTest": {
-    "seconds": 1.04,
+    "seconds": 0.95,
     "tests": 1
   },
   "io.openaev.rest.mapper.ImportMapperHttpIsolationTest": {
-    "seconds": 21.59,
+    "seconds": 19.62,
     "tests": 15
   },
   "io.openaev.rest.mapper.ImportMapperNonAdminIsolationTest": {
-    "seconds": 0.95,
+    "seconds": 0.87,
     "tests": 1
   },
   "io.openaev.rest.mitigation.MitigationAttackPatternSerializationTenantScopeTest": {
@@ -3224,7 +3224,7 @@
     "tests": 4
   },
   "io.openaev.rest.organization.OrganizationHttpIsolationTest": {
-    "seconds": 41.29,
+    "seconds": 37.58,
     "tests": 46
   },
   "io.openaev.rest.organization.OrganizationTagLinkTenantTest": {
@@ -3244,23 +3244,23 @@
     "tests": 13
   },
   "io.openaev.rest.payload.PayloadApiNonAdminIsolationTest": {
-    "seconds": 11.76,
+    "seconds": 9.58,
     "tests": 1
   },
   "io.openaev.rest.payload.PayloadApiTenantIsolationTest": {
-    "seconds": 0.68,
+    "seconds": 0.59,
     "tests": 1
   },
   "io.openaev.rest.payload.PayloadApiTest": {
-    "seconds": 18.62,
+    "seconds": 17.14,
     "tests": 34
   },
   "io.openaev.rest.payload.PayloadAuthorJsonTest": {
-    "seconds": 0.22,
+    "seconds": 0.16,
     "tests": 1
   },
   "io.openaev.rest.payload.PayloadCollectorTypeScopeTest": {
-    "seconds": 11.65,
+    "seconds": 9.83,
     "tests": 1
   },
   "io.openaev.rest.payload.PayloadDeprecationWriteTenantTest": {
@@ -3268,15 +3268,15 @@
     "tests": 6
   },
   "io.openaev.rest.payload.PayloadHttpIsolationTest": {
-    "seconds": 13.3,
+    "seconds": 13.27,
     "tests": 13
   },
   "io.openaev.rest.payload.PayloadInUseTest": {
-    "seconds": 0.34,
+    "seconds": 0.25,
     "tests": 1
   },
   "io.openaev.rest.payload.PayloadTagLinkTenantTest": {
-    "seconds": 1.82,
+    "seconds": 1.71,
     "tests": 2
   },
   "io.openaev.rest.payload.PayloadUtilsTest": {
@@ -3284,11 +3284,11 @@
     "tests": 5
   },
   "io.openaev.rest.payload.PayloadWriteTenantSelectorTest": {
-    "seconds": 5.67,
+    "seconds": 5.3,
     "tests": 8
   },
   "io.openaev.rest.payload.service.PayloadServiceTenantAttributionTest": {
-    "seconds": 12.02,
+    "seconds": 10.89,
     "tests": 5
   },
   "io.openaev.rest.rbac.RbacMockMvcTest": {
@@ -3344,7 +3344,7 @@
     "tests": 15
   },
   "io.openaev.rest.reporting.service.ReportingScheduleDocumentScopeTest": {
-    "seconds": 0.4,
+    "seconds": 0.27,
     "tests": 2
   },
   "io.openaev.rest.reporting.service.ReportingScheduleLoaderTenantScopeTest": {
@@ -3360,11 +3360,11 @@
     "tests": 20
   },
   "io.openaev.rest.role.PlatformRoleApiPlatformWriteTest": {
-    "seconds": 10.45,
+    "seconds": 9.56,
     "tests": 4
   },
   "io.openaev.rest.role.PlatformRoleApiTest": {
-    "seconds": 0.85,
+    "seconds": 0.72,
     "tests": 18
   },
   "io.openaev.rest.role.TenantRoleApiTest": {
@@ -3372,7 +3372,7 @@
     "tests": 22
   },
   "io.openaev.rest.role.TenantRoleReservedKeyApiTest": {
-    "seconds": 0.35,
+    "seconds": 0.34,
     "tests": 7
   },
   "io.openaev.rest.role.TenantRoleScopeApiTest": {
@@ -3380,7 +3380,7 @@
     "tests": 27
   },
   "io.openaev.rest.scenario.ChainedScenarioWorkflowFollowsItsTenantTest": {
-    "seconds": 12.72,
+    "seconds": 12.1,
     "tests": 10
   },
   "io.openaev.rest.scenario.ScenarioApiSearchTest": {
@@ -3392,11 +3392,11 @@
     "tests": 1
   },
   "io.openaev.rest.scenario.ScenarioApiTest": {
-    "seconds": 9.01,
+    "seconds": 8.66,
     "tests": 35
   },
   "io.openaev.rest.scenario.ScenarioAuthorApiTest": {
-    "seconds": 0.28,
+    "seconds": 0.22,
     "tests": 2
   },
   "io.openaev.rest.scenario.ScenarioChallengesApiTenantPathTest": {
@@ -3404,31 +3404,31 @@
     "tests": 2
   },
   "io.openaev.rest.scenario.ScenarioDashboardTenantScopeTest": {
-    "seconds": 9.76,
+    "seconds": 1.12,
     "tests": 1
   },
   "io.openaev.rest.scenario.ScenarioDetailExercisesActiveTest": {
-    "seconds": 11.66,
+    "seconds": 10.55,
     "tests": 3
   },
   "io.openaev.rest.scenario.ScenarioExportTest": {
-    "seconds": 1.0,
+    "seconds": 0.92,
     "tests": 8
   },
   "io.openaev.rest.scenario.ScenarioImportApiTenantIsolationTest": {
-    "seconds": 12.31,
+    "seconds": 12.01,
     "tests": 4
   },
   "io.openaev.rest.scenario.ScenarioImportApiTest": {
-    "seconds": 8.84,
+    "seconds": 0.64,
     "tests": 2
   },
   "io.openaev.rest.scenario.ScenarioInjectApiSearchTest": {
-    "seconds": 5.95,
+    "seconds": 1.18,
     "tests": 6
   },
   "io.openaev.rest.scenario.ScenarioInjectApiTest": {
-    "seconds": 4.85,
+    "seconds": 3.73,
     "tests": 21
   },
   "io.openaev.rest.scenario.ScenarioInjectTestApiTest": {
@@ -3436,15 +3436,15 @@
     "tests": 18
   },
   "io.openaev.rest.scenario.ScenarioLaunchKeepsRequestScopeTest": {
-    "seconds": 10.12,
+    "seconds": 10.05,
     "tests": 2
   },
   "io.openaev.rest.scenario.ScenarioLaunchSupersedesSettledRunTest": {
-    "seconds": 0.98,
+    "seconds": 0.97,
     "tests": 2
   },
   "io.openaev.rest.scenario.ScenarioLaunchWithInjectDocumentTest": {
-    "seconds": 0.97,
+    "seconds": 0.95,
     "tests": 1
   },
   "io.openaev.rest.scenario.ScenarioLessonsApiTenantIsolationTest": {
@@ -3464,23 +3464,23 @@
     "tests": 1
   },
   "io.openaev.rest.scenario.ScenarioToExerciseServiceTest": {
-    "seconds": 0.61,
+    "seconds": 0.49,
     "tests": 2
   },
   "io.openaev.rest.scenario.service.ScenarioStatisticServiceTest": {
-    "seconds": 0.65,
+    "seconds": 0.61,
     "tests": 1
   },
   "io.openaev.rest.search.FullTextSearchTest": {
-    "seconds": 0.94,
+    "seconds": 0.84,
     "tests": 24
   },
   "io.openaev.rest.session.SessionApiTest": {
-    "seconds": 2.23,
+    "seconds": 2.17,
     "tests": 13
   },
   "io.openaev.rest.settings.DualScopeParametersActivationTest": {
-    "seconds": 2.38,
+    "seconds": 2.31,
     "tests": 7
   },
   "io.openaev.rest.settings.DualScopeParametersBootTest": {
@@ -3488,7 +3488,7 @@
     "tests": 1
   },
   "io.openaev.rest.settings.PlatformSettingsUnscopedAccessTest": {
-    "seconds": 0.66,
+    "seconds": 0.57,
     "tests": 16
   },
   "io.openaev.rest.settings.TenantSettingsHomeDashboardNonAdminIsolationTest": {
@@ -3516,7 +3516,7 @@
     "tests": 4
   },
   "io.openaev.rest.stream.StreamServiceInjectsScopeTest": {
-    "seconds": 15.41,
+    "seconds": 7.0,
     "tests": 4
   },
   "io.openaev.rest.stream.StreamServiceTest": {
@@ -3528,7 +3528,7 @@
     "tests": 16
   },
   "io.openaev.rest.tag.TagCreateHeaderRouteAuthorizationTest": {
-    "seconds": 3.92,
+    "seconds": 3.44,
     "tests": 6
   },
   "io.openaev.rest.tag.TagHttpIsolationTest": {
@@ -3536,15 +3536,15 @@
     "tests": 5
   },
   "io.openaev.rest.tag.TagNonAdminIsolationTest": {
-    "seconds": 1.8,
+    "seconds": 1.77,
     "tests": 2
   },
   "io.openaev.rest.tag.TagScopeAuthorizationTest": {
-    "seconds": 11.48,
+    "seconds": 10.83,
     "tests": 17
   },
   "io.openaev.rest.tag_rule.TagRuleApiTest": {
-    "seconds": 9.72,
+    "seconds": 0.67,
     "tests": 11
   },
   "io.openaev.rest.tag_rule.TagRuleHttpIsolationTest": {
@@ -3556,31 +3556,31 @@
     "tests": 2
   },
   "io.openaev.rest.team.TeamHttpIsolationTest": {
-    "seconds": 7.54,
+    "seconds": 7.12,
     "tests": 7
   },
   "io.openaev.rest.team.TeamNonAdminIsolationTest": {
-    "seconds": 2.21,
+    "seconds": 2.11,
     "tests": 2
   },
   "io.openaev.rest.team.TeamSerializationTenantScopeTest": {
-    "seconds": 11.96,
+    "seconds": 10.93,
     "tests": 6
   },
   "io.openaev.rest.team.TeamTagLinkTenantTest": {
-    "seconds": 1.75,
+    "seconds": 1.66,
     "tests": 3
   },
   "io.openaev.rest.team.TeamTagsSerializationTenantScopeTest": {
-    "seconds": 14.48,
+    "seconds": 14.29,
     "tests": 7
   },
   "io.openaev.rest.tenancy.DocumentAssociationScopeTest": {
-    "seconds": 17.0,
+    "seconds": 15.0,
     "tests": 6
   },
   "io.openaev.rest.tenancy.DocumentAttachmentScopeTest": {
-    "seconds": 6.51,
+    "seconds": 5.92,
     "tests": 7
   },
   "io.openaev.rest.url_access_token.service.UrlAccessTokenServiceTest": {
@@ -3692,19 +3692,19 @@
     "tests": 4
   },
   "io.openaev.scheduler.jobs.AtomicTestingExecutionJobTest": {
-    "seconds": 13.07,
+    "seconds": 12.19,
     "tests": 6
   },
   "io.openaev.scheduler.jobs.AutoCloseChainedSimulationScopeTest": {
-    "seconds": 8.81,
+    "seconds": 8.45,
     "tests": 2
   },
   "io.openaev.scheduler.jobs.ComchecksExecutionJobTest": {
-    "seconds": 9.04,
+    "seconds": 8.92,
     "tests": 1
   },
   "io.openaev.scheduler.jobs.CredentialConnectivityCheckJobIntegrationTest": {
-    "seconds": 19.15,
+    "seconds": 17.56,
     "tests": 9
   },
   "io.openaev.scheduler.jobs.CrossTenantJobSweepTest": {
@@ -3720,7 +3720,7 @@
     "tests": 2
   },
   "io.openaev.scheduler.jobs.InjectsExecutionJobChainedStartScopeTest": {
-    "seconds": 8.96,
+    "seconds": 8.57,
     "tests": 2
   },
   "io.openaev.scheduler.jobs.InjectsExecutionJobTenantScopeTest": {
@@ -3728,7 +3728,7 @@
     "tests": 7
   },
   "io.openaev.scheduler.jobs.InjectsExecutionJobTest": {
-    "seconds": 12.45,
+    "seconds": 11.16,
     "tests": 6
   },
   "io.openaev.scheduler.jobs.InjectsExecutionJobUnitTest": {
@@ -3736,11 +3736,11 @@
     "tests": 1
   },
   "io.openaev.scheduler.jobs.InjectsFinalizationJobContractScopeTest": {
-    "seconds": 9.15,
+    "seconds": 7.6,
     "tests": 1
   },
   "io.openaev.scheduler.jobs.InjectsFinalizationJobTest": {
-    "seconds": 1.72,
+    "seconds": 1.54,
     "tests": 7
   },
   "io.openaev.scheduler.jobs.InjectsFinalizationJobUnitTest": {
@@ -3752,23 +3752,23 @@
     "tests": 6
   },
   "io.openaev.scheduler.jobs.PendingInjectAssetGroupScopeTest": {
-    "seconds": 8.8,
+    "seconds": 8.28,
     "tests": 2
   },
   "io.openaev.scheduler.jobs.PendingInjectChainingExclusionScopeTest": {
-    "seconds": 9.4,
+    "seconds": 8.49,
     "tests": 3
   },
   "io.openaev.scheduler.jobs.QueueChainingJobPendingChangesTest": {
-    "seconds": 9.35,
+    "seconds": 8.52,
     "tests": 1
   },
   "io.openaev.scheduler.jobs.QueueChainingJobTest": {
-    "seconds": 9.35,
+    "seconds": 8.72,
     "tests": 7
   },
   "io.openaev.scheduler.jobs.ScenarioExecutionJobTest": {
-    "seconds": 2.79,
+    "seconds": 2.57,
     "tests": 12
   },
   "io.openaev.scheduler.jobs.SecurityCoverageJobTest": {
@@ -3776,7 +3776,7 @@
     "tests": 3
   },
   "io.openaev.scheduler.jobs.SimulationLifecycleSweepScopeTest": {
-    "seconds": 10.52,
+    "seconds": 10.07,
     "tests": 10
   },
   "io.openaev.scheduler.jobs.UrlAccessTokenPurgeJobTest": {
@@ -3784,15 +3784,15 @@
     "tests": 1
   },
   "io.openaev.scheduler.jobs.UserEventRetentionJobTest": {
-    "seconds": 0.24,
+    "seconds": 0.2,
     "tests": 2
   },
   "io.openaev.scheduler.jobs.WorkflowTimeoutJobTest": {
-    "seconds": 0.35,
+    "seconds": 0.34,
     "tests": 5
   },
   "io.openaev.scheduler.jobs.WorkflowTimeoutPollScopeTest": {
-    "seconds": 9.1,
+    "seconds": 8.67,
     "tests": 2
   },
   "io.openaev.scheduler.jobs.engine_sync.EngineSyncExecutionJobTest": {
@@ -3800,11 +3800,11 @@
     "tests": 6
   },
   "io.openaev.scheduler.jobs.engine_sync.FindingRefeedEndToEndTest": {
-    "seconds": 10.64,
+    "seconds": 10.5,
     "tests": 1
   },
   "io.openaev.secrets.provider.SecretsProviderResolverTest": {
-    "seconds": 0.34,
+    "seconds": 0.32,
     "tests": 4
   },
   "io.openaev.secrets.provider.impl.LocalSecretsProviderConnectionCheckTest": {
@@ -3812,7 +3812,7 @@
     "tests": 6
   },
   "io.openaev.secrets.provider.impl.LocalSecretsProviderResolvedSecretTest": {
-    "seconds": 0.18,
+    "seconds": 0.17,
     "tests": 1
   },
   "io.openaev.secrets.provider.impl.handlers.AwsAccessKeyHandlerTest": {
@@ -3840,7 +3840,7 @@
     "tests": 29
   },
   "io.openaev.secrets.provider.impl.handlers.SecretHandlerValidateConnectionTest": {
-    "seconds": 0.71,
+    "seconds": 0.68,
     "tests": 17
   },
   "io.openaev.secrets.provider.impl.handlers.SovereignCloudOverridesHandlerTest": {
@@ -3848,7 +3848,7 @@
     "tests": 29
   },
   "io.openaev.secrets.provider.impl.validators.AzureCredentialConnectivityCheckTest": {
-    "seconds": 1.57,
+    "seconds": 1.54,
     "tests": 19
   },
   "io.openaev.secrets.provider.impl.validators.GcpCredentialConnectivityCheckTest": {
@@ -3864,15 +3864,15 @@
     "tests": 18
   },
   "io.openaev.security.OpenCTIJwtAuthenticationTest": {
-    "seconds": 9.98,
+    "seconds": 9.47,
     "tests": 6
   },
   "io.openaev.security.TokenAuthenticationFilterTest": {
-    "seconds": 17.25,
+    "seconds": 16.35,
     "tests": 9
   },
   "io.openaev.security.ssrf.PublicAddressPolicyTest": {
-    "seconds": 0.03,
+    "seconds": 0.01,
     "tests": 23
   },
   "io.openaev.security.ssrf.PublicOnlyDnsResolverTest": {
@@ -3900,15 +3900,15 @@
     "tests": 8
   },
   "io.openaev.service.ChallengePublishContractIdTest": {
-    "seconds": 0.01,
+    "seconds": 0.0,
     "tests": 2
   },
   "io.openaev.service.ChallengeServiceFlagValidationTest": {
-    "seconds": 0.85,
+    "seconds": 0.82,
     "tests": 6
   },
   "io.openaev.service.ChallengeServiceMaxAttemptsTest": {
-    "seconds": 1.08,
+    "seconds": 1.07,
     "tests": 3
   },
   "io.openaev.service.ChallengeServiceTest": {
@@ -3980,7 +3980,7 @@
     "tests": 7
   },
   "io.openaev.service.ImportServiceEntryTypeTest": {
-    "seconds": 0.03,
+    "seconds": 0.01,
     "tests": 9
   },
   "io.openaev.service.InjectExpectationLockServiceTest": {
@@ -4004,7 +4004,7 @@
     "tests": 10
   },
   "io.openaev.service.InjectImportServiceIntegrationTest": {
-    "seconds": 1.6,
+    "seconds": 1.52,
     "tests": 2
   },
   "io.openaev.service.InjectImportServiceTest": {
@@ -4052,7 +4052,7 @@
     "tests": 9
   },
   "io.openaev.service.NewsFeedItemServiceTest": {
-    "seconds": 0.48,
+    "seconds": 0.46,
     "tests": 13
   },
   "io.openaev.service.NotificationEvenServiceTest": {
@@ -4072,19 +4072,19 @@
     "tests": 43
   },
   "io.openaev.service.PlatformServiceSettingsTest": {
-    "seconds": 0.51,
+    "seconds": 0.5,
     "tests": 4
   },
   "io.openaev.service.PreviewFeatureServiceTest": {
-    "seconds": 0.24,
+    "seconds": 0.21,
     "tests": 4
   },
   "io.openaev.service.RabbitmqServicePublishIntegrationTest": {
-    "seconds": 0.71,
+    "seconds": 0.7,
     "tests": 2
   },
   "io.openaev.service.ScenarioKillChainPhaseNullFieldTest": {
-    "seconds": 0.39,
+    "seconds": 0.33,
     "tests": 1
   },
   "io.openaev.service.ScenarioServiceTest": {
@@ -4128,7 +4128,7 @@
     "tests": 21
   },
   "io.openaev.service.account.AgentServiceAccountPrivilegeServiceTest": {
-    "seconds": 1.24,
+    "seconds": 0.95,
     "tests": 18
   },
   "io.openaev.service.account.CatalogConnectorPrivilegeServiceTest": {
@@ -4140,35 +4140,35 @@
     "tests": 8
   },
   "io.openaev.service.attackpath.AttackPathCausalSeedChainTest": {
-    "seconds": 0.34,
+    "seconds": 0.27,
     "tests": 2
   },
   "io.openaev.service.attackpath.AttackPathCausalSeedDeepIntrusionTest": {
-    "seconds": 0.31,
-    "tests": 1
-  },
-  "io.openaev.service.attackpath.AttackPathCausalSeedFidelityTest": {
-    "seconds": 0.15,
-    "tests": 1
-  },
-  "io.openaev.service.attackpath.AttackPathCausalSeedLinkageTest": {
-    "seconds": 0.15,
-    "tests": 1
-  },
-  "io.openaev.service.attackpath.AttackPathCausalSeedRansomwareChainTest": {
-    "seconds": 0.22,
-    "tests": 1
-  },
-  "io.openaev.service.attackpath.AttackPathCausalSeedRansomwareReplayTest": {
     "seconds": 0.27,
     "tests": 1
   },
+  "io.openaev.service.attackpath.AttackPathCausalSeedFidelityTest": {
+    "seconds": 0.13,
+    "tests": 1
+  },
+  "io.openaev.service.attackpath.AttackPathCausalSeedLinkageTest": {
+    "seconds": 0.14,
+    "tests": 1
+  },
+  "io.openaev.service.attackpath.AttackPathCausalSeedRansomwareChainTest": {
+    "seconds": 0.19,
+    "tests": 1
+  },
+  "io.openaev.service.attackpath.AttackPathCausalSeedRansomwareReplayTest": {
+    "seconds": 0.23,
+    "tests": 1
+  },
   "io.openaev.service.attackpath.AttackPathCausalSeedRealisticChainTest": {
-    "seconds": 0.18,
+    "seconds": 0.16,
     "tests": 1
   },
   "io.openaev.service.attackpath.AttackPathCausalSeedScaledChainTest": {
-    "seconds": 0.18,
+    "seconds": 0.17,
     "tests": 1
   },
   "io.openaev.service.attackpath.AttackPathExecutionSnapshotIsolationTest": {
@@ -4188,11 +4188,11 @@
     "tests": 3
   },
   "io.openaev.service.attackpath.AttackPathGraphServiceExecutionDetailTenantScopeTest": {
-    "seconds": 1.25,
+    "seconds": 1.15,
     "tests": 2
   },
   "io.openaev.service.attackpath.AttackPathGraphServiceTest": {
-    "seconds": 1.39,
+    "seconds": 1.07,
     "tests": 32
   },
   "io.openaev.service.attackpath.AttackPathIdsTest": {
@@ -4204,7 +4204,7 @@
     "tests": 14
   },
   "io.openaev.service.attackpath.AttackPathKillChainResolutionIntegrationTest": {
-    "seconds": 0.21,
+    "seconds": 0.17,
     "tests": 1
   },
   "io.openaev.service.attackpath.AttackPathKillChainResolverTest": {
@@ -4212,7 +4212,7 @@
     "tests": 4
   },
   "io.openaev.service.attackpath.AttackPathPartitioningDemoTest": {
-    "seconds": 0.19,
+    "seconds": 0.17,
     "tests": 1
   },
   "io.openaev.service.attackpath.AttackPathSeedFindingValuesTest": {
@@ -4220,7 +4220,7 @@
     "tests": 8
   },
   "io.openaev.service.attackpath.AttackPathSeedServiceTest": {
-    "seconds": 9.99,
+    "seconds": 9.88,
     "tests": 4
   },
   "io.openaev.service.attackpath.dto.ConsumedFindingKeyDTOTest": {
@@ -4248,7 +4248,7 @@
     "tests": 6
   },
   "io.openaev.service.attackpath.ingestion.AttackPathVersionServiceTest": {
-    "seconds": 0.21,
+    "seconds": 0.17,
     "tests": 4
   },
   "io.openaev.service.autonomous.AutonomousEventServiceTest": {
@@ -4256,11 +4256,11 @@
     "tests": 3
   },
   "io.openaev.service.autonomous.AutonomousObjectiveTemplateServiceTest": {
-    "seconds": 0.36,
+    "seconds": 0.2,
     "tests": 6
   },
   "io.openaev.service.autonomous.AutonomousRunReconciliationWriterTest": {
-    "seconds": 0.35,
+    "seconds": 0.34,
     "tests": 3
   },
   "io.openaev.service.autonomous.AutonomousRunServiceScopeTest": {
@@ -4276,7 +4276,7 @@
     "tests": 7
   },
   "io.openaev.service.catalog.CatalogFileServiceTest": {
-    "seconds": 0.37,
+    "seconds": 0.29,
     "tests": 23
   },
   "io.openaev.service.catalog.CatalogSyncGuardsTest": {
@@ -4288,7 +4288,7 @@
     "tests": 2
   },
   "io.openaev.service.catalog.event.CatalogAutoInstallListenerTest": {
-    "seconds": 0.55,
+    "seconds": 0.38,
     "tests": 1
   },
   "io.openaev.service.catalog.event.CatalogHistoryIsolationTest": {
@@ -4308,7 +4308,7 @@
     "tests": 1
   },
   "io.openaev.service.catalog.scenario.targeting.CatalogScenarioTargetsTest": {
-    "seconds": 0.55,
+    "seconds": 0.01,
     "tests": 3
   },
   "io.openaev.service.catalog_connectors.CatalogConnectorIngestionBestEffortStartupTest": {
@@ -4328,7 +4328,7 @@
     "tests": 5
   },
   "io.openaev.service.chaining.ChainingHashUtilsTest": {
-    "seconds": 0.02,
+    "seconds": 0.01,
     "tests": 6
   },
   "io.openaev.service.chaining.ChainingIntegrationTest": {
@@ -4344,7 +4344,7 @@
     "tests": 3
   },
   "io.openaev.service.chaining.ChainingStepCascadeCleanupIntegrationTest": {
-    "seconds": 8.84,
+    "seconds": 0.6,
     "tests": 6
   },
   "io.openaev.service.chaining.ChainingStepCleanupServiceTest": {
@@ -4376,7 +4376,7 @@
     "tests": 5
   },
   "io.openaev.service.chaining.QueueChainingServiceTest": {
-    "seconds": 0.37,
+    "seconds": 0.22,
     "tests": 12
   },
   "io.openaev.service.chaining.SaveCorrelatedObjectDecompositionTest": {
@@ -4388,11 +4388,11 @@
     "tests": 5
   },
   "io.openaev.service.chaining.ScopeServiceTest": {
-    "seconds": 1.21,
+    "seconds": 0.77,
     "tests": 21
   },
   "io.openaev.service.chaining.ScopeSnapshotServiceTest": {
-    "seconds": 0.36,
+    "seconds": 0.23,
     "tests": 21
   },
   "io.openaev.service.chaining.ScopeTeamsTenantTest": {
@@ -4412,7 +4412,7 @@
     "tests": 6
   },
   "io.openaev.service.chaining.StepDelayQueueIntegrationTest": {
-    "seconds": 8.27,
+    "seconds": 0.14,
     "tests": 5
   },
   "io.openaev.service.chaining.StepDelayQueueServiceTest": {
@@ -4420,7 +4420,7 @@
     "tests": 3
   },
   "io.openaev.service.chaining.StepEventServiceTest": {
-    "seconds": 0.85,
+    "seconds": 0.73,
     "tests": 39
   },
   "io.openaev.service.chaining.StepEventTest": {
@@ -4464,7 +4464,7 @@
     "tests": 7
   },
   "io.openaev.service.chaining.WorkflowEndOfLifeIntegrationTest": {
-    "seconds": 1.31,
+    "seconds": 1.21,
     "tests": 5
   },
   "io.openaev.service.chaining.WorkflowEndServiceTest": {
@@ -4556,7 +4556,7 @@
     "tests": 37
   },
   "io.openaev.service.expectation.AbstractTableTopBehaviorTest": {
-    "seconds": 3.17,
+    "seconds": 2.63,
     "tests": 45
   },
   "io.openaev.service.expectation.AbstractTechnicalBehaviorTest": {
@@ -4572,7 +4572,7 @@
     "tests": 3
   },
   "io.openaev.service.expectation.DetectionBehaviorTest": {
-    "seconds": 0.78,
+    "seconds": 0.57,
     "tests": 2
   },
   "io.openaev.service.expectation.LoggingBehaviorTest": {
@@ -4596,11 +4596,11 @@
     "tests": 2
   },
   "io.openaev.service.finding.FindingOccurrenceTenantIsolationTest": {
-    "seconds": 0.64,
+    "seconds": 0.41,
     "tests": 4
   },
   "io.openaev.service.finding.FindingValueDisplayBackfillTest": {
-    "seconds": 14.0,
+    "seconds": 8.95,
     "tests": 1
   },
   "io.openaev.service.inject.BatchedCallbackWorkflowUpdateEventTest": {
@@ -4608,7 +4608,7 @@
     "tests": 4
   },
   "io.openaev.service.inject.BatchingInjectStatusServiceTenantScopeTest": {
-    "seconds": 1.29,
+    "seconds": 1.23,
     "tests": 1
   },
   "io.openaev.service.marking.MarkingEscalationValidatorTest": {
@@ -4620,15 +4620,15 @@
     "tests": 19
   },
   "io.openaev.service.marking_definition.MarkingDefinitionTenantScopeTest": {
-    "seconds": 12.85,
+    "seconds": 2.63,
     "tests": 3
   },
   "io.openaev.service.payload.DocumentContentHashTest": {
-    "seconds": 0.22,
+    "seconds": 0.16,
     "tests": 1
   },
   "io.openaev.service.payload.PayloadContentHashServiceTest": {
-    "seconds": 0.54,
+    "seconds": 0.35,
     "tests": 8
   },
   "io.openaev.service.payload.PayloadHashConformanceTest": {
@@ -4636,7 +4636,7 @@
     "tests": 9
   },
   "io.openaev.service.payload.PayloadRevocationIsolationTest": {
-    "seconds": 1.52,
+    "seconds": 1.01,
     "tests": 1
   },
   "io.openaev.service.period.CronServiceTest": {
@@ -4660,15 +4660,15 @@
     "tests": 2
   },
   "io.openaev.service.stix.SecurityCoverageSendJobServiceTest": {
-    "seconds": 0.52,
+    "seconds": 0.45,
     "tests": 4
   },
   "io.openaev.service.stix.SecurityCoverageServiceDuplicateLookupTest": {
-    "seconds": 0.24,
+    "seconds": 0.2,
     "tests": 6
   },
   "io.openaev.service.stix.SecurityCoverageServiceTest": {
-    "seconds": 1.39,
+    "seconds": 1.07,
     "tests": 9
   },
   "io.openaev.service.stix.SecurityCoverageTenantScopeTest": {
@@ -4680,7 +4680,7 @@
     "tests": 3
   },
   "io.openaev.service.stream.StreamClearanceServiceTest": {
-    "seconds": 0.37,
+    "seconds": 0.34,
     "tests": 6
   },
   "io.openaev.service.stream.StreamMarkingRulesTest": {
@@ -4704,7 +4704,7 @@
     "tests": 1
   },
   "io.openaev.service.targets.search.ManualTargetSearchAdaptorTest": {
-    "seconds": 0.03,
+    "seconds": 0.02,
     "tests": 5
   },
   "io.openaev.service.tenants.TenantDeleteCascadeSchemaTest": {
@@ -4760,7 +4760,7 @@
     "tests": 2
   },
   "io.openaev.telemetry.metric_collectors.AiMetricCollectorTest": {
-    "seconds": 0.68,
+    "seconds": 0.53,
     "tests": 8
   },
   "io.openaev.telemetry.metric_collectors.AssetMetricCollectorTest": {
@@ -4776,7 +4776,7 @@
     "tests": 4
   },
   "io.openaev.telemetry.metric_collectors.CredentialMetricCollectorTest": {
-    "seconds": 0.21,
+    "seconds": 0.2,
     "tests": 14
   },
   "io.openaev.telemetry.metric_collectors.GlobalMetricCollectorTest": {
@@ -4820,7 +4820,7 @@
     "tests": 5
   },
   "io.openaev.utils.ExecutionTraceUtilsTest": {
-    "seconds": 0.61,
+    "seconds": 0.01,
     "tests": 11
   },
   "io.openaev.utils.InjectContentUtilsTest": {
@@ -4832,11 +4832,11 @@
     "tests": 2
   },
   "io.openaev.utils.InstanceCreationDateTest": {
-    "seconds": 0.02,
+    "seconds": 0.01,
     "tests": 23
   },
   "io.openaev.utils.NewsFeedUtilsTest": {
-    "seconds": 0.03,
+    "seconds": 0.01,
     "tests": 14
   },
   "io.openaev.utils.OperationUtilsRuntimeTest": {
@@ -4844,31 +4844,31 @@
     "tests": 8
   },
   "io.openaev.utils.SensitiveValueCompositionConsistencyTest": {
-    "seconds": 0.2,
+    "seconds": 0.17,
     "tests": 5
   },
   "io.openaev.utils.SensitiveValueMaskingUtilsTest": {
-    "seconds": 0.03,
+    "seconds": 0.02,
     "tests": 29
   },
   "io.openaev.utils.TenantIsolationTestHelperTest": {
-    "seconds": 1.44,
+    "seconds": 1.31,
     "tests": 2
   },
   "io.openaev.utils.TxCtxScopeUtilsTest": {
-    "seconds": 0.01,
+    "seconds": 0.0,
     "tests": 3
   },
   "io.openaev.utils.catalog.VersionConstraintTest": {
-    "seconds": 0.04,
+    "seconds": 0.02,
     "tests": 11
   },
   "io.openaev.utils.command.CommandArgumentBinderTest": {
-    "seconds": 1.85,
+    "seconds": 1.0,
     "tests": 190
   },
   "io.openaev.utils.fixtures.BuiltinConnectorRegistrationScopeTest": {
-    "seconds": 11.06,
+    "seconds": 7.26,
     "tests": 6
   },
   "io.openaev.utils.inject_expectation_result.ExpectationResultBuilderTest": {
@@ -4880,7 +4880,7 @@
     "tests": 6
   },
   "io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtilsTest": {
-    "seconds": 0.19,
+    "seconds": 0.17,
     "tests": 6
   },
   "io.openaev.utils.log.transport.AuditConsoleLogTransportUtilsTest": {
@@ -4896,7 +4896,7 @@
     "tests": 3
   },
   "io.openaev.utils.object.ObjectDiffUtilsTest": {
-    "seconds": 0.03,
+    "seconds": 0.02,
     "tests": 23
   },
   "io.openaev.utils.object.ObjectRedactionUtilsTest": {
@@ -4940,7 +4940,7 @@
     "tests": 4
   },
   "io.openaev.utilstest.TenantUriUtilsTest": {
-    "seconds": 0.2,
+    "seconds": 0.03,
     "tests": 16
   },
   "io.openaev.utilstest.TimeUtilsTest": {
@@ -4948,11 +4948,11 @@
     "tests": 18
   },
   "io.openaev.validator.DomainValidatorTest": {
-    "seconds": 0.01,
+    "seconds": 0.0,
     "tests": 12
   },
   "io.openaev.validator.primitive.PrimitiveFormatValidatorTest": {
-    "seconds": 0.29,
+    "seconds": 0.27,
     "tests": 306
   },
   "io.openaev.xtmhub.TenantXtmHubRegistrationScopeIsolationTest": {
@@ -4960,7 +4960,7 @@
     "tests": 2
   },
   "io.openaev.xtmhub.XtmHubBackgroundIsolationTest": {
-    "seconds": 15.16,
+    "seconds": 11.64,
     "tests": 1
   },
   "io.openaev.xtmhub.XtmHubClientTest": {
@@ -4968,15 +4968,15 @@
     "tests": 22
   },
   "io.openaev.xtmhub.XtmHubConnectivityFlagTest": {
-    "seconds": 13.7,
+    "seconds": 10.25,
     "tests": 1
   },
   "io.openaev.xtmhub.XtmHubConnectivityRefreshIntegrationTest": {
-    "seconds": 13.44,
+    "seconds": 9.9,
     "tests": 1
   },
   "io.openaev.xtmhub.XtmHubConnectivityServiceTest": {
-    "seconds": 0.18,
+    "seconds": 0.17,
     "tests": 3
   },
   "io.openaev.xtmhub.XtmHubEmailRecipientsTest": {
@@ -4984,11 +4984,11 @@
     "tests": 7
   },
   "io.openaev.xtmhub.XtmHubNewsFeedSyncIntegrationTest": {
-    "seconds": 7.81,
+    "seconds": 5.96,
     "tests": 25
   },
   "io.openaev.xtmhub.XtmHubServiceTest": {
-    "seconds": 4.39,
+    "seconds": 3.96,
     "tests": 79
   },
   "io.openaev.xtmhub.collector.XtmHubCollectorTest": {
@@ -5000,15 +5000,15 @@
     "tests": 52
   },
   "io.openaev.xtmone.XtmOneConnectivityServiceTest": {
-    "seconds": 0.5,
+    "seconds": 0.48,
     "tests": 2
   },
   "io.openaev.xtmone.XtmOneEntitlementServiceTest": {
-    "seconds": 0.2,
+    "seconds": 0.18,
     "tests": 15
   },
   "io.openaev.xtmone.XtmOneIdentityTest": {
-    "seconds": 0.09,
+    "seconds": 0.07,
     "tests": 50
   },
   "io.openaev.xtmone.XtmOneRegistrationPlatformNameTest": {
