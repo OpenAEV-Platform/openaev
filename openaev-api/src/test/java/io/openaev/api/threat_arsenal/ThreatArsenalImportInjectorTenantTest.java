@@ -13,6 +13,8 @@ import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.InjectorRepository;
+import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import io.openaev.jsonapi.IncludeOptions;
 import io.openaev.jsonapi.ZipJsonApi;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -22,9 +24,8 @@ import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.sql.PreparedStatement;
 import java.util.Map;
-import org.hibernate.Session;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -48,6 +49,7 @@ class ThreatArsenalImportInjectorTenantTest extends IntegrationTest {
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private ZipJsonApi<InjectorContract> injectorContractZipJsonApi;
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private InjectorRepository injectorRepository;
 
   private String tenantB;
 
@@ -67,8 +69,9 @@ class ThreatArsenalImportInjectorTenantTest extends IntegrationTest {
   class ContractExportImport {
 
     @Test
-    @DisplayName("given_foreignTenantInjectorComesFirst_should_linkWriteTenantInjectorOnly")
-    void given_foreignTenantInjectorComesFirst_should_linkWriteTenantInjectorOnly()
+    @DisplayName(
+        "given_aForeignTenantHoldsAPayloadInjectorOfTheSameType_should_linkWriteTenantInjectorOnly")
+    void given_aForeignTenantHoldsAPayloadInjectorOfTheSameType_should_linkWriteTenantInjectorOnly()
         throws Exception {
       // Arrange
       InjectorContract source =
@@ -94,7 +97,14 @@ class ThreatArsenalImportInjectorTenantTest extends IntegrationTest {
                   null)
               .getBody();
       entityManager.clear();
-      rewriteInjectorsOfTenantLast(tenantB);
+      // The well-known injector's id repeats across tenants (#8485), so
+      // `InjectorContract#addInjector`
+      // (which dedupes by id) retains only whichever tenant's copy the unordered lookup meets
+      // first, making a plain scan-order trick flaky. A payload injector with its own distinct id
+      // is never deduped against the write tenant's copy, so it reaches the unfiltered lookup
+      // regardless of row order and always pollutes the result without the write-tenant filter in
+      // place.
+      createForeignPayloadInjector(Tenant.DEFAULT_TENANT_UUID);
 
       // Act
       String response =
@@ -121,26 +131,15 @@ class ThreatArsenalImportInjectorTenantTest extends IntegrationTest {
     }
   }
 
-  /**
-   * Updating a row writes a new tuple version, which a sequential scan meets after the tuples
-   * already on the page: the injectors of {@code tenantId} then come last in the lookup of the
-   * payload-capable injectors, which is unordered and spans every tenant when the table is not
-   * armed in this class.
-   */
-  private void rewriteInjectorsOfTenantLast(String tenantId) {
-    entityManager.flush();
-    entityManager
-        .unwrap(Session.class)
-        .doWork(
-            connection -> {
-              try (PreparedStatement statement =
-                  connection.prepareStatement(
-                      "UPDATE injectors SET injector_payloads = injector_payloads"
-                          + " WHERE tenant_id::text = ?")) {
-                statement.setString(1, tenantId);
-                statement.executeUpdate();
-              }
-            });
-    entityManager.clear();
+  /** A payload-capable injector of a distinct id, held by {@code tenantId}. */
+  private Injector createForeignPayloadInjector(String tenantId) {
+    Injector injector =
+        InjectorFixture.createInjector(
+            UUID.randomUUID().toString(),
+            "foreign-tenant-payload-injector",
+            OpenAEVImplantContract.TYPE);
+    injector.setTenantId(tenantId);
+    injector.setPayloads(true);
+    return injectorRepository.save(injector);
   }
 }
