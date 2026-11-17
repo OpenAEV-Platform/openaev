@@ -38,7 +38,6 @@ io.openaev.rest.custom_dashboard.CustomDashboardService#customDashboards -> Cust
 io.openaev.rest.custom_dashboard.CustomDashboardService#findAllByIdsAsOptions -> CustomDashboardRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.document.DocumentService#getPlayerDocuments -> ChallengeRepository | other | 1 | loads the challenges that the injects of a player view name, to list their documents in a read response
 io.openaev.rest.domain.DomainService#findAllAsOptionsById -> DomainRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
-io.openaev.rest.domain.DomainService#findAllById -> DomainRepository | link | 1 | service wrapper whose caller, PayloadCreationService, links the domains named in a request body
 io.openaev.rest.exercise.ExerciseApi#createExercise -> TagRepository | link | 1 | links the tags named in the request body to the simulation it creates
 io.openaev.rest.exercise.ExerciseApi#createLog -> TagRepository | link | 1 | links the tags named in the request body to the log it creates
 io.openaev.rest.exercise.ExerciseApi#updateExerciseInformation -> TagRepository | link | 1 | links the tags named in the request body to the simulation it updates
@@ -50,9 +49,6 @@ io.openaev.rest.inject.service.InjectService#bulkUpdateInject -> TeamRepository 
 io.openaev.rest.inject.service.InjectService#updateInject -> TagRepository | link | 1 | links the tags named in the request body to the inject it updates
 io.openaev.rest.inject.service.InjectService#updateInject -> TeamRepository | link | 1 | links the teams named in the request body to the inject it updates
 io.openaev.rest.kill_chain_phase.KillChainPhaseApi#optionsById -> KillChainPhaseRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
-io.openaev.rest.payload.service.PayloadCreationService#createInternal -> AttackPatternRepository | link | 1 | links the attack patterns named in the request body to the payload it creates
-io.openaev.rest.payload.service.PayloadUpdateService#update -> DomainRepository | link | 1 | links the domains named in the request body to the payload it updates
-io.openaev.rest.payload.service.PayloadUpdateService#updatePayload -> AttackPatternRepository | link | 1 | links the attack patterns named in the request body to the payload it updates
 io.openaev.rest.reporting.ReportingService#withHistoryLoaded -> ReportingRepository | other | 2 | fetches the generations and schedules of reportings already loaded, by their own ids, so a response can serialize them
 io.openaev.rest.scenario.ScenarioApi#createScenario -> TagRepository | link | 1 | links the tags named in the request body to the scenario it creates
 io.openaev.rest.scenario.ScenarioApi#updateScenario -> TagRepository | link | 1 | links the tags named in the request body to the scenario it updates
