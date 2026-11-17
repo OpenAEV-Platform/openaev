@@ -21,7 +21,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.maven.plugin.AbstractMojo;
-import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -33,23 +32,23 @@ import org.apache.maven.plugins.annotations.Parameter;
  * docs/links.json} points to an existing page and anchor. Running it on every local build makes a
  * broken docs link fail on the developer's computer, not only in CI.
  *
- * <p>Exit codes of {@code run.py}: 0 when the docs are fine (or unchanged since the last successful
- * check), 1 when the check found problems in the docs, 2 on bad arguments, 3 when the toolchain
- * crashed or was stopped by a signal, 4 when its Python environment could not be set up.
+ * <p>Only docs problems (exit code 1 of {@code run.py}) fail the build. When the check cannot run
+ * (no usable Python, an environment that cannot be set up, a crash), it logs a warning saying why
+ * and what to do, and the build goes on: the CI Docs Check job still checks the docs.
  *
  * <p>Python is found with the rule shared by every caller of {@code run.py} (Maven, the front
  * scripts, the docs serve scripts): an explicit choice ({@code -Dopenaev.docs.python}, then the
- * {@code PYTHON} environment variable) must work, otherwise the build fails naming it; without one,
- * the first of {@code py -3} (Windows), {@code python3}, {@code python}, {@code python3.20} down to
- * {@code python3.<minimum>} that answers {@code --version} with at least the minimum version of
- * {@code docs/.python-version} is taken.
+ * {@code OPENAEV_DOCS_PYTHON} environment variable) is the only one tried; without one, the first
+ * usable of {@code py -3} (Windows), {@code python3}, {@code python}, {@code python3.20} down to
+ * {@code python3.<minimum>} on the PATH is taken. A Python is usable when it imports {@code venv}
+ * and {@code ensurepip} and is at least the version of {@code docs/.python-version}.
  */
 @Mojo(name = "docs-check", defaultPhase = LifecyclePhase.VALIDATE, threadSafe = true)
 public class CheckDocs extends AbstractMojo {
 
   static final String SKIP_PROPERTY = "openaev.docs.check.skip";
   static final String PYTHON_PROPERTY = "openaev.docs.python";
-  static final String PYTHON_VARIABLE = "PYTHON";
+  static final String PYTHON_VARIABLE = "OPENAEV_DOCS_PYTHON";
   static final String RUN_SCRIPT = "run.py";
   static final String PYTHON_VERSION_FILE = ".python-version";
   static final int EXIT_DOCS_PROBLEMS = 1;
@@ -58,40 +57,53 @@ public class CheckDocs extends AbstractMojo {
   /** Highest {@code python3.N} name tried on the PATH. */
   static final int HIGHEST_MINOR_TRIED = 20;
 
-  private static final long VERSION_PROBE_TIMEOUT_SECONDS = 10;
-  private static final Pattern VERSION_OUTPUT = Pattern.compile("Python (\\d+)\\.(\\d+)(\\S*)");
+  /**
+   * Checks in one run that a Python can create the docs virtual environment and prints its version:
+   * an Ubuntu Python without python3-venv, or the Windows Store stub, fails it.
+   */
+  static final String PROBE_SCRIPT =
+      "import sys, venv, ensurepip; print('%d.%d' % sys.version_info[:2])";
+
+  private static final long PROBE_TIMEOUT_SECONDS = 10;
+  private static final Pattern PROBE_OUTPUT = Pattern.compile("^(\\d+)\\.(\\d+)\\s*$");
   private static final Pattern VERSION_FILE = Pattern.compile("^(\\d+)\\.(\\d+)");
 
   /** Variables that would make the child Python load modules from elsewhere than its venv. */
   private static final List<String> REMOVED_VARIABLES = List.of("PYTHONPATH", "PYTHONHOME");
 
-  static final String SKIP_HINT = " Or skip the check with -D" + SKIP_PROPERTY + "=true";
+  static final String SKIP_HINT = " Or skip the check with -D" + SKIP_PROPERTY + "=true.";
   static final String MESSAGE_SKIPPED = "Docs check skipped (" + SKIP_PROPERTY + "=true)";
   static final String MESSAGE_SKIPPED_CI =
       "Docs check skipped: the "
           + Ci.VARIABLE
           + " environment variable is set, and the Docs Check job checks the docs in CI";
   static final String MESSAGE_ALREADY_CHECKED = "Docs already checked in this build";
-  static final String MESSAGE_SCRIPT_NOT_FOUND = "Docs check script not found: ";
+  static final String MESSAGE_NOT_CHECKED =
+      "Docs links NOT checked, the build goes on (the CI Docs Check job still checks them): ";
+  static final String MESSAGE_SCRIPT_NOT_FOUND = "the docs check script %s is missing.";
+  static final String MESSAGE_VERSION_FILE = "cannot read the minimum Python version from %s.";
   static final String MESSAGE_PYTHON_NOT_FOUND =
-      "Python %s or later is needed to check the docs links: install it, set -D"
+      "no Python %s or later with the venv module was found on the PATH (%s). Install one (with"
+          + " python3-venv on Debian/Ubuntu), or choose one with -D"
           + PYTHON_PROPERTY
-          + "=<path>, or skip with -D"
-          + SKIP_PROPERTY
-          + "=true";
-  static final String MESSAGE_EXPLICIT_NOT_FOUND = "%s: no such Python executable.";
-  static final String MESSAGE_EXPLICIT_NO_VERSION = "%s: `%s --version` failed.";
-  static final String MESSAGE_EXPLICIT_TOO_OLD =
-      "%s is Python %s, below the %s or later the docs need (docs/" + PYTHON_VERSION_FILE + ").";
+          + "=<path> or "
+          + PYTHON_VARIABLE
+          + "=<path>.";
+  static final String MESSAGE_EXPLICIT_UNUSABLE =
+      "%s is not a usable Python: %s. It must be Python %s or later with the venv module (python3-venv"
+          + " on Debian/Ubuntu).";
+  static final String PROBLEM_NOT_FOUND = "not found";
+  static final String PROBLEM_PROBE_FAILED = "it cannot import venv and ensurepip";
+  static final String PROBLEM_TOO_OLD = "it is Python %s";
   static final String MESSAGE_USING_PYTHON = "Docs check uses Python %s (%s)";
   static final String MESSAGE_DOCS_PROBLEMS =
       "Docs check found problems: fix the docs or docs/links.json as reported above.";
   static final String MESSAGE_SETUP_FAILED =
-      "Docs check could not set up its Python environment: see the message above (Python %s or"
-          + " later is needed, with python3-venv on Debian/Ubuntu).";
+      "run.py could not set up its Python environment: see the message above.";
   static final String MESSAGE_TOOLCHAIN_FAILED =
-      "Docs check could not run (exit code %d): the docs toolchain failed, or run.py crashed or"
-          + " got bad arguments; see the output above.";
+      "the docs check stopped with exit code %d (toolchain failure, crash or signal): see the output"
+          + " above.";
+  static final String MESSAGE_CANNOT_RUN = "cannot run %s: %s.";
   static final String MESSAGE_OFFLINE =
       " Maven runs offline (-o), so the docs packages could not be downloaded: run the build once"
           + " online.";
@@ -147,14 +159,20 @@ public class CheckDocs extends AbstractMojo {
     this.buildStartTime = buildStartTime;
   }
 
-  /** A Python interpreter: the command that starts it and the version it reported. */
-  record Python(List<String> command, int major, int minor, String version) {
-    boolean atLeast(int[] minimum) {
-      return major > minimum[0] || (major == minimum[0] && minor >= minimum[1]);
+  /** A usable Python: the command that starts it and its {@code major.minor} version. */
+  record Python(List<String> command, String version) {}
+
+  /** The result of the lookup: the Python found, or why there is none. */
+  record Lookup(Python python, String problem) {}
+
+  /** Why the check could not run; the build goes on with a warning. */
+  private static class NotChecked extends Exception {
+    NotChecked(String reason) {
+      super(reason);
     }
   }
 
-  public void execute() throws MojoExecutionException, MojoFailureException {
+  public void execute() throws MojoFailureException {
     if (skip) {
       getLog().info(MESSAGE_SKIPPED);
       return;
@@ -168,16 +186,24 @@ public class CheckDocs extends AbstractMojo {
       getLog().info(MESSAGE_ALREADY_CHECKED);
       return;
     }
+    try {
+      check(docs);
+    } catch (NotChecked e) {
+      getLog().warn(MESSAGE_NOT_CHECKED + e.getMessage() + SKIP_HINT);
+    }
+  }
+
+  private void check(Path docs) throws NotChecked, MojoFailureException {
     Path script = docs.resolve(RUN_SCRIPT);
     if (!Files.isRegularFile(script)) {
-      throw new MojoExecutionException(MESSAGE_SCRIPT_NOT_FOUND + script + "." + SKIP_HINT);
+      throw new NotChecked(MESSAGE_SCRIPT_NOT_FOUND.formatted(script));
     }
     int[] minimum = minimumVersion(docs);
-    String minimumText = minimum[0] + "." + minimum[1];
-    Python python =
-        findPython(env, pythonExecutable, windows, minimum)
-            .orElseThrow(
-                () -> new MojoExecutionException(MESSAGE_PYTHON_NOT_FOUND.formatted(minimumText)));
+    Lookup lookup = findPython(env, pythonExecutable, windows, minimum);
+    if (lookup.python() == null) {
+      throw new NotChecked(lookup.problem());
+    }
+    Python python = lookup.python();
     getLog()
         .info(MESSAGE_USING_PYTHON.formatted(python.version(), String.join(" ", python.command())));
 
@@ -188,12 +214,10 @@ public class CheckDocs extends AbstractMojo {
       throw new MojoFailureException(MESSAGE_DOCS_PROBLEMS + SKIP_HINT);
     }
     if (exitCode == EXIT_SETUP_FAILED) {
-      throw new MojoExecutionException(
-          MESSAGE_SETUP_FAILED.formatted(minimumText) + offlineHint(offline) + SKIP_HINT);
+      throw new NotChecked(MESSAGE_SETUP_FAILED + offlineHint(offline));
     }
     if (exitCode != 0) {
-      throw new MojoExecutionException(
-          MESSAGE_TOOLCHAIN_FAILED.formatted(exitCode) + offlineHint(offline) + SKIP_HINT);
+      throw new NotChecked(MESSAGE_TOOLCHAIN_FAILED.formatted(exitCode) + offlineHint(offline));
     }
   }
 
@@ -209,7 +233,7 @@ public class CheckDocs extends AbstractMojo {
   }
 
   /** The minimum Python version, from {@code docs/.python-version} (e.g. {@code 3.11}). */
-  static int[] minimumVersion(Path docs) throws MojoExecutionException {
+  static int[] minimumVersion(Path docs) throws NotChecked {
     Path file = docs.resolve(PYTHON_VERSION_FILE);
     try {
       Matcher matcher =
@@ -218,21 +242,17 @@ public class CheckDocs extends AbstractMojo {
         return new int[] {Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2))};
       }
     } catch (IOException e) {
-      throw new MojoExecutionException("Cannot read " + file + "." + SKIP_HINT, e);
+      // Reported below, as for a file without a version.
     }
-    throw new MojoExecutionException(
-        file + " must start with the minimum Python version, e.g. 3.11." + SKIP_HINT);
+    throw new NotChecked(MESSAGE_VERSION_FILE.formatted(file));
   }
 
   /**
-   * Finds the Python to run the check with (see the class comment for the rule).
-   *
-   * @throws MojoExecutionException when the explicit choice is not a working Python of the minimum
-   *     version: it is never replaced silently by another one
+   * Finds the Python to run the check with (see the class comment for the rule). An explicit choice
+   * that is not usable is reported, never replaced by another Python.
    */
-  static Optional<Python> findPython(
-      Map<String, String> env, String pythonProperty, boolean windows, int[] minimum)
-      throws MojoExecutionException {
+  static Lookup findPython(
+      Map<String, String> env, String pythonProperty, boolean windows, int[] minimum) {
     String path = getenv(env, "PATH", windows);
     String minimumText = minimum[0] + "." + minimum[1];
     String variable = getenv(env, PYTHON_VARIABLE, windows);
@@ -247,20 +267,21 @@ public class CheckDocs extends AbstractMojo {
     }
     if (explicit != null) {
       Path executable = resolveExplicit(explicit, path, windows);
+      String problem;
       if (executable == null) {
-        throw new MojoExecutionException(MESSAGE_EXPLICIT_NOT_FOUND.formatted(origin) + SKIP_HINT);
+        problem = PROBLEM_NOT_FOUND;
+      } else {
+        List<String> command = List.of(executable.toString());
+        Optional<int[]> version = probe(command);
+        if (version.isEmpty()) {
+          problem = PROBLEM_PROBE_FAILED;
+        } else if (!atLeast(version.get(), minimum)) {
+          problem = PROBLEM_TOO_OLD.formatted(text(version.get()));
+        } else {
+          return new Lookup(new Python(command, text(version.get())), null);
+        }
       }
-      Optional<Python> probed = probe(List.of(executable.toString()));
-      if (probed.isEmpty()) {
-        throw new MojoExecutionException(
-            MESSAGE_EXPLICIT_NO_VERSION.formatted(origin, executable) + SKIP_HINT);
-      }
-      Python python = probed.get();
-      if (!python.atLeast(minimum)) {
-        throw new MojoExecutionException(
-            MESSAGE_EXPLICIT_TOO_OLD.formatted(origin, python.version(), minimumText) + SKIP_HINT);
-      }
-      return Optional.of(python);
+      return new Lookup(null, MESSAGE_EXPLICIT_UNUSABLE.formatted(origin, problem, minimumText));
     }
 
     List<List<String>> candidates = new ArrayList<>();
@@ -279,12 +300,25 @@ public class CheckDocs extends AbstractMojo {
           .ifPresent(found -> candidates.add(List.of(found.toString())));
     }
     for (List<String> candidate : candidates) {
-      Optional<Python> python = probe(candidate);
-      if (python.isPresent() && python.get().atLeast(minimum)) {
-        return python;
+      Optional<int[]> version = probe(candidate);
+      if (version.isPresent() && atLeast(version.get(), minimum)) {
+        return new Lookup(new Python(candidate, text(version.get())), null);
       }
     }
-    return Optional.empty();
+    String tried =
+        candidates.isEmpty()
+            ? "none of " + (windows ? "py, " : "") + String.join(", ", names) + " is on it"
+            : "unusable: "
+                + String.join(", ", candidates.stream().map(c -> String.join(" ", c)).toList());
+    return new Lookup(null, MESSAGE_PYTHON_NOT_FOUND.formatted(minimumText, tried));
+  }
+
+  private static boolean atLeast(int[] version, int[] minimum) {
+    return version[0] > minimum[0] || (version[0] == minimum[0] && version[1] >= minimum[1]);
+  }
+
+  private static String text(int[] version) {
+    return version[0] + "." + version[1];
   }
 
   private static Path resolveExplicit(String explicit, String path, boolean windows) {
@@ -301,12 +335,14 @@ public class CheckDocs extends AbstractMojo {
   }
 
   /**
-   * Runs {@code <python> --version}: empty when it fails, prints no version (the Windows Store stub
-   * exits with 9009) or does not answer within a few seconds.
+   * Runs the probe script with a Python: its {@code major.minor} version when it exits 0 within a
+   * few seconds and prints it, empty otherwise (no venv or ensurepip module, the Windows Store stub
+   * that exits 9009, not a Python at all).
    */
-  static Optional<Python> probe(List<String> python) {
+  static Optional<int[]> probe(List<String> python) {
     List<String> command = new ArrayList<>(python);
-    command.add("--version");
+    command.add("-c");
+    command.add(PROBE_SCRIPT);
     Process process;
     try {
       process = new ProcessBuilder(command).redirectErrorStream(true).start();
@@ -315,21 +351,17 @@ public class CheckDocs extends AbstractMojo {
     }
     try (InputStream output = process.getInputStream()) {
       process.getOutputStream().close();
-      if (!process.waitFor(VERSION_PROBE_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+      if (!process.waitFor(PROBE_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
         process.destroyForcibly();
         return Optional.empty();
       }
-      String text = new String(output.readAllBytes(), StandardCharsets.UTF_8);
-      Matcher version = VERSION_OUTPUT.matcher(text);
-      if (process.exitValue() != 0 || !version.find()) {
+      String text = new String(output.readAllBytes(), StandardCharsets.UTF_8).strip();
+      Matcher version = PROBE_OUTPUT.matcher(text);
+      if (process.exitValue() != 0 || !version.matches()) {
         return Optional.empty();
       }
       return Optional.of(
-          new Python(
-              python,
-              Integer.parseInt(version.group(1)),
-              Integer.parseInt(version.group(2)),
-              version.group(1) + "." + version.group(2) + version.group(3)));
+          new int[] {Integer.parseInt(version.group(1)), Integer.parseInt(version.group(2))});
     } catch (IOException e) {
       process.destroyForcibly();
       return Optional.empty();
@@ -344,7 +376,7 @@ public class CheckDocs extends AbstractMojo {
    * Looks an executable up in a PATH-like list of directories, as the shell would. On Windows only
    * the {@code .exe} file is taken (ProcessBuilder cannot start an extensionless shell shim there),
    * and it only has to exist: the Microsoft Store app execution aliases are reparse points that are
-   * neither regular nor executable files to Java, and the {@code --version} probe rejects the stub.
+   * neither regular nor executable files to Java, and the probe rejects the stub.
    */
   static Optional<Path> findExecutable(String name, String searchPath, boolean windows) {
     if (searchPath == null || searchPath.isBlank()) {
@@ -393,7 +425,7 @@ public class CheckDocs extends AbstractMojo {
         .orElse(null);
   }
 
-  private int run(List<String> command, Path directory) throws MojoExecutionException {
+  private int run(List<String> command, Path directory) throws NotChecked {
     ProcessBuilder builder = new ProcessBuilder(command).directory(directory.toFile());
     builder.redirectErrorStream(true);
     Map<String, String> childEnv = builder.environment();
@@ -404,7 +436,7 @@ public class CheckDocs extends AbstractMojo {
     try {
       process = builder.start();
     } catch (IOException e) {
-      throw new MojoExecutionException("Cannot run " + String.join(" ", command), e);
+      throw new NotChecked(MESSAGE_CANNOT_RUN.formatted(command.get(0), e.getMessage()));
     }
     // Stops the check (and the pip or MkDocs processes it started) when Maven is interrupted.
     Thread stopCheck = new Thread(() -> destroyTree(process));
@@ -420,11 +452,11 @@ public class CheckDocs extends AbstractMojo {
       return process.waitFor();
     } catch (IOException e) {
       destroyTree(process);
-      throw new MojoExecutionException("Cannot read the output of the docs check", e);
+      throw new NotChecked(MESSAGE_CANNOT_RUN.formatted(command.get(0), e.getMessage()));
     } catch (InterruptedException e) {
       destroyTree(process);
       Thread.currentThread().interrupt();
-      throw new MojoExecutionException("Docs check interrupted", e);
+      throw new NotChecked(MESSAGE_CANNOT_RUN.formatted(command.get(0), "interrupted"));
     } finally {
       try {
         Runtime.getRuntime().removeShutdownHook(stopCheck);

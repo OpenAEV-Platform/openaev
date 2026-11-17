@@ -1,8 +1,14 @@
-// Generated from docs/links.json by the docs-links goal of openaev-maven-plugin. Do not edit:
-// change docs/links.json and build openaev-api with Maven, which rewrites this file.
 package io.openaev.docs;
 
-/** Links to the OpenAEV documentation, one constant per key of docs/links.json. */
+/**
+ * Links to the OpenAEV documentation: one constant per key of {@code docs/links.json}, named after
+ * the key in upper case, holding the base URL followed by the key's path.
+ *
+ * <p>Backend code links to the documentation only through these constants, so that the docs build
+ * checks every link (it fails when a page or an anchor of docs/links.json disappears). The
+ * constants are compile-time constants, usable in annotations. {@code DocsLinksTest} keeps this
+ * class equal to docs/links.json: add, change or remove a constant together with its key.
+ */
 public final class DocsLinks {
 
   /** Key {@code collectors}. */

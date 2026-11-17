@@ -14,6 +14,7 @@ guard = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(guard)
 
 URL = "https://docs.openaev.io/latest/administration/parameters/"
+APPLICATION_PROPERTIES = "openaev-api/src/main/resources/application.properties"
 
 
 class FindingsTest(unittest.TestCase):
@@ -28,18 +29,17 @@ class FindingsTest(unittest.TestCase):
         for path in ("docs/links.json", "docs/docs/index.md", ".github/workflows/a.yml", "README.md", "x/CHANGELOG.MD"):
             self.assertEqual(guard.findings(path, URL), [], path)
 
-    def test_allows_the_generated_backend_constants_only(self):
+    def test_allows_the_backend_constants_of_the_map_only(self):
         self.assertEqual(guard.findings("openaev-api/src/main/java/io/openaev/docs/DocsLinks.java", URL), [])
         self.assertEqual(len(guard.findings("openaev-api/src/main/java/io/openaev/docs/Other.java", URL)), 1)
 
-    def test_allows_the_code_that_reads_the_map(self):
+    def test_allows_the_tests_that_hold_the_expected_urls(self):
         for path in (
-            "openaev-maven-plugin/src/main/java/io/openaev/docs/DocsLinksGenerator.java",
-            "openaev-maven-plugin/src/test/java/io/openaev/docs/GenerateDocsLinksTest.java",
+            "openaev-api/src/test/java/io/openaev/docs/DocsLinksTest.java",
             "openaev-front/src/__tests__/utils/docsUrl.test.ts",
         ):
             self.assertEqual(guard.findings(path, URL), [], path)
-        self.assertEqual(len(guard.findings("openaev-maven-plugin/src/main/java/io/openaev/ocsf/A.java", URL)), 1)
+        self.assertEqual(len(guard.findings("openaev-maven-plugin/src/main/java/io/openaev/docs/CheckDocs.java", URL)), 1)
 
     def test_ignores_binary_files(self):
         self.assertEqual(guard.findings("openaev-front/src/static/logo.png", URL), [])
@@ -47,21 +47,26 @@ class FindingsTest(unittest.TestCase):
     def test_reads_svg_as_text(self):
         self.assertEqual(len(guard.findings("openaev-front/src/static/logo.svg", f'<a href="{URL}"/>')), 1)
 
-    def test_allows_comment_lines_of_properties_files(self):
+    def test_allows_comment_lines_of_application_properties(self):
         text = f"# see also: {URL}\n  ! {URL}\n"
-        self.assertEqual(guard.findings("openaev-api/src/main/resources/application.properties", text), [])
+        self.assertEqual(guard.findings(APPLICATION_PROPERTIES, text), [])
 
     def test_flags_a_property_value(self):
         text = f"# fine: {URL}\nopenaev.docs={URL}\n"
-        self.assertEqual(guard.findings("a.properties", text), [(2, f"openaev.docs={URL}")])
+        self.assertEqual(guard.findings(APPLICATION_PROPERTIES, text), [(2, f"openaev.docs={URL}")])
 
     def test_continuation_lines_are_part_of_the_value(self):
         text = f"a=first \\\n  # {URL}\nb=x \\\\\n# {URL}\n"
         # Line 2 continues the value of a (odd backslashes); line 4 is a comment (an even run ends b).
-        self.assertEqual([n for n, _ in guard.findings("a.properties", text)], [2])
+        self.assertEqual([n for n, _ in guard.findings(APPLICATION_PROPERTIES, text)], [2])
 
     def test_a_comment_never_continues(self):
-        self.assertEqual(guard.findings("a.properties", f"# note \\\n# {URL}\n"), [])
+        self.assertEqual(guard.findings(APPLICATION_PROPERTIES, f"# note \\\n# {URL}\n"), [])
+
+    def test_comments_of_other_properties_files_are_flagged(self):
+        for path in ("a.properties", "openaev-api/src/main/resources/application-dev.properties.example",
+                     "openaev-api/src/test/resources/application.properties"):
+            self.assertEqual(len(guard.findings(path, f"# {URL}\n")), 1, path)
 
     def test_comment_rule_is_only_for_properties_files(self):
         self.assertEqual(len(guard.findings("a.yml", f"# {URL}\n")), 1)

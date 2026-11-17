@@ -53,7 +53,6 @@ extra:
     - icon: fontawesome/brands/facebook
       link: https://facebook.com/FiligranHQ
 
-# Hides the pages of preview features from the navigation (see preview_features.py)
 # Plugins
 plugins:
   - mike:
@@ -113,6 +112,7 @@ plugins:
         'usage/notifications/triggers.md': 'usage/run-and-evaluate/notifications/triggers.md'
         'usage/openaev-agent.md': 'integrations/agents/openaev-agent.md'
         'usage/rest-api.md': 'reference/apis/rest-api.md'
+        'usage/teams_and_players_and_organizations.md': 'usage/build/people.md'
   - macros
   # The contributors and dates shown on each page come from git history and the GitHub API.
   # check.py only needs the pages, so it sets DOCS_GIT_PLUGINS=false (true or false) to skip both,

@@ -60,7 +60,8 @@ section. They need Python with its `venv` module, at least the version in `docs/
 (3.11): on first use, they create a virtual environment in `docs/.venv` and install the pinned
 documentation dependencies in it.
 
-Ubuntu 24.04 ships Python 3.12. Install the `venv` module, which Ubuntu packages apart:
+Ubuntu 24.04 ships Python 3.12. Install the `venv` module, which Ubuntu packages apart (without it, the
+checks skip `python3` and try the `python3.N` installed next to it):
 
 ```bash
 sudo apt-get install python3 python3-venv
@@ -82,12 +83,14 @@ python3 --version
 
 On Ubuntu 22.04 with deadsnakes, check `python3.11 --version` instead.
 
-The checks use the first Python recent enough among `python3` and `python`, then `python3.N` from the newest
-version down. To choose one, set the `PYTHON` environment variable to its path, or pass
-`-Dopenaev.docs.python=<path>` to Maven. A Python chosen this way is never replaced by another one:
-when it is not found or too old, the check fails and names it.
+The checks use the first usable Python among `python3` and `python`, then `python3.N` from the newest
+version down: a Python is usable when it runs, has its `venv` module and is recent enough, so one without
+`venv` is skipped and the next one is tried. To choose one, set the `OPENAEV_DOCS_PYTHON` environment
+variable to its path, or pass `-Dopenaev.docs.python=<path>` to Maven. A Python chosen this way is never
+replaced by another one: when it is not usable, the check names it.
 
-To build the backend without it, add `-Dopenaev.docs.check.skip=true` to the Maven command.
+Without a usable Python, the backend build prints a warning and goes on without the check, while
+`yarn check-docs-links` fails. Add `-Dopenaev.docs.check.skip=true` to the Maven command to skip the check.
 
 ## What's next?
 

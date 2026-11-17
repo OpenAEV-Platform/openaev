@@ -99,8 +99,8 @@ deployment of a development environment and how to start the source code modific
 Besides Java, Maven and Node.js, a development environment needs [Python](https://www.python.org/downloads/), at
 least the version in `docs/.python-version` (3.11), plus the `python3-venv` package on Debian and Ubuntu: the
 backend build checks the documentation links of the platform by building the documentation, a Python project that
-`docs/run.py` installs with its pinned packages in its own virtual environment. Pass
-`-Dopenaev.docs.check.skip=true` to Maven to build without it.
+`docs/run.py` installs with its pinned packages in its own virtual environment. Without a usable Python, the build
+prints a warning and goes on without the check. Pass `-Dopenaev.docs.check.skip=true` to Maven to skip it.
 
 ## Community
 

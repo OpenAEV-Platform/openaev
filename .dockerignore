@@ -20,3 +20,8 @@ openaev-front/.env.production.local
 # API
 openaev-api/coverage
 openaev-api/logs
+
+# Docs: the local Python environments, check cache and build output of docs/run.py
+docs/.venv
+docs/.cache
+docs/site

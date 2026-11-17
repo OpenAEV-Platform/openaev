@@ -9,13 +9,13 @@ files git tracks and reports every docs.openaev.io URL outside the places allowe
 - docs/**: the documentation itself and links.json,
 - *.md: READMEs, changelogs and other prose,
 - .github/**: CI, templates and agent instructions,
-- comment lines of .properties files (`#` or `!` first): application.properties ships with the
-  release, and its comments give operators a URL they can open. Property values stay forbidden,
-  continuation lines of a value included,
-- DocsLinks.java: the backend constants, generated from links.json by the docs-links goal of
-  openaev-maven-plugin, which also checks the URLs of the application.properties comments,
-- the code that reads the map and its tests: the docs goals of openaev-maven-plugin and the test
-  of the front docsUrl helper, which need the base URL and expected URLs.
+- comment lines (`#` or `!` first) of openaev-api/src/main/resources/application.properties: it
+  ships with the release, its comments give operators a URL they can open, and DocsLinksTest
+  checks them against links.json. Its property values stay forbidden, continuation lines of a value
+  included, and so do the comments of every other .properties file,
+- DocsLinks.java, the hand-written constants of the map in the backend, and the tests that hold
+  the URLs they expect: DocsLinksTest, which keeps DocsLinks.java equal to links.json, and the test
+  of the front docsUrl helper.
 
 Run it from anywhere in the repository: python3 .github/scripts/check-docs-urls.py
 """
@@ -31,16 +31,15 @@ from pathlib import Path, PurePosixPath
 URL_RE = re.compile(r"docs\.openaev\.io", re.I)
 ALLOWED_DIRS = ("docs/", ".github/")
 ALLOWED_SUFFIXES = {".md"}
-# Generated from docs/links.json, so its URLs are the map's own.
+# The constants of docs/links.json in the backend, which DocsLinksTest keeps equal to the map, and
+# the tests that hold the URLs they expect.
 ALLOWED_FILES = {
     "openaev-api/src/main/java/io/openaev/docs/DocsLinks.java",
+    "openaev-api/src/test/java/io/openaev/docs/DocsLinksTest.java",
     "openaev-front/src/__tests__/utils/docsUrl.test.ts",
 }
-# The code that reads the map and checks its URLs, and its tests.
-ALLOWED_PREFIXES = (
-    "openaev-maven-plugin/src/main/java/io/openaev/docs/",
-    "openaev-maven-plugin/src/test/java/io/openaev/docs/",
-)
+# The one .properties file whose comments may hold URLs: they are checked by DocsLinksTest.
+PROPERTIES_WITH_URL_COMMENTS = "openaev-api/src/main/resources/application.properties"
 # Files that cannot hold a URL a reader would follow. SVG is text, and can hold links.
 BINARY_SUFFIXES = {
     ".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".pdf", ".zip", ".gz", ".jar",
@@ -55,7 +54,6 @@ def file_allowed(path: str) -> bool:
     return (
         path in ALLOWED_FILES
         or path.startswith(ALLOWED_DIRS)
-        or path.startswith(ALLOWED_PREFIXES)
         or suffix in ALLOWED_SUFFIXES
         or suffix in BINARY_SUFFIXES
     )
@@ -83,7 +81,7 @@ def findings(path: str, text: str) -> list[tuple[int, str]]:
     if file_allowed(path) or not URL_RE.search(text):
         return []
     lines = text.splitlines()
-    allowed = properties_comments(lines) if PurePosixPath(path).suffix.lower() == ".properties" else set()
+    allowed = properties_comments(lines) if path == PROPERTIES_WITH_URL_COMMENTS else set()
     return [
         (index + 1, line.strip())
         for index, line in enumerate(lines)
@@ -123,9 +121,9 @@ def main(cwd: Path | None = None) -> int:
         message = escape_data(f"{path}:{number}: docs.openaev.io URL: {line[:160]}")
         print(f"::error file={escape_property(path)},line={number}::{message}")
     if problems:
-        print(f"{len(problems)} docs.openaev.io URL(s) outside docs/, .github/, Markdown files and .properties comments: {HINT}.")
+        print(f"{len(problems)} docs.openaev.io URL(s) outside docs/, .github/, Markdown files and the comments of application.properties: {HINT}.")
         return 1
-    print("No docs.openaev.io URL outside docs/, .github/, Markdown files and .properties comments.")
+    print("No docs.openaev.io URL outside docs/, .github/, Markdown files and the comments of application.properties.")
     return 0
 
 

@@ -63,6 +63,7 @@ class FixtureSiteTest(unittest.TestCase):
         (root / "links.json").write_text(json.dumps({
             "base": "https://docs.openaev.io/latest/",
             "links": {"home": "", "through_redirect": "old/", "missing_anchor": "a/#key-nope", "fine": "a/#setup"},
+            "retired": ["old/#setup", "a/", "gone/", "old/#retired-nope"],
         }))
         env = {**os.environ, "NO_MKDOCS_2_WARNING": "true", "DISABLE_MKDOCS_2_WARNING": "true"}
         result = subprocess.run(
@@ -99,6 +100,12 @@ class FixtureSiteTest(unittest.TestCase):
 
     def test_links_json_key_through_a_redirect(self):
         self.assertTrue(self.warned("key 'through_redirect': old/ is a redirect to a/: use a/"), self.lines)
+
+    def test_retired_paths_may_redirect_but_must_resolve(self):
+        self.assertTrue(self.warned("retired path 'gone/': no page /latest/gone/"), self.lines)
+        self.assertTrue(self.warned("retired path 'old/#retired-nope'", "no anchor #retired-nope"), self.lines)
+        self.assertFalse(self.warned("'old/#setup'"), self.lines)
+        self.assertFalse(self.warned("retired path 'a/'"), self.lines)
 
     def test_links_json_key_with_a_missing_anchor(self):
         self.assertTrue(self.warned("key 'missing_anchor'", "no anchor #key-nope"), self.lines)

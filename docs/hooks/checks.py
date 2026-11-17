@@ -21,8 +21,10 @@ hook checks:
 - the images written in raw HTML, which MkDocs does not validate either, are files of the site,
 - no redirect of mkdocs-redirects starts from a page of the site, which it would overwrite,
 - `links.json`, the map of the docs links the backend and the front use: its shape, its keys and
-  values (the same rules as the Java generator of the backend), and that every link goes straight
-  to a page of the site, not through a redirect, and to an anchor of that page (`on_post_build`).
+  values (the same rules as DocsLinks.java of the backend checks), and that every link goes straight
+  to a page of the site, not through a redirect, and to an anchor of that page. Its `retired` paths,
+  the ones released versions of the application open, must still lead to a page and anchor,
+  redirects allowed (`on_post_build`).
 
 Every problem is a warning of the `mkdocs.hooks.checks` logger: `--strict` fails the build on it,
 and `mkdocs serve` shows it. A `--dirty` build renders only the changed pages, so the checks that
@@ -51,7 +53,7 @@ DOCS_HOST = "docs.openaev.io"
 # The site is deployed by mike under a version: a page of the build is served at /latest/<url>.
 VERSION_ROOT = f"https://{DOCS_HOST}/latest/"
 LINKS_FILE = "links.json"
-# The same rules as DocsLinksGenerator of openaev-maven-plugin: snake_case keys, and values relative
+# The same rules as the backend test of DocsLinks.java: snake_case keys, and values relative
 # to the base, made of URI characters (RFC 3986 unreserved, sub-delims, ":@/?#" and %XX escapes),
 # whose path, before any #anchor, is empty or ends with '/'.
 LINK_KEY_RE = re.compile(r"[a-z][a-z0-9]*(_[a-z0-9]+)*")
@@ -67,15 +69,22 @@ def validate_key(key: object) -> str | None:
     return None
 
 
-def validate_value(value: object) -> str | None:
-    """Error message for a value of links.json, or None when it is valid."""
+def validate_path(value: object) -> str | None:
+    """Error message for a path of links.json relative to the base, or None when it is one."""
     if not isinstance(value, str):
-        return "must map to a string"
+        return "must be a string"
     if not LINK_VALUE_RE.fullmatch(value):
         return f"{json.dumps(value)} must only hold URI characters: no space or control character, % only in %XX escapes"
     parts = urlsplit(value)
     if parts.scheme or parts.netloc or value.startswith("/"):
         return f"{value} must be a path relative to the base"
+    return None
+
+
+def validate_value(value: object) -> str | None:
+    """Error message for a value of the links of links.json, or None when it is valid."""
+    if error := validate_path(value):
+        return error
     path = value.split("#", 1)[0]
     if path and not path.endswith("/"):
         return f"{value} must be the URL of a page, ending with '/' (a.md is a/)"
@@ -416,7 +425,8 @@ def _check_site(config) -> None:
 
 
 def load_links(text: str) -> tuple[dict | None, list[str]]:
-    """Parse links.json: (links, errors). links is None when the file cannot be used at all."""
+    """Parse links.json: ({"links": ..., "retired": [...]}, errors). The first is None when the file
+    cannot be used at all."""
     errors: list[str] = []
 
     def no_duplicates(pairs):
@@ -429,13 +439,18 @@ def load_links(text: str) -> tuple[dict | None, list[str]]:
         data = json.loads(text, object_pairs_hook=no_duplicates)
     except ValueError as error:
         return None, [f"cannot be read as JSON: {error}"]
-    if not isinstance(data, dict) or set(data) != {"base", "links"}:
-        return None, errors + ['must be an object with exactly two members, "base" and "links"']
+    if not isinstance(data, dict) or not {"base", "links"} <= set(data) <= {"base", "links", "retired"}:
+        return None, errors + ['must be an object with the members "base", "links" and, optionally, "retired"']
     if data["base"] != VERSION_ROOT:
         return None, errors + [f'"base" must be "{VERSION_ROOT}", not {json.dumps(data["base"])}']
     if not isinstance(data["links"], dict):
         return None, errors + ['"links" must be an object of key to path']
-    return data["links"], errors
+    retired = data.get("retired", [])
+    if not isinstance(retired, list):
+        return None, errors + ['"retired" must be a list of paths']
+    for path in sorted({p for p in retired if isinstance(p, str) and retired.count(p) > 1}):
+        errors.append(f"retired path '{path}' is listed more than once")
+    return {"links": data["links"], "retired": retired}, errors
 
 
 def links_errors(site: Site, links: dict) -> list[str]:
@@ -455,6 +470,21 @@ def links_errors(site: Site, links: dict) -> list[str]:
     return errors
 
 
+def retired_errors(site: Site, retired: list) -> list[str]:
+    """Error messages, naming the path, for the retired paths that are invalid or do not resolve.
+
+    Released versions of the application keep opening them, so they must lead somewhere, through a
+    redirect or not: unlike a key, a retired path may go through a redirect.
+    """
+    errors = []
+    for path in retired:
+        if error := validate_path(path):
+            errors.append(f"retired path {json.dumps(path)}: {error}")
+        elif error := site.resolve(urljoin(VERSION_ROOT, path)):
+            errors.append(f"retired path '{path}': {error}")
+    return errors
+
+
 @event_priority(-100)
 def on_post_build(config) -> None:
     if _dirty or _files is None:
@@ -467,11 +497,14 @@ def on_post_build(config) -> None:
 
     path = Path(config.config_file_path).parent / LINKS_FILE
     try:
-        links, errors = load_links(path.read_text(encoding="utf-8"))
+        document, errors = load_links(path.read_text(encoding="utf-8"))
     except OSError as error:
-        links, errors = None, [f"cannot be read: {error}"]
-    if links is not None:
-        errors += links_errors(_site, links)
+        document, errors = None, [f"cannot be read: {error}"]
+    if document is not None:
+        errors += links_errors(_site, document["links"])
+        errors += retired_errors(_site, document["retired"])
     for error in errors:
         log.warning("%s: %s.", LINKS_FILE, error)
-    log.info("Checked %d page(s) and %d %s link(s).", len(_site.pages), len(links or {}), LINKS_FILE)
+    document = document or {"links": {}, "retired": []}
+    log.info("Checked %d page(s), %d %s link(s) and %d retired path(s).", len(_site.pages),
+             len(document["links"]), LINKS_FILE, len(document["retired"]))
