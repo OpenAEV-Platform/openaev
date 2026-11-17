@@ -9,6 +9,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -34,6 +35,7 @@ import io.openaev.utils.fixtures.UserFixture;
 import jakarta.persistence.EntityManagerFactory;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -54,6 +56,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.util.AopTestUtils;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -334,5 +338,34 @@ class MeApiAmbientRolesTest extends IntegrationTest {
     }
 
     private record Measure(long statements, Set<Capability> capabilities) {}
+  }
+
+  @Nested
+  @DisplayName("the response of a password reset")
+  class PasswordReset {
+
+    @Test
+    @DisplayName("given_aValidResetToken_should_sendTheCapabilitiesOfTheDefaultTenant")
+    void given_aValidResetToken_should_sendTheCapabilitiesOfTheDefaultTenant() throws Exception {
+      // Arrange: the token a reset mail carries, held by the service for the user
+      User user = memberOfDefaultTenant("reset-roles", 0);
+      String token = "reset-" + UUID.randomUUID();
+      Object service = AopTestUtils.getUltimateTargetObject(userService);
+      @SuppressWarnings("unchecked")
+      Map<String, String> resetTokens =
+          (Map<String, String>) ReflectionTestUtils.getField(service, "resetTokenMap");
+      resetTokens.put(user.getId(), token);
+
+      // Act + Assert: the response describes the user in the default tenant
+      mvc.perform(
+              post("/api/reset/" + token)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"password\":\"Passw0rd!x\",\"password_validation\":\"Passw0rd!x\"}")
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.user_capabilities[?(@ == '" + DEFAULT_TENANT_CAPABILITY + "')]")
+                  .exists());
+    }
   }
 }
