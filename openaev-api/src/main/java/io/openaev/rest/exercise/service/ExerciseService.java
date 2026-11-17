@@ -955,6 +955,10 @@ public class ExerciseService {
       exercise.setEnd(null);
       exercise.setCurrentPause(null);
       exerciseRepository.save(exercise);
+      // Captured now, before the afterCommit callback below: the entity is not safe to read once
+      // the transaction has committed, and the directory must be removed from the exercise's own
+      // tenant path, not the caller's ambient one (it differs on the non-prefixed route).
+      final String exerciseTenantId = exercise.getTenant().getId();
       // Delete exercise transient files (communications, ...) AFTER commit: this is an external
       // MinIO/S3 call. Running it inside the transaction pinned the DB connection and every row
       // lock taken by the deletes above for the whole duration of the object-storage roundtrips,
@@ -965,7 +969,7 @@ public class ExerciseService {
             @Override
             public void afterCommit() {
               try {
-                fileService.deleteDirectory(exerciseId);
+                fileService.deleteDirectory(exerciseTenantId, exerciseId);
               } catch (Exception e) {
                 log.error("Failed to delete directory for exercise {}", exerciseId, e);
               }

@@ -1008,8 +1008,18 @@ public class ExerciseApi extends RestBehavior {
   //
   public void downloadAttachment(TxCtx ctx, @RequestParam String file, HttpServletResponse response)
       throws IOException {
+    // The attachment belongs to the communication that references it, read from its inject's own
+    // tenant rather than the caller's ambient one: this endpoint has no tenant-prefixed route, so
+    // the ambient tenant is always the default one, whatever tenant the caller is scoped to.
+    String tenantId =
+        communicationRepository
+            .findByAttachment(file)
+            .map(Communication::getInject)
+            .map(Inject::getTenant)
+            .map(Tenant::getId)
+            .orElseThrow(ElementNotFoundException::new);
     FileContainer fileContainer =
-        fileService.getFileContainer(file).orElseThrow(ElementNotFoundException::new);
+        fileService.getFileContainer(tenantId, file).orElseThrow(ElementNotFoundException::new);
     response.addHeader(
         HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileContainer.getName());
     response.addHeader(HttpHeaders.CONTENT_TYPE, fileContainer.getContentType());

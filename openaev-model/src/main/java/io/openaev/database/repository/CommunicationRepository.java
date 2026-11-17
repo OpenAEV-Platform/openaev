@@ -23,4 +23,12 @@ public interface CommunicationRepository
 
   @Query("SELECT COUNT(c) FROM Communication c WHERE c.inject.exercise.id = :exerciseId")
   long countByExerciseId(@Param("exerciseId") String exerciseId);
+
+  // Native: a text[] containment check (`= ANY(...)`) has no clean JPQL/Criteria equivalent, and
+  // this is a plain read with no listener-dependent side effect to lose. The attachment path
+  // embeds the communication's own (globally unique) id, so at most one row ever matches.
+  @Query(
+      value = "SELECT * FROM communications WHERE :attachment = ANY(communication_attachments)",
+      nativeQuery = true)
+  Optional<Communication> findByAttachment(@Param("attachment") String attachment);
 }

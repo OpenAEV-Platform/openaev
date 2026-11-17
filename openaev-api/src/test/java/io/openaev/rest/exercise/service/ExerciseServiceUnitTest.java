@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.cache.LicenseCacheManager;
@@ -35,7 +36,10 @@ import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
+import jakarta.persistence.EntityManager;
+import java.time.Instant;
 import java.util.*;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -49,6 +53,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @ExtendWith(MockitoExtension.class)
 class ExerciseServiceUnitTest {
@@ -90,8 +95,74 @@ class ExerciseServiceUnitTest {
   @Mock private WorkflowOwnerScope workflowOwnerScope;
   @Mock private LessonsService lessonsService;
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private EntityManager entityManager;
+  @Mock private PauseExerciseService pauseExerciseService;
+  @Mock private UrlAccessTokenService urlAccessTokenService;
+  @Mock private FileService fileService;
 
   @Spy @InjectMocks private ExerciseService mockedExerciseService;
+
+  @AfterEach
+  void clearTransactionSynchronization() {
+    // Safety net: the reset-storage test below opens a TransactionSynchronizationManager scope
+    // manually (it's thread-bound state, not a mock), so a failure mid-test must not leak it into
+    // the next test's thread.
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
+  }
+
+  @Nested
+  @DisplayName("Resetting a closed simulation to scheduled")
+  class ResetToScheduled {
+
+    @Test
+    @DisplayName(
+        "given_closedSimulationOfAnotherTenant_when_resetWithAmbientDefault_should_deleteDirectoryUnderItsOwnTenant")
+    void
+        given_closedSimulationOfAnotherTenant_when_resetWithAmbientDefault_should_deleteDirectoryUnderItsOwnTenant()
+            throws ChainingException {
+      // Arrange - the simulation lives in a tenant of its own, not the default one
+      String exerciseId = "9b1c2d3e-4f50-4617-8829-aabbccddeeff";
+      String owningTenantId = "4e5f6071-8293-4a5b-9c0d-1e2f30415263";
+      Exercise exercise = new Exercise();
+      exercise.setId(exerciseId);
+      exercise.setStatus(ExerciseStatus.CANCELED);
+      exercise.setStart(Instant.now());
+      exercise.setTenant(new Tenant(owningTenantId));
+
+      when(exerciseRepository.findByIdAndTenantIdIn(eq(exerciseId), any()))
+          .thenReturn(Optional.of(exercise));
+      when(exerciseRepository.save(any(Exercise.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+      when(workflowOwnerScope.call(any(Exercise.class), any()))
+          .thenAnswer(
+              invocation ->
+                  invocation
+                      .<io.openaev.context.TenantScopedTransaction.ScopedWork<?, ?>>getArgument(1)
+                      .get());
+      // @InjectMocks only wires the biggest constructor; the @PersistenceContext field is set
+      // separately, the same way EmailService's ImapService test sets its @Value fields.
+      org.springframework.test.util.ReflectionTestUtils.setField(
+          mockedExerciseService, "entityManager", entityManager);
+
+      // The non-prefixed route never sets the ambient TenantContext: it falls back to the default
+      // tenant, whatever tenant the request's TxCtx actually names.
+      TenantContext.clearCurrentTenant();
+      TransactionSynchronizationManager.initSynchronization();
+
+      // Act - the request scope names the simulation's own tenant (e.g. via X-Tenant-Ids)
+      mockedExerciseService.changeExerciseStatus(
+          TxCtx.forTenant(owningTenantId), ExerciseStatus.SCHEDULED, exerciseId);
+      TransactionSynchronizationManager.getSynchronizations()
+          .forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit);
+
+      // Assert - the directory is removed from the simulation's own tenant path, never the
+      // ambient (default) one.
+      verify(fileService).deleteDirectory(eq(owningTenantId), eq(exerciseId));
+      verify(fileService, never()).deleteDirectory(anyString());
+    }
+  }
 
   @Test
   @DisplayName("Should get exercises global scores")
