@@ -42,6 +42,7 @@ import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.criteria.Join;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -265,11 +266,26 @@ public class ThreatArsenalService {
    */
   @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction create(TxCtx ctx, ThreatArsenalActionCreateInput actionInput) {
+    payloadService.assertNameAvailable(
+        writeScopeResolver.tenantForWrite(ctx, null), actionInput.name(), null);
     PayloadCreateInput payloadCreateInput =
         convertActionCreateInputToPayloadCreateInput(actionInput);
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(ctx, payloadCreateInput);
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
+  }
+
+  /** Whether the name is free for a new action, or for the payload of this one. */
+  @Transactional(readOnly = true)
+  public boolean isNameAvailable(TxCtx ctx, String name, @Nullable String actionId) {
+    Payload payload =
+        actionId == null || actionId.isBlank()
+            ? null
+            : injectorContractService.injectorContract(actionId).getPayload();
+    return payloadService.isNameAvailable(
+        writeScopeResolver.tenantForWrite(ctx, null),
+        name,
+        payload == null ? null : payload.getIdentity().getId());
   }
 
   /**
@@ -306,6 +322,9 @@ public class ThreatArsenalService {
     if (actionInput.expectations() == null) {
       throw new BadRequestException("action_expectations is required for payload-based actions");
     }
+    Payload payload = injectorContract.getPayload();
+    payloadService.assertNameAvailable(
+        payload.getTenant().getId(), actionInput.name(), payload.getIdentity().getId());
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);
     // update payload using the resolved payload ID

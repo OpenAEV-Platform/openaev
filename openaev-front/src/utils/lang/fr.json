@@ -10,6 +10,7 @@
   "-": "Aucun",
   ",": ",",
   ".": ".",
+  "A payload with this name already exists": "Un payload avec ce nom existe déjà",
   "Filigran license": "Licence Filigran",
   "Filigran license (through XTM One)": "Licence Filigran (via XTM One)",
   "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.": "« Oui, toujours » enregistre cette préférence pour vous. Cet outil s’exécutera alors sans vous demander votre avis — y compris lors des exécutions planifiées que personne ne surveille — jusqu’à ce que vous révoquiez cette autorisation.",

@@ -101,6 +101,17 @@ public interface PayloadRepository
   List<Payload> findOrphansByNameAndTenantId(
       @Param("name") String name, @Param("tenantId") String tenantId);
 
+  // -- NAME --
+
+  @Query(
+      "SELECT COUNT(p) > 0 FROM Payload p WHERE p.tenant.id = :tenantId"
+          + " AND LOWER(TRIM(p.name)) = LOWER(TRIM(:name))"
+          + " AND (:identityId IS NULL OR p.identity.id <> :identityId)")
+  boolean existsByTenantIdAndNameOutsideIdentity(
+      @Param("tenantId") String tenantId,
+      @Param("name") String name,
+      @Param("identityId") String identityId);
+
   // -- IDENTITY --
 
   List<Payload> findAllByTenantIdAndIdentityExternalId(

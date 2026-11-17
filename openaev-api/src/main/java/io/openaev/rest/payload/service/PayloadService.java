@@ -43,6 +43,7 @@ import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -60,6 +61,7 @@ import io.openaev.service.payload.PayloadContentHashService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -79,6 +81,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Slf4j
 public class PayloadService {
+
+  public static final String PAYLOAD_NAME_TAKEN = "A payload with this name already exists";
 
   public static final String DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY = "dynamic_hostname_key";
   public static final String DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE =
@@ -409,6 +413,22 @@ public class PayloadService {
     List<String> tagIds = relatedIds != null ? relatedIds.getTag_ids() : List.of();
 
     return new PayloadWithRelatedEntities(payload, attackPatternIds, domainIds, tagIds);
+  }
+
+  // -- NAME --
+
+  /** Whether no other payload of the tenant uses this name; the versions of a payload share it. */
+  @Transactional(readOnly = true)
+  public boolean isNameAvailable(String tenantId, String name, @Nullable String identityId) {
+    return name == null
+        || name.isBlank()
+        || !payloadRepository.existsByTenantIdAndNameOutsideIdentity(tenantId, name, identityId);
+  }
+
+  public void assertNameAvailable(String tenantId, String name, @Nullable String identityId) {
+    if (!isNameAvailable(tenantId, name, identityId)) {
+      throw new BadRequestException(PAYLOAD_NAME_TAKEN);
+    }
   }
 
   // -- DUPLICATE --

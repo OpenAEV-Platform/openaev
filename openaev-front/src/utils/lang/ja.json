@@ -10,6 +10,7 @@
   "-": "なし",
   ",": ",",
   ".": ".",
+  "A payload with this name already exists": "この名前のペイロードは既に存在します",
   "Filigran license": "Filigran ライセンス",
   "Filigran license (through XTM One)": "Filigran ライセンス (XTM One 経由)",
   "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.": "「はい、常に」を選択すると、設定が保存されます。その後、このツールは、あなたが許可を取り消すまで、確認のメッセージを表示することなく実行されます。これは、誰も監視していないスケジュールされた実行の場合も同様です。",
