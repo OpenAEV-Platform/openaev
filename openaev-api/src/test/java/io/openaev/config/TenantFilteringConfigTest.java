@@ -1,6 +1,7 @@
 package io.openaev.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -20,6 +21,7 @@ import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
 
@@ -39,6 +41,9 @@ class TenantFilteringConfigTest {
   @Autowired private DataSource dataSource;
   @Autowired private EntityManagerFactory entityManagerFactory;
   @Autowired private ScopeStatementInspector inspector;
+
+  @Value("${openaev.tenant.active-tables:}")
+  private List<String> activeTables;
 
   @Test
   @DisplayName("classifies tenant tables by the nullability of their tenant_id column")
@@ -147,10 +152,20 @@ class TenantFilteringConfigTest {
   }
 
   @Test
-  @DisplayName("with no active table the wired inspector passes statements through untouched")
-  void wiredInspectorIsInertByDefault() {
-    String sql = "SELECT * FROM documents d WHERE d.id = ?";
-    assertEquals(sql, inspector.inspect(sql));
+  @DisplayName("a table outside the active list gets no tenant predicate from the wired inspector")
+  void wiredInspectorAddsNoTenantPredicateToInactiveTables() {
+    // The wired inspector follows the property of the run: it adds the tenant predicate to the
+    // listed tables and to no other. The marking dimension is independent of that list, so the
+    // assertion is on the tenant predicate alone. A tenant table outside the list is the probe in
+    // every configuration.
+    String inactiveTable =
+        TenantFilteringConfig.deriveFromSchema(dataSource).strict().stream()
+            .filter(table -> !activeTables.contains(table))
+            .sorted()
+            .findFirst()
+            .orElseThrow();
+    String sql = "SELECT * FROM " + inactiveTable + " t WHERE t.id = ?";
+    assertFalse(inspector.inspect(sql).contains("can_access_tenant"), inactiveTable);
   }
 
   @Test
