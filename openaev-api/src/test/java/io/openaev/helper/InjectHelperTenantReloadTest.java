@@ -3,8 +3,7 @@ package io.openaev.helper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -35,8 +34,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * The scheduler polls the injects to run across all tenants and runs each one in its own tenant.
@@ -46,13 +43,7 @@ import org.springframework.test.context.DynamicPropertySource;
 @WithMockUser(isAdmin = true)
 @TestInstance(PER_CLASS)
 @DisplayName("Inject to run reloaded in its own tenant")
-class InjectHelperTenantReloadTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class InjectHelperTenantReloadTest extends ProductionTablesIntegrationTest {
 
   private record Seeded(String injectId, String endpointId, String agentId) {}
 

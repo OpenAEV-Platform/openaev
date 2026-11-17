@@ -14,8 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -38,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Stream;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.AfterAll;
@@ -53,8 +51,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.util.AopTestUtils;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -72,7 +68,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Current user response with roles active")
-class MeApiAmbientRolesTest extends IntegrationTest {
+class MeApiAmbientRolesTest extends ProductionTablesIntegrationTest {
 
   /** A capability held only through a role of the default tenant. */
   private static final Capability DEFAULT_TENANT_CAPABILITY = Capability.ACCESS_ASSESSMENT;
@@ -81,18 +77,6 @@ class MeApiAmbientRolesTest extends IntegrationTest {
   private static final Capability TENANT_A_CAPABILITY = Capability.ACCESS_CHANNELS;
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables",
-        () ->
-            String.join(
-                ",",
-                Stream.concat(ProductionActiveTables.names().stream(), Stream.of("roles"))
-                    .distinct()
-                    .toList()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

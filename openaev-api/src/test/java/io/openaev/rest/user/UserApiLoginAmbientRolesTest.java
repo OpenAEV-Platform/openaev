@@ -6,8 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -28,7 +27,6 @@ import io.openaev.utils.fixtures.UserFixture;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -39,8 +37,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -54,25 +50,13 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Login response with roles active")
-class UserApiLoginAmbientRolesTest extends IntegrationTest {
+class UserApiLoginAmbientRolesTest extends ProductionTablesIntegrationTest {
 
   /** A capability held only through a role of the default tenant. */
   private static final Capability DEFAULT_TENANT_CAPABILITY = Capability.ACCESS_ASSESSMENT;
 
   /** A capability held only through a role of tenant A. */
   private static final Capability TENANT_A_CAPABILITY = Capability.ACCESS_CHANNELS;
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables",
-        () ->
-            String.join(
-                ",",
-                Stream.concat(ProductionActiveTables.names().stream(), Stream.of("roles"))
-                    .distinct()
-                    .toList()));
-  }
 
   @MockitoBean private UserEventService userEventService;
 
