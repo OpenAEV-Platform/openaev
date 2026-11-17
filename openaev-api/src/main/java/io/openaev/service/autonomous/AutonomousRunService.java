@@ -2351,7 +2351,7 @@ public class AutonomousRunService {
   public AutonomousScopeView getRunScopeView(String runId) {
     AutonomousRun run = require(runId);
     List<WorkflowScopeRule> rules = readScopeRules(run);
-    Map<String, String> names = resolveScopeNames(rules);
+    Map<String, String> names = resolveScopeNames(rules, runTenantId(run));
     List<AutonomousScopeEntry> allow = new ArrayList<>();
     List<AutonomousScopeEntry> deny = new ArrayList<>();
     for (WorkflowScopeRule rule : rules) {
@@ -2413,14 +2413,14 @@ public class AutonomousRunService {
   }
 
   /** Batch-resolves entity display names per kind so scope reads never issue a query per rule. */
-  private Map<String, String> resolveScopeNames(List<WorkflowScopeRule> rules) {
+  private Map<String, String> resolveScopeNames(List<WorkflowScopeRule> rules, String tenantId) {
     Map<String, String> names = new HashMap<>();
     List<String> assetIds = idsForSource(rules, ScopeRuleSource.ASSET);
     List<String> groupIds = idsForSource(rules, ScopeRuleSource.ASSET_GROUP);
     List<String> teamIds = idsForSource(rules, ScopeRuleSource.TEAM);
     List<String> playerIds = idsForSource(rules, ScopeRuleSource.PLAYER);
     if (!assetIds.isEmpty()) {
-      for (Endpoint endpoint : endpointService.endpoints(assetIds)) {
+      for (Endpoint endpoint : endpointService.endpoints(assetIds, tenantId)) {
         names.put(nameKey(ScopeRuleSource.ASSET, endpoint.getId()), endpoint.getName());
       }
     }
