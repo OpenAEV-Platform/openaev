@@ -90,6 +90,14 @@ public class AssetGroupService {
     return computeDynamicAssets(assetGroups);
   }
 
+  /** The asset groups among the given ids that belong to the given tenant. */
+  public List<AssetGroup> assetGroups(
+      @NotNull final List<String> assetGroupIds, @NotBlank final String tenantId) {
+    List<AssetGroup> assetGroups =
+        this.assetGroupRepository.findAllByIdInTenant(assetGroupIds, tenantId);
+    return computeDynamicAssets(assetGroups);
+  }
+
   /**
    * The asset groups targeted by the inject, without loading the inject. Dynamic members are not
    * computed: use {@link #isAssetInDynamicGroup(Asset, AssetGroup)} to check a given asset.
