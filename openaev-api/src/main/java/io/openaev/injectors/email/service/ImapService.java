@@ -79,37 +79,28 @@ public class ImapService extends ExternalServiceBase {
   /** What the attachment upload needs once the communication is recorded. */
   private record RecordedCommunication(String communicationId, String exerciseId) {}
 
+  /**
+   * Only creates the store: the connection is opened by the scheduled {@link
+   * #connectionListener()}, so an unreachable IMAP server does not delay the API at startup.
+   */
   @PostConstruct
   private void init() {
     this.saveServiceState(IMAP_SETTINGS_KEY, false);
     try {
-      initStore();
+      Session session = Session.getDefaultInstance(buildProperties(), null);
+      imapStore = session.getStore(PROVIDER);
+      log.info(enabled ? "IMAP sync started" : "IMAP sync disabled");
     } catch (Exception e) {
       log.error(e.getMessage(), e);
     }
   }
 
-  private void initStore() throws Exception {
-    Session session = Session.getDefaultInstance(buildProperties(), null);
-    imapStore = session.getStore(PROVIDER);
-    if (enabled) {
-      log.info("IMAP sync started");
-      imapStore.connect(host, port, username, password);
-      try {
-        Folder defaultFolder = imapStore.getDefaultFolder();
-        Folder sentBox = defaultFolder.getFolder(sentFolder);
-        if (!sentBox.exists()) {
-          sentBox.create(Folder.READ_WRITE);
-          sentBox.setSubscribed(true);
-        }
-        this.saveServiceState(IMAP_SETTINGS_KEY, true);
-      } catch (Exception e) {
-        log.error(e.getMessage(), e);
-        this.saveServiceState(IMAP_SETTINGS_KEY, false);
-      }
-    } else {
-      log.info("IMAP sync disabled");
-      this.saveServiceState(IMAP_SETTINGS_KEY, false);
+  private void connectStore() throws MessagingException {
+    imapStore.connect(host, port, username, password);
+    Folder sentBox = imapStore.getDefaultFolder().getFolder(sentFolder);
+    if (!sentBox.exists()) {
+      sentBox.create(Folder.READ_WRITE);
+      sentBox.setSubscribed(true);
     }
   }
 
@@ -177,6 +168,9 @@ public class ImapService extends ExternalServiceBase {
     props.setProperty("mail.imap.ssl.trust", sslTrust);
     props.setProperty("mail.imap.auth", sslAuth);
     props.setProperty("mail.imap.starttls.enable", sslStartTLS);
+    // Without timeouts, connecting to an unreachable IMAP server waits for the OS TCP timeout
+    props.setProperty("mail.imap.connectiontimeout", "5000");
+    props.setProperty("mail.imap.timeout", "60000");
     return props;
   }
 
@@ -386,13 +380,13 @@ public class ImapService extends ExternalServiceBase {
     }
   }
 
-  // Sync folders every 10 sec
-  @Scheduled(fixedDelay = 10000, initialDelay = 10000)
+  // Connect right after startup, then sync folders every 10 sec
+  @Scheduled(fixedDelay = 10000, initialDelay = 0)
   public void connectionListener() throws Exception {
-    if (enabled) {
+    if (enabled && imapStore != null) {
       if (!imapStore.isConnected()) {
         try {
-          imapStore.connect(host, port, username, password);
+          connectStore();
           this.saveServiceState(IMAP_SETTINGS_KEY, true);
         } catch (MessagingException e) {
           log.warn(e.getMessage());
