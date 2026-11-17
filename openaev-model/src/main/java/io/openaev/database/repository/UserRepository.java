@@ -1,5 +1,6 @@
 package io.openaev.database.repository;
 
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawNewsFeedRecipient;
@@ -233,6 +234,24 @@ public interface UserRepository
       nativeQuery = true)
   List<RawPlayer> rawPlayersByScenarioId(@Param("scenarioId") String scenarioId);
 
+  /**
+   * Every platform administrator, whatever their memberships: administrators, and holders of one of
+   * the capabilities through a platform group and a platform role.
+   */
+  @Query(
+      "SELECT DISTINCT u "
+          + "FROM User u "
+          + "LEFT JOIN u.groups g "
+          + "LEFT JOIN g.roles r "
+          + "LEFT JOIN r.capabilities c "
+          + "WHERE u.admin = true "
+          + "OR (g.tenant IS NULL AND r.tenant IS NULL AND c IN :capabilities)")
+  List<User> findPlatformAdministrators(@Param("capabilities") Collection<Capability> capabilities);
+
+  /**
+   * The administrators of a tenant: members of the tenant who are administrators, or who hold one
+   * of the capabilities through a group and a role of that tenant or of the platform.
+   */
   @Query(
       "SELECT DISTINCT u "
           + "FROM User u "
@@ -240,9 +259,14 @@ public interface UserRepository
           + "LEFT JOIN u.groups g "
           + "LEFT JOIN g.roles r "
           + "LEFT JOIN r.capabilities c "
-          + "WHERE ut.id = :#{#tenantContext.currentTenant} "
-          + "AND (u.admin = true OR c IN :capabilities)")
-  List<User> adminsOrUsersHavingCapabilities(@Param("capabilities") List<String> capabilities);
+          + "WHERE ut.id = :tenantId "
+          + "AND (u.admin = true "
+          + "OR (c IN :capabilities "
+          + "AND (g.tenant IS NULL OR g.tenant.id = :tenantId) "
+          + "AND (r.tenant IS NULL OR r.tenant.id = :tenantId)))")
+  List<User> findTenantAdministrators(
+      @Param("tenantId") String tenantId,
+      @Param("capabilities") Collection<Capability> capabilities);
 
   // -- Tenant-scoped --
 

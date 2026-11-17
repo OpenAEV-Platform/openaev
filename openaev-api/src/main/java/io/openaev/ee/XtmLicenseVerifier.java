@@ -53,6 +53,15 @@ public final class XtmLicenseVerifier {
   /** OpenAEV's sub-license extension (XTM One maps the legacy {@code openbas} type to it). */
   static final String OID_OPENAEV_SUBLICENSE = "1.3.6.1.4.1.62944.60";
 
+  /**
+   * The licence model: {@code 2} for a Filigran License bound to the instance of its subject {@code
+   * OU} and granting every module. A licence issued before carries no model claim and keeps the
+   * per-module rules it was issued with.
+   */
+  static final String OID_LICENSE_MODEL = "1.3.6.1.4.1.62944.120";
+
+  static final String LICENSE_MODEL_INSTANCE_BOUND = "2";
+
   static final String XTM_PRODUCT = "filigran xtm";
   static final String GLOBAL_GRANT = XtmLicense.GLOBAL_GRANT;
 
@@ -97,13 +106,30 @@ public final class XtmLicenseVerifier {
   public static XtmLicense verify(
       String pem, String platformId, Instant instanceCreationDate, Instant now)
       throws XtmLicenseException {
+    return verify(pem, platformId, instanceCreationDate, now, false);
+  }
+
+  /**
+   * Verifies an XTM license certificate as {@link #verify(String, String, Instant, Instant)} does.
+   *
+   * @param pastedInPlatform the license is installed as this platform's own license (not returned
+   *     by XTM One): a model 2 license must then name this platform's id, or {@code global}, in its
+   *     subject {@code OU}
+   */
+  public static XtmLicense verify(
+      String pem,
+      String platformId,
+      Instant instanceCreationDate,
+      Instant now,
+      boolean pastedInPlatform)
+      throws XtmLicenseException {
     X509Certificate trustAnchor;
     try {
       trustAnchor = Pem.getXtmCaCert();
     } catch (Exception e) {
       throw new IllegalStateException("The XTM CA pinned in this build cannot be parsed", e);
     }
-    return verify(pem, platformId, instanceCreationDate, now, trustAnchor);
+    return verify(pem, platformId, instanceCreationDate, now, trustAnchor, pastedInPlatform);
   }
 
   static XtmLicense verify(
@@ -112,6 +138,17 @@ public final class XtmLicenseVerifier {
       Instant instanceCreationDate,
       Instant now,
       X509Certificate trustAnchor)
+      throws XtmLicenseException {
+    return verify(pem, platformId, instanceCreationDate, now, trustAnchor, false);
+  }
+
+  static XtmLicense verify(
+      String pem,
+      String platformId,
+      Instant instanceCreationDate,
+      Instant now,
+      X509Certificate trustAnchor,
+      boolean pastedInPlatform)
       throws XtmLicenseException {
     if (pem == null || pem.isBlank()) {
       throw new XtmLicenseException("no certificate was provided");
@@ -124,10 +161,25 @@ public final class XtmLicenseVerifier {
     }
     verifySignature(certificate, trustAnchor.getPublicKey());
     try {
-      return checkLicense(certificate, platformId, instanceCreationDate, now);
+      XtmLicense license = checkLicense(certificate, platformId, instanceCreationDate, now);
+      if (pastedInPlatform && LICENSE_MODEL_INSTANCE_BOUND.equals(licenseModel(certificate))) {
+        String subjectInstance = subjectAttribute(certificate, "OU");
+        if (!GLOBAL_GRANT.equals(subjectInstance)
+            && (platformId == null
+                || platformId.isBlank()
+                || !platformId.equals(subjectInstance))) {
+          throw new XtmLicenseException("this Filigran license is issued for another instance");
+        }
+      }
+      return license;
     } catch (RuntimeException e) {
       throw new XtmLicenseException("its license extensions cannot be read");
     }
+  }
+
+  /** The licence model claim, or {@code null} for a licence issued before model 2. */
+  static String licenseModel(X509Certificate certificate) {
+    return Pem.getExtensionText(certificate, OID_LICENSE_MODEL);
   }
 
   private static void verifySignature(X509Certificate certificate, PublicKey caPublicKey)
@@ -246,16 +298,22 @@ public final class XtmLicenseVerifier {
 
   /** The customer name, the subject {@code O}; informational, as for XTM One. */
   private static String customer(X509Certificate certificate) {
+    String customer = subjectAttribute(certificate, "O");
+    return customer != null ? customer : "Unknown";
+  }
+
+  /** One attribute of the subject, or {@code null} when absent or unreadable. */
+  private static String subjectAttribute(X509Certificate certificate, String type) {
     try {
       for (Rdn rdn : new LdapName(certificate.getSubjectX500Principal().getName()).getRdns()) {
-        if ("O".equalsIgnoreCase(rdn.getType())) {
+        if (type.equalsIgnoreCase(rdn.getType())) {
           return rdn.getValue().toString();
         }
       }
     } catch (InvalidNameException e) {
-      // an unreadable subject names no customer
+      // an unreadable subject names nothing
     }
-    return "Unknown";
+    return null;
   }
 
   /** The standard extension, or the legacy one only when the standard one is absent. */

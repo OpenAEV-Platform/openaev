@@ -233,13 +233,26 @@ public class ScopeService {
             .map(WorkflowScopeRule::getRuleValue)
             .toList();
 
-    return assetIds.isEmpty() ? Set.of() : new LinkedHashSet<>(assetService.assets(assetIds));
+    if (assetIds.isEmpty()) {
+      return Set.of();
+    }
+    // A rule stores the asset id its request names. Every rule carries the tenant of its workflow
+    // (WorkflowScopeRule#attributeTenantFromWorkflow), so an asset of another tenant is an unknown
+    // id.
+    String workflowTenantId = allowlistRules.getFirst().getTenant().getId();
+    return new LinkedHashSet<>(assetService.assets(assetIds, workflowTenantId));
   }
 
   private Set<Asset> getAssetsAllowedByAssetGroup(List<WorkflowScopeRule> allowlistRules) {
+    // A rule stores the group id its request names and carries the tenant of its workflow, so a
+    // group of another tenant is an unknown id.
     return allowlistRules.stream()
         .filter(rule -> ScopeRuleValueType.ASSET_GROUP_ID.equals(rule.getValueType()))
-        .flatMap(rule -> assetGroupService.assetsFromAssetGroup(rule.getRuleValue()).stream())
+        .flatMap(
+            rule ->
+                assetGroupService
+                    .assetsFromAssetGroup(rule.getRuleValue(), rule.getTenant().getId())
+                    .stream())
         .collect(Collectors.toCollection(LinkedHashSet::new));
   }
 
@@ -256,7 +269,9 @@ public class ScopeService {
 
         case ASSET_GROUP_ID -> {
           Set<String> groupAssetIds =
-              assetGroupService.assetsFromAssetGroup(rule.getRuleValue()).stream()
+              assetGroupService
+                  .assetsFromAssetGroup(rule.getRuleValue(), rule.getTenant().getId())
+                  .stream()
                   .map(Asset::getId)
                   .collect(Collectors.toSet());
           candidates.stream()

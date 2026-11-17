@@ -415,7 +415,6 @@ ExerciseLessonsApi.updateExerciseLessonsCategory -> LessonsCategory.getUsers() |
 ExerciseLessonsApi.updateExerciseLessonsCategory -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
 ExerciseLessonsApi.updateExerciseLessonsCategoryTeams -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
 ExerciseLessonsApi.updateExerciseLessonsCategoryTeams -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
-FindingApi.createFinding -> ScenarioSimple.tags | NOT ESTABLISHED | not written by any measured test response
 FindingApi.finding -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
 FindingSearchApi.findings -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
 FindingSearchApi.findingsByEndpoint -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
@@ -814,7 +813,7 @@ ScenarioInjectApi.bulkDeleteInjectsForScenario -> Communication.getExercise() | 
 ScenarioInjectApi.bulkDeleteInjectsForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.bulkDeleteInjectsForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.bulkDeleteInjectsForScenario -> Inject.getType() | ATTENUATED | measured: initialised inside the transaction whenever written
-ScenarioInjectApi.bulkDeleteInjectsForScenario -> Inject.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioInjectApi.bulkDeleteInjectsForScenario -> Inject.tags | ATTENUATED | fixed by the response hydration of tags and documents
 ScenarioInjectApi.bulkUpdateInjectsForScenario -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.bulkUpdateInjectsForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.bulkUpdateInjectsForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
@@ -1043,7 +1042,7 @@ SimulationInjectApi.bulkDeleteInjectsForSimulation -> Communication.getExercise(
 SimulationInjectApi.bulkDeleteInjectsForSimulation -> Communication.users | NOT ESTABLISHED | written while lazy, no gated read recorded
 SimulationInjectApi.bulkDeleteInjectsForSimulation -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.bulkDeleteInjectsForSimulation -> Inject.getType() | ATTENUATED | measured: initialised inside the transaction whenever written
-SimulationInjectApi.bulkDeleteInjectsForSimulation -> Inject.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+SimulationInjectApi.bulkDeleteInjectsForSimulation -> Inject.tags | ATTENUATED | fixed by the response hydration of tags and documents
 SimulationInjectApi.bulkUpdateInjectsForSimulation -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.bulkUpdateInjectsForSimulation -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.bulkUpdateInjectsForSimulation -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response

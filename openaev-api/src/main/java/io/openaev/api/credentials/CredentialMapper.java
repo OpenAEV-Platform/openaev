@@ -33,7 +33,10 @@ public final class CredentialMapper {
         .awsSessionTokenPresent(secretMetadata.awsSessionTokenPresent())
         .awsRoleArn(secretMetadata.awsRoleArn())
         .awsSourceIdentityType(secretMetadata.awsSourceIdentityType())
+        .awsExternalIdDefined(secretMetadata.awsExternalIdDefined())
         .awsSourceProfileAccessKeyId(secretMetadata.awsSourceProfileAccessKeyId())
+        .awsSourceProfileSecretAccessKeyDefined(
+            secretMetadata.awsSourceProfileSecretAccessKeyDefined())
         .awsAccountId(secretMetadata.awsAccountId())
         .awsEndpointUrl(secretMetadata.awsEndpointUrl())
         .azureEnvironment(secretMetadata.azureEnvironment())

@@ -19,7 +19,6 @@ import io.openaev.database.repository.*;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector.form.InjectorOutput;
 import io.openaev.rest.injector.form.InjectorUpdateInput;
@@ -62,7 +61,6 @@ public class InjectorApi extends RestBehavior {
 
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
-  private final InjectStatusService injectStatusService;
   private final InjectorService injectorService;
   private final FileService fileService;
   private final TenantWriteScopeResolver writeScopeResolver;
@@ -246,22 +244,13 @@ public class InjectorApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<InputStreamResource> getOpenAevImplant(
-      TxCtx ctx,
-      @PathVariable String platform,
-      @PathVariable String architecture,
-      @RequestParam(required = false) final String injectId,
-      @RequestParam(required = false) final String agentId)
+      TxCtx ctx, @PathVariable String platform, @PathVariable String architecture)
       throws IOException {
-    String resolvedPlatform;
-    String resolvedArch;
-    try {
-      resolvedPlatform = AgentUtils.normaliseSupportedAgentPlatform(platform).name().toLowerCase();
-      resolvedArch = AgentUtils.normaliseSupportedAgentArch(architecture).name().toLowerCase();
-    } catch (IllegalArgumentException e) {
-      this.injectStatusService.setImplantErrorTrace(
-          injectId, agentId, "Unable to download the implant. %s".formatted(e.getMessage()));
-      throw e;
-    }
+    // An unsupported platform or architecture is refused (400, see RestBehavior) before anything
+    // is read or written: this route is public, so it records no trace, status or audit event.
+    String resolvedPlatform =
+        AgentUtils.normaliseSupportedAgentPlatform(platform).name().toLowerCase();
+    String resolvedArch = AgentUtils.normaliseSupportedAgentArch(architecture).name().toLowerCase();
 
     InputStream in = null;
     String filename = "";

@@ -42,6 +42,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.ObjectProvider;
@@ -68,6 +69,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
 
 /**
  * Service for managing user accounts and authentication.
@@ -79,6 +81,7 @@ import org.springframework.util.StringUtils;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
   @Value("${openbas.admin.email:${openaev.admin.email:#{null}}}")
@@ -519,27 +522,72 @@ public class UserService {
           user.getId(), new EmailChangeRequest(confirmationCode, newEmail));
     }
 
-    String subject = "OpenAEV email change to " + newEmail + " requested";
-    String body =
+    String confirmLink =
+        openAEVConfig.getBaseUrl() + "/api/me/confirm-email-change/" + confirmationCode;
+    String validityMinutes = String.valueOf(Math.ceilDivExact(tenMinutes, 60000));
+
+    // Send the confirmation link to the NEW address, so the change only takes effect once its
+    // holder
+    // confirms it. The recipient carries only the new address and no platform account, which the
+    // email injector already supports for non-platform recipients.
+    User newAddressRecipient = new User();
+    // Give the transient recipient an id so the email injector's execution traces can reference it,
+    // as EmailExecutor.buildSyntheticRecipient does; it is never persisted.
+    newAddressRecipient.setId(UUID.randomUUID().toString());
+    newAddressRecipient.setEmail(newEmail);
+    String confirmSubject = "OpenAEV email change to " + newEmail + " requested";
+    String confirmBody =
         """
-            Hi %s,<br/>
+            Hi,<br/>
             <br/>
-            A request to change your account's email address on OpenAEV was submitted. The change will only
-            take effect after you confirm the request.<br/>
+            This address was submitted as the new email address for an OpenAEV account. The change
+            will only take effect after you confirm it from this address.<br/>
             <br/>
-            If you have not requested this change yourself, please take steps to secure your account.<br/>
+            If you did not expect this, you can ignore this message.<br/>
             <br/>
             Follow this link to confirm and apply the email address change: <a href="%s">confirm email change</a>.<br/>
             <br/>
             The link is valid for %s minutes.
             """
-            .formatted(
-                user.getName(),
-                openAEVConfig.getBaseUrl() + "/api/me/confirm-email-change/" + confirmationCode,
-                String.valueOf(Math.ceilDivExact(tenMinutes, 60000)));
+            .formatted(confirmLink, validityMinutes);
+
+    // Notify the current address that a change was requested, without the confirmation link, so the
+    // account owner can react if they did not start it.
+    String noticeSubject = "OpenAEV email change requested";
+    String noticeBody =
+        """
+            Hi %s,<br/>
+            <br/>
+            A request to change your account's email address on OpenAEV was submitted. The change
+            will only take effect after it is confirmed from the new address.<br/>
+            <br/>
+            If you have not requested this change yourself, please take steps to secure your account.<br/>
+            """
+            .formatted(user.getName());
+
     tenantTx.executeNew(
         TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
-        () -> mailingService.sendEmail(subject, body, List.of(user)));
+        () -> {
+          // The two deliveries are independent: sendEmail throws on a failed delivery, so a failure
+          // of one must not suppress the other. The current-address notice is attempted even when
+          // the confirmation delivery fails (the owner is still warned), and a notice-only failure
+          // does not abort a request whose confirmation link is already out. A failed confirmation
+          // delivery is surfaced, so the caller learns the change was not actually set in motion.
+          RuntimeException confirmFailure = null;
+          try {
+            mailingService.sendEmail(confirmSubject, confirmBody, List.of(newAddressRecipient));
+          } catch (RuntimeException e) {
+            confirmFailure = e;
+          }
+          try {
+            mailingService.sendEmail(noticeSubject, noticeBody, List.of(user));
+          } catch (RuntimeException e) {
+            log.warn("Email-change notice to the current address could not be delivered", e);
+          }
+          if (confirmFailure != null) {
+            throw confirmFailure;
+          }
+        });
   }
 
   public User confirmEmailChange(String confirmationCode) {
@@ -563,8 +611,58 @@ public class UserService {
       throw new ElementNotFoundException("Could not find user");
     }
 
+    String previousEmail = user.get().getEmail();
     user.get().setEmail(ecr.getValue().newEmail());
-    return userRepository.save(user.get());
+    User saved = userRepository.save(user.get());
+    notifyPreviousAddressOfChange(previousEmail, saved.getEmail());
+    return saved;
+  }
+
+  // Escape a value embedded in an email body that is processed by FreeMarker and then rendered as
+  // HTML: htmlEscape neutralises tags and <#...>/<@...> directives (all start with '<'); breaking
+  // "${" and "#{" stops FreeMarker interpolation. The value is caller-controlled (a quoted
+  // @Email local part can carry these metacharacters).
+  static String escapeForEmailBody(String raw) {
+    if (raw == null) {
+      return "";
+    }
+    return HtmlUtils.htmlEscape(raw).replace("${", "&#36;{").replace("#{", "&#35;{");
+  }
+
+  // Tell the previous address that the change was applied, so the account owner can react if they
+  // did not start it. Independent delivery: a failure here must not undo a change that has already
+  // taken effect, so the whole body — recipient construction and the transactional send — is
+  // guarded
+  // (the executeNew begin/commit itself can throw, e.g. UnexpectedRollbackException).
+  private void notifyPreviousAddressOfChange(String previousEmail, String newEmail) {
+    // Nothing to warn about when there is no previous address or the address did not actually
+    // change
+    // (a replay of the confirmation code within its validity window yields previous == new).
+    if (previousEmail == null
+        || previousEmail.isBlank()
+        || previousEmail.equalsIgnoreCase(newEmail)) {
+      return;
+    }
+    try {
+      User previousAddressRecipient = new User();
+      previousAddressRecipient.setId(UUID.randomUUID().toString());
+      previousAddressRecipient.setEmail(previousEmail);
+      String subject = "OpenAEV account email changed";
+      String body =
+          """
+              Hi,<br/>
+              <br/>
+              Your OpenAEV account's email address was changed to %s.<br/>
+              <br/>
+              If you did not make this change, please take steps to secure your account.<br/>
+              """
+              .formatted(escapeForEmailBody(newEmail));
+      tenantTx.executeNew(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> mailingService.sendEmail(subject, body, List.of(previousAddressRecipient)));
+    } catch (RuntimeException e) {
+      log.warn("Email-change completion notice to the previous address could not be delivered", e);
+    }
   }
 
   public void sendEmailChangeConfirmationEmail(User user) {
