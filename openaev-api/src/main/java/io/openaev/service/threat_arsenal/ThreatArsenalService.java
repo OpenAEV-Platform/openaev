@@ -310,7 +310,7 @@ public class ThreatArsenalService {
     }
     Payload payload = injectorContract.getPayload();
     payloadService.assertNameAvailable(
-        payload.getTenant().getId(), actionInput.name(), payload.getIdentity().getId());
+        payload.getTenant().getId(), actionInput.name(), payload.getId());
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);
     // update payload using the resolved payload ID

@@ -106,11 +106,12 @@ public interface PayloadRepository
   @Query(
       "SELECT COUNT(p) > 0 FROM Payload p WHERE p.tenant.id = :tenantId"
           + " AND LOWER(TRIM(p.name)) = LOWER(TRIM(:name))"
-          + " AND (:identityId IS NULL OR p.identity.id <> :identityId)")
-  boolean existsByTenantIdAndNameOutsideIdentity(
+          + " AND (:payloadId IS NULL OR p.identity.id <>"
+          + " (SELECT v.identity.id FROM Payload v WHERE v.id = :payloadId))")
+  boolean existsByTenantIdAndNameOutsideVersionsOf(
       @Param("tenantId") String tenantId,
       @Param("name") String name,
-      @Param("identityId") String identityId);
+      @Param("payloadId") String payloadId);
 
   // -- IDENTITY --
 

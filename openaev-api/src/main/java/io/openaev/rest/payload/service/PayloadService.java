@@ -418,10 +418,10 @@ public class PayloadService {
   // -- NAME --
 
   /** No other payload of the tenant may use this name; the versions of a payload share it. */
-  public void assertNameAvailable(String tenantId, String name, @Nullable String identityId) {
+  public void assertNameAvailable(String tenantId, String name, @Nullable String payloadId) {
     if (name != null
         && !name.isBlank()
-        && payloadRepository.existsByTenantIdAndNameOutsideIdentity(tenantId, name, identityId)) {
+        && payloadRepository.existsByTenantIdAndNameOutsideVersionsOf(tenantId, name, payloadId)) {
       throw new BadRequestException(PAYLOAD_NAME_TAKEN);
     }
   }
