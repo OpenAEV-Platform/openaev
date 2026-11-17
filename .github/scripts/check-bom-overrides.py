@@ -35,6 +35,7 @@ import re
 import sys
 import urllib.request
 import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as DefusedET
 from pathlib import Path
 
 MAVEN_CENTRAL = "https://repo1.maven.org/maven2"
@@ -55,7 +56,7 @@ def die(message: str) -> None:
 
 
 def parse(path: Path) -> ET.Element:
-    return ET.parse(path).getroot()
+    return DefusedET.parse(path).getroot()
 
 
 def text(node: ET.Element | None, tag: str, default: str = "") -> str:
