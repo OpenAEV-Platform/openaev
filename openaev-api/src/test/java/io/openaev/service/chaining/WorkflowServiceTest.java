@@ -998,6 +998,148 @@ class WorkflowServiceTest {
       verify(stepService).syncScopeAssetsOnStepTemplates(workflow, List.of("asset-123"));
     }
 
+    private WorkflowScopeRule assetRuleOn(String ruleId, String assetId) {
+      return WorkflowScopeRule.builder()
+          .id(ruleId)
+          .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+          .ruleSource(ScopeRuleSource.ASSET)
+          .valueType(ScopeRuleValueType.ASSET_ID)
+          .ruleValue(assetId)
+          .build();
+    }
+
+    @Test
+    @DisplayName("should keep the rule of an asset the writer cannot see when the list is saved")
+    void given_ruleOnHiddenAsset_should_keepItWhenTheListIsSaved() {
+      // Arrange: the read dropped the red rule, so the saved list holds only the green one
+      String workflowId = UUID.randomUUID().toString();
+      WorkflowScopeRule green = assetRuleOn("rule-green", "green-asset");
+      WorkflowScopeRule red = assetRuleOn("rule-red", "red-asset");
+      WorkflowScopeRule gone = assetRuleOn("rule-gone", "gone-asset");
+      Workflow workflow =
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .workflowScopeRules(new ArrayList<>(List.of(green, red, gone)))
+              .build();
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setWorkflowScopeRules(
+          List.of(
+              WorkflowScopeRuleInput.builder()
+                  .id("rule-green")
+                  .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                  .ruleSource(ScopeRuleSource.ASSET)
+                  .ruleValue("green-asset")
+                  .build()));
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeSnapshotService.hiddenAssetIds(any(), any())).thenReturn(Set.of("red-asset"));
+
+      // Act
+      Workflow result = workflowService.updateWorkflowConfiguration(workflowId, input);
+
+      // Assert
+      assertEquals(
+          List.of("rule-green", "rule-red"),
+          result.getWorkflowScopeRules().stream().map(WorkflowScopeRule::getId).toList(),
+          "the hidden rule survives, a visible rule absent from the list is removed");
+    }
+
+    @Test
+    @DisplayName("should keep the rules of hidden assets when the writer empties the list")
+    void given_emptiedList_should_keepTheRulesOnHiddenAssets() {
+      // Arrange
+      String workflowId = UUID.randomUUID().toString();
+      WorkflowScopeRule green = assetRuleOn("rule-green", "green-asset");
+      WorkflowScopeRule red = assetRuleOn("rule-red", "red-asset");
+      Workflow workflow =
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .workflowScopeRules(new ArrayList<>(List.of(green, red)))
+              .build();
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setWorkflowScopeRules(List.of());
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeSnapshotService.hiddenAssetIds(any(), any())).thenReturn(Set.of("red-asset"));
+
+      // Act
+      Workflow result = workflowService.updateWorkflowConfiguration(workflowId, input);
+
+      // Assert
+      assertEquals(
+          List.of("rule-red"),
+          result.getWorkflowScopeRules().stream().map(WorkflowScopeRule::getId).toList());
+    }
+
+    @Test
+    @DisplayName("should not let an input rewrite a rule on a hidden asset through its id")
+    void given_inputWithTheIdOfAHiddenRule_should_notRewriteIt() {
+      // Arrange
+      String workflowId = UUID.randomUUID().toString();
+      WorkflowScopeRule red = assetRuleOn("rule-red", "red-asset");
+      Workflow workflow =
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .workflowScopeRules(new ArrayList<>(List.of(red)))
+              .build();
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setWorkflowScopeRules(
+          List.of(
+              WorkflowScopeRuleInput.builder()
+                  .id("rule-red")
+                  .selectedMode(ScopeRuleSelectedMode.DENYLIST)
+                  .ruleSource(ScopeRuleSource.ASSET)
+                  .ruleValue("other-asset")
+                  .build()));
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeSnapshotService.hiddenAssetIds(any(), any())).thenReturn(Set.of("red-asset"));
+
+      // Act
+      workflowService.updateWorkflowConfiguration(workflowId, input);
+
+      // Assert
+      assertEquals("red-asset", red.getRuleValue());
+      assertEquals(ScopeRuleSelectedMode.ALLOWLIST, red.getSelectedMode());
+    }
+
+    @Test
+    @DisplayName("should keep the assets of the templates the writer cannot see when realigning")
+    void given_templatesCarryingAHiddenAsset_should_keepItWhenRealigning() {
+      // Arrange
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setWorkflowScopeRules(WorkflowFixture.getDefaultWorkflowScopeRuleInputList());
+      Asset visible = new Asset();
+      visible.setId("asset-123");
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeService.getValidAssets(workflowId)).thenReturn(List.of(visible));
+      when(stepService.assetIdsOnStepTemplates(workflowId))
+          .thenReturn(List.of("red-asset", "asset-123"));
+      when(scopeSnapshotService.hiddenAssetIds(any(), eq(List.of("red-asset", "asset-123"))))
+          .thenReturn(Set.of("red-asset"));
+
+      // Act
+      workflowService.updateWorkflowConfiguration(workflowId, input);
+
+      // Assert: a restricted editor's rewrite does not strip the asset it cannot see
+      verify(stepService)
+          .syncScopeAssetsOnStepTemplates(workflow, List.of("asset-123", "red-asset"));
+    }
+
     @Test
     @DisplayName("should not realign step templates when no scope rule changed")
     void given_unchangedScopeRules_should_notRealignStepTemplates() {
@@ -1177,6 +1319,53 @@ class WorkflowServiceTest {
       // Assert
       verify(workflowRepository).flush();
       verify(stepService).syncScopeAssetsOnStepTemplates(template, List.of("asset-1"));
+    }
+
+    @Test
+    @DisplayName(
+        "cleanScopeRulesSimulation should keep the rule of an asset hidden from the caller")
+    void cleanScopeRulesSimulation_should_keepRule_whenAssetExistsButIsHidden() {
+      // Arrange
+      Workflow template =
+          Workflow.builder()
+              .id("wf-template")
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .simulation(new Exercise())
+              .tenant(new Tenant("tenant-1"))
+              .build();
+      WorkflowScopeRule hiddenRule =
+          WorkflowScopeRule.builder()
+              .id("rule-red")
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-red")
+              .workflow(template)
+              .build();
+      WorkflowScopeRule ghostRule =
+          WorkflowScopeRule.builder()
+              .id("rule-ghost")
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-ghost")
+              .workflow(template)
+              .build();
+      template.getWorkflowScopeRules().addAll(List.of(hiddenRule, ghostRule));
+
+      when(workflowRepository.findBySimulation_IdAndStatus("sim-1", WorkflowStatus.TEMPLATE))
+          .thenReturn(template);
+      // Both read as "not found" in the caller's scope; only the first one still exists.
+      when(scopeSnapshotService.buildCurrentSnapshot(hiddenRule)).thenReturn(null);
+      when(scopeSnapshotService.buildCurrentSnapshot(ghostRule)).thenReturn(null);
+      when(scopeSnapshotService.hiddenAssetIds(any(), any())).thenReturn(Set.of("asset-red"));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeService.getValidAssets("wf-template")).thenReturn(List.of());
+
+      // Act
+      workflowService.cleanScopeRulesSimulation("sim-1");
+
+      // Assert
+      assertEquals(List.of(hiddenRule), template.getWorkflowScopeRules());
     }
   }
 

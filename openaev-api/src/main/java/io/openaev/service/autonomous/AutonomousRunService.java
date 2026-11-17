@@ -55,6 +55,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.service.EndpointService;
+import io.openaev.service.FaithfulCopyTransaction;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.WorkflowService;
@@ -187,6 +188,7 @@ public class AutonomousRunService {
   private final AutonomousObjectiveTemplateService templateService;
   private final ScenarioService scenarioService;
   private final ScenarioToExerciseService scenarioToExerciseService;
+  private final FaithfulCopyTransaction faithfulCopy;
   private final WorkflowService workflowService;
   private final ExerciseService exerciseService;
   private final XtmOneClient xtmOneClient;
@@ -342,6 +344,34 @@ public class AutonomousRunService {
   }
 
   /**
+   * Copies the scenario into a running simulation launched by the live operator, as the launch of a
+   * scenario does: through {@link FaithfulCopyTransaction}, so the copy keeps the targets of the
+   * scenario's injects the operator is not cleared for, which the dispatch does not execute. The
+   * persistence context is cleared around the copy, so the scenario and the launcher are loaded
+   * again inside it and the simulation is read back after it.
+   *
+   * @param ctx the tenant scope the transaction carries
+   */
+  private Exercise copyScenarioToSimulation(TxCtx ctx, String scenarioId) {
+    String launcherId = resolveLaunchedBy().getId();
+    Instant start = now().truncatedTo(MINUTES).plus(1, MINUTES);
+    String simulationId =
+        faithfulCopy.execute(
+            ctx,
+            () ->
+                scenarioToExerciseService
+                    .toExercise(
+                        scenarioService.scenario(ctx, scenarioId),
+                        start,
+                        true,
+                        userRepository
+                            .findById(launcherId)
+                            .orElseThrow(ElementNotFoundException::new))
+                    .getId());
+    return exerciseService.exercise(simulationId);
+  }
+
+  /**
    * Creates a run: resolves the objective (free text or template), auto-provisions the attack-path
    * (chaining) substrate, spins up its running simulation, and persists the durable run handle in
    * {@code CREATED}. The run is fully autonomous - the operator never authors an attack path; the
@@ -419,9 +449,12 @@ public class AutonomousRunService {
     }
 
     boolean planMode = input.isPlanMode();
-    Exercise simulation =
-        scenarioToExerciseService.toExercise(
-            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, resolveLaunchedBy());
+    // A create narrows the transaction to one tenant (provisioningTenant), a launch from a scenario
+    // keeps the request's scope: the faithful copy must name the scope the transaction carries.
+    TxCtx copyCtx = provisioningTenant != null ? TxCtx.forTenant(provisioningTenant) : ctx;
+    Exercise simulation = copyScenarioToSimulation(copyCtx, scenarioId);
+    // The copy clears the persistence context: the scenario is loaded again, in the same scope.
+    scenario = scenarioService.scenario(copyCtx, scenarioId);
     // Dry-run: provision the simulation substrate so the orchestrator's authoring / mirror / read
     // tools work unchanged, but never start its RUN workflow. With no run workflow the chaining
     // engine has nothing to ready or dispatch, so a plan authors a full attack path without ever
@@ -1515,7 +1548,7 @@ public class AutonomousRunService {
    * re-provisions the TEMPLATE workflow so the AI rebuilds the plan from scratch.
    */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousRun restart(String runId) {
+  public AutonomousRun restart(TxCtx ctx, String runId) {
     // Row-locked read: the reset purges the decision timeline (deleteByRun takes the per-run event
     // advisory lock) and rewrites the run row, so it must hold the run ROW lock FIRST - the same
     // row -> advisory acquisition order as the settle paths (conditional row-locking UPDATE, then
@@ -1533,7 +1566,6 @@ public class AutonomousRunService {
       exerciseService.deleteById(run.getSimulationId());
     }
     // Fresh simulation from the SAME scenario - no new scenario is ever provisioned on restart.
-    Scenario scenario = scenarioService.scenario(run.getScenarioId());
     // Clear EVERY step on the scenario workflow (the seed the fresh simulation is copied from), not
     // just the ones tracked in the run's best-effort stepMirror. An un-mirrored step (a swallowed
     // mirror failure or a lost update on the run row) would otherwise survive and re-seed the
@@ -1542,9 +1574,7 @@ public class AutonomousRunService {
     // clear is safe and is exactly the "fully recreate on launch" behaviour operators expect.
     workflowService.deleteAllScenarioSteps(run.getScenarioId());
     run.setStepMirror(new HashMap<>());
-    Exercise simulation =
-        scenarioToExerciseService.toExercise(
-            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, resolveLaunchedBy());
+    Exercise simulation = copyScenarioToSimulation(ctx, run.getScenarioId());
     try {
       // Mirror create(): a plan-mode restart provisions the simulation TEMPLATE workflow only (no
       // RUN), so the restarted plan can be re-authored without executing; a live restart starts the
@@ -1602,7 +1632,7 @@ public class AutonomousRunService {
    * empty attack path. The caller then {@link #start}s it again.
    */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousRun promoteToRealRun(String runId) {
+  public AutonomousRun promoteToRealRun(TxCtx ctx, String runId) {
     // Row-locked read, like restart(): the promotion purges the decision timeline (deleteByRun
     // takes the per-run event advisory lock) and rewrites the run row, so the run ROW lock comes
     // first (row -> advisory, the settle paths' order). The plan-settled gate below also becomes
@@ -1622,7 +1652,6 @@ public class AutonomousRunService {
     if (hasText(run.getSimulationId())) {
       exerciseService.deleteById(run.getSimulationId());
     }
-    Scenario scenario = scenarioService.scenario(run.getScenarioId());
     // Clear EVERY step on the scenario workflow so the promoted (fresh) simulation starts with an
     // empty attack path and the orchestrator rebuilds it live (guided by planGuidance) rather than
     // replaying - or duplicating - the plan. A full clear rather than the best-effort stepMirror,
@@ -1630,9 +1659,7 @@ public class AutonomousRunService {
     // an un-mirrored plan step can't survive and re-seed the live simulation.
     workflowService.deleteAllScenarioSteps(run.getScenarioId());
     run.setStepMirror(new HashMap<>());
-    Exercise simulation =
-        scenarioToExerciseService.toExercise(
-            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, resolveLaunchedBy());
+    Exercise simulation = copyScenarioToSimulation(ctx, run.getScenarioId());
     try {
       workflowService.startWorkflowByScenarioIdAndSimulation(run.getScenarioId(), simulation, true);
     } catch (ChainingException e) {

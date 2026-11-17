@@ -179,6 +179,14 @@ public interface AssetRepository
   List<Object[]> findCriticalityNameAndSeenIpByIds(Set<String> ids);
 
   /**
+   * The ids, among {@code ids}, of the assets the current transaction can read. JPQL (not native)
+   * so the tenant filter and the marking clearance of the reader both apply: an asset the reader is
+   * not cleared for is simply absent from the result, as from every other read of the table.
+   */
+  @Query("SELECT a.id FROM Asset a WHERE a.id IN :ids")
+  Set<String> findIdsByIdIn(@Param("ids") java.util.Collection<String> ids);
+
+  /**
    * Name-based option search over EVERY asset type except security platforms (endpoints - agent
    * based or agentless -, AI targets, cloud / web / network / generic assets). Findings can attach
    * to any asset, so filter options (e.g. notification trigger criteria) must propose the full
