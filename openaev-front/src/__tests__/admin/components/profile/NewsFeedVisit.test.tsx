@@ -54,7 +54,7 @@ const TOP_BAR_LINK = 'Top bar icon';
 const OTHER_PAGE_LINK = 'Other page';
 const OTHER_PAGE_TEXT = 'Another page';
 const SETTLE_MS = 400;
-// A page that settles navigates twice (the initial location, the write of the query of the list)
+// A page that settles navigates once (the initial location): the default state of the list is not written to the URL
 const MAX_NAVIGATIONS = 40;
 
 const buildItem = (): NewsFeedItemOutput => ({
@@ -154,7 +154,7 @@ describe('NewsFeed page visit', () => {
   });
 
   describe('opening the page', () => {
-    it('settles: the list loads and marks the items read once, and the URL is written once', async () => {
+    it('settles: the list loads and marks the items read once, and the default list state is not written to the URL', async () => {
       // Act
       renderPage();
       await screen.findByText('Ransomware double extortion');
@@ -163,15 +163,18 @@ describe('NewsFeed page visit', () => {
       // Assert: a remount per URL write would repeat these calls without end
       expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
       expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(1);
-      // The initial location, then the single write of the query of the list
-      expect(navigations).toHaveLength(2);
-      expect(screen.getByTestId('search')).toHaveTextContent('?query=');
+      // The initial location only: a URL pins what the user changed, not the default state of the list
+      expect(navigations).toHaveLength(1);
+      expect(screen.getByTestId('search')).toBeEmptyDOMElement();
     });
 
     it('settles when the page is opened on a URL that already holds the query of the list', async () => {
-      // Arrange
+      // Arrange: the user sorts, which pins the state of the list in the URL
       renderPage();
       await screen.findByText('Ransomware double extortion');
+      fireEvent.click(screen.getByText('Title'));
+      await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?query='));
+      await settle();
       const storedSearch = screen.getByTestId('search').textContent as string;
       cleanup();
       vi.clearAllMocks();
@@ -255,6 +258,26 @@ describe('NewsFeed page visit', () => {
       }]);
       expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(1);
       expect(screen.getByTestId('search').textContent).not.toBe(searchBefore);
+      expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
+    });
+
+    it('goes back to the default sort, removed from the URL, without reloading the page nor marking the items read again', async () => {
+      // Arrange: the user sorts on the creation date the other way round, then back
+      renderPage();
+      await screen.findByText('Ransomware double extortion');
+      await settle();
+      fireEvent.click(screen.getByText('Creation date'));
+      await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?query='));
+      await settle();
+      mockSearchMyNewsFeedItems.mockClear();
+
+      // Act
+      fireEvent.click(screen.getByText('Creation date'));
+      await waitFor(() => expect(screen.getByTestId('search')).toBeEmptyDOMElement());
+      await settle();
+
+      // Assert
+      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(1);
       expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
     });
 
