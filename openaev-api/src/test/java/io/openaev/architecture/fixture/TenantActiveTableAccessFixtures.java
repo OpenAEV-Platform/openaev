@@ -4,11 +4,14 @@ import io.openaev.aop.PlatformWrite;
 import io.openaev.config.TenantUriUtils;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.ExecutionTrace;
+import io.openaev.database.model.InjectStatus;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.autonomous.AutonomousObjectiveTemplateRepository;
@@ -1209,6 +1212,28 @@ public final class TenantActiveTableAccessFixtures {
 
     private long helper() {
       return repository.count();
+    }
+  }
+
+  /**
+   * Reaches {@code execution_traces} through {@code InjectStatus#getTraces} as a METHOD REFERENCE,
+   * not a direct call: an association guard built on {@code .should().callMethod(...)} sees only
+   * {@code JavaMethodCall} and misses this reader entirely.
+   */
+  public static class UnreviewedExecutionTraceMethodReferenceReader {
+
+    private final InjectStatusRepository injectStatusRepository;
+
+    public UnreviewedExecutionTraceMethodReferenceReader(
+        InjectStatusRepository injectStatusRepository) {
+      this.injectStatusRepository = injectStatusRepository;
+    }
+
+    public List<ExecutionTrace> job(String injectId) {
+      return injectStatusRepository
+          .findByInjectId(injectId)
+          .map(InjectStatus::getTraces)
+          .orElse(List.of());
     }
   }
 }
