@@ -194,7 +194,7 @@ public class EnterpriseEditionService {
     try {
       XtmLicense verified =
           XtmLicenseVerifier.verify(
-              certificatePem, instanceId, findInstanceCreationDate().orElse(null), now);
+              certificatePem, instanceId, findInstanceCreationDate().orElse(null), now, true);
       License license = verified.toLicense(now, LicenseSource.filigran);
       license.setLicenseByConfiguration(isLicenseByConfig);
       return Optional.of(license);
