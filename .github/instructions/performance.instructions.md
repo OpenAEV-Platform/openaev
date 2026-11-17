@@ -63,9 +63,11 @@ Repositories that are used with `ReferenceResolver` must expose a `countByIdIn(S
   single-column indexes — restructure as a `UNION` of index-backed branches instead
 - Cursor/polling queries (`WHERE x_updated_at > :from ORDER BY x_updated_at LIMIT :n`) need an
   index on the cursor column
-- A slow PostgreSQL generic plan on a query run in a loop (typically a cursor query) is fixed with
-  `QueryPlanHelper.forceCustomPlan()` inside its transaction, with a test asserting the call. Reject a
-  global `prepareThreshold` or a role/database `plan_cache_mode` used to fix a slow plan (ADR-022)
+- Once `EXPLAIN` evidence in the PR shows a PostgreSQL generic plan is the cause of a slow query run in
+  a loop (ADR-022), fix it with `QueryPlanHelper.forceCustomPlan()` inside its transaction, last before
+  the query, with a test asserting the call. Do not ask for it without that evidence. Reject a global
+  `prepareThreshold` or a role/database `plan_cache_mode` used to fix a slow plan (`prepareThreshold=0`
+  for a transaction pooler is a separate matter)
 
 ## Transactions & Network I/O
 

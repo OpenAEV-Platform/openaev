@@ -40,7 +40,8 @@ was still slow after it.
 ### Option B: `prepareThreshold=0` on the JDBC URL
 
 **Pros**: one line. **Cons**: drops server-side prepared statements for every query of the platform, to
-fix a few.
+fix a few. A per-statement `setPrepareThreshold(0)` would be narrower, but Spring Data native queries do
+not expose the JDBC statement.
 
 ### Option C: `plan_cache_mode` set on the database role or the database
 
@@ -65,13 +66,16 @@ We chose **Option D** because it fixes the slow queries without touching the res
   transaction. Add a test that asserts the setting after the call, as `AttackObservationIndexingTest`
   does.
 - **Never** fix a slow plan with a global `prepareThreshold`, or with `plan_cache_mode` set on a role, a
-  database or the server.
+  database or the server. Setting `prepareThreshold=0` because a transaction pooler does not support
+  prepared statements is a separate matter and stays allowed.
 - **Diagnose**: `PREPARE` the query in `psql`, then compare `EXPLAIN ANALYZE EXECUTE ...` under
   `SET plan_cache_mode = force_generic_plan` and `force_custom_plan`. Generic slow and custom fast: use
   the helper. Both slow: the query itself is the problem.
 
-Current callers: the attack and vulnerability observation indexing (`fetch`) and their pending-indexing
-probes in `SnapshotObservationService`.
+- **Operations**: nothing to configure or upgrade. A slow plan seen at a customer goes to engineering,
+  not to a database setting.
+
+Find the current callers with `grep -rn forceCustomPlan`.
 
 This ADR does not decide how the indexing handles a full reindex, nor whether every indexing handler
 should force custom plans: both are open in #8774.
@@ -92,6 +96,4 @@ should force custom plans: both are open in #8774.
 ### Neutral
 
 - Query results do not change, only their plan.
-- Needs PostgreSQL 12 or later; the platform already requires 15.
-- A deployment behind a transaction pooler without prepared-statement support may still need
-  `prepareThreshold=0` for that reason; this ADR only rules it out as a fix for slow plans.
+- Needs PostgreSQL 12 or later; the code already requires 15.
