@@ -79,6 +79,15 @@ public final class WriteAttrDetectorRecorder {
     }
   }
 
+  /**
+   * Drops the violations of the current test. For the detector's own tests that drive a deliberate
+   * wrong-tenant write and assert on the recorded violation themselves: once they have, the gate
+   * must not judge the same write a second time as if production code had made it.
+   */
+  static void discardViolations() {
+    VIOLATIONS.clear();
+  }
+
   public static List<Violation> violations() {
     return Collections.unmodifiableList(VIOLATIONS);
   }
