@@ -78,6 +78,28 @@ class TenantActiveTableAccessRulesTest {
   }
 
   @Nested
+  @DisplayName("execution_traces: association guard sees method references")
+  class ExecutionTracesAssociationMethodReferences {
+
+    @Test
+    @DisplayName("given an unreviewed method-reference reader, should violate")
+    void given_anUnreviewedMethodReferenceReader_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest
+                  .execution_traces_inject_status_association_access_is_reviewed,
+              TenantActiveTableAccessFixtures.UnreviewedExecutionTraceMethodReferenceReader.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("UnreviewedExecutionTraceMethodReferenceReader")
+          .contains("InjectStatus");
+    }
+  }
+
+  @Nested
   @DisplayName("parameters platform row writers")
   class ParametersPlatformRowWriters {
 
