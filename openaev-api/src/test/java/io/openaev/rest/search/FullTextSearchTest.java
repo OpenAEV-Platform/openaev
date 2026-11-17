@@ -254,7 +254,7 @@ public class FullTextSearchTest extends IntegrationTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("securityPlatformClazzTestCases")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void search_results_should_expose_the_precise_asset_subclass(
       String testDisplayName, String searchTerm, String expectedClazz, String expectedId)
       throws Exception {
@@ -354,6 +354,7 @@ public class FullTextSearchTest extends IntegrationTest {
             .withGroup(groupComposed)
             .persist()
             .get();
+    tenantRepository.addUserToTenant(this.testUser.getId(), Tenant.DEFAULT_TENANT_UUID);
 
     Authentication auth = buildAuthenticationToken(this.testUser);
 
@@ -398,6 +399,7 @@ public class FullTextSearchTest extends IntegrationTest {
             .withGroup(groupComposed)
             .persist()
             .get();
+    tenantRepository.addUserToTenant(this.testUser.getId(), Tenant.DEFAULT_TENANT_UUID);
 
     Authentication auth = buildAuthenticationToken(this.testUser);
 
