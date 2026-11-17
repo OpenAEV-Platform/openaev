@@ -23,6 +23,12 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetService;
 import io.openaev.service.tenants.TenantUserService;
 import io.openaev.utils.ReferenceResolver;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -51,6 +57,7 @@ public class FindingRecordingService {
   private final AssetService assetService;
   private final TenantUserService tenantUserService;
   private final ReferenceResolver referenceResolver;
+  private final EntityManager entityManager;
 
   /**
    * Records the findings an inject detected and their occurrence on it, in a transaction of its
@@ -212,11 +219,12 @@ public class FindingRecordingService {
                     Collectors.toList()));
     Map<String, Tag> tagById =
         tagService
-            .tagSet(
+            .tagsInTenant(
                 detectedFindings.stream()
                     .flatMap(detection -> detection.tagIds().stream())
                     .distinct()
-                    .toList())
+                    .toList(),
+                tenantId)
             .stream()
             .collect(Collectors.toMap(Tag::getId, tag -> tag));
 
@@ -276,16 +284,27 @@ public class FindingRecordingService {
     return fromIterable(findingRepository.saveAll(newFindings));
   }
 
+  // Locked in id order: concurrent batches refresh a finding one after the other, without deadlock
   private List<Finding> findFindingsByKeysForUpdate(String tenantId, Set<FindingKey> keys) {
-    return findingRepository
-        .findAllByTenantTypeValueHashAndLocationForUpdate(
-            tenantId,
-            keys.stream().map(FindingKey::type).collect(Collectors.toSet()),
-            keys.stream().map(FindingKey::valueHash).collect(Collectors.toSet()),
-            keys.stream().map(FindingKey::locationId).collect(Collectors.toSet()))
-        .stream()
-        .filter(finding -> keys.contains(FindingKey.of(finding)))
-        .toList();
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    CriteriaQuery<Finding> query = cb.createQuery(Finding.class);
+    Root<Finding> finding = query.from(Finding.class);
+    Predicate[] identities =
+        keys.stream()
+            .map(
+                key ->
+                    cb.and(
+                        cb.equal(finding.get("type"), key.type()),
+                        cb.equal(finding.get("valueHash"), key.valueHash()),
+                        cb.equal(finding.get("location").get("id"), key.locationId())))
+            .toArray(Predicate[]::new);
+    query
+        .where(cb.equal(finding.get("tenant").get("id"), tenantId), cb.or(identities))
+        .orderBy(cb.asc(finding.get("id")));
+    return entityManager
+        .createQuery(query)
+        .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+        .getResultList();
   }
 
   // The latest detection gives the value and the name; the seen dates only widen

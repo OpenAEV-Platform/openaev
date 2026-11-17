@@ -285,6 +285,52 @@ class FindingRecordingServiceTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("When a detected tag is not one of the tenant's")
+  class WhenTheTagIsNotTheTenants {
+
+    @Test
+    @DisplayName("given a missing or a foreign tag, should record the finding without it")
+    void given_aMissingOrAForeignTag_should_recordTheFindingWithoutIt() {
+      // -- ARRANGE --
+      String otherTenantId = UUID.randomUUID().toString();
+      jdbc.update(
+          "INSERT INTO tenants (tenant_id, tenant_name, tenant_created_at, tenant_updated_at)"
+              + " VALUES (?, ?, now(), now())",
+          otherTenantId,
+          "record-detections-" + otherTenantId);
+      String foreignTag = seedTag(otherTenantId);
+
+      try {
+        // -- ACT --
+        List<Finding> recorded =
+            record(
+                mondayInject,
+                cve(
+                    CVE,
+                    "cve",
+                    "OpenSSL",
+                    new AssetLocation(assetA),
+                    tagX,
+                    foreignTag,
+                    UUID.randomUUID().toString()));
+
+        // -- ASSERT --
+        assertThat(recorded).hasSize(1);
+        assertThat(
+                jdbc.queryForList(
+                    "SELECT tag_id FROM findings_tags WHERE finding_id = ?",
+                    String.class,
+                    recorded.get(0).getId()))
+            .containsExactly(tagX);
+      } finally {
+        jdbc.update("DELETE FROM findings_tags WHERE tag_id = ?", foreignTag);
+        jdbc.update("DELETE FROM tags WHERE tenant_id = ?", otherTenantId);
+        jdbc.update("DELETE FROM tenants WHERE tenant_id = ?", otherTenantId);
+      }
+    }
+  }
+
+  @Nested
   @DisplayName("When a finding is detected again")
   class WhenDetectedAgain {
 
@@ -674,12 +720,16 @@ class FindingRecordingServiceTest extends IntegrationTest {
   }
 
   private String seedTag() {
+    return seedTag(tenantId);
+  }
+
+  private String seedTag(String tagTenantId) {
     String tagId = UUID.randomUUID().toString();
     jdbc.update(
         "INSERT INTO tags (tag_id, tag_name, tenant_id) VALUES (?, ?, ?)",
         tagId,
         "record-tag-" + tagId,
-        tenantId);
+        tagTenantId);
     return tagId;
   }
 

@@ -98,6 +98,7 @@ public class Finding implements TenantBase {
 
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
+  @Fetch(FetchMode.SUBSELECT)
   @JoinTable(
       name = "findings_tags",
       joinColumns = @JoinColumn(name = "finding_id"),

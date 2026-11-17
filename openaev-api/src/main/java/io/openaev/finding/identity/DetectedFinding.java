@@ -14,6 +14,7 @@ import java.util.Set;
  * @param name the display name of the finding
  * @param location where it was detected
  * @param tagIds the tags to put on the finding
+ * @param valueHash computed from the type, the value and the location: the one passed is ignored
  */
 public record DetectedFinding(
     ContractOutputType type,
@@ -21,17 +22,28 @@ public record DetectedFinding(
     String field,
     String name,
     LocationIdentity location,
-    Set<String> tagIds) {
+    Set<String> tagIds,
+    String valueHash) {
 
   public DetectedFinding {
     Objects.requireNonNull(type, "type");
     Objects.requireNonNull(value, "value");
+    if (value.isBlank()) {
+      throw new IllegalArgumentException("value must not be blank");
+    }
     Objects.requireNonNull(location, "location");
     tagIds = tagIds == null ? Set.of() : Set.copyOf(tagIds);
+    valueHash = FindingValueNormalizer.hash(type, value, location);
   }
 
-  public String valueHash() {
-    return FindingValueNormalizer.hash(type, value, location);
+  public DetectedFinding(
+      ContractOutputType type,
+      String value,
+      String field,
+      String name,
+      LocationIdentity location,
+      Set<String> tagIds) {
+    this(type, value, field, name, location, tagIds, null);
   }
 
   @Override

@@ -28,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -93,6 +94,7 @@ public class FindingService {
    * Records what an inject detected, retried once: two batches creating the same location, finding
    * or tag at once collide on its unique key, and the retry finds what the other one created.
    */
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public List<Finding> recordFindingsByInject(
       @NotNull final TxCtx ctx,
       @NotNull final Inject inject,
