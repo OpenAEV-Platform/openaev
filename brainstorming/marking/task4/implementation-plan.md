@@ -520,6 +520,30 @@ a later enhancement: consolidate the displayed value from what the viewing user 
 When an admin launches an inject and a user looks at it, the execution details read "Distributing inject to
 2 agent(s) across 2 endpoint(s)", counting assets the user cannot see.
 
+Design: [tech-design, "Values shown to a reader with less clearance"](tech-design.md#values-shown-to-a-reader-with-less-clearance-chunks-10-and-11).
+
+What leaks today, on the "Execution details" tab (`AtomicTestingExecutionDetails` →
+`GET /api/injects/status?injectId=` → `InjectService.getInjectStatusWithGlobalExecutionTraces`):
+
+- The distribution trace (`ExecutionExecutorService.saveDistributionTrace`) is an agent-less INFO trace, so it
+  is global and stays visible; its counts are frozen in the message text at launch.
+- End date and duration come from `injects_statuses.tracking_end_date`, set when the **last** agent completes,
+  RED included.
+
+### Steps
+
+- **10.1** Failing test first: inject launched on RED + GREEN, read by a `TLP:AMBER` user: the distribution
+  trace reads "1 agent(s) across 1 endpoint(s)"; the admin still reads "2 agent(s) across 2 endpoint(s)".
+- **10.2** `saveDistributionTrace` also writes the dispatched agent ids in the trace's
+  `execution_structured_output` (`{"distributed_agent_ids": [...]}`). Not in `execution_context_identifiers`:
+  Chunk 4 hides an agent-less trace naming a restricted asset there, which would hide the whole trace.
+- **10.3** `InjectStatusMapper.toInjectStatusOutput`: for a trace that carries `distributed_agent_ids`, rebuild
+  the message from the agents the reader can see (one query on `agents`, filtered by marking: count, and
+  distinct assets). A trace without the key (launched before 10.2) keeps its text.
+- **10.4** End date shown = the latest visible COMPLETE trace (`execution_time`), not
+  `tracking_end_date`, when the inject is closed. Start date unchanged (the launch time reveals nothing).
+- **10.5** Check: admin view unchanged; an inject launched before 10.2 still shows its message.
+
 ## Chunk 11 — UX enhancement: global inject status from what the user can see
 
 **Status**: not started. **The PO needs to design it**; this is
@@ -527,6 +551,53 @@ a later enhancement: consolidate the displayed value from what the viewing user 
 
 The global inject status can look odd when the user does not see all the assets, because it is computed over
 every asset.
+
+Design: [tech-design, "Values shown to a reader with less clearance"](tech-design.md#values-shown-to-a-reader-with-less-clearance-chunks-10-and-11).
+
+**Decision**: `injects_statuses.status_name` keeps storing the verdict over every executed agent (the system
+verdict). Background consumers rely on it (inject dependencies, chaining engine, simulation auto-finish,
+ES). Only what is **displayed** to a reader is recomputed, from the COMPLETE traces they can see.
+
+**Where the status reaches a reader**: five places, listed with their recompute and cost in the tech design
+("Where the status reaches a reader: five places"). This chunk covers #1, #2, #3 and #5; #4 (simulation
+timeline, `Iterable<Inject>` entity) needs an output DTO and is a follow-up.
+
+**Rule** (tech design, "The rule: only a PARTIAL verdict depends on the reader"): EXECUTED and ERROR read the
+same on any subset of the traces, so only a stored PARTIAL is recomputed, from the COMPLETE traces the reader can
+see. The admin view never changes, including for statuses set directly (manual update, `failInjectStatus`,
+workflow timeout).
+
+**PO decisions**:
+
+1. A PARTIAL inject whose COMPLETE traces are all hidden from the reader: show what? The stored PARTIAL tells
+   the reader something about hidden targets. Proposal: a neutral "No visible result". Until decided, the stored
+   value is kept.
+2. The "inject status" filter of the lists keeps matching the stored verdict (SQL predicate on `status.name`).
+   Accept, or remove the filter for restricted readers, or invest in a SQL recompute (see tech design).
+
+### Steps
+
+- **11.1** Failing tests first, on the five-place table:
+  - #1 atomic testing search: RED agent COMPLETE `EXECUTED`, GREEN agent COMPLETE `ERROR`, stored `PARTIAL`.
+    The `TLP:AMBER` user reads `ERROR`, the RED user reads `PARTIAL`. One extra statement per page (Hibernate
+    `Statistics`), none when the page holds no PARTIAL inject.
+  - #2 `GET /injects/status` and the atomic testing header: same expectations.
+  - #5 `StreamVisibilityServiceTest`: `payloadFor(AMBER)` carries `ERROR`, `payloadFor(RED)` `PARTIAL`.
+- **11.2** `InjectStatusUtils`: `computeStatusFromTraceStatuses(List<ExecutionTraceStatus>)`, which the existing
+  `computeStatus(List<ExecutionTrace>)` delegates to, and `visibleStatus(stored, visibleCompleteStatuses)`.
+- **11.3** `ExecutionTraceRepository`: JPQL projection `(inject id, trace status)` of the COMPLETE traces of
+  given injects. Marking filtering comes from the derived table `execution_traces → agents → assets`.
+  Exposed through a service, not injected in `InjectSearchService` / `AttackPathGraphService` directly.
+- **11.4** #1 `InjectSearchService.setComputedAttribute` and #3 `AttackPathGraphService.applyExecutionStatuses`:
+  one call for the PARTIAL injects of the page or graph, then `visibleStatus` per row.
+- **11.5** #2 `InjectStatusMapper`: `visibleStatus` from the traces already loaded, no extra query.
+- **11.6** #5 `StreamVisibility.payloadFor`: recompute `inject_status.status_name` on the reader's copy, after
+  pruning.
+- **11.7** Check: admin unchanged; inject dependencies, chaining and auto-finish still read the stored verdict
+  (`InjectsExecutionJob:312`, `InjectExecutionStep:660`, `ExerciseRepository.thatMustBeFinished`).
+- **11.8** Depends on Chunk 4: until it ships, an agent-less COMPLETE trace naming a RED asset is still visible
+  and still counted.
+- **11.9** Follow-up, #4: `GET /exercises/{id}/injects` returns an output DTO, built with `visibleStatus`.
 
 ## Chunk 12 — UX enhancement: platforms in the scenario list for a user
 
