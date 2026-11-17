@@ -31,8 +31,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * PostgreSQL accepts (the {@code GROUP BY d.document_id} projecting {@code d.*} stays legal because
  * documents is kept a base table, #7843), and the read is scoped to the caller (its rows and
  * aggregates, none of another tenant's). The API test profile ships an empty {@code active-tables},
- * so an {@code IntegrationTest} never exercises the rewriter for documents unless it arms the table
- * itself, which this class does. See #7904.
+ * so an {@code IntegrationTest} never exercises the rewriter for documents unless it arms the
+ * table, which this class does through {@code ProductionTablesIntegrationTest}, with the other
+ * tables production arms. See #7904.
  *
  * <p>Not {@code @Transactional}: the scoped-transaction primitive opens its own transactions and
  * refuses to run inside an active one, so seeding goes through an auto-committing {@link

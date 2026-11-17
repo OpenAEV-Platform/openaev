@@ -38,10 +38,12 @@ import org.springframework.transaction.support.TransactionTemplate;
  * reporting_generations} row does not read the association back), so the completion does not
  * fail-close on the render thread and the generation ends SUCCESS carrying its document.
  *
- * <p>{@code @TestPropertySource} activates {@code documents} for this test only. The class is NOT
- * {@code @Transactional}: {@code storeDocument} opens a background primitive transaction, which
- * refuses to run inside an active one, and the completion opens its own transactions exactly as it
- * does on the render thread. Seeding is committed and cleaned up by tenant on teardown.
+ * <p>The class runs on the production list of active tables through {@code
+ * ProductionTablesIntegrationTest}, which arms {@code documents} with every other table production
+ * arms. The class is NOT {@code @Transactional}: {@code storeDocument} opens a background primitive
+ * transaction, which refuses to run inside an active one, and the completion opens its own
+ * transactions exactly as it does on the render thread. Seeding is committed and cleaned up by
+ * tenant on teardown.
  */
 @DisplayName("The render completion attaches the stored document without a v2 scope on the thread")
 class ReportCompletionScopeTest extends ProductionTablesIntegrationTest {

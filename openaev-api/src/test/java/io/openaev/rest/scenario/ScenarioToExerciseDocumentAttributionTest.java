@@ -42,13 +42,15 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * that the document attribution does not depend on the listener removed at {@code documents}
  * go-live.
  *
- * <p>{@code @TestPropertySource} activates {@code documents} for this test only (the test classpath
- * keeps the allowlist empty), so the conversion runs against the statement inspector. The class is
- * deliberately NOT {@code @Transactional}: a single test transaction keeps the scenario and its
- * document in the persistence context, so {@code toExercise} would read them from the first-level
- * cache and never reach the inspector; the row would then keep its tenant whatever the scope,
- * masking the very behaviour this pins. Seeding is committed through the background primitive (so
- * the document write lands under the source tenant's v2 scope) and cleaned up by tenant.
+ * <p>The class runs on the production list of active tables through {@code
+ * ProductionTablesIntegrationTest}, which arms {@code documents} with every other table production
+ * arms (the test classpath keeps the allowlist empty), so the conversion runs against the statement
+ * inspector. The class is deliberately NOT {@code @Transactional}: a single test transaction keeps
+ * the scenario and its document in the persistence context, so {@code toExercise} would read them
+ * from the first-level cache and never reach the inspector; the row would then keep its tenant
+ * whatever the scope, masking the very behaviour this pins. Seeding is committed through the
+ * background primitive (so the document write lands under the source tenant's v2 scope) and cleaned
+ * up by tenant.
  *
  * <p>The conversion is run under the source tenant's v2 scope (as the HTTP and scheduled callers
  * do), but with the ambient {@link TenantContext} set to a THIRD tenant, distinct from the source
