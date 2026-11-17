@@ -1,9 +1,11 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Step;
+import io.openaev.database.model.StepActionClass;
 import io.openaev.database.model.StepStatus;
 import jakarta.persistence.LockModeType;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -78,6 +80,27 @@ public interface StepRepository extends JpaRepository<Step, String> {
   int countActiveSteps(
       @Param("idWorkflowRun") String idWorkflowRun,
       @Param("activeStatus") List<StepStatus> activeStatus);
+
+  /**
+   * Counts the steps of every workflow of a simulation with the given status and action class,
+   * created at or after {@code since}. JPQL, so a pending insert of the same transaction is flushed
+   * first and counted.
+   *
+   * @param simulationId the ID of the simulation
+   * @param status the step status to count
+   * @param stepAction the step action class to count
+   * @param since only steps created at or after this instant count
+   * @return the count of matching steps
+   */
+  @Query(
+      "SELECT count(s) FROM Step s WHERE s.workflow.simulation.id = :simulationId"
+          + " AND s.status = :status AND s.stepAction = :stepAction"
+          + " AND s.createdAt >= :since")
+  long countBySimulationAndStatusAndActionSince(
+      @Param("simulationId") String simulationId,
+      @Param("status") StepStatus status,
+      @Param("stepAction") StepActionClass stepAction,
+      @Param("since") Instant since);
 
   /**
    * Counts the number of steps executed for a given step template in a workflow run.

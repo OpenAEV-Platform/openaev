@@ -363,8 +363,7 @@ class StepServiceTest {
         assertThrows(
             ChainingException.class,
             () ->
-                stepService.createReadySteps(
-                    nextStepTemplateToExecute, workflowRun, "{\"a\":1}", 0));
+                stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, "{\"a\":1}"));
 
         verify(stepRepository, never()).save(any());
         verify(conditionService, never()).checkCondition(any(), any(), any());
@@ -402,7 +401,7 @@ class StepServiceTest {
 
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // Assert
         assertTrue(result.isEmpty());
@@ -460,7 +459,7 @@ class StepServiceTest {
 
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // Assert
         assertEquals(1, result.size());
@@ -522,7 +521,7 @@ class StepServiceTest {
 
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // Assert
         assertEquals(1, result.size());
@@ -611,7 +610,7 @@ class StepServiceTest {
 
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // Assert: the step must not be silently skipped - the remaining assets still get a READY
         // step each.
@@ -678,7 +677,7 @@ class StepServiceTest {
             .thenReturn(Set.of());
 
         List<Step> firstCycle =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // The step readies once AND commits a stable, NON-EMPTY hash set (the crux of the fix:
         // before, the null hash meant an empty commit and an endless re-ready storm).
@@ -697,7 +696,7 @@ class StepServiceTest {
             .thenReturn(Set.of(stableHash));
 
         List<Step> secondCycle =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // The step is NOT re-readied: the recomputed fallback hash is deterministic and matches the
         // committed one, so the batch is filtered out. ready() was invoked exactly once overall.
@@ -755,7 +754,7 @@ class StepServiceTest {
 
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // Assert: a single READY step, for the only hash this call committed.
         assertEquals(List.of(stepReady), result);
@@ -1079,11 +1078,11 @@ class StepServiceTest {
           if (throwException) {
             doThrow(new ChainingException("error"))
                 .when(stepService)
-                .createReadySteps(any(Step.class), any(Workflow.class), any(), anyInt());
+                .createReadySteps(any(Step.class), any(Workflow.class), any());
           } else {
             doReturn(List.of(mock(Step.class)))
                 .when(stepService)
-                .createReadySteps(any(Step.class), any(Workflow.class), any(), anyInt());
+                .createReadySteps(any(Step.class), any(Workflow.class), any());
           }
         }
 
@@ -1092,9 +1091,9 @@ class StepServiceTest {
 
         // Assert
         if (stepFound) {
-          verify(stepService).createReadySteps(step, workflowRun, null, 0);
+          verify(stepService).createReadySteps(step, workflowRun, null);
         } else {
-          verify(stepService, never()).createReadySteps(any(), any(), any(), anyInt());
+          verify(stepService, never()).createReadySteps(any(), any(), any());
         }
       }
 

@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>3.261116.0</version>
+        <version>3.261116.1</version>
     </parent>
 
     <artifactId>openaev-api</artifactId>
@@ -29,15 +29,15 @@
         <!-- Not managed by the Spring Boot BOM; pinned here. Apache-2.0. -->
         <datasource-proxy.version>1.11.1</datasource-proxy.version>
         <!-- Server-side report rendering (headless Chromium). Apache-2.0. -->
-        <playwright.version>1.64.0</playwright.version>
+        <playwright.version>1.65.0</playwright.version>
         <!-- Azure credential status validation. Aligned with openaev-model's azure-core-management. MIT. -->
         <azure-identity.version>1.19.0</azure-identity.version>
         <!-- GCP credential status validation: signs the service account RS256 JWT and exchanges
              the OAuth2 refresh token. Same trade-off as Azure — SDK for the token, plain
              HttpClient for the resource probe. BSD-3-Clause. -->
-        <google-auth-library.version>1.56.0</google-auth-library.version>
+        <google-auth-library.version>1.57.0</google-auth-library.version>
         <!-- AWS STS client for temporary credential handling. Apache-2.0. -->
-        <aws-sts.version>2.57.9</aws-sts.version>
+        <aws-sts.version>2.59.0</aws-sts.version>
     </properties>
 
     <profiles>
@@ -83,7 +83,7 @@
         <dependency>
             <groupId>io.openaev</groupId>
             <artifactId>openaev-framework</artifactId>
-            <version>3.261116.0</version>
+            <version>3.261116.1</version>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>

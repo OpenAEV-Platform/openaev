@@ -267,37 +267,44 @@ public class XtmHubService {
             tenants);
 
     List<ConnectivityCheckResult> allCheckResults = new ArrayList<>();
+    List<String> tenantsToNotify = new ArrayList<>();
 
-    tenantTx.forEachTenant(
-        tenantId -> {
-          if (!tenants.containsKey(tenantId)) {
-            return;
-          }
-          TenantXtmHubRegistration registration =
-              tenantXtmHubRegistrationRepository.findByTenantId(tenantId).orElse(null);
-          if (registration == null) {
-            return;
-          }
+    try {
+      tenantTx.forEachTenant(
+          tenantId -> {
+            if (!tenants.containsKey(tenantId)) {
+              return;
+            }
+            TenantXtmHubRegistration registration =
+                tenantXtmHubRegistrationRepository.findByTenantId(tenantId).orElse(null);
+            if (registration == null) {
+              return;
+            }
 
-          XtmHubConnectivityResult hubResult =
-              hubResults.getOrDefault(tenantId, XtmHubConnectivityResult.INACTIVE);
+            XtmHubConnectivityResult hubResult =
+                hubResults.getOrDefault(tenantId, XtmHubConnectivityResult.INACTIVE);
 
-          if (hubResult.status() == XtmHubConnectivityStatus.NOT_FOUND) {
-            log.warn("Platform was not found on XTM Hub for tenant {}", tenantId);
-            tenantXtmHubRegistrationRepository.deleteByTenantId(tenantId);
-            return;
-          }
+            if (hubResult.status() == XtmHubConnectivityStatus.NOT_FOUND) {
+              log.warn("Platform was not found on XTM Hub for tenant {}", tenantId);
+              tenantXtmHubRegistrationRepository.deleteByTenantId(tenantId);
+              return;
+            }
 
-          ConnectivityCheckResult checkResult =
-              new ConnectivityCheckResult(
-                  hubResult.status(),
-                  hubResult.commercialModel(),
-                  parseLastConnectivityCheck(registration),
-                  registration);
-          updateRegistrationStatus(registration, checkResult);
-          handleTenantConnectivityLossNotification(checkResult);
-          allCheckResults.add(checkResult);
-        });
+            ConnectivityCheckResult checkResult =
+                new ConnectivityCheckResult(
+                    hubResult.status(),
+                    hubResult.commercialModel(),
+                    parseLastConnectivityCheck(registration),
+                    registration);
+            updateRegistrationStatus(registration, checkResult);
+            allCheckResults.add(checkResult);
+            if (shouldNotifyTenantOfConnectivityLoss(checkResult)) {
+              tenantsToNotify.add(tenantId);
+            }
+          });
+    } finally {
+      notifyTenantsOfConnectivityLoss(tenantsToNotify, tenants);
+    }
 
     handleConnectivityLossNotification(settings, allCheckResults);
   }
@@ -450,8 +457,8 @@ public class XtmHubService {
     }
 
     if (shouldSendConnectivityLossEmail(settings, checkResults)) {
-      updateEmailNotificationFlag(false);
       xtmHubEmailService.sendLostConnectivityEmail();
+      updateEmailNotificationFlag(false);
     }
   }
 
@@ -466,25 +473,57 @@ public class XtmHubService {
         () -> platformSettingsService.updateXTMHubEmailNotification(shouldSendConnectivityEmail));
   }
 
-  private void handleTenantConnectivityLossNotification(ConnectivityCheckResult checkResult) {
+  /**
+   * Decides inside the tenant's transaction, which also re-arms a tenant that is reachable again.
+   * The email itself is sent afterwards, outside every transaction: see {@link
+   * #notifyTenantsOfConnectivityLoss}.
+   */
+  private boolean shouldNotifyTenantOfConnectivityLoss(ConnectivityCheckResult checkResult) {
     TenantXtmHubRegistration registration = checkResult.registration();
     if (checkResult.status() == XtmHubConnectivityStatus.ACTIVE) {
       if (!registration.isConnectivityEmailEligible()) {
         registration.setConnectivityEmailEligible(true);
         tenantXtmHubRegistrationRepository.save(registration);
       }
-      return;
+      return false;
     }
 
-    if (registration.isConnectivityEmailEligible()
+    return registration.isConnectivityEmailEligible()
         && hasConnectivityBeenLostForTooLong(checkResult.lastCheck())
-        && xtmHubConfig.getConnectivityEmailEnable()) {
-      xtmHubEmailService.sendTenantLostConnectivityEmail(
-          registration.getTenant().getId(),
-          tenantSettingsService.buildTenantUrl(registration.getTenant().getId()));
-      registration.setConnectivityEmailEligible(false);
-      tenantXtmHubRegistrationRepository.save(registration);
+        && xtmHubConfig.getConnectivityEmailEnable();
+  }
+
+  /**
+   * One tenant at a time: a tenant whose email cannot be sent (no administrator, no email contract)
+   * stays eligible for the next run and does not stop the others.
+   */
+  private void notifyTenantsOfConnectivityLoss(
+      List<String> tenantIds, Map<String, TenantRegistrationDetails> tenants) {
+    for (String tenantId : tenantIds) {
+      try {
+        xtmHubEmailService.sendTenantLostConnectivityEmail(tenantId, tenants.get(tenantId).url());
+        markTenantNotified(tenantId);
+      } catch (RuntimeException e) {
+        log.error(
+            "The XTM Hub lost connectivity email of tenant {} was not sent: {}",
+            tenantId,
+            e.getMessage(),
+            e);
+      }
     }
+  }
+
+  private void markTenantNotified(String tenantId) {
+    tenantTx.execute(
+        TxCtx.forTenant(tenantId),
+        () ->
+            tenantXtmHubRegistrationRepository
+                .findByTenantId(tenantId)
+                .ifPresent(
+                    registration -> {
+                      registration.setConnectivityEmailEligible(false);
+                      tenantXtmHubRegistrationRepository.save(registration);
+                    }));
   }
 
   private boolean shouldSendConnectivityLossEmail(

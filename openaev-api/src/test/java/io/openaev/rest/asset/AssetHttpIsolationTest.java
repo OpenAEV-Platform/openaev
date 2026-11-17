@@ -180,10 +180,11 @@ class AssetHttpIsolationTest extends IntegrationTest {
   @Test
   @DisplayName("under tenant A's path: deleting B's endpoint does not remove it, on either route")
   void deleteOtherTenantEndpointLeavesItInPlace() throws Exception {
-    // The endpoint route's delete is a native query carrying tenant_id = #tenantContext, so it
-    // matches nothing under A whatever the activation does. The generic asset route loads the row
-    // first (AssetService.deleteAsset calls asset(id), a primary-key load) and deletes the entity
-    // it got, so with assets disarmed that load returns B's endpoint and the row is gone.
+    // The endpoint route's delete is a native DELETE with no tenant predicate of its own: under A
+    // it matches nothing of B's only because the statement inspector adds the tenant filter while
+    // assets is armed, so with assets not armed both routes remove B's row. The generic asset route
+    // loads the row first (AssetService.deleteAsset calls asset(id), a primary-key load) and
+    // deletes the entity it got, so with assets not armed that load returns B's endpoint.
     mvc.perform(delete(ENDPOINT_BY_ID, tenantA, endpointB).with(csrf()));
     mvc.perform(delete(ASSET_BY_ID, tenantA, endpointB).with(csrf()));
     // The status is not the assertion: what matters is that the row is still there. A delete that

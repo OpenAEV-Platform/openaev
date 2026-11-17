@@ -21,6 +21,7 @@ import io.openaev.service.InjectSearchService;
 import io.openaev.service.UserService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -30,6 +31,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.transaction.annotation.Propagation;
@@ -55,10 +57,14 @@ public class PlayerApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackFor = Exception.class)
   public Iterable<RawPlayer> players(TxCtx ctx) {
-    List<RawPlayer> players;
-    User currentUser = userService.currentUser();
-    players = fromIterable(userRepository.rawAllPlayers());
-    return players;
+    // Read the roster in the caller's resolved tenant scope, so it answers from the tenants the
+    // caller belongs to and not the ambient default tenant the non-prefixed route falls back to. An
+    // empty scope (no tenant resolved) reads nothing (fail closed).
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty()) {
+      return List.of();
+    }
+    return fromIterable(userRepository.rawPlayersInScope(scope));
   }
 
   @LogExecutionTime
@@ -67,7 +73,8 @@ public class PlayerApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public Page<PlayerOutput> players(
       TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
-    return this.playerService.playerPagination(searchPaginationInput);
+    return this.playerService.playerPagination(
+        TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx), searchPaginationInput);
   }
 
   /**
@@ -174,8 +181,12 @@ public class PlayerApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public List<FilterUtilsJpa.Option> optionsByName(
       TxCtx ctx, @RequestParam(required = false) final String searchText) {
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty()) {
+      return List.of();
+    }
     String search = searchText == null ? "" : searchText.toLowerCase();
-    return fromIterable(userRepository.findAll()).stream()
+    return userRepository.findPlayersInScope(scope).stream()
         .filter(
             user ->
                 search.isEmpty()
@@ -191,7 +202,11 @@ public class PlayerApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
-    return fromIterable(userRepository.findAllById(ids)).stream()
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty() || ids.isEmpty()) {
+      return List.of();
+    }
+    return userRepository.findPlayersByIdInScope(ids, scope).stream()
         .map(user -> new FilterUtilsJpa.Option(user.getId(), user.getNameOrEmail()))
         .toList();
   }

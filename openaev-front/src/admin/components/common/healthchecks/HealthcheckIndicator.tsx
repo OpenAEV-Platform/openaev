@@ -53,6 +53,7 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
         window.open(`${DOCUMENTATION_ROOT_URL}/latest/usage/collectors/?h=collector`);
         break;
       case 'INJECT':
+      case 'PAYLOAD':
       case 'TEAMS':
         navigate(exerciseId ? `/admin/simulations/${exerciseId}/injects` : `/admin/scenarios/${scenarioId}/injects`);
         break;

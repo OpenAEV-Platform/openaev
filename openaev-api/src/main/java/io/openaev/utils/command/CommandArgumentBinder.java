@@ -1,8 +1,12 @@
 package io.openaev.utils.command;
 
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.StringJoiner;
+import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -80,6 +84,8 @@ public class CommandArgumentBinder {
   /** generated variable name -> already escaped declaration value. */
   private final Map<String, String> valuesByVariable = new LinkedHashMap<>();
 
+  private final Set<String> authoredVariables = new HashSet<>();
+
   private CommandArgumentBinder(ExecutorShell shell, boolean rejectPlaceholders, String executor) {
     this.shell = shell;
     this.rejectPlaceholders = rejectPlaceholders;
@@ -114,6 +120,18 @@ public class CommandArgumentBinder {
    * @param value the resolved value, possibly attacker-controlled
    */
   public void bind(String argumentKey, String value) {
+    bind(argumentKey, value, false);
+  }
+
+  /**
+   * Registers a value written by the payload author, such as an unchanged default. Like in the
+   * template, its environment variables expand on the endpoint; the rest stays literal.
+   */
+  public void bindAuthored(String argumentKey, String value) {
+    bind(argumentKey, value, true);
+  }
+
+  private void bind(String argumentKey, String value, boolean authored) {
     if (variablesByKey.containsKey(argumentKey)) {
       return;
     }
@@ -139,6 +157,9 @@ public class CommandArgumentBinder {
     String variable = allocateVariableName(argumentKey);
     variablesByKey.put(argumentKey, variable);
     valuesByVariable.put(variable, sanitized);
+    if (authored) {
+      authoredVariables.add(variable);
+    }
   }
 
   /**
@@ -235,11 +256,44 @@ public class CommandArgumentBinder {
 
   private String declaration(String variable, String value) {
     return switch (shell) {
-      case SH -> variable + "=" + quoteSh(value);
-      case POWERSHELL -> "$" + variable + " = " + quotePowerShell(value);
-      case CMD -> "set \"" + variable + "=" + escapeCmd(value) + "\"";
+      case SH -> variable + "=" + declaredValue(variable, value, CommandArgumentBinder::quoteSh);
+      case POWERSHELL ->
+          "$"
+              + variable
+              + " = "
+              + declaredValue(variable, value, CommandArgumentBinder::quotePowerShell);
+      case CMD ->
+          "set \""
+              + variable
+              + "="
+              + declaredValue(variable, value, CommandArgumentBinder::escapeCmd)
+              + "\"";
       case NONE -> "";
     };
+  }
+
+  /**
+   * Quotes the value; in an authored value, the environment variables are left out of the quotes so
+   * that they expand.
+   */
+  private String declaredValue(String variable, String value, UnaryOperator<String> quote) {
+    if (!authoredVariables.contains(variable)) {
+      return quote.apply(value);
+    }
+    StringJoiner parts = new StringJoiner(shell.concatenation);
+    Matcher environmentVariable = shell.environmentVariable.matcher(value);
+    int literalStart = 0;
+    while (environmentVariable.find()) {
+      if (environmentVariable.start() > literalStart) {
+        parts.add(quote.apply(value.substring(literalStart, environmentVariable.start())));
+      }
+      parts.add(shell.environmentVariableReference(environmentVariable));
+      literalStart = environmentVariable.end();
+    }
+    if (literalStart < value.length() || parts.length() == 0) {
+      parts.add(quote.apply(value.substring(literalStart)));
+    }
+    return parts.toString();
   }
 
   private String reference(String variable) {

@@ -132,6 +132,16 @@ class XtmHubServiceTest {
     lenient()
         .when(tenantTx.execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Object>>any()))
         .thenAnswer(inv -> inv.<Supplier<Object>>getArgument(1).get());
+    // The marker of a notified tenant is written in a short scoped transaction: run its work
+    // inline.
+    lenient()
+        .doAnswer(
+            inv -> {
+              inv.<Runnable>getArgument(1).run();
+              return null;
+            })
+        .when(tenantTx)
+        .execute(any(TxCtx.class), ArgumentMatchers.<Runnable>any());
     // The notification flag is written in a platform-write transaction: run its work inline.
     lenient()
         .doAnswer(

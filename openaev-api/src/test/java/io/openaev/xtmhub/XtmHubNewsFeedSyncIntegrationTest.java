@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.NewsFeedItem;
@@ -24,7 +25,6 @@ import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.NewsFeedItemService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -48,6 +48,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
@@ -74,25 +76,29 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
   @Autowired private TenantXtmHubRegistrationRepository registrationRepository;
   @Autowired private TenantComposer tenantComposer;
   @Autowired private ApplicationEvents applicationEvents;
+  @Autowired private OpenAEVConfig openAEVConfig;
+  @Autowired private CacheManager cacheManager;
 
   @MockitoBean private XtmHubClient xtmHubClient;
-  @MockitoBean private PreviewFeatureService previewFeatureService;
 
   private final List<User> createdUsers = new ArrayList<>();
   private final List<Group> createdGroups = new ArrayList<>();
   private final List<String> createdTenantIds = new ArrayList<>();
   private Tenant firstTenant;
   private Tenant secondTenant;
+  private String originalDevFeatures;
 
   @BeforeEach
   void setUp() {
-    when(previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED)).thenReturn(true);
+    originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
+    setDevFeatures(originalDevFeatures + "," + PreviewFeature.XTM_HUB_NEWS_FEED.name());
     firstTenant = createTenant("News-Feed-A");
     secondTenant = createTenant("News-Feed-B");
   }
 
   @AfterEach
   void cleanup() {
+    setDevFeatures(originalDevFeatures);
     newsFeedItemRepository.deleteAll();
     // By id, members first: the detached entities still reference each other and would be
     // re-persisted.
@@ -481,8 +487,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"), scenario("hub-2"));
       xtmHubService.syncNewsFeed();
       givenHubReturns(FIRST_TOKEN, deleted("hub-1"), renamed("hub-2"));
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED))
-          .thenReturn(false);
+      setDevFeatures(originalDevFeatures);
       applicationEvents.clear();
 
       // Act
@@ -710,8 +715,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
     @DisplayName("Given the feature flag is off, should not call the Hub")
     void given_featureFlagOff_should_notCallHub() {
       // Arrange
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED))
-          .thenReturn(false);
+      setDevFeatures(originalDevFeatures);
       saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
       User user = createUser(firstTenant);
 
@@ -814,6 +818,15 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
   }
 
   // -- Helpers --
+
+  // A mocked flag service would also answer the stream threads, which can steal its stubbing.
+  private void setDevFeatures(String value) {
+    openAEVConfig.setEnabledDevFeatures(value);
+    Cache cache = cacheManager.getCache("global");
+    if (cache != null) {
+      cache.clear();
+    }
+  }
 
   private Tenant createTenant(String name) {
     Tenant tenant = TenantFixture.getTenant(name);

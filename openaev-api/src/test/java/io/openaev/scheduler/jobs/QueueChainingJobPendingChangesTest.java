@@ -3,7 +3,6 @@ package io.openaev.scheduler.jobs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 
@@ -170,7 +169,7 @@ class QueueChainingJobPendingChangesTest extends IntegrationTest {
       String stepOfTenantB = persistDueEntryOf(persistTenant());
       doAnswer(invocation -> List.of((Step) invocation.getArgument(0)))
           .when(stepService)
-          .createReadySteps(any(), any(), any(), anyInt());
+          .createReadySteps(any(), any(), any());
       doThrow(new IOException("broker down")).when(queueChainingService).readyStep(any(), any());
       doAnswer(invocation -> invocation.getArgument(0))
           .when(workflowService)

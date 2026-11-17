@@ -7,6 +7,7 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -25,6 +26,7 @@ import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.exercise.form.ExerciseTeamPlayersEnableInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
+import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.form.InjectBulkUpdateInputs;
 import io.openaev.rest.inject.form.InjectBulkUpdateOperation;
 import io.openaev.rest.inject.form.InjectBulkUpdateSupportedFields;
@@ -411,6 +413,45 @@ class ResponseCollectionsTenantScopeTest extends ProductionTablesIntegrationTest
     }
 
     @Test
+    @DisplayName("given the bulk delete of a tagged simulation inject, should answer its tags")
+    void given_bulkDeleteOfATaggedSimulationInject_should_answerItsTags() throws Exception {
+      // -- ARRANGE --
+      Inject inject = inTenant(() -> taggedInject().withExercise(simulation()).persist().get());
+
+      // -- ACT --
+      String response =
+          call(
+              delete(
+                      TENANT_EXERCISE_URI + "/{exerciseId}/injects",
+                      tenantId,
+                      inject.getExercise().getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(bulkDeleteOf(inject))));
+
+      // -- ASSERT --
+      assertThat(ids(response, "$[0].inject_tags")).containsExactly(tagId);
+    }
+
+    @Test
+    @DisplayName("given the bulk delete of a tagged scenario inject, should answer its tags")
+    void given_bulkDeleteOfATaggedScenarioInject_should_answerItsTags() throws Exception {
+      // -- ARRANGE --
+      List<String> ids = scenarioWithTaggedInject();
+      Inject inject = new Inject();
+      inject.setId(ids.get(1));
+
+      // -- ACT --
+      String response =
+          call(
+              delete(TENANT_SCENARIO_URI + "/{scenarioId}/injects", tenantId, ids.get(0))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(bulkDeleteOf(inject))));
+
+      // -- ASSERT --
+      assertThat(ids(response, "$[0].inject_tags")).containsExactly(tagId);
+    }
+
+    @Test
     @DisplayName("given tagged injects created in a simulation, should answer their tags")
     void given_taggedInjectsCreatedInASimulation_should_answerTheirTags() throws Exception {
       // -- ARRANGE --
@@ -482,6 +523,12 @@ class ResponseCollectionsTenantScopeTest extends ProductionTablesIntegrationTest
     InjectBulkUpdateInputs input = new InjectBulkUpdateInputs();
     input.setInjectIDsToProcess(List.of(inject.getId()));
     input.setUpdateOperations(List.of(operation));
+    return input;
+  }
+
+  private static InjectBulkProcessingInput bulkDeleteOf(Inject inject) {
+    InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+    input.setInjectIDsToProcess(List.of(inject.getId()));
     return input;
   }
 

@@ -22,6 +22,7 @@ import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.List;
 import java.util.Optional;
@@ -62,6 +63,7 @@ class ExecutorTest {
   @Mock private ExecutableInjectDTOMapper executableInjectDTOMapper;
   @Mock private ConnectorInstanceService connectorInstanceService;
   @Mock private InjectExpectationService injectExpectationService;
+  @Mock private PayloadRevocationService payloadRevocationService;
 
   @InjectMocks private Executor executor;
 
@@ -99,6 +101,20 @@ class ExecutorTest {
     // By default the targets were already resolved by the caller, as scheduled execution does
     when(executableInject.getResolvedAssetsToExecute())
         .thenReturn(new ResolvedAssetsToExecute(List.of(), Set.of()));
+  }
+
+  @Test
+  @DisplayName("execute refuses an inject whose payload version is revoked, with the reason")
+  void given_revokedPayload_should_refuseTheInjectWithTheReason() {
+    // Arrange
+    when(payloadRevocationService.refusal(inject))
+        .thenReturn(Optional.of("Payload revoked: Deletes user files"));
+
+    // Act & Assert
+    assertThatThrownBy(() -> executor.execute(executableInject))
+        .isInstanceOf(UnexecutableInjectException.class)
+        .hasMessage("Payload revoked: Deletes user files");
+    verifyNoInteractions(injectorRepository, injectStatusService);
   }
 
   @Nested

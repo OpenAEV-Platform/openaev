@@ -665,6 +665,196 @@
             }
         },
         {
+            "title": "OVHcloud",
+            "slug": "openaev_ovhcloud",
+            "description": "Register agentless endpoints from OVHcloud dedicated servers (bare metal), Public Cloud instances, VPS and Hosted Private Cloud virtual machines in OpenAEV, so these assets can be targeted by simulations without deploying an agent. What is collected is configurable per resource type, with region, name, IAM tag and IP filters.",
+            "short_description": "Register OVHcloud servers and instances as agentless endpoints",
+            "use_cases": [
+                "Asset collection",
+                "Cloud security"
+            ],
+            "verified": true,
+            "last_verified_date": "",
+            "playbook_supported": false,
+            "max_confidence_level": 80,
+            "support_version": "",
+            "subscription_link": "https://www.ovhcloud.com/",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/ovhcloud",
+            "manager_supported": true,
+            "container_version": "rolling",
+            "container_image": "openaev/collector-ovhcloud",
+            "container_type": "COLLECTOR",
+            "logo": "data:image/png;base64,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",
+            "config_schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "config.schema.json",
+                "type": "object",
+                "properties": {
+                    "OPENAEV_URL": {
+                        "description": "The OpenAEV platform URL.",
+                        "format": "uri",
+                        "maxLength": 2083,
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "OPENAEV_TOKEN": {
+                        "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
+                    "COLLECTOR_ID": {
+                        "default": "openaev_ovhcloud",
+                        "description": "Collector unique identifier",
+                        "type": "string"
+                    },
+                    "COLLECTOR_NAME": {
+                        "default": "OVHcloud",
+                        "description": "Collector display name",
+                        "type": "string"
+                    },
+                    "COLLECTOR_LOG_LEVEL": {
+                        "default": "error",
+                        "description": "Determines the verbosity of the logs.",
+                        "enum": [
+                            "debug",
+                            "info",
+                            "warn",
+                            "error"
+                        ],
+                        "type": "string"
+                    },
+                    "COLLECTOR_PERIOD": {
+                        "default": "PT1H",
+                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "COLLECTOR_OVHCLOUD_ENDPOINT": {
+                        "default": "ovh-eu",
+                        "description": "OVHcloud API endpoint: ovh-eu, ovh-ca or ovh-us.",
+                        "enum": [
+                            "ovh-eu",
+                            "ovh-ca",
+                            "ovh-us"
+                        ],
+                        "type": "string"
+                    },
+                    "COLLECTOR_OVHCLOUD_APPLICATION_KEY": {
+                        "description": "Application key (with the application secret and the consumer key). Set the three application keys, or the OAuth2 client id and secret.",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "COLLECTOR_OVHCLOUD_APPLICATION_SECRET": {
+                        "description": "Application secret (with the application key and the consumer key).",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "COLLECTOR_OVHCLOUD_CONSUMER_KEY": {
+                        "description": "Consumer key granted GET-only access rules (see README).",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "COLLECTOR_OVHCLOUD_CLIENT_ID": {
+                        "description": "OAuth2 service account client id (alternative to the application keys).",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "COLLECTOR_OVHCLOUD_CLIENT_SECRET": {
+                        "description": "OAuth2 service account client secret (alternative to the application keys).",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "COLLECTOR_OVHCLOUD_COLLECT_DEDICATED_SERVERS": {
+                        "default": true,
+                        "description": "Collect dedicated servers (bare metal).",
+                        "type": "boolean"
+                    },
+                    "COLLECTOR_OVHCLOUD_COLLECT_PUBLIC_CLOUD": {
+                        "default": false,
+                        "description": "Collect Public Cloud instances.",
+                        "type": "boolean"
+                    },
+                    "COLLECTOR_OVHCLOUD_COLLECT_VPS": {
+                        "default": false,
+                        "description": "Collect VPS.",
+                        "type": "boolean"
+                    },
+                    "COLLECTOR_OVHCLOUD_COLLECT_HOSTED_PRIVATE_CLOUD": {
+                        "default": false,
+                        "description": "Collect Hosted Private Cloud (VMware) virtual machines.",
+                        "type": "boolean"
+                    },
+                    "COLLECTOR_OVHCLOUD_PUBLIC_CLOUD_PROJECT_IDS": {
+                        "description": "Comma-separated Public Cloud project ids; empty for every project.",
+                        "type": "string"
+                    },
+                    "COLLECTOR_OVHCLOUD_REGIONS": {
+                        "description": "Comma-separated regions or datacenters to keep (e.g. GRA11,rbx,BHS5); empty for all.",
+                        "type": "string"
+                    },
+                    "COLLECTOR_OVHCLOUD_NAME_INCLUDE": {
+                        "description": "Regular expression: keep only the resources whose name, service name or hostname matches it.",
+                        "type": "string"
+                    },
+                    "COLLECTOR_OVHCLOUD_NAME_EXCLUDE": {
+                        "description": "Regular expression: drop the resources whose name, service name or hostname matches it.",
+                        "type": "string"
+                    },
+                    "COLLECTOR_OVHCLOUD_IAM_TAGS": {
+                        "description": "Comma-separated key=value IAM tags a resource must all carry to be kept.",
+                        "type": "string"
+                    },
+                    "COLLECTOR_OVHCLOUD_SKIP_INACTIVE": {
+                        "default": true,
+                        "description": "Skip suspended, expired, deleted or errored resources.",
+                        "type": "boolean"
+                    },
+                    "COLLECTOR_OVHCLOUD_INCLUDE_PUBLIC_IPV4": {
+                        "default": true,
+                        "description": "Register public IPv4 addresses.",
+                        "type": "boolean"
+                    },
+                    "COLLECTOR_OVHCLOUD_INCLUDE_PUBLIC_IPV6": {
+                        "default": true,
+                        "description": "Register public IPv6 addresses (single addresses; routed blocks go to the asset metadata).",
+                        "type": "boolean"
+                    },
+                    "COLLECTOR_OVHCLOUD_INCLUDE_PRIVATE_IPS": {
+                        "default": true,
+                        "description": "Register private addresses (vRack, private networks).",
+                        "type": "boolean"
+                    },
+                    "COLLECTOR_OVHCLOUD_IMPORT_TAGS": {
+                        "default": true,
+                        "description": "Import the OVHcloud IAM tags of a resource as OpenAEV tags.",
+                        "type": "boolean"
+                    },
+                    "COLLECTOR_OVHCLOUD_MAX_WORKERS": {
+                        "default": 5,
+                        "description": "Maximum concurrent detail calls to the OVHcloud API.",
+                        "maximum": 20,
+                        "minimum": 1,
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "OPENAEV_URL",
+                    "OPENAEV_TOKEN"
+                ],
+                "additionalProperties": true
+            }
+        },
+        {
             "title": "Microsoft Sentinel",
             "slug": "openaev_microsoft_sentinel",
             "description": "Validate OpenAEV detection expectations against Microsoft Sentinel by collecting the incidents and alerts your cloud-native SIEM correlates in response to simulated attacks.",

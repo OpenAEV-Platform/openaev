@@ -1760,13 +1760,10 @@ public class WorkflowService {
 
     // At least one template generated one or more ready execution steps.
     boolean hasActiveSteps = stepService.countActiveSteps(workflowRun.getId()) > 0;
-    int pendingCount = 0;
-
     for (Step step : stepsTemplate) {
-      List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null, pendingCount);
+      List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null);
       if (!stepReadys.isEmpty()) {
         hasActiveSteps = true;
-        pendingCount += stepReadys.size();
         stepService.enqueueReadySteps(stepReadys, workflowRun);
       }
     }
