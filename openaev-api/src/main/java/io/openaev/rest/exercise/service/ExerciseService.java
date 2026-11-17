@@ -1420,14 +1420,18 @@ public class ExerciseService {
     this.injectRepository.touchUpdatedAtByExerciseId(exerciseId);
 
     // Replace teams from exercise
-    List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));
+    List<Team> teams =
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(targetTeamIds, exercise.getTenant().getId()));
     exercise.setTeams(teams);
     this.exerciseRepository.save(exercise);
 
     List<String> teamIdsAdded =
         targetTeamIds.stream().filter(id -> !previousTeamIds.contains(id)).toList();
 
-    List<Team> teamsAdded = fromIterable(this.teamRepository.findAllById(teamIdsAdded));
+    List<Team> teamsAdded =
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(teamIdsAdded, exercise.getTenant().getId()));
 
     // Enable user
     teamsAdded.forEach(
