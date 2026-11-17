@@ -35,6 +35,12 @@ const STEP_LABELS: Record<string, StepLabels> = {
     success: 'Attack Prevented',
     failed: 'Attack Not Prevented',
   },
+  LOGGING: {
+    unknown: 'No Expectation for Logging',
+    pending: 'Waiting for Logging',
+    success: 'Attack Logged',
+    failed: 'Attack Not Logged',
+  },
 };
 
 const HUMAN_STEP_LABELS: StepLabels = {

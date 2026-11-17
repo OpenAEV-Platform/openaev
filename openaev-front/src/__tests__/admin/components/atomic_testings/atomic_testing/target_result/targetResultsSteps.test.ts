@@ -13,6 +13,8 @@ describe('targetResultsSteps', () => {
       ['PREVENTION', ['PENDING'], 'Waiting for Prevention'],
       ['PREVENTION', ['SUCCESS'], 'Attack Prevented'],
       ['PREVENTION', ['PARTIAL'], 'Attack Not Prevented'],
+      ['LOGGING', ['SUCCESS'], 'Attack Logged'],
+      ['LOGGING', ['FAILED'], 'Attack Not Logged'],
       ['MANUAL', ['UNKNOWN'], 'No Expectation for Manual'],
       ['ARTICLE', ['PENDING'], 'Waiting for Validation'],
       ['CHALLENGE', ['SUCCESS'], 'Validation Success'],

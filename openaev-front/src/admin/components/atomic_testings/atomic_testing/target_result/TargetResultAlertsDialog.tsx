@@ -10,6 +10,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import ItemSecurityPlatformType from '../../../../../components/ItemSecurityPlatformType';
 import type { InjectExpectationResult, InjectExpectationTrace } from '../../../../../utils/api-types';
 import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
+import { traceMatchTypeLabelKey, traceWording } from './expectationTraceLabels';
 import useExpectationSourceLogo from './useExpectationSourceLogo';
 
 interface Props {
@@ -52,11 +53,12 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
       .finally(() => setLoading(false));
   }, [injectExpectation.inject_expectation_id, sourceId]);
 
+  const wording = traceWording(injectExpectation.inject_expectation_type);
   const sourceName = expectationResult?.sourceName?.trim() || '-';
   const platformType = expectationResult?.sourcePlatform?.trim();
   const expectationTypeLabel = injectExpectation.inject_expectation_type
     ? t(injectExpectation.inject_expectation_type)
-    : t('Alerts');
+    : t(wording.column);
 
   // Platform-first logo resolution: a result written by a since-deleted
   // collector still resolves to its (surviving) security platform logo.
@@ -74,9 +76,9 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
       return null;
     }
     if (sortedTraces.length === 1) {
-      return `1 ${t('alert')}`;
+      return `1 ${t(wording.one)}`;
     }
-    return `${sortedTraces.length} ${t('alerts')}`;
+    return `${sortedTraces.length} ${t(wording.many)}`;
   })();
 
   return (
@@ -224,7 +226,7 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
               textAlign: 'center',
             }}
             >
-              {t('No alerts have been reported by this security platform.')}
+              {t(wording.empty)}
             </Typography>
           </Box>
         )}
@@ -240,6 +242,8 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
               const alertLink = expectationTrace.inject_expectation_trace_alert_link;
               const alertHost = extractHost(alertLink);
               const alertDate = expectationTrace.inject_expectation_trace_date ?? expectationTrace.inject_expectation_trace_created_at;
+              // What matched the inject in a log event (marker or IP), only written for Logging.
+              const matchTypeKey = traceMatchTypeLabelKey(expectationTrace.inject_expectation_trace_match_type);
 
               const rowContent = (
                 <>
@@ -291,7 +295,7 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
                       fontVariantNumeric: 'tabular-nums',
                     }}
                     >
-                      {[alertHost, alertDate ? fldt(alertDate) : undefined].filter(Boolean).join(' · ')}
+                      {[alertHost, matchTypeKey ? t(matchTypeKey) : undefined, alertDate ? fldt(alertDate) : undefined].filter(Boolean).join(' · ')}
                     </Typography>
                   </div>
                   {alertLink && (
