@@ -10,11 +10,10 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.groups.PlatformGroupUpdateRolesInput;
 import io.openaev.api.groups.PlatformGroupUpdateUsersInput;
 import io.openaev.api.groups.dto.PlatformGroupInput;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -40,7 +39,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -53,8 +51,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -71,23 +67,10 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Group privilege checks with a role the request scope hides")
-class GroupPrivilegeCheckHiddenRolesTest extends IntegrationTest {
+class GroupPrivilegeCheckHiddenRolesTest extends ProductionTablesIntegrationTest {
 
   /** A capability of the hidden role, held by none of the callers. */
   private static final Capability HIDDEN_CAPABILITY = Capability.ACCESS_ASSESSMENT;
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    // The production list with roles on it, as the activation will have it
-    registry.add(
-        "openaev.tenant.active-tables",
-        () ->
-            String.join(
-                ",",
-                Stream.concat(ProductionActiveTables.names().stream(), Stream.of("roles"))
-                    .distinct()
-                    .toList()));
-  }
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 

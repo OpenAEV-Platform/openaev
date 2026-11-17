@@ -3,8 +3,7 @@ package io.openaev.runner;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
@@ -16,13 +15,10 @@ import io.openaev.utilstest.PinsUnscopedPlatformRead;
 import io.openaev.utilstest.WithoutTenantScope;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * With {@code roles} active (dual-scope: the platform {@code Admin} role has no tenant), the admin
@@ -33,23 +29,10 @@ import org.springframework.test.context.DynamicPropertySource;
  * <p>NOT {@code @Transactional}: the runner opens and owns its transaction.
  */
 @DisplayName("Admin bootstrap with roles active")
-class DualScopeRolesBootTest extends IntegrationTest {
+class DualScopeRolesBootTest extends ProductionTablesIntegrationTest {
 
   private static final String PLATFORM_ADMIN_ROLE_ID =
       AdminPrivilegeService.PLATFORM_ADMIN_ACCESS.roleId();
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    // The production list with roles on it: the test holds before and after roles joins that list
-    registry.add(
-        "openaev.tenant.active-tables",
-        () ->
-            String.join(
-                ",",
-                Stream.concat(ProductionActiveTables.names().stream(), Stream.of("roles"))
-                    .distinct()
-                    .toList()));
-  }
 
   @Autowired private InitAdminCommandLineRunner initAdminCommandLineRunner;
   @Autowired private RoleRepository roleRepository;

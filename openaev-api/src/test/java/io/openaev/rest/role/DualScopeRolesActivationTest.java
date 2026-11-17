@@ -17,10 +17,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.platform.roles.PlatformRoleApi;
 import io.openaev.architecture.CoversTenantIsolation;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -48,8 +47,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -73,7 +70,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @DisplayName("roles active, dual-scope isolation")
-class DualScopeRolesActivationTest extends IntegrationTest {
+class DualScopeRolesActivationTest extends ProductionTablesIntegrationTest {
 
   private static final String ROLES_ON_PATH = "/api/tenants/{tenantId}/roles";
   private static final String ROLE_ON_PATH = "/api/tenants/{tenantId}/roles/{roleId}";
@@ -86,12 +83,6 @@ class DualScopeRolesActivationTest extends IntegrationTest {
           Capability.DELETE_TENANT_USERS_GROUPS_AND_ROLES,
           Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
           Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES);
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private RoleRepository roleRepository;
