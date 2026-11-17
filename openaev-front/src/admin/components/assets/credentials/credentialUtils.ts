@@ -60,7 +60,6 @@ const convertCredentialFullOutputToCredentialInput = (credential: CredentialFull
     gcp_custom_token_uri: credential.credential_gcp_custom_token_uri,
     gcp_custom_iam_uri: credential.credential_gcp_custom_iam_uri,
     gcp_custom_oauth_access_token: credential.credential_gcp_custom_oauth_access_token_defined ? DOTS : '',
-    // API token: always stored once the credential exists, never sent back.
     credential_api_token: credential.credential_auth_method === 'API_TOKEN' ? DOTS : '',
   };
 };
