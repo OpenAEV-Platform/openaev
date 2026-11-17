@@ -25,28 +25,23 @@ import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import ReviewViewDialogs, { type ViewEdit } from './approval/ReviewViewDialogs';
-import { MAX_VIEW_TABS, type ReviewMode, useReviewViews } from './approval/reviewViews';
 import useApprovalDesignVariant from './approval/useApprovalDesignVariant';
+import CustomViewDialogs, { type ViewEdit } from './CustomViewDialogs';
+import { ACTIVE_PATH, MAX_VIEW_TABS, NEW_VIEW_PARAM, useCustomViews, VIEW_PARAM, viewPath } from './customViews';
 import { THREAT_ARSENAL_MY_CHANGES_PATH, THREAT_ARSENAL_TO_REVIEW_PATH } from './threatArsenalDeepLink';
 import useThreatArsenalFacetCounts from './useThreatArsenalFacetCounts';
 
 export type ThreatArsenalTab = 'installed' | 'available' | 'to-review' | 'my-changes';
-
-/** Opens a custom view on the review tab. */
-export const VIEW_PARAM = 'view';
-/** Opens the "New custom view" dialog on the review tab. */
-export const NEW_VIEW_PARAM = 'new-view';
 
 interface Props { active: ThreatArsenalTab }
 
 /**
  * The one set of routed tabs of the Threat Arsenal. Active, Available and the review tab of the role
  * ("To review" for holders of "Approve content", "My changes" for people who edit without approving)
- * always come first, for everyone. Then up to three custom views the person chose to show as tabs,
- * then "Custom views", which opens any other view in one click or starts a new one. The design system
- * Customize Panel at the end chooses and orders the custom views shown as tabs. In the lighter
- * "filter" option there is no review tab, hence no custom views.
+ * always come first, for everyone, and never change. Then up to three custom views the person chose to
+ * show as tabs, then "Custom views", which opens any other view in one click or starts a new one from
+ * what Active shows. A custom view is the Active list with saved filters. The design system Customize
+ * Panel at the end chooses and orders the custom views shown as tabs.
  */
 const ThreatArsenalTabs: FunctionComponent<Props> = ({ active }) => {
   const { t } = useFormatter();
@@ -59,23 +54,26 @@ const ThreatArsenalTabs: FunctionComponent<Props> = ({ active }) => {
   const me = useHelper((helper: UserHelper) => helper.getMe())?.user_id as string | undefined;
   const canApprove = ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS);
   const canSubmit = !canApprove && ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
-  const reviewMode: ReviewMode | null = (() => {
+  const reviewMode: 'to-review' | 'my-changes' | null = (() => {
     if (variant !== 'queue') return null;
     if (canApprove) return 'to-review';
     return canSubmit ? 'my-changes' : null;
   })();
   const reviewPath = reviewMode === 'to-review' ? THREAT_ARSENAL_TO_REVIEW_PATH : THREAT_ARSENAL_MY_CHANGES_PATH;
-  const views = useReviewViews(reviewMode ?? 'to-review', me);
+  const views = useCustomViews(me);
 
   // Counts over the whole arsenal, never the current page or filters.
   const allActions = useMemo(() => buildSearchPagination({}), []);
   const facetCounts = useThreatArsenalFacetCounts(allActions);
   const pendingCount = facetCounts?.approvals?.PENDING ?? 0;
 
-  const openViewId = active === reviewMode ? searchParams.get(VIEW_PARAM) : null;
+  const openViewId = active === 'installed' ? searchParams.get(VIEW_PARAM) : null;
   const openView = openViewId ? views.byId(openViewId) : undefined;
   const value = openView ? `view:${openView.id}` : active;
-  const viewPath = (id: string) => `${reviewPath}?${VIEW_PARAM}=${encodeURIComponent(id)}`;
+  // A new view keeps what is on screen: Active's filters, or the open view's.
+  const newViewPath = openView
+    ? `${viewPath(openView.id)}&${NEW_VIEW_PARAM}=1`
+    : `${ACTIVE_PATH}?${NEW_VIEW_PARAM}=1`;
 
   const tab = (tabValue: string, label: string, to: string) => (
     <TabsTrigger key={tabValue} value={tabValue} asChild>
@@ -100,7 +98,7 @@ const ThreatArsenalTabs: FunctionComponent<Props> = ({ active }) => {
     pinned: index < MAX_VIEW_TABS,
   }));
 
-  const customize = reviewMode && views.views.length > 0 && (
+  const customize = views.views.length > 0 && (
     <CustomizePanel
       mode="show"
       items={panelItems}
@@ -137,14 +135,14 @@ const ThreatArsenalTabs: FunctionComponent<Props> = ({ active }) => {
     <>
       <Tabs value={value} panels="external">
         <TabsList actions={customize || undefined}>
-          {tab('installed', t('Active'), '/admin/threat-arsenal')}
+          {tab('installed', t('Active'), ACTIVE_PATH)}
           {tab('available', t('Available'), '/admin/threat-arsenal/available')}
           {reviewMode === 'to-review' && tab('to-review', pendingCount > 0 ? `${t('To review')} (${pendingCount})` : t('To review'), reviewPath)}
           {reviewMode === 'my-changes' && tab('my-changes', t('My changes'), reviewPath)}
           {/* Every custom view is a split tab: the name is a real link (one click opens it, ⌘-click opens a
               new browser tab), the arrow beside it opens Rename and Delete (Jakob's Law: GitHub Projects;
               Law of Proximity; NN/g H4 the same arrow on every view, H7 links keep browser shortcuts). */}
-          {reviewMode && views.tabs.map(view => (
+          {views.tabs.map(view => (
             <SplitTab
               key={view.id}
               value={`view:${view.id}`}
@@ -177,73 +175,71 @@ const ThreatArsenalTabs: FunctionComponent<Props> = ({ active }) => {
               )}
             />
           ))}
-          {reviewMode && (
-            <TabsMenuTrigger
-              active={!!openView && views.more.includes(openView)}
-              menuProps={{
-                open: menuOpen,
-                onOpenChange: setMenuOpen,
-              }}
-              menu={(
-                <>
-                  {/* A click (or Enter) opens the view; hovering it (or →) offers Rename and Delete. */}
-                  {views.more.map(view => (
-                    <MenuSub key={view.id}>
-                      <MenuSubTrigger
-                        aria-current={openView?.id === view.id ? 'page' : undefined}
-                        onClick={() => openFromMenu(view.id)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
-                            event.preventDefault();
-                            openFromMenu(view.id);
-                          }
-                        }}
-                        style={openView?.id === view.id ? { fontWeight: 600 } : undefined}
+          <TabsMenuTrigger
+            active={!!openView && views.more.includes(openView)}
+            menuProps={{
+              open: menuOpen,
+              onOpenChange: setMenuOpen,
+            }}
+            menu={(
+              <>
+                {/* A click (or Enter) opens the view; hovering it (or →) offers Rename and Delete. */}
+                {views.more.map(view => (
+                  <MenuSub key={view.id}>
+                    <MenuSubTrigger
+                      aria-current={openView?.id === view.id ? 'page' : undefined}
+                      onClick={() => openFromMenu(view.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          openFromMenu(view.id);
+                        }
+                      }}
+                      style={openView?.id === view.id ? { fontWeight: 600 } : undefined}
+                    >
+                      {view.label}
+                    </MenuSubTrigger>
+                    <MenuSubContent>
+                      <MenuItem
+                        startIcon={<EditOutlined fontSize="small" />}
+                        onSelect={() => setEdit({
+                          kind: 'rename',
+                          view,
+                        })}
                       >
-                        {view.label}
-                      </MenuSubTrigger>
-                      <MenuSubContent>
-                        <MenuItem
-                          startIcon={<EditOutlined fontSize="small" />}
-                          onSelect={() => setEdit({
-                            kind: 'rename',
-                            view,
-                          })}
-                        >
-                          {t('Rename view')}
-                        </MenuItem>
-                        <MenuItem
-                          startIcon={<DeleteOutlined fontSize="small" style={deleteStyle} />}
-                          style={deleteStyle}
-                          onSelect={() => setEdit({
-                            kind: 'delete',
-                            view,
-                          })}
-                        >
-                          {t('Delete view')}
-                        </MenuItem>
-                      </MenuSubContent>
-                    </MenuSub>
-                  ))}
-                  {views.more.length > 0 && <MenuSeparator />}
-                  <MenuItem asChild startIcon={<AddOutlined fontSize="small" />}>
-                    <Link to={`${reviewPath}?${NEW_VIEW_PARAM}=1`}>{t('New custom view')}</Link>
-                  </MenuItem>
-                </>
-              )}
-            >
-              {t('Custom views')}
-            </TabsMenuTrigger>
-          )}
+                        {t('Rename view')}
+                      </MenuItem>
+                      <MenuItem
+                        startIcon={<DeleteOutlined fontSize="small" style={deleteStyle} />}
+                        style={deleteStyle}
+                        onSelect={() => setEdit({
+                          kind: 'delete',
+                          view,
+                        })}
+                      >
+                        {t('Delete view')}
+                      </MenuItem>
+                    </MenuSubContent>
+                  </MenuSub>
+                ))}
+                {views.more.length > 0 && <MenuSeparator />}
+                <MenuItem asChild startIcon={<AddOutlined fontSize="small" />}>
+                  <Link to={newViewPath}>{t('New custom view')}</Link>
+                </MenuItem>
+              </>
+            )}
+          >
+            {t('Custom views')}
+          </TabsMenuTrigger>
         </TabsList>
       </Tabs>
-      <ReviewViewDialogs
+      <CustomViewDialogs
         edit={edit}
         onClose={() => setEdit(null)}
-        onRename={(view, label) => views.update(view.id, { label })}
+        onRename={(view, label) => views.rename(view.id, label)}
         onDelete={(view) => {
           views.remove(view.id);
-          if (openView?.id === view.id) navigate(reviewPath);
+          if (openView?.id === view.id) navigate(ACTIVE_PATH);
         }}
       />
     </>

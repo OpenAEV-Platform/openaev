@@ -1,26 +1,26 @@
 import { Button, Dialog, DialogBody, DialogContent, DialogFooter, DialogTitle, Input, Text } from '@filigran/design-system';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
-import { useFormatter } from '../../../../components/i18n';
-import { type ReviewView } from './reviewViews';
+import { useFormatter } from '../../../components/i18n';
+import { type CustomView } from './customViews';
 
 export interface ViewEdit {
   kind: 'rename' | 'delete';
-  view: ReviewView;
+  view: CustomView;
 }
 
 interface Props {
   edit: ViewEdit | null;
   onClose: () => void;
-  onRename: (view: ReviewView, label: string) => void;
-  onDelete: (view: ReviewView) => void;
+  onRename: (view: CustomView, label: string) => void;
+  onDelete: (view: CustomView) => void;
 }
 
 /**
  * Rename or delete a custom view, from the "Custom views" menu or from the options of the open view.
  * Deleting asks first; the actions the view lists are never changed.
  */
-const ReviewViewDialogs: FunctionComponent<Props> = ({ edit, onClose, onRename, onDelete }) => {
+const CustomViewDialogs: FunctionComponent<Props> = ({ edit, onClose, onRename, onDelete }) => {
   const { t } = useFormatter();
   const [label, setLabel] = useState('');
   useEffect(() => {
@@ -80,4 +80,4 @@ const ReviewViewDialogs: FunctionComponent<Props> = ({ edit, onClose, onRename, 
   );
 };
 
-export default ReviewViewDialogs;
+export default CustomViewDialogs;
