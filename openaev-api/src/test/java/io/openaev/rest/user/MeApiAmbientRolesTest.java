@@ -2,8 +2,13 @@ package io.openaev.rest.user;
 
 import static io.openaev.rest.user.MeApi.ME_URI;
 import static io.openaev.service.UserService.buildAuthenticationToken;
+import static io.openaev.utils.fixtures.UserFixture.RAW_PASSWORD;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -34,11 +39,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -78,7 +87,7 @@ class MeApiAmbientRolesTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
-  @Autowired private UserService userService;
+  @MockitoSpyBean private UserService userService;
   @Autowired private UserRepository userRepository;
   @Autowired private RoleRepository roleRepository;
   @Autowired private GroupRepository groupRepository;
@@ -182,6 +191,45 @@ class MeApiAmbientRolesTest extends IntegrationTest {
       mvc.perform(
               get(ME_URI)
                   .header(TENANT_HEADER, tenantA)
+                  .with(authentication(buildAuthenticationToken(member))))
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.user_capabilities[?(@ == '" + DEFAULT_TENANT_CAPABILITY + "')]").exists())
+          .andExpect(
+              jsonPath("$.user_capabilities[?(@ == '" + TENANT_A_CAPABILITY + "')]")
+                  .doesNotExist());
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        delimiter = '|',
+        value = {
+          "information|/information|{\"user_phone\":\"+33100000000\"}",
+          "profile|/profile|{\"user_firstname\":\"me-roles\",\"user_lastname\":\"me-roles\","
+              + "\"user_lang\":\"en\",\"user_theme\":\"dark\"}",
+          "password|/password|{\"user_current_password\":\""
+              + RAW_PASSWORD
+              + "\",\"user_plain_password\":\""
+              + RAW_PASSWORD
+              + "\"}",
+          "email|/email|{\"user_current_password\":\""
+              + RAW_PASSWORD
+              + "\",\"user_email\":\"me-roles-new@unittests.invalid\"}"
+        })
+    @DisplayName(
+        "given_aHeaderNamingTenantA_should_answerASelfUpdateWithTheCapabilitiesOfTheDefaultTenant")
+    void given_aHeaderNamingTenantA_should_answerASelfUpdateWithTheCapabilitiesOfTheDefaultTenant(
+        String ignoredName, String path, String body) throws Exception {
+      // Arrange: the confirmation link of an email change is not sent
+      doNothing().when(userService).requestEmailChange(any(), any());
+
+      // Act + Assert: the response describes the ambient tenant, the default one on this route
+      mvc.perform(
+              put(ME_URI + path)
+                  .header(TENANT_HEADER, tenantA)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body)
+                  .with(csrf())
                   .with(authentication(buildAuthenticationToken(member))))
           .andExpect(status().isOk())
           .andExpect(
