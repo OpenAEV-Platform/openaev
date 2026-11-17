@@ -125,7 +125,7 @@ public interface EndpointRepository
               + "INNER JOIN injects_assets ia ON e.asset_id = ia.asset_id "
               + "WHERE e.asset_type = '"
               + AssetType.Values.ENDPOINT_TYPE
-              + "' AND e.tenant_id = :#{#tenantContext.currentTenant}",
+              + "'",
       nativeQuery = true)
   List<Endpoint> findAllEndpointsForAtomicTestingsSimulationsAndScenarios();
 
@@ -138,8 +138,7 @@ public interface EndpointRepository
                   SELECT DISTINCT fa.asset_id
                   FROM findings f
                   LEFT JOIN findings_assets fa ON fa.finding_id = f.finding_id
-              ) AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-              AND a.tenant_id = :#{#tenantContext.currentTenant};
+              ) AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')));
               """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindings(@Param("name") String name, Pageable pageable);
@@ -165,8 +164,7 @@ public interface EndpointRepository
                   )
                   AND fa2.asset_id != :sourceId
               )
-              AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-              AND a.tenant_id = :#{#tenantContext.currentTenant};
+              AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')));
               """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindingsWithContext(
@@ -188,13 +186,18 @@ public interface EndpointRepository
 
   // Replace Hibernate query by native query for perfs
   // Native query does the same as Hibernate query here because all "cascade" and other relations
-  // are properly set in the database
+  // are properly set in the database.
+  // Returns the number of rows removed: a caller publishes follow-up events only for a deleted row.
+  // Not named deleteById: the inherited CrudRepository method returns void and cannot be widened.
+  // Removes a row of type Endpoint only: the assets table also holds the other asset types.
   @Modifying
   @Query(
       value =
-          "DELETE FROM assets WHERE asset_id = :assetId AND tenant_id = :#{#tenantContext.currentTenant}",
+          "DELETE FROM assets WHERE asset_id = :assetId AND asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "'",
       nativeQuery = true)
-  void deleteById(@Param("assetId") @NotBlank String assetId);
+  int deleteEndpointById(@Param("assetId") @NotBlank String assetId);
 
   List<Endpoint> findDistinctByInjectsScenarioId(String scenarioId);
 

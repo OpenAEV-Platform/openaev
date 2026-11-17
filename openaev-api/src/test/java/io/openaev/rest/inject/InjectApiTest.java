@@ -29,7 +29,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.model.payload.PayloadRevocation;
 import io.openaev.database.repository.*;
+import io.openaev.database.repository.PayloadRevocationRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.injector_contract.ContractTargetedProperty;
@@ -138,6 +140,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private PayloadRevocationRepository payloadRevocationRepository;
   @Autowired private DocumentRepository documentRepository;
   @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private CommunicationRepository communicationRepository;
@@ -1732,6 +1735,51 @@ class InjectApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isBadRequest());
+    }
+
+    @DisplayName("Should refuse a revoked payload version to the agent and trace why")
+    @Test
+    void given_revokedPayloadVersion_should_refuseItAndTraceTheReason() throws Exception {
+      // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      Command payloadCommand =
+          PayloadFixture.createCommand("bash", "echo Hello World", List.of(), "echo cleanup");
+      Inject injectSaved =
+          injectComposer
+              .forInject(InjectFixture.createInjectWithPayloadArg(new HashMap<>()))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
+              .persist()
+              .get();
+      PayloadRevocation revocation = new PayloadRevocation();
+      revocation.setTenant(payloadCommand.getTenant());
+      revocation.setPayload(payloadCommand);
+      revocation.setReason("Deletes user files");
+      payloadRevocationRepository.save(revocation);
+      String agentId = targetAgentWrapper.get().getId();
+
+      // -- EXECUTE --
+      mvc.perform(
+              get(INJECT_URI + "/" + injectSaved.getId() + "/" + agentId + "/executable-payload")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+
+      // -- ASSERT --
+      verify(injectStatusService)
+          .setImplantErrorTrace(
+              injectSaved.getId(), agentId, "Payload revoked: Deletes user files");
+      verify(injectStatusService, never())
+          .addStartImplantExecutionTraceByInject(any(), any(), any(), any());
     }
 
     @DisplayName(

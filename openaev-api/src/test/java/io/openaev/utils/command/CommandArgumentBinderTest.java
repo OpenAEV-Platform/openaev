@@ -659,6 +659,68 @@ class CommandArgumentBinderTest {
   }
 
   @Nested
+  @DisplayName("Values written by the payload author")
+  class Authored {
+
+    @Test
+    @DisplayName("given POSIX variables should expand them and keep the rest quoted")
+    void given_sh_variables_should_expand_them_and_quote_the_rest() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("sh");
+
+      binder.bindAuthored("out", "${HOME}/x & $USER");
+
+      assertThat(binder.render("run #{out}"))
+          .isEqualTo("OAEV_ARG_OUT=\"${HOME}\"'/x & '\"${USER}\"\nrun \"$OAEV_ARG_OUT\"");
+    }
+
+    @Test
+    @DisplayName(
+        "given a PowerShell environment variable should expand it and keep the rest quoted")
+    void given_powershell_variable_should_expand_it_and_quote_the_rest() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("psh");
+
+      binder.bindAuthored("out", "$env:TEMP\\My Dir\\");
+
+      assertThat(binder.render("New-Item -Path #{out}"))
+          .isEqualTo("$OAEV_ARG_OUT = $env:TEMP + '\\My Dir\\'\nNew-Item -Path ${OAEV_ARG_OUT}");
+    }
+
+    @Test
+    @DisplayName("given a cmd variable should expand it with delayed expansion and escape the rest")
+    void given_cmd_variable_should_expand_it_and_escape_the_rest() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("cmd");
+
+      binder.bindAuthored("out", "%TEMP%\\x 50% (1)");
+
+      assertThat(binder.render("run #{out}"))
+          .isEqualTo("set \"OAEV_ARG_OUT=!TEMP!\\x 50%% (1)\" & run \"!OAEV_ARG_OUT!\"");
+    }
+
+    @Test
+    @DisplayName("given an empty value should declare an empty string")
+    void given_empty_value_should_declare_an_empty_string() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("sh");
+
+      binder.bindAuthored("out", "");
+
+      assertThat(binder.render("run #{out}")).startsWith("OAEV_ARG_OUT=''\n");
+    }
+
+    @Test
+    @DisplayName(
+        "given the same variable in a value not written by the author should keep it literal")
+    void given_variable_in_bound_value_should_keep_it_literal() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("psh");
+
+      binder.bindAuthored("out", "$env:TEMP");
+      binder.bind("user", "$env:TEMP");
+
+      assertThat(binder.render("run #{out} #{user}"))
+          .startsWith("$OAEV_ARG_OUT = $env:TEMP\n$OAEV_ARG_USER = '$env:TEMP'\n");
+    }
+  }
+
+  @Nested
   @DisplayName("Non-shell context")
   class Literal {
 
