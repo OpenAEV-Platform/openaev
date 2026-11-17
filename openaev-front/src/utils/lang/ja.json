@@ -412,7 +412,6 @@
   "credential_api_token": "APIトークン",
   "API token credential": "APIトークンの認証情報",
   "Choose a credential": "認証情報を選択",
-  "No credential": "認証情報なし",
   "Apply": "適用",
   "Apply a lessons learned template": "教訓テンプレートの適用",
   "Apply a template": "テンプレートを適用",
