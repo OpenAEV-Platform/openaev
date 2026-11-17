@@ -537,6 +537,55 @@ class ScopedCurrentUserLoadTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given_pendingEditsOnAGroupOfTheSession_should_loadWithoutOverwritingThem")
+    void given_pendingEditsOnAGroupOfTheSession_should_loadWithoutOverwritingThem() {
+      // Arrange: the session holds the user's group read under the scope of A, with a rename and a
+      // member that are not written yet
+      String pendingName = "pending-" + UUID.randomUUID();
+      String groupId = memberOfAAndB.getUnscopedGroups().get(0).getId();
+      EntityManager session = emf.createEntityManager();
+      TransactionSynchronizationManager.bindResource(emf, new EntityManagerHolder(session));
+      try {
+        User preloaded =
+            tenantTx.executeReadOnly(
+                TxCtx.forTenant(tenantA), () -> session.find(User.class, memberOfAAndB.getId()));
+        Group group = preloaded.getUnscopedGroups().get(0);
+        assertThat(group.getId()).isEqualTo(groupId);
+        group.setName(pendingName);
+        group.getUsers().add(session.find(User.class, memberOfB.getId()));
+
+        // Act
+        Set<Capability> capabilities = asUser(memberOfAAndB, tenantB, userService::currentUser);
+
+        // Assert: the load reads the tenant role, and the group keeps the pending edits
+        assertThat(capabilities).contains(GUARD_CAPABILITY);
+        assertThat(group.getName()).isEqualTo(pendingName);
+        assertThat(group.getUsers()).extracting(User::getId).contains(memberOfB.getId());
+        tenantTx.execute(TxCtx.forTenants(List.of(tenantA, tenantB)), session::flush);
+        assertThat(
+                jdbc.queryForObject(
+                    "SELECT group_name FROM groups WHERE group_id = ?",
+                    String.class,
+                    group.getId()))
+            .isEqualTo(pendingName);
+        assertThat(
+                jdbc.queryForObject(
+                    "SELECT count(*) FROM users_groups WHERE group_id = ? AND user_id = ?",
+                    Integer.class,
+                    group.getId(),
+                    memberOfB.getId()))
+            .isEqualTo(1);
+      } finally {
+        jdbc.update(
+            "DELETE FROM users_groups WHERE user_id = ? AND group_id = ?",
+            memberOfB.getId(),
+            groupId);
+        TransactionSynchronizationManager.unbindResource(emf);
+        session.close();
+      }
+    }
+
+    @Test
     @DisplayName("given_theUserLoadedUnderTheOtherTenant_should_loadTheCapabilitiesOfItsTenantRole")
     void given_theUserLoadedUnderTheOtherTenant_should_loadTheCapabilitiesOfItsTenantRole() {
       // Arrange

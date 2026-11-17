@@ -45,6 +45,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
 import org.hibernate.Hibernate;
+import org.hibernate.Session;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -981,28 +982,46 @@ public class UserService {
     if (tenantIds.isEmpty()) {
       return userRepository.findById(userId);
     }
+    TxCtx scope = TxCtx.forTenants(tenantIds);
     return tenantTx.executeReadOnly(
-        TxCtx.forTenants(tenantIds),
+        scope,
         () -> {
           Optional<User> user = userRepository.findById(userId);
-          user.ifPresent(this::reloadRolesReadInAnotherScope);
+          if (user.isPresent() && heldRolesDifferFromScope(user.get())) {
+            return loadRolesFromTheDatabase(user.get(), scope);
+          }
           return user;
         });
   }
 
   /**
-   * Reloads the roles of the groups of {@code user} that differ from the ones the transaction's
-   * scope reads. A load by id of a user or a group the session already holds, read with no scope or
-   * in another tenant's scope, hands out that instance with the roles of its first read: the eager
-   * associations are not read again.
+   * Reads the roles of the groups of {@code user} the load has to hand out. A load by id of a user
+   * or a group the session already holds, read with no scope or in another tenant's scope, hands
+   * out that instance with the roles of its first read: the eager associations are not read again.
    *
-   * <p>One query reads the roles of all the groups in the scope; only a group whose roles differ is
-   * refreshed, in the read-only state of the load, so no pending change of the request is flushed.
+   * <p>When the session holds no pending change, the groups whose roles differ are refreshed. When
+   * it holds one, a refresh would replace the pending state of a group, so the user is loaded in a
+   * persistence context of its own, which the caller's entities never join: the result is detached
+   * and the caller's session keeps what it holds.
    */
-  private void reloadRolesReadInAnotherScope(User user) {
+  private Optional<User> loadRolesFromTheDatabase(User held, TxCtx scope) {
+    if (entityManager.unwrap(Session.class).isDirty()) {
+      return tenantTx.executeNew(scope, () -> userRepository.findById(held.getId()));
+    }
+    for (Group group : held.getUnscopedGroups()) {
+      entityManager.refresh(group);
+    }
+    return Optional.of(held);
+  }
+
+  /**
+   * Tells whether the roles a group of {@code user} holds differ from the ones the transaction's
+   * scope reads. One query reads the roles of all the groups in the scope.
+   */
+  private boolean heldRolesDifferFromScope(User user) {
     List<Group> groups = user.getUnscopedGroups();
     if (groups.isEmpty()) {
-      return;
+      return false;
     }
     Map<String, Set<String>> inScope = new HashMap<>();
     entityManager
@@ -1015,12 +1034,13 @@ public class UserService {
                 inScope
                     .computeIfAbsent((String) row[0], id -> new HashSet<>())
                     .add((String) row[1]));
-    for (Group group : groups) {
-      Set<String> held = group.getRoles().stream().map(Role::getId).collect(Collectors.toSet());
-      if (!held.equals(inScope.getOrDefault(group.getId(), Set.of()))) {
-        entityManager.refresh(group);
-      }
-    }
+    return groups.stream()
+        .anyMatch(
+            group -> {
+              Set<String> held =
+                  group.getRoles().stream().map(Role::getId).collect(Collectors.toSet());
+              return !held.equals(inScope.getOrDefault(group.getId(), Set.of()));
+            });
   }
 
   /**
