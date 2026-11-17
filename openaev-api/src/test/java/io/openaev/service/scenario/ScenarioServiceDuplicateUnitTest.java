@@ -7,12 +7,15 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Scenario;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -27,12 +30,27 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ScenarioServiceDuplicateUnitTest {
 
   private static final String SCENARIO_ID = "scenario-id";
+  private static final TxCtx CTX = TxCtx.forTenant("tenant-1");
 
   @Mock private WorkflowService workflowService;
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private LicenseCacheManager licenseCacheManager;
+  @Mock private WorkflowOwnerScope workflowOwnerScope;
 
   @Spy @InjectMocks private ScenarioService scenarioService;
+
+  // The owner's tenant scope is the integration tests' concern; here the work just runs.
+  @BeforeEach
+  void runScopedWorkInPlace() throws Exception {
+    lenient()
+        .doAnswer(
+            invocation -> {
+              invocation.<WorkflowOwnerScope.ScopedAction<?>>getArgument(1).run();
+              return null;
+            })
+        .when(workflowOwnerScope)
+        .run(any(Scenario.class), any());
+  }
 
   @Nested
   @DisplayName("Given a time-based scenario")
@@ -44,11 +62,11 @@ class ScenarioServiceDuplicateUnitTest {
         throws ChainingException {
       // -- ARRANGE --
       Scenario duplicate = new Scenario();
-      doReturn(duplicate).when(scenarioService).copyScenarioContent(SCENARIO_ID);
+      doReturn(duplicate).when(scenarioService).copyScenarioContent(CTX, SCENARIO_ID);
       when(workflowService.isScenarioChaining(SCENARIO_ID)).thenReturn(false);
 
       // -- ACT --
-      Scenario result = scenarioService.duplicateScenario(SCENARIO_ID);
+      Scenario result = scenarioService.duplicateScenario(CTX, SCENARIO_ID);
 
       // -- ASSERT --
       assertSame(duplicate, result);
@@ -69,13 +87,13 @@ class ScenarioServiceDuplicateUnitTest {
       // -- ARRANGE --
       Scenario duplicate = new Scenario();
       License license = new License();
-      doReturn(duplicate).when(scenarioService).copyScenarioContent(SCENARIO_ID);
+      doReturn(duplicate).when(scenarioService).copyScenarioContent(CTX, SCENARIO_ID);
       when(workflowService.isScenarioChaining(SCENARIO_ID)).thenReturn(true);
       when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(license);
       when(enterpriseEditionService.isEnterpriseLicenseInactive(license)).thenReturn(false);
 
       // -- ACT --
-      Scenario result = scenarioService.duplicateScenario(SCENARIO_ID);
+      Scenario result = scenarioService.duplicateScenario(CTX, SCENARIO_ID);
 
       // -- ASSERT --
       assertSame(duplicate, result);
@@ -88,14 +106,15 @@ class ScenarioServiceDuplicateUnitTest {
         throws ChainingException {
       // -- ARRANGE --
       License license = new License();
-      doReturn(new Scenario()).when(scenarioService).copyScenarioContent(SCENARIO_ID);
+      doReturn(new Scenario()).when(scenarioService).copyScenarioContent(CTX, SCENARIO_ID);
       when(workflowService.isScenarioChaining(SCENARIO_ID)).thenReturn(true);
       when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(license);
       when(enterpriseEditionService.isEnterpriseLicenseInactive(license)).thenReturn(true);
 
       // -- ACT & ASSERT --
       assertThrows(
-          EnterpriseEditionException.class, () -> scenarioService.duplicateScenario(SCENARIO_ID));
+          EnterpriseEditionException.class,
+          () -> scenarioService.duplicateScenario(CTX, SCENARIO_ID));
       verify(workflowService, never()).duplicateScenarioWorkflow(anyString(), any(Scenario.class));
     }
   }

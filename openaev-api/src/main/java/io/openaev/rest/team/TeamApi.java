@@ -76,7 +76,7 @@ import org.springframework.web.bind.annotation.*;
 public class TeamApi extends RestBehavior {
 
   public static final String TEAM_URI = "/api/teams";
-  static final String TENANT_TEAM_URI = TENANT_PREFIX + "/teams";
+  public static final String TENANT_TEAM_URI = TENANT_PREFIX + "/teams";
 
   private final ExerciseRepository exerciseRepository;
   private final ScenarioRepository scenarioRepository;
@@ -158,7 +158,7 @@ public class TeamApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String teamId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return injectSearchService.getPageOfInjectResultsForTeam(teamId, searchPaginationInput);
+    return injectSearchService.getPageOfInjectResultsForTeam(ctx, teamId, searchPaginationInput);
   }
 
   @GetMapping({"/api/teams/{teamId}", TENANT_TEAM_URI + "/{teamId}"})
@@ -202,7 +202,7 @@ public class TeamApi extends RestBehavior {
     team.setUpdateAttributes(input);
     team.setOrganization(
         updateRelation(input.getOrganizationId(), team.getOrganization(), organizationRepository));
-    team.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    team.setTags(iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), writeTenant)));
     team.setExercises(iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
     team.setScenarios(iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
     return teamRepository.save(team);
@@ -227,7 +227,8 @@ public class TeamApi extends RestBehavior {
       Team existingTeam = team.get();
       existingTeam.setUpdateAttributes(input);
       existingTeam.setUpdatedAt(now());
-      existingTeam.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+      existingTeam.setTags(
+          iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), writeTenant)));
       existingTeam.setOrganization(
           updateRelation(
               input.getOrganizationId(), existingTeam.getOrganization(), organizationRepository));
@@ -239,7 +240,8 @@ public class TeamApi extends RestBehavior {
       newTeam.setOrganization(
           updateRelation(
               input.getOrganizationId(), newTeam.getOrganization(), organizationRepository));
-      newTeam.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+      newTeam.setTags(
+          iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), writeTenant)));
       newTeam.setExercises(iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
       newTeam.setScenarios(iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
       return teamRepository.save(newTeam);
@@ -297,7 +299,9 @@ public class TeamApi extends RestBehavior {
     Team team = teamService.teamInScope(ctx, teamId);
     team.setUpdateAttributes(input);
     team.setUpdatedAt(now());
-    team.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    team.setTags(
+        iterableToSet(
+            tagRepository.findAllByIdInTenant(input.getTagIds(), team.getTenant().getId())));
     team.setOrganization(
         updateRelation(input.getOrganizationId(), team.getOrganization(), organizationRepository));
     return teamRepository.save(team);

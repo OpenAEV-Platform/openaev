@@ -36,9 +36,10 @@ public class InjectModelHelper {
     // Utility class - prevent instantiation
   }
 
-  private static boolean isTextOrTextarea(JsonNode jsonField) {
+  /** Fields whose contract default value stands in for an empty inject content value. */
+  private static boolean hasDefaultValueFallback(JsonNode jsonField) {
     String type = jsonField.get("type").asText();
-    return "text".equals(type) || "textarea".equals(type);
+    return "text".equals(type) || "textarea".equals(type) || "document".equals(type);
   }
 
   private static boolean isFieldValid(
@@ -210,7 +211,7 @@ public class InjectModelHelper {
           isSet = false;
           break;
         }
-        if (isTextOrTextarea(jsonField)) {
+        if (hasDefaultValueFallback(jsonField)) {
           isSet = isFieldValid(content, injectContractFields, key);
         } else if (content.get(key) == null
             || (content.get(key).isArray() && content.get(key).isEmpty())
@@ -221,42 +222,6 @@ public class InjectModelHelper {
       }
     }
     return isSet;
-  }
-
-  /**
-   * Checks if the inject content includes detection or prevention expectations.
-   *
-   * <p>This is used to determine if an inject requires security tool validation (e.g., EDR
-   * detection, firewall blocking) rather than just execution completion.
-   *
-   * @param content the inject content JSON
-   * @return {@code true} if the inject has DETECTION or PREVENTION expectations
-   */
-  public static boolean isDetectionOrPrevention(final ObjectNode content) {
-    if (content == null
-        || content.get("expectations") == null
-        || content.get("expectations").isNull()) {
-      return false;
-    }
-
-    JsonNode valueNode = content.get("expectations");
-
-    if (valueNode.isArray()) {
-      for (JsonNode node : valueNode) {
-        if (!node.isNull()
-            && node.get("expectation_type") != null
-            && !node.get("expectation_type").isNull()) {
-          BaseInjectExpectation.EXPECTATION_TYPE type =
-              BaseInjectExpectation.EXPECTATION_TYPE.valueOf(node.get("expectation_type").asText());
-          if (BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.equals(type)
-              || BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(type)) {
-            return true;
-          }
-        }
-      }
-    }
-
-    return false;
   }
 
   /**

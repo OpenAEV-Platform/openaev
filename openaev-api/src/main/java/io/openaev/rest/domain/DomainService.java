@@ -41,7 +41,7 @@ public class DomainService implements DependenciesManager {
   private final DomainRepository domainRepository;
 
   /** Default domain name for uncategorized contracts. */
-  private static final String TO_CLASSIFY = "To classify";
+  public static final String TO_CLASSIFY = "To classify";
 
   /** Default color for new domains. */
   private static final String DEFAULT_DOMAIN_COLOR = "#FFFFFF";
@@ -79,6 +79,12 @@ public class DomainService implements DependenciesManager {
 
   public Iterable<Domain> findAllById(final List<String> domainIds) {
     return domainRepository.findAllById(domainIds);
+  }
+
+  /** The domains among the given ids that belong to the given tenant. */
+  public List<Domain> findAllByIdInTenant(
+      final Collection<String> domainIds, final String tenantId) {
+    return domainRepository.findAllByIdInTenant(domainIds, tenantId);
   }
 
   @Transactional

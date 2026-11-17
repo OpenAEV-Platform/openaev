@@ -6,7 +6,6 @@ import {
   CodeOutlined,
   DataObjectOutlined,
   DomainOutlined,
-  GroupsOutlined,
   InfoOutlined,
   MemoryOutlined,
   PersonOutlined,
@@ -47,6 +46,7 @@ import {
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
 import { tint } from '../../../utils/tint';
 import expectationIconByType, { expectationTypeColor } from '../common/ExpectationIconByType';
+import { expectationTypeLabelKey } from '../common/injects/expectations/Expectation';
 import { isTechnicalExpectation } from '../common/injects/expectations/ExpectationUtils';
 import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
@@ -54,21 +54,10 @@ import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
 
-// Human labels for the predefined expectation types carried by a payload/contract.
-const EXPECTATION_TYPE_LABELS: Record<string, string> = {
-  PREVENTION: 'Prevention',
-  DETECTION: 'Detection',
-  LOGGING: 'Logging',
-  VULNERABILITY: 'Vulnerability',
-  MANUAL: 'Manual',
-  ARTICLE: 'Article',
-  CHALLENGE: 'Challenge',
-};
-
 type ExpectationType = 'ARTICLE' | 'CHALLENGE' | 'MANUAL' | 'PREVENTION' | 'DETECTION' | 'LOGGING' | 'VULNERABILITY';
 
 interface Props {
-  action: ThreatArsenalAction;
+  action: Omit<ThreatArsenalAction, 'action_grant_resource_id'>;
   payload: PayloadType | null;
   // Predefined expectation types declared by the contract (payload- or
   // injector-based), passed separately so contracts without a payload still
@@ -183,15 +172,13 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
       ? expectationDetails
       : expectationTypes.map(type => ({ expectation_type: type }));
 
-  // The author is the payload's author (a person, team or organization) when
+  // The author is the payload's author (a person or an organization) when
   // set. It can legitimately be absent - such actions are shown with a dash, not
   // a made-up default - and can be filtered via the sidebar "No author" facet.
   const authorName = action.action_author_name;
   const authorType = action.action_author_type;
   const AuthorIcon = (() => {
     switch (authorType) {
-      case 'team':
-        return GroupsOutlined;
       case 'organization':
         return DomainOutlined;
       case 'user':
@@ -587,7 +574,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
               // Distinct name: `platforms` at component level holds the endpoint platforms.
               const expectedPlatformTypes = expectedPlatforms[type] ?? [];
               const technical = isTechnicalExpectation(type);
-              const typeLabel = t(EXPECTATION_TYPE_LABELS[type] ?? type);
+              const typeLabel = t(expectationTypeLabelKey(type) ?? type);
               const name = row.expectation_name;
               // Ordered rows sort first (server-side), so their 1-based position
               // IS the declared sequence - shown as a step numeral to make the

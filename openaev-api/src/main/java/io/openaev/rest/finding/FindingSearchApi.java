@@ -16,6 +16,7 @@ import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.rest.finding.form.PageAggregatedFindingOutput;
 import io.openaev.rest.finding.form.PageRelatedFindingOutput;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.mapper.FindingMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -36,6 +37,7 @@ public class FindingSearchApi extends RestBehavior {
 
   private final FindingRepository findingRepository;
   private final FindingDistinctSearchService findingDistinctSearchService;
+  private final InjectService injectService;
 
   private final FindingMapper findingMapper;
 
@@ -59,7 +61,9 @@ public class FindingSearchApi extends RestBehavior {
       return findingDistinctSearchService.searchDistinctFindings(searchPaginationInput);
     }
     return buildPaginationJPA(
-            (specification, pageable) -> this.findingRepository.findAll(specification, pageable),
+            (specification, pageable) ->
+                this.findingRepository.findAll(
+                    FindingSpecification.matching(specification), pageable),
             searchPaginationInput,
             Finding.class)
         .map(findingMapper::toRelatedFindingOutput);
@@ -88,6 +92,7 @@ public class FindingSearchApi extends RestBehavior {
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
       @RequestParam(value = "distinct", required = false, defaultValue = "false")
           boolean distinct) {
+    injectService.existsInScope(ctx, injectId);
     if (distinct) {
       return findingDistinctSearchService.searchDistinctFindingsByInject(
           injectId, searchPaginationInput);
@@ -95,7 +100,8 @@ public class FindingSearchApi extends RestBehavior {
     return buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
                 this.findingRepository.findAll(
-                    FindingSpecification.findFindingsForInject(injectId).and(specification),
+                    FindingSpecification.findFindingsForInject(injectId)
+                        .and(FindingSpecification.matching(specification)),
                     pageable),
             searchPaginationInput,
             Finding.class)
@@ -132,7 +138,8 @@ public class FindingSearchApi extends RestBehavior {
     return buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
                 this.findingRepository.findAll(
-                    FindingSpecification.findFindingsForSimulation(simulationId).and(specification),
+                    FindingSpecification.findFindingsForSimulation(simulationId)
+                        .and(FindingSpecification.matching(specification)),
                     pageable),
             searchPaginationInput,
             Finding.class)
@@ -169,7 +176,8 @@ public class FindingSearchApi extends RestBehavior {
     return buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
                 this.findingRepository.findAll(
-                    FindingSpecification.findFindingsForScenario(scenarioId).and(specification),
+                    FindingSpecification.findFindingsForScenario(scenarioId)
+                        .and(FindingSpecification.matching(specification)),
                     pageable),
             searchPaginationInput,
             Finding.class)
@@ -206,7 +214,8 @@ public class FindingSearchApi extends RestBehavior {
     return buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
                 this.findingRepository.findAll(
-                    FindingSpecification.findFindingsForEndpoint(endpointId).and(specification),
+                    FindingSpecification.findFindingsForEndpoint(endpointId)
+                        .and(FindingSpecification.matching(specification)),
                     pageable),
             searchPaginationInput,
             Finding.class)

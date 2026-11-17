@@ -60,10 +60,16 @@ class InjectorContractPayloadInventoryScopeTest extends IntegrationTest {
     otherTenantId = insertTenant("payload-inventory-other");
     payloadId = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO payloads (payload_id, payload_type, payload_name, tenant_id)"
-            + " VALUES (?, 'Command', 'payload-inventory', ?)",
+        "INSERT INTO payload_identities (payload_identity_id, tenant_id, payload_source)"
+            + " VALUES (?, ?, 'MANUAL')",
         payloadId,
         payloadTenantId);
+    jdbc.update(
+        "INSERT INTO payloads (payload_id, payload_type, payload_name, tenant_id, payload_identity,"
+            + " payload_version) VALUES (?, 'Command', 'payload-inventory', ?, ?, '1.0.0')",
+        payloadId,
+        payloadTenantId,
+        payloadId);
     payloadContractId = insertContract(payloadTenantId);
     otherContractId = insertContract(otherTenantId);
   }

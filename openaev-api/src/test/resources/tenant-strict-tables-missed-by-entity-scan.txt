@@ -6,7 +6,7 @@
 # interfaces (TenantBase, DualScopeBase, TenantIdBase). The strict tables below carry a tenant_id
 # NOT NULL column but are marked by none of those interfaces, so the entity scan misses them:
 #   - link tables with no entity class at all
-#     (users_tenants, injectors_contracts_attack_patterns, injectors_contracts_domains,
+#     (injectors_contracts_attack_patterns, injectors_contracts_domains,
 #      injectors_contracts_vulnerabilities, injector_contract_tags)
 #   - an entity that maps the table but implements no tenant-marker interface
 #     (injectors_injector_contracts -> InjectorInjectorContract)
@@ -17,7 +17,6 @@
 # this set drifts from what the live schema activates under '*'. Only STRICT tables belong here;
 # self-isolated tables (TenantTables.SELF_ISOLATED_TABLES, e.g. the tenants registry) do not, because
 # '*' does not activate them. One table name per line, lowercase; # and blank lines are ignored.
-users_tenants
 injectors_contracts_attack_patterns
 injectors_contracts_domains
 injectors_contracts_vulnerabilities

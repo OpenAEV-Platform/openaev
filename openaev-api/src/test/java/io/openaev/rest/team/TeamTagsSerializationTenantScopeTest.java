@@ -1,7 +1,7 @@
 package io.openaev.rest.team;
 
 import static io.openaev.rest.team.TeamApi.TENANT_TEAM_URI;
-import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
+import static io.openaev.rest.user.PlayerApi.TENANT_PLAYER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.ExerciseFixture.createDefaultExercise;
 import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
@@ -374,9 +374,10 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
       // response, then the new tag is added.
       expectEveryPlayerLazyAssociation(getTeamPlayers(seeded.team()), seeded);
       mvc.perform(
-              put(PLAYER_URI + "/{userId}", player.getId())
+              put(TENANT_PLAYER_URI + "/{userId}", tenant, player.getId())
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(playerEditInput(player, editedTags)))
+                  .content(
+                      asJsonString(playerEditInput(player, seeded.organizationId(), editedTags)))
                   .with(csrf()))
           .andExpect(status().isOk());
 
@@ -390,12 +391,12 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
           });
     }
 
-    private PlayerInput playerEditInput(User player, List<String> tagIds) {
+    private PlayerInput playerEditInput(User player, String organizationId, List<String> tagIds) {
       PlayerInput input = new PlayerInput();
       input.setEmail(player.getEmail());
       input.setFirstname(player.getFirstname());
       input.setLastname(player.getLastname());
-      input.setOrganizationId(player.getOrganization().getId());
+      input.setOrganizationId(organizationId);
       input.setTagIds(tagIds);
       return input;
     }
@@ -439,6 +440,8 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
           Exercise exercise = createDefaultExercise();
           exercise.setTenant(new Tenant(tenant));
           exerciseComposer.forExercise(exercise).withTeam(teamWrapper).withTeamUsers().persist();
+          // A player is updated in the tenant of the request, which it belongs to.
+          tenantHelper.attachUserToTenant(playerWrapper.get().getId(), tenant);
 
           Scenario scenario = createDefaultCrisisScenario();
           scenario.setTenant(new Tenant(tenant));

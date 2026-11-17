@@ -541,6 +541,8 @@ public class PlatformRoleApiTest extends IntegrationTest {
     void given_tenantRoleExists_should_notAppearInPlatformSearch() throws Exception {
       // -------- Arrange --------
       tenantRoleComposer.forRole(TenantRoleFixture.getRole("TenantOnlyRole")).persist();
+      // Flushed here, in the scope of the test: a request starts from a cleared one
+      roleRepository.flush();
 
       SearchPaginationInput input = new SearchPaginationInput();
       input.setSize(100);

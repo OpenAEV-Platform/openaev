@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Inject;
 import io.openaev.database.repository.InjectRepository;
@@ -12,13 +13,13 @@ import io.openaev.rest.atomic_testing.form.InjectResultOverviewOutput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,25 +31,25 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * Regression coverage for {@link AtomicTestingService#findById(String)}: a GET-triggered read must
- * never mutate the managed {@code inject.assetGroups} {@code @ManyToMany} collection. Doing so (the
- * previous {@code clear()}/{@code addAll()} implementation) churns the {@code injects_asset_groups}
- * join table on every single read, and under concurrent requests for the same inject the resulting
- * delete-then-reinsert races and can violate the join table's primary key ({@code
- * ConstraintViolationException} on {@code injects_asset_groups}).
+ * Regression coverage for {@link AtomicTestingService#findById(io.openaev.context.TxCtx, String)}:
+ * a GET-triggered read must never mutate the managed {@code inject.assetGroups} {@code @ManyToMany}
+ * collection. Doing so (the previous {@code clear()}/{@code addAll()} implementation) churns the
+ * {@code injects_asset_groups} join table on every single read, and under concurrent requests for
+ * the same inject the resulting delete-then-reinsert races and can violate the join table's primary
+ * key ({@code ConstraintViolationException} on {@code injects_asset_groups}).
  */
 @ExtendWith(MockitoExtension.class)
 class AtomicTestingServiceTest {
 
   @Mock private InjectMapper injectMapper;
   @Mock private ActionMetricCollector actionMetricCollector;
+  @Mock private CredentialMetricCollector credentialMetricCollector;
   @Mock private io.openaev.database.repository.AssetGroupRepository assetGroupRepository;
   @Mock private io.openaev.database.repository.AssetRepository assetRepository;
   @Mock private PayloadMapper payloadMapper;
   @Mock private InjectRepository injectRepository;
 
-  @Mock
-  private io.openaev.database.repository.InjectorContractRepository injectorContractRepository;
+  @Mock private io.openaev.rest.injector_contract.InjectorContractService injectorContractService;
 
   @Mock private io.openaev.database.repository.UserRepository userRepository;
   @Mock private io.openaev.database.repository.TeamRepository teamRepository;
@@ -96,14 +97,14 @@ class AtomicTestingServiceTest {
       Inject inject = new Inject();
       inject.setAssetGroups(assetGroups);
 
-      when(injectRepository.findByIdAndTenantId(INJECT_ID, TENANT_ID))
-          .thenReturn(Optional.of(inject));
+      TxCtx ctx = TxCtx.forTenant(TENANT_ID);
+      when(injectService.inject(ctx, INJECT_ID)).thenReturn(inject);
       when(injectMapper.toInjectResultOverviewOutput(inject))
           .thenReturn(mock(InjectResultOverviewOutput.class));
       when(assetGroupService.computeDynamicAssets(assetGroup)).thenReturn(assetGroup);
 
       // -------- Act --------
-      atomicTestingService.findById(INJECT_ID);
+      atomicTestingService.findById(ctx, INJECT_ID);
 
       // -------- Assert --------
       verify(assetGroupService).computeDynamicAssets(assetGroup);
@@ -123,13 +124,13 @@ class AtomicTestingServiceTest {
       // -------- Arrange --------
       Inject inject = new Inject();
 
-      when(injectRepository.findByIdAndTenantId(INJECT_ID, TENANT_ID))
-          .thenReturn(Optional.of(inject));
+      TxCtx ctx = TxCtx.forTenant(TENANT_ID);
+      when(injectService.inject(ctx, INJECT_ID)).thenReturn(inject);
       when(injectMapper.toInjectResultOverviewOutput(inject))
           .thenReturn(mock(InjectResultOverviewOutput.class));
 
       // -------- Act --------
-      atomicTestingService.findById(INJECT_ID);
+      atomicTestingService.findById(ctx, INJECT_ID);
 
       // -------- Assert --------
       verifyNoInteractions(assetGroupService);

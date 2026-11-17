@@ -14,6 +14,7 @@ import { isDemoInstance } from '../../../../../../utils/Environment';
 import { UserContext, type UserContextType } from '../../../../../../utils/hooks/useAuth';
 import { type AppAbility, defineAbility } from '../../../../../../utils/permissions/ability';
 import { AbilityProvider } from '../../../../../../utils/permissions/permissionsContext';
+import { DEFAULT_TENANT_UUID } from '../../../../../../utils/url-helper';
 
 const { mockOpenDialog } = vi.hoisted(() => ({ mockOpenDialog: vi.fn() }));
 
@@ -37,6 +38,7 @@ vi.mock('../../../../../../admin/components/settings/experience/xtm_hub/XtmHubTa
 }));
 
 const theme = createTheme(ThemeDark());
+const PLATFORM_ID = '2295d0ae-6438-4012-9791-6cc66afa354d';
 const ADMIN_ABILITY: AppAbility = defineAbility([], {}, true);
 const READ_ONLY_ABILITY: AppAbility = defineAbility(['ACCESS_TENANT_SETTINGS'], {}, false);
 
@@ -45,6 +47,7 @@ interface RenderOptions {
   demo?: boolean;
   ability?: AppAbility;
   reachable?: boolean;
+  commercialModel?: XtmHubRegistrationOutput['tenant_xtmhub_registration_commercial_model'];
 }
 
 const renderXtmHubSettings = ({
@@ -52,9 +55,11 @@ const renderXtmHubSettings = ({
   demo = false,
   ability = ADMIN_ABILITY,
   reachable = true,
+  commercialModel,
 }: RenderOptions = {}) => {
   vi.mocked(isDemoInstance).mockReturnValue(demo);
   const settings = {
+    platform_id: PLATFORM_ID,
     xtm_hub_url: 'https://hub.example.com',
     xtm_hub_reachable: reachable,
   } as PlatformSettings;
@@ -62,6 +67,7 @@ const renderXtmHubSettings = ({
     ? {
         tenant_xtmhub_registration_status: 'REGISTERED',
         tenant_xtmhub_registration_token: 'token',
+        tenant_xtmhub_registration_commercial_model: commercialModel,
       } as XtmHubRegistrationOutput
     : null;
   const helper = {
@@ -145,6 +151,36 @@ describe('XtmHubSettings', () => {
 
       expect(screen.getByRole('button', { name: 'Connect to XTM Hub' }).hasAttribute('disabled')).toBe(true);
       expect(screen.queryByTestId('xtm-hub-tab')).toBeNull();
+    });
+  });
+
+  describe('SaaS metrics', () => {
+    it('links to the hub redirect to the tenant registration when the commercial model is SaaS', () => {
+      // Arrange
+      renderXtmHubSettings({
+        registered: true,
+        commercialModel: 'SAAS',
+      });
+
+      // Act
+      const metricsLink = screen.getByRole('link', { name: 'See my OpenAEV metrics' });
+
+      // Assert
+      expect(screen.getByTestId('xtm-hub-saas-metrics').contains(metricsLink)).toBe(true);
+      expect(metricsLink.getAttribute('href')).toBe(
+        `https://hub.example.com/redirect/openaev-registration?platform_id=${PLATFORM_ID}&tenant_id=${DEFAULT_TENANT_UUID}`,
+      );
+    });
+
+    it.each([['OTHER' as const], [undefined]])('is hidden when the commercial model is %s', (commercialModel) => {
+      // Arrange
+      renderXtmHubSettings({
+        registered: true,
+        commercialModel,
+      });
+
+      // Assert
+      expect(screen.queryByTestId('xtm-hub-saas-metrics')).toBeNull();
     });
   });
 });

@@ -179,9 +179,10 @@ public abstract class AbstractTableTopBehavior
   }
 
   /**
-   * Resolves the teams targeted by the inject. A chaining inject targeting all teams carries none
-   * of its own: they are the simulation's teams, as for the recipients resolved by the chaining
-   * step.
+   * Resolves the teams targeted by the inject. A chaining inject in all-teams mode targets its
+   * workflow's scope teams, set as explicit teams by the chaining step; one left in all-teams mode
+   * (step without workflow) carries none of its own: they are the simulation's teams, as for the
+   * recipients resolved by the chaining step.
    */
   private static List<Team> resolveTargetTeams(
       ExecutableInject executableInject, Inject inject, boolean isChaining) {

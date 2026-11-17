@@ -403,7 +403,7 @@ public class AutonomousRunService {
       // scenario type, so the scenario is a plain reusable chained scenario and is NOT stamped
       // autonomous. The AI cockpit is discovered from the run row (by-simulation / by-scenario
       // lookups), not from a flag on the scenario.
-      scenario = scenarioService.scenario(scenarioId);
+      scenario = scenarioService.scenario(ctx, scenarioId);
       if (!workflowService.isScenarioChaining(scenarioId)) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST,
@@ -521,7 +521,7 @@ public class AutonomousRunService {
     List<String> resolvedAgentIds =
         selectedAgentIds != null
             ? new ArrayList<>(selectedAgentIds)
-            : readDefaultAdditionalAgentIds();
+            : readDefaultAdditionalAgentIds(run.getTenant().getId());
     run.setAgentIds(resolvedAgentIds);
     // Per-agent discovery mode: authoritative per-run selection when provided, else the tenant
     // default map; then normalized so every enabled specialist agent has an explicit mode
@@ -531,7 +531,9 @@ public class AutonomousRunService {
     Map<String, String> selectedModes = input.getAgentModes();
     run.setAgentModes(
         normalizeAgentModes(
-            selectedModes != null ? selectedModes : readDefaultAdditionalAgentModes(),
+            selectedModes != null
+                ? selectedModes
+                : readDefaultAdditionalAgentModes(run.getTenant().getId()),
             resolvedAgentIds));
     // Seed-and-adapt: when launched in autonomous mode from a scenario that already carries an
     // authored attack path, hand the orchestrator a starting-plan guidance so it verifies and
@@ -585,6 +587,8 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
+    // Before any read or write keyed on the scenario id alone
+    scenarioService.existsInScope(ctx, scenarioId);
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
@@ -598,7 +602,7 @@ public class AutonomousRunService {
     effective.setScenarioId(scenarioId);
     effective.setPlanMode(false);
     if (!hasText(effective.getObjective()) && !hasText(effective.getObjectiveTemplateKey())) {
-      Scenario scenario = scenarioService.scenario(scenarioId);
+      Scenario scenario = scenarioService.scenario(ctx, scenarioId);
       // The default mission depends on whether the scenario already carries any logic: with
       // authored
       // steps the run executes them first then adapts; on an empty scenario there is nothing to
@@ -642,13 +646,15 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
+    // Before any read keyed on the scenario id alone: the workflow lookup below carries no tenant
+    // scope of its own, so it must not decide the answer for a scenario outside the request scope.
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
           "The scenario must be a chained scenario to be planned by the orchestrator");
     }
     AutonomousRunCreateInput effective = input != null ? input : new AutonomousRunCreateInput();
-    Scenario scenario = scenarioService.scenario(scenarioId);
     // Refine (follow-up) vs rebuild (from scratch): refine keeps the existing logic + history and
     // continues from it; rebuild wipes the logic map and re-authors fresh (the original behaviour).
     return effective.isRefine()
@@ -817,12 +823,14 @@ public class AutonomousRunService {
     List<String> resolvedAgentIds =
         selectedAgentIds != null
             ? new ArrayList<>(selectedAgentIds)
-            : readDefaultAdditionalAgentIds();
+            : readDefaultAdditionalAgentIds(run.getTenant().getId());
     run.setAgentIds(resolvedAgentIds);
     Map<String, String> selectedModes = effective.getAgentModes();
     run.setAgentModes(
         normalizeAgentModes(
-            selectedModes != null ? selectedModes : readDefaultAdditionalAgentModes(),
+            selectedModes != null
+                ? selectedModes
+                : readDefaultAdditionalAgentModes(run.getTenant().getId()),
             resolvedAgentIds));
 
     List<WorkflowScopeRuleInput> seededScopeRules = new ArrayList<>();
@@ -3533,7 +3541,7 @@ public class AutonomousRunService {
     AutonomousRun run = require(runId);
     Finding finding =
         findingRepository
-            .findById(findingId)
+            .findByIdAndTenantId(findingId, runTenantId(run))
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Finding not found"));
     // Promotion mints a brand-new endpoint, so it is a discovery-creation gated by the acting
@@ -3953,11 +3961,11 @@ public class AutonomousRunService {
    * pre-fill from the last configuration so the operator can review, then Build or Launch.
    */
   @Transactional(readOnly = true)
-  public AutonomousRunCreateInput getScenarioAutonomousConfig(String scenarioId) {
+  public AutonomousRunCreateInput getScenarioAutonomousConfig(TxCtx ctx, String scenarioId) {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
-    Scenario scenario = scenarioService.scenario(scenarioId);
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     Map<String, Object> stored = scenario.getAutonomousConfig();
     if (stored == null || stored.isEmpty()) {
       return null;
@@ -3973,16 +3981,18 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRunCreateInput saveScenarioAutonomousConfig(
-      String scenarioId, AutonomousRunCreateInput input) {
+      TxCtx ctx, String scenarioId, AutonomousRunCreateInput input) {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
+    // Before any read keyed on the scenario id alone: the workflow lookup below carries no tenant
+    // scope of its own, so it must not decide the answer for a scenario outside the request scope.
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
           "Only a chained scenario can carry an autonomous-run configuration");
     }
-    Scenario scenario = scenarioService.scenario(scenarioId);
     if (input == null) {
       scenario.setAutonomousConfig(null);
     } else {
@@ -4025,15 +4035,24 @@ public class AutonomousRunService {
     return xtmOneClient.listAdditionalAttackAgents();
   }
 
-  /** The tenant's default additional agents (ids) attached to every new autonomous run. */
+  /**
+   * The default additional agents (ids) of the tenant the request's scope pins, attached to every
+   * new autonomous run of that tenant.
+   */
   @Transactional(readOnly = true)
-  public List<String> defaultAdditionalAgentIds() {
-    return readDefaultAdditionalAgentIds();
+  public List<String> defaultAdditionalAgentIds(TxCtx ctx) {
+    return readDefaultAdditionalAgentIds(TxCtxScopeUtils.requireSingleTenant(ctx));
   }
 
-  /** Persists the tenant's default additional agents (ids). */
+  /**
+   * Persists the tenant's default additional agents (ids). Stored as a tenant-scoped {@code
+   * parameters} row ({@code tenant_id} set to the caller's tenant), not a platform row: this is
+   * per-tenant configuration: a platform row would be shared by every tenant, and the
+   * platform-write rule of the dual-scope {@code parameters} table refuses a platform row written
+   * from a tenant route.
+   */
   @Transactional(rollbackFor = Exception.class)
-  public List<String> updateDefaultAdditionalAgentIds(List<String> agentIds) {
+  public List<String> updateDefaultAdditionalAgentIds(TxCtx ctx, List<String> agentIds) {
     List<String> cleaned = new ArrayList<>();
     if (agentIds != null) {
       for (String id : agentIds) {
@@ -4043,8 +4062,11 @@ public class AutonomousRunService {
       }
     }
     String key = TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENTS.key();
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Setting setting =
-        settingRepository.findByKeyAndTenantIsNull(key).orElseGet(() -> new Setting(key, "[]"));
+        settingRepository
+            .findByKeyAndTenantId(key, tenantId)
+            .orElseGet(() -> newTenantSetting(key, "[]", tenantId));
     try {
       setting.setValue(objectMapper.writeValueAsString(cleaned));
     } catch (Exception e) {
@@ -4055,10 +4077,17 @@ public class AutonomousRunService {
     return cleaned;
   }
 
-  private List<String> readDefaultAdditionalAgentIds() {
+  /** A new tenant-scoped {@code Setting}, attributed to {@code tenantId} by reference (no load). */
+  private Setting newTenantSetting(String key, String value, String tenantId) {
+    Setting setting = new Setting(key, value);
+    setting.setTenant(entityManager.getReference(Tenant.class, tenantId));
+    return setting;
+  }
+
+  private List<String> readDefaultAdditionalAgentIds(String tenantId) {
     Optional<Setting> setting =
-        settingRepository.findByKeyAndTenantIsNull(
-            TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENTS.key());
+        settingRepository.findByKeyAndTenantId(
+            TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENTS.key(), tenantId);
     // No row at all: the tenant has never configured this, so the license-independent built-in
     // payload creator is the enabled-by-default specialist. An existing row (even an empty "[]") is
     // authoritative - it means the admin explicitly chose the set, up to disabling the built-in.
@@ -4097,19 +4126,30 @@ public class AutonomousRunService {
     }
   }
 
-  /** The tenant's default per-agent discovery modes (agent id -> mode name). */
+  /**
+   * The default per-agent discovery modes (agent id -> mode name) of the tenant the request's scope
+   * pins.
+   */
   @Transactional(readOnly = true)
-  public Map<String, String> defaultAdditionalAgentModes() {
-    return readDefaultAdditionalAgentModes();
+  public Map<String, String> defaultAdditionalAgentModes(TxCtx ctx) {
+    return readDefaultAdditionalAgentModes(TxCtxScopeUtils.requireSingleTenant(ctx));
   }
 
-  /** Persists the tenant's default per-agent discovery modes (canonicalized to valid modes). */
+  /**
+   * Persists the tenant's default per-agent discovery modes (canonicalized to valid modes). Stored
+   * as a tenant-scoped {@code parameters} row; see {@link #updateDefaultAdditionalAgentIds} for
+   * why.
+   */
   @Transactional(rollbackFor = Exception.class)
-  public Map<String, String> updateDefaultAdditionalAgentModes(Map<String, String> agentModes) {
+  public Map<String, String> updateDefaultAdditionalAgentModes(
+      TxCtx ctx, Map<String, String> agentModes) {
     Map<String, String> cleaned = normalizeAgentModes(agentModes, null);
     String key = TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENT_MODES.key();
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Setting setting =
-        settingRepository.findByKeyAndTenantIsNull(key).orElseGet(() -> new Setting(key, "{}"));
+        settingRepository
+            .findByKeyAndTenantId(key, tenantId)
+            .orElseGet(() -> newTenantSetting(key, "{}", tenantId));
     try {
       setting.setValue(objectMapper.writeValueAsString(cleaned));
     } catch (Exception e) {
@@ -4120,10 +4160,10 @@ public class AutonomousRunService {
     return cleaned;
   }
 
-  private Map<String, String> readDefaultAdditionalAgentModes() {
+  private Map<String, String> readDefaultAdditionalAgentModes(String tenantId) {
     Optional<Setting> setting =
-        settingRepository.findByKeyAndTenantIsNull(
-            TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENT_MODES.key());
+        settingRepository.findByKeyAndTenantId(
+            TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENT_MODES.key(), tenantId);
     if (setting.isEmpty() || !hasText(setting.get().getValue())) {
       return new HashMap<>();
     }

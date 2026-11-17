@@ -10,6 +10,7 @@ import io.openaev.annotation.AllowRawJdbc;
 import io.openaev.config.MarkingScopeResolver;
 import io.openaev.config.MarkingScopeResolver.MarkingRef;
 import io.openaev.context.MarkingCtx;
+import io.openaev.database.model.User;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -117,7 +118,7 @@ class MarkingClearanceCacheManagerTest {
           .thenReturn(List.of("tlp-green"));
 
       // -- ACT --
-      MarkingCtx clearance = manager().findClearance(USER, TENANT, false);
+      MarkingCtx clearance = manager().findClearance(USER, TENANT);
 
       // -- ASSERT --
       assertEquals("tlp-green", clearance.toGuc());
@@ -125,8 +126,8 @@ class MarkingClearanceCacheManagerTest {
     }
 
     @Test
-    @DisplayName("given a bypassing caller, should skip the grants query entirely")
-    void given_bypass_should_notQueryGrants() {
+    @DisplayName("given the first admin, should skip the grants query entirely")
+    void given_firstAdmin_should_notQueryGrants() {
       // -- ARRANGE --
       when(jdbcTemplate.query(
               eq(MarkingClearanceCacheManager.TENANT_MARKINGS_SQL),
@@ -135,10 +136,10 @@ class MarkingClearanceCacheManagerTest {
           .thenReturn(List.of(new MarkingRef("tlp-red", "TLP", 50)));
 
       // -- ACT --
-      MarkingCtx clearance = manager().findClearance(USER, TENANT, true);
+      MarkingCtx clearance = manager().findClearance(User.ADMIN_UUID, TENANT);
 
       // -- ASSERT --
-      // The grants cannot change a bypassing caller's answer, so the round trip is waste.
+      // The grants cannot change the first admin's answer, so the round trip is waste.
       assertEquals("tlp-red", clearance.toGuc());
       verify(jdbcTemplate, never())
           .queryForList(anyString(), eq(String.class), any(Object[].class));
@@ -157,7 +158,7 @@ class MarkingClearanceCacheManagerTest {
           .thenReturn(List.of());
 
       // -- ACT & ASSERT --
-      assertEquals(MarkingCtx.none(), manager().findClearance(USER, TENANT, false));
+      assertEquals(MarkingCtx.none(), manager().findClearance(USER, TENANT));
     }
   }
 }

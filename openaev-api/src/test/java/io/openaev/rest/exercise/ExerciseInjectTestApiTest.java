@@ -25,6 +25,7 @@ import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectTestStatusComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.List;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +45,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectTestStatusComposer injectTestStatusComposer;
   @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private RowTenantScope rowTenantScope;
 
   private Exercise simulation;
   private Inject inject1, inject2;
@@ -58,38 +60,48 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
   @BeforeAll
   void setupData() {
-    InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
+    // @BeforeAll runs outside any transaction, so injectors_contracts (tenant-active) needs an
+    // explicit scope for the whole arrangement: resolving the contract and persisting the injects
+    // that reference it must share one scope, or the contract is detached by the time the inject
+    // composer tries to save a reference to it (matching the default tenant @BeforeEach registers
+    // the built-in email injector into).
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          InjectorContract injectorContract =
+              injectorContractFixture.getWellKnownSingleEmailContract();
 
-    InjectTestStatusComposer.Composer injectTestStatusComposer1 =
-        injectTestStatusComposer.forInjectTestStatus(
-            InjectTestStatusFixture.createSuccessInjectStatus());
+          InjectTestStatusComposer.Composer injectTestStatusComposer1 =
+              injectTestStatusComposer.forInjectTestStatus(
+                  InjectTestStatusFixture.createSuccessInjectStatus());
 
-    InjectTestStatusComposer.Composer injectTestStatusComposer2 =
-        injectTestStatusComposer.forInjectTestStatus(
-            InjectTestStatusFixture.createSuccessInjectStatus());
+          InjectTestStatusComposer.Composer injectTestStatusComposer2 =
+              injectTestStatusComposer.forInjectTestStatus(
+                  InjectTestStatusFixture.createSuccessInjectStatus());
 
-    InjectComposer.Composer injectComposer1 =
-        injectComposer
-            .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
-            .withInjectTestStatus(injectTestStatusComposer1);
+          InjectComposer.Composer injectComposer1 =
+              injectComposer
+                  .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
+                  .withInjectTestStatus(injectTestStatusComposer1);
 
-    InjectComposer.Composer injectComposer2 =
-        injectComposer
-            .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
-            .withInjectTestStatus(injectTestStatusComposer2);
+          InjectComposer.Composer injectComposer2 =
+              injectComposer
+                  .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
+                  .withInjectTestStatus(injectTestStatusComposer2);
 
-    inject1 = injectComposer1.persist().get();
-    inject2 = injectComposer2.persist().get();
+          inject1 = injectComposer1.persist().get();
+          inject2 = injectComposer2.persist().get();
 
-    injectTestStatus1 = injectTestStatusComposer1.persist().get();
-    injectTestStatus2 = injectTestStatusComposer2.persist().get();
+          injectTestStatus1 = injectTestStatusComposer1.persist().get();
+          injectTestStatus2 = injectTestStatusComposer2.persist().get();
 
-    simulation =
-        simulationComposer
-            .forExercise(ExerciseFixture.createDefaultExercise())
-            .withInjects(List.of(injectComposer1, injectComposer2))
-            .persist()
-            .get();
+          simulation =
+              simulationComposer
+                  .forExercise(ExerciseFixture.createDefaultExercise())
+                  .withInjects(List.of(injectComposer1, injectComposer2))
+                  .persist()
+                  .get();
+        });
   }
 
   @Nested
@@ -143,7 +155,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return test status when testing a specific inject")
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void should_return_test_status_when_testing_specific_inject() throws Exception {
       mvc.perform(
               get(
@@ -157,7 +169,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return test statuses when performing bulk test with inject IDs")
-    @WithMockUser
+    @WithMockUser(autoJoinDefaultTenant = true)
     void should_return_test_statuses_when_bulk_testing_with_inject_ids() throws Exception {
       addGrantToCurrentUser(
           Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.PLANNER, simulation.getId());

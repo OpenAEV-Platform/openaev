@@ -1,6 +1,7 @@
 package io.openaev.api.xtmhub;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.xtmhub.XtmHubCommercialModel;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import java.time.LocalDateTime;
 import lombok.Builder;
@@ -28,4 +29,7 @@ public class XtmHubRegistrationOutput {
 
   @JsonProperty("tenant_xtmhub_registration_last_connectivity_check")
   private LocalDateTime lastConnectivityCheck;
+
+  @JsonProperty("tenant_xtmhub_registration_commercial_model")
+  private XtmHubCommercialModel commercialModel;
 }

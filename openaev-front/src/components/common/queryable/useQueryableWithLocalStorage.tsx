@@ -7,7 +7,7 @@ import { getCurrentTenantId } from '../../../utils/url-helper';
 import useFiltersState from './filter/useFiltersState';
 import usePaginationState from './pagination/usePaginationState';
 import { type QueryableHelpers } from './QueryableHelpers';
-import { buildSearchPagination } from './QueryableUtils';
+import { buildSearchPagination, listDefaultsHash } from './QueryableUtils';
 import useSortState from './sort/useSortState';
 import useTextSearchState from './textSearch/useTextSearchState';
 import useUriState, { retrieveFromUri } from './uri/useUriState';
@@ -97,7 +97,12 @@ const buildUseQueryable = (
   // Uri
   let uriHelpers;
   if (localStorageKey) {
-    uriHelpers = useUriState(localStorageKey, searchPaginationInput, (input: SearchPaginationInput) => setSearchPaginationInput(input));
+    uriHelpers = useUriState(
+      localStorageKey,
+      searchPaginationInput,
+      (input: SearchPaginationInput) => setSearchPaginationInput(input),
+      initSearchPaginationInput,
+    );
   }
 
   const queryableHelpers: QueryableHelpers = {
@@ -138,8 +143,14 @@ export const useQueryableWithLocalStorage = (localStorageKey: string, initSearch
   const finalSearchPaginationInput: SearchPaginationInput = buildSearchPagination(initSearchPaginationInput);
   const searchPaginationInputFromUri = retrieveFromUri(localStorageKey, searchParams);
 
-  const tenantScopedStorageKey = `${getCurrentTenantId()}:${localStorageKey}`;
-  const [searchPaginationInputFromLocalStorage, setSearchPaginationInputFromLocalStorage] = useLocalStorage<SearchPaginationInput>(
+  // The key carries a hash of the list's defaults: a default changed in a
+  // later version gives a new key, so it reaches every user and the entries
+  // stored under the old key are no longer read (#4181).
+  const tenantScopedStorageKey = `${getCurrentTenantId()}:${localStorageKey}:${listDefaultsHash(finalSearchPaginationInput)}`;
+  const [
+    searchPaginationInputFromLocalStorage,
+    setSearchPaginationInputFromLocalStorage,
+  ] = useLocalStorage<SearchPaginationInput>(
     tenantScopedStorageKey,
     sanitizeForStorage(searchPaginationInputFromUri ?? finalSearchPaginationInput),
   );

@@ -59,7 +59,7 @@ public class XtmHubEmailService {
 
   public void sendTenantLostConnectivityEmail(String tenantId, String tenantUrl) {
 
-    List<User> administrators = findTenantAdmins();
+    List<User> administrators = findTenantAdmins(tenantId);
     if (administrators.isEmpty()) {
       log.error(
           "No tenant administrators found to send XTM Hub lost connectivity email for tenant {}",
@@ -69,10 +69,8 @@ public class XtmHubEmailService {
 
     try {
       String emailBody = buildEmailBody(tenantUrl);
-      // Background scheduled path (no ambient transaction, no v2 scope): sendEmail resolves the
-      // tenant-scoped injectors table for the email notifier, and must use THIS tenant's email
-      // integration, not the platform default (the tenantId was previously computed but never
-      // passed to sendEmail, so it always used the default tenant's config; fixed here).
+      // Called outside any transaction: MailingService reads the email contract of the tenant it
+      // is given, a tenant-scoped table, so the send runs in a short transaction scoped to it.
       tenantTx.execute(
           TxCtx.forTenant(tenantId),
           () -> mailingService.sendEmail(EMAIL_SUBJECT, emailBody, administrators, tenantId));
@@ -123,14 +121,14 @@ public class XtmHubEmailService {
         baseUrl);
   }
 
-  private List<User> findTenantAdmins() {
-    return userRepository.adminsOrUsersHavingCapabilities(
-        List.of(Capability.MANAGE_TENANT_SETTINGS.toString(), Capability.BYPASS.toString()));
+  private List<User> findTenantAdmins(String tenantId) {
+    return userRepository.findTenantAdministrators(
+        tenantId, List.of(Capability.MANAGE_TENANT_SETTINGS, Capability.BYPASS));
   }
 
   private List<User> findPlatformAdmins() {
-    return userRepository.adminsOrUsersHavingCapabilities(
-        List.of(Capability.MANAGE_PLATFORM_SETTINGS.toString(), Capability.BYPASS.toString()));
+    return userRepository.findPlatformAdministrators(
+        List.of(Capability.MANAGE_PLATFORM_SETTINGS, Capability.BYPASS));
   }
 
   private String getTemplate() {

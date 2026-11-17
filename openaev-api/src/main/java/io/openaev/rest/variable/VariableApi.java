@@ -8,6 +8,7 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.variable.form.VariableInput;
@@ -44,7 +45,10 @@ public class VariableApi extends RestBehavior {
       @Valid @RequestBody final VariableInput input) {
     Variable variable = new Variable();
     variable.setUpdateAttributes(input);
-    Exercise exercise = this.exerciseService.exercise(exerciseId);
+    Exercise exercise =
+        this.exerciseService
+            .findByIdInScope(ctx, exerciseId)
+            .orElseThrow(ElementNotFoundException::new);
     variable.setExercise(exercise);
     return this.variableService.createVariable(variable);
   }
@@ -60,6 +64,9 @@ public class VariableApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public Iterable<Variable> variablesFromExercise(
       TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
+    this.exerciseService
+        .findByIdInScope(ctx, exerciseId)
+        .orElseThrow(ElementNotFoundException::new);
     return this.variableService.variablesFromExercise(exerciseId);
   }
 
@@ -77,6 +84,9 @@ public class VariableApi extends RestBehavior {
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String variableId,
       @Valid @RequestBody final VariableInput input) {
+    this.exerciseService
+        .findByIdInScope(ctx, exerciseId)
+        .orElseThrow(ElementNotFoundException::new);
     Variable variable = this.variableService.variableForExercise(variableId, exerciseId);
     variable.setUpdateAttributes(input);
     return this.variableService.updateVariable(variable);
@@ -95,6 +105,9 @@ public class VariableApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String variableId) {
+    this.exerciseService
+        .findByIdInScope(ctx, exerciseId)
+        .orElseThrow(ElementNotFoundException::new);
     this.variableService.variableForExercise(variableId, exerciseId);
     this.variableService.deleteVariable(variableId);
   }
@@ -116,7 +129,7 @@ public class VariableApi extends RestBehavior {
       @Valid @RequestBody final VariableInput input) {
     Variable variable = new Variable();
     variable.setUpdateAttributes(input);
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     variable.setScenario(scenario);
     return this.variableService.createVariable(variable);
   }

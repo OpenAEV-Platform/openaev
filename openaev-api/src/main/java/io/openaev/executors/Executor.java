@@ -12,6 +12,7 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutableInjectDTOMapper;
 import io.openaev.execution.ExecutionExecutorService;
+import io.openaev.execution.UnexecutableInjectException;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
@@ -19,6 +20,7 @@ import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.Resource;
 import java.io.IOException;
@@ -50,6 +52,7 @@ public class Executor {
   private final ExecutableInjectDTOMapper executableInjectDTOMapper;
   private final ConnectorInstanceService connectorInstanceService;
   private final InjectExpectationService injectExpectationService;
+  private final PayloadRevocationService payloadRevocationService;
   private final OpenAEVConfig openAEVConfig;
 
   public static final String CMD = "cmd";
@@ -113,8 +116,13 @@ public class Executor {
     InjectorContract injectorContract =
         inject
             .getInjectorContract()
-            .orElseThrow(
-                () -> new UnsupportedOperationException("Inject does not have a contract"));
+            .orElseThrow(() -> new UnexecutableInjectException("Inject does not have a contract"));
+    payloadRevocationService
+        .refusal(inject)
+        .ifPresent(
+            refusal -> {
+              throw new UnexecutableInjectException(refusal);
+            });
 
     // Resolve the injector instance from the inject entity directly
     Injector injector = inject.getInjector();
@@ -126,8 +134,9 @@ public class Executor {
                   injectorContract.getId(), inject.getTenant().getId())
               .orElseThrow(
                   () ->
-                      new IllegalStateException(
-                          "Injector not found for type: " + inject.getType()));
+                      new UnexecutableInjectException(
+                          "No injector is registered for the injector contract "
+                              + injectorContract.getId()));
     }
 
     // Telemetry - We shouldn't have multiple injector type per executable inject but if it happens,
@@ -137,7 +146,7 @@ public class Executor {
     boolean hasStartedConnectorInstanceForInjector =
         this.connectorInstanceService.hasStartedConnectorInstanceForInjector(injector.getId());
     if (!hasStartedConnectorInstanceForInjector) {
-      throw new IllegalStateException(
+      throw new UnexecutableInjectException(
           "No started connector instance found for injector type: " + injector.getType());
     }
 
@@ -180,7 +189,7 @@ public class Executor {
     // If empty content, inject must be rejected
     Inject inject = executableInject.getInjection().getInject();
     if (inject.getContent() == null) {
-      throw new UnsupportedOperationException("Inject is empty");
+      throw new UnexecutableInjectException("Inject is empty");
     }
     // If inject is too old, reject the execution
     if (isScheduledInject

@@ -7,7 +7,6 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -16,6 +15,7 @@ import io.openaev.database.specification.LessonsQuestionSpecification;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.lessons.form.*;
+import io.openaev.service.scenario.ScenarioService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ScenarioLessonsApi extends RestBehavior {
 
-  private final ScenarioRepository scenarioRepository;
+  private final ScenarioService scenarioService;
   private final TeamRepository teamRepository;
   private final LessonsTemplateRepository lessonsTemplateRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
@@ -62,9 +62,7 @@ public class ScenarioLessonsApi extends RestBehavior {
   public Iterable<LessonsCategory> applyScenarioLessonsTemplate(
       TxCtx ctx, @PathVariable String scenarioId, @PathVariable String lessonsTemplateId) {
     Scenario scenario =
-        scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        scenarioService.findInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
     LessonsTemplate lessonsTemplate =
         lessonsTemplateRepository
             .findById(lessonsTemplateId)
@@ -110,9 +108,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       @PathVariable String scenarioId,
       @Valid @RequestBody LessonsCategoryCreateInput input) {
     Scenario scenario =
-        scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        scenarioService.findInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
     LessonsCategory lessonsCategory = new LessonsCategory();
     lessonsCategory.setUpdateAttributes(input);
     lessonsCategory.setScenario(scenario);
@@ -199,9 +195,17 @@ public class ScenarioLessonsApi extends RestBehavior {
         lessonsCategoryRepository
             .findById(lessonsCategoryId)
             .orElseThrow(ElementNotFoundException::new);
-    Iterable<Team> lessonsCategoryTeams = teamRepository.findAllById(input.getTeamIds());
+    Iterable<Team> lessonsCategoryTeams =
+        teamRepository.findAllByIdInTenant(input.getTeamIds(), parentTenantId(lessonsCategory));
     lessonsCategory.setTeams(fromIterable(lessonsCategoryTeams));
     return hydrateForResponse(lessonsCategoryRepository.save(lessonsCategory));
+  }
+
+  /** The tenant of the scenario, or of the simulation, the lessons category belongs to. */
+  private static String parentTenantId(LessonsCategory lessonsCategory) {
+    return lessonsCategory.getScenario() != null
+        ? lessonsCategory.getScenario().getTenant().getId()
+        : lessonsCategory.getExercise().getTenant().getId();
   }
 
   @GetMapping({

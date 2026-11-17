@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
@@ -27,6 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 class ScenarioInjectServiceTest extends IntegrationTest {
+
+  private static final TxCtx DEFAULT_TENANT_SCOPE = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
 
   @Autowired private ScenarioInjectService scenarioInjectService;
   @Autowired private InjectRepository injectRepository;
@@ -103,7 +107,7 @@ class ScenarioInjectServiceTest extends IntegrationTest {
       // -- ACT --
       InjectOutput result =
           scenarioInjectService.updateInjectForScenario(
-              scenarioA.getId(), injectInA.getId(), input);
+              DEFAULT_TENANT_SCOPE, scenarioA.getId(), injectInA.getId(), input);
 
       // -- ASSERT --
       assertThat(result.getId()).isEqualTo(injectInA.getId());
@@ -122,7 +126,7 @@ class ScenarioInjectServiceTest extends IntegrationTest {
       assertThatThrownBy(
               () ->
                   scenarioInjectService.updateInjectForScenario(
-                      scenarioA.getId(), injectInB.getId(), input))
+                      DEFAULT_TENANT_SCOPE, scenarioA.getId(), injectInB.getId(), input))
           .isInstanceOf(ElementNotFoundException.class);
     }
   }
@@ -172,7 +176,8 @@ class ScenarioInjectServiceTest extends IntegrationTest {
     @WithMockUser(isAdmin = true)
     void given_injectBelongsToScenario_should_deleteInject() {
       // -- ACT --
-      scenarioInjectService.deleteInject(scenarioA.getId(), injectInA.getId());
+      scenarioInjectService.deleteInject(
+          DEFAULT_TENANT_SCOPE, scenarioA.getId(), injectInA.getId());
 
       // -- ASSERT --
       assertThat(injectRepository.findById(injectInA.getId())).isEmpty();
@@ -183,7 +188,9 @@ class ScenarioInjectServiceTest extends IntegrationTest {
     void given_injectBelongsToAnotherScenario_should_throwElementNotFoundException() {
       // -- ACT & ASSERT --
       assertThatThrownBy(
-              () -> scenarioInjectService.deleteInject(scenarioA.getId(), injectInB.getId()))
+              () ->
+                  scenarioInjectService.deleteInject(
+                      DEFAULT_TENANT_SCOPE, scenarioA.getId(), injectInB.getId()))
           .isInstanceOf(ElementNotFoundException.class);
     }
   }

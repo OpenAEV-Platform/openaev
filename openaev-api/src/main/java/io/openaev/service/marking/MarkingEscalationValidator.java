@@ -5,6 +5,7 @@ import io.openaev.database.model.MarkingDefinition;
 import io.openaev.rest.exception.ForbiddenException;
 import java.util.Collection;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.Set;
 
 /**
@@ -20,8 +21,8 @@ import java.util.Set;
  * granting it discloses nothing they could not have disclosed by other means. Checking raw grants
  * instead would forbid that and be merely annoying, not safer.
  *
- * <p>A bypassing caller resolves to the whole tenant scale (see {@code MarkingScopeResolver}), so
- * they pass this check without needing a special case here.
+ * <p>The first admin resolves to the whole tenant scale (see {@code MarkingScopeResolver}), so they
+ * pass this check without needing a special case here.
  *
  * <p>Mirrors {@code PrivilegeEscalationValidator}, which does the same job for capabilities.
  */
@@ -53,6 +54,27 @@ public final class MarkingEscalationValidator {
       // make a legitimate mistake unreadable.
       throw new ForbiddenException(
           "Cannot assign markings you do not hold: " + String.join(", ", unheld));
+    }
+  }
+
+  /**
+   * Guards a definition's place on its scale: you may not define or update a marking above your own
+   * clearance.
+   *
+   * @param held the definitions the caller's clearance covers in the tenant being written to
+   * @param type the type of the definition being placed
+   * @param order the order it is being placed at
+   * @throws ForbiddenException when the order is above the caller's clearance on the type
+   */
+  public static void assertCanDefineMarking(
+      Collection<MarkingDefinition> held, String type, int order) {
+    OptionalInt highestHeld =
+        held.stream()
+            .filter(definition -> type.equals(definition.getType()))
+            .mapToInt(MarkingDefinition::getOrder)
+            .max();
+    if (highestHeld.isEmpty() || order > highestHeld.getAsInt()) {
+      throw new ForbiddenException("Cannot define a marking above your own clearance");
     }
   }
 }

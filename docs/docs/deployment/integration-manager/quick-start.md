@@ -7,7 +7,7 @@ This guide will help you get XTM Composer up and running quickly with OpenAEV.
 Before starting, ensure you have:   
 - XTM Composer installed (see [Installation guide](installation.md))   
 - Access to an OpenAEV instance    
-- OpenAEV API token   
+- OpenAEV API token of an administrator, or of a user that holds the platform settings write right (`MANAGE_PLATFORM_SETTINGS`): XTM Composer registers itself and refreshes its connectivity with it   
 - RSA (Rivest-Shamir-Adleman) private key (4096-bit)
 
 ## Step 1: generate RSA private key

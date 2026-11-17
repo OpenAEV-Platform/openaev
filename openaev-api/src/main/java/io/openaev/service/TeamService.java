@@ -32,6 +32,7 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -108,10 +109,10 @@ public class TeamService {
   }
 
   /**
-   * Loads the players of a team in scope with their tags and teams, for the endpoint that returns
-   * the raw users: {@code tags} and {@code teams} are both v2-active, so a lazy load at
-   * serialization time fails closed to an empty array. The player edit form is filled from that
-   * response, and an empty tag list erased the player's tags on save.
+   * Loads the players of a team in scope with their tags, teams and organizations, for the endpoint
+   * that returns the raw users: {@code tags}, {@code teams} and {@code organizations} are all
+   * v2-active, so a lazy load at serialization time fails closed to an empty array. The player edit
+   * form is filled from that response, and an empty tag list erased the player's tags on save.
    */
   public List<User> teamPlayersInScope(@NotNull final TxCtx ctx, @NotNull final String teamId) {
     List<User> players = teamInScope(ctx, teamId).getUsers();
@@ -119,6 +120,7 @@ public class TeamService {
         player -> {
           Hibernate.initialize(player.getTags());
           Hibernate.initialize(player.getTeams());
+          player.loadOrganizations();
         });
     return players;
   }
@@ -216,7 +218,8 @@ public class TeamService {
     newTeam.setDescription(teamToCopy.getDescription());
     newTeam.setTags(CopyObjectListUtils.copy(teamToCopy.getTags(), Tag.class));
     newTeam.setOrganization(teamToCopy.getOrganization());
-    newTeam.setUsers(CopyObjectListUtils.copy(teamToCopy.getUsers(), User.class));
+    // The copy references the saved users: their collections are never copied
+    newTeam.setUsers(new ArrayList<>(teamToCopy.getUsers()));
     newTeam.setContextual(teamToCopy.getContextual());
     return newTeam;
   }

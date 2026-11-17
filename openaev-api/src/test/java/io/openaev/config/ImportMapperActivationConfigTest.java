@@ -489,4 +489,99 @@ class ImportMapperActivationConfigTest {
   void prodConfigActivatesAutonomousObjectiveTemplates() throws Exception {
     assertActiveTableEntry("autonomous_objective_templates");
   }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains parameters")
+  void prodConfigActivatesParameters() throws Exception {
+    assertActiveTableEntry("parameters");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains workflows")
+  void prodConfigActivatesWorkflows() throws Exception {
+    assertActiveTableEntry("workflows");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains steps")
+  void prodConfigActivatesSteps() throws Exception {
+    assertActiveTableEntry("steps");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains conditions")
+  void prodConfigActivatesConditions() throws Exception {
+    assertActiveTableEntry("conditions");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains scope_variables")
+  void prodConfigActivatesScopeVariables() throws Exception {
+    assertActiveTableEntry("scope_variables");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains steps_delay_queue")
+  void prodConfigActivatesStepsDelayQueue() throws Exception {
+    assertActiveTableEntry("steps_delay_queue");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains injectors_contracts")
+  void prodConfigActivatesInjectorsContracts() throws Exception {
+    assertActiveTableEntry("injectors_contracts");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains workflow_scope_rules")
+  void prodConfigActivatesWorkflowScopeRules() throws Exception {
+    assertActiveTableEntry("workflow_scope_rules");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains workflow_states")
+  void prodConfigActivatesWorkflowStates() throws Exception {
+    assertActiveTableEntry("workflow_states");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains injector_contract_tags")
+  void prodConfigActivatesInjectorContractTags() throws Exception {
+    assertActiveTableEntry("injector_contract_tags");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains"
+          + " injectors_contracts_attack_patterns")
+  void prodConfigActivatesInjectorsContractsAttackPatterns() throws Exception {
+    assertActiveTableEntry("injectors_contracts_attack_patterns");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains"
+          + " injectors_contracts_domains")
+  void prodConfigActivatesInjectorsContractsDomains() throws Exception {
+    assertActiveTableEntry("injectors_contracts_domains");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains"
+          + " injectors_contracts_vulnerabilities")
+  void prodConfigActivatesInjectorsContractsVulnerabilities() throws Exception {
+    assertActiveTableEntry("injectors_contracts_vulnerabilities");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains"
+          + " injectors_injector_contracts")
+  void prodConfigActivatesInjectorsInjectorContracts() throws Exception {
+    assertActiveTableEntry("injectors_injector_contracts");
+  }
 }

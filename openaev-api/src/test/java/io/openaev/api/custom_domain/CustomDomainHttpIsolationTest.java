@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.custom_domain.form.CustomDomainInput;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.utils.TenantIsolationTestHelper;
 import java.util.UUID;
@@ -38,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
  * io.openaev.injectors.phishing.api.HostedPublicApiTest}, not here: this class is about the admin
  * CRUD scope.
  */
+@CoversTenantIsolation("custom_domains")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=custom_domains")
 @io.openaev.utils.mockUser.WithMockUser(isAdmin = true)

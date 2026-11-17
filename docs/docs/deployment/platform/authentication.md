@@ -79,6 +79,10 @@ OPENAEV_PROVIDER_{registrationId}_ROLES_PATH=http://schemas.microsoft.com/ws/200
 OPENAEV_PROVIDER_{registrationId}_ROLES_ADMIN=
 ```
 
+A user with one of these roles joins the "Admin" group of the provider's Tenant (the default Tenant when
+`OPENAEV_PROVIDER_{registrationId}_TENANT_ID` is unset), and leaves it when the role is removed. These users administer
+that Tenant, not the whole platform.
+
 If you manage administrators in OpenAEV itself, leave them unset.
 
 ### Map users to groups automatically (OpenID and SAML2)

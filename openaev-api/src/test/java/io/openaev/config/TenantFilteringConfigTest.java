@@ -2,6 +2,7 @@ package io.openaev.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.architecture.BackgroundEntrypointTenantScopeArchTest;
@@ -98,6 +99,22 @@ class TenantFilteringConfigTest {
         armed.strict(),
         "the list the reader returns under '*' must arm the strict tables '*' arms");
     assertTrue(armed.dualScope().isEmpty(), "'*' arms no dual-scope table");
+  }
+
+  @Test
+  @DisplayName("the startup bean refuses an allowlist that names the membership table")
+  void given_allowlistNamingUsersTenants_should_failTheTenantTablesBean() {
+    // Armed alone, users_tenants refuses every member every tenant-prefixed request, because the
+    // membership check that computes the scope reads it before any scope exists.
+    IllegalArgumentException refused =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new TenantFilteringConfig()
+                    .tenantTables(dataSource, List.of("documents", "users_tenants")));
+
+    assertTrue(refused.getMessage().contains("users_tenants"), refused.getMessage());
+    assertTrue(refused.getMessage().contains("self-isolated"), refused.getMessage());
   }
 
   @Test

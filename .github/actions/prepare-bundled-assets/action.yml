@@ -64,9 +64,10 @@ runs:
     - name: Download agent & implant binaries
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+      env:
+        BINARY_VERSION: ${{ steps.versions.outputs.binary_version }}
+        LOCAL_VERSION: ${{ steps.versions.outputs.local_version }}
       run: |
-        BINARY_VERSION="${{ steps.versions.outputs.binary_version }}"
-        LOCAL_VERSION="${{ steps.versions.outputs.local_version }}"
 
         if ! bash "$GITHUB_ACTION_PATH/../../../scripts/download-binaries.sh" "$BINARY_VERSION" "$LOCAL_VERSION"; then
           echo "❌ download-binaries.sh failed"
@@ -83,9 +84,10 @@ runs:
     - name: Patch catalog version
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+      env:
+        CATALOG_VERSION: ${{ steps.versions.outputs.catalog_version }}
       run: |
         CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
-        CATALOG_VERSION="${{ steps.versions.outputs.catalog_version }}"
 
         if [ ! -f "$CATALOG_FILE" ]; then
           echo "❌ Catalog file not found: $CATALOG_FILE"

@@ -47,13 +47,12 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  *       turns it into the router basename and {@code buildTenantApiPath} prefixes every API call
  *       with it. Everything is visible.
  *   <li>the default tenant in the path, which is what the SPA falls back to when the browser URL
- *       carries no tenant segment. The simulation itself is resolved through the ambient tenant, so
- *       the page is refused before any document or challenge is read. This predates the activation
- *       of {@code documents}: the lookup is the v1 one and {@code exercises} is not active.
+ *       carries no tenant segment. The simulation itself is resolved in the request's tenant scope,
+ *       here the default tenant, so the page is refused before any document or challenge is read.
  *   <li>the non-prefixed route, which the SPA never produces and only a direct client reaches. No
- *       tenant is named, the scope is empty and an active table reads nothing. {@code challenges}
- *       accepted exactly this at its own activation, pinned by {@code
- *       SimulationChallengeApiPlayerLegacyRouteTest}.
+ *       tenant is named, so the simulation is resolved in the ambient tenant, the default one, and
+ *       the page is refused the same way. {@code challenges} accepted an empty legacy route at its
+ *       own activation, pinned by {@code SimulationChallengeApiPlayerLegacyRouteTest}.
  * </ul>
  *
  * <p>Not {@code @Transactional}: the rows are committed through an auto-committing {@link
@@ -164,12 +163,12 @@ class PlayerDocumentsAnonymousRouteTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given a simulation of tenant B, when the challenges are listed under the default tenant, then none is visible")
-    void given_simulationOfTenantB_should_showNoChallengeUnderTheDefaultTenant() throws Exception {
+        "given a simulation of tenant B, when the challenges are listed under the default tenant, then the simulation is not found")
+    void given_simulationOfTenantB_should_notFindTheSimulationUnderTheDefaultTenant()
+        throws Exception {
       // -- ACT & ASSERT --
       asPlayer(get(SIMULATION_CHALLENGES, DEFAULT_TENANT, exerciseId))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$.exercise_challenges").isEmpty());
+          .andExpect(status().isNotFound());
     }
   }
 
@@ -188,12 +187,10 @@ class PlayerDocumentsAnonymousRouteTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given a simulation of tenant B, when the challenges are listed with no tenant named, then none is visible")
-    void given_simulationOfTenantB_should_showNoChallengeWithNoTenantNamed() throws Exception {
+        "given a simulation of tenant B, when the challenges are listed with no tenant named, then the simulation is not found")
+    void given_simulationOfTenantB_should_notFindTheSimulationWithNoTenantNamed() throws Exception {
       // -- ACT & ASSERT --
-      asPlayer(get(LEGACY_SIMULATION_CHALLENGES, exerciseId))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$.exercise_challenges").isEmpty());
+      asPlayer(get(LEGACY_SIMULATION_CHALLENGES, exerciseId)).andExpect(status().isNotFound());
     }
   }
 

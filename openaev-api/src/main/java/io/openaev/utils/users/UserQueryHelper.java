@@ -27,10 +27,30 @@ public class UserQueryHelper {
 
   private static final String QUERY_ALIAS_TENANT_NAMES = "query_tenant_names";
 
-  public static void select(CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<User> userRoot) {
+  /**
+   * Selects users with the organization they hold in the given tenant (tenant-scoped APIs): the
+   * tenant the request works on, which is not the ambient one when the request names it in {@code
+   * X-Tenant-Ids}.
+   */
+  public static void select(
+      CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<User> userRoot, String tenantId) {
+    select(cb, cq, userRoot, tenantId, false);
+  }
+
+  /** Selects users without any organization: organizations are tenant-level (platform APIs). */
+  public static void selectForPlatform(
+      CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<User> userRoot) {
+    select(cb, cq, userRoot, null, true);
+  }
+
+  private static void select(
+      CriteriaBuilder cb,
+      CriteriaQuery<Tuple> cq,
+      Root<User> userRoot,
+      String tenantId,
+      boolean platform) {
     // Joins
     Join<User, ?> tagJoin = createLeftJoin(userRoot, "tags");
-    Join<User, Organization> organizationJoin = createLeftJoin(userRoot, "organization");
     Join<User, Tenant> tenantJoin = createLeftJoin(userRoot, "tenants");
 
     // Array aggregations
@@ -38,6 +58,31 @@ public class UserQueryHelper {
     Expression<String[]> tagIdsExpression = arrayAggOnId(hcb, tagJoin);
     Expression<String[]> tenantIdsExpression = arrayAggOnId(hcb, tenantJoin);
     Expression<String[]> tenantNamesExpression = arrayAggOnField(hcb, tenantJoin, "name");
+
+    if (platform) {
+      cq.multiselect(
+          userRoot.get("id").alias(ALIAS_ID),
+          userRoot.get("email").alias(ALIAS_EMAIL),
+          userRoot.get("firstname").alias(ALIAS_FIRSTNAME),
+          userRoot.get("lastname").alias(ALIAS_LASTNAME),
+          userRoot.get("password").alias("user_password"),
+          userRoot.get("pgpKey").alias(ALIAS_PGP_KEY),
+          userRoot.get("phone").alias(ALIAS_PHONE),
+          userRoot.get("phone2").alias(ALIAS_PHONE2),
+          cb.nullLiteral(String.class).alias(ALIAS_ORGANIZATION_ID),
+          cb.nullLiteral(String.class).alias(ALIAS_ORGANIZATION_NAME),
+          tagIdsExpression.alias(ALIAS_TAGS),
+          userRoot.get("admin").alias(ALIAS_ADMIN),
+          tenantIdsExpression.alias(ALIAS_TENANTS),
+          tenantNamesExpression.alias(QUERY_ALIAS_TENANT_NAMES));
+      cq.groupBy(userRoot.get("id"));
+      return;
+    }
+
+    // A user holds one organization per tenant: the join is restricted to the given tenant, or a
+    // user of several tenants would be returned once per organization.
+    Join<User, Organization> organizationJoin = userRoot.join("organizations", JoinType.LEFT);
+    organizationJoin.on(cb.equal(organizationJoin.get("tenant").get("id"), tenantId));
 
     cq.multiselect(
         userRoot.get("id").alias(ALIAS_ID),

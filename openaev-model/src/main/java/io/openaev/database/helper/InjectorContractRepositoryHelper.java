@@ -1,6 +1,5 @@
 package io.openaev.database.helper;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.InjectorContract;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -39,15 +38,24 @@ public class InjectorContractRepositoryHelper {
    * @param platformArchitecturePairs a list of platform-architecture pairs to filter the contracts,
    *     formatted as "Platform:Architecture" (e.g., "Linux:x86_64", "macOS:arm64")
    * @param limit the maximum number of results to return
+   * @param tenantId the tenant to search in, resolved by the caller from a known parent (the
+   *     scenario the generated injects will belong to), not from the request's ambient scope: the
+   *     caller can be a member of several tenants, and a candidate contract picked outside the
+   *     scenario's own tenant would violate the inject-contract composite foreign key once the
+   *     inject is attributed to the scenario's tenant
    * @return a list of matching {@link InjectorContract} objects, randomly ordered
    */
   public List<InjectorContract> searchInjectorContractsByAttackPatternAndEnvironment(
-      String attackPatternExternalId, List<String> platformArchitecturePairs, Integer limit) {
+      String attackPatternExternalId,
+      List<String> platformArchitecturePairs,
+      Integer limit,
+      String tenantId) {
     StringBuilder sql =
         new StringBuilder(
             "SELECT ic.* FROM injectors_contracts ic "
                 + "JOIN payloads p ON ic.injector_contract_payload = p.payload_id "
                 + "JOIN injectors_contracts_attack_patterns injectorAttack ON ic.injector_contract_id = injectorAttack.injector_contract_id "
+                + "AND injectorAttack.tenant_id = ic.tenant_id "
                 + "JOIN attack_patterns a ON injectorAttack.attack_pattern_id = a.attack_pattern_id "
                 + "WHERE ic.tenant_id = :tenantId "
                 + "AND a.attack_pattern_external_id LIKE :attackPatternExternalId");
@@ -76,7 +84,7 @@ public class InjectorContractRepositoryHelper {
     sql.append(" ORDER BY RANDOM() LIMIT :limit");
 
     Query query = this.entityManager.createNativeQuery(sql.toString(), InjectorContract.class);
-    query.setParameter("tenantId", TenantContext.getCurrentTenant());
+    query.setParameter("tenantId", tenantId);
     query.setParameter("attackPatternExternalId", attackPatternExternalId + "%");
     query.setParameter("limit", limit);
 

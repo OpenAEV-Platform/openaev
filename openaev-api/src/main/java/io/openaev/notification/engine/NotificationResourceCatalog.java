@@ -1,6 +1,7 @@
 package io.openaev.notification.engine;
 
 import io.openaev.database.model.*;
+import io.openaev.database.model.catalog.CatalogRelease;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -30,7 +31,8 @@ public enum NotificationResourceCatalog {
   VULNERABILITY(ResourceType.VULNERABILITY, Vulnerability.class),
   SECURITY_PLATFORM(ResourceType.SECURITY_PLATFORM, SecurityPlatform.class),
   DOCUMENT(ResourceType.DOCUMENT, Document.class),
-  CHALLENGE(ResourceType.CHALLENGE, Challenge.class);
+  CHALLENGE(ResourceType.CHALLENGE, Challenge.class),
+  CATALOG_SYNC(ResourceType.CATALOG_SYNC, CatalogRelease.class);
 
   private final ResourceType resourceType;
   private final Class<? extends Base> entityClass;

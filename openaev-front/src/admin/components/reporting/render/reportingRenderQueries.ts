@@ -1,5 +1,6 @@
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { type Filter, type FilterGroup, type Reporting, type Series, type Widget } from '../../../../utils/api-types';
+import { POSTURE_EXPECTATION_TYPES } from '../../common/injects/expectations/Expectation';
 
 /**
  * Pure builders for the ad-hoc dashboard-engine queries powering the reporting
@@ -165,9 +166,6 @@ const temporalConfig = (seriesList: Series[], timeRange: ReportingTimeRange): Wi
   display_legend: false,
 } as unknown as Widget['widget_config']);
 
-/** Every expectation type the platform validates (mirrors the backend enum). */
-export const EXPECTATION_TYPES = ['PREVENTION', 'DETECTION', 'VULNERABILITY', 'MANUAL', 'ARTICLE', 'CHALLENGE'] as const;
-
 /**
  * Posture query: per expectation type x validation status counts, feeding the
  * executive summary KPIs and the results breakdown module.
@@ -178,7 +176,7 @@ export const buildPostureConfig = (
   timeRange: ReportingTimeRange,
 ): Widget['widget_config'] => structuralConfig({
   field: 'inject_expectation_type',
-  seriesList: EXPECTATION_TYPES.flatMap(type => (['SUCCESS', 'FAILED'] as const).map(status => series(
+  seriesList: POSTURE_EXPECTATION_TYPES.flatMap(type => (['SUCCESS', 'FAILED'] as const).map(status => series(
     `${type}_${status}`,
     ...expectationFilters(contextType, contextId, [
       filter('inject_expectation_type', [type]),

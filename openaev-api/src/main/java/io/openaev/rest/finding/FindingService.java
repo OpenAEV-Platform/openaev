@@ -16,6 +16,7 @@ import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.finding.FindingOccurrenceService;
 import io.openaev.utils.mapper.FindingMapper;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -40,6 +41,7 @@ public class FindingService {
   private final FindingRepository findingRepository;
   private final FindingMapper findingMapper;
   private final FindingWriter findingWriter;
+  private final FindingOccurrenceService findingOccurrenceService;
   private final TenantWriteScopeResolver tenantWriteScopeResolver;
   private final AssetRepository assetRepository;
   private final TeamRepository teamRepository;
@@ -98,14 +100,9 @@ public class FindingService {
         this.tenantWriteScopeResolver.tenantForWrite(
             ctx, inject.getTenant() != null ? inject.getTenant().getId() : null);
     finding.setTenant(new Tenant(tenantId));
-    return this.findingRepository.save(finding);
-  }
-
-  public Finding updateFinding(@NotNull final Finding finding, @NotNull final String injectId) {
-    if (!finding.getInject().getId().equals(injectId)) {
-      throw new IllegalArgumentException("Inject id cannot be changed: " + injectId);
-    }
-    return this.findingRepository.save(finding);
+    Finding saved = this.findingRepository.save(finding);
+    findingOccurrenceService.recordOccurrencesByInject(inject, List.of(saved));
+    return saved;
   }
 
   public void deleteFinding(@NotNull final String id) {
@@ -207,7 +204,7 @@ public class FindingService {
         contractOutputContext.type().name(),
         value,
         new String[0],
-        inject.getId(),
+        inject,
         contractOutputContext.name(),
         asset.getId(),
         contractOutputContext.tagIds());
@@ -270,7 +267,8 @@ public class FindingService {
           finding.setTenant(inject.getTenant());
         });
     List<Finding> deduplicatedFindings = deduplicateFindings(findings);
-    findingRepository.saveAll(deduplicatedFindings);
+    List<Finding> saved = fromIterable(findingRepository.saveAll(deduplicatedFindings));
+    findingOccurrenceService.recordOccurrencesByInject(inject, saved);
   }
 
   /**

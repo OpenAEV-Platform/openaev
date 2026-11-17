@@ -328,4 +328,18 @@ public class FileService {
   public Optional<FileContainer> getFileContainer(String fileTarget) {
     return minioService.getFileContainerInTenant(fileTarget);
   }
+
+  // -- PLATFORM FILES: shared by every tenant --
+
+  public void uploadInPlatform(String path, InputStream data) throws Exception {
+    minioService.uploadStreamInPlatformPath(path, path.substring(path.lastIndexOf('/') + 1), data);
+  }
+
+  public Optional<InputStream> getInPlatform(String path) {
+    return minioService.getFilePathInPlatform(path);
+  }
+
+  public boolean existsInPlatform(String path) {
+    return minioService.existsInPlatform(path);
+  }
 }

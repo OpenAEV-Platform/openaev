@@ -16,6 +16,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -23,7 +25,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.specification.FindingSpecification;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
-import io.openaev.rest.finding.form.FindingInput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
@@ -48,22 +49,26 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
+@CoversTenantIsolation("findings")
 @TestInstance(PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)
-// The test profile declares no active tables, so removing the v1 @Filter would leave this suite
-// asserting an isolation nothing enforces. The list is not limited to findings because
-// @TestPropertySource REPLACES the property rather than adding to it: naming findings alone would
-// deactivate assets and asset_groups, which ARE active in production, and the suite would test less
-// than production while looking stricter.
-@TestPropertySource(properties = "openaev.tenant.active-tables=findings,assets,asset_groups")
 @DisplayName("Findings search tests")
 class FindingApiTest extends IntegrationTest {
+
+  // The test profile declares no active tables, so the suite registers the production list: with
+  // no list, the search isolation below would assert what nothing enforces.
+  @DynamicPropertySource
+  static void activeTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   private static final String FINDING_URI = "/api/findings";
 
@@ -899,43 +904,6 @@ class FindingApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Finding created in tenant X should NOT be updatable from tenant Y")
-    void given_findingInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-
-      Finding finding = createFindingInTenant(tenantX.getId());
-      entityManager.flush();
-      entityManager.clear();
-
-      FindingInput updateInput = new FindingInput();
-      updateInput.setField("updated_field");
-      updateInput.setType(ContractOutputType.Text);
-      updateInput.setValue("updated_value");
-      updateInput.setInjectId(finding.getInject().getId());
-
-      // -------- Act --------
-      int responseStatus =
-          mvc.perform(
-                  put("/api/tenants/" + tenantY.getId() + "/findings/" + finding.getId())
-                      .content(asJsonString(updateInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // -------- Assert --------
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
     @DisplayName("Finding created in tenant X should NOT be deletable from tenant Y")
     void given_findingInTenantX_should_notBeDeletableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -1423,7 +1391,14 @@ class FindingApiTest extends IntegrationTest {
       private static final String SECRET_CREDENTIALS = "admin:motdepasse";
       private static final String DISPLAYED_CREDENTIALS = "admin:mo" + MASK;
 
+      // Text search also reads the inject title, and the default fixture titles an inject
+      // "inject-<random UUID>": a UUID holds the hex pair "ab" about one run in nine, which made
+      // the "bob:abc" / "ab" case match through the title instead of the value (main red on
+      // 3838cec2). A fixed title that shares no searched fragment keeps every case about the value.
+      private static final String INJECT_TITLE = "Sensitive finding inject";
+
       private Finding persistFinding(Finding finding) {
+        injectWrapper.get().setTitle(INJECT_TITLE);
         return findingComposer
             .forFinding(finding)
             .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))

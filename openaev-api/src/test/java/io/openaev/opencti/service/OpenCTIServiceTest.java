@@ -503,7 +503,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
             .isEqualTo(OPENCTI_CONNECTOR.emailPattern().formatted(testConnector.getId()));
-        assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
+        assertThat(user.get().getFirstname()).isEqualTo("Security Coverage");
         assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));
       }
@@ -546,7 +546,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
             .isEqualTo(OPENCTI_CONNECTOR.emailPattern().formatted(testConnector.getId()));
-        assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
+        assertThat(user.get().getFirstname()).isEqualTo("Security Coverage");
         assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));
       }
@@ -711,7 +711,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
             .isEqualTo(OPENCTI_CONNECTOR.emailPattern().formatted(testConnector.getId()));
-        assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
+        assertThat(user.get().getFirstname()).isEqualTo("Security Coverage");
         assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));
       }
@@ -754,7 +754,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
             .isEqualTo(OPENCTI_CONNECTOR.emailPattern().formatted(testConnector.getId()));
-        assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
+        assertThat(user.get().getFirstname()).isEqualTo("Security Coverage");
         assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));
       }

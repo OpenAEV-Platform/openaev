@@ -177,7 +177,8 @@ public class AssetGroupService {
 
   public AssetGroup updateAssetsOnAssetGroup(
       @NotNull final AssetGroup assetGroup, @NotNull final List<String> assetIds) {
-    Iterable<Asset> assets = this.assetService.assetFromIds(assetIds);
+    Iterable<Asset> assets =
+        this.assetService.assetFromIds(assetIds, assetGroup.getTenant().getId());
     assetGroup.setAssets(fromIterable(assets));
     assetGroup.setUpdatedAt(now());
     AssetGroup assetGroupUpdated = this.assetGroupRepository.save(assetGroup);

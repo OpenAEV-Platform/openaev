@@ -4,6 +4,7 @@ import io.openaev.annotation.AllowRawJdbc;
 import io.openaev.config.MarkingScopeResolver;
 import io.openaev.config.MarkingScopeResolver.MarkingRef;
 import io.openaev.context.MarkingCtx;
+import io.openaev.database.model.User;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -12,7 +13,6 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
@@ -94,29 +94,29 @@ public class MarkingClearanceCacheManager {
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
 
   /**
-   * Returns the clearance the user holds in the tenant (cached).
-   *
-   * @param bypass whether the caller is admin or holds BYPASS; part of the cache key because it
-   *     changes the answer, and a user can gain or lose it
+   * Returns the clearance the user holds in the tenant (cached). Only the first admin holds every
+   * marking; everyone else, {@code user_admin} and {@code BYPASS} included, holds what their groups
+   * grant.
    */
-  @Cacheable(value = MARKING_CLEARANCE_CACHE, key = "#userId + ':' + #tenantId + ':' + #bypass")
-  public MarkingCtx findClearance(String userId, String tenantId, boolean bypass) {
+  @Cacheable(value = MARKING_CLEARANCE_CACHE, key = "#userId + ':' + #tenantId")
+  public MarkingCtx findClearance(String userId, String tenantId) {
+    boolean firstAdmin = User.ADMIN_UUID.equals(userId);
     // Intentionally JDBC here: this code runs during argument resolution (before @Transactional),
     // so ORM reads may hold the pooled connection until request end (open-in-view).
     List<MarkingRef> definitions = tenantDefinitions(tenantId);
 
-    // Skipped for a bypassing caller: the grants cannot change the answer, so the query is waste.
+    // Skipped for the first admin: the grants cannot change the answer, so the query is waste.
     Set<String> granted =
-        bypass
+        firstAdmin
             ? Set.of()
             : Set.copyOf(
                 jdbcTemplate.queryForList(GRANTED_MARKING_IDS_SQL, String.class, userId, tenantId));
 
-    return resolver.resolve(granted, definitions, bypass);
+    return resolver.resolve(granted, definitions, firstAdmin);
   }
 
   /**
-   * Returns the system clearance in the tenants: every marking they define, what a bypassing caller
+   * Returns the system clearance in the tenants: every marking they define, what the first admin
    * holds in each of them. The background primitive runs at it, and so does a faithful copy.
    *
    * <p><b>Never cached</b>, unlike {@link #findClearance}. It has no user to key on, and a stale
@@ -125,8 +125,8 @@ public class MarkingClearanceCacheManager {
    * One indexed read per transaction, whatever the number of tenants, is the price of always being
    * exact.
    *
-   * <p>Same bypass rule as {@link #findClearance}, so "every marking of a tenant" has one
-   * definition. The tenants' scales are resolved together: bypass keeps every definition whatever
+   * <p>Same rule as the first admin in {@link #findClearance}, so "every marking of a tenant" has
+   * one definition. The tenants' scales are resolved together: every definition is kept whatever
    * its type and order, so they need no separation, and a definition belongs to exactly one tenant.
    * It runs inside the caller's transaction, on its connection: a definition the transaction wrote
    * is seen once flushed.
@@ -143,19 +143,8 @@ public class MarkingClearanceCacheManager {
     return jdbcTemplate.query(TENANT_MARKINGS_SQL, MARKING_REF, tenantId);
   }
 
-  /**
-   * Evicts one user's clearance in one tenant, both with and without bypass.
-   *
-   * <p>Use when the change is scoped to a single user — added to or removed from a group, granted
-   * or stripped of BYPASS. Both variants are dropped deliberately: making the caller name the right
-   * one would let a stale <i>larger</i> entry survive under the other, and that entry fails open.
-   * The caller usually cannot know which variant is warm, and should not have to.
-   */
-  @Caching(
-      evict = {
-        @CacheEvict(value = MARKING_CLEARANCE_CACHE, key = "#userId + ':' + #tenantId + ':false'"),
-        @CacheEvict(value = MARKING_CLEARANCE_CACHE, key = "#userId + ':' + #tenantId + ':true'")
-      })
+  /** Evicts one user's clearance in one tenant. */
+  @CacheEvict(value = MARKING_CLEARANCE_CACHE, key = "#userId + ':' + #tenantId")
   public void evict(String userId, String tenantId) {
     // eviction only
   }
@@ -184,8 +173,7 @@ public class MarkingClearanceCacheManager {
       return;
     }
     for (String tenantId : tenantMembershipCacheManager.findTenantIdsByUserId(userId)) {
-      cache.evict(userId + ":" + tenantId + ":false");
-      cache.evict(userId + ":" + tenantId + ":true");
+      cache.evict(userId + ":" + tenantId);
     }
   }
 

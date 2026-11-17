@@ -295,7 +295,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       // The collector answers the first agent only: without expectation group, the asset and the
       // asset group stay pending until the second agent expires
-      injectExpectationService.updateInjectExpectation(
+      injectExpectationService.updateInjectExpectationFromCollector(
           injectExpectationRepository
               .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
               .getFirst()
@@ -527,7 +527,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       List.of(savedAgent1, savedAgent2)
           .forEach(
               agent ->
-                  injectExpectationService.updateInjectExpectation(
+                  injectExpectationService.updateInjectExpectationFromCollector(
                       injectExpectationRepository
                           .findAllByInjectAndAgent(savedInject.getId(), agent.getId())
                           .getFirst()
@@ -620,10 +620,6 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
           securityPlatformRepository.save(
               SecurityPlatformFixture.createDefault(
                   "Microsoft Defender", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name()));
-      InjectExpectationUpdateFromCollectorInput input =
-          new InjectExpectationUpdateFromCollectorInput();
-      input.setIsSuccess(true);
-      input.setResult("Prevented");
       List<BaseInjectExpectation> agentExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
@@ -631,7 +627,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       agentExpectations.forEach(
           expectation ->
               injectExpectationService.updateInjectExpectationFromSecurityPlatform(
-                  expectation.getId(), input, defender));
+                  expectation.getId(), true, defender));
       expireExpectationsInDbByInjectId(savedInject.getId());
 
       // Act
@@ -817,11 +813,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     @Test
     @DisplayName("A direct VULNERABLE verdict on the asset survives the agent expiration rollup")
     void directVulnerableVerdictSurvivesAgentExpiration() {
-      // Regression: an assessment injector (e.g. Nuclei, agentless execution) wrote VULNERABLE
-      // directly on the asset-level expectation, while the agent-level children stayed untouched.
-      // When the expiration manager later expired the agents to the default "Not vulnerable", the
-      // children rollup overwrote the proven vulnerable verdict with "Not vulnerable / 100" and
-      // stamped a contradicting expiration result on the asset row.
+      // Legacy data: an assessment injector (e.g. Nuclei, agentless execution) used to write
+      // VULNERABLE directly on the asset-level expectation, while the agent-level children stayed
+      // untouched (verdicts now land on the leaves). When the expiration manager later expired the
+      // agents to the default "Not vulnerable", the children rollup overwrote the proven vulnerable
+      // verdict with "Not vulnerable / 100" and stamped a contradicting expiration result on the
+      // asset row.
       ExecutableInject executableInject = newExecutableInjectWithTargets();
       Expectation expectation =
           createExpectation(
@@ -833,7 +830,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       em.flush();
       em.clear();
 
-      // The assessment injector answers the ASSET row directly: proven vulnerable
+      // Legacy direct verdict on the ASSET row: proven vulnerable
       List<BaseInjectExpectation> assetExpectations =
           injectExpectationRepository.findAllByInjectAndAsset(
               savedInject.getId(), savedEndpoint.getId());
@@ -896,9 +893,9 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     @DisplayName(
         "A direct VULNERABLE verdict on the asset group is not contradicted by an expiration stamp")
     void directVulnerableVerdictOnAssetGroupIsNotContradictedByExpirationStamp() {
-      // Regression: an assessment injector (e.g. Nuclei) answered BOTH the asset and the asset
-      // group rows with VULNERABLE, while the agent-level children stayed untouched (an agentless
-      // scanner never fills them). When the expiration manager later expired the agents to the
+      // Legacy data: an assessment injector (e.g. Nuclei) used to answer BOTH the asset and the
+      // asset group rows with VULNERABLE, while the agent-level children stayed untouched (verdicts
+      // now land on the leaves). When the expiration manager later expired the agents to the
       // default "Not vulnerable", the asset group rollup correctly concluded VULNERABLE - but the
       // propagation still stamped the triggering agent result (an expiration manager
       // "Not vulnerable", success polarity) onto the group row, displaying a contradictory entry
@@ -914,7 +911,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       em.flush();
       em.clear();
 
-      // The assessment injector answers the ASSET and ASSET GROUP rows directly: proven vulnerable
+      // Legacy direct verdicts on the ASSET and ASSET GROUP rows: proven vulnerable
       BaseInjectExpectation assetExpectation =
           injectExpectationRepository
               .findAllByInjectAndAsset(savedInject.getId(), savedEndpoint.getId())
@@ -978,10 +975,11 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     @DisplayName(
         "The expiration manager never stamps a vulnerability row a platform already answered")
     void expirationManagerDoesNotStampVulnerabilityRowsAlreadyAnswered() {
-      // Regression: Nuclei answered "Not vulnerable" directly on the asset and asset-group rows of
-      // endpoints that happen to run an agent. When the agent children (which an agentless scanner
-      // never fills) later expired, the propagation stamped a redundant "Expectations Expiration
-      // Manager - Not vulnerable" row next to the genuine scan verdict on every answered parent.
+      // Legacy data: Nuclei used to answer "Not vulnerable" directly on the asset and asset-group
+      // rows of endpoints that happen to run an agent (verdicts now land on the leaves). When the
+      // untouched agent children later expired, the propagation stamped a redundant "Expectations
+      // Expiration Manager - Not vulnerable" row next to the genuine scan verdict on every answered
+      // parent.
       // The expiration default is the absence-of-signal fallback: it has nothing to add to a row a
       // real platform already answered.
       ExecutableInject executableInject = newExecutableInjectWithTargets();
@@ -996,7 +994,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       em.flush();
       em.clear();
 
-      // The scanner answers the ASSET and ASSET GROUP rows directly: nothing found
+      // Legacy direct verdicts on the ASSET and ASSET GROUP rows: nothing found
       BaseInjectExpectation assetExpectation =
           injectExpectationRepository
               .findAllByInjectAndAsset(savedInject.getId(), savedEndpoint.getId())
@@ -1054,7 +1052,9 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // Regression: a scanner assessing an endpoint that happens to run an agent answered "Not
       // vulnerable" on the asset row, but the row deferred to its agent children - which an
       // agentless injector never fills - and stayed PENDING until the expiration manager fired
-      // minutes later, contradicting the verdict already displayed on the row.
+      // minutes later, contradicting the verdict already displayed on the row. The verdict now
+      // lands on the agent leaf, where it replaces the empty Vulnerability Manager row seeded at
+      // initialization instead of waiting for it.
       ExecutableInject executableInject = newExecutableInjectWithTargets();
       Expectation expectation =
           createExpectation(
@@ -1076,13 +1076,9 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
               .getId();
 
       // -- EXECUTE --
-      // The scanner answers the ASSET row directly: nothing found.
-      InjectExpectationUpdateFromCollectorInput input =
-          new InjectExpectationUpdateFromCollectorInput();
-      input.setIsSuccess(true);
-      input.setResult("Not vulnerable");
+      // The scanner answers the ASSET: nothing found.
       injectExpectationService.updateInjectExpectationFromSecurityPlatform(
-          assetExpectationId, input, nuclei);
+          assetExpectationId, true, nuclei);
 
       em.flush();
       em.clear();
@@ -1096,20 +1092,26 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       assertEquals(
           BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
           assetExpectations.getFirst().getResponse());
-      // The agent child is untouched: the scanner knows nothing about agents.
-      List<BaseInjectExpectation> agentExpectations =
-          injectExpectationRepository.findAllByInjectAndAgent(
-              savedInject.getId(), savedAgent1.getId());
-      assertNull(agentExpectations.getFirst().getScore());
+      // The verdict lands on the agent leaf, in place of the empty Vulnerability Manager row
+      // seeded at initialization: the asset is derived from it.
+      BaseInjectExpectation agentExpectation =
+          injectExpectationRepository
+              .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
+              .getFirst();
+      assertEquals(expectation.getScore(), agentExpectation.getScore());
+      assertEquals(
+          List.of(nuclei.getId()),
+          agentExpectation.getResults().stream()
+              .map(InjectExpectationResult::getSourceId)
+              .toList());
     }
 
     @Test
     @DisplayName("Expiring an asset keeps the scanner verdict of an unexpired sibling asset")
     void expirationKeepsScannerVerdictOfUnexpiredSibling() {
       // Regression: the rollup of an expiration recomputed every parent of the inject, so expiring
-      // asset A reset the "Not vulnerable" verdict a scanner wrote directly on sibling asset B,
-      // whose agent children are still pending. Only the ancestors of the expired leaves (asset A
-      // and its group) must be recomputed.
+      // asset A reset the "Not vulnerable" verdict a scanner gave on sibling asset B. Only the
+      // ancestors of the expired leaves (asset A and its group) must be recomputed.
       Endpoint siblingEndpoint = endpointRepository.save(EndpointFixture.createEndpoint());
       Agent siblingAgent =
           agentRepository.save(AgentFixture.createAgent(siblingEndpoint, "sibling"));
@@ -1132,20 +1134,16 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       em.flush();
       em.clear();
 
-      // The scanner answers the sibling ASSET row directly: nothing found
+      // The scanner answers the sibling ASSET: nothing found
       SecurityPlatform nuclei =
           securityPlatformRepository.save(
               SecurityPlatformFixture.createDefault("Nuclei", "VULNERABILITY_SCANNER"));
-      InjectExpectationUpdateFromCollectorInput input =
-          new InjectExpectationUpdateFromCollectorInput();
-      input.setIsSuccess(true);
-      input.setResult("Not vulnerable");
       injectExpectationService.updateInjectExpectationFromSecurityPlatform(
           injectExpectationRepository
               .findAllByInjectAndAsset(savedInject.getId(), siblingEndpoint.getId())
               .getFirst()
               .getId(),
-          input,
+          true,
           nuclei);
       em.flush();
       // Only the agents of asset A are expired
@@ -1164,18 +1162,21 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       em.clear();
 
       // -- ASSERT --
-      // Sibling asset B keeps the scanner verdict, its agent is still pending
+      // Sibling asset B keeps the scanner verdict, carried by its agent leaf
       assertEquals(
           expectation.getScore(),
           injectExpectationRepository
               .findAllByInjectAndAsset(savedInject.getId(), siblingEndpoint.getId())
               .getFirst()
               .getScore());
-      assertNull(
+      BaseInjectExpectation siblingAgentExpectation =
           injectExpectationRepository
               .findAllByInjectAndAgent(savedInject.getId(), siblingAgent.getId())
-              .getFirst()
-              .getScore());
+              .getFirst();
+      assertEquals(expectation.getScore(), siblingAgentExpectation.getScore());
+      assertTrue(
+          siblingAgentExpectation.getResults().stream()
+              .noneMatch(result -> COLLECTOR_ID.equals(result.getSourceId())));
       // Asset A is derived from its expired agents, and the group from both assets
       assertEquals(
           expectation.getScore(),

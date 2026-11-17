@@ -11,6 +11,12 @@ description: "API layer conventions: controller structure, DTOs, pagination, err
 - Separate `CreateInput` / `UpdateInput` from `Output` when fields differ
 - Use `@Valid` on all `@RequestBody` parameters
 - Use `@JsonIgnore` on any field that should not be serialized (`tenant_id`, internal relations)
+- **Outputs start minimal**: only the fields a screen or client reads today; add fields with the screen
+  that needs them
+- **One output per kind**: no shared output whose fields stay empty for some kinds
+- JSON names: `<object>_<field>` (`catalog_payload_name`); a result summary may use plain names
+  (`added`, `refused`)
+- A field another system reads is a contract: keep it, and never send `null` where it expects a string
 
 ## Pagination
 
@@ -23,6 +29,11 @@ description: "API layer conventions: controller structure, DTOs, pagination, err
 
 - Use Bean Validation annotations: `@NotNull`, `@NotBlank`, `@Size`, `@Email`, `@Pattern`
 - Custom validation via `@Valid` + validator classes for complex business rules
+
+## OpenAPI
+
+- `@Operation` `summary`: 60 characters at most, plain words
+- `description` only when the summary is not enough: one sentence, 120 characters at most
 
 ## Anti-Patterns
 

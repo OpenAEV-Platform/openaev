@@ -1,5 +1,6 @@
 package io.openaev.rest.inject.service;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.InjectRepository;
@@ -40,15 +41,34 @@ public class ScenarioInjectService {
                     "Inject not found with id: " + injectId + " in scenario: " + scenarioId));
   }
 
+  /**
+   * Resolves the inject inside the request's tenant scope and checks that it belongs to the given
+   * scenario, or answers not found. Loads by primary key, as {@link InjectService#inject(TxCtx,
+   * String)} does, rather than through {@code findByIdAndScenarioId}, which runs under Inject's
+   * still-active v1 filter keyed on the ambient tenant.
+   */
+  @Transactional(readOnly = true)
+  public void requireInjectInScenario(
+      @NotNull final TxCtx ctx,
+      @NotBlank final String scenarioId,
+      @NotBlank final String injectId) {
+    Inject inject = injectService.inject(ctx, injectId);
+    if (inject.getScenario() == null || !scenarioId.equals(inject.getScenario().getId())) {
+      throw new ElementNotFoundException(
+          "Inject not found with id: " + injectId + " in scenario: " + scenarioId);
+    }
+  }
+
   // -- UPDATE --
 
   /** Updates an inject that belongs to the given scenario. */
   public InjectOutput updateInjectForScenario(
+      @NotNull final TxCtx ctx,
       @NotBlank final String scenarioId,
       @NotBlank final String injectId,
       @NotNull InjectInput input) {
     checkInjectForScenario(scenarioId, injectId);
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     Inject inject = injectService.updateInject(injectId, input);
 
     // It should not be possible to add EE executor on inject when the scenario is already
@@ -83,9 +103,12 @@ public class ScenarioInjectService {
   // -- DELETE --
 
   /** Deletes an inject that belongs to the given scenario. */
-  public void deleteInject(@NotBlank final String scenarioId, @NotBlank final String injectId) {
+  public void deleteInject(
+      @NotNull final TxCtx ctx,
+      @NotBlank final String scenarioId,
+      @NotBlank final String injectId) {
     checkInjectForScenario(scenarioId, injectId);
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     this.injectService.delete(injectId);
     this.scenarioService.updateScenario(scenario);
   }

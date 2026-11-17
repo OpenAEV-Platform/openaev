@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.ee.EnterpriseEditionService;
@@ -38,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>The gallery writes as well as reads, materialising the built-in catalog on first read, so this
  * also proves a non-admin's seed lands in its own tenant.
  */
+@CoversTenantIsolation("autonomous_objective_templates")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=autonomous_objective_templates")
 @WithMockUser(isAdmin = false)

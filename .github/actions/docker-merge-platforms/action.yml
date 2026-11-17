@@ -122,10 +122,11 @@ runs:
       id: merge
       if: ${{ steps.image-source.outputs.source == 'artifact' || steps.merge-registry.outcome == 'failure' }}
       shell: bash
+      env:
+        ARTIFACT: ${{ inputs.artifact-name }}
+        PLATFORMS: ${{ inputs.platforms }}
       run: |
         set -euo pipefail
-        ARTIFACT="${{ inputs.artifact-name }}"
-        PLATFORMS="${{ inputs.platforms }}"
         rm -f "${ARTIFACT}.tar" "${ARTIFACT}.tar.gz"
 
         echo "── Merging per-platform archives into multi-arch image ──"
@@ -190,10 +191,11 @@ runs:
 
     - name: Verify merged archive
       shell: bash
+      env:
+        ARTIFACT: ${{ inputs.artifact-name }}
+        PLATFORMS: ${{ inputs.platforms }}
       run: |
         set -euo pipefail
-        ARTIFACT="${{ inputs.artifact-name }}"
-        PLATFORMS="${{ inputs.platforms }}"
 
         TAR_SIZE=$(stat --format=%s "${ARTIFACT}.tar.gz" 2>/dev/null || stat -f%z "${ARTIFACT}.tar.gz" 2>/dev/null)
         TAR_SIZE_MB=$(awk "BEGIN {printf \"%.1f\", $TAR_SIZE / 1048576}")

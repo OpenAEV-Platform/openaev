@@ -1727,14 +1727,19 @@ public class ConditionServiceTest {
     void shouldLinkAllExistingRootConditionsToStep() {
       Step step = new Step();
       step.setId("step-1");
+      Tenant tenant = new Tenant();
+      tenant.setId("tenant-1");
+      step.setTenant(tenant);
 
       Condition root1 = new Condition();
       root1.setId("c-1");
       Condition root2 = new Condition();
       root2.setId("c-2");
 
-      when(conditionRepository.findById("c-1")).thenReturn(Optional.of(root1));
-      when(conditionRepository.findById("c-2")).thenReturn(Optional.of(root2));
+      when(conditionRepository.findByIdAndTenantId("c-1", "tenant-1"))
+          .thenReturn(Optional.of(root1));
+      when(conditionRepository.findByIdAndTenantId("c-2", "tenant-1"))
+          .thenReturn(Optional.of(root2));
 
       conditionService.linkExistingConditionsToStep(step, List.of("c-1", "c-2"));
 
@@ -1754,6 +1759,7 @@ public class ConditionServiceTest {
       conditionService.linkExistingConditionsToStep(step, List.of());
 
       verify(conditionRepository, never()).findById(anyString());
+      verify(conditionRepository, never()).findByIdAndTenantId(anyString(), anyString());
       verify(conditionRepository, never()).save(any());
     }
   }
@@ -1901,7 +1907,8 @@ public class ConditionServiceTest {
       Step linkedStep = new Step();
       linkedStep.setId(linkedStepId);
 
-      when(stepRepository.findAllById(List.of(linkedStepId))).thenReturn(List.of(linkedStep));
+      when(stepRepository.findAllByIdInTenant(List.of(linkedStepId), Tenant.DEFAULT_TENANT_UUID))
+          .thenReturn(List.of(linkedStep));
       when(conditionRepository.save(any(Condition.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1914,7 +1921,7 @@ public class ConditionServiceTest {
       assertEquals(ConditionType.AND, createdRoot.getType());
       assertEquals(1, createdRoot.getConditionChildren().size());
 
-      verify(stepRepository).findAllById(List.of(linkedStepId));
+      verify(stepRepository).findAllByIdInTenant(List.of(linkedStepId), Tenant.DEFAULT_TENANT_UUID);
 
       Condition savedChild = createdRoot.getConditionChildren().getFirst();
       assertEquals("445", savedChild.getValue());
@@ -1941,6 +1948,7 @@ public class ConditionServiceTest {
       existingRoot.setDescription("old-desc");
       existingRoot.setWorkflowId("wf-old");
       existingRoot.setType(ConditionType.OR);
+      existingRoot.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
 
       Condition oldChild = new Condition();
       oldChild.setConditionParent(existingRoot);
@@ -1974,7 +1982,8 @@ public class ConditionServiceTest {
       linkedStep.setId(linkedStepId);
 
       when(conditionRepository.findById(rootId)).thenReturn(Optional.of(existingRoot));
-      when(stepRepository.findAllById(List.of(linkedStepId))).thenReturn(List.of(linkedStep));
+      when(stepRepository.findAllByIdInTenant(List.of(linkedStepId), Tenant.DEFAULT_TENANT_UUID))
+          .thenReturn(List.of(linkedStep));
       when(conditionRepository.save(any(Condition.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 

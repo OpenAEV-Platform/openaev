@@ -89,6 +89,16 @@ class AssetGroupApiTest extends IntegrationTest {
    */
   private String writeTenantId;
 
+  /**
+   * A create resolves the tags of its body in the tenant it writes to, so a tag named in the body
+   * belongs to that tenant; the fixture would otherwise seed it in the default one.
+   */
+  private Tag saveTagOfWriteTenant() {
+    Tag tag = TagFixture.getTagNoId();
+    tag.setTenant(new Tenant(writeTenantId));
+    return tagRepository.save(tag);
+  }
+
   @DisplayName(
       "Given valid AssetGroupInput, should create and get assetGroup without dynamic filter successfully")
   @Test
@@ -96,7 +106,7 @@ class AssetGroupApiTest extends IntegrationTest {
   void given_validAssetGroupInput_should_createAndGetAssetGroupWithoutDynamicFilterSuccessfully()
       throws Exception {
     // -- PREPARE --
-    Tag tag = tagRepository.save(TagFixture.getTagNoId());
+    Tag tag = saveTagOfWriteTenant();
     AssetGroupInput assetGroupInput = createAssetGroupWithTags("Asset group", List.of(tag.getId()));
     Filters.FilterGroup filterGroupExpected = Filters.FilterGroup.defaultFilterGroup();
 
@@ -214,7 +224,7 @@ class AssetGroupApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void should_createOneAssetGroupWithJavaAndOneWithSQLAndCompareThem() throws Exception {
     // -- PREPARE --
-    Tag tag = tagRepository.save(TagFixture.getTagNoId());
+    Tag tag = saveTagOfWriteTenant();
     AssetGroupInput assetGroupInput = createAssetGroupWithTags("Asset group", List.of(tag.getId()));
 
     // --EXECUTE--

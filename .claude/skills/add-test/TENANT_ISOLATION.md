@@ -21,9 +21,22 @@ This skill pairs with:
 - the `activate-tenant-table` skill
   (`.claude/skills/activate-tenant-table/SKILL.md`): its isolation-test phase
   produces exactly this file, first red, then green as the wiring lands;
-- the future "tenant scope coverage" CI gate: once it lands, this file will
-  carry `@CoversTenantIsolation("{table}")`. Until then the template puts the
-  annotation in a comment.
+- the tenant isolation coverage gate (`TenantIsolationCoverageArchTest`): this
+  file carries `@CoversTenantIsolation("{table}")`, and the build fails when an
+  active table has no marked class. The class must be a runnable test on the
+  real stack that declares the table in its activation list (a `probe` pin that
+  includes it, or a `@DynamicPropertySource` registering
+  `ProductionActiveTables.names()`: a class that declares nothing is not armed
+  by the gating CI run), seed two tenants and assert a cross-tenant refusal
+  (read, write or delete) on the table itself, not through a parent row.
+
+Three architecture tests guard the activation list; each answers one question:
+
+| Test | Question |
+|---|---|
+| `TenantTableActivationCoverageArchTest` | Is the table active or deferred? |
+| `PinnedActiveTablesArchTest` | Does a class's activation list follow production? |
+| `TenantIsolationCoverageArchTest` | Does each active table have a marked test that meets the bar? |
 
 ## v1 is gone from this skill
 

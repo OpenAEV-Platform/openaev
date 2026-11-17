@@ -46,9 +46,9 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
     Tag tag2 = tagRepository.save(TagFixture.getTagWithText("tag2"));
 
     User user = UserFixture.getUser("John", "Doe", "player@test.com");
-    user.setOrganization(organization);
     user.setTags(Set.of(tag1, tag2));
     User savedUser = userRepository.save(user);
+    userRepository.assignOrganization(savedUser, organization.getTenant().getId(), organization);
     tenantRepository.addUserToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
 
     User userWithoutOrg = UserFixture.getUser("Jane", "Doe", "noorg@test.com");
@@ -63,7 +63,8 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
     input.setSorts(List.of(new SortField("user_email", null, null)));
 
     // EXECUTE
-    Page<PlayerOutput> result = playerService.playerPagination(input);
+    Page<PlayerOutput> result =
+        playerService.playerPagination(Set.of(TenantContext.getCurrentTenant()), input);
 
     // ASSERT
     Assertions.assertNotNull(result);
@@ -103,7 +104,8 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
     input.setSorts(List.of(new SortField("user_email", null, null)));
 
     // When
-    Page<PlayerOutput> result = playerService.playerPagination(input);
+    Page<PlayerOutput> result =
+        playerService.playerPagination(Set.of(TenantContext.getCurrentTenant()), input);
 
     // Then
     Assertions.assertNotNull(result);

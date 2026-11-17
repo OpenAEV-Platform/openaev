@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.api.groups.TenantGroupApi;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -34,9 +33,10 @@ import org.springframework.transaction.annotation.Transactional;
  * Proof for the write-attribution detector. The detector must record a signature for every
  * INSERT/UPDATE that stamps a {@code tenant_id} outside the transaction's v2 scope, and stay silent
  * when the write is correctly attributed. This class proves it on a real statement, the
- * header-route tenant group create, which stamps the row with the default tenant through the
- * ambient {@code TenantContext} while the request scope is tenant B. The scenario creates take
- * their tenant from the request scope on both routes, so they are silent controls here.
+ * header-route create of {@link AmbientTenantRoleWriter}, which stamps the row with the default
+ * tenant through the ambient {@code TenantContext} while the request scope is tenant B. The
+ * scenario creates take their tenant from the request scope on both routes, so they are silent
+ * controls here.
  *
  * <p>It wires the detector for this context only ({@link WriteAttrDetectorTestConfig}) and installs
  * the trigger in a rolled-back transaction, so nothing here changes the shared schema. The
@@ -44,7 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
  * datasource-proxy listener into {@link WriteAttrDetectorRecorder}.
  */
 @Transactional
-@Import(WriteAttrDetectorTestConfig.class)
+@Import({WriteAttrDetectorTestConfig.class, AmbientTenantRoleWriter.Config.class})
 @WithMockUser(isAdmin = true)
 @DisplayName("Write-attribution detector fires on a wrong-tenant write, is silent on a correct one")
 class WriteAttributionDetectorSpikeTest extends IntegrationTest {
@@ -65,9 +65,7 @@ class WriteAttributionDetectorSpikeTest extends IntegrationTest {
   @BeforeEach
   void setUp() throws Exception {
     tenantB = tenantHelper.createTenantWithCurrentUser("wattr-b").getId();
-    entityManager
-        .unwrap(Session.class)
-        .doWork(c -> WriteAttrDetectorTrigger.install(c, TenantTables.selfIsolatedTables()));
+    entityManager.unwrap(Session.class).doWork(c -> WriteAttrDetectorTrigger.install(c));
   }
 
   @AfterEach
@@ -77,24 +75,24 @@ class WriteAttributionDetectorSpikeTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("header route: the group stamped with the default tenant under scope B is detected")
+  @DisplayName("header route: the role stamped with the default tenant under scope B is detected")
   void headerRouteWriteOutsideScopeIsDetected() throws Exception {
     WriteAttrDetectorRecorder.start();
-    String id = postGroup();
+    String id = postRole();
     entityManager.flush();
     WriteAttrDetectorRecorder.stop();
 
     // Ground truth: the row really landed in the default tenant, not in B (the live defect).
-    assertEquals(DEFAULT_TENANT, groupTenant(id), "precondition: the row is misattributed");
+    assertEquals(DEFAULT_TENANT, roleTenant(id), "precondition: the row is misattributed");
 
-    List<WriteAttrDetectorRecorder.Violation> groupViolations =
+    List<WriteAttrDetectorRecorder.Violation> roleViolations =
         WriteAttrDetectorRecorder.violations().stream()
-            .filter(v -> "groups".equals(v.table()))
+            .filter(v -> "roles".equals(v.table()))
             .toList();
     assertFalse(
-        groupViolations.isEmpty(),
-        "the detector must record a signature for the group stamped outside the request scope");
-    WriteAttrDetectorRecorder.Violation violation = groupViolations.get(0);
+        roleViolations.isEmpty(),
+        "the detector must record a signature for the role stamped outside the request scope");
+    WriteAttrDetectorRecorder.Violation violation = roleViolations.get(0);
     assertEquals(
         DEFAULT_TENANT, violation.writtenTenant(), "the recorded written tenant is the default");
     assertEquals(tenantB, violation.scope(), "the recorded scope is the request tenant B");
@@ -223,26 +221,20 @@ class WriteAttributionDetectorSpikeTest extends IntegrationTest {
     return JsonPath.read(response, "$.scenario_id");
   }
 
-  private String postGroup() throws Exception {
-    String response =
-        mvc.perform(
-                post(TenantGroupApi.GROUP_URI)
-                    .header("X-Tenant-Ids", tenantB)
-                    .with(csrf())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"group_name\":\"wattr-group\"}"))
-            .andExpect(status().isOk())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    return JsonPath.read(response, "$.group_id");
+  private String postRole() throws Exception {
+    return mvc.perform(
+            post(AmbientTenantRoleWriter.URI).header("X-Tenant-Ids", tenantB).with(csrf()))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
   }
 
   /** Reads through JDBC, which the statement inspector does not rewrite. */
-  private String groupTenant(String groupId) {
+  private String roleTenant(String roleId) {
     entityManager.flush();
     return jdbcTemplate.queryForObject(
-        "SELECT tenant_id FROM groups WHERE group_id = ?", String.class, groupId);
+        "SELECT tenant_id FROM roles WHERE role_id = ?", String.class, roleId);
   }
 
   private String scenarioTenant(String scenarioId) {

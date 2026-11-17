@@ -31,6 +31,7 @@ import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 interface PayloadPopoverNewProps {
   actionId: string;
   payloadId?: string;
+  grantResourceId?: string;
   name: string;
   onUpdate?: (action: ThreatArsenalAction) => void;
   onDelete?: () => void;
@@ -99,6 +100,7 @@ const handleCleanupExecutorValue = (executor: string, command: string): string |
 const ThreatArsenalActionPopover = ({
   actionId,
   payloadId,
+  grantResourceId,
   name,
   onUpdate,
   onDuplicate,
@@ -207,8 +209,8 @@ const ThreatArsenalActionPopover = ({
   };
 
   const hasDuplicateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
-  const hasUpdateCapability = hasDuplicateCapability || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
-  const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
+  const hasUpdateCapability = hasDuplicateCapability || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, grantResourceId);
+  const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, grantResourceId);
 
   const duplicateOff = !hasDuplicateCapability || !!disableDuplicate;
   const updateOff = !hasUpdateCapability || !!disableUpdate;

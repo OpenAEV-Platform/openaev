@@ -21,7 +21,8 @@ import lombok.Data;
       EndpointTarget.class,
       AgentTarget.class,
       PlayerTarget.class,
-      AiTargetTarget.class
+      AiTargetTarget.class,
+      ManualTarget.class
     },
     discriminatorMapping = {
       @DiscriminatorMapping(value = "ASSETS_GROUPS", schema = AssetGroupTarget.class),
@@ -30,6 +31,7 @@ import lombok.Data;
       @DiscriminatorMapping(value = "PLAYERS", schema = PlayerTarget.class),
       @DiscriminatorMapping(value = "AGENT", schema = AgentTarget.class),
       @DiscriminatorMapping(value = "AI_TARGETS", schema = AiTargetTarget.class),
+      @DiscriminatorMapping(value = "MANUAL", schema = ManualTarget.class),
     })
 @JsonInclude(NON_NULL)
 public abstract class InjectTarget {
@@ -61,6 +63,9 @@ public abstract class InjectTarget {
 
   @JsonProperty("target_prevention_status")
   private BaseInjectExpectation.EXPECTATION_STATUS targetPreventionStatus;
+
+  @JsonProperty("target_logging_status")
+  private BaseInjectExpectation.EXPECTATION_STATUS targetLoggingStatus;
 
   @JsonProperty("target_vulnerability_status")
   private BaseInjectExpectation.EXPECTATION_STATUS targetVulnerabilityStatus;

@@ -143,7 +143,7 @@ class TenantDeleteCascadeSchemaTest extends IntegrationTest {
           "collectors.fk_collector_type_ref -> collector_types",
           "removed by its own tenant_id cascade; a collector's type is a collector type of its own"
               + " tenant",
-          "payloads.fk_payload_collector_type -> collector_types",
+          "payload_identities.payload_identities_collector_type_fk -> collector_types",
           "removed by its own tenant_id cascade; a payload's collector type is a collector type of"
               + " its own tenant",
           "detection_remediations.fk_remediation_collector_type -> collector_types",

@@ -14,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.AmbientTenantBridge;
 import io.openaev.database.model.Base;
+import io.openaev.database.model.Document;
 import io.openaev.database.model.DualScopeBase;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
@@ -50,14 +51,20 @@ public class GenericJsonApiImporter<T extends Base> {
   private final FileService fileService;
   private final AmbientTenantBridge ambientTenantBridge;
 
+  /** A related resource of a type {@code types} does not allow is skipped, not built nor bound. */
   @Transactional
   public T handleImportEntity(
       JsonApiDocument<ResourceObject> doc,
       IncludeOptions includeOptions,
       Function<T, T> sanityCheck,
-      String writeTenantId) {
+      String writeTenantId,
+      ImportTypes types) {
     if (doc == null || doc.data() == null) {
       throw new IllegalArgumentException("Data is required to import document");
+    }
+    if (!types.allowsRoot(doc.data().type())) {
+      throw new IllegalArgumentException(
+          "Unsupported resource type for this import: " + doc.data().type());
     }
     IncludeOptions options =
         includeOptions == null ? IncludeOptions.of(emptyMap()) : includeOptions;
@@ -65,14 +72,15 @@ public class GenericJsonApiImporter<T extends Base> {
     // through the ambient tenant, as are the rows a cascade creates, so the whole import runs with
     // the ambient tenant aligned on the write tenant: one request, one tenant.
     return ambientTenantBridge.callInTenant(
-        writeTenantId, () -> importEntity(doc, options, sanityCheck, writeTenantId));
+        writeTenantId, () -> importEntity(doc, options, sanityCheck, writeTenantId, types));
   }
 
   private T importEntity(
       JsonApiDocument<ResourceObject> doc,
       IncludeOptions includeOptions,
       Function<T, T> sanityCheck,
-      String writeTenantId) {
+      String writeTenantId,
+      ImportTypes types) {
     Map<String, ResourceObject> includedMap = toMap(doc.included());
     // Cache keyed by id, with a boolean indicating whether the entity should be persisted or not at
     // the end
@@ -88,7 +96,8 @@ public class GenericJsonApiImporter<T extends Base> {
             includeOptions,
             true,
             false,
-            writeTenantId);
+            writeTenantId,
+            types);
     T toPersist = Optional.ofNullable(sanityCheck).map(check -> check.apply(entity)).orElse(entity);
 
     // An activated table has a non-nullable tenant_id and no TenantBaseListener to fill it, so a
@@ -131,9 +140,19 @@ public class GenericJsonApiImporter<T extends Base> {
 
   public void handleImportDocument(
       JsonApiDocument<ResourceObject> doc, Map<String, byte[]> extras, String writeTenantId) {
+    handleImportDocument(doc, extras, writeTenantId, ImportTypes.ANY);
+  }
+
+  public void handleImportDocument(
+      JsonApiDocument<ResourceObject> doc,
+      Map<String, byte[]> extras,
+      String writeTenantId,
+      ImportTypes types) {
     if (doc.included() != null) {
       for (Object o : doc.included()) {
-        if (o instanceof ResourceObject ro && "document".equals(ro.type())) {
+        if (o instanceof ResourceObject ro
+            && resolveType(Document.class).equals(ro.type())
+            && types.allowsRelated(ro.type())) {
           Map<String, Object> attrs = ro.attributes();
           if (attrs != null && attrs.containsKey("document_name")) {
             String target = String.valueOf(attrs.get("document_name"));
@@ -212,6 +231,7 @@ public class GenericJsonApiImporter<T extends Base> {
    *     (e.g. skip a DetectionRemediation if its Collector is not installed).
    * @param writeTenantId the tenant the import writes into; a relationship id that is not in the
    *     bundle is bound only to a row of that tenant
+   * @param types the resource types the import may build
    * @return the resolved or newly created entity, or {@code null} if the resource is null
    * @throws IllegalArgumentException if {@code ifExistsOnly} is true and the entity is not found
    */
@@ -223,7 +243,8 @@ public class GenericJsonApiImporter<T extends Base> {
       IncludeOptions includeOptions,
       boolean rootEntity,
       boolean ifExistsOnly,
-      String writeTenantId) {
+      String writeTenantId,
+      ImportTypes types) {
     // Sanity check
     if (resource == null) {
       return null;
@@ -304,7 +325,8 @@ public class GenericJsonApiImporter<T extends Base> {
         entityCache,
         entitiesNeedingRemapping,
         includeOptions,
-        writeTenantId);
+        writeTenantId,
+        types);
 
     return entity;
   }
@@ -326,6 +348,9 @@ public class GenericJsonApiImporter<T extends Base> {
       setField(entity, f, cast);
       this.addToRemapping(entitiesNeedingRemapping, cast);
     }
+    if (entity instanceof JsonApiExtraAttributes extra) {
+      extra.applyExtraAttributes(attributes);
+    }
   }
 
   private void applyRelationships(
@@ -335,7 +360,8 @@ public class GenericJsonApiImporter<T extends Base> {
       Map<String, Pair<T, Boolean>> entityCache,
       List<CanRemapWeakRelationships> entitiesNeedingRemapping,
       IncludeOptions includeOptions,
-      String writeTenantId) {
+      String writeTenantId,
+      ImportTypes types) {
     if (entity == null || rels == null || rels.isEmpty()) {
       return;
     }
@@ -369,7 +395,8 @@ public class GenericJsonApiImporter<T extends Base> {
                     entitiesNeedingRemapping,
                     includeOptions,
                     ifExistsOnly,
-                    writeTenantId);
+                    writeTenantId,
+                    types);
             if (child != null) {
               target.add(child);
               setInverseRelation(child, entity);
@@ -399,7 +426,8 @@ public class GenericJsonApiImporter<T extends Base> {
                     entitiesNeedingRemapping,
                     includeOptions,
                     ifExistsOnly,
-                    writeTenantId)
+                    writeTenantId,
+                    types)
                 : null;
         setField(entity, f, child);
         if (child != null) {
@@ -430,7 +458,8 @@ public class GenericJsonApiImporter<T extends Base> {
       List<CanRemapWeakRelationships> entitiesNeedingRemapping,
       IncludeOptions includeOptions,
       boolean ifExistsOnly,
-      String writeTenantId) {
+      String writeTenantId,
+      ImportTypes types) {
     if (resourceIdentifier == null) {
       return null;
     }
@@ -438,8 +467,15 @@ public class GenericJsonApiImporter<T extends Base> {
     String id = resourceIdentifier.id();
     String type = resourceIdentifier.type();
 
-    // Available in the bundle
     ResourceObject included = includedMap.get(id);
+    // A side-loaded resource is built with its own type, which may differ from the reference's.
+    String builtType = included != null ? included.type() : type;
+    if (!types.allowsRelated(builtType)) {
+      log.warn("Skipping resource of type '{}' (id='{}'): outside the import", builtType, id);
+      return null;
+    }
+
+    // Available in the bundle
     if (included != null) {
       return buildEntity(
           included,
@@ -449,7 +485,8 @@ public class GenericJsonApiImporter<T extends Base> {
           includeOptions,
           false,
           ifExistsOnly,
-          writeTenantId);
+          writeTenantId,
+          types);
     }
 
     // Not present in the bundle: a reference to a row of the target instance

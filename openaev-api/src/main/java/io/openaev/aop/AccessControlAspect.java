@@ -128,14 +128,15 @@ public class AccessControlAspect {
     // and, with no selector, every tenant the caller belongs to, except that a
     // @RequireTenantSelector parameter then narrows a multi-tenant caller to the default tenant.
     // So the caller must be authorized in the ambient tenant and in each other tenant of the
-    // scope. In each tenant, the check reads the capabilities and the tenant bypass the caller
-    // holds there. A grant is not tied to a tenant by its lookup, so it answers the same in every
-    // tenant. The resource's parent is resolved once, in the ambient tenant, and never again per
-    // tenant.
+    // scope. In each tenant, the check reads the capabilities, the tenant bypass and the grants the
+    // caller holds there: a grant counts in the tenant of the group that holds it, and a platform
+    // group's grant in every tenant. The resource's parent is resolved once, in the ambient tenant,
+    // and never again per tenant.
     final User user = principal;
     String ambientTenant = TenantContext.getCurrentTenant();
     PermissionService.CheckedResource resource =
         permissionService.checkedResource(
+            requestTxCtx(args),
             ambientTenant,
             resourceId,
             accessControl.resourceType(),
@@ -184,6 +185,26 @@ public class AccessControlAspect {
       }
     }
     return List.of();
+  }
+
+  /**
+   * The controller method's own {@link TxCtx} argument, resolved by {@code TxCtxArgumentResolver}
+   * before this advice runs. {@link PermissionService#checkedResource} needs it to load a parent
+   * that is not yet v2-active (an inject) in the request's own scope rather than the ambient tenant
+   * alone. {@link TxCtx#missing()} when the method declares none: {@code
+   * TxCtxScopeUtils#requestReadScope} resolves that to the ambient tenant alone (never an empty,
+   * fail-closed scope), narrower than the fully unscoped by-id load the inject parent used before
+   * {@code InjectService#findInScope} existed. Every {@code @AccessControl(resourceType = INJECT)}
+   * endpoint today declares a {@code TxCtx} parameter, so this fallback is not exercised in
+   * production; it only guards a future endpoint that omits the parameter.
+   */
+  private static TxCtx requestTxCtx(Object[] args) {
+    for (Object arg : args) {
+      if (arg instanceof TxCtx ctx) {
+        return ctx;
+      }
+    }
+    return TxCtx.missing();
   }
 
   public record HttpMappingInfo(

@@ -40,7 +40,9 @@ Escalate to **Opus 4.6** if the PR introduces breaking changes or significant AP
 | 🟡 **MEDIUM** | Inconsistent HTTP status codes (e.g. `200` instead of `201` on create) | `suggestion (non-blocking):` — API contract inconsistency |
 | 🟡 **MEDIUM** | Field removed or renamed in Output DTO (soft breaking change) | `suggestion (non-blocking):` — flag for consumer impact |
 | 🟡 **MEDIUM** | Missing `@JsonProperty` on DTO field with non-obvious name | `suggestion (non-blocking):` — contract ambiguity |
-| 🟢 **LOW** | Swagger description missing or too terse | `note:` — documentation quality |
+| 🟡 **MEDIUM** | New output with fields no screen or client reads yet, or one output shared by kinds that leave fields empty | `suggestion (non-blocking):` — start minimal, one output per kind |
+| 🟡 **MEDIUM** | JSON name not `<object>_<field>` on an entity output | `suggestion (non-blocking):` — naming convention |
+| 🟢 **LOW** | Swagger summary or description too long (over 60 / 120 characters) | `note:` — documentation quality |
 | 🟢 **LOW** | Endpoint naming inconsistency vs existing conventions | `note:` — informational |
 
 ## Review Procedure
@@ -107,7 +109,7 @@ grep -rn "@Operation\|@ApiResponse\|@Parameter\|@Schema" openaev-api/src/main/ja
 ```
 
 For every new public endpoint:
-- ☐ `@Operation(summary = "...", description = "...")` present
+- ☐ `@Operation` present: `summary` ≤ 60 characters, optional `description` ≤ 120 characters
 - ☐ `@ApiResponse` for each HTTP status code the endpoint can return
 - ☐ Complex fields documented with `@Schema`
 
@@ -126,7 +128,7 @@ In addition to **Shared Exceptions** in `AGENTS.md`:
 
 - Legacy controllers in `io.openaev.rest` that are NOT modified in this PR → migration is incremental
 - Output DTOs including `id` field → standard, required for client-side referencing
-- `@Transactional` on controller methods that coordinate multiple service calls → acceptable pattern
+- `@Transactional` on controller methods → acceptable pattern (mapping to the Output reads lazy associations); a new or modified endpoint still calls one service method (see `backend.instructions.md` → Layering)
 - Swagger annotations on `private` or `package-private` methods → not exposed in API docs
 
 ## Output Format

@@ -37,6 +37,21 @@ describe('computeBannerSettings', () => {
     expect(result.bannerHeightNumber).toBe(TOP_BANNER_HEIGHT);
   });
 
+  it('given the register banner is shown should reserve the top banner height', () => {
+    const result = computeBannerSettings(buildSettings(), { isRegisterBannerShown: true });
+
+    expect(result.bannerHeightNumber).toBe(TOP_BANNER_HEIGHT);
+  });
+
+  it('given the register banner is shown on a trial should reserve the top banner height only once', () => {
+    const result = computeBannerSettings(
+      buildSettings({ platform_license: { license_type: LICENSE_OPTION_TRIAL } as PlatformSettings['platform_license'] }),
+      { isRegisterBannerShown: true },
+    );
+
+    expect(result.bannerHeightNumber).toBe(TOP_BANNER_HEIGHT);
+  });
+
   it('given system banner messages should reserve per-message height plus padding', () => {
     const result = computeBannerSettings(
       buildSettings({

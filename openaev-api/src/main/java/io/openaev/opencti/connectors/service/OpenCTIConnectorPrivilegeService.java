@@ -1,5 +1,7 @@
 package io.openaev.opencti.connectors.service;
 
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
 
+  private static final String CONNECTOR_FIRSTNAME = "Security Coverage";
   private static final String CONNECTOR_LASTNAME = "OpenCTI Connector";
 
   LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration;
@@ -34,9 +37,17 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
       TenantGroupService tenantGroupService,
       UserService userService,
       TenantUserService tenantUserService,
+      MarkingClearanceCacheManager markingClearanceCacheManager,
+      TenantWriteScopeResolver writeScopeResolver,
       LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration,
       TenantScopedTransaction tenantTx) {
-    super(tenantRoleService, tenantGroupService, userService, tenantUserService);
+    super(
+        tenantRoleService,
+        tenantGroupService,
+        userService,
+        tenantUserService,
+        markingClearanceCacheManager,
+        writeScopeResolver);
     this.legacyOpenCTIConnectorMigration = legacyOpenCTIConnectorMigration;
     this.tenantTx = tenantTx;
   }
@@ -44,6 +55,11 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
   @Override
   protected WellKnownAccess wellKnownAccess() {
     return ReservedServiceAccount.OPENCTI_CONNECTOR.access();
+  }
+
+  @Override
+  protected boolean receivesEveryMarking() {
+    return true;
   }
 
   /**
@@ -60,7 +76,8 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
     // setScopeOnCurrentTransaction rather than execute(): this method is @Transactional, the
     // transaction is already open and is the unit of work the register/ping flow commits, while
     // the OpenCTI HTTP calls deliberately happen after it, outside any transaction.
-    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(connector.getTenantId()));
+    TxCtx ctx = TxCtx.forTenant(connector.getTenantId());
+    tenantTx.setScopeOnCurrentTransaction(ctx);
 
     String email =
         ReservedServiceAccount.OPENCTI_CONNECTOR.emailPattern().formatted(connector.getId());
@@ -70,7 +87,7 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
 
     Group group =
         ensureWellKnownGroupWithRole(
-            ensureWellKnownRole(connector.getTenantId()), connector.getTenantId());
+            ensureWellKnownRole(ctx, connector.getTenantId()), connector.getTenantId());
     Optional<User> connectorUser =
         userService.findByTokenAndTenantId(connector.getToken(), connector.getTenantId());
     Optional<User> existingEmailUser = userService.findByEmailIgnoreCase(email);
@@ -78,7 +95,7 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
     if (connectorUser.isPresent()) {
       // Token-matched user already exists — update its attributes
       applyUserServiceAttributes(
-          connectorUser.get(), connector.getName(), CONNECTOR_LASTNAME, email, group);
+          connectorUser.get(), CONNECTOR_FIRSTNAME, CONNECTOR_LASTNAME, email, group);
       userService.saveUser(connectorUser.get());
       tenantUserService.attachToTenant(connectorUser.get().getId(), connector.getTenantId());
     } else if (existingEmailUser.isPresent()) {
@@ -93,14 +110,14 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
                   List.of(
                       userService.createUserToken(existingEmailUser.get(), connector.getToken()))));
       applyUserServiceAttributes(
-          existingEmailUser.get(), connector.getName(), CONNECTOR_LASTNAME, email, group);
+          existingEmailUser.get(), CONNECTOR_FIRSTNAME, CONNECTOR_LASTNAME, email, group);
       userService.saveUser(existingEmailUser.get());
       tenantUserService.attachToTenant(existingEmailUser.get().getId(), connector.getTenantId());
     } else {
       // No user exists — create one
       User user =
           userService.createInternalUser(
-              email, connector.getName(), CONNECTOR_LASTNAME, false, connector.getToken());
+              email, CONNECTOR_FIRSTNAME, CONNECTOR_LASTNAME, false, connector.getToken());
       user.setGroups(new ArrayList<>(List.of(group)));
       User savedUser = userService.saveUser(user);
       tenantUserService.attachToTenant(savedUser.getId(), connector.getTenantId());

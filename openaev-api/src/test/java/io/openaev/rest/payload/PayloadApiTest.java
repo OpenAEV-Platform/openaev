@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
@@ -31,6 +32,7 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.collector.form.CollectorCreateInput;
 import io.openaev.rest.payload.form.*;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.CollectorFixture;
@@ -47,7 +49,11 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import java.util.*;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -79,6 +85,8 @@ class PayloadApiTest extends IntegrationTest {
   @Autowired private jakarta.persistence.EntityManager entityManager;
   @Autowired private ManagerFactory managerFactory;
   @Autowired private io.openaev.context.TenantScopedTransaction tenantScopedTransaction;
+  @Autowired private OpenAEVConfig openAEVConfig;
+  @Autowired private CacheManager cacheManager;
 
   @Resource private ObjectMapper objectMapper;
 
@@ -496,7 +504,9 @@ class PayloadApiTest extends IntegrationTest {
               PayloadFixture.createPayloadArgument(
                   "arg_username", PrimitiveType.Username, "admin", null),
               PayloadFixture.createPayloadArgument(
-                  "arg_targeted_asset", PrimitiveType.TargetedAsset, "hostname", "-u")));
+                  "arg_targeted_asset", PrimitiveType.TargetedAsset, "hostname", "-u"),
+              PayloadFixture.createPayloadArgument(
+                  "arg_document", PrimitiveType.Document, "document-id", null)));
 
       String response =
           mvc.perform(
@@ -518,7 +528,8 @@ class PayloadApiTest extends IntegrationTest {
               "arg_text", "text",
               "arg_port", "port",
               "arg_username", "username",
-              "arg_targeted_asset", "targeted-asset");
+              "arg_targeted_asset", "targeted-asset",
+              "arg_document", "document");
 
       Map<String, String> actualArgumentTypes = new HashMap<>();
       ArrayNode contractFields = (ArrayNode) injectorContract.getConvertedContent().get("fields");
@@ -527,6 +538,10 @@ class PayloadApiTest extends IntegrationTest {
             String key = f.get("key").asText();
             if (expectedArgumentTypes.containsKey(key) && f.has("argumentType")) {
               actualArgumentTypes.put(key, f.get("argumentType").asText());
+            }
+            if ("arg_document".equals(key)) {
+              assertEquals("document", f.get("type").asText());
+              assertEquals("document-id", f.get("defaultValue").asText());
             }
           });
 
@@ -615,6 +630,79 @@ class PayloadApiTest extends IntegrationTest {
       assertEquals("text", scanField.get("type").asText());
       assertEquals("srv-01", scanField.get("defaultValue").asText());
       assertEquals("host", scanField.get("argumentType").asText());
+    }
+  }
+
+  @Nested
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  @DisplayName("Logging expectation in the payload contract")
+  class LoggingExpectationInContract {
+
+    private String originalDevFeatures;
+
+    @BeforeEach
+    void saveDevFeatures() {
+      originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
+    }
+
+    @AfterEach
+    void restoreDevFeatures() {
+      // The config bean is shared by the Spring context: restore the flags of the test profile
+      openAEVConfig.setEnabledDevFeatures(originalDevFeatures);
+      Optional.ofNullable(cacheManager.getCache("global")).ifPresent(Cache::clear);
+    }
+
+    @ParameterizedTest(name = "flag enabled: {0}")
+    @ValueSource(booleans = {true, false})
+    @DisplayName("given a payload expecting logging should offer it only while the flag is on")
+    void given_payload_expecting_logging_should_offer_it_only_while_flag_is_on(boolean flagOn)
+        throws Exception {
+      // Arrange
+      openAEVConfig.setEnabledDevFeatures(
+          flagOn ? PreviewFeature.LOGGING_EXPECTATION.getValue() : "");
+      Optional.ofNullable(cacheManager.getCache("global")).ifPresent(Cache::clear);
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      PayloadCreateInput input =
+          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
+              List.of(domain.getId()));
+      input.setExpectations(
+          new BaseInjectExpectation.EXPECTATION_TYPE[] {
+            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+            BaseInjectExpectation.EXPECTATION_TYPE.LOGGING
+          });
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(PAYLOAD_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      InjectorContract injectorContract =
+          findInjectorContractByPayloadId(JsonPath.read(response, "$.payload_id"));
+      assertNotNull(injectorContract);
+      JsonNode expectationsField = null;
+      for (JsonNode field : injectorContract.getConvertedContent().get("fields")) {
+        if ("expectations".equals(field.path("key").asText())) {
+          expectationsField = field;
+        }
+      }
+      assertNotNull(expectationsField, "Contract must contain the expectations field");
+      Optional<JsonNode> logging = Optional.empty();
+      for (JsonNode expectation : expectationsField.get("availableExpectations")) {
+        if ("LOGGING".equals(expectation.path("expectation_type").asText())) {
+          logging = Optional.of(expectation);
+        }
+      }
+      assertEquals(flagOn, logging.isPresent());
+      logging.ifPresent(
+          expectation -> assertTrue(expectation.path("expectation_is_predefined").asBoolean()));
     }
   }
 
@@ -872,6 +960,40 @@ class PayloadApiTest extends IntegrationTest {
               String errorMessage = result.getResolvedException().getMessage();
               assertTrue(errorMessage.contains("Payload architecture cannot be null"));
             });
+  }
+
+  @Test
+  @DisplayName("Upsert leaves a catalogue version of the same external ID alone")
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_PAYLOADS},
+      autoJoinDefaultTenant = true)
+  void given_catalogueVersionWithSameExternalId_should_upsertAPayloadOfItsOwn() throws Exception {
+    // Arrange
+    Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+    Payload catalogueVersion = PayloadFixture.createDefaultCommand();
+    catalogueVersion.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    catalogueVersion.setExternalId("shared-external-id");
+    catalogueVersion.setVersion(Payload.FIRST_VERSION);
+    catalogueVersion.getIdentity().setRepository("filigran/openaev-payloads");
+    catalogueVersion = payloadRepository.save(catalogueVersion);
+    PayloadUpsertInput upsertInput =
+        PayloadInputFixture.getDefaultCommandPayloadUpsertInput(Set.of(domain));
+    upsertInput.setExternalId("shared-external-id");
+
+    // Act
+    String response =
+        mvc.perform(
+                post(PAYLOAD_URI + "/upsert")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(upsertInput))
+                    .with(csrf()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Assert
+    assertNotEquals(catalogueVersion.getId(), JsonPath.read(response, "$.payload_id"));
   }
 
   @Test
@@ -1282,8 +1404,15 @@ class PayloadApiTest extends IntegrationTest {
       String payloadId = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO payloads (payload_id, payload_type, payload_name, payload_status, payload_source, tenant_id, payload_created_at, payload_updated_at) "
-                  + "VALUES (:id, 'Command', :name, 'VERIFIED', 'MANUAL', :tenantId, now(), now())")
+              "INSERT INTO payload_identities (payload_identity_id, tenant_id, payload_source)"
+                  + " VALUES (:id, :tenantId, 'MANUAL')")
+          .setParameter("id", payloadId)
+          .setParameter("tenantId", tenant.getId())
+          .executeUpdate();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO payloads (payload_id, payload_type, payload_name, payload_status, tenant_id, payload_identity, payload_version, payload_created_at, payload_updated_at) "
+                  + "VALUES (:id, 'Command', :name, 'VERIFIED', :tenantId, :id, '1.0.0', now(), now())")
           .setParameter("id", payloadId)
           .setParameter("name", name)
           .setParameter("tenantId", tenant.getId())

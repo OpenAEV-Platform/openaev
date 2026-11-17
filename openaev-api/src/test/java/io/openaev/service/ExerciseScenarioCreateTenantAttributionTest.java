@@ -286,7 +286,8 @@ class ExerciseScenarioCreateTenantAttributionTest extends IntegrationTest {
               () -> {
                 MockHttpServletResponse response = new MockHttpServletResponse();
                 try {
-                  scenarioService.exportScenario(scenarioId, false, false, false, false, response);
+                  scenarioService.exportScenario(
+                      TxCtx.forTenant(tenantA), scenarioId, false, false, false, false, response);
                 } catch (Exception e) {
                   throw new IllegalStateException(e);
                 }

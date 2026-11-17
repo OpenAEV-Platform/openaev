@@ -3,6 +3,7 @@ package io.openaev.utils;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.database.model.NewsFeedType;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -92,6 +93,66 @@ class NewsFeedUtilsTest {
               NewsFeedUtils.isUnsubscribed(
                   NewsFeedType.RESOURCE_SCENARIO, new String[] {NewsFeedUtils.ALL_TYPES}))
           .isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("subscribedTypes")
+  class SubscribedTypes {
+
+    @Test
+    @DisplayName("Given no unsubscribed type, should subscribe to every known type")
+    void given_noUnsubscribedType_should_subscribeToEveryType() {
+      // Act & Assert
+      assertThat(NewsFeedUtils.subscribedTypes(new String[0]))
+          .containsExactlyInAnyOrder(NewsFeedType.values());
+    }
+
+    @Test
+    @DisplayName("Given the type unsubscribed, should not subscribe to it")
+    void given_typeUnsubscribed_should_notSubscribeToIt() {
+      // Act & Assert
+      assertThat(NewsFeedUtils.subscribedTypes(new String[] {"RESOURCE_SCENARIO"})).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Given the all-types marker, should subscribe to nothing")
+    void given_allTypesMarker_should_subscribeToNothing() {
+      // Act & Assert
+      assertThat(NewsFeedUtils.subscribedTypes(new String[] {NewsFeedUtils.ALL_TYPES})).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("toUnsubscribedTypes")
+  class ToUnsubscribedTypes {
+
+    @Test
+    @DisplayName("Given every type subscribed, should unsubscribe from nothing")
+    void given_everyTypeSubscribed_should_unsubscribeFromNothing() {
+      // Act & Assert
+      assertThat(NewsFeedUtils.toUnsubscribedTypes(List.of(NewsFeedType.values()))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Given no type subscribed, should store the all-types marker")
+    void given_noTypeSubscribed_should_storeAllTypesMarker() {
+      // Act & Assert
+      assertThat(NewsFeedUtils.toUnsubscribedTypes(List.of()))
+          .containsExactly(NewsFeedUtils.ALL_TYPES);
+    }
+
+    @Test
+    @DisplayName("Given a stored value, should round-trip through subscribedTypes")
+    void given_storedValue_should_roundTrip() {
+      // Arrange
+      List<NewsFeedType> subscribed = List.of(NewsFeedType.RESOURCE_SCENARIO);
+
+      // Act
+      String[] stored = NewsFeedUtils.toUnsubscribedTypes(subscribed);
+
+      // Assert
+      assertThat(NewsFeedUtils.subscribedTypes(stored)).isEqualTo(subscribed);
     }
   }
 }

@@ -233,6 +233,7 @@ public class PresetTenantData {
               Capability.ACCESS_THREAT_ARSENALS,
               Capability.MANAGE_THREAT_ARSENALS,
               Capability.DELETE_THREAT_ARSENALS,
+              Capability.REVOKE_THREAT_ARSENALS,
               Capability.ACCESS_DASHBOARDS,
               Capability.MANAGE_DASHBOARDS,
               Capability.DELETE_DASHBOARDS,

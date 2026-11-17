@@ -100,11 +100,6 @@ class ReproInjectTypeStreamTest extends IntegrationTest {
               });
       doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
 
-      ExecutableInject ei =
-          injectHelper.getInjectsToRun().stream()
-              .filter(e -> injectId.equals(e.getInjection().getInject().getId()))
-              .findFirst()
-              .orElseThrow();
       Method m =
           InjectsExecutionJob.class.getDeclaredMethod("executeInject", ExecutableInject.class);
       m.setAccessible(true);
@@ -112,7 +107,7 @@ class ReproInjectTypeStreamTest extends IntegrationTest {
           tenant,
           () -> {
             try {
-              m.invoke(job, ei);
+              m.invoke(job, injectHelper.executableInject(injectId).orElseThrow());
             } catch (Exception e) {
               System.out.println("REPRO execute FAILED " + e.getCause());
             }

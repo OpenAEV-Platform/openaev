@@ -14,6 +14,7 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutableInjectDTO;
 import io.openaev.execution.ExecutableInjectDTOMapper;
 import io.openaev.execution.ExecutionExecutorService;
+import io.openaev.execution.UnexecutableInjectException;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
@@ -21,6 +22,7 @@ import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.List;
 import java.util.Optional;
@@ -61,6 +63,7 @@ class ExecutorTest {
   @Mock private ExecutableInjectDTOMapper executableInjectDTOMapper;
   @Mock private ConnectorInstanceService connectorInstanceService;
   @Mock private InjectExpectationService injectExpectationService;
+  @Mock private PayloadRevocationService payloadRevocationService;
 
   @InjectMocks private Executor executor;
 
@@ -98,6 +101,20 @@ class ExecutorTest {
     // By default the targets were already resolved by the caller, as scheduled execution does
     when(executableInject.getResolvedAssetsToExecute())
         .thenReturn(new ResolvedAssetsToExecute(List.of(), Set.of()));
+  }
+
+  @Test
+  @DisplayName("execute refuses an inject whose payload version is revoked, with the reason")
+  void given_revokedPayload_should_refuseTheInjectWithTheReason() {
+    // Arrange
+    when(payloadRevocationService.refusal(inject))
+        .thenReturn(Optional.of("Payload revoked: Deletes user files"));
+
+    // Act & Assert
+    assertThatThrownBy(() -> executor.execute(executableInject))
+        .isInstanceOf(UnexecutableInjectException.class)
+        .hasMessage("Payload revoked: Deletes user files");
+    verifyNoInteractions(injectorRepository, injectStatusService);
   }
 
   @Nested
@@ -140,17 +157,16 @@ class ExecutorTest {
     @Test
     @DisplayName(
         "Given inject without a populated injector field and no linked injector for the tenant, execute should fail with a clear error")
-    void given_noLinkedInjectorForTenant_should_throwIllegalStateException() {
+    void given_noLinkedInjectorForTenant_should_throwUnexecutableInjectException() {
       // -------- Arrange --------
       when(inject.getInjector()).thenReturn(null);
-      when(inject.getType()).thenReturn("openaev_test_injector");
       when(injectorRepository.findFirstByContractsCompositeIdIdAndTenantId(CONTRACT_ID, TENANT_ID))
           .thenReturn(Optional.empty());
 
       // -------- Act / Assert --------
       assertThatThrownBy(() -> executor.execute(executableInject))
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("Injector not found for type");
+          .isInstanceOf(UnexecutableInjectException.class)
+          .hasMessage("No injector is registered for the injector contract " + CONTRACT_ID);
     }
 
     @Test
@@ -178,6 +194,55 @@ class ExecutorTest {
 
       // -------- Assert --------
       verifyNoInteractions(injectorRepository);
+    }
+  }
+
+  @Nested
+  @DisplayName("execute - final failures are reported as unexecutable")
+  class FinalFailures {
+
+    @Test
+    @DisplayName(
+        "Given an injector whose connector instance is not started, execute should fail as unexecutable before any status change")
+    void given_stoppedConnectorInstance_should_throwUnexecutableInjectException() {
+      // -------- Arrange --------
+      Injector injector = new Injector();
+      injector.setId("injector-stopped");
+      injector.setType("openaev_nmap");
+      when(inject.getInjector()).thenReturn(injector);
+      when(connectorInstanceService.hasStartedConnectorInstanceForInjector("injector-stopped"))
+          .thenReturn(false);
+
+      // -------- Act / Assert --------
+      assertThatThrownBy(() -> executor.execute(executableInject))
+          .isInstanceOf(UnexecutableInjectException.class)
+          .hasMessage("No started connector instance found for injector type: openaev_nmap");
+      verifyNoInteractions(injectStatusService, executionExecutorService, rabbitmqService);
+    }
+
+    @Test
+    @DisplayName("Given an inject without contract, execute should fail as unexecutable")
+    void given_injectWithoutContract_should_throwUnexecutableInjectException() {
+      // -------- Arrange --------
+      when(inject.getInjectorContract()).thenReturn(Optional.empty());
+
+      // -------- Act / Assert --------
+      assertThatThrownBy(() -> executor.execute(executableInject))
+          .isInstanceOf(UnexecutableInjectException.class)
+          .hasMessage("Inject does not have a contract");
+    }
+
+    @Test
+    @DisplayName("Given an inject without content, directExecute should fail as unexecutable")
+    void given_injectWithoutContent_should_throwUnexecutableInjectException() {
+      // -------- Arrange --------
+      when(executableInject.isDirect()).thenReturn(true);
+      when(inject.getContent()).thenReturn(null);
+
+      // -------- Act / Assert --------
+      assertThatThrownBy(() -> executor.directExecute(executableInject))
+          .isInstanceOf(UnexecutableInjectException.class)
+          .hasMessage("Inject is empty");
     }
   }
 

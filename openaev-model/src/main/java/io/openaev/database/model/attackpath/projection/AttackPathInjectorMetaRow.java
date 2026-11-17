@@ -6,4 +6,4 @@ package io.openaev.database.model.attackpath.projection;
  * without fragmenting the groups; this small distinct read supplies them instead.
  */
 public record AttackPathInjectorMetaRow(
-    String sourceInjector, String contractExternalId, String injectorType) {}
+    String sourceInjector, String contractExternalId, String injectorType, String tenantId) {}

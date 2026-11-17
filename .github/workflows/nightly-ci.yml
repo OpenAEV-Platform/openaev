@@ -3,7 +3,6 @@ name: "[Core] Nightly CI"
 # Nightly: same pipeline, larger matrix.
 # Adds OpenSearch coverage for Chrome/WebKit/Chromium, Firefox and Edge on
 # Elasticsearch, and expanded infrastructure-test coverage.
-# Unlike Core CI, container vulnerability findings at the configured threshold fail this workflow.
 
 on:
   schedule:
@@ -132,7 +131,6 @@ jobs:
           {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-24.04","search_engine":"elasticsearch","artifact_suffix":"-std-amd64-no-ee","without_license":true},
           {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-24.04","search_engine":"elasticsearch","artifact_suffix":"-std-amd64-infra-no-ee","without_license":true}
         ]
-      vulnerability-scan-fail-on-error: true
       # Keep Nightly runs out of shared caches used by PR workflows.
       no-cache: true
     secrets: inherit

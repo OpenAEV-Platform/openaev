@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.Capability;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
  * bypass RBAC; this one runs as a non-admin that is a member of two tenants and holds only tenant
  * settings read capability, so the assertion validates tenant scoping itself.
  */
+@CoversTenantIsolation("domains")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=domains")
 @WithMockUser(isAdmin = false)

@@ -1,5 +1,6 @@
 package io.openaev.engine.model.finding;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import io.openaev.annotation.EsQueryable;
 import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
@@ -24,26 +25,33 @@ public class EsFinding extends EsTenantBase {
   @EsQueryable(keyword = true)
   private String finding_type;
 
-  @Queryable(label = "field")
-  private String finding_field;
+  @Queryable(label = "field", clazz = String.class)
+  @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
+  private Set<String> finding_field;
 
   // Not @Queryable on purpose: bookkeeping of the masking rule the value was indexed with (see
   // SensitiveValueMaskingUtils#MASKING_VERSION), not something a widget filters on.
   private Long finding_masking_version;
 
   // -- SIDE --
+  // Lists since a finding has occurrences in several injects. Documents indexed before hold a
+  // single
+  // value, read as a one-element list.
 
-  @Queryable(label = "inject", filterable = true)
+  @Queryable(label = "inject", filterable = true, clazz = String.class)
   @EsQueryable(keyword = true)
-  private String base_inject_side; // Must finish by _side
+  @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
+  private Set<String> base_inject_side; // Must finish by _side
 
-  @Queryable(label = "simulation", filterable = true, dynamicValues = true)
+  @Queryable(label = "simulation", filterable = true, dynamicValues = true, clazz = String.class)
   @EsQueryable(keyword = true)
-  private String base_simulation_side; // Must finish by _side
+  @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
+  private Set<String> base_simulation_side; // Must finish by _side
 
-  @Queryable(label = "scenario", filterable = true, dynamicValues = true)
+  @Queryable(label = "scenario", filterable = true, dynamicValues = true, clazz = String.class)
   @EsQueryable(keyword = true)
-  private String base_scenario_side; // Must finish by _side
+  @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
+  private Set<String> base_scenario_side; // Must finish by _side
 
   @Queryable(label = "endpoint", filterable = true, dynamicValues = true, clazz = String.class)
   @EsQueryable(keyword = true)

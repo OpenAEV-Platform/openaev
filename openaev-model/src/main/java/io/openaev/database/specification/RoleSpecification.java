@@ -2,6 +2,7 @@ package io.openaev.database.specification;
 
 import io.openaev.database.model.Role;
 import jakarta.validation.constraints.NotBlank;
+import java.util.Collection;
 import org.springframework.data.jpa.domain.Specification;
 
 public class RoleSpecification {
@@ -12,8 +13,8 @@ public class RoleSpecification {
 
   // -- TENANT --
 
-  public static Specification<Role> tenantScope(String tenantId) {
-    return (root, query, cb) -> cb.equal(root.get("tenant").get("id"), tenantId);
+  public static Specification<Role> tenantScope(Collection<String> tenantIds) {
+    return (root, query, cb) -> root.get("tenant").get("id").in(tenantIds);
   }
 
   // -- PLATFORM --

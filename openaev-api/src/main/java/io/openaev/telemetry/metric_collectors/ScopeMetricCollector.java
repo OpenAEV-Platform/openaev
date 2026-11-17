@@ -77,16 +77,8 @@ public class ScopeMetricCollector {
   }
 
   private Map<Attributes, Long> collectAndResetVolume(Map<Attributes, AtomicLong> stats) {
-    Map<Attributes, Long> snap = new HashMap<>();
     log.info("Refreshing Scope volume metrics...");
-    stats.forEach(
-        (k, v) -> {
-          long val = v.getAndSet(0);
-          if (val > 0) {
-            snap.put(k, val);
-          }
-        });
-    return snap;
+    return MetricRegistry.collectAndReset(stats);
   }
 
   private Map<Attributes, Long> collectAndResetUsage(Map<Attributes, Set<String>> stats) {

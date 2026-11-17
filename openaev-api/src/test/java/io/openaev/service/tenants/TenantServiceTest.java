@@ -113,7 +113,7 @@ class TenantServiceTest extends IntegrationTest {
     assertThat(cweRepository.findAll())
         .filteredOn(cwe -> created.getId().equals(cwe.getTenant().getId()))
         .hasSize(7);
-    List<Role> roles = tenantRoleService.findAll(created.getId());
+    List<Role> roles = tenantRoleService.findAll(List.of(created.getId()));
     assertThat(roles).extracting(Role::getName).contains("Admin", "Manager", "Observer");
     assertThat(roles).hasSizeGreaterThanOrEqualTo(3);
     List<Group> groups = groupRepository.findAllByTenantId(created.getId());

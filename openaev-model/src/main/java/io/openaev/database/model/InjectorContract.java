@@ -15,8 +15,10 @@ import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
+import io.openaev.database.model.author.Authored;
+import io.openaev.database.model.author.Authorship;
+import io.openaev.database.model.payload.InjectorContractDeleteGuard;
 import io.openaev.helper.*;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -29,7 +31,6 @@ import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -37,9 +38,14 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Setter
 @Entity
 @Table(name = "injectors_contracts")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class InjectorContract implements TenantBase, CompositeIdResolvableI {
+// injectors_contracts and its link tables are fully on v2 (statement inspector +
+// can_access_tenant). The v1 @Filter and TenantBaseListener are gone and must not come back: the
+// filter's thread-local predicate ANDs with the inspector's and returns nothing off the
+// tenant-prefixed route, and the listener would silently re-attribute an unattributed write to the
+// default tenant instead of failing. Reads are scoped by the request scope, writes are attributed
+// explicitly (TenantWriteScopeResolver, or the owning row's tenant for a dependent write).
+@EntityListeners({ModelBaseListener.class, InjectorContractDeleteGuard.class})
+public class InjectorContract implements TenantBase, CompositeIdResolvableI, Authored {
 
   public static final String ID_FIELD_NAME = "id";
   public static final String COMPOSITE_ID_FIELD_NAME = "compositeId";
@@ -52,6 +58,12 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @NotBlank
   public String getId() {
     return compositeId.getId();
+  }
+
+  /** What a THREAT_ARSENAL grant on this contract targets: its payload identity, if any. */
+  @JsonIgnore
+  public String getGrantResourceId() {
+    return payload == null ? getId() : payload.getIdentity().getId();
   }
 
   @Override
@@ -151,53 +163,32 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     return ofNullable(getPayload()).map(Payload::getStatus).orElse(null);
   }
 
-  // -- Author (user / team / organization) --
-  // Every injector contract has an author. It is stored directly on the contract
-  // (payload-less built-in contracts are authored by Filigran, custom contracts
-  // by their creator) AND falls back to the underlying payload's author for
-  // payload-based contracts whose author lives on the payload. The three typed
-  // getters are output-only (id per type); a SINGLE filterable getter ORs across
-  // every contract- and payload-level author path so the UI exposes one "Author"
-  // filter (autocomplete grouped by type) rather than several. --
+  // -- AUTHOR --
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "injector_contract_author_user")
+  @Embedded
+  @AssociationOverride(
+      name = "user",
+      joinColumns = @JoinColumn(name = "injector_contract_author_user"))
+  @AssociationOverride(
+      name = "organization",
+      joinColumns = @JoinColumn(name = "injector_contract_author_organization"))
   @JsonIgnore
-  private User authorUser;
-
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "injector_contract_author_team")
-  @JsonIgnore
-  private Team authorTeam;
-
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "injector_contract_author_organization")
-  @JsonIgnore
-  private Organization authorOrganization;
+  private Authorship author;
 
   @JsonProperty("injector_contract_payload_author_user")
   @JsonSerialize(using = MonoIdSerializer.class)
   public User getPayloadAuthorUser() {
-    if (authorUser != null) {
-      return authorUser;
+    if (getAuthorUser() != null) {
+      return getAuthorUser();
     }
     return ofNullable(getPayload()).map(Payload::getAuthorUser).orElse(null);
-  }
-
-  @JsonProperty("injector_contract_payload_author_team")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  public Team getPayloadAuthorTeam() {
-    if (authorTeam != null) {
-      return authorTeam;
-    }
-    return ofNullable(getPayload()).map(Payload::getAuthorTeam).orElse(null);
   }
 
   @JsonProperty("injector_contract_payload_author_organization")
   @JsonSerialize(using = MonoIdSerializer.class)
   public Organization getPayloadAuthorOrganization() {
-    if (authorOrganization != null) {
-      return authorOrganization;
+    if (getAuthorOrganization() != null) {
+      return getAuthorOrganization();
     }
     return ofNullable(getPayload()).map(Payload::getAuthorOrganization).orElse(null);
   }
@@ -209,23 +200,18 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
       filterable = true,
       dynamicValues = true,
       paths = {
-        "authorUser.id",
-        "authorTeam.id",
-        "authorOrganization.id",
-        "payload.authorUser.id",
-        "payload.authorTeam.id",
-        "payload.authorOrganization.id"
+        "author.user.id",
+        "author.organization.id",
+        "payload.author.user.id",
+        "payload.author.organization.id"
       })
   @JsonProperty("injector_contract_payload_author")
   public String getPayloadAuthor() {
-    if (authorUser != null) {
-      return authorUser.getId();
+    if (getAuthorUser() != null) {
+      return getAuthorUser().getId();
     }
-    if (authorTeam != null) {
-      return authorTeam.getId();
-    }
-    if (authorOrganization != null) {
-      return authorOrganization.getId();
+    if (getAuthorOrganization() != null) {
+      return getAuthorOrganization().getId();
     }
     Payload contractPayload = getPayload();
     if (contractPayload == null) {
@@ -233,9 +219,6 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     }
     if (contractPayload.getAuthorUser() != null) {
       return contractPayload.getAuthorUser().getId();
-    }
-    if (contractPayload.getAuthorTeam() != null) {
-      return contractPayload.getAuthorTeam().getId();
     }
     if (contractPayload.getAuthorOrganization() != null) {
       return contractPayload.getAuthorOrganization().getId();
@@ -305,7 +288,6 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
       cascade = CascadeType.ALL,
       orphanRemoval = true,
       fetch = FetchType.EAGER)
-  @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
   @JsonIgnore
   private List<InjectorInjectorContract> injectorLinks = new ArrayList<>();
 

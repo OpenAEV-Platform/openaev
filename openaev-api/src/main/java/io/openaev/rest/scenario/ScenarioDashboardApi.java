@@ -49,7 +49,7 @@ public class ScenarioDashboardApi {
   public ResponseEntity<CustomDashboard> dashboard(
       TxCtx ctx, @PathVariable final String scenarioId) {
     return ResponseEntity.ok(
-        this.customDashboardService.findCustomDashboardByResourceId(scenarioId));
+        this.customDashboardService.findCustomDashboardByResourceId(ctx, scenarioId));
   }
 
   @PostMapping({

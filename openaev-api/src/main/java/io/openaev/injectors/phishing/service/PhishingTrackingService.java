@@ -25,6 +25,7 @@ import io.openaev.rest.finding.FindingService;
 import io.openaev.service.InjectExpectationUtils;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.finding.FindingOccurrenceService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.security.SecureRandom;
@@ -250,6 +251,7 @@ public class PhishingTrackingService {
   private final TeamRepository teamRepository;
   private final StepRepository stepRepository;
   private final FindingService findingService;
+  private final FindingOccurrenceService findingOccurrenceService;
   private final PhishingTrackingPublicLookupService publicLookupService;
   private final AttackPathFindingIngestionService attackPathFindingIngestion;
 
@@ -714,6 +716,9 @@ public class PhishingTrackingService {
       log.error("Failed to create phishing credentials finding: {}", e.getMessage(), e);
       return;
     }
+    // Outside the try: a failing read is a real error, not one to swallow and commit past
+    result.setFindingOccurrence(
+        findingOccurrenceService.occurrence(finding.getId(), inject.getId()).orElse(null));
     // A chained run copies its findings onto the attack path on each step execution event, but a
     // submission raises none: copy this one (and only this one, by its id set on create) once it
     // is committed, or the attack path never shows it. Only a chained execution carries a step

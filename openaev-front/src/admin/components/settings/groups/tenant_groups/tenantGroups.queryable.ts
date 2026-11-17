@@ -18,13 +18,15 @@ const FIELD_NAME = 'group_name';
 const FIELD_DESCRIPTION = 'group_description';
 const FIELD_DEFAULT_ASSIGN = 'group_default_user_assign';
 const FIELD_MARKINGS = 'group_markings';
+const FIELD_AUTO_NEW_MARKING = 'group_auto_new_marking';
 
 // Inline styles
 export const TENANT_GROUP_INLINE_STYLES: Record<string, CSSProperties> = {
   [FIELD_NAME]: { width: '25%' },
-  [FIELD_DESCRIPTION]: { width: '35%' },
+  [FIELD_DESCRIPTION]: { width: '25%' },
   [FIELD_MARKINGS]: { width: '20%' },
-  [FIELD_DEFAULT_ASSIGN]: { width: '20%' },
+  [FIELD_DEFAULT_ASSIGN]: { width: '15%' },
+  [FIELD_AUTO_NEW_MARKING]: { width: '15%' },
 };
 
 // Headers
@@ -71,6 +73,16 @@ export const getTenantGroupHeaders: (
       ? createElement(CheckCircleOutlined, { fontSize: 'small' })
       : '-',
   });
+  if (options?.markingEnabled) {
+    headers.push({
+      field: FIELD_AUTO_NEW_MARKING,
+      label: t('Auto assign new markings'),
+      isSortable: false,
+      value: (group: Group) => group.group_auto_new_marking
+        ? createElement(CheckCircleOutlined, { fontSize: 'small' })
+        : '-',
+    });
+  }
   return headers;
 };
 

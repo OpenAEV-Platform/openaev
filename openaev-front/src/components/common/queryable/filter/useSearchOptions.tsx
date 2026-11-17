@@ -12,7 +12,7 @@ import { searchInjectorContracts } from '../../../../actions/InjectorContracts';
 import { searchInjectorsByNameAsOption } from '../../../../actions/injectors/injector-action';
 import { searchInjectLinkedToFindingsAsOption, searchTargetOptions } from '../../../../actions/injects/inject-action';
 import { searchKillChainPhasesByNameAsOption } from '../../../../actions/kill_chain_phases/killChainPhase-action';
-import { searchMarkingDefinitionAsOption } from '../../../../actions/marking_definitions/marking-definition-actions';
+import { fetchAssignableMarkingDefinitions } from '../../../../actions/marking_definitions/marking-definition-actions';
 import { searchOrganizationsByNameAsOption } from '../../../../actions/organizations/organization-actions';
 import { searchScenarioAsOption, searchScenarioCategoryAsOption } from '../../../../actions/scenarios/scenario-actions';
 import { searchScenarioSimulationsAsOption } from '../../../../actions/scenarios/scenario-simulation-action';
@@ -23,7 +23,8 @@ import { searchPlayersAsOption } from '../../../../actions/users/User';
 import { humanizeEnum } from '../../../../admin/components/assets/asset-categories';
 import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../../../../admin/components/findings/ContractOutputElementType';
 import { scenarioCategories } from '../../../../admin/components/scenarios/constants';
-import { type AssetOptionOutput, type InjectorContract } from '../../../../utils/api-types';
+import { type AssetOptionOutput, type InjectorContract, type MarkingDefinitionOutput } from '../../../../utils/api-types';
+import { markingOption } from '../../../../utils/markings';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { useFormatter } from '../../../i18n';
 import { initSorting, type Page } from '../Page';
@@ -64,22 +65,17 @@ const useSearchOptions = () => {
     const { filterKey, contextId = '' } = config;
     setLoading(true);
     switch (filterKey) {
-      // Single polymorphic "Author" filter: one autocomplete listing persons,
-      // teams and organizations, grouped by type.
+      // Single polymorphic "Author" filter: one autocomplete listing persons
+      // and organizations, grouped by type.
       case 'action_author':
         Promise.all([
           searchPlayersAsOption(search),
-          searchTeamsAsOption(search),
           searchOrganizationsByNameAsOption(search),
-        ]).then(([players, teams, organizations]) => {
+        ]).then(([players, organizations]) => {
           const grouped: GroupOption[] = [
             ...players.data.map((o: Option) => ({
               ...o,
               group: t('Persons'),
-            })),
-            ...teams.data.map((o: Option) => ({
-              ...o,
-              group: t('Teams'),
             })),
             ...organizations.data.map((o: Option) => ({
               ...o,
@@ -220,8 +216,13 @@ const useSearchOptions = () => {
         });
         break;
       case 'asset_markings':
-        searchMarkingDefinitionAsOption(search).then((response) => {
-          setOptions(response.data);
+        // The definitions are few (nine seeded TLP/PAP levels per tenant): matched here rather than
+        // through a search endpoint.
+        fetchAssignableMarkingDefinitions().then((response: { data?: MarkingDefinitionOutput[] }) => {
+          const searchText = search.toLowerCase();
+          setOptions((response?.data ?? [])
+            .map(markingOption)
+            .filter(option => option.label.toLowerCase().includes(searchText)));
         });
         break;
       case 'inject_assets':
@@ -326,11 +327,6 @@ const useSearchOptions = () => {
         break;
       case 'payload_author_user':
         searchPlayersAsOption(search).then((response) => {
-          setOptions(response.data);
-        });
-        break;
-      case 'payload_author_team':
-        searchTeamsAsOption(search).then((response) => {
           setOptions(response.data);
         });
         break;

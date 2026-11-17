@@ -11,7 +11,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.api.autonomous.AutonomousRunApi;
+import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
@@ -28,7 +31,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -40,10 +44,9 @@ import org.springframework.test.web.servlet.MockMvc;
  * from {@code AgentRepository#countByStatus}: a plain count rooted on {@code agents} alone, with no
  * join to {@code assets}. That matters, because the obvious read (an endpoint's {@code
  * asset_agents} array) reaches the rows through an asset that is already v2-active, so it would
- * stay correct with {@code agents} disarmed and prove nothing. Only {@code executors} is armed
- * alongside {@code agents} here, because the registration path resolves the built-in OpenAEV
- * executor by id and that table carries a per-tenant row for it; {@code assets} is deliberately
- * left disarmed so any filtering observed below can only come from the table under test.
+ * stay correct with {@code agents} disarmed and prove nothing. The class runs on the production
+ * list, and the count reads {@code agents} alone, so no other armed table can produce the filtering
+ * it observes.
  *
  * <p>The write probe is the real agent registration endpoint. Its agent row is stamped from the
  * executor the request resolves, so the assertion reads {@code tenant_id} straight off the column
@@ -54,10 +57,16 @@ import org.springframework.test.web.servlet.MockMvc;
  * seeded and verified through JDBC, which the statement inspector never rewrites, and removed in
  * {@link #cleanup()}.
  */
+@CoversTenantIsolation("agents")
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.tenant.active-tables=agents,executors")
 @DisplayName("agents isolation on both routes, reads and writes")
 class AgentHttpIsolationTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void activeTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   private static final String CAPABILITIES_PATH = "/capabilities/resolve";
   private static final String PLAIN_CAPABILITIES =
@@ -87,9 +96,11 @@ class AgentHttpIsolationTest extends IntegrationTest {
     // Arrange: two tenants the mock user belongs to, each with the built-in OpenAEV executor (the
     // registration path resolves it by id) and exactly one active agent on one of its endpoints.
     tenantA = tenantHelper.createTenantWithCurrentUser("agent-iso-a").getId();
-    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(tenantA);
+    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+        TxCtx.forTenant(tenantA), tenantA);
     tenantB = tenantHelper.createTenantWithCurrentUser("agent-iso-b").getId();
-    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(tenantB);
+    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+        TxCtx.forTenant(tenantB), tenantB);
 
     seedExecutor(tenantA);
     seedExecutor(tenantB);
@@ -167,8 +178,8 @@ class AgentHttpIsolationTest extends IntegrationTest {
       // Act: the endpoint search is where the rewritten SQL is hardest. The activity-status
       // formula correlates a sub-query on agents inside the asset projection and each endpoint's
       // agents eager-load as a sub-select, so a rewrite PostgreSQL refuses here is a 500 rather
-      // than a wrong row, and the 200 is as much of the point as the payload. assets stays
-      // disarmed, so both tenants' endpoints come back and only the agents are filtered.
+      // than a wrong row, and the 200 is as much of the point as the payload. assets is armed as
+      // in production, so B's endpoint is filtered too: the count above is the refusal on agents.
       String response =
           mvc.perform(
                   post(SCOPED_SEARCH, tenantA)

@@ -17,6 +17,7 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
+import io.openaev.database.model.FindingOccurrence;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.ManualInjectExpectation;
@@ -33,6 +34,7 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
+import io.openaev.service.finding.FindingOccurrenceService;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -55,6 +57,7 @@ class PhishingTrackingServiceTest {
   @Mock private TeamRepository teamRepository;
   @Mock private StepRepository stepRepository;
   @Mock private FindingService findingService;
+  @Mock private FindingOccurrenceService findingOccurrenceService;
   @Mock private AttackPathFindingIngestionService attackPathFindingIngestion;
 
   @InjectMocks private PhishingTrackingService phishingTrackingService;
@@ -519,6 +522,28 @@ class PhishingTrackingServiceTest {
     assertEquals(ContractOutputType.Credentials, finding.getType());
     assertTrue(finding.getValue().contains("victim@corp.test"));
     assertTrue(finding.getValue().contains("hunter2"), "password should be captured when enabled");
+  }
+
+  @Test
+  @DisplayName("markSubmitted should link the result to the occurrence of the captured finding")
+  void markSubmitted_should_linkTheResultToTheFindingOccurrence() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(true, true);
+    FindingOccurrence occurrence = new FindingOccurrence();
+    occurrence.setId("occurrence-1");
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    when(injectExpectationRepository.findAllByInjectId(anyString())).thenReturn(List.of());
+    when(findingOccurrenceService.occurrence(any(), eq("inject-1")))
+        .thenReturn(Optional.of(occurrence));
+
+    // -- ACT --
+    phishingTrackingService.markSubmitted(
+        "token-1", Map.of("username", "victim@corp.test", "password", "hunter2"), "1.2.3.4", "ua");
+
+    // -- ASSERT --
+    assertEquals(occurrence, result.getFindingOccurrence());
   }
 
   @Test

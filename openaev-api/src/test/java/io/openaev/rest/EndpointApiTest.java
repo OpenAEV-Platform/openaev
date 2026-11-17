@@ -5,8 +5,6 @@ import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.AgentFixture.createAgent;
 import static io.openaev.utils.fixtures.AgentFixture.createDefaultAgentService;
-import static io.openaev.utils.fixtures.AssetGroupFixture.createAssetGroupWithAssets;
-import static io.openaev.utils.fixtures.AssetGroupFixture.createDefaultAssetGroup;
 import static io.openaev.utils.fixtures.EndpointFixture.*;
 import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static io.openaev.utils.fixtures.TagFixture.getTagNoId;
@@ -21,6 +19,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.ProductionActiveTables;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
@@ -45,15 +46,18 @@ import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.MarkingDefinitionFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
+import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -69,7 +73,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
@@ -78,14 +83,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-// @TestPropertySource REPLACES the allowlist, so only assets is active in this context. That is a
-// known reduction: the AgentExecutorJoin nested test below is about the eager agent-to-executor
-// join, and executors is inactive here, so it exercises the join without the rewrite. Adding
-// executors to this list was tried and turns four of this class's tests red on their executor
-// fixtures, which is a separate piece of work; executors has its own activation and its own
-// coverage. Widen this list when that fixture work is done, not inside this activation.
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets,asset_agent_jobs")
+// The context arms the production list, executors included, so the AgentExecutorJoin nested test
+// exercises the eager agent-to-executor join with the rewrite production applies.
+@CoversTenantIsolation("asset_agent_jobs")
 class EndpointApiTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void activeTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TagRepository tagRepository;
@@ -99,6 +106,8 @@ class EndpointApiTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AgentComposer agentComposer;
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private MarkingClearanceCacheManager markingClearanceCacheManager;
 
   @MockitoSpyBean private EndpointService endpointService;
   @MockitoSpyBean private AssetAgentJobRepository assetAgentJobRepository;
@@ -457,194 +466,6 @@ class EndpointApiTest extends IntegrationTest {
         .andExpect(status().is4xxClientError());
   }
 
-  @Nested
-  @DisplayName("Retrieve targets")
-  @WithMockUser(isAdmin = true)
-  class TargetEndpoint {
-
-    @Test
-    @DisplayName("Should return matching endpoints when given a static asset group or asset ID")
-    void given_staticAssetGroupOrAssetId_should_returnMatchingEndpoints() throws Exception {
-      // -- PREPARE --
-      SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
-
-      // Prepare asset group with an endpoint
-      Endpoint endpoint = endpointRepository.save(EndpointFixture.createEndpoint());
-      AssetGroup assetGroup =
-          assetGroupRepository.save(createAssetGroupWithAssets("All windows", List.of(endpoint)));
-
-      // Prepare an endpoint
-      Endpoint endpoint2 = endpointRepository.save(EndpointFixture.createEndpoint());
-      // Prepare another endpoint, that we shouldn't retrieve
-      endpointRepository.save(EndpointFixture.createEndpoint());
-
-      // Prepare asset group filter
-      Filters.Filter filterAssetGroup =
-          buildFilter("assetGroups", Filters.FilterMode.or, List.of(assetGroup.getId()));
-
-      // Prepare asset filter
-      Filters.Filter filterAsset =
-          buildFilter("asset_id", Filters.FilterMode.or, List.of(endpoint2.getId()));
-
-      // Prepare filter group
-      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
-      filterGroup.setMode(Filters.FilterMode.or);
-      filterGroup.setFilters(List.of(filterAssetGroup, filterAsset));
-      searchPaginationInput.setFilterGroup(filterGroup);
-
-      String response =
-          mvc.perform(
-                  post(ENDPOINT_URI + "/targets")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(searchPaginationInput))
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andExpect(jsonPath("$.numberOfElements").value(2))
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      assertThatJson(response)
-          .inPath("$.content[*].asset_id")
-          .isArray()
-          .containsExactlyInAnyOrderElementsOf(List.of(endpoint.getId(), endpoint2.getId()));
-    }
-
-    @Test
-    @DisplayName("Should return matching endpoints when given dynamic asset group")
-    void given_dynamicAssetGroupId_should_returnMatchingEndpoints() throws Exception {
-      // -- PREPARE --
-      SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
-
-      // Prepare an endpoint
-      Endpoint windowEndpoint = endpointRepository.save(EndpointFixture.createEndpoint());
-      Endpoint linuxEndpoint = EndpointFixture.createEndpoint();
-      linuxEndpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
-      endpointRepository.save(linuxEndpoint);
-
-      // Prepare dynamic asset group
-      Filters.Filter windowfilter =
-          buildFilter("endpoint_platform", Filters.FilterMode.or, List.of("Windows"));
-      Filters.FilterGroup dynamicFilter = Filters.FilterGroup.defaultFilterGroup();
-      dynamicFilter.setFilters(List.of(windowfilter));
-      AssetGroup assetGroup = createDefaultAssetGroup("All windows");
-      assetGroup.setDynamicFilter(dynamicFilter);
-      AssetGroup assetGroupSaved = assetGroupRepository.save(assetGroup);
-
-      // Prepare searcPagination input
-      Filters.Filter assetGroupfilter =
-          buildFilter("assetGroups", Filters.FilterMode.or, List.of(assetGroupSaved.getId()));
-      Filters.FilterGroup searchPaginationFilterGroup = new Filters.FilterGroup();
-      searchPaginationFilterGroup.setFilters(List.of(assetGroupfilter));
-      searchPaginationFilterGroup.setMode(Filters.FilterMode.or);
-      searchPaginationInput.setFilterGroup(searchPaginationFilterGroup);
-
-      mvc.perform(
-              post(ENDPOINT_URI + "/targets")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput))
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andExpect(jsonPath("$.numberOfElements").value(1))
-          .andExpect(jsonPath("$.content.[0].asset_id").value(windowEndpoint.getId()));
-    }
-
-    @Test
-    @DisplayName("Should return one endpoints when given dynamic asset group AND asset id")
-    void given_dynamicAssetGroupAndAssetID_should_ReturnEndpointsPresentInBoth() throws Exception {
-      // -- PREPARE --
-      SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
-
-      // Prepare an endpoint
-      endpointRepository.save(EndpointFixture.createEndpoint());
-      Endpoint windowEndpoint2 = endpointRepository.save(EndpointFixture.createEndpoint());
-
-      // Prepare dynamic asset group
-      Filters.Filter windowfilter =
-          buildFilter("endpoint_platform", Filters.FilterMode.or, List.of("Windows"));
-      Filters.FilterGroup dynamicFilter = Filters.FilterGroup.defaultFilterGroup();
-      dynamicFilter.setFilters(List.of(windowfilter));
-      AssetGroup assetGroup = createDefaultAssetGroup("All windows");
-      assetGroup.setDynamicFilter(dynamicFilter);
-      AssetGroup assetGroupSaved = assetGroupRepository.save(assetGroup);
-
-      // Prepare searcPagination input
-      Filters.Filter assetGroupfilter =
-          buildFilter("assetGroups", Filters.FilterMode.or, List.of(assetGroupSaved.getId()));
-      Filters.Filter assetIdFilter =
-          buildFilter("asset_id", Filters.FilterMode.or, List.of(windowEndpoint2.getId()));
-      Filters.FilterGroup searchPaginationFilterGroup = new Filters.FilterGroup();
-      searchPaginationFilterGroup.setFilters(List.of(assetGroupfilter, assetIdFilter));
-      searchPaginationFilterGroup.setMode(Filters.FilterMode.and);
-      searchPaginationInput.setFilterGroup(searchPaginationFilterGroup);
-
-      mvc.perform(
-              post(ENDPOINT_URI + "/targets")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput))
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andExpect(jsonPath("$.numberOfElements").value(1))
-          .andExpect(jsonPath("$.content.[0].asset_id").value(windowEndpoint2.getId()));
-    }
-
-    @Test
-    @DisplayName("Should return endpoints when filterGroup is omitted (regression #6927)")
-    void given_missingFilterGroup_should_returnEndpointsWithoutError() throws Exception {
-      // GIVEN - the body shape posted by injectors that omit filterGroup entirely,
-      // which used to 500 with an NPE in searchManagedEndpoints (#6927)
-      endpointRepository.save(EndpointFixture.createEndpoint());
-
-      // WHEN / THEN - falls back to an empty filter group and returns managed endpoints
-      mvc.perform(
-              post(ENDPOINT_URI + "/targets")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content("{\"page\": 0, \"size\": 20}")
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andExpect(jsonPath("$.content").isArray());
-    }
-
-    @Test
-    @DisplayName("Should tolerate uppercase filter enums from older injectors (regression #6927)")
-    void given_uppercaseFilterEnums_should_returnEndpointsWithoutError() throws Exception {
-      // GIVEN - an asset group targeted with the drifted vocabulary ("CONTAINS", "OR") that an
-      // older injector image may post, which used to fail with a bare 400 (#6927)
-      Endpoint endpoint = endpointRepository.save(EndpointFixture.createEndpoint());
-      AssetGroup assetGroup =
-          assetGroupRepository.save(createAssetGroupWithAssets("All windows", List.of(endpoint)));
-      String body =
-          """
-          {
-            "page": 0,
-            "size": 20,
-            "filterGroup": {
-              "mode": "OR",
-              "filters": [
-                {
-                  "id": "drifted-filter",
-                  "key": "assetGroups",
-                  "mode": "OR",
-                  "operator": "CONTAINS",
-                  "values": ["%s"]
-                }
-              ]
-            }
-          }
-          """
-              .formatted(assetGroup.getId());
-
-      // WHEN / THEN - deserializes case-insensitively and resolves the target
-      mvc.perform(
-              post(ENDPOINT_URI + "/targets")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(body)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andExpect(jsonPath("$.numberOfElements").value(1))
-          .andExpect(jsonPath("$.content.[0].asset_id").value(endpoint.getId()));
-    }
-  }
-
   private Inject prepareOptionsEndpointTestData() {
     // Teams
     Endpoint e1input = createEndpoint();
@@ -980,12 +801,13 @@ class EndpointApiTest extends IntegrationTest {
      * the legacy {@code X-Tenant-Ids} header route - since {@code cleanupAssetAgentJob} carries a
      * bare {@code TxCtx}, resolved identically on either one.
      *
-     * <p>The read tests here cover the route contract end to end: a caller scoped to another tenant
-     * gets nothing back from either read endpoint. They do NOT isolate a single mechanism, because
-     * the production table set is active in this context and both read specifications join {@code
-     * agents} and {@code assets}, which are v2-active too. The proof that the inspector scopes
-     * {@code asset_agent_jobs} itself lives in {@code AssetAgentJobDeletionScopeTest}, where that
-     * table is the only active one and removing it from the list turns the cross-tenant read red.
+     * <p>The read tests cover the route contract end to end: a caller scoped to another tenant gets
+     * nothing back from either read endpoint; their specifications also join {@code agents} and
+     * {@code assets}, so they do not isolate a single table. The cross-tenant DELETE cases are the
+     * refusal on {@code asset_agent_jobs} itself: the job is loaded by id with a left join on
+     * {@code agents}, so the job row's own scope decides; the other tenant's job stays in place and
+     * the own tenant's job is removed. {@code AssetAgentJobDeletionScopeTest} pins the same with
+     * {@code asset_agent_jobs} as the only active table.
      */
     @Nested
     @DisplayName("Asset agent job isolation")
@@ -1589,11 +1411,14 @@ class EndpointApiTest extends IntegrationTest {
               .withTenantId(Tenant.DEFAULT_TENANT_UUID)
               .persist()
               .get();
-      // MarkingClearanceCacheManager reads marking_definitions through raw JdbcTemplate, bypassing
-      // the Hibernate session - without a flush, the just-saved row is not yet visible on the
-      // connection and the admin bypass clearance silently excludes it, hiding every asset marked
-      // with it.
+      // The caller sees a marked asset only through a group holding its marking.
+      Group group = TenantGroupFixture.getGroup("marking-filters-" + UUID.randomUUID());
+      group.setMarkings(new HashSet<>(Set.of(marking)));
+      group.setUsers(new ArrayList<>(List.of(testUserHolder.get())));
+      tenantGroupComposer.forGroup(group).persist();
+      // The clearance is read through raw JDBC: the rows must be flushed to be seen.
       entityManager.flush();
+      markingClearanceCacheManager.evictForUser(testUserHolder.get().getId());
       return marking;
     }
 

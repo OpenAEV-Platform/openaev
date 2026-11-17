@@ -1,5 +1,6 @@
 package io.openaev.rest.scenario;
 
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -44,7 +45,7 @@ class ScenarioChallengesApiTenantPathTest extends IntegrationTest {
   @BeforeEach
   void seedTenantAndScenario() throws Exception {
     tenantId = tenantHelper.createTenantWithCurrentUser("scenario-challenges-tenant").getId();
-    when(scenarioRepository.findByIdAndTenantId(anyString(), anyString()))
+    when(scenarioRepository.findByIdAndTenantIdIn(anyString(), anyCollection()))
         .thenReturn(Optional.of(new Scenario()));
   }
 

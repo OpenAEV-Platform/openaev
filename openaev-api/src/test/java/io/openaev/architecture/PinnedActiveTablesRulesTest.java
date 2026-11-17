@@ -71,6 +71,17 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 @DisplayName("Pinned activation list guard: it finds pins, it reads the baseline strictly")
 class PinnedActiveTablesRulesTest {
 
+  /**
+   * The production list without its dual-scope tables: the terminal {@code *} arms strict tables
+   * only, so it holds this part of the list and never a dual-scope table such as {@code
+   * parameters}.
+   */
+  private static Set<String> strictPartOfProduction() {
+    Set<String> strict = new TreeSet<>(ProductionActiveTables.names());
+    strict.removeAll(BackgroundEntrypointTenantScopeArchTest.productionTenantTables().dualScope());
+    return strict;
+  }
+
   /** A constant 65 bytes long, so the low byte of its length reads as the letter {@code A}. */
   private static final String NEXT = "x".repeat('A');
 
@@ -89,6 +100,7 @@ class PinnedActiveTablesRulesTest {
 
       // Act
       Scan scan = Scan.of(fixtures, List.of(), ProductionActiveTables.names());
+      Scan strictScan = Scan.of(fixtures, List.of(), strictPartOfProduction());
 
       // Assert
       assertThat(scan.annotationPins())
@@ -110,8 +122,8 @@ class PinnedActiveTablesRulesTest {
               RegistersAnUppercaseElement.class.getName(),
               RegistersWithIgnoredCharacters.class.getName(),
               RegistersIndexedElements.class.getName())
-          .doesNotContainKeys(
-              FollowsProduction.class.getName(), RegistersTheWildcard.class.getName());
+          .doesNotContainKeys(FollowsProduction.class.getName());
+      assertThat(strictScan.dynamicPins()).doesNotContainKeys(RegistersTheWildcard.class.getName());
       assertThat(scan.dynamicRegistrations())
           .doesNotContainKeys(
               DelegatesAnotherPropertyToAHelper.class.getName(),
@@ -484,7 +496,8 @@ class PinnedActiveTablesRulesTest {
               Map.entry(
                   RegistersTheWildcard.class.getName(),
                   Registration.of(ProductionActiveTables.armedBy(TenantTables.ALL_STRICT))));
-      assertThat(PinnedActiveTablesCatalog.dynamicPins(registrations, production)).isEmpty();
+      assertThat(PinnedActiveTablesCatalog.dynamicPins(registrations, strictPartOfProduction()))
+          .isEmpty();
     }
 
     @Test

@@ -37,7 +37,11 @@ public class ObjectRedactionUtils {
           // it with a SHA-256 digest instead of redacting it. Listing it here takes precedence
           // because redactProperty evaluates shouldRedact before shouldHash, and full redaction is
           // the right treatment for a long-lived bearer credential.
-          Pattern.compile("^gcp_oauth_refresh_token$"));
+          Pattern.compile("^gcp_oauth_refresh_token$"),
+          // Same precedence over ".*token.*": a custom OAuth access token is a bearer credential.
+          Pattern.compile("^gcp_custom_oauth_access_token$"),
+          // The uploaded Azure certificate file, like the GCP service account key file above.
+          Pattern.compile("^azure_requests_certificate$"));
 
   /** Sensitive-like fields that are explicitly allowed and therefore not redacted. */
   private static final Set<Pattern> ALLOWED_SENSITIVE_FIELDS_REGEX_TO_REDACT =

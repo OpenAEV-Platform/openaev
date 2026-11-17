@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.Capability;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -36,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
  * because every case there runs with {@code isAdmin = true}, which short-circuits the capability
  * checks and could in principle mask an isolation model that only held for admins.
  */
+@CoversTenantIsolation("autonomous_runs")
 @Transactional
 @TestPropertySource(
     properties = {

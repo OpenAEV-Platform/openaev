@@ -5,6 +5,7 @@ import io.openaev.database.model.AssetType;
 import io.openaev.database.raw.RawIndexedAsset;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -14,6 +15,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.Assert;
 
 @Repository
 public interface AssetRepository
@@ -26,6 +28,17 @@ public interface AssetRepository
    * when snapshotting a scope rule's asset display name.
    */
   Optional<Asset> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  List<Asset> findAllByIdInAndTenantId(Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The assets among the given ids that belong to the given tenant. Refuses a null id list, as
+   * {@code findAllById} does.
+   */
+  default List<Asset> findAllByIdInTenant(Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 
   /**
    * Feeds the {@code asset} search index with the whole asset inventory: every asset type except

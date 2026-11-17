@@ -73,8 +73,17 @@ class CatalogPage {
     await control.first().fill(value);
   }
 
+  /**
+   * Submits the connector-instance form and resolves once the instance is created.
+   * Callers navigate away right after (to the deployed list): leaving before the
+   * POST completes aborts it or reads the list before the instance is committed.
+   */
   async submitInstall(): Promise<void> {
+    const creation = this.page.waitForResponse(response => response.request().method() === 'POST'
+      && new URL(response.url()).pathname.endsWith('/connector-instances'));
     await this.installButton.click();
+    const response = await creation;
+    expect(response.ok(), `Connector instance creation answered ${response.status()}`).toBe(true);
   }
 }
 export default CatalogPage;

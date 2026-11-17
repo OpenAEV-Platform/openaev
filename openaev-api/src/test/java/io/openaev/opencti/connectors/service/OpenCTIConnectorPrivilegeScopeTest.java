@@ -105,6 +105,10 @@ class OpenCTIConnectorPrivilegeScopeTest extends IntegrationTest {
       AbstractPrivilegeService.getUUIDFromName(
           OPENCTI_CONNECTOR.access().groupId(), CONNECTOR_TENANT_ID);
 
+  private static final String CONNECTOR_ROLE_ID =
+      AbstractPrivilegeService.getUUIDFromName(
+          OPENCTI_CONNECTOR.access().roleId(), CONNECTOR_TENANT_ID);
+
   @Autowired private OpenCTIConnectorService openCTIConnectorService;
   @Autowired private DataSource dataSource;
   @MockitoBean private OpenCTIClient openCTIClient;
@@ -216,6 +220,37 @@ class OpenCTIConnectorPrivilegeScopeTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("the connector group holds every marking of its tenant")
+  class EveryMarking {
+
+    @Test
+    @DisplayName(
+        "given a marking in the connector tenant, should give it to the connector group and flag the"
+            + " group to receive new markings")
+    void given_markingInConnectorTenant_should_giveItToConnectorGroup() {
+      // Arrange
+      seedMarking(connectorTenantMarkingId, CONNECTOR_TENANT_ID, "connector-every");
+
+      // Act
+      openCTIConnectorService.registerOrPingAllConnectors();
+
+      // Assert
+      assertThat(
+              jdbc.queryForList(
+                  "SELECT marking_id FROM groups_markings WHERE group_id = ?",
+                  String.class,
+                  CONNECTOR_GROUP_ID))
+          .contains(connectorTenantMarkingId);
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT group_auto_new_marking FROM groups WHERE group_id = ?",
+                  Boolean.class,
+                  CONNECTOR_GROUP_ID))
+          .isTrue();
+    }
+  }
+
+  @Nested
   @DisplayName("the connector transaction carries its own tenant's scope")
   class ConnectorScope {
 
@@ -234,6 +269,21 @@ class OpenCTIConnectorPrivilegeScopeTest extends IntegrationTest {
       assertThat(observedScope.get())
           .as("the connector flow must ensure its well-known group under its own tenant's scope")
           .isEqualTo(CONNECTOR_TENANT_ID);
+    }
+
+    @Test
+    @DisplayName(
+        "given the connector register and ping flow, should write the well-known role in the"
+            + " connector tenant")
+    void given_connectorRegisterPingFlow_should_writeTheRoleInTheConnectorTenant() {
+      // Act
+      openCTIConnectorService.registerOrPingAllConnectors();
+
+      // Assert
+      assertThat(
+              jdbc.queryForList(
+                  "SELECT tenant_id FROM roles WHERE role_id = ?", String.class, CONNECTOR_ROLE_ID))
+          .containsExactly(CONNECTOR_TENANT_ID);
     }
 
     @Test

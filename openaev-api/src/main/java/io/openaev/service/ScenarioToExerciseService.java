@@ -14,6 +14,7 @@ import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.CopyObjectListUtils;
+import io.openaev.utils.InjectUtils;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
@@ -254,7 +255,7 @@ public class ScenarioToExerciseService {
             exerciseInject.setCity(scenarioInject.getCity());
             exerciseInject.setEnabled(scenarioInject.isEnabled());
             exerciseInject.setAllTeams(scenarioInject.isAllTeams());
-            exerciseInject.setExercise(exerciseSaved);
+            InjectUtils.attachToExercise(exerciseInject, exerciseSaved);
             exerciseInject.setDependsDuration(scenarioInject.getDependsDuration());
             exerciseInject.setUser(scenarioInject.getUser());
             exerciseInject.setStatus(scenarioInject.getStatus().orElse(null));

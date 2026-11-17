@@ -188,7 +188,10 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
     @DisplayName("A credential verified recently is skipped")
     void given_freshlyVerifiedCredential_should_leaveItAlone() throws Exception {
       // Arrange
-      Instant alreadyVerifiedAt = Instant.now().minus(1, ChronoUnit.HOURS);
+      // Millisecond-exact on purpose: the database rounds to the microsecond, which could carry an
+      // unrounded instant into the next millisecond and break the comparison below.
+      Instant alreadyVerifiedAt =
+          Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MILLIS);
       jdbc.update(
           "UPDATE secret_references SET secret_reference_last_verified_at = ?"
               + " WHERE secret_reference_id = ?",

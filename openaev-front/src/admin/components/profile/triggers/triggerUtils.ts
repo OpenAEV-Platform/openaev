@@ -1,8 +1,15 @@
-/** Curated resource types watchable by notification triggers (mirrors backend catalog). */
+import { type NotificationTriggerInput } from '../../../../utils/api-types';
+
+export type TriggerEventType = NonNullable<NotificationTriggerInput['notification_trigger_event_types']>[number];
+
+const LIFECYCLE_EVENT_TYPES: TriggerEventType[] = ['CREATE', 'UPDATE', 'DELETE'];
+
+/** Curated resource types watchable by notification triggers, with the events each one sends (mirrors backend catalog). */
 export interface TriggerResourceTypeOption {
   value: string;
-  entityPrefix: string;
+  entityPrefix?: string;
   label: string;
+  eventTypes: TriggerEventType[];
 }
 
 export const TRIGGER_RESOURCE_TYPES: TriggerResourceTypeOption[] = [
@@ -10,66 +17,84 @@ export const TRIGGER_RESOURCE_TYPES: TriggerResourceTypeOption[] = [
     value: 'SCENARIO',
     entityPrefix: 'scenario',
     label: 'Scenario',
+    eventTypes: [...LIFECYCLE_EVENT_TYPES, 'SCORE_DEGRADATION'],
   },
   {
     value: 'SIMULATION',
     entityPrefix: 'exercise',
     label: 'Simulation',
+    eventTypes: LIFECYCLE_EVENT_TYPES,
   },
   {
     value: 'INJECT',
     entityPrefix: 'inject',
     label: 'Inject',
+    eventTypes: LIFECYCLE_EVENT_TYPES,
   },
   {
     value: 'FINDING',
     entityPrefix: 'finding',
     label: 'Finding',
+    eventTypes: LIFECYCLE_EVENT_TYPES,
   },
   {
     value: 'ASSET',
     entityPrefix: 'endpoint',
     label: 'Asset',
+    eventTypes: LIFECYCLE_EVENT_TYPES,
   },
   {
     value: 'ASSET_GROUP',
     entityPrefix: 'asset_group',
     label: 'Asset group',
+    eventTypes: LIFECYCLE_EVENT_TYPES,
   },
   {
     value: 'TEAM',
     entityPrefix: 'team',
     label: 'Team',
+    eventTypes: LIFECYCLE_EVENT_TYPES,
   },
   {
     value: 'PLAYER',
     entityPrefix: 'user',
     label: 'Player',
+    eventTypes: LIFECYCLE_EVENT_TYPES,
   },
   {
     value: 'PAYLOAD',
     entityPrefix: 'payload',
     label: 'Payload',
+    eventTypes: LIFECYCLE_EVENT_TYPES,
   },
   {
     value: 'VULNERABILITY',
     entityPrefix: 'vulnerability',
     label: 'Vulnerability',
+    eventTypes: LIFECYCLE_EVENT_TYPES,
   },
   {
     value: 'SECURITY_PLATFORM',
     entityPrefix: 'security_platform',
     label: 'Security platform',
+    eventTypes: LIFECYCLE_EVENT_TYPES,
   },
   {
     value: 'DOCUMENT',
     entityPrefix: 'document',
     label: 'Document',
+    eventTypes: LIFECYCLE_EVENT_TYPES,
   },
   {
     value: 'CHALLENGE',
     entityPrefix: 'challenge',
     label: 'Challenge',
+    eventTypes: LIFECYCLE_EVENT_TYPES,
+  },
+  {
+    value: 'CATALOG_SYNC',
+    label: 'Catalog sync',
+    eventTypes: ['SYNC_BLOCKED'],
   },
 ];
 
@@ -79,17 +104,16 @@ export const resourceTypeLabel = (value?: string) =>
 export const resourceTypeEntityPrefix = (value?: string) =>
   TRIGGER_RESOURCE_TYPES.find(option => option.value === value)?.entityPrefix;
 
-export const TRIGGER_EVENT_TYPES = ['CREATE', 'UPDATE', 'DELETE'] as const;
+export const eventTypesOf = (resourceType?: string): TriggerEventType[] =>
+  TRIGGER_RESOURCE_TYPES.find(option => option.value === resourceType)?.eventTypes ?? LIFECYCLE_EVENT_TYPES;
 
-/** Scenario-only semantic event (successor of the legacy score-degradation notification rule). */
-export const SCENARIO_ONLY_EVENT_TYPES = ['SCORE_DEGRADATION'] as const;
-
-export const eventTypeLabel = (eventType: string) => {
-  if (eventType === 'SCORE_DEGRADATION') {
-    return 'Score degradation';
-  }
-  return eventType.charAt(0) + eventType.slice(1).toLowerCase();
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  SCORE_DEGRADATION: 'Score degradation',
+  SYNC_BLOCKED: 'Sync blocked',
 };
+
+export const eventTypeLabel = (eventType: string) =>
+  EVENT_TYPE_LABELS[eventType] ?? eventType.charAt(0) + eventType.slice(1).toLowerCase();
 
 export const DIGEST_PERIODS = ['HOUR', 'DAY', 'WEEK', 'MONTH'] as const;
 

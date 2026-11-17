@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
+import io.openaev.database.model.Tenant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -40,6 +43,13 @@ class DatabaseSnapshotManagerTest extends IntegrationTest {
 
   @Autowired private DatabaseSnapshotManager snapshotManager;
   @Autowired private JdbcTemplate jdbcTemplate;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
+
+  /** A platform row of {@code parameters} is written only in a platform-write transaction. */
+  private void asPlatformWrite(Runnable writes) {
+    tenantScopedTransaction.executeAsPlatformWrite(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), writes);
+  }
 
   /** Converges the database on the snapshot and returns the parameters rows it holds. */
   private List<Map<String, Object>> snapshotOfParameters() {
@@ -59,16 +69,19 @@ class DatabaseSnapshotManagerTest extends IntegrationTest {
     void given_rowsAddedAndModifiedByATest_should_restoreExactlyTheSnapshot() {
       // Arrange
       List<Map<String, Object>> snapshot = snapshotOfParameters();
-      jdbcTemplate.update(
-          INSERT_PARAMETER,
-          UUID.randomUUID().toString(),
-          "snapshot_restore_test_leftover",
-          "left by a test",
-          null);
-      jdbcTemplate.update(
-          "UPDATE parameters SET parameter_value = ? WHERE parameter_id = ?",
-          "changed by a test",
-          snapshot.get(0).get("parameter_id"));
+      asPlatformWrite(
+          () -> {
+            jdbcTemplate.update(
+                INSERT_PARAMETER,
+                UUID.randomUUID().toString(),
+                "snapshot_restore_test_leftover",
+                "left by a test",
+                null);
+            jdbcTemplate.update(
+                "UPDATE parameters SET parameter_value = ? WHERE parameter_id = ?",
+                "changed by a test",
+                snapshot.get(0).get("parameter_id"));
+          });
 
       // Act
       snapshotManager.restoreToSnapshotState();
@@ -108,12 +121,14 @@ class DatabaseSnapshotManagerTest extends IntegrationTest {
                   polling.countDown();
                   if (count != null && count == 0) {
                     sawEmptyTable.set(true);
-                    jdbcTemplate.update(
-                        INSERT_PARAMETER,
-                        target.get("parameter_id"),
-                        target.get("parameter_key"),
-                        "written during the restore",
-                        target.get("tenant_id"));
+                    asPlatformWrite(
+                        () ->
+                            jdbcTemplate.update(
+                                INSERT_PARAMETER,
+                                target.get("parameter_id"),
+                                target.get("parameter_key"),
+                                "written during the restore",
+                                target.get("tenant_id")));
                     return;
                   }
                 }
