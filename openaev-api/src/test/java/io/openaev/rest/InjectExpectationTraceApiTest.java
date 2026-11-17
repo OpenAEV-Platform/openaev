@@ -196,7 +196,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
 
   @DisplayName("Count expectation traces for a collector")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void countInjectExpectationTracesForCollector() throws Exception {
     // --EXECUTE--
     String response =
