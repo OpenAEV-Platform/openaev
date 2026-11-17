@@ -21,6 +21,7 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.runner.InitAdminCommandLineRunner;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.scheduler.jobs.QueueChainingJob;
+import io.openaev.search.FullTextSearchService;
 import io.openaev.service.PermissionService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.account.CallerRightsInTenant;
@@ -196,7 +197,10 @@ final class WorkflowOwnerScopeCallerRules {
               + " UserService#currentUser, and the request's TxCtx",
           PermissionService.class,
           "holdsInScope and decideInEachTenant pass the caller and the TxCtx they are given;"
-              + " their own callers are not followed");
+              + " their own callers are not followed",
+          FullTextSearchService.class,
+          "the capability checks of the search pass the principal, read by"
+              + " UserService#currentUser, and the request's TxCtx");
 
   private WorkflowOwnerScopeCallerRules() {}
 

@@ -32,6 +32,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -421,5 +422,65 @@ public class FullTextSearchTest extends IntegrationTest {
     } else {
       result.andExpect(jsonPath("$['" + Asset.class.getName() + "'].count").value(expectedCount));
     }
+  }
+
+  private static final String TENANT_HEADER = "X-Tenant-Ids";
+
+  /**
+   * The caller holds the capability through a role of the default tenant, the ambient tenant of the
+   * non-prefixed route, and is also a member of a second tenant that the header selects: the
+   * request's scope holds the second tenant only, while the scenarios searched are the ambient
+   * tenant's.
+   */
+  private User defaultTenantMemberAlsoInAnotherTenant(String otherTenantId) {
+    User user = persistDefaultTenantMemberWith(Capability.ACCESS_ASSESSMENT);
+    tenantIsolationTestHelper.attachUserToTenant(user.getId(), otherTenantId);
+    return user;
+  }
+
+  @Test
+  @WithMockUser(isAdmin = true)
+  void
+      given_headerNamingAnotherTenant_should_countTheScenariosTheCapabilityOfTheAmbientTenantGrants()
+          throws Exception {
+    // -- PREPARE --
+    String otherTenantId = tenantIsolationTestHelper.createTenant("search-header").getId();
+    User caller = defaultTenantMemberAlsoInAnotherTenant(otherTenantId);
+    FullTextSearchApi.SearchTerm term = new FullTextSearchApi.SearchTerm();
+    term.setSearchTerm("Crisis");
+
+    // -- EXECUTE + ASSERT --
+    mvc.perform(
+            post(GLOBAL_SEARCH_URI)
+                .header(TENANT_HEADER, otherTenantId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(term))
+                .with(authentication(buildAuthenticationToken(caller)))
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$['" + Scenario.class.getName() + "'].count").value(1));
+  }
+
+  @Test
+  @WithMockUser(isAdmin = true)
+  void
+      given_headerNamingAnotherTenant_should_returnTheScenariosTheCapabilityOfTheAmbientTenantGrants()
+          throws Exception {
+    // -- PREPARE --
+    String otherTenantId = tenantIsolationTestHelper.createTenant("search-header").getId();
+    User caller = defaultTenantMemberAlsoInAnotherTenant(otherTenantId);
+    SearchPaginationInput searchPaginationInput =
+        PaginationFixture.getDefault().textSearch("Crisis").build();
+
+    // -- EXECUTE + ASSERT --
+    mvc.perform(
+            post(GLOBAL_SEARCH_URI + "/" + Scenario.class.getName())
+                .header(TENANT_HEADER, otherTenantId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(searchPaginationInput))
+                .with(authentication(buildAuthenticationToken(caller)))
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.content[*].id", containsInAnyOrder(testScenarioCrisis.getId())));
   }
 }
