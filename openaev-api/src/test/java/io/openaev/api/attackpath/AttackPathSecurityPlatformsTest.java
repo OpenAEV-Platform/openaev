@@ -7,8 +7,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Asset;
@@ -46,8 +45,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,13 +56,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path execution detail — security platforms (A1)")
-class AttackPathSecurityPlatformsTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class AttackPathSecurityPlatformsTest extends ProductionTablesIntegrationTest {
 
   private static final String SIM = "SIM-SP";
   private static final ObjectMapper JSON_MAPPER = new ObjectMapper();

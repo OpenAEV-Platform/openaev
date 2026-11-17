@@ -1,0 +1,7 @@
+io/openaev/rest/attack_pattern/**/*Test.java
+io/openaev/rest/challenge/**/*Test.java
+io/openaev/rest/document/**/*Test.java
+io/openaev/rest/inject/InjectTagsSerializationTenantScopeTest.java
+io/openaev/rest/reporting/**/*Test.java
+io/openaev/rest/vulnerability/**/*Test.java
+io/openaev/service/inject/**/*Test.java

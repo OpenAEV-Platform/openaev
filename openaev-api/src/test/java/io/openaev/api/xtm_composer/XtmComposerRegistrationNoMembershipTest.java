@@ -7,10 +7,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -18,8 +17,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,13 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("XTM Composer registration read by a caller with no tenant membership")
-class XtmComposerRegistrationNoMembershipTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class XtmComposerRegistrationNoMembershipTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private OpenAEVConfig openAEVConfig;

@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
@@ -23,7 +23,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,11 +36,10 @@ import org.springframework.transaction.annotation.Transactional;
  * threat-arsenal entry (injector contract) appears for it.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=injectors")
 @WithMockUser(isAdmin = true)
 @DisplayName(
     "ThreatArsenalApi scopes the payload-supporting injector lookup to the caller's tenant")
-class ThreatArsenalApiTenantIsolationTest extends IntegrationTest {
+class ThreatArsenalApiTenantIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String CREATE = "/api/tenants/{tenantId}/threat_arsenals";
 

@@ -16,7 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -37,15 +37,13 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @TestInstance(PER_CLASS)
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=challenges")
-class ChallengeApiTest extends IntegrationTest {
+class ChallengeApiTest extends ProductionTablesIntegrationTest {
 
   @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;

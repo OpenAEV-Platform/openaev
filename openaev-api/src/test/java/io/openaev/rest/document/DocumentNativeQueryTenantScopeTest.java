@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -23,7 +23,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * Certifies the eight native queries of {@link DocumentRepository} against a real PostgreSQL with
@@ -32,8 +31,9 @@ import org.springframework.test.context.TestPropertySource;
  * PostgreSQL accepts (the {@code GROUP BY d.document_id} projecting {@code d.*} stays legal because
  * documents is kept a base table, #7843), and the read is scoped to the caller (its rows and
  * aggregates, none of another tenant's). The API test profile ships an empty {@code active-tables},
- * so an {@code IntegrationTest} never exercises the rewriter for documents unless it arms the table
- * itself, which this class does. See #7904.
+ * so an {@code IntegrationTest} never exercises the rewriter for documents unless it arms the
+ * table, which this class does through {@code ProductionTablesIntegrationTest}, with the other
+ * tables production arms. See #7904.
  *
  * <p>Not {@code @Transactional}: the scoped-transaction primitive opens its own transactions and
  * refuses to run inside an active one, so seeding goes through an auto-committing {@link
@@ -41,9 +41,8 @@ import org.springframework.test.context.TestPropertySource;
  * Two freshly created tenants keep the assertions exact on a shared database; everything seeded is
  * removed in teardown.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @DisplayName("Document native queries are scoped and valid once documents is v2-active")
-class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
+class DocumentNativeQueryTenantScopeTest extends ProductionTablesIntegrationTest {
 
   @Autowired private DocumentRepository documentRepository;
   @Autowired private TenantScopedTransaction tenantTx;

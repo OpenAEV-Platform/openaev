@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -36,7 +36,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,10 +49,9 @@ import org.springframework.transaction.annotation.Transactional;
  * properties leave {@code openaev.tenant.active-tables} empty).
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=collectors")
 @WithMockUser(isAdmin = true)
 @DisplayName("AI defense feed carries the tenant scope with collectors v2-activated")
-class AiDefenseFeedTenantScopeTest extends IntegrationTest {
+class AiDefenseFeedTenantScopeTest extends ProductionTablesIntegrationTest {
 
   private static final String INJECTION_NAME = "AI adversarial - direct prompt injection";
   private static final String INJECTOR_TYPE = "openaev_ai_feed_scope_test";

@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TxCtx;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
@@ -18,7 +18,6 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -27,8 +26,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * test pattern: seed with JDBC, verify with JDBC, clean up explicitly.
  */
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.tenant.active-tables=executors")
-public class EndpointCrossTenantRegistrationTest extends IntegrationTest {
+public class EndpointCrossTenantRegistrationTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private ObjectMapper mapper;

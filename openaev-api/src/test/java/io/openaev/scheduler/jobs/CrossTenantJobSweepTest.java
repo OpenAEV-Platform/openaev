@@ -2,7 +2,7 @@ package io.openaev.scheduler.jobs;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.Inject;
 import io.openaev.helper.InjectHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * The scheduler's cross-tenant sweeps over {@code exercises}, {@code injects} and {@code scenarios}
@@ -32,14 +31,14 @@ import org.springframework.test.context.TestPropertySource;
  * <p>Each sweep runs on a bare thread, as a Quartz worker does: no transaction, no session, no
  * ambient tenant. A sweep narrowed to the default tenant, the way an armed filter would narrow it,
  * misses the second tenant's row and turns its test red. Not {@code @Transactional}: rows are
- * committed through JDBC in a tenant of their own and removed after each test. The active-tables
- * list is pinned so the statement inspector never scopes these tables here, whatever a shadow run
- * arms; once they are activated each sweep needs the primitive, and this class is where that shows.
+ * committed through JDBC in a tenant of their own and removed after each test. The class runs on
+ * the production list of active tables through {@code ProductionTablesIntegrationTest}, which holds
+ * none of these tables, so the statement inspector does not scope them here; once they are
+ * activated each sweep needs the primitive, and this class is where that shows.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers")
 @WithMockUser(isAdmin = true)
 @DisplayName("The scheduler's cross-tenant sweeps reach a second tenant's rows")
-class CrossTenantJobSweepTest extends IntegrationTest {
+class CrossTenantJobSweepTest extends ProductionTablesIntegrationTest {
 
   @Autowired private InjectsExecutionJob injectsExecutionJob;
   @Autowired private InjectsFinalizationJob injectsFinalizationJob;

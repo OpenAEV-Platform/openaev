@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
@@ -23,7 +23,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -46,10 +45,9 @@ import org.springframework.test.web.servlet.MockMvc;
  * the request's own transaction has closed, which means committing the seed and sweeping it by
  * hand.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=findings,asset_groups,assets")
 @WithMockUser(isAdmin = true)
 @DisplayName("a finding still carries its inject's asset groups when serialized")
-class FindingAssetGroupSinkTest extends IntegrationTest {
+class FindingAssetGroupSinkTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private FindingService findingService;

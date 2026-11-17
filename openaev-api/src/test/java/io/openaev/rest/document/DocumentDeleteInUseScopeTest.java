@@ -7,7 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Executable;
@@ -30,7 +30,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,10 +46,9 @@ import org.springframework.transaction.annotation.Transactional;
  * JDBC, which the statement inspector never rewrites.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("A document used by a payload of its tenant cannot be deleted on either route")
-class DocumentDeleteInUseScopeTest extends IntegrationTest {
+class DocumentDeleteInUseScopeTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
 

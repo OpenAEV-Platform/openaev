@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -29,17 +29,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 // The test profile declares no active tables, so removing the v1 @Filter would leave this suite
-// asserting an isolation nothing enforces. The list is not limited to findings because
-// @TestPropertySource REPLACES the property rather than adding to it: naming findings alone would
-// deactivate assets and asset_groups, which ARE active in production, and the suite would test less
-// than production while looking stricter.
-@TestPropertySource(properties = "openaev.tenant.active-tables=findings,assets,asset_groups")
+// asserting an isolation nothing enforces. The class follows the production list through
+// ProductionTablesIntegrationTest, so it tests every table production arms, including findings,
+// assets and asset_groups.
 @Transactional
-class FindingServiceTest extends IntegrationTest {
+class FindingServiceTest extends ProductionTablesIntegrationTest {
 
   public static final String ASSET_1 = "asset1";
   public static final String ASSET_2 = "asset2";

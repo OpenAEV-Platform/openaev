@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -31,7 +31,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -55,10 +54,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * default one on that route until exercises are tenant-active, so the header-route cases seed in
  * the default tenant and select it through {@code X-Tenant-Ids}.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("Channel reader endpoints serialize their document links with documents v2-activated")
-class ChannelReaderDocumentsSerializationTenantScopeTest extends IntegrationTest {
+class ChannelReaderDocumentsSerializationTenantScopeTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;

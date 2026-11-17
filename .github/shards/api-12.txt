@@ -1,0 +1,11 @@
+io/openaev/config/tls/**/*Test.java
+io/openaev/database/model/**/*Test.java
+io/openaev/export/**/*Test.java
+io/openaev/rest/ExecutorApiTest.java
+io/openaev/rest/executor/**/*Test.java
+io/openaev/rest/inject/ByIdRequestScopeInjectLookupTest.java
+io/openaev/rest/scenario/**/*Test.java
+io/openaev/rest/settings/**/*Test.java
+io/openaev/service/account/**/*Test.java
+io/openaev/service/attackpath/**/*Test.java
+io/openaev/service/payload/**/*Test.java

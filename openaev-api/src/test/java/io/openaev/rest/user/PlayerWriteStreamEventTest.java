@@ -20,10 +20,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.OpenAEVPrincipal;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.audit.ModelBaseListener;
@@ -64,8 +63,6 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -93,13 +90,7 @@ import reactor.core.publisher.FluxSink;
 @Transactional
 @RecordApplicationEvents
 @DisplayName("Stream events of a player write")
-public class PlayerWriteStreamEventTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+public class PlayerWriteStreamEventTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
 

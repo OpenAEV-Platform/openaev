@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -42,21 +42,18 @@ import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @WithMockUser(isAdmin = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-// The test profile declares no active tables, so this suite ran the whole dashboard and indexing
-// pipeline with the inspector inert. It names the three tables the widgets and their ES indexing
-// reach, not only findings: @TestPropertySource REPLACES the property, so naming findings alone
-// would deactivate tables that ARE active in production and test less than production while
-// looking stricter.
-@TestPropertySource(properties = "openaev.tenant.active-tables=findings,assets,asset_groups")
+// The test profile declares no active tables, so without a list the whole dashboard and indexing
+// pipeline would run with the inspector inert. The class follows the production list through
+// ProductionTablesIntegrationTest, so it tests every table production arms, including the tables
+// the widgets and their ES indexing reach.
 @DisplayName("Dashboard API tests")
-class DashboardApiTest extends IntegrationTest {
+class DashboardApiTest extends ProductionTablesIntegrationTest {
 
   @Autowired private EngineService engineService;
   @Autowired private TenantScopedTransaction tenantTx;

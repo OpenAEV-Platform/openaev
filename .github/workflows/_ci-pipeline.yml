@@ -408,18 +408,22 @@ jobs:
   # Codecov only reports, in its PR comment. The backend coverage rules run in
   # coverage-backend-gate, next to the backend upload and without waiting for it.
 
-  # Only after green API tests: a failed shard leaves a partial report, which reads as a drop.
+  # Starts next to the API shards and reports once they have all passed (backend-coverage-report):
+  # a failed shard leaves a partial report, which reads as a drop, so the job fails with it.
   coverage-backend:
     name: "📊 Coverage Upload (backend)"
-    needs: [api-tests]
-    if: ${{ !cancelled() && needs.api-tests.result == 'success' }}
+    needs: [backend-compile]
+    if: ${{ !cancelled() && needs.backend-compile.result == 'success' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
 
       - uses: ./.github/actions/backend-coverage-report
         with:
+          api-matrix: ${{ inputs.api-matrix }}
           no-cache: ${{ inputs.no-cache }}
 
       # coverage-backend-gate reads this artifact on the base branch, as the base commit's
@@ -449,10 +453,10 @@ jobs:
   # gate below.
   coverage-backend-gate:
     name: "🔎 Backend Coverage Check"
-    needs: [api-tests]
-    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.api-tests.result == 'success' }}
+    needs: [backend-compile]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.backend-compile.result == 'success' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 45
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -464,6 +468,7 @@ jobs:
 
       - uses: ./.github/actions/backend-coverage-report
         with:
+          api-matrix: ${{ inputs.api-matrix }}
           no-cache: ${{ inputs.no-cache }}
 
       - uses: ./.github/actions/backend-coverage-check

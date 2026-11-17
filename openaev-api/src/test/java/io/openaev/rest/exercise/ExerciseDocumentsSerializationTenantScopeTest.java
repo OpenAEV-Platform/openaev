@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -49,10 +48,9 @@ import org.springframework.test.web.servlet.MockMvc;
  * commits, so the scope would still be set during serialization and mask the failure. Rows are
  * seeded through an auto-committing {@link JdbcTemplate} and removed on teardown.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("Exercise document endpoints serialize the exercise documents with documents active")
-class ExerciseDocumentsSerializationTenantScopeTest extends IntegrationTest {
+class ExerciseDocumentsSerializationTenantScopeTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;

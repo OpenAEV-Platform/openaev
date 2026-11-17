@@ -1,0 +1,7 @@
+io/openaev/aop/**/*Test.java
+io/openaev/api/notification/**/*Test.java
+io/openaev/api/stix_process/**/*Test.java
+io/openaev/rest/ChallengeApiSecurityCoverageIsolationTest.java
+io/openaev/rest/SimulationScenarioListDecisionTenantTest.java
+io/openaev/rest/kill_chain_phase/**/*Test.java
+io/openaev/rest/lessons/**/*Test.java

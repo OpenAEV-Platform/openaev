@@ -1,0 +1,10 @@
+io/openaev/api/custom_domain/**/*Test.java
+io/openaev/api/snapshot/**/*Test.java
+io/openaev/api/url_access_token/**/*Test.java
+io/openaev/finding/**/*Test.java
+io/openaev/injectors/**/*Test.java
+io/openaev/rest/inject/InjectListDecisionTenantTest.java
+io/openaev/rest/inject/service/**/*Test.java
+io/openaev/rest/url_access_token/**/*Test.java
+io/openaev/rest/user/**/*Test.java
+io/openaev/stix/**/*Test.java

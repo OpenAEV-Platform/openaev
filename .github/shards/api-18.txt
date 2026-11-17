@@ -1,0 +1,15 @@
+io/openaev/api/capabilities/**/*Test.java
+io/openaev/ee/**/*Test.java
+io/openaev/executors/**/*Test.java
+io/openaev/health/**/*Test.java
+io/openaev/migration/**/*Test.java
+io/openaev/notification/**/*Test.java
+io/openaev/rest/CveApiTest.java
+io/openaev/rest/custom_dashboard/**/*Test.java
+io/openaev/rest/dashboard/**/*Test.java
+io/openaev/rest/inject/ByIdRequestScopeArmedTest.java
+io/openaev/rest/inject/InjectAgentTargetCheckTenantScopeTest.java
+io/openaev/rest/inject/ResponseCollectionsTenantScopeTest.java
+io/openaev/rest/rbac/**/*Test.java
+io/openaev/service/user_event/**/*Test.java
+io/openaev/xtmhub/**/*Test.java

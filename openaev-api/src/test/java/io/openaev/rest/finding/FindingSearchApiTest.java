@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
@@ -36,19 +36,16 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 // The test profile declares no active tables, so removing the v1 @Filter would leave this suite
-// asserting an isolation nothing enforces. The list is not limited to findings because
-// @TestPropertySource REPLACES the property rather than adding to it: naming findings alone would
-// deactivate assets and asset_groups, which ARE active in production, and the suite would test less
-// than production while looking stricter.
-@TestPropertySource(properties = "openaev.tenant.active-tables=findings,assets,asset_groups")
+// asserting an isolation nothing enforces. The class follows the production list through
+// ProductionTablesIntegrationTest, so it tests every table production arms, including findings,
+// assets and asset_groups.
 @DisplayName("Finding search tenant isolation tests")
-class FindingSearchApiTest extends IntegrationTest {
+class FindingSearchApiTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;

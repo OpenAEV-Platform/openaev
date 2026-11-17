@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Reporting;
@@ -37,7 +37,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,20 +49,20 @@ import org.springframework.transaction.annotation.Transactional;
  * alone: an out-of-scope caller is refused, a same-tenant caller keeps its access, and a refused
  * write leaves the target row unchanged.
  *
- * <p>{@code @TestPropertySource} activates {@code documents} for this test only (the test classpath
- * keeps the allowlist empty). The class is {@code @Transactional}, so the scope the request
- * resolved is still set when the assertions run; ground-truth reads of the {@code documents} table
- * therefore go through raw JDBC on the test's own connection, which the inspector never rewrites,
- * so a leaked request scope cannot make a cross-tenant survival check come back empty. Documents
- * are seeded out of band with an explicit tenant, so the request under test is the first to set the
- * scope. The test transaction rolls back; objects written to real object storage are a side effect
- * and are removed in teardown.
+ * <p>The class runs on the production list of active tables through {@code
+ * ProductionTablesIntegrationTest}, which arms {@code documents} with every other table production
+ * arms (the test classpath keeps the allowlist empty). The class is {@code @Transactional}, so the
+ * scope the request resolved is still set when the assertions run; ground-truth reads of the {@code
+ * documents} table therefore go through raw JDBC on the test's own connection, which the inspector
+ * never rewrites, so a leaked request scope cannot make a cross-tenant survival check come back
+ * empty. Documents are seeded out of band with an explicit tenant, so the request under test is the
+ * first to set the scope. The test transaction rolls back; objects written to real object storage
+ * are a side effect and are removed in teardown.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("Document by-id endpoints hold the request tenant scope on the prefixed route")
-class DocumentByIdScopeTest extends IntegrationTest {
+class DocumentByIdScopeTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
