@@ -1,10 +1,7 @@
-io/openaev/api/attack_pattern/**/*Test.java
-io/openaev/api/custom_dashboard/**/*Test.java
-io/openaev/api/custom_domain/**/*Test.java
-io/openaev/architecture/**/*Test.java
-io/openaev/rest/CapabilityDecisionTenantTest.java
-io/openaev/rest/InjectExpectationTraceApiTest.java
-io/openaev/rest/LogApiTest.java
-io/openaev/rest/UserApiTest.java
-io/openaev/rest/inject/InjectImportTest.java
-io/openaev/rest/role/**/*Test.java
+io/openaev/api/autonomous/**/*Test.java
+io/openaev/api/notification/**/*Test.java
+io/openaev/export/**/*Test.java
+io/openaev/rest/attack_pattern/**/*Test.java
+io/openaev/rest/collector/**/*Test.java
+io/openaev/rest/lessons_template/**/*Test.java
+io/openaev/xtmone/**/*Test.java

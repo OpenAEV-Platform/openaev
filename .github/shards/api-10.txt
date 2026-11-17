@@ -1,7 +1,8 @@
-io/openaev/api/credentials/**/*Test.java
-io/openaev/config/tls/**/*Test.java
-io/openaev/execution/**/*Test.java
-io/openaev/integration/**/*Test.java
-io/openaev/rest/XtmHubApiTest.java
-io/openaev/rest/inject/ByIdRequestScopeArmedTest.java
-io/openaev/rest/inject/service/**/*Test.java
+io/openaev/api/asset/**/*Test.java
+io/openaev/database/model/**/*Test.java
+io/openaev/datapack/**/*Test.java
+io/openaev/rest/custom_dashboard/**/*Test.java
+io/openaev/rest/executor/**/*Test.java
+io/openaev/rest/scenario/**/*Test.java
+io/openaev/rest/tag/**/*Test.java
+io/openaev/service/attackpath/**/*Test.java
