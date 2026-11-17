@@ -1,0 +1,65 @@
+package io.openaev.api.threat_arsenal;
+
+import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
+import static io.openaev.api.threat_arsenal.ThreatArsenalApi.THREAT_ARSENAL_URL;
+
+import io.openaev.aop.AccessControl;
+import io.openaev.api.catalog.CatalogFeature;
+import io.openaev.api.threat_arsenal.dto.PayloadUsageOutput;
+import io.openaev.api.threat_arsenal.dto.PayloadVersionOutput;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.context.TxCtx;
+import io.openaev.database.model.Action;
+import io.openaev.database.model.ResourceType;
+import io.openaev.service.payload.PayloadVersionService;
+import io.openaev.utils.TxCtxScopeUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequiredArgsConstructor
+public class ThreatArsenalVersionApi {
+
+  private final PayloadVersionService payloadVersionService;
+  private final CatalogFeature catalogFeature;
+
+  // -- READ --
+
+  @Operation(summary = "Versions of the action's payload installed in the tenant, newest first")
+  @GetMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/versions",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/versions"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  public List<PayloadVersionOutput> versions(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
+    catalogFeature.require();
+    return payloadVersionService.versions(TxCtxScopeUtils.requireOneTenantOfScope(ctx), actionId);
+  }
+
+  @Operation(
+      summary = "Scenario injects, atomic testings and chained scenario steps running the action")
+  @GetMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/usages",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/usages"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  public List<PayloadUsageOutput> usages(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
+    catalogFeature.require();
+    return payloadVersionService.usages(TxCtxScopeUtils.requireOneTenantOfScope(ctx), actionId);
+  }
+}

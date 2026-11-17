@@ -1,0 +1,261 @@
+package io.openaev.api.threat_arsenal;
+
+import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
+import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+import static io.openaev.utils.fixtures.CatalogReleaseFixture.PAYLOAD_ID;
+import static io.openaev.utils.fixtures.CatalogReleaseFixture.manifest;
+import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadFileName;
+import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadVersion;
+import static io.openaev.utils.fixtures.CatalogReleaseFixture.releasedPayload;
+import static io.openaev.utils.fixtures.CatalogReleaseFixture.syncRequest;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.IntegrationTest;
+import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Payload;
+import io.openaev.database.model.Step;
+import io.openaev.database.model.payload.PayloadRevocation;
+import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.PayloadRepository;
+import io.openaev.database.repository.PayloadRevocationRepository;
+import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.CatalogReleaseFixture.ReleasedPayload;
+import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.StepFixture;
+import io.openaev.utils.fixtures.WorkflowFixture;
+import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.ScenarioComposer;
+import io.openaev.utils.fixtures.composers.StepComposer;
+import io.openaev.utils.fixtures.composers.WorkflowComposer;
+import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.annotation.Transactional;
+
+@Transactional
+@WithMockUser(isAdmin = true)
+@TestPropertySource(properties = "openaev.enabled-dev-features=MARKING,CATALOG")
+@DisplayName("Threat Arsenal payload versions")
+class ThreatArsenalVersionApiTest extends IntegrationTest {
+
+  private static final ReleasedPayload RELEASED = releasedPayload();
+
+  @Autowired private MockMvc mvc;
+  @Autowired private ObjectMapper mapper;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private InjectorFixture injectorFixture;
+  @Autowired private PayloadRepository payloadRepository;
+  @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private InjectRepository injectRepository;
+  @Autowired private PayloadRevocationRepository payloadRevocationRepository;
+  @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private InjectComposer injectComposer;
+  @Autowired private WorkflowComposer workflowComposer;
+  @Autowired private StepComposer stepComposer;
+
+  @BeforeEach
+  void attachToDefaultTenant() {
+    tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT_UUID);
+    injectorFixture.getWellKnownOaevImplantInjector();
+  }
+
+  // -- HELPERS --
+
+  /** Publishes these versions of the released payload and installs each: their payload ids. */
+  private List<String> installed(String... versions) throws Exception {
+    Map<String, byte[]> files = new LinkedHashMap<>();
+    Arrays.stream(versions).forEach(v -> files.put(payloadFileName(v), RELEASED.file()));
+    List<Map<String, Object>> payloads =
+        Arrays.stream(versions).map(v -> payloadVersion(v, "VERIFIED", RELEASED)).toList();
+    mvc.perform(
+            syncRequest(
+                    mapper.writeValueAsBytes(manifest("1.261109.0", List.of(), payloads)),
+                    files,
+                    TENANT_CATALOG_URI + "/sync",
+                    DEFAULT_TENANT_UUID)
+                .with(csrf()))
+        .andExpect(status().isOk());
+    List<String> ids = new ArrayList<>();
+    for (String version : versions) {
+      ResultActions install =
+          mvc.perform(
+                  post(
+                          TENANT_CATALOG_URI + "/payloads/{externalId}/versions/{version}/install",
+                          DEFAULT_TENANT_UUID,
+                          PAYLOAD_ID,
+                          version)
+                      .with(csrf()))
+              .andExpect(status().isCreated());
+      entityManager.flush();
+      ids.add(body(install).path("installed_id").asText());
+    }
+    return ids;
+  }
+
+  private Payload payload(String payloadId) {
+    return payloadRepository.findById(payloadId).orElseThrow();
+  }
+
+  private InjectorContract contractOf(String payloadId) {
+    return injectorContractRepository
+        .findInjectorContractByPayload(payload(payloadId))
+        .orElseThrow();
+  }
+
+  private void atomicTestingOn(InjectorContract contract) {
+    injectRepository.save(InjectFixture.createInject(contract, "Atomic testing"));
+  }
+
+  /** A scenario with an inject on the contract, and a chained step on it in its logic map. */
+  private String scenarioRunning(InjectorContract contract) {
+    Step step = StepFixture.getDefaultStepTemplate();
+    step.setData(
+        "{\"inject_title\": \"Chained step\", \"inject_injector_contract\": {\"injector_contract_id\": \""
+            + contract.getId()
+            + "\"}}");
+    ScenarioComposer.Composer scenario =
+        scenarioComposer
+            .forScenario(ScenarioFixture.getScenario())
+            .withInject(
+                injectComposer.forInject(InjectFixture.createInject(contract, "Scenario inject")));
+    workflowComposer
+        .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+        .withScenario(scenario)
+        .withStep(stepComposer.forStep(step))
+        .persist();
+    entityManager.flush();
+    return scenario.get().getId();
+  }
+
+  private JsonNode body(ResultActions result) throws Exception {
+    return mapper.readTree(result.andReturn().getResponse().getContentAsString());
+  }
+
+  // -- VERSIONS --
+
+  @Test
+  @DisplayName("lists the installed versions newest first, with their revocations")
+  void given_installedVersions_should_listThemNewestFirst() throws Exception {
+    // Arrange
+    List<String> ids = installed("1.0.0", "1.10.0", "1.9.0");
+    String first = ids.get(0);
+    String latest = ids.get(1);
+    String revokedByAdmin = ids.get(2);
+    payloadRevocationRepository.save(PayloadRevocation.byCatalogue(payload(first)));
+    payloadRevocationRepository.save(
+        PayloadRevocation.byAdmin(payload(revokedByAdmin), "Too noisy", null));
+    entityManager.flush();
+
+    // Act
+    JsonNode versions =
+        body(
+            mvc.perform(
+                    get(
+                        TENANT_THREAT_ARSENAL_URL + "/{actionId}/versions",
+                        DEFAULT_TENANT_UUID,
+                        contractOf(first).getId()))
+                .andExpect(status().isOk()));
+
+    // Assert
+    assertThat(versions.findValuesAsText("payload_id"))
+        .containsExactly(latest, revokedByAdmin, first);
+    assertThat(versions.findValuesAsText("payload_action_id"))
+        .containsExactly(
+            contractOf(latest).getId(),
+            contractOf(revokedByAdmin).getId(),
+            contractOf(first).getId());
+    assertThat(versions.findValuesAsText("payload_version"))
+        .containsExactly("1.10.0", "1.9.0", "1.0.0");
+    assertThat(versions.findValuesAsText("payload_is_latest"))
+        .containsExactly("true", "false", "false");
+    assertThat(versions.findValuesAsText("payload_revoked"))
+        .containsExactly("false", "true", "true");
+    assertThat(versions.findValuesAsText("payload_revoked_by_catalogue"))
+        .containsExactly("false", "false", "true");
+    assertThat(versions.get(1).path("payload_revocation_reason").asText()).isEqualTo("Too noisy");
+    assertThat(versions.get(2).path("payload_revocation_reason").asText())
+        .isEqualTo(PayloadRevocation.REVOKED_BY_FILIGRAN);
+    assertThat(versions.get(0).path("payload_revoked_at").isNull()).isTrue();
+  }
+
+  // -- USAGES --
+
+  @Test
+  @DisplayName("lists the scenario injects, atomic testings and chained steps running a version")
+  void given_versionInUse_should_listWhereItRuns() throws Exception {
+    // Arrange
+    List<String> ids = installed("1.0.0", "1.1.0");
+    InjectorContract used = contractOf(ids.get(0));
+    atomicTestingOn(used);
+    String scenarioId = scenarioRunning(used);
+    atomicTestingOn(contractOf(ids.get(1)));
+    entityManager.flush();
+
+    // Act & Assert
+    mvc.perform(
+            get(
+                TENANT_THREAT_ARSENAL_URL + "/{actionId}/usages",
+                DEFAULT_TENANT_UUID,
+                used.getId()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(3))
+        .andExpect(
+            jsonPath("$[*].usage_type")
+                .value(containsInAnyOrder("inject", "atomic_testing", "step")))
+        .andExpect(
+            jsonPath("$[*].usage_name")
+                .value(containsInAnyOrder("Scenario inject", "Atomic testing", "Chained step")))
+        .andExpect(jsonPath("$[?(@.usage_type == 'step')].usage_scenario_id").value(scenarioId))
+        .andExpect(jsonPath("$[?(@.usage_type == 'inject')].usage_scenario_id").value(scenarioId));
+  }
+
+  // -- SEARCH --
+
+  @Test
+  @DisplayName("shows the version, the catalogue origin and the revocation on the search cards")
+  void given_revokedCatalogueVersion_should_showItOnTheSearchCard() throws Exception {
+    // Arrange
+    String payloadId = installed("1.0.0").getFirst();
+    payloadRevocationRepository.save(
+        PayloadRevocation.byAdmin(payload(payloadId), "Too noisy", null));
+    entityManager.flush();
+    SearchPaginationInput input = new SearchPaginationInput();
+    input.setTextSearch("Crowdoor");
+
+    // Act & Assert
+    mvc.perform(
+            post(TENANT_THREAT_ARSENAL_URL + "/search", DEFAULT_TENANT_UUID)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(input)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].action_payload.payload_id").value(payloadId))
+        .andExpect(jsonPath("$.content[0].action_payload_version").value("1.0.0"))
+        .andExpect(jsonPath("$.content[0].action_payload_managed").value(true))
+        .andExpect(jsonPath("$.content[0].action_payload_revoked").value(true));
+  }
+}

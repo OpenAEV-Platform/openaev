@@ -106,6 +106,13 @@ public interface PayloadRepository
   List<Payload> findAllByTenantIdAndIdentityExternalId(
       @NotNull String tenantId, @NotNull String externalId);
 
+  /** Every version of this payload in the tenant, itself included. */
+  @Query(
+      "SELECT v FROM Payload v WHERE v.tenant.id = :tenantId AND v.identity.id ="
+          + " (SELECT p.identity.id FROM Payload p WHERE p.id = :payloadId AND p.tenant.id = :tenantId)")
+  List<Payload> findAllVersionsByTenantIdAndPayloadId(
+      @Param("tenantId") @NotNull String tenantId, @Param("payloadId") @NotNull String payloadId);
+
   Optional<Payload> findByIdentityExternalIdAndIdentityRepositoryIsNull(@NotNull String externalId);
 
   List<Payload> findAllByIdentityId(String identityId);
