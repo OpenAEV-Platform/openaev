@@ -4972,5 +4972,7 @@
   "Keep them on their version: hides this until the next version": "Mantienili sulla loro versione: nasconde questo fino alla prossima versione",
   "Don't ask me after saving: I'll use the Versions tab": "Non chiedere dopo il salvataggio: userò la scheda Versioni",
   "After saving a new version, you are not asked to move injects.": "Dopo aver salvato una nuova versione, non ti viene chiesto di spostare gli inject.",
-  "Ask me again": "Chiedimelo di nuovo"
+  "Ask me again": "Chiedimelo di nuovo",
+  "In this rollback": "In questo ripristino",
+  "Changes restored: {count}": "Modifiche ripristinate: {count}"
 }

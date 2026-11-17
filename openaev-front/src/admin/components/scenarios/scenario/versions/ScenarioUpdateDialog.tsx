@@ -254,19 +254,56 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
               gap: 20,
             }}
             >
-              {/* Idea B: the size of the update first, then the details below. */}
+              {/* Idea B: the size of the update first, then the details below. Only what happens is
+                  counted: a chip at 0 says nothing, and the caption already says when there is nothing to decide. */}
               <div style={section} data-testid="scenario-update-summary">
-                <Text variant="title-xs">{t('In this update')}</Text>
-                <div style={row}>
-                  <Chip label={t('Changes from Filigran: {count}', { count: String(taken.length) })} severity="info" />
-                  <Chip label={t('Your edits kept: {count}', { count: String(kept.length) })} />
-                  <Chip
-                    label={t('Conflicts to decide: {count}', { count: String(conflicts.length) })}
-                    severity={conflicts.length > 0 ? 'medium' : 'low'}
-                  />
-                  <Chip label={t('Injects added: {count}', { count: String(preview.elements.filter(element => element.change === 'ADDED').length) })} />
-                  <Chip label={t('Injects removed: {count}', { count: String(preview.elements.filter(element => element.change === 'REMOVED').length) })} />
-                </div>
+                <Text variant="title-xs">{version ? t('In this update') : t('In this rollback')}</Text>
+                {(() => {
+                  const added = preview.elements.filter(element => element.change === 'ADDED').length;
+                  const removed = preview.elements.filter(element => element.change === 'REMOVED').length;
+                  const chips: {
+                    key: string;
+                    count: number;
+                    label: string;
+                    severity?: 'info' | 'medium';
+                  }[] = [
+                    {
+                      key: 'taken',
+                      count: taken.length,
+                      label: version
+                        ? t('Changes from Filigran: {count}', { count: String(taken.length) })
+                        : t('Changes restored: {count}', { count: String(taken.length) }),
+                      severity: 'info',
+                    },
+                    {
+                      key: 'kept',
+                      count: kept.length,
+                      label: t('Your edits kept: {count}', { count: String(kept.length) }),
+                    },
+                    {
+                      key: 'conflicts',
+                      count: conflicts.length,
+                      label: t('Conflicts to decide: {count}', { count: String(conflicts.length) }),
+                      severity: 'medium',
+                    },
+                    {
+                      key: 'added',
+                      count: added,
+                      label: t('Injects added: {count}', { count: String(added) }),
+                    },
+                    {
+                      key: 'removed',
+                      count: removed,
+                      label: t('Injects removed: {count}', { count: String(removed) }),
+                    },
+                  ];
+                  const shown = chips.filter(chip => chip.count > 0);
+                  return shown.length > 0 && (
+                    <div style={row}>
+                      {shown.map(chip => <Chip key={chip.key} label={chip.label} severity={chip.severity} />)}
+                    </div>
+                  );
+                })()}
                 <Text variant="content-caption">
                   {conflicts.length > 0
                     ? t('Only the conflicts need a choice; everything else is combined for you.')

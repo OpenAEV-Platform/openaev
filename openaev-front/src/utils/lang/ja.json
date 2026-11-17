@@ -4972,5 +4972,7 @@
   "Keep them on their version: hides this until the next version": "現在のバージョンのままにする：次のバージョンまで非表示にします",
   "Don't ask me after saving: I'll use the Versions tab": "保存後に確認しない（バージョンタブを使用します）",
   "After saving a new version, you are not asked to move injects.": "新しいバージョンを保存した後、インジェクトの移動は確認されません。",
-  "Ask me again": "再度確認する"
+  "Ask me again": "再度確認する",
+  "In this rollback": "このロールバックの内容",
+  "Changes restored: {count}": "復元される変更: {count}"
 }

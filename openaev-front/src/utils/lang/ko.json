@@ -4972,5 +4972,7 @@
   "Keep them on their version: hides this until the next version": "현재 버전에 유지: 다음 버전까지 숨깁니다",
   "Don't ask me after saving: I'll use the Versions tab": "저장 후 묻지 않기: 버전 탭을 사용하겠습니다",
   "After saving a new version, you are not asked to move injects.": "새 버전을 저장한 후 인젝트 이동 여부를 묻지 않습니다.",
-  "Ask me again": "다시 묻기"
+  "Ask me again": "다시 묻기",
+  "In this rollback": "이 롤백의 내용",
+  "Changes restored: {count}": "복원되는 변경: {count}"
 }
