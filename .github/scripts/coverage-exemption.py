@@ -31,14 +31,18 @@ CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 MAX_REASON = 200
 # The placeholder of the documented line is not a reason.
 PLACEHOLDER = "<why>"
+# Emphasis around the reason is formatting, not text: "**Coverage exempt:**" alone gives none.
+EMPHASIS = " \t*_"
 
 
 def reason(body: str) -> str:
     found = MARKER.search(COMMENT.sub("", body))
     if not found:
         return ""
-    text = CONTROL.sub(" ", found.group(1)).strip()[:MAX_REASON]
-    return "" if text.lower() == PLACEHOLDER else text
+    text = CONTROL.sub(" ", found.group(1)).strip(EMPHASIS)[:MAX_REASON]
+    if text.lower() == PLACEHOLDER or not re.search(r"\w", text):
+        return ""
+    return text
 
 
 def main() -> int:
