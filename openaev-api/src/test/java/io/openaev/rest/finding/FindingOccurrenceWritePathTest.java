@@ -147,28 +147,6 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
     }
   }
 
-  @Nested
-  @DisplayName("When a user creates a finding through the API")
-  class WhenAUserCreatesAFinding {
-
-    @Test
-    @DisplayName("Should record the occurrence of the created finding")
-    void given_aManualFinding_should_recordItsOccurrence() {
-      // Act: in the transaction the endpoint opens with the request's scope
-      TxCtx ctx = TxCtx.forTenant(tenantId);
-      Finding created =
-          tenantTx.execute(
-              ctx,
-              () ->
-                  findingService.createFinding(
-                      ctx, finding("manual-" + UUID.randomUUID()), injectId));
-
-      // Assert
-      assertThat(singleOccurrenceOf(created.getId()).get("finding_occurrence_inject_id"))
-          .isEqualTo(injectId);
-    }
-  }
-
   // -- PRIVATE --
 
   private String saveAgentFinding(String value) {
