@@ -6433,23 +6433,6 @@ export interface GlobalScoreBySimulationEndDate {
   simulation_end_date: string;
 }
 
-export interface Grant {
-  grant_group?: string;
-  /** @minLength 1 */
-  grant_id: string;
-  grant_name: "OBSERVER" | "PLANNER" | "LAUNCHER";
-  grant_resource?: string;
-  grant_resource_type?:
-    | "SCENARIO"
-    | "SIMULATION"
-    | "ATOMIC_TESTING"
-    | "AUTONOMOUS_RUN"
-    | "THREAT_ARSENAL"
-    | "PAYLOAD"
-    | "UNKNOWN";
-  listened?: boolean;
-}
-
 export interface GroupGrantInput {
   grant_name?: "OBSERVER" | "PLANNER" | "LAUNCHER";
   grant_resource?: string;
@@ -12924,6 +12907,22 @@ export interface TenantGroupCreateInput {
   group_name: string;
 }
 
+export interface TenantGroupGrantOutput {
+  grant_group?: string;
+  /** @minLength 1 */
+  grant_id: string;
+  grant_name: "OBSERVER" | "PLANNER" | "LAUNCHER";
+  grant_resource?: string;
+  grant_resource_type?:
+    | "SCENARIO"
+    | "SIMULATION"
+    | "ATOMIC_TESTING"
+    | "AUTONOMOUS_RUN"
+    | "THREAT_ARSENAL"
+    | "PAYLOAD"
+    | "UNKNOWN";
+}
+
 export interface TenantGroupMarkingsOutput {
   group_auto_new_marking?: boolean;
   /**
@@ -12947,7 +12946,7 @@ export interface TenantGroupOutput {
   group_auto_new_marking?: boolean;
   group_default_user_assign?: boolean;
   group_description?: string;
-  group_grants?: Grant[];
+  group_grants?: TenantGroupGrantOutput[];
   /** @minLength 1 */
   group_id: string;
   /** @uniqueItems true */

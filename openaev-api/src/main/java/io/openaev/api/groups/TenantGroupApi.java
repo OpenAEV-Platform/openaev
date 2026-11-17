@@ -2,12 +2,14 @@ package io.openaev.api.groups;
 
 import static io.openaev.api.groups.TenantGroupApi.GROUP_URI;
 import static io.openaev.api.groups.TenantGroupApi.TENANT_GROUP_URI;
+import static io.openaev.api.groups.dto.TenantGroupMapper.toOutput;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.api.groups.dto.TenantGroupMapper;
 import io.openaev.api.groups.dto.TenantGroupMarkingsOutput;
 import io.openaev.api.groups.dto.TenantGroupOutput;
 import io.openaev.config.TenantWriteScopeResolver;
@@ -47,7 +49,7 @@ public class TenantGroupApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER_GROUP)
   public TenantGroupOutput createGroup(
       TxCtx ctx, @Valid @RequestBody TenantGroupCreateInput input) {
-    return TenantGroupOutput.from(
+    return toOutput(
         tenantGroupService.createGroup(writeScopeResolver.tenantForWrite(ctx, null), input));
   }
 
@@ -59,7 +61,7 @@ public class TenantGroupApi extends RestBehavior {
       resourceType = ResourceType.USER_GROUP)
   public TenantGroupOutput groupGrant(
       TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupGrantInput input) {
-    return TenantGroupOutput.from(
+    return toOutput(
         tenantGroupService.addGrant(writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
   }
 
@@ -72,7 +74,7 @@ public class TenantGroupApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.USER_GROUP)
   public TenantGroupOutput group(TxCtx ctx, @PathVariable String groupId) {
-    return TenantGroupOutput.from(tenantGroupService.findByIdInTenant(groupId));
+    return toOutput(tenantGroupService.findByIdInTenant(groupId));
   }
 
   @LogExecutionTime
@@ -81,7 +83,7 @@ public class TenantGroupApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER_GROUP)
   public Page<TenantGroupOutput> groups(
       TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return tenantGroupService.search(searchPaginationInput).map(TenantGroupOutput::from);
+    return tenantGroupService.search(searchPaginationInput).map(TenantGroupMapper::toOutput);
   }
 
   // -- UPDATE --
@@ -95,7 +97,7 @@ public class TenantGroupApi extends RestBehavior {
       resourceType = ResourceType.USER_GROUP)
   public TenantGroupOutput updateGroupUsers(
       TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateUsersInput input) {
-    return TenantGroupOutput.from(
+    return toOutput(
         tenantGroupService.updateGroupUsers(
             writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
   }
@@ -117,7 +119,7 @@ public class TenantGroupApi extends RestBehavior {
       })
   public TenantGroupOutput updateGroupRoles(
       TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateRolesInput input) {
-    return TenantGroupOutput.from(
+    return toOutput(
         tenantGroupService.updateGroupRoles(
             writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
   }
@@ -158,7 +160,7 @@ public class TenantGroupApi extends RestBehavior {
       resourceType = ResourceType.USER_GROUP)
   public TenantGroupOutput updateGroupInformation(
       TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody TenantGroupCreateInput input) {
-    return TenantGroupOutput.from(
+    return toOutput(
         tenantGroupService.updateGroup(
             writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
   }
@@ -174,7 +176,7 @@ public class TenantGroupApi extends RestBehavior {
       resourceType = ResourceType.USER_GROUP)
   public TenantGroupOutput deleteGrant(
       TxCtx ctx, @PathVariable String groupId, @PathVariable String grantId) {
-    return TenantGroupOutput.from(
+    return toOutput(
         tenantGroupService.removeGrant(
             writeScopeResolver.tenantForWrite(ctx, null), groupId, grantId));
   }
