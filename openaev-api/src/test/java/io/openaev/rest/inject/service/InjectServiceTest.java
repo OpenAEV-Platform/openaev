@@ -437,6 +437,72 @@ class InjectServiceTest {
   }
 
   @DisplayName(
+      "Test bulk update injects of two tenants resolves the same relation ids separately in each"
+          + " tenant")
+  @Test
+  void given_injectsOfTwoTenants_should_resolveTheSameRelationIdsInEachTenantSeparately() {
+    // Arrange
+    InjectorContract technicalContract = buildContractWithContentFields("assets", "asset_groups");
+    Inject injectTenant1 = new Inject();
+    injectTenant1.setId("inject-tenant-1");
+    injectTenant1.setTenant(new Tenant("tenant-1"));
+    injectTenant1.setInjectorContract(technicalContract);
+    Inject injectTenant2 = new Inject();
+    injectTenant2.setId("inject-tenant-2");
+    injectTenant2.setTenant(new Tenant("tenant-2"));
+    injectTenant2.setInjectorContract(technicalContract);
+
+    List<Inject> injectsToUpdate = List.of(injectTenant1, injectTenant2);
+
+    InjectBulkUpdateOperation assetsOp = new InjectBulkUpdateOperation();
+    assetsOp.setField(InjectBulkUpdateSupportedFields.ASSETS);
+    assetsOp.setOperation(InjectBulkUpdateSupportedOperations.REPLACE);
+    assetsOp.setValues(List.of("shared-asset-id"));
+    InjectBulkUpdateOperation assetGroupsOp = new InjectBulkUpdateOperation();
+    assetGroupsOp.setField(InjectBulkUpdateSupportedFields.ASSET_GROUPS);
+    assetGroupsOp.setOperation(InjectBulkUpdateSupportedOperations.REPLACE);
+    assetGroupsOp.setValues(List.of("shared-asset-group-id"));
+    List<InjectBulkUpdateOperation> operations = List.of(assetsOp, assetGroupsOp);
+
+    // The same id resolves to a DIFFERENT entity instance in each tenant: an inject of tenant-1
+    // must get tenant-1's asset/asset group, never tenant-2's.
+    Asset assetOfTenant1 = new Asset();
+    assetOfTenant1.setId("shared-asset-id");
+    assetOfTenant1.setTenant(new Tenant("tenant-1"));
+    Asset assetOfTenant2 = new Asset();
+    assetOfTenant2.setId("shared-asset-id");
+    assetOfTenant2.setTenant(new Tenant("tenant-2"));
+    AssetGroup assetGroupOfTenant1 = new AssetGroup();
+    assetGroupOfTenant1.setId("shared-asset-group-id");
+    assetGroupOfTenant1.setTenant(new Tenant("tenant-1"));
+    AssetGroup assetGroupOfTenant2 = new AssetGroup();
+    assetGroupOfTenant2.setId("shared-asset-group-id");
+    assetGroupOfTenant2.setTenant(new Tenant("tenant-2"));
+
+    when(assetService.assets(anyList(), eq("tenant-1"))).thenReturn(List.of(assetOfTenant1));
+    when(assetService.assets(anyList(), eq("tenant-2"))).thenReturn(List.of(assetOfTenant2));
+    when(assetGroupService.assetGroups(anyList(), eq("tenant-1")))
+        .thenReturn(List.of(assetGroupOfTenant1));
+    when(assetGroupService.assetGroups(anyList(), eq("tenant-2")))
+        .thenReturn(List.of(assetGroupOfTenant2));
+    when(injectRepository.saveAll(injectsToUpdate)).thenReturn(injectsToUpdate);
+
+    // Act
+    List<Inject> updatedInjects =
+        injectService.bulkUpdateInject(TxCtx.allTenants(), injectsToUpdate, operations);
+
+    // Assert
+    Inject updatedTenant1 =
+        updatedInjects.stream().filter(i -> i.getId().equals("inject-tenant-1")).findFirst().get();
+    Inject updatedTenant2 =
+        updatedInjects.stream().filter(i -> i.getId().equals("inject-tenant-2")).findFirst().get();
+    assertEquals(List.of(assetOfTenant1), updatedTenant1.getAssets());
+    assertEquals(List.of(assetGroupOfTenant1), updatedTenant1.getAssetGroups());
+    assertEquals(List.of(assetOfTenant2), updatedTenant2.getAssets());
+    assertEquals(List.of(assetGroupOfTenant2), updatedTenant2.getAssetGroups());
+  }
+
+  @DisplayName(
       "Test bulk update injects with mixed contract types only applies asset operations to contracts declaring asset fields")
   @Test
   void given_injects_with_mixed_contract_types_should_apply_asset_operations_per_contract_fields() {
