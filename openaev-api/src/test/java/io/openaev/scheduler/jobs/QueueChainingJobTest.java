@@ -317,7 +317,7 @@ class QueueChainingJobTest extends IntegrationTest {
     private boolean isCweTableActive() {
       return activeTables.stream()
           .map(String::trim)
-          .anyMatch(t -> t.equals("cwes") || t.equals("*"));
+          .anyMatch(t -> t.equalsIgnoreCase("cwes") || t.equals("*"));
     }
 
     private Cwe persistCweWithoutTenant() {
