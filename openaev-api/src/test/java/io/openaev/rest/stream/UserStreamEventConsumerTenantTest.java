@@ -1,15 +1,18 @@
 package io.openaev.rest.stream;
 
 import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
+import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.PlatformWriteJdbc.inPlatformWriteTransaction;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -1545,6 +1548,57 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
       assertCapabilities(ofA, CAPABILITY_OF_A, CAPABILITY_OF_PLATFORM);
       assertFlags(ofA, true, true);
       assertGroupDerivedFieldsLeftOut(ofDefault);
+    }
+  }
+
+  @Nested
+  @DisplayName("User updated from the platform by an operator who belongs to no tenant")
+  class UpdatedFromThePlatformByAnOperatorOfNoTenant {
+
+    @Test
+    @DisplayName(
+        "The event is attributed to no tenant: the consumers of every tenant receive the user with the groups, capabilities and flags left out")
+    void given_operatorOfNoTenant_should_attributeTheEventToNoTenant() throws Exception {
+      // -- PREPARE --
+      Consumer ofA = consumerOfA();
+      Consumer ofDefault = consumerOfDefault();
+      User operatorRecord = UserFixture.getUserWithDefaultEmail();
+      operatorRecord.setAdmin(true);
+      User operator = userComposer.forUser(operatorRecord).persist().get();
+      createdUserIds.add(operator.getId());
+      UserInput input =
+          new UserInput(
+              player.getEmail(),
+              "Written-by-an-operator-of-no-tenant",
+              "User",
+              null,
+              null,
+              null,
+              null,
+              null,
+              List.of(),
+              false,
+              List.of(Tenant.DEFAULT_TENANT_UUID, tenantA));
+
+      // -- EXECUTE --
+      List<BaseEvent> events =
+          writeAndStream(
+              player.getId(),
+              () -> {
+                mvc.perform(
+                        json(
+                            put(PLATFORM_USER_URI + "/" + player.getId())
+                                .with(authentication(buildAuthenticationToken(operator))),
+                            input))
+                    .andExpect(status().is2xxSuccessful());
+              });
+
+      // -- ASSERT --
+      assertNull(events.getFirst().getTenantId());
+      for (Consumer consumer : List.of(ofA, ofDefault)) {
+        assertDelivered(consumer, events, "user_firstname", "Written-by-an-operator-of-no-tenant");
+        assertGroupDerivedFieldsLeftOut(consumer);
+      }
     }
   }
 

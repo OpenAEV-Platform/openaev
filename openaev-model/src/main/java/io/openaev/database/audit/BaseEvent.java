@@ -17,6 +17,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.context.request.RequestAttributes;
@@ -66,8 +67,10 @@ public class BaseEvent implements Cloneable {
   /**
    * The tenant the change was made in: the one the request declared with {@link
    * #attributeRequestEventsTo} for the type of the entity, else {@link
-   * TenantContext#getCurrentTenant()} when the event was built. A value that depends on the tenant,
-   * such as the organization of a user, is only valid for the consumers of this tenant.
+   * TenantContext#getCurrentTenant()} when the event was built. Null when the request declared an
+   * empty scope for the type with {@link #attributeRequestEventsToOneOf}: the change was made in no
+   * tenant. A value that depends on the tenant, such as the organization of a user, is only valid
+   * for the consumers of this tenant.
    */
   @JsonIgnore private final String tenantId;
 
@@ -194,11 +197,18 @@ public class BaseEvent implements Cloneable {
    * ambient tenant, so a writer names the type whose events carry a value that depends on the
    * tenant, and never moves the events of other entities it touches.
    *
-   * @param tenantId the tenant the request writes in
+   * @param tenantId the tenant the request writes in; null declares nothing for the type
    * @param entityType the type of the entities whose events are attributed to that tenant
    */
   public static void attributeRequestEventsTo(String tenantId, Class<? extends Base> entityType) {
-    attributeRequestEventsToOneOf(tenantId == null ? List.of() : List.of(tenantId), entityType);
+    if (tenantId != null) {
+      attributeRequestEventsToOneOf(List.of(tenantId), entityType);
+      return;
+    }
+    RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+    if (requestAttributes != null) {
+      attributionsOf(requestAttributes).remove(entityType);
+    }
   }
 
   /**
@@ -244,14 +254,20 @@ public class BaseEvent implements Cloneable {
     if (attributions == null) {
       return ambientTenant;
     }
-    List<String> tenantIds =
+    Optional<List<String>> declared =
         ((Map<Class<? extends Base>, List<String>>) attributions)
             .entrySet().stream()
                 .filter(attribution -> attribution.getKey().isInstance(data))
                 .map(Map.Entry::getValue)
-                .findFirst()
-                .orElse(List.of());
-    if (tenantIds.isEmpty() || tenantIds.contains(ambientTenant)) {
+                .findFirst();
+    if (declared.isEmpty()) {
+      return ambientTenant;
+    }
+    List<String> tenantIds = declared.get();
+    if (tenantIds.isEmpty()) {
+      return null;
+    }
+    if (tenantIds.contains(ambientTenant)) {
       return ambientTenant;
     }
     return tenantIds.getFirst();
