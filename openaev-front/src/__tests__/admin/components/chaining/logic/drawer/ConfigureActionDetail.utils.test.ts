@@ -4,6 +4,7 @@ import {
   buildContractDefaults,
   getPlaceholderDefault,
   mapFieldLinksToStepConditions,
+  withEnabledExpectations,
 } from '../../../../../../admin/components/chaining/logic/drawer/ConfigureActionDetail.utils';
 import type { ActionDetailData } from '../../../../../../admin/components/chaining/logic/types';
 import type { ContractElement } from '../../../../../../utils/api-types-custom';
@@ -188,6 +189,41 @@ describe('contract default values', () => {
 
       // Act & Assert
       expect(buildContractDefaults(fields)).toEqual({ mode: 'fast' });
+    });
+  });
+
+  describe('withEnabledExpectations', () => {
+    const expectation = (type: string) => ({
+      expectation_type: type,
+      expectation_name: type,
+      expectation_score: 100,
+      expectation_expectation_group: false,
+      expectation_expiration_time: 3600,
+      expectation_is_predefined: true,
+    });
+    const expectationField = field({
+      key: 'expectations',
+      type: 'expectation',
+      availableExpectations: [expectation('DETECTION'), expectation('LOGGING')],
+    });
+
+    it.each([
+      [true, ['DETECTION', 'LOGGING']],
+      [false, ['DETECTION']],
+    ])('given Logging enabled: %s, keeps the %j expectations', (isLoggingEnabled, expected) => {
+      // Act
+      const [result] = withEnabledExpectations([expectationField], isLoggingEnabled);
+
+      // Assert
+      expect(result.availableExpectations?.map(e => e.expectation_type)).toEqual(expected);
+    });
+
+    it('leaves the other fields untouched', () => {
+      // Arrange
+      const textField = field({ key: 'target' });
+
+      // Act & Assert
+      expect(withEnabledExpectations([textField], false)).toEqual([textField]);
     });
   });
 
