@@ -12,4 +12,6 @@ public interface LogRepository extends CrudRepository<Log, String>, JpaSpecifica
 
   @NotNull
   Optional<Log> findById(@NotNull String id);
+
+  Optional<Log> findByIdAndExerciseId(@NotNull String id, @NotNull String exerciseId);
 }

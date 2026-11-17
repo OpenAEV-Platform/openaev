@@ -281,7 +281,10 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String logId,
       @Valid @RequestBody LogCreateInput input) {
     Exercise exercise = exerciseService.exercise(ctx, exerciseId);
-    Log log = logRepository.findById(logId).orElseThrow(ElementNotFoundException::new);
+    Log log =
+        logRepository
+            .findByIdAndExerciseId(logId, exerciseId)
+            .orElseThrow(ElementNotFoundException::new);
     log.setUpdateAttributes(input);
     log.setTags(
         iterableToSet(
