@@ -89,7 +89,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  @WithMockUser(isAdmin = true)
   @DisplayName("Retrieving payloads")
   class RetrievingPayloads {
     // -- PREPARE --
@@ -100,6 +100,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Retrieving first page of payloads by textsearch")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_working_search_input_should_return_a_page_of_payloads() throws Exception {
         SearchPaginationInput searchPaginationInput =
             PaginationFixture.getDefault().textSearch("command").build();
@@ -115,6 +116,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Not retrieving first page of payloads by textsearch")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_not_working_search_input_should_return_a_page_of_payloads() throws Exception {
         SearchPaginationInput searchPaginationInput =
             PaginationFixture.getDefault().textSearch("wrong").build();
@@ -130,6 +132,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Textsearch on a subtype-only field keeps the other payload types")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_textsearch_matching_subtype_field_should_still_return_other_payload_types()
           throws Exception {
         // Arrange: textsearch ORs payload_name with AiAttack.category, which is reached through a
@@ -173,6 +176,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Sorting page of payloads by name")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_sorting_input_by_name_should_return_a_page_of_payloads_sort_by_name()
           throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -192,6 +196,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Sorting page of payloads by platforms")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_sorting_input_by_updated_at_should_return_a_page_of_payloads_sort_by_updated_at()
           throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -222,6 +227,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Filtering page of payloads by name")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_filter_input_by_name_should_return_a_page_of_payloads_filter_by_name()
           throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -238,6 +244,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Filtering page of payloads by platforms")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_filter_input_by_platforms_should_return_a_page_of_payloads_filter_by_platforms()
           throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -255,6 +262,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Filtering page of payloads by source")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_filter_input_by_source_should_return_a_page_of_payloads_filter_by_source()
           throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -272,6 +280,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Filtering page of payloads by architecture")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void
           given_filter_input_by_arch_should_return_a_page_of_executable_payloads_filtered_by_architecture()
               throws Exception {
