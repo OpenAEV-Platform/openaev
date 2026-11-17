@@ -19,6 +19,7 @@ import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -135,7 +136,11 @@ class FindingAssetGroupSinkTest extends IntegrationTest {
               finding.setInject(inject);
               finding.setTenant(new Tenant(tenantId));
               entityManager.persist(finding);
-              findingOccurrenceService.recordOccurrencesByInject(inject, List.of(finding));
+              findingOccurrenceService.recordOccurrences(
+                  inject,
+                  FindingOccurrenceService.occurrenceDate(inject),
+                  List.of(finding),
+                  Map.of(finding.getId(), finding.getField()));
               findingId = finding.getId();
               entityManager.flush();
 
