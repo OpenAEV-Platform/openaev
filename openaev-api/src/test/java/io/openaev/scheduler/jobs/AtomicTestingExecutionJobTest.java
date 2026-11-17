@@ -118,6 +118,13 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
         .toList();
   }
 
+  /**
+   * Fires at second 0 of every minute, so the occurrence after any instant is the next minute
+   * whatever minute the job reads from the clock. A cron computed from a clock read of the test
+   * rolls past the job's own read when a minute ends in between.
+   */
+  private static final String EVERY_MINUTE_CRON = "0 * * * * *";
+
   /** Daily cron at now + the given amount of minutes (UTC). */
   private String dailyCronInMinutes(int minutes) {
     ZonedDateTime target = ZonedDateTime.now(ZoneId.of("UTC")).plusMinutes(minutes);
@@ -143,7 +150,7 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
   @Test
   @DisplayName("Relaunch a recurring atomic testing due now, carrying the recurrence over")
   void given_cron_in_one_minute_should_relaunch() throws JobExecutionException {
-    String cron = dailyCronInMinutes(1);
+    String cron = EVERY_MINUTE_CRON;
     // Truncate to seconds: PostgreSQL timestamps keep microseconds, not nanoseconds.
     Instant recurrenceEnd = Instant.now().plus(10, ChronoUnit.DAYS).truncatedTo(ChronoUnit.SECONDS);
     Inject inject = persistAtomicTesting(cron, null, recurrenceEnd, null);
@@ -171,7 +178,7 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
   @Test
   @DisplayName("Not relaunch twice within the same occurrence (queued run dedup)")
   void given_cron_in_one_minute_should_not_relaunch_twice() throws JobExecutionException {
-    String cron = dailyCronInMinutes(1);
+    String cron = EVERY_MINUTE_CRON;
     persistAtomicTesting(cron, null, null, null);
 
     // -- EXECUTE --
@@ -191,7 +198,7 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
   @Test
   @DisplayName("Skip an atomic testing whose run is already in progress")
   void given_run_in_progress_should_not_relaunch() throws JobExecutionException {
-    String cron = dailyCronInMinutes(1);
+    String cron = EVERY_MINUTE_CRON;
     Inject inject =
         persistAtomicTesting(cron, null, null, InjectStatusFixture.createPendingInjectStatus());
 
@@ -208,7 +215,7 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
   @Test
   @DisplayName("Self-clear the recurrence when the end date has passed")
   void given_end_date_in_the_past_should_clear_recurrence() throws JobExecutionException {
-    String cron = dailyCronInMinutes(1);
+    String cron = EVERY_MINUTE_CRON;
     Inject inject =
         persistAtomicTesting(
             cron,
