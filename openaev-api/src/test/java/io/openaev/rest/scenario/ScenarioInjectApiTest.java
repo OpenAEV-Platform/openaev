@@ -367,7 +367,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Inject assistant for scenario")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @Transactional
   class ScenarioInjectsAssistant {
 
