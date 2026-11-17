@@ -3802,8 +3802,10 @@ public class AutonomousRunService {
     }
     Set<String> allowedMembers = new HashSet<>(allowPlayerIds);
     if (!allowTeamIds.isEmpty()) {
+      // The rules store the team ids their requests name: a team of another tenant than the run
+      // is an unknown id and grants nothing.
       teamRepository
-          .findAllById(allowTeamIds)
+          .findAllByIdInTenant(allowTeamIds, runTenantId(run))
           .forEach(team -> team.getUsers().forEach(user -> allowedMembers.add(user.getId())));
     }
     return players.stream()

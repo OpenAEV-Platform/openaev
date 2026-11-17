@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
@@ -54,11 +56,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * The asset ids stored in the scope rules of a workflow resolve in the tenant of the workflow.
@@ -85,6 +90,15 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
   private static final String RUN_SCOPE_URI = AutonomousRunApi.AUTONOMOUS_URI + "/{runId}/scope";
   private static final String TENANT_RUN_SCOPE_URI =
       TENANT_PREFIX + AutonomousRunApi.AUTONOMOUS_URI.substring("/api".length()) + "/{runId}/scope";
+  // The run names a simulation that is not in the seed: the lookup of the simulation answers 404
+  // once the in-scope check has let the recipients through.
+  private static final String UNKNOWN_SIMULATION = "scope-rule-unknown-simulation";
+  private static final String TARGET_TEAM_URI =
+      AutonomousRunApi.AUTONOMOUS_URI + "/{runId}/target-teams";
+  private static final String TENANT_TARGET_TEAM_URI =
+      TENANT_PREFIX
+          + AutonomousRunApi.AUTONOMOUS_URI.substring("/api".length())
+          + "/{runId}/target-teams";
   private static final String OWN_NAME = "scope-rule-own-endpoint";
   private static final String FOREIGN_NAME = "scope-rule-foreign-endpoint";
 
@@ -427,6 +441,105 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("Target team of an autonomous run")
+  class TargetTeam {
+
+    private String playerOfBothTenants;
+
+    @BeforeEach
+    void seedPlayerOfBothTenants() {
+      User player = saveUser("ScopeRuleBoth", tenantA);
+      tenantHelper.attachUserToTenant(player.getId(), tenantB);
+      playerOfBothTenants = player.getId();
+    }
+
+    @Test
+    @DisplayName(
+        "given a header naming both tenants when the allow scope names a team of another tenant"
+            + " then the members of that team are outside the allow scope")
+    void given_headerNamingBothTenants_should_refusePlayersOfAForeignAllowedTeam()
+        throws Exception {
+      // Arrange
+      String foreignTeam = saveTeam(tenantB, "scope-rule-foreign-team", playerOfBothTenants());
+      String run = seedRunOfTenantA(allowTeam(foreignTeam));
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+
+      // Act
+      Exception refusal = targetTeamOnHeaderRoute(run, status().isForbidden());
+
+      // Assert
+      assertThat(refusal).isInstanceOf(ResponseStatusException.class);
+      assertThat(((ResponseStatusException) refusal).getReason())
+          .contains("outside the run's allow-scope");
+    }
+
+    @Test
+    @DisplayName(
+        "given a header naming both tenants when the allow scope names a team of the run tenant"
+            + " then the members of that team pass the allow scope check")
+    void given_headerNamingBothTenants_should_acceptPlayersOfAnAllowedTeamOfTheRunTenant()
+        throws Exception {
+      // Arrange
+      String ownTeam = saveTeam(tenantA, "scope-rule-own-team", playerOfBothTenants());
+      String run = seedRunOfTenantA(allowTeam(ownTeam));
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+
+      // Act
+      Exception notFound = targetTeamOnHeaderRoute(run, status().isNotFound());
+
+      // Assert
+      assertThat(((ResponseStatusException) notFound).getReason())
+          .isEqualTo("Simulation not found");
+    }
+
+    @Test
+    @DisplayName(
+        "given the path of the run tenant when the allow scope names a team of another tenant"
+            + " then the members of that team are outside the allow scope")
+    void given_pathOfTheRunTenant_should_refusePlayersOfAForeignAllowedTeam() throws Exception {
+      // Arrange
+      String foreignTeam = saveTeam(tenantB, "scope-rule-foreign-team", playerOfBothTenants());
+      String run = seedRunOfTenantA(allowTeam(foreignTeam));
+
+      // Act
+      Exception refusal =
+          mvc.perform(
+                  post(TENANT_TARGET_TEAM_URI, tenantA, run)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(targetTeamBody())
+                      .with(csrf()))
+              .andExpect(status().isForbidden())
+              .andReturn()
+              .getResolvedException();
+
+      // Assert
+      assertThat(refusal).isInstanceOf(ResponseStatusException.class);
+    }
+
+    private User playerOfBothTenants() {
+      return entityManager.getReference(User.class, playerOfBothTenants);
+    }
+
+    private String targetTeamBody() {
+      return "{\"player_ids\":[\"" + playerOfBothTenants + "\"]}";
+    }
+
+    private Exception targetTeamOnHeaderRoute(String run, ResultMatcher expected) throws Exception {
+      return mvc.perform(
+              post(TARGET_TEAM_URI, run)
+                  .header(TENANT_HEADER, tenantA + "," + tenantB)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(targetTeamBody())
+                  .with(csrf()))
+          .andExpect(expected)
+          .andReturn()
+          .getResolvedException();
+    }
+  }
+
   // -- FIXTURES --
 
   private String saveEndpoint(String tenantId, String name) {
@@ -470,11 +583,12 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
     String run = UUID.randomUUID().toString();
     execute(
         "INSERT INTO autonomous_runs (autonomous_run_id, tenant_id, autonomous_run_objective,"
-            + " autonomous_run_status, autonomous_run_scenario_id) VALUES (?, ?, 'Own the domain',"
-            + " 'COMPLETED', ?)",
+            + " autonomous_run_status, autonomous_run_scenario_id, autonomous_run_simulation_id)"
+            + " VALUES (?, ?, 'Own the domain', 'COMPLETED', ?, ?)",
         run,
         tenantA,
-        scenarioOfLastWorkflow);
+        scenarioOfLastWorkflow,
+        UNKNOWN_SIMULATION);
     entityManager.flush();
     entityManager.clear();
     return run;
