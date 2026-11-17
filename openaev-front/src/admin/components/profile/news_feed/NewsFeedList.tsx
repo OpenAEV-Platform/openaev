@@ -60,8 +60,14 @@ const NewsFeedList = () => {
 
   // Refetches the list in place, with no loading placeholders: the rows the user looks at do not blink
   // out for a change elsewhere. It runs on the latest search of the user, and a request that a newer one
-  // superseded, or that ends after the list is gone, is dropped.
+  // superseded, or that ends after the list is gone, is dropped. It never starts while a load is in
+  // flight, whoever asks (the stream or the timer below): PaginationComponentV2 would apply the rows of
+  // that older load over the refreshed ones. The refetch is made once the loads are over.
   const refreshItems = () => {
+    if (loadsInFlight.current > 0) {
+      refreshPending.current = true;
+      return;
+    }
     const requestId = ++latestRequest.current;
     searchMyNewsFeedItems(searchPaginationInput, false)
       .then(({ data }) => {
@@ -112,13 +118,7 @@ const NewsFeedList = () => {
 
   // A change streamed to the user (the collector updated or deleted an item, or created one) is shown
   // without a reload.
-  useNewsFeedStreamRefresh(() => {
-    if (loadsInFlight.current > 0) {
-      refreshPending.current = true;
-    } else {
-      refreshItems();
-    }
-  });
+  useNewsFeedStreamRefresh(refreshItems);
 
   const hubUrl = (item: NewsFeedItemOutput) => (
     item.news_feed_item_url_path

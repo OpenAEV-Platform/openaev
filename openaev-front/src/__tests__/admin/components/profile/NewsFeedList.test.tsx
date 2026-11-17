@@ -806,6 +806,46 @@ describe('NewsFeedList', () => {
       expect(screen.queryByText('Before the deletion')).not.toBeInTheDocument();
     });
 
+    it('does not refetch while a newer load is in flight, so that its older rows cannot overwrite the refreshed ones', async () => {
+      // Arrange: a change streams during the first load, whose end schedules the refetch
+      const firstLoad = deferred();
+      const secondLoad = deferred();
+      mockSearchMyNewsFeedItems.mockReturnValueOnce(firstLoad.promise);
+      renderList();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      await pushEvents(streamEvent(DATA_DELETE_SUCCESS));
+      await act(async () => {
+        firstLoad.resolve(buildPage([buildItem({ news_feed_item_title: 'First load' })], 120));
+        // Microtasks only: the refetch timer must not fire yet
+        await Promise.resolve().then().then().then().then().then().then();
+      });
+      // The user goes to the next page before the refetch timer fires
+      mockSearchMyNewsFeedItems.mockReturnValueOnce(secondLoad.promise);
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem({ news_feed_item_title: 'Refreshed rows' })], 120));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /next page/i }));
+      });
+      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(2);
+
+      // Act: the timer fires while the second load is in flight, then the second load ends last
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        secondLoad.resolve(buildPage([buildItem({ news_feed_item_title: 'Older rows' })], 120));
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      // Assert: the refetch ran once that load ended and has the last word
+      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(3);
+      expect(screen.getByText('Refreshed rows')).toBeInTheDocument();
+      expect(screen.queryByText('Older rows')).not.toBeInTheDocument();
+    });
+
     it('does not reset the page, nor store it, for a refetch that ends after the list is gone', async () => {
       // Arrange: the user is on page 1 and a change is being refetched
       mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem()], 120));
