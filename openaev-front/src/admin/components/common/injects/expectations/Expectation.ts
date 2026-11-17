@@ -14,7 +14,7 @@ export interface InjectExpectationsStore extends Omit<InjectExpectationOutput, '
 }
 
 export interface ExpectationInput {
-  expectation_type: string;
+  expectation_type: InjectExpectationOutput['inject_expectation_type'];
   expectation_name: string;
   expectation_description?: string;
   expectation_score: number;
