@@ -65,13 +65,17 @@ domains OTHER io.openaev.service.tenants.TenantService.create
 # membership list, and the row carries only the link, no tenant data. UserService.createUser honours
 # the input's tenants for the platform creation scope only, and UserService.updateUser has no other
 # caller. The service-level signatures come from UserServiceTest, the route signatures from
-# PlatformUserApiTest, whose administrator is a member of the default tenant only. Retired when the
+# PlatformUserApiTest, whose administrator is a member of the default tenant only. On the
+# non-prefixed route an X-Tenant-Ids header names tenants that exclude the default one while the
+# body lists it: that row is DEFAULT by the detector's definition (UserStreamEventConsumerTenantTest),
+# and correct by the same intent. Retired when the
 # detector reads the platform-write marker of the transaction (app.platform_write, which these
 # routes do not set today) and stops reporting a marked platform route's writes as OTHER.
 users_tenants OTHER io.openaev.service.UserService.createUser
 users_tenants OTHER io.openaev.service.UserService.updateUser
 users_tenants OTHER io.openaev.api.platform.users.PlatformUserApi.create
 users_tenants OTHER io.openaev.api.platform.users.PlatformUserApi.update
+users_tenants DEFAULT io.openaev.api.platform.users.PlatformUserApi.update
 
 # --- RETIRED by the documents activation (#7904), confirmed on a re-check
 # (KillChainPhaseImportAttributionTest under the shadow arguments produces neither the write-attribution
