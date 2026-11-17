@@ -92,8 +92,8 @@ io.openaev.service.InjectorService.createNewBuiltinInjector
 # its tenant roles, and the principal these loads build holds the id, the admin flag and the
 # language only: no capability is evaluated from them. The capabilities are read later, by the
 # request's own user load in its scope. Waived for roles only.
-io.openaev.service.UserService.findByToken tables=roles
-io.openaev.service.UserService.createAdminSession tables=roles
+io.openaev.service.UserService.findByToken tables=roles,groups
+io.openaev.service.UserService.createAdminSession tables=roles,groups
 
 # BENIGN - roles activation (#9147). The platform role and platform group endpoints run in the scope
 # of their caller, empty for a platform operator who belongs to no tenant. They read platform roles
@@ -102,8 +102,8 @@ io.openaev.service.UserService.createAdminSession tables=roles
 # platform role is readable with no scope (DualScopeRolesBootTest, PinsUnscopedPlatformRead), so
 # these reads return every row they look for. Pinned by PlatformRoleApiTest and by
 # GroupPrivilegeCheckHiddenRolesTest (ReadablePlatformRoles). Waived for roles only.
-io.openaev.service.platform.groups.PlatformGroupService.findById tables=roles
-io.openaev.service.platform.groups.PlatformGroupService.lambda$search$1 tables=roles
+io.openaev.service.platform.groups.PlatformGroupService.findById tables=roles,groups
+io.openaev.service.platform.groups.PlatformGroupService.lambda$search$1 tables=roles,groups
 io.openaev.service.platform.roles.PlatformRoleService.findById tables=roles
 io.openaev.service.platform.roles.PlatformRoleService.findByIds tables=roles
 io.openaev.service.platform.roles.PlatformRoleService.lambda$search$2 tables=roles
