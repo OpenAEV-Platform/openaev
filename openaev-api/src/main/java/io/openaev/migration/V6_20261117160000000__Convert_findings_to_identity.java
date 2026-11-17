@@ -31,7 +31,7 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-public class V6_20261116160000000__Convert_findings_to_identity extends BaseJavaMigration {
+public class V6_20261117160000000__Convert_findings_to_identity extends BaseJavaMigration {
 
   private static final int BATCH_SIZE = 1000;
   private static final String FINDING_MODEL = "finding";
