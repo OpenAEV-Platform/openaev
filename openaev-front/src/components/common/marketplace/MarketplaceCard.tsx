@@ -214,7 +214,7 @@ const MarketplaceCard: FunctionComponent<Props> = ({
     >
       <Card {...interaction} elevation={1} selected={selected} gap={16} padding={24}>
         {banner && (
-          // Full bleed, like CardMetaBar at the bottom: the card's 24px padding is taken back.
+          // FDS-WORKAROUND: Card's CardBanner slot (Figma only), full bleed over the 24px padding — remove when the DS Card ships it — see Figma 8486:41702
           <div style={{
             margin: '-24px -24px 0',
             position: 'relative',
@@ -324,11 +324,12 @@ const MarketplaceCard: FunctionComponent<Props> = ({
           {subtitle && <CardSubtitle>{subtitle}</CardSubtitle>}
         </CardHeader>
         {tags && (
+          // FDS-WORKAROUND: Card's tags slot (Figma only), chips 8px apart — remove when the DS Card ships it — see Figma 8486:41702
           <div style={{
             display: 'flex',
             alignItems: 'center',
             flexWrap: 'wrap',
-            gap: 4,
+            gap: 'calc(var(--spacing) * 2)',
             minWidth: 0,
           }}
           >
