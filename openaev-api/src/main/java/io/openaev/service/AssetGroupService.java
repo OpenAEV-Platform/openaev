@@ -326,6 +326,7 @@ public class AssetGroupService {
           computeFilterGroupJpa(assetGroup.getDynamicFilter());
       Specification<Endpoint> specification =
           filterSpecification
+              .and(endpointsOfTenantOf(assetGroup))
               .and(EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints())
               .and((root, query, cb) -> cb.equal(root.get("id"), asset.getId()));
       return !this.endpointService.endpoints(specification).isEmpty();
@@ -341,6 +342,15 @@ public class AssetGroupService {
     return !this.assetService.assets(specification).isEmpty();
   }
 
+  /**
+   * Restricts a dynamic filter to the endpoints of the tenant that owns the group. The request or
+   * job scope can span several tenants, and a filter alone matches the endpoints of all of them.
+   */
+  private static Specification<Endpoint> endpointsOfTenantOf(final AssetGroup assetGroup) {
+    String tenantId = assetGroup.getTenant().getId();
+    return (root, query, cb) -> cb.equal(root.get("tenant").get("id"), tenantId);
+  }
+
   private List<AssetGroup> computeDynamicAssets(@NotNull final List<AssetGroup> assetGroups) {
     if (assetGroups.stream()
         .allMatch(assetGroup -> isEmptyFilterGroup(assetGroup.getDynamicFilter()))) {
@@ -350,8 +360,10 @@ public class AssetGroupService {
     assetGroups.forEach(
         assetGroup -> {
           if (!isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
-            Specification<Endpoint> specification =
+            Specification<Endpoint> filterSpecification =
                 computeFilterGroupJpa(assetGroup.getDynamicFilter());
+            Specification<Endpoint> specification =
+                filterSpecification.and(endpointsOfTenantOf(assetGroup));
             List<Asset> assets = new ArrayList<>();
             this.endpointService.endpoints(specification).stream()
                 .map(Asset.class::cast)
@@ -367,7 +379,10 @@ public class AssetGroupService {
     if (isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
       return assetGroup;
     }
-    Specification<Endpoint> specification = computeFilterGroupJpa(assetGroup.getDynamicFilter());
+    Specification<Endpoint> filterSpecification =
+        computeFilterGroupJpa(assetGroup.getDynamicFilter());
+    Specification<Endpoint> specification =
+        filterSpecification.and(endpointsOfTenantOf(assetGroup));
     Specification<Endpoint> specification2 =
         EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints();
     List<Asset> assets = new ArrayList<>();
