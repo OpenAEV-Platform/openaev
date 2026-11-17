@@ -15,12 +15,18 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -720,6 +726,182 @@ class GuardRolesAndRoleLinksMigrationTest extends IntegrationTest {
           .isZero();
       assertThat(count("SELECT count(*) FROM groups_roles WHERE role_id = ?", platformRole))
           .isZero();
+    }
+  }
+
+  // -- CONCURRENT TRANSACTIONS --
+
+  /** A connection with a transaction of its own, left open until the test commits it. */
+  private final class OpenTransaction implements AutoCloseable {
+    private final Connection connection;
+    private final int backendPid;
+
+    OpenTransaction() throws SQLException {
+      connection = dataSource.getConnection();
+      connection.setAutoCommit(false);
+      try (PreparedStatement bound =
+          connection.prepareStatement(
+              "SELECT set_config('lock_timeout', '30s', true), pg_backend_pid()")) {
+        try (var result = bound.executeQuery()) {
+          result.next();
+          backendPid = result.getInt(2);
+        }
+      }
+    }
+
+    void run(String sql, Object... arguments) throws SQLException {
+      try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        for (int i = 0; i < arguments.length; i++) {
+          statement.setObject(i + 1, arguments[i]);
+        }
+        statement.execute();
+      }
+    }
+
+    void commit() throws SQLException {
+      connection.commit();
+    }
+
+    void rollback() throws SQLException {
+      connection.rollback();
+    }
+
+    boolean isWaitingOnALock() {
+      Boolean waiting =
+          jdbc.queryForObject(
+              "SELECT cardinality(pg_blocking_pids(?)) > 0", Boolean.class, backendPid);
+      return Boolean.TRUE.equals(waiting);
+    }
+
+    @Override
+    public void close() throws SQLException {
+      connection.close();
+    }
+  }
+
+  /**
+   * Runs {@code first} on a connection and leaves its transaction open, starts {@code second} on
+   * another connection, waits until {@code second} is blocked or finished, then commits {@code
+   * first}. Returns the error {@code second} ended with, or null when it committed.
+   */
+  private SQLException raceOpenFirst(
+      String firstSql, Object[] firstArguments, String secondSql, Object[] secondArguments)
+      throws Exception {
+    try (OpenTransaction first = new OpenTransaction();
+        OpenTransaction second = new OpenTransaction()) {
+      first.run(firstSql, firstArguments);
+      CompletableFuture<SQLException> outcome =
+          CompletableFuture.supplyAsync(
+              () -> {
+                try {
+                  second.run(secondSql, secondArguments);
+                  second.commit();
+                  return null;
+                } catch (SQLException e) {
+                  try {
+                    second.rollback();
+                  } catch (SQLException ignored) {
+                    // the connection is closed with the transaction
+                  }
+                  return e;
+                }
+              });
+      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+      while (!outcome.isDone() && !second.isWaitingOnALock() && System.nanoTime() < deadline) {
+        TimeUnit.MILLISECONDS.sleep(50);
+      }
+      first.commit();
+      try {
+        return outcome.get(30, TimeUnit.SECONDS);
+      } catch (ExecutionException | TimeoutException e) {
+        throw new IllegalStateException("The second transaction did not end", e);
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("a link and a tenant change of a parent in concurrent transactions")
+  class ConcurrentTenantChange {
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({
+      "a role moves while a link to it is written, role, true",
+      "a role moves after a link to it is written, role, false",
+      "a group moves while a link to it is written, group, true",
+      "a group moves after a link to it is written, group, false"
+    })
+    @DisplayName("given_aParentMoveAndALink_should_refuseTheSecondAndLeaveNoLinkAcrossTenants")
+    void given_aParentMoveAndALink_should_refuseTheSecondAndLeaveNoLinkAcrossTenants(
+        String ignoredName, String parent, boolean linkFirst) throws Exception {
+      // Arrange: a role and a group of tenant A, with no link, so either can change tenant
+      String role = seedRole(tenantA);
+      String movedId = parent.equals("role") ? role : groupA;
+      String moveSql =
+          parent.equals("role")
+              ? "UPDATE roles SET tenant_id = ? WHERE role_id = ?"
+              : "UPDATE groups SET tenant_id = ? WHERE group_id = ?";
+      Object[] moveArguments = {tenantB, movedId};
+      String linkSql = "INSERT INTO groups_roles (group_id, role_id) VALUES (?, ?)";
+      Object[] linkArguments = {groupA, role};
+
+      // Act: the transaction that goes first holds its statement open; the other one is blocked
+      // by it, or runs after it
+      SQLException refused =
+          linkFirst
+              ? raceOpenFirst(linkSql, linkArguments, moveSql, moveArguments)
+              : raceOpenFirst(moveSql, moveArguments, linkSql, linkArguments);
+
+      // Assert: the second transaction is refused and the link joins parents of one tenant
+      assertThat((Throwable) refused).isNotNull().hasMessageContaining(TENANT_REFUSAL);
+      assertThat(
+              count(
+                  "SELECT count(*) FROM groups_roles gr"
+                      + " JOIN roles r ON r.role_id = gr.role_id"
+                      + " JOIN groups g ON g.group_id = gr.group_id"
+                      + " WHERE gr.role_id = ? AND r.tenant_id IS DISTINCT FROM g.tenant_id",
+                  role))
+          .isZero();
+    }
+
+    @Test
+    @DisplayName("given_aRoleMovedToThePlatform_should_refuseACapabilityWrittenWithNoMarker")
+    void given_aRoleMovedToThePlatform_should_refuseACapabilityWrittenWithNoMarker()
+        throws Exception {
+      // Arrange
+      String role = seedRole(tenantA);
+
+      // Act: a transaction that holds the marker moves the role to the platform, and a capability
+      // is written in a transaction that does not hold it
+      SQLException refused;
+      try (OpenTransaction mover = new OpenTransaction();
+          OpenTransaction writer = new OpenTransaction()) {
+        mover.run("SELECT set_config('app.platform_write', 'true', true)");
+        mover.run("UPDATE roles SET tenant_id = NULL WHERE role_id = ?", role);
+        CompletableFuture<SQLException> outcome =
+            CompletableFuture.supplyAsync(
+                () -> {
+                  try {
+                    writer.run(
+                        "INSERT INTO roles_capabilities (role_id, capability)"
+                            + " VALUES (?, 'ACCESS_ASSESSMENT')",
+                        role);
+                    writer.commit();
+                    return null;
+                  } catch (SQLException e) {
+                    return e;
+                  }
+                });
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (!outcome.isDone() && !writer.isWaitingOnALock() && System.nanoTime() < deadline) {
+          TimeUnit.MILLISECONDS.sleep(50);
+        }
+        mover.commit();
+        refused = outcome.get(30, TimeUnit.SECONDS);
+      }
+
+      // Assert
+      assertThat((Throwable) refused).isNotNull().hasMessageContaining(PLATFORM_REFUSAL);
+      assertThat(count("SELECT count(*) FROM roles_capabilities WHERE role_id = ?", role)).isZero();
     }
   }
 }

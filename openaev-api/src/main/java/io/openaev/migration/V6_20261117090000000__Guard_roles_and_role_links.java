@@ -39,6 +39,14 @@ import org.springframework.stereotype.Component;
  *       cross tenants after it is written either. A row with no link moves freely.
  * </ul>
  *
+ * <p>The triggers that read the tenant of a parent row, a role for {@code roles_capabilities} and a
+ * role and then a group for {@code groups_roles}, read it {@code FOR SHARE}, always the role before
+ * the group. A concurrent change of that row's {@code tenant_id} takes a lock that conflicts with
+ * it (the foreign key's key-share lock does not), so under READ COMMITTED the statement that comes
+ * second waits for the first to end and then sees what it committed: a link is written against the
+ * tenant the parents have when it commits, and a tenant change is checked against the links that
+ * exist when it commits.
+ *
  * <p>A Flyway migration that writes a platform role or one of its capabilities after this one runs
  * {@code SELECT set_config('app.platform_write', 'true', true)} first, in the same transaction. A
  * writer that has to commit a row these rules refuse, such as a database restore or a test that
@@ -95,13 +103,13 @@ public class V6_20261117090000000__Guard_roles_and_role_links extends BaseJavaMi
           role_tenant text;
         BEGIN
           IF TG_OP <> 'INSERT' THEN
-            SELECT tenant_id INTO role_tenant FROM roles WHERE role_id = OLD.role_id;
+            SELECT tenant_id INTO role_tenant FROM roles WHERE role_id = OLD.role_id FOR SHARE;
             IF FOUND AND role_tenant IS NULL THEN
               PERFORM require_tenant_write(NULL, true);
             END IF;
           END IF;
           IF TG_OP <> 'DELETE' THEN
-            SELECT tenant_id INTO role_tenant FROM roles WHERE role_id = NEW.role_id;
+            SELECT tenant_id INTO role_tenant FROM roles WHERE role_id = NEW.role_id FOR SHARE;
             IF FOUND AND role_tenant IS NULL THEN
               PERFORM require_tenant_write(NULL, true);
             END IF;
@@ -138,11 +146,11 @@ public class V6_20261117090000000__Guard_roles_and_role_links extends BaseJavaMi
              AND NEW.group_id IS NOT DISTINCT FROM OLD.group_id THEN
             RETURN NEW;
           END IF;
-          SELECT tenant_id INTO role_tenant FROM roles WHERE role_id = NEW.role_id;
+          SELECT tenant_id INTO role_tenant FROM roles WHERE role_id = NEW.role_id FOR SHARE;
           IF NOT FOUND THEN
             RETURN NEW;
           END IF;
-          SELECT tenant_id INTO group_tenant FROM groups WHERE group_id = NEW.group_id;
+          SELECT tenant_id INTO group_tenant FROM groups WHERE group_id = NEW.group_id FOR SHARE;
           IF NOT FOUND THEN
             RETURN NEW;
           END IF;
