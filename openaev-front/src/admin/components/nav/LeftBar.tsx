@@ -32,6 +32,7 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
+import { ASSESSMENT_ACCESS_CHECKS } from './config/assessment.config';
 import settingsEntries from './config/settings.config';
 import LeftBarHeader from './LeftBarHeader';
 import TenantSwitcher from './LeftBarTenantSwitcher';
@@ -44,9 +45,8 @@ const LeftBar = () => {
   // clean and avoids an orphan divider above the first entry (Home).
   const hasTenantSwitcher = (userTenants ?? []).length > 1;
   const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
-  // Users with grants only still reach the scenarios, simulations and atomic testings granted to them
-  const canAccessAssessments = ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT)
-    || ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT_RESOURCE);
+  // Same checks as the list routes: users with grants only still reach what is granted to them
+  const canAccessAssessments = ASSESSMENT_ACCESS_CHECKS.some(({ action, subject }) => ability.can(action, subject));
 
   const entries: NavMenuEntries[] = [
     {

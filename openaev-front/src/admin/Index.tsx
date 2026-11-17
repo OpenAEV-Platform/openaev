@@ -26,6 +26,7 @@ import ChatbotProvider from './components/ariane/ChatbotProvider';
 import { useChatbotContentMargin, useChatbotContentTransition } from './components/ariane/useChatbotHooks';
 import { GETTING_STARTED_LOCAL_STORAGE_KEY } from './components/getting_started/GettingStartedPage';
 import GettingStartedRoutes, { GETTING_STARTED_URI } from './components/getting_started/GettingStartedRoutes';
+import { ASSESSMENT_ACCESS_CHECKS } from './components/nav/config/assessment.config';
 import { SETTINGS_ACCESS_CHECKS } from './components/nav/config/settings.config';
 import LeftBar from './components/nav/LeftBar';
 import NewsFeedToastManager from './components/nav/NewsFeedToastManager';
@@ -223,14 +224,7 @@ const Index = () => {
               path="simulations"
               element={(
                 <ProtectedRoute
-                  checks={[{
-                    action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.ASSESSMENT,
-                  },
-                  {
-                    action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.ASSESSMENT_RESOURCE,
-                  }]}
+                  checks={ASSESSMENT_ACCESS_CHECKS}
                   Component={errorWrapper(Exercises)()}
                 />
               )}
@@ -308,14 +302,7 @@ const Index = () => {
               path="atomic_testings"
               element={(
                 <ProtectedRoute
-                  checks={[{
-                    action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.ASSESSMENT,
-                  },
-                  {
-                    action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.ASSESSMENT_RESOURCE,
-                  }]}
+                  checks={ASSESSMENT_ACCESS_CHECKS}
                   Component={errorWrapper(AtomicTestings)()}
                 />
               )}
@@ -365,14 +352,7 @@ const Index = () => {
               path="scenarios"
               element={(
                 <ProtectedRoute
-                  checks={[{
-                    action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.ASSESSMENT,
-                  },
-                  {
-                    action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.ASSESSMENT_RESOURCE,
-                  }]}
+                  checks={ASSESSMENT_ACCESS_CHECKS}
                   Component={errorWrapper(Scenarios)()}
                 />
               )}
