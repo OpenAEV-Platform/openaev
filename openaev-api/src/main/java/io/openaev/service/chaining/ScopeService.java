@@ -244,9 +244,15 @@ public class ScopeService {
   }
 
   private Set<Asset> getAssetsAllowedByAssetGroup(List<WorkflowScopeRule> allowlistRules) {
+    // A rule stores the group id its request names and carries the tenant of its workflow, so a
+    // group of another tenant is an unknown id.
     return allowlistRules.stream()
         .filter(rule -> ScopeRuleValueType.ASSET_GROUP_ID.equals(rule.getValueType()))
-        .flatMap(rule -> assetGroupService.assetsFromAssetGroup(rule.getRuleValue()).stream())
+        .flatMap(
+            rule ->
+                assetGroupService
+                    .assetsFromAssetGroup(rule.getRuleValue(), rule.getTenant().getId())
+                    .stream())
         .collect(Collectors.toCollection(LinkedHashSet::new));
   }
 
@@ -263,7 +269,9 @@ public class ScopeService {
 
         case ASSET_GROUP_ID -> {
           Set<String> groupAssetIds =
-              assetGroupService.assetsFromAssetGroup(rule.getRuleValue()).stream()
+              assetGroupService
+                  .assetsFromAssetGroup(rule.getRuleValue(), rule.getTenant().getId())
+                  .stream()
                   .map(Asset::getId)
                   .collect(Collectors.toSet());
           candidates.stream()

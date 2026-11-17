@@ -268,6 +268,20 @@ public class AssetGroupService {
   }
 
   /**
+   * Same as {@link #assetsFromAssetGroup(String)} for a group of the given tenant: a group of
+   * another tenant is an unknown id.
+   */
+  @Transactional(readOnly = true)
+  public List<Asset> assetsFromAssetGroup(
+      @NotBlank final String assetGroupId, @NotBlank final String tenantId) {
+    return this.assetGroupRepository.findAllByIdInTenant(List.of(assetGroupId), tenantId).stream()
+        .findFirst()
+        .map(this::computeDynamicAssets)
+        .map(this::assetsFromAssetGroup)
+        .orElseThrow(() -> new ElementNotFoundException("Asset group not found: " + assetGroupId));
+  }
+
+  /**
    * Same as {@link #assetsFromAssetGroup(String)} but for a group whose dynamic assets are already
    * resolved - avoids re-running the (potentially expensive) dynamic resolution.
    */

@@ -2,6 +2,7 @@ package io.openaev.service.chaining;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -15,6 +16,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.ScopeRuleSelectedMode;
@@ -24,15 +26,19 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowScopeRule;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
+import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.PreparedStatement;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.hibernate.Session;
@@ -84,6 +90,7 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
   @Autowired private ScopeService scopeService;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AssetGroupComposer assetGroupComposer;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private WorkflowComposer workflowComposer;
 
@@ -100,6 +107,7 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
     when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
     when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
     endpointComposer.reset();
+    assetGroupComposer.reset();
     scenarioComposer.reset();
     workflowComposer.reset();
     // The caller belongs to both tenants, so the header can name both of them.
@@ -178,6 +186,86 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Asset groups stored in the rules of a workflow")
+  class StoredAssetGroups {
+
+    @Test
+    @DisplayName(
+        "given a scope holding both tenants when an allowlist rule names a group of the workflow"
+            + " tenant then the assets of that group are in scope")
+    void given_scopeHoldingBothTenants_should_resolveTheGroupOfTheWorkflowTenant() {
+      // Arrange
+      String endpointOfGroup = saveEndpoint(tenantA, "scope-rule-group-member");
+      String group = saveGroup(tenantA, "scope-rule-own-group", endpointOfGroup);
+      String workflow = seedWorkflowOfTenantA(groupRule(ScopeRuleSelectedMode.ALLOWLIST, group));
+      tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenants(List.of(tenantA, tenantB)));
+
+      // Act
+      List<Asset> assets = scopeService.getValidAssets(workflow);
+
+      // Assert
+      assertThat(assets).extracting(Asset::getId).containsExactly(endpointOfGroup);
+    }
+
+    @Test
+    @DisplayName(
+        "given a scope holding both tenants when an allowlist rule names a group of another tenant"
+            + " then the group is an unknown id")
+    void given_scopeHoldingBothTenants_should_treatAnAllowlistedGroupOfAnotherTenantAsUnknown() {
+      // Arrange
+      String endpointOfForeignGroup = saveEndpoint(tenantB, "scope-rule-foreign-group-member");
+      String foreignGroup = saveGroup(tenantB, "scope-rule-foreign-group", endpointOfForeignGroup);
+      String workflow =
+          seedWorkflowOfTenantA(groupRule(ScopeRuleSelectedMode.ALLOWLIST, foreignGroup));
+      tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenants(List.of(tenantA, tenantB)));
+
+      // Act + Assert
+      assertThatThrownBy(() -> scopeService.getValidAssets(workflow))
+          .isInstanceOf(ElementNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName(
+        "given a scope holding both tenants when a denylist rule names a group of another tenant"
+            + " then the group is an unknown id")
+    void given_scopeHoldingBothTenants_should_treatADenylistedGroupOfAnotherTenantAsUnknown() {
+      // Arrange
+      String ownGroup =
+          saveGroup(tenantA, "scope-rule-own-group", saveEndpoint(tenantA, "scope-rule-member"));
+      String foreignGroup =
+          saveGroup(
+              tenantB, "scope-rule-foreign-group", saveEndpoint(tenantB, "scope-rule-foreign"));
+      String workflow =
+          seedWorkflowOfTenantA(
+              groupRule(ScopeRuleSelectedMode.ALLOWLIST, ownGroup),
+              groupRule(ScopeRuleSelectedMode.DENYLIST, foreignGroup));
+      tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenants(List.of(tenantA, tenantB)));
+
+      // Act + Assert
+      assertThatThrownBy(() -> scopeService.getValidAssets(workflow))
+          .isInstanceOf(ElementNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName(
+        "given a scope of the workflow tenant alone when a rule names a group of another tenant"
+            + " then the group is an unknown id")
+    void given_scopeOfTheWorkflowTenant_should_treatAGroupOfAnotherTenantAsUnknown() {
+      // Arrange
+      String foreignGroup =
+          saveGroup(
+              tenantB, "scope-rule-foreign-group", saveEndpoint(tenantB, "scope-rule-foreign"));
+      String workflow =
+          seedWorkflowOfTenantA(groupRule(ScopeRuleSelectedMode.ALLOWLIST, foreignGroup));
+      tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
+
+      // Act + Assert
+      assertThatThrownBy(() -> scopeService.getValidAssets(workflow))
+          .isInstanceOf(ElementNotFoundException.class);
+    }
+  }
+
+  @Nested
   @DisplayName("Scope of an autonomous run")
   class RunScope {
 
@@ -229,6 +317,49 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
     endpoint.setTenant(new Tenant(tenantId));
     endpointComposer.forEndpoint(endpoint).persist();
     return endpoint.getId();
+  }
+
+  private String saveGroup(String tenantId, String name, String endpointId) {
+    AssetGroup group = AssetGroupFixture.createDefaultAssetGroup(name);
+    group.setTenant(new Tenant(tenantId));
+    group.setAssets(
+        new ArrayList<>(List.of(entityManager.getReference(Endpoint.class, endpointId))));
+    assetGroupComposer.forAssetGroup(group).persist();
+    return group.getId();
+  }
+
+  /** A workflow of tenant A with its own scenario, holding only the given rules. */
+  private String seedWorkflowOfTenantA(RuleSpec... specs) {
+    Scenario scenario = ScenarioFixture.getScenario();
+    scenario.setTenant(new Tenant(tenantA));
+    Workflow workflow = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflow.setSafeModeEnabled(true);
+    for (RuleSpec spec : specs) {
+      workflow.getWorkflowScopeRules().add(spec.toRule(workflow));
+    }
+    workflowComposer
+        .forWorkflow(workflow)
+        .withScenario(scenarioComposer.forScenario(scenario))
+        .persist();
+    entityManager.flush();
+    entityManager.clear();
+    return workflow.getId();
+  }
+
+  private record RuleSpec(ScopeRuleSelectedMode mode, String groupId) {
+    WorkflowScopeRule toRule(Workflow workflow) {
+      return WorkflowScopeRule.builder()
+          .selectedMode(mode)
+          .ruleSource(ScopeRuleSource.ASSET_GROUP)
+          .valueType(ScopeRuleValueType.ASSET_GROUP_ID)
+          .ruleValue(groupId)
+          .workflow(workflow)
+          .build();
+    }
+  }
+
+  private static RuleSpec groupRule(ScopeRuleSelectedMode mode, String groupId) {
+    return new RuleSpec(mode, groupId);
   }
 
   private static WorkflowScopeRule assetRule(Workflow workflow, String endpointId) {
