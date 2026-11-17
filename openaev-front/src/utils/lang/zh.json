@@ -4969,10 +4969,12 @@
   "These injects are skipped at execution: move them to another version.": "这些注入在执行时会被跳过：请将它们移动到其他版本。",
   "{count} to move": "{count} 个待移动",
   "Keep them on their version": "保留在当前版本",
-  "Keep them on their version: hides this until the next version": "保留在当前版本：在下一个版本之前隐藏此提示",
   "Don't ask me after saving: I'll use the Versions tab": "保存后不再询问：我将使用“版本”选项卡",
   "After saving a new version, you are not asked to move injects.": "保存新版本后，不会询问是否移动注入。",
   "Ask me again": "再次询问我",
   "In this rollback": "本次回滚",
-  "Changes restored: {count}": "恢复的更改：{count}"
+  "Changes restored: {count}": "恢复的更改：{count}",
+  "Move them below, or keep them on their version.": "在下方移动它们，或将它们保留在当前版本。",
+  "Kept on their version: the card shows no banner until the next version.": "已保留在当前版本：在下一个版本之前，卡片不显示横幅。",
+  "Show the banner again": "再次显示横幅"
 }

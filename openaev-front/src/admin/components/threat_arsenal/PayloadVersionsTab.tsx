@@ -22,7 +22,7 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { USAGE_TYPE_LABELS } from './payloadUsageLabels';
 import PayloadVersionSelect from './PayloadVersionSelect';
-import { setSkipsNewVersionDialog, skipsNewVersionDialog } from './versionPreferences';
+import { setKeptOnOlderVersions, setSkipsNewVersionDialog, skipsNewVersionDialog, useKeptOnOlderVersions } from './versionPreferences';
 
 const VERSIONS_PER_PAGE = 5;
 const USAGES_PER_PAGE_OPTIONS = [10, 25, 50];
@@ -286,6 +286,12 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, foc
   const [askAfterSaving, setAskAfterSaving] = useState(() => !skipsNewVersionDialog());
 
   const listed = versions.filter(v => !!v.payload_version);
+  // The version the card shows, and the injects left on the older ones: the card's banner counts them.
+  const current = versions.find(v => v.payload_installed && v.payload_is_latest) ?? versions.find(v => v.payload_installed);
+  const olderUsages = versions
+    .filter(v => v.payload_installed && v !== current)
+    .reduce((sum, v) => sum + (v.payload_usage_count ?? 0), 0);
+  const kept = useKeptOnOlderVersions(current?.payload_action_id);
   // From a card's Migrate link: the older installed versions something still runs.
   const isFocused = (v: PayloadVersionOutput) => focusMigration && !v.payload_is_latest && !!v.payload_installed && (v.payload_usage_count ?? 0) > 0;
   const firstFocused = listed.find(isFocused);
@@ -376,6 +382,31 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, foc
     }}
     >
       {loading && versions.length === 0 && [0, 1].map(key => <Skeleton key={key} variant="rounded" height={96} />)}
+      {/* Moving is not always wanted: some teams keep scenarios on an older version on purpose. Keeping
+          them removes the card's banner until the next version; the choice can be undone here. */}
+      {olderUsages > 0 && current?.payload_action_id && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+        }}
+        >
+          <Text variant="content-compact" className="text-default-secondary">
+            {kept
+              ? t('Kept on their version: the card shows no banner until the next version.')
+              : `${olderUsages === 1 ? t('1 inject runs an older version') : t('{count} injects run an older version', { count: String(olderUsages) })}. ${t('Move them below, or keep them on their version.')}`}
+          </Text>
+          <Button
+            size="sm"
+            priority={kept ? 'tertiary' : 'secondary'}
+            style={{ flexShrink: 0 }}
+            onClick={() => setKeptOnOlderVersions(current.payload_action_id as string, !kept)}
+          >
+            {kept ? t('Show the banner again') : t('Keep them on their version')}
+          </Button>
+        </div>
+      )}
       {/* One DS table: each version a group row, its injects the rows under it. */}
       {pageVersions.length > 0 && (
         <div style={FDS_TABLE_FRAME_STYLE}>

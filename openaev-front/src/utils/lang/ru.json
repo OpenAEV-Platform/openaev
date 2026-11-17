@@ -4969,10 +4969,12 @@
   "These injects are skipped at execution: move them to another version.": "Эти инжекты пропускаются при выполнении: перенесите их в другую версию.",
   "{count} to move": "{count} к переносу",
   "Keep them on their version": "Оставить на их версии",
-  "Keep them on their version: hides this until the next version": "Оставить на их версии: скрывает это до следующей версии",
   "Don't ask me after saving: I'll use the Versions tab": "Не спрашивать после сохранения: я воспользуюсь вкладкой «Версии»",
   "After saving a new version, you are not asked to move injects.": "После сохранения новой версии вам не предлагается перенести инжекты.",
   "Ask me again": "Снова спрашивать",
   "In this rollback": "В этом откате",
-  "Changes restored: {count}": "Восстановленные изменения: {count}"
+  "Changes restored: {count}": "Восстановленные изменения: {count}",
+  "Move them below, or keep them on their version.": "Перенесите их ниже или оставьте на их версии.",
+  "Kept on their version: the card shows no banner until the next version.": "Оставлены на их версии: карточка не показывает баннер до следующей версии.",
+  "Show the banner again": "Снова показывать баннер"
 }

@@ -4969,10 +4969,12 @@
   "These injects are skipped at execution: move them to another version.": "These injects are skipped at execution: move them to another version.",
   "{count} to move": "{count} to move",
   "Keep them on their version": "Keep them on their version",
-  "Keep them on their version: hides this until the next version": "Keep them on their version: hides this until the next version",
   "Don't ask me after saving: I'll use the Versions tab": "Don't ask me after saving: I'll use the Versions tab",
   "After saving a new version, you are not asked to move injects.": "After saving a new version, you are not asked to move injects.",
   "Ask me again": "Ask me again",
   "In this rollback": "In this rollback",
-  "Changes restored: {count}": "Changes restored: {count}"
+  "Changes restored: {count}": "Changes restored: {count}",
+  "Move them below, or keep them on their version.": "Move them below, or keep them on their version.",
+  "Kept on their version: the card shows no banner until the next version.": "Kept on their version: the card shows no banner until the next version.",
+  "Show the banner again": "Show the banner again"
 }

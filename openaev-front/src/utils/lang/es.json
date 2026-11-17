@@ -4969,10 +4969,12 @@
   "These injects are skipped at execution: move them to another version.": "Estos injects se omiten en la ejecución: muévalos a otra versión.",
   "{count} to move": "{count} por mover",
   "Keep them on their version": "Mantenerlos en su versión",
-  "Keep them on their version: hides this until the next version": "Mantenerlos en su versión: oculta esto hasta la próxima versión",
   "Don't ask me after saving: I'll use the Versions tab": "No preguntar después de guardar: usaré la pestaña Versiones",
   "After saving a new version, you are not asked to move injects.": "Tras guardar una nueva versión, no se le pregunta si desea mover injects.",
   "Ask me again": "Volver a preguntarme",
   "In this rollback": "En esta reversión",
-  "Changes restored: {count}": "Cambios restaurados: {count}"
+  "Changes restored: {count}": "Cambios restaurados: {count}",
+  "Move them below, or keep them on their version.": "Muévalos abajo o manténgalos en su versión.",
+  "Kept on their version: the card shows no banner until the next version.": "Mantenidos en su versión: la tarjeta no muestra ningún banner hasta la próxima versión.",
+  "Show the banner again": "Volver a mostrar el banner"
 }

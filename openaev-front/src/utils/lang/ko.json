@@ -4969,10 +4969,12 @@
   "These injects are skipped at execution: move them to another version.": "이 인젝트는 실행 시 건너뜁니다. 다른 버전으로 이동하세요.",
   "{count} to move": "이동할 항목 {count}",
   "Keep them on their version": "현재 버전에 유지",
-  "Keep them on their version: hides this until the next version": "현재 버전에 유지: 다음 버전까지 숨깁니다",
   "Don't ask me after saving: I'll use the Versions tab": "저장 후 묻지 않기: 버전 탭을 사용하겠습니다",
   "After saving a new version, you are not asked to move injects.": "새 버전을 저장한 후 인젝트 이동 여부를 묻지 않습니다.",
   "Ask me again": "다시 묻기",
   "In this rollback": "이 롤백의 내용",
-  "Changes restored: {count}": "복원되는 변경: {count}"
+  "Changes restored: {count}": "복원되는 변경: {count}",
+  "Move them below, or keep them on their version.": "아래에서 이동하거나 현재 버전에 유지하세요.",
+  "Kept on their version: the card shows no banner until the next version.": "현재 버전에 유지됨: 다음 버전까지 카드에 배너가 표시되지 않습니다.",
+  "Show the banner again": "배너 다시 표시"
 }
