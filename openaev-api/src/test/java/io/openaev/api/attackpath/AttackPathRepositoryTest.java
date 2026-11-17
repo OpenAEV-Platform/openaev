@@ -11,7 +11,6 @@ import io.openaev.database.model.attackpath.projection.AttackPathExecutionRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
-import io.openaev.utils.fixtures.tenants.TenantFixture;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -35,7 +34,7 @@ class AttackPathRepositoryTest extends IntegrationTest {
   @Test
   @DisplayName("Read A and Read B return flat projections filtered by simulation")
   void reads_return_flat_projections_filtered_by_simulation() {
-    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-repo-tenant"));
+    Tenant tenant = new Tenant(Tenant.DEFAULT_TENANT_UUID);
 
     AttackPathExecution execution = new AttackPathExecution();
     execution.setTenant(tenant);
