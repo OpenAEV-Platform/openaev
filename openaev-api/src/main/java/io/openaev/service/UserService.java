@@ -987,10 +987,14 @@ public class UserService {
         scope,
         () -> {
           Optional<User> user = userRepository.findById(userId);
-          if (user.isPresent() && heldRolesDifferFromScope(user.get())) {
-            return loadRolesFromTheDatabase(user.get(), scope);
+          if (user.isEmpty()) {
+            return user;
           }
-          return user;
+          List<Group> differing =
+              GroupRolesInScope.withDifferingRoles(entityManager, user.get().getUnscopedGroups());
+          return differing.isEmpty()
+              ? user
+              : loadRolesFromTheDatabase(user.get(), differing, scope);
         });
   }
 
@@ -999,48 +1003,18 @@ public class UserService {
    * or a group the session already holds, read with no scope or in another tenant's scope, hands
    * out that instance with the roles of its first read: the eager associations are not read again.
    *
-   * <p>When the session holds no pending change, the groups whose roles differ are refreshed. When
-   * it holds one, a refresh would replace the pending state of a group, so the user is loaded in a
+   * <p>When the session holds no pending change, the {@code differing} groups, the ones whose roles
+   * are not the roles of the scope, are refreshed and the others are left as they are. When it
+   * holds one, a refresh would replace the pending state of a group, so the user is loaded in a
    * persistence context of its own, which the caller's entities never join: the result is detached
    * and the caller's session keeps what it holds.
    */
-  private Optional<User> loadRolesFromTheDatabase(User held, TxCtx scope) {
+  private Optional<User> loadRolesFromTheDatabase(User held, List<Group> differing, TxCtx scope) {
     if (entityManager.unwrap(Session.class).isDirty()) {
       return tenantTx.executeNew(scope, () -> userRepository.findById(held.getId()));
     }
-    for (Group group : held.getUnscopedGroups()) {
-      entityManager.refresh(group);
-    }
+    differing.forEach(entityManager::refresh);
     return Optional.of(held);
-  }
-
-  /**
-   * Tells whether the roles a group of {@code user} holds differ from the ones the transaction's
-   * scope reads. One query reads the roles of all the groups in the scope.
-   */
-  private boolean heldRolesDifferFromScope(User user) {
-    List<Group> groups = user.getUnscopedGroups();
-    if (groups.isEmpty()) {
-      return false;
-    }
-    Map<String, Set<String>> inScope = new HashMap<>();
-    entityManager
-        .createQuery(
-            "select g.id, r.id from Group g join g.roles r where g.id in :groupIds", Object[].class)
-        .setParameter("groupIds", groups.stream().map(Group::getId).toList())
-        .getResultList()
-        .forEach(
-            row ->
-                inScope
-                    .computeIfAbsent((String) row[0], id -> new HashSet<>())
-                    .add((String) row[1]));
-    return groups.stream()
-        .anyMatch(
-            group -> {
-              Set<String> held =
-                  group.getRoles().stream().map(Role::getId).collect(Collectors.toSet());
-              return !held.equals(inScope.getOrDefault(group.getId(), Set.of()));
-            });
   }
 
   /**

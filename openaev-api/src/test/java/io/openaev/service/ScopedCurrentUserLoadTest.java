@@ -42,6 +42,8 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -608,6 +610,67 @@ class ScopedCurrentUserLoadTest extends IntegrationTest {
         session.close();
       }
     }
+  }
+
+  @Nested
+  @DisplayName("a load of a user whose groups hold roles, one group with roles that differ")
+  class GroupsWithDifferingRoles {
+
+    @Test
+    @DisplayName(
+        "given_oneGroupWithDifferingRoles_should_runTheSameStatementsWhateverTheGroupCount")
+    void given_oneGroupWithDifferingRoles_should_runTheSameStatementsWhateverTheGroupCount() {
+      // Arrange: a platform group reads the same roles in every scope, the tenant group of B reads
+      // none under the scope of A and its role under the scope of B
+      User fewGroups = userOfGroups(1);
+      User manyGroups = userOfGroups(5);
+
+      // Act
+      LoadMeasure few = measureLoadAfterReadUnderTheOtherTenant(fewGroups);
+      LoadMeasure many = measureLoadAfterReadUnderTheOtherTenant(manyGroups);
+
+      // Assert
+      assertThat(few.capabilities()).contains(TENANT_ONLY_CAPABILITY);
+      assertThat(many.capabilities()).contains(TENANT_ONLY_CAPABILITY);
+      assertThat(many.statements()).isEqualTo(few.statements());
+    }
+
+    private User userOfGroups(int platformGroups) {
+      User user = newUser("groups-" + platformGroups);
+      tenantTx.executeAsPlatformWrite(
+          TxCtx.forTenants(List.of(tenantA, tenantB)),
+          () -> {
+            user.getUnscopedGroups().add(tenantGroup(tenantB, Set.of(TENANT_ONLY_CAPABILITY)));
+            for (int i = 0; i < platformGroups; i++) {
+              user.getUnscopedGroups().add(platformGroup(Set.of(GUARD_CAPABILITY)));
+            }
+            userRepository.save(user);
+          });
+      member(user, tenantB);
+      return user;
+    }
+
+    private LoadMeasure measureLoadAfterReadUnderTheOtherTenant(User user) {
+      Statistics statistics = emf.unwrap(SessionFactory.class).getStatistics();
+      statistics.setStatisticsEnabled(true);
+      EntityManager session = emf.createEntityManager();
+      TransactionSynchronizationManager.bindResource(emf, new EntityManagerHolder(session));
+      try {
+        tenantTx.executeReadOnly(
+            TxCtx.forTenant(tenantA), () -> session.find(User.class, user.getId()));
+        statistics.clear();
+
+        Set<Capability> capabilities = asUser(user, tenantB, userService::currentUser);
+
+        return new LoadMeasure(statistics.getPrepareStatementCount(), capabilities);
+      } finally {
+        TransactionSynchronizationManager.unbindResource(emf);
+        session.close();
+        statistics.setStatisticsEnabled(false);
+      }
+    }
+
+    private record LoadMeasure(long statements, Set<Capability> capabilities) {}
   }
 
   @Nested
