@@ -256,7 +256,9 @@ public class ExerciseApi extends RestBehavior {
     Log log = new Log();
     log.setUpdateAttributes(input);
     log.setExercise(exercise);
-    log.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    log.setTags(
+        iterableToSet(
+            tagRepository.findAllByIdInTenant(input.getTagIds(), exercise.getTenant().getId())));
     log.setUser(
         userRepository
             .findById(currentUser().getId())
@@ -278,10 +280,12 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String logId,
       @Valid @RequestBody LogCreateInput input) {
-    requireSimulationInScope(ctx, exerciseId);
+    Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     Log log = logRepository.findById(logId).orElseThrow(ElementNotFoundException::new);
     log.setUpdateAttributes(input);
-    log.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    log.setTags(
+        iterableToSet(
+            tagRepository.findAllByIdInTenant(input.getTagIds(), exercise.getTenant().getId())));
     return logRepository.save(log);
   }
 
@@ -587,7 +591,10 @@ public class ExerciseApi extends RestBehavior {
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody UpdateExerciseInput input) {
     Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     Set<Tag> currentTagList = exercise.getTags();
-    exercise.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    exercise.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), exercise.getTenant().getId())));
     exercise.setUpdateAttributes(input);
     if (hasText(input.getCustomDashboard())) {
       exercise.setCustomDashboard(
@@ -669,7 +676,9 @@ public class ExerciseApi extends RestBehavior {
       @Valid @RequestBody ExerciseUpdateTagsInput input) {
     Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     Set<Tag> currentTagList = exercise.getTags();
-    exercise.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    exercise.setTags(
+        iterableToSet(
+            tagRepository.findAllByIdInTenant(input.getTagIds(), exercise.getTenant().getId())));
     return hydrateForResponse(
         exerciseService.updateExercice(exercise, currentTagList, input.isApplyTagRule()));
   }
