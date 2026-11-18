@@ -643,6 +643,7 @@ const GraphExplorerInner = ({
             edges={flowEdges}
             nodeTypes={nodeTypes}
             proOptions={proOptions}
+            colorMode={theme.palette.mode}
             nodesDraggable={interactive}
             nodesConnectable={false}
             elementsSelectable={interactive}
