@@ -406,8 +406,7 @@ class TenantActiveTableAccessArchTest {
   };
 
   /**
-   * The accessors of {@code GroupRepository}, each with the scope it runs under. {@code groups} is
-   * not armed in production yet; this allowlist is prepared ahead of that activation, following the
+   * The accessors of {@code GroupRepository}, each with the scope it runs under, following the
    * pattern {@link #ROLES_REPOSITORY_ACCESSORS} set for roles.
    */
   private static final Class<?>[] GROUPS_REPOSITORY_ACCESSORS = {
@@ -2797,9 +2796,8 @@ class TenantActiveTableAccessArchTest {
 
   /**
    * {@code groups} is dual-scope like {@code roles} (see {@link PlatformRowWriters#GROUPS}): a
-   * write of a platform group outside a platform-write transaction will be refused once the table
-   * is active. Every writer this rule can see is already marked or listed as a tenant-row-only
-   * writer, prepared ahead of the activation.
+   * write of a platform group outside a platform-write transaction is refused by the database.
+   * Every writer this rule can see is marked or listed as a tenant-row-only writer.
    */
   @ArchTest
   static final ArchRule groups_platform_row_writers_run_under_platform_write =
@@ -2821,10 +2819,9 @@ class TenantActiveTableAccessArchTest {
   }
 
   /**
-   * {@code groups} is not armed in production yet, but this allowlist follows the pattern {@link
-   * #roles_repository_access_is_reviewed} set for roles: the platform groups are read by {@code
-   * PlatformGroupService} under any scope, the tenant groups by {@code TenantGroupService} under
-   * the tenant each method names.
+   * Follows the pattern {@link #roles_repository_access_is_reviewed} set for roles: the platform
+   * groups are read by {@code PlatformGroupService} under any scope, the tenant groups by {@code
+   * TenantGroupService} under the tenant each method names.
    */
   @ArchTest
   static final ArchRule groups_repository_access_is_reviewed =
@@ -2835,9 +2832,8 @@ class TenantActiveTableAccessArchTest {
           .dependOnClassesThat()
           .areAssignableTo(io.openaev.database.repository.GroupRepository.class)
           .because(
-              "groups is prepared for v2 activation: an accessor without a tenant scope will"
-                  + " silently read no tenant group once the table is active. New accessors must"
-                  + " carry a scope and be allowlisted here");
+              "groups is tenant-active: an accessor without a tenant scope silently reads no tenant"
+                  + " group. New accessors must carry a scope and be allowlisted here");
 
   /**
    * A tenant row of {@code parameters} read with no tenant scope comes back empty, silently: the

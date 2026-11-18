@@ -2,8 +2,7 @@ package io.openaev.sso;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
@@ -15,14 +14,11 @@ import io.openaev.service.UserMappingService;
 import io.openaev.utils.fixtures.UserFixture;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * The SSO auto-create path writes a platform group ({@code tenant_id IS NULL}) the same way {@code
@@ -35,19 +31,7 @@ import org.springframework.test.context.DynamicPropertySource;
  * under {@code SecurityService.userManagement}), which commits independently of a surrounding test
  * transaction, so the row is cleaned up explicitly instead.
  */
-class UserMappingServicePlatformGroupWriteTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables",
-        () ->
-            String.join(
-                ",",
-                Stream.concat(ProductionActiveTables.names().stream(), Stream.of("groups"))
-                    .distinct()
-                    .toList()));
-  }
+class UserMappingServicePlatformGroupWriteTest extends ProductionTablesIntegrationTest {
 
   @Autowired private UserMappingService userMappingService;
   @Autowired private UserRepository userRepository;

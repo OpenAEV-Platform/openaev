@@ -3,8 +3,7 @@ package io.openaev.runner;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
@@ -14,43 +13,27 @@ import io.openaev.service.account.AdminPrivilegeService;
 import io.openaev.utilstest.PinsUnscopedPlatformRead;
 import io.openaev.utilstest.WithoutTenantScope;
 import java.util.Optional;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * With {@code groups} active (dual-scope: the platform admin group has no tenant), the admin
  * bootstrap writes that platform row on every boot, an INSERT on the first one and an UPDATE on
  * every restart, the same way it does for the platform admin role (see {@link
- * DualScopeRolesBootTest}). {@code groups} is not in {@code openaev.tenant.active-tables} in
- * production yet; this class decides and pins the policy ahead of that activation, the way {@link
- * DualScopeRolesBootTest} did for roles.
+ * DualScopeRolesBootTest}). The policy is the one decided for {@code roles}: the platform group is
+ * readable with no scope and written only under the platform-write marker.
  *
  * <p>NOT {@code @Transactional}: the runner opens and owns its transaction.
  */
 @DisplayName("Admin bootstrap with groups active")
-class DualScopeGroupsBootTest extends IntegrationTest {
+class DualScopeGroupsBootTest extends ProductionTablesIntegrationTest {
 
   private static final String PLATFORM_ADMIN_GROUP_ID =
       AdminPrivilegeService.PLATFORM_ADMIN_ACCESS.groupId();
 
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    // The production list with groups on it: the test holds before and after groups joins it
-    registry.add(
-        "openaev.tenant.active-tables",
-        () ->
-            String.join(
-                ",",
-                Stream.concat(ProductionActiveTables.names().stream(), Stream.of("groups"))
-                    .distinct()
-                    .toList()));
-  }
-
+  @Autowired private InitAdminCommandLineRunner initAdminCommandLineRunner;
   @Autowired private GroupRepository groupRepository;
   @Autowired private TenantScopedTransaction tenantScopedTransaction;
 
@@ -117,6 +100,34 @@ class DualScopeGroupsBootTest extends IntegrationTest {
   @Nested
   @DisplayName("platform admin group")
   class PlatformAdminGroup {
+
+    @Test
+    @DisplayName("given_theGroupAlreadyExists_should_bootAgainThroughTheUpdatePath")
+    void given_theGroupAlreadyExists_should_bootAgainThroughTheUpdatePath() {
+      // Arrange: the context boot already ran the INSERT path; the description is changed so the
+      // restart has a real UPDATE to write back. A run that fails before the assertion leaves the
+      // changed description in the shared database
+      assertThat(platformAdminGroup().getTenant()).isNull();
+      tenantScopedTransaction.executeAsPlatformWrite(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> {
+            Group group = groupRepository.findById(PLATFORM_ADMIN_GROUP_ID).orElseThrow();
+            group.setDescription("changed before the restart");
+            groupRepository.saveAndFlush(group);
+          });
+      assertThat(platformAdminGroup().getDescription()).isEqualTo("changed before the restart");
+
+      // Act: the same run a restart makes, against the existing row
+      initAdminCommandLineRunner.run();
+
+      // Assert
+      Group group = platformAdminGroup();
+      assertThat(group.getTenant()).isNull();
+      assertThat(group.getName())
+          .isEqualTo(AdminPrivilegeService.PLATFORM_ADMIN_ACCESS.groupName());
+      assertThat(group.getDescription())
+          .isEqualTo(AdminPrivilegeService.PLATFORM_ADMIN_ACCESS.groupDescription());
+    }
 
     @Test
     @DisplayName("given_anUnmarkedTransaction_should_refuseToRewriteThePlatformGroup")
