@@ -6,6 +6,7 @@ import {
   CardSubtitle,
   CardTitle,
   Text,
+  Thumbnail,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -247,38 +248,32 @@ const MarketplaceCard: FunctionComponent<Props> = ({
                   {topLeft}
                 </Box>
               )}
-              <Box sx={{
-                'width': 56,
-                'height': 56,
-                'display': 'flex',
-                'alignItems': 'center',
-                'justifyContent': 'center',
-                'overflow': 'hidden',
-                'borderRadius': 1,
-                // As in OpenCTI: a glyph sits on a primary tint, a logo on a neutral frame.
-                'border': `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                'backgroundColor': alpha(theme.palette.primary.main, 0.08),
-                '&:has(img)': {
-                  border: `1px solid ${alpha(theme.palette.text.primary, 0.1)}`,
-                  backgroundColor: alpha(theme.palette.text.primary, 0.04),
-                },
-                '& svg': {
-                  width: '28px !important',
-                  height: '28px !important',
-                  marginTop: '0 !important',
-                },
-                '& .MuiSvgIcon-root': { fontSize: 28 },
-                '& img': {
-                  width: '44px !important',
-                  height: '44px !important',
-                  marginTop: '0 !important',
-                  borderRadius: '4px !important',
-                  objectFit: 'contain',
-                },
-              }}
-              >
-                {icon}
-              </Box>
+              {/* DS Thumbnail: a 48x48 frame, one layer above the card. A glyph is 24px and a
+                  picture fills the 48px frame (DS team). The callers pass MUI icons, inject icons
+                  or logos at their own sizes, so they are brought to those two sizes here. */}
+              <Thumbnail elevation={2}>
+                <Box sx={{
+                  'display': 'flex',
+                  'alignItems': 'center',
+                  'justifyContent': 'center',
+                  '& svg': {
+                    width: '24px !important',
+                    height: '24px !important',
+                    marginTop: '0 !important',
+                  },
+                  '& .MuiSvgIcon-root': { fontSize: 24 },
+                  '& img': {
+                    width: '48px !important',
+                    height: '48px !important',
+                    marginTop: '0 !important',
+                    borderRadius: '0 !important',
+                    objectFit: 'contain',
+                  },
+                }}
+                >
+                  {icon}
+                </Box>
+              </Thumbnail>
             </Box>
           )}
           // No empty slot: without a top-right control the header text runs to the card's edge.

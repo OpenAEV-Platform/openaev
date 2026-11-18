@@ -1,4 +1,16 @@
-import { IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+  IconButton,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@filigran/design-system';
 import { ArrowDownwardOutlined, ArrowUpwardOutlined } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { type FunctionComponent } from 'react';
@@ -19,8 +31,10 @@ interface Props {
 }
 
 /**
- * Card-view sort control: a "Sort by" select plus an asc/desc direction
- * toggle, mirroring the sortable columns available in the list view.
+ * Card-view sort control: a "Sort by" field plus an asc/desc direction
+ * toggle, mirroring the sortable columns available in the list view. The field
+ * is the DS Combobox with its label on the left (the DS team: Select uses the
+ * Combobox, whose labelPosition puts the label beside the field).
  */
 const MarketplaceSortSelect: FunctionComponent<Props> = ({ sortHelpers, options, descendingFields = [] }) => {
   const { t } = useFormatter();
@@ -29,6 +43,7 @@ const MarketplaceSortSelect: FunctionComponent<Props> = ({ sortHelpers, options,
   const sortAsc = sortHelpers.getSortAsc();
   // Guard against a stale localStorage sort on a field we no longer offer.
   const value = options.some(option => option.field === sortBy) ? sortBy : '';
+  const selected = options.find(option => option.field === value) ?? null;
 
   // Switching field applies its natural direction (A->Z for names, newest
   // first for dates); re-selecting the current field keeps the direction.
@@ -50,27 +65,29 @@ const MarketplaceSortSelect: FunctionComponent<Props> = ({ sortHelpers, options,
       flexShrink: 0,
     }}
     >
-      <Select
-        value={value}
-        onValueChange={next => handleFieldChange(next)}
+      <Combobox
+        labelPosition="left"
+        options={options}
+        value={selected}
+        onValueChange={(next: SortOption | SortOption[] | null) => {
+          if (next && !Array.isArray(next)) handleFieldChange(next.field);
+        }}
+        getOptionLabel={option => t(option.label)}
+        isOptionEqualToValue={(a, b) => a.field === b.field}
+        clearable={false}
+        openOnFocus
       >
-        {/* The library label carries `mb-2` because it is designed to sit ABOVE its
-            field. Here it sits beside it, and in a centred flex row that bottom
-            margin lifts the text 4px above its neighbours — measured. */}
-        <SelectLabel className="mb-0">{t('Sort by')}</SelectLabel>
-        {/* 110px fits the widest option ("Updated") while keeping the
+        <ComboboxLabel>{t('Sort by')}</ComboboxLabel>
+        {/* 140px fits the widest option ("Updated") and the chevron while keeping the
             single-row toolbar compact at ~1512px (#7340). */}
-        <SelectTrigger style={{ minWidth: 110 }}>
-          <SelectValue placeholder={t('Sort by')} />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map(option => (
-            <SelectItem key={option.field} value={option.field}>
-              {t(option.label)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        <ComboboxField style={{ width: 140 }}>
+          <ComboboxInput placeholder={t('Sort by')} />
+          <ComboboxControls>
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent />
+      </Combobox>
       <Tooltip>
         <TooltipTrigger asChild>
           <span>
