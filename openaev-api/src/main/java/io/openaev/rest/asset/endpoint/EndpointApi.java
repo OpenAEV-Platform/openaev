@@ -253,8 +253,6 @@ public class EndpointApi extends RestBehavior {
   // executors table (each endpoint's agents eager-load their executor).
   public List<EndpointOutput> findEndpoints(
       TxCtx ctx, @RequestBody @Valid @NotNull final List<String> endpointIds) {
-    // Mapped here, inside the transaction: the asset tags are lazy and live in a
-    // tenant-isolated table, so reading them later, when the JSON is written, gives [].
     return this.endpointService.endpoints(endpointIds).stream()
         .map(endpointMapper::toEndpointOutput)
         .toList();
