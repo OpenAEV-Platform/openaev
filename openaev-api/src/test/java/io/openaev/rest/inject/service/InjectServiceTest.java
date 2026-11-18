@@ -194,7 +194,8 @@ class InjectServiceTest {
                 stepTargetingService,
                 conditionService,
                 previewFeatureService,
-                payloadRevocationService)));
+                payloadRevocationService),
+            mapper));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }

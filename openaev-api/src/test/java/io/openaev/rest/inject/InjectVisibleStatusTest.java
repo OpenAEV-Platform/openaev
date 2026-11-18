@@ -1,6 +1,7 @@
-package io.openaev.rest.atomic_testing;
+package io.openaev.rest.inject;
 
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
+import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
@@ -19,6 +20,7 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.ExecutionTrace;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
@@ -28,6 +30,7 @@ import io.openaev.database.repository.GroupRepository;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExecutionTraceFixture;
+import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectStatusFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
@@ -37,6 +40,7 @@ import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExecutionTraceComposer;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectStatusComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
@@ -65,7 +69,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * The inject status a reader is shown, from the agents their clearance lets them see: the RED agent
  * succeeded, the GREEN one failed, so the stored verdict is PARTIAL. A GREEN reader sees only the
- * GREEN agent and reads ERROR; a RED reader sees both and reads the stored PARTIAL.
+ * GREEN agent and reads ERROR; a RED reader sees both and reads the stored PARTIAL. Checked on the
+ * atomic testings and on the simulation injects.
  *
  * <p>Markings are seeded with raw JDBC for the reason given in {@code AssetMarkingIsolationTest}.
  */
@@ -73,7 +78,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestPropertySource(properties = "openaev.marking.active-tables=assets")
 @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
 @DisplayName("Inject status shown from the agents the reader can see")
-class AtomicTestingVisibleStatusTest extends IntegrationTest {
+class InjectVisibleStatusTest extends IntegrationTest {
 
   private static final String ATOMIC_TESTING_SEARCH_URI = ATOMIC_TESTING_URI + "/search";
   private static final String INJECT_STATUS_URI = INJECT_URI + "/status";
@@ -89,6 +94,7 @@ class AtomicTestingVisibleStatusTest extends IntegrationTest {
   @Autowired private AgentComposer agentComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private ExecutionTraceComposer executionTraceComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private MarkingClearanceCacheManager clearanceCache;
   @PersistenceContext private EntityManager entityManager;
 
@@ -112,6 +118,7 @@ class AtomicTestingVisibleStatusTest extends IntegrationTest {
     agentComposer.reset();
     injectStatusComposer.reset();
     executionTraceComposer.reset();
+    exerciseComposer.reset();
     redEndpoints.clear();
     greenEndpoints.clear();
 
@@ -204,6 +211,36 @@ class AtomicTestingVisibleStatusTest extends IntegrationTest {
       assertThat(JsonPath.<String>read(atomicTesting, "$.inject_status.status_name"))
           .isEqualTo("NOT_VISIBLE");
       assertThat(JsonPath.<String>read(injectStatus, "$.status_name")).isEqualTo("NOT_VISIBLE");
+    }
+
+    @Test
+    @DisplayName(
+        "given the simulation injects, should show the status of the agents the reader sees")
+    void given_simulationInjects_should_showTheVisibleStatus() throws Exception {
+      // Arrange: a PARTIAL inject on RED and GREEN, and an inject that succeeded on two RED
+      // agents, each in its own simulation
+      ExerciseComposer.Composer simulation = simulation();
+      Inject partial = partialInjectOnRedAndGreen(simulation);
+      ExerciseComposer.Composer redSimulation = simulation();
+      Inject onRedOnly =
+          injectWithRuns(
+              InjectStatusFixture.createSuccessStatus(),
+              List.of(
+                  new Run(tlpRed, ExecutionTraceFixture.createDefaultExecutionTraceComplete()),
+                  new Run(tlpRed, ExecutionTraceFixture.createDefaultExecutionTraceComplete())),
+              null,
+              redSimulation);
+
+      // Act
+      String injects = getJson(simulationInjectsUri(simulation.get()));
+      String redInjects = getJson(simulationInjectsUri(redSimulation.get()));
+      String single = getJson(INJECT_URI + "/" + partial.getId());
+
+      // Assert
+      assertThat(statusInList(injects, partial)).isEqualTo("ERROR");
+      assertThat(statusInList(redInjects, onRedOnly)).isEqualTo("NOT_VISIBLE");
+      assertThat(JsonPath.<String>read(single, "$.inject_status.status_name")).isEqualTo("ERROR");
+      assertThat(JsonPath.<String>read(single, "$.inject_title")).isEqualTo(partial.getTitle());
     }
 
     @Test
@@ -312,18 +349,48 @@ class AtomicTestingVisibleStatusTest extends IntegrationTest {
       // Assert
       assertThat(statusInPage(page, inject)).isEqualTo("EXECUTED");
     }
+
+    @Test
+    @DisplayName("given the simulation injects, should show the stored PARTIAL")
+    void given_simulationInjects_should_showTheStoredStatus() throws Exception {
+      // Arrange
+      ExerciseComposer.Composer simulation = simulation();
+      Inject inject = partialInjectOnRedAndGreen(simulation);
+
+      // Act
+      String injects = getJson(simulationInjectsUri(simulation.get()));
+      String single = getJson(INJECT_URI + "/" + inject.getId());
+
+      // Assert
+      assertThat(statusInList(injects, inject)).isEqualTo("PARTIAL");
+      assertThat(JsonPath.<String>read(single, "$.inject_status.status_name")).isEqualTo("PARTIAL");
+    }
   }
 
   // -- HELPERS --
 
   /** An atomic testing on a RED and a GREEN endpoint: the RED agent succeeded, the GREEN failed. */
   private Inject partialInjectOnRedAndGreen() {
+    return partialInjectOnRedAndGreen(null);
+  }
+
+  /** The same inject, in the given simulation (none: an atomic testing). */
+  private Inject partialInjectOnRedAndGreen(ExerciseComposer.Composer simulation) {
     return injectWithRuns(
         InjectStatusFixture.createPartialInjectStatus(),
         List.of(
             new Run(tlpRed, ExecutionTraceFixture.createDefaultExecutionTraceComplete()),
             new Run(tlpGreen, ExecutionTraceFixture.createDefaultExecutionTraceError())),
-        null);
+        null,
+        simulation);
+  }
+
+  private ExerciseComposer.Composer simulation() {
+    return exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise());
+  }
+
+  private static String simulationInjectsUri(Exercise simulation) {
+    return EXERCISE_URI + "/" + simulation.getId() + "/injects";
   }
 
   /** One agent on an endpoint of the given marking, and the COMPLETE trace it reported. */
@@ -335,6 +402,15 @@ class AtomicTestingVisibleStatusTest extends IntegrationTest {
    */
   private Inject injectWithRuns(
       InjectStatus status, List<Run> runs, ExecutionTrace platformComplete) {
+    return injectWithRuns(status, runs, platformComplete, null);
+  }
+
+  /** The same, in the given simulation (none: an atomic testing). */
+  private Inject injectWithRuns(
+      InjectStatus status,
+      List<Run> runs,
+      ExecutionTrace platformComplete,
+      ExerciseComposer.Composer simulation) {
     status.setExpectedAgentCount(runs.isEmpty() ? null : runs.size());
     InjectStatusComposer.Composer statusComposer = injectStatusComposer.forInjectStatus(status);
     InjectComposer.Composer injectComposerWrapper =
@@ -359,7 +435,13 @@ class AtomicTestingVisibleStatusTest extends IntegrationTest {
     if (platformComplete != null) {
       statusComposer.withExecutionTrace(executionTraceComposer.forExecutionTrace(platformComplete));
     }
-    Inject inject = injectComposerWrapper.withInjectStatus(statusComposer).persist().get();
+    injectComposerWrapper.withInjectStatus(statusComposer);
+    if (simulation == null) {
+      injectComposerWrapper.persist();
+    } else {
+      simulation.withInject(injectComposerWrapper).persist();
+    }
+    Inject inject = injectComposerWrapper.get();
     // Flush before the raw-JDBC marking: the rows must exist in the database for the UPDATE
     entityManager.flush();
     markings.forEach(Runnable::run);
@@ -406,6 +488,14 @@ class AtomicTestingVisibleStatusTest extends IntegrationTest {
         JsonPath.read(
             page,
             "$.content[?(@.inject_id == '" + inject.getId() + "')].inject_status.status_name");
+    assertThat(statuses).hasSize(1);
+    return statuses.getFirst();
+  }
+
+  private static String statusInList(String injects, Inject inject) {
+    List<String> statuses =
+        JsonPath.read(
+            injects, "$[?(@.inject_id == '" + inject.getId() + "')].inject_status.status_name");
     assertThat(statuses).hasSize(1);
     return statuses.getFirst();
   }

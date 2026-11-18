@@ -4,6 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.lock.Lock;
@@ -127,11 +128,15 @@ public class InjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public Inject inject(TxCtx ctx, @PathVariable @NotBlank final String injectId) {
+  @ApiResponse(
+      responseCode = "200",
+      content =
+          @Content(mediaType = "application/json", schema = @Schema(implementation = Inject.class)))
+  public ObjectNode inject(TxCtx ctx, @PathVariable @NotBlank final String injectId) {
     Inject inject = this.injectService.inject(ctx, injectId);
     KillChainPhaseInitializer.initializeFromInjects(List.of(inject));
     InjectLinksInitializer.initialize(List.of(inject));
-    return inject;
+    return injectMapper.toJsonWithVisibleStatus(inject);
   }
 
   @LogExecutionTime

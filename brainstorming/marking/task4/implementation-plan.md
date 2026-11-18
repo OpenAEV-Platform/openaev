@@ -547,7 +547,7 @@ What leaks today, on the "Execution details" tab (`AtomicTestingExecutionDetails
 ## Chunk 11 — UX enhancement: global inject status from what the user can see
 
 **Status**: 🟡 in progress on `issue-8559/execution-status`: #1, #2, #3 and #5 implemented and tested (steps
-11.1 to 11.6), with `NOT_VISIBLE` (11.10, question 1 option B). #4 (simulation timeline) is the follow-up 11.9.
+11.1 to 11.6), with `NOT_VISIBLE` (11.10, question 1 option B), and #4 (simulation timeline, 11.9).
 Question 2 still open.
 
 The global inject status can look odd when the user does not see all the assets, because it is computed over
@@ -560,8 +560,7 @@ verdict). Background consumers rely on it (inject dependencies, chaining engine,
 ES). Only what is **displayed** to a reader is recomputed, from the COMPLETE traces they can see.
 
 **Where the status reaches a reader**: five places, listed with their recompute and cost in the tech design
-("Where the status reaches a reader: five places"). This chunk covers #1, #2, #3 and #5; #4 (simulation
-timeline, `Iterable<Inject>` entity) needs an output DTO and is a follow-up.
+("Where the status reaches a reader: five places"). This chunk covers all five.
 
 **Rule implemented today** (steps 11.1 to 11.6): only a stored PARTIAL is recomputed, from the COMPLETE traces the
 reader can see; EXECUTED and ERROR are kept. **Rule to implement with question 1** (step 11.10, tech design "The
@@ -657,7 +656,17 @@ Study of C: tech design, "Filtering and sorting on the reader's status". In shor
   (`InjectsExecutionJob:312`, `InjectExecutionStep:660`, `ExerciseRepository.thatMustBeFinished`).
 - **11.8** Depends on Chunk 4: until it ships, an agent-less COMPLETE trace naming a RED asset is still visible
   and still counted.
-- **11.9** Follow-up, #4: `GET /exercises/{id}/injects` returns an output DTO, built with `visibleStatus`.
+- **11.9** ✅ done. #4, the endpoints that return the `Inject` entity into the simulation's front store:
+  - `GET /exercises/{id}/injects` (timeline), `GET /injects/{id}` (edit drawer) and the single-inject responses of
+    `SimulationInjectApi` (activation, trigger, status, teams) return `InjectMapper.toJsonWithVisibleStatus`: the
+    entity's JSON, built in the reader's transaction, with `inject_status.status_name` replaced by `visibleStatus`.
+    No setter on the entity (#7092); `@ApiResponse` keeps the `Inject` schema, so the API types and the front do
+    not change. A full output DTO was ruled out: 46 fields, computed getters included, to keep in sync by hand.
+  - Not covered: the bulk update response (`Propagation.SUPPORTS`, the traces would load outside the reader's
+    transaction); the front reads it with `simplePutCall`, so it never reaches the timeline's store.
+  - Tests (`InjectVisibleStatusTest`, renamed from `AtomicTestingVisibleStatusTest`): GREEN reader, timeline list
+    ERROR for RED success + GREEN failure, `NOT_VISIBLE` for 2 RED agents, `GET /injects/{id}` ERROR; RED reader,
+    stored PARTIAL on both.
 - **11.10** ✅ done. Question 1, option B:
   - `ExecutionStatus.NOT_VISIBLE` (`@Hidden`), never written by the write path; front label, colour, tooltip and
     translations; the attack path badge treats it as terminal. The API types do not change.

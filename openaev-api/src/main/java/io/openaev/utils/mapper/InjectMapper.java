@@ -2,6 +2,7 @@ package io.openaev.utils.mapper;
 
 import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutputs;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.healthcheck.dto.HealthCheck;
@@ -11,6 +12,7 @@ import io.openaev.rest.document.form.RelatedEntityOutput;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.output.InjectSimple;
 import io.openaev.utils.InjectExpectationResultUtils;
+import io.openaev.utils.InjectStatusUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import java.util.*;
@@ -37,6 +39,7 @@ public class InjectMapper {
   private final InjectExpectationMapper injectExpectationMapper;
   private final InjectUtils injectUtils;
   private final HealthCheckUtils healthCheckUtils;
+  private final ObjectMapper mapper;
 
   /**
    * Converts an inject to a result overview output containing full execution details.
@@ -205,6 +208,28 @@ public class InjectMapper {
    */
   public InjectSimple toInjectSimple(Inject inject) {
     return InjectSimple.builder().id(inject.getId()).title(inject.getTitle()).build();
+  }
+
+  /**
+   * The JSON of an inject entity, as the endpoints that return {@code Inject} serialize it, but
+   * with the status its reader sees ({@link InjectStatusUtils#visibleStatus}) instead of the stored
+   * one. The entity is left untouched: a read path never changes a managed entity (#7092).
+   *
+   * <p>Call it in the reader's transaction, whose marking scope hides the traces of the agents
+   * above their clearance.
+   */
+  public ObjectNode toJsonWithVisibleStatus(Inject inject) {
+    ObjectNode json = mapper.valueToTree(inject);
+    inject
+        .getStatus()
+        .filter(status -> status.getName() != null)
+        .ifPresent(
+            status -> {
+              if (json.get("inject_status") instanceof ObjectNode statusJson) {
+                statusJson.put("status_name", InjectStatusUtils.visibleStatus(status).name());
+              }
+            });
+    return json;
   }
 
   /**
