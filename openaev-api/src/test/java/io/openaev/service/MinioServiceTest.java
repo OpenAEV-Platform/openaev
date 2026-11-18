@@ -129,22 +129,6 @@ class MinioServiceTest extends IntegrationTest {
   }
 
   @Test
-  void should_delete_directory_in_tenant_path() throws Exception {
-    // -- ARRANGE --
-    String dir = TenantContext.getCurrentTenant() + "/exercises/ex-to-delete/";
-    InputStream data = new ByteArrayInputStream(TEST_CONTENT);
-    minioService.uploadFileInTenantPath(
-        dir + "file1.txt", data, TEST_CONTENT.length, TEST_CONTENT_TYPE);
-    assertThat(minioService.countObjectsForCurrentTenant(dir)).isEqualTo(1);
-
-    // -- ACT --
-    minioService.deleteDirectoryInTenantPath(dir);
-
-    // -- ASSERT --
-    assertThat(minioService.countObjectsForCurrentTenant(dir)).isZero();
-  }
-
-  @Test
   void should_delete_directory_for_an_explicit_tenant_regardless_of_the_ambient_one()
       throws Exception {
     // -- ARRANGE: the object is written under an explicit, non-ambient tenant (as the exercise

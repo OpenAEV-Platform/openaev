@@ -231,14 +231,6 @@ public class MinioService implements DependenciesManager {
             .build());
   }
 
-  public void deleteDirectoryInTenantPath(String directory) {
-    try {
-      deleteObjectsByPrefix(getTenantPath(directory), false);
-    } catch (Exception e) {
-      log.error("Error deleting directory {} for tenant", directory, e);
-    }
-  }
-
   /**
    * Deletes a directory under an explicitly named tenant path rather than the ambient {@link
    * TenantContext}. Use it when the owning row's tenant is known (e.g. the simulation being reset

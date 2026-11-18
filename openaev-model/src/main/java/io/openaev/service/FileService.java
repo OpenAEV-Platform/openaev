@@ -165,23 +165,14 @@ public class FileService {
   }
 
   /**
-   * Deletes all files in a directory recursively.
-   *
-   * <p>This method lists all objects with the given directory prefix and deletes them. Errors
-   * during individual deletions are logged but do not stop the operation.
-   *
-   * @param directory the directory prefix to delete
-   */
-  public void deleteDirectory(String directory) {
-    minioService.deleteDirectoryInTenantPath(directory);
-  }
-
-  /**
-   * Same as {@link #deleteDirectory(String)}, under an explicitly named tenant rather than the
+   * Deletes all files in a directory recursively, under an explicitly named tenant rather than the
    * ambient {@link io.openaev.context.TenantContext}. Use it when the owning row's tenant is known,
    * so the directory removed is the one the row's files were written under, whatever scope or
    * thread-local the caller runs with (e.g. a post-commit callback with no request thread-local
    * left to fall back on).
+   *
+   * <p>This method lists all objects with the given directory prefix and deletes them. Errors
+   * during individual deletions are logged but do not stop the operation.
    *
    * @param tenantId the owning tenant
    * @param directory the directory prefix to delete
