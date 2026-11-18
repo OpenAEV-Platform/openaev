@@ -1819,6 +1819,7 @@
   "Findings": "Hallazgos",
   "FINDINGS": "Hallazgos",
   "Findings are not available for this report subject.": "No hay hallazgos disponibles para el objeto de este informe.",
+  "Keep the findings it produced, detached from it": "Conservar los findings generados, separados del elemento eliminado",
   "Findings by type": "Hallazgos por tipo",
   "Findings collected over the period, by type and most recent.": "Hallazgos recopilados durante el periodo, por tipo y los más recientes.",
   "Findings pagination for {type}": "Paginación de hallazgos para {type}",

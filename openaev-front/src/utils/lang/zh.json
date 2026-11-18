@@ -1819,6 +1819,7 @@
   "Findings": "结果",
   "FINDINGS": "发现",
   "Findings are not available for this report subject.": "此报告对象无发现项。",
+  "Keep the findings it produced, detached from it": "保留其生成的发现，并与被删除的元素解除关联",
   "Findings by type": "按类型划分的发现",
   "Findings collected over the period, by type and most recent.": "按类型和最新时间排序，该期间内收集的发现结果。",
   "Findings pagination for {type}": "{type} 的发现分页",

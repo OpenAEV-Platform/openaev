@@ -1819,6 +1819,7 @@
   "Findings": "Findings",
   "FINDINGS": "Findings",
   "Findings are not available for this report subject.": "Findings are not available for this report subject.",
+  "Keep the findings it produced, detached from it": "Keep the findings it produced, detached from it",
   "Findings by type": "Findings by type",
   "Findings collected over the period, by type and most recent.": "Findings collected over the period, by type and most recent.",
   "Findings pagination for {type}": "Findings pagination for {type}",

@@ -1819,6 +1819,7 @@
   "Findings": "결과",
   "FINDINGS": "결과",
   "Findings are not available for this report subject.": "이 보고서 대상에 대한 발견 사항은 없습니다.",
+  "Keep the findings it produced, detached from it": "생성된 발견 사항을 삭제되는 요소에서 분리하여 유지",
   "Findings by type": "유형별 발견 항목",
   "Findings collected over the period, by type and most recent.": "해당 기간 동안 수집된 발견 사항 (유형별, 최신순).",
   "Findings pagination for {type}": "{type} 발견 항목 페이지 이동",

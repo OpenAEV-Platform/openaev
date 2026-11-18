@@ -1819,6 +1819,7 @@
   "Findings": "ファインディング",
   "FINDINGS": "ファインディング",
   "Findings are not available for this report subject.": "このレポートの対象では、ファインディングを利用できません。",
+  "Keep the findings it produced, detached from it": "生成された検出結果を、削除する要素から切り離して保持する",
   "Findings by type": "種類別のファインディング",
   "Findings collected over the period, by type and most recent.": "期間中に収集されたファインディングを、種類別および最新順に表示します。",
   "Findings pagination for {type}": "{type} のファインディングのページ送り",

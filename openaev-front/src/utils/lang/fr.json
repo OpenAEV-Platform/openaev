@@ -1819,6 +1819,7 @@
   "Findings": "Findings",
   "FINDINGS": "Findings",
   "Findings are not available for this report subject.": "Les findings ne sont pas disponibles pour ce sujet de rapport.",
+  "Keep the findings it produced, detached from it": "Conserver les findings produits, détachés de l'élément supprimé",
   "Findings by type": "Findings par type",
   "Findings collected over the period, by type and most recent.": "Findings collectés sur la période, par type et plus récents.",
   "Findings pagination for {type}": "Pagination des findings pour {type}",

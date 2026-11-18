@@ -5967,6 +5967,7 @@ export interface Exercise {
 export interface ExerciseBulkProcessingInput {
   exercise_ids_to_ignore?: string[];
   exercise_ids_to_process?: string[];
+  keep_findings?: boolean;
   search_pagination_input?: SearchPaginationInput;
 }
 
@@ -6775,6 +6776,14 @@ export interface InjectAuthorisation {
   /** @format date-time */
   inject_authorisation_issued_at?: string;
   inject_id?: string;
+}
+
+export interface InjectBulkDeleteInput {
+  inject_ids_to_ignore?: string[];
+  inject_ids_to_process?: string[];
+  keep_findings?: boolean;
+  search_pagination_input?: SearchPaginationInput;
+  simulation_or_scenario_id?: string;
 }
 
 export interface InjectBulkProcessingInput {
@@ -11579,6 +11588,7 @@ export interface ScenarioAndInjectorContractsInputs {
 }
 
 export interface ScenarioBulkProcessingInput {
+  keep_findings?: boolean;
   scenario_ids_to_ignore?: string[];
   scenario_ids_to_process?: string[];
   search_pagination_input?: SearchPaginationInput;
