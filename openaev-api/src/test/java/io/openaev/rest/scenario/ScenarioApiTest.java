@@ -33,6 +33,7 @@ import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.rest.scenario.form.ScenarioRecurrenceInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
 import io.openaev.service.AssetGroupService;
+import io.openaev.service.period.RecurrenceService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -569,6 +570,45 @@ public class ScenarioApiTest extends IntegrationTest {
 
     assertNotNull(response);
     assertEquals(false, JsonPath.read(response, "$.rules_found"));
+  }
+
+  @Test
+  @DisplayName("Refuse a scenario recurrence the scheduler cannot parse, accept a 6-field cron")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void updateScenarioRecurrenceValidatesTheExpression() throws Exception {
+    Scenario scenario = getScenario(null, null);
+    String uri = SCENARIO_URI + "/" + scenario.getId() + "/recurrence";
+
+    // -- A Unix 5-field cron is refused with the accepted forms, and nothing is stored --
+    ScenarioRecurrenceInput unixCron = new ScenarioRecurrenceInput();
+    unixCron.setRecurrence("0 2 * * *");
+    unixCron.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(unixCron))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            jsonPath("$.message")
+                .value(
+                    "Unsupported recurrence expression '0 2 * * *': "
+                        + RecurrenceService.ACCEPTED_RECURRENCE_FORMS));
+    assertNull(scenarioRepository.findById(scenario.getId()).orElseThrow().getRecurrence());
+
+    // -- A Spring 6-field cron is stored --
+    ScenarioRecurrenceInput springCron = new ScenarioRecurrenceInput();
+    springCron.setRecurrence("0 0 2 * * *");
+    springCron.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(springCron))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.scenario_recurrence").value("0 0 2 * * *"));
   }
 
   @Nested

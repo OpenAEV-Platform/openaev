@@ -51,6 +51,7 @@ import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.period.RecurrenceService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
@@ -92,6 +93,7 @@ public class ScenarioApi extends RestBehavior {
   private final ScenarioToExerciseService scenarioToExerciseService;
   private final ImportService importService;
   private final ScenarioService scenarioService;
+  private final RecurrenceService recurrenceService;
   private final TeamService teamService;
   private final AssetGroupService assetGroupService;
   private final EndpointService endpointService;
@@ -614,6 +616,9 @@ public class ScenarioApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioRecurrenceInput input) {
+    // Refuse an expression the scheduler could never fire before any gate or write (a blank one
+    // clears the schedule and stays accepted).
+    this.recurrenceService.validateExpression(input.getRecurrence());
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     // Scheduling itself is a Community Edition feature, but the Enterprise executor gate still
     // applies: without it, scheduling would bypass the licence check enforced on manual launches
