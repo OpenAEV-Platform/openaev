@@ -330,6 +330,56 @@ class AuditDiffTrackedTest extends IntegrationTest {
       assertMembersChange(snapshot, group.memberIds(), List.of());
     }
 
+    @Test
+    @DisplayName("given_membersReplacedThenANameChangeFlushedLater_should_keepTheMemberChange")
+    void given_membersReplacedThenANameChangeFlushedLater_should_keepTheMemberChange() {
+      // Arrange
+      GroupWithMembers group = groupWithMembers("Twice flushed audited group", 2);
+
+      // Act — two flushes in one transaction: the second update snapshot replaces the first
+      Group loaded = entityManager.find(Group.class, group.groupId());
+      loaded.setUsers(new ArrayList<>());
+      entityManager.flush();
+      loaded.setName("Renamed twice flushed group");
+      entityManager.flush();
+
+      // Assert
+      AuditLogContext.EntitySnapshot snapshot =
+          AuditLogContext.consumeAllSnapshots().get(group.groupId());
+      assertMembersChangeWithRename(snapshot, group.memberIds());
+    }
+
+    @Test
+    @DisplayName("given_membersReadThenReplacedAndFlushedTwice_should_keepTheMemberChange")
+    void given_membersReadThenReplacedAndFlushedTwice_should_keepTheMemberChange() {
+      // Arrange
+      GroupWithMembers group = groupWithMembers("Read twice flushed audited group", 2);
+
+      // Act
+      Group loaded = entityManager.find(Group.class, group.groupId());
+      assertThat(loaded.getUsers()).hasSize(2);
+      loaded.setUsers(new ArrayList<>());
+      entityManager.flush();
+      loaded.setName("Renamed read twice flushed group");
+      entityManager.flush();
+
+      // Assert
+      AuditLogContext.EntitySnapshot snapshot =
+          AuditLogContext.consumeAllSnapshots().get(group.groupId());
+      assertMembersChangeWithRename(snapshot, group.memberIds());
+    }
+
+    private void assertMembersChangeWithRename(
+        AuditLogContext.EntitySnapshot snapshot, List<String> membersAtLoad) {
+      assertThat(changedFields(snapshot)).containsExactlyInAnyOrder("group_users", "group_name");
+      assertThat(snapshot.before().get("group_users"))
+          .asInstanceOf(InstanceOfAssertFactories.LIST)
+          .containsExactlyInAnyOrderElementsOf(membersAtLoad);
+      assertThat(snapshot.after().get("group_users"))
+          .asInstanceOf(InstanceOfAssertFactories.LIST)
+          .isEmpty();
+    }
+
     private List<String> changedFields(AuditLogContext.EntitySnapshot snapshot) {
       return ObjectDiffUtils.computeFieldChanges(snapshot.before(), snapshot.after()).stream()
           .map(ObjectDiffUtils.FieldChange::field)

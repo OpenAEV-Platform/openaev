@@ -158,13 +158,13 @@ public class ModelBaseListener {
       Map<String, Object> before = AuditLogContext.getBefore(instance.getId());
       if (before == null) return;
       Map<String, Object> after = buildSnapshot(unloadedSafeMapper(), instance);
+      Map<String, Object> resolved = resolveNotLoaded(before, after);
+      // A later flush of this entity in the transaction compares with the same members at load.
+      AuditLogContext.storeBefore(instance.getId(), resolved);
       AuditLogContext.storeSnapshot(
           instance.getId(),
           new AuditLogContext.EntitySnapshot(
-              instance.getClass().getSimpleName(),
-              "update",
-              resolveNotLoaded(before, after),
-              after));
+              instance.getClass().getSimpleName(), "update", withoutNotLoaded(resolved), after));
     } catch (Exception e) {
       log.error(
           "[AuditDiff] Failed to capture update-snapshot for {}: {}",
@@ -315,34 +315,46 @@ public class ModelBaseListener {
   }
 
   /**
-   * Replaces each collection kept unread by the load snapshot with its member ids at load. Only a
-   * collection the update loaded or replaced reaches the after snapshot; an untouched one is left
-   * out of both sides, so it is never loaded.
+   * Replaces each collection kept unread by the load snapshot with its member ids at load, when the
+   * update loaded or replaced it (only such a collection reaches the after snapshot). An untouched
+   * one stays as is, never loaded, for a later update in the transaction.
    */
   private static Map<String, Object> resolveNotLoaded(
       Map<String, Object> before, Map<String, Object> after) {
     Map<String, Object> resolved = new LinkedHashMap<>(before);
     before.forEach(
         (name, value) -> {
-          if (value instanceof PersistentCollection<?> atLoad) {
-            if (after.containsKey(name)) {
-              resolved.put(name, idsAtLoad(atLoad));
+          if (value instanceof PersistentCollection<?> atLoad && after.containsKey(name)) {
+            List<String> ids = idsAtLoad(atLoad);
+            if (ids != null) {
+              resolved.put(name, ids);
             } else {
-              resolved.remove(name);
+              // Members at load unknown: the field stays out of the diff rather than show a guess.
+              after.remove(name);
             }
           }
         });
     return resolved;
   }
 
+  /** The before snapshot without the collections still unread, which stay out of the diff. */
+  private static Map<String, Object> withoutNotLoaded(Map<String, Object> resolved) {
+    Map<String, Object> before = new LinkedHashMap<>(resolved);
+    before.values().removeIf(PersistentCollection.class::isInstance);
+    return before;
+  }
+
   /**
    * Member ids of the collection as loaded from the database: its stored snapshot ignores the
    * changes made since. A collection replaced without being read is loaded here, so only for an
-   * update that replaced it.
+   * update that replaced it. {@code null} when Hibernate no longer holds that snapshot.
    */
   private static List<String> idsAtLoad(PersistentCollection<?> atLoad) {
     Hibernate.initialize(atLoad);
     Object stored = atLoad.getStoredSnapshot();
+    if (stored == null) {
+      return null;
+    }
     Collection<?> members = stored instanceof Map<?, ?> map ? map.values() : (Collection<?>) stored;
     return members.stream().map(member -> ((Base) member).getId()).toList();
   }
