@@ -10,7 +10,6 @@ import static io.openaev.service.marking.MarkingEscalationValidator.assertCanAss
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CapabilityScope;
@@ -168,12 +167,12 @@ public class TenantGroupService {
     return groupRepository.findByNameAndTenantId(name, tenantId);
   }
 
-  /** Find a tenant group by ID, scoped to the current tenant. */
+  /** Find a tenant group by ID among the tenants of the request's scope. */
   @Transactional(readOnly = true)
-  public Group findByIdInTenant(@NotBlank final String groupId) {
-    String tenantId = TenantContext.getCurrentTenant();
+  public Group findByIdInTenants(
+      @NotBlank final String groupId, @NotNull final Collection<String> tenantIds) {
     return groupRepository
-        .findByIdAndTenantId(groupId, tenantId)
+        .findByIdAndTenantIdIn(groupId, tenantIds)
         .orElseThrow(() -> new ElementNotFoundException("Group not found with id: " + groupId));
   }
 
@@ -192,13 +191,13 @@ public class TenantGroupService {
     return group;
   }
 
-  /** Search tenant groups with pagination. */
+  /** Search the tenant groups of the request's scope with pagination. */
   @Transactional(readOnly = true)
-  public Page<Group> search(SearchPaginationInput searchPaginationInput) {
-    String tenantId = TenantContext.getCurrentTenant();
+  public Page<Group> search(
+      SearchPaginationInput searchPaginationInput, @NotNull final Collection<String> tenantIds) {
     return io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA(
         (Specification<Group> spec, org.springframework.data.domain.Pageable pageable) ->
-            groupRepository.findAll(tenantScope(tenantId).and(spec), pageable),
+            groupRepository.findAll(tenantScope(tenantIds).and(spec), pageable),
         searchPaginationInput,
         Group.class);
   }
