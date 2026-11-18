@@ -1,23 +1,36 @@
 package io.openaev.migration;
 
+import static io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.CREATE_TABLE;
+import static io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.EXPECTATION_INJECT_MODEL;
+import static io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.FOREIGN_KEY_VIOLATION;
 import static io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.INDEX;
 import static io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.JSON_COLUMN;
+import static io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.RANGE_INSERT;
 import static io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.RESULTS_TABLE;
 import static io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.SOURCE_TABLE;
+import static io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.UNKNOWN_DENSITY_PAGES_PER_BATCH;
+import static io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.pagesPerBatch;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
+import io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.TableSize;
 import io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.WalGuard;
+import io.openaev.service.EsIndexingUtils;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.sql.DataSource;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.Context;
@@ -72,6 +85,13 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
       deleteAll("tenants", "tenant_id", seededTenants);
       migration.migrate(connection);
     } finally {
+      // The migration always (re)requests a reindex: clean the sentinel row and the in-process
+      // registration so no other test class sees a pending reset for this model.
+      execute(
+          "DELETE FROM indexing_status WHERE indexing_status_type = '"
+              + EXPECTATION_INJECT_MODEL
+              + "'");
+      EsIndexingUtils.reindexRequestFulfilled(EXPECTATION_INJECT_MODEL);
       seededExpectations.clear();
       seededInjects.clear();
       seededTenants.clear();
@@ -221,6 +241,133 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
       assertThat(resultsOf(emptyArray)).isEmpty();
       assertFullSchema();
     }
+
+    @Test
+    @DisplayName("An explicit date in the result is used as is, never falling back")
+    void given_explicitDate_should_beUsedAsIs() throws Exception {
+      // Arrange: the fallback target is set to a different value, so a wrong branch would show
+      makePending();
+      String expectation =
+          seedExpectation(inject, "[{\"result\":\"SUCCESS\",\"date\":\"2021-06-15T10:00:00Z\"}]");
+      execute(
+          "UPDATE "
+              + SOURCE_TABLE
+              + " SET inject_expectation_updated_at = '2020-01-01T00:00:00Z'"
+              + " WHERE inject_expectation_id = '"
+              + expectation
+              + "'");
+
+      // Act
+      migration.migrate(connection);
+
+      // Assert
+      assertThat(
+              count(
+                  "SELECT count(*) FROM "
+                      + RESULTS_TABLE
+                      + " WHERE inject_expectation_result_inject_expectation_id = '"
+                      + expectation
+                      + "' AND inject_expectation_result_date = TIMESTAMPTZ '2021-06-15T10:00:00Z'"))
+          .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("An empty date string falls back to the expectation's updated_at, with no error")
+    void given_emptyStringDate_should_fallBackToUpdatedAt() throws Exception {
+      // Arrange: a bare "::timestamptz" cast of '' would error without the NULLIF guard
+      makePending();
+      String expectation = seedExpectation(inject, "[{\"result\":\"SUCCESS\",\"date\":\"\"}]");
+      execute(
+          "UPDATE "
+              + SOURCE_TABLE
+              + " SET inject_expectation_updated_at = '2020-02-02T00:00:00Z'"
+              + " WHERE inject_expectation_id = '"
+              + expectation
+              + "'");
+
+      // Act
+      migration.migrate(connection);
+
+      // Assert
+      assertThat(
+              count(
+                  "SELECT count(*) FROM "
+                      + RESULTS_TABLE
+                      + " WHERE inject_expectation_result_inject_expectation_id = '"
+                      + expectation
+                      + "' AND inject_expectation_result_date = TIMESTAMPTZ '2020-02-02T00:00:00Z'"))
+          .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("An empty score string is stored as NULL, with no cast error")
+    void given_emptyStringScore_should_beStoredAsNull() throws Exception {
+      // Arrange: a bare "::numeric" cast of '' would error without the NULLIF guard
+      makePending();
+      String expectation = seedExpectation(inject, "[{\"result\":\"SUCCESS\",\"score\":\"\"}]");
+
+      // Act
+      migration.migrate(connection);
+
+      // Assert
+      assertThat(
+              count(
+                  "SELECT count(*) FROM "
+                      + RESULTS_TABLE
+                      + " WHERE inject_expectation_result_inject_expectation_id = '"
+                      + expectation
+                      + "' AND inject_expectation_result_score IS NULL"))
+          .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("With no updated_at, the date falls back to the expectation's created_at")
+    void given_noUpdatedAt_should_fallBackToCreatedAt() throws Exception {
+      // Arrange: inject_expectation_updated_at is NOT NULL in production (confirmed here by the
+      // DB itself refusing a plain UPDATE to NULL); relaxed for this one test only, to prove the
+      // COALESCE's created_at branch, and restored in the finally block below.
+      makePending();
+      execute(
+          "ALTER TABLE "
+              + SOURCE_TABLE
+              + " ALTER COLUMN inject_expectation_updated_at DROP NOT NULL");
+      String expectation = seedExpectation(inject, "[{\"result\":\"SUCCESS\"}]");
+      try {
+        execute(
+            "UPDATE "
+                + SOURCE_TABLE
+                + " SET inject_expectation_updated_at = NULL,"
+                + " inject_expectation_created_at = '2019-03-03T00:00:00Z'"
+                + " WHERE inject_expectation_id = '"
+                + expectation
+                + "'");
+
+        // Act
+        migration.migrate(connection);
+
+        // Assert
+        assertThat(
+                count(
+                    "SELECT count(*) FROM "
+                        + RESULTS_TABLE
+                        + " WHERE inject_expectation_result_inject_expectation_id = '"
+                        + expectation
+                        + "' AND inject_expectation_result_date = TIMESTAMPTZ '2019-03-03T00:00:00Z'"))
+            .isEqualTo(1);
+      } finally {
+        // The constraint cannot come back while this row still carries the NULL it tests.
+        execute(
+            "UPDATE "
+                + SOURCE_TABLE
+                + " SET inject_expectation_updated_at = NOW() WHERE inject_expectation_id = '"
+                + expectation
+                + "' AND inject_expectation_updated_at IS NULL");
+        execute(
+            "ALTER TABLE "
+                + SOURCE_TABLE
+                + " ALTER COLUMN inject_expectation_updated_at SET NOT NULL");
+      }
+    }
   }
 
   @Nested
@@ -228,18 +375,25 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
   class Walk {
 
     @Test
-    @DisplayName("The page-range walk alone fills every row, before the final catch-up pass")
-    void given_pendingRows_should_beFilledByTheWalkAlone() throws SQLException {
-      // Arrange: the filler makes a handful of rows span more than one page. walk() alone never
-      // creates the table, so it is created here the way migrate() would.
+    @DisplayName(
+        "The page-range walk alone fills every row across several pages, before the catch-up pass")
+    void given_pendingRowsAcrossSeveralPages_should_beFilledByTheWalkAlone() throws SQLException {
+      // Arrange: PLAIN storage keeps the filler inline (never TOASTed out of the row), so a
+      // handful of rows reliably span several pages. walk() alone never creates the table, so it
+      // is created here the way migrate() would.
       makePending();
-      execute(V6_20261023184049806__Add_expectation_results_table.CREATE_TABLE);
+      execute(
+          "ALTER TABLE " + SOURCE_TABLE + " ALTER COLUMN " + JSON_COLUMN + " SET STORAGE PLAIN");
+      execute(CREATE_TABLE);
       List<String> expectations = new ArrayList<>();
       for (int i = 0; i < 7; i++) {
         expectations.add(seedExpectation(inject, "[{\"result\":\"" + randomFiller() + "\"}]"));
       }
+      assertThat(distinctPages(expectations))
+          .as("the seeded rows span at least 3 pages")
+          .isGreaterThanOrEqualTo(3);
 
-      // Act
+      // Act: one page per batch (small), so the walk crosses several ranges to cover them all
       long written = small.walk(connection, new WalGuard(null));
 
       // Assert
@@ -247,6 +401,242 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
       for (String expectation : expectations) {
         assertThat(resultsOf(expectation)).hasSize(1);
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("Catch-up")
+  class CatchUp {
+
+    @Test
+    @DisplayName(
+        "Rows added to the source table after the walk measured its size are filled by the catch-up pass")
+    void given_rowsAddedAfterTheWalkMeasuredItsSize_should_beFilledByTheCatchUp()
+        throws SQLException {
+      // Arrange: PLAIN storage and six packed filler rows already use several pages; the hook
+      // then adds more large rows once the walk has already read the page count, so at least one
+      // of them lands on a page the walk's fixed range never reaches.
+      makePending();
+      execute(
+          "ALTER TABLE " + SOURCE_TABLE + " ALTER COLUMN " + JSON_COLUMN + " SET STORAGE PLAIN");
+      execute(CREATE_TABLE);
+      for (int i = 0; i < 6; i++) {
+        seedExpectation(inject, "[{\"result\":\"" + randomFiller() + "\"}]");
+      }
+      V6_20261023184049806__Scripted_growth migration = new V6_20261023184049806__Scripted_growth();
+
+      // Act
+      migration.migrate(connection);
+
+      // Assert
+      assertThat(migration.lateExpectations).hasSize(3);
+      for (String late : migration.lateExpectations) {
+        assertThat(resultsOf(late)).hasSize(1);
+      }
+      assertFullSchema();
+    }
+  }
+
+  @Nested
+  @DisplayName("Batch retry")
+  class BatchRetry {
+
+    @Test
+    @DisplayName("A batch that hits a concurrent delete once (23503) is retried, then succeeds")
+    void given_foreignKeyViolationOnce_should_retryThenSucceed() throws SQLException {
+      // Arrange
+      makePending();
+      String expectation = seedExpectation(inject, "[{\"result\":\"SUCCESS\"}]");
+      V6_20261023184049806__Scripted_conflict migration =
+          new V6_20261023184049806__Scripted_conflict();
+
+      // Act
+      migration.migrate(connection);
+
+      // Assert
+      assertThat(migration.thrown).isTrue();
+      assertThat(resultsOf(expectation)).hasSize(1);
+      assertFullSchema();
+    }
+  }
+
+  @Nested
+  @DisplayName("Lock retry")
+  class LockRetry {
+
+    @Test
+    @DisplayName("A lock timeout dropping the JSON column is retried, then succeeds")
+    void given_lockTimeoutOnDropColumn_should_retryThenSucceed() throws SQLException {
+      // Arrange
+      makePending();
+      String expectation = seedExpectation(inject, "[{\"result\":\"SUCCESS\"}]");
+      V6_20261023184049806__Scripted_lock migration = new V6_20261023184049806__Scripted_lock();
+
+      // Act
+      migration.migrate(connection);
+
+      // Assert
+      assertThat(migration.timedOut).isTrue();
+      assertThat(resultsOf(expectation)).hasSize(1);
+      assertFullSchema();
+    }
+  }
+
+  @Nested
+  @DisplayName("WAL lag")
+  class WalLag {
+
+    @Test
+    @DisplayName("The WAL lag query runs on the server and reads zero or more bytes")
+    void given_server_should_readTheWalLag() throws SQLException {
+      // Act
+      long lag = small.walLagBytes(connection, null);
+
+      // Assert
+      assertThat(lag).isGreaterThanOrEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("A batch waits while the WAL lag is above the bound, and goes on once it falls")
+    void given_lagAboveTheBound_should_waitUntilItFalls() throws SQLException {
+      // Arrange: one range for the whole table, so the walk paces once
+      makePending();
+      execute(CREATE_TABLE);
+      String expectation = seedExpectation(inject, "[{\"result\":\"SUCCESS\"}]");
+      Deque<Long> lags = new ArrayDeque<>(List.of(500L, 500L, 0L));
+      AtomicInteger reads = new AtomicInteger();
+      V6_20261023184049806__Add_expectation_results_table migration =
+          new V6_20261023184049806__Scripted_lag(
+              () -> {
+                reads.incrementAndGet();
+                Long lag = lags.poll();
+                return lag == null ? 0 : lag;
+              });
+
+      // Act
+      migration.walk(connection, new WalGuard(null));
+
+      // Assert: once after the batch, twice more while above the bound
+      assertThat(reads).hasValue(3);
+      assertThat(lags).isEmpty();
+      assertThat(resultsOf(expectation)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("A lag that cannot be read stops the lag reads for the run, and the walk goes on")
+    void given_unreadableLag_should_fallBackToThePauseAlone() throws SQLException {
+      // Arrange
+      makePending();
+      execute(CREATE_TABLE);
+      String expectation = seedExpectation(inject, "[{\"result\":\"SUCCESS\"}]");
+      AtomicInteger reads = new AtomicInteger();
+      V6_20261023184049806__Add_expectation_results_table migration =
+          new V6_20261023184049806__Scripted_lag(
+              () -> {
+                reads.incrementAndGet();
+                throw new SQLException("permission denied for view pg_stat_replication");
+              });
+      WalGuard guard = new WalGuard(null);
+
+      // Act: one guard for both, as in a run
+      migration.walk(connection, guard);
+      migration.walk(connection, guard);
+
+      // Assert
+      assertThat(reads).hasValue(1);
+      assertThat(resultsOf(expectation)).hasSize(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("Pages per batch")
+  class PagesPerBatch {
+
+    @Test
+    @DisplayName("An unknown row or page estimate gives a fixed range of pages per batch")
+    void given_unknownEstimate_should_useTheFixedPageRange() {
+      // Act + Assert
+      assertThat(pagesPerBatch(-1, 100, 10_000)).isEqualTo(UNKNOWN_DENSITY_PAGES_PER_BATCH);
+      assertThat(pagesPerBatch(0, 100, 10_000)).isEqualTo(UNKNOWN_DENSITY_PAGES_PER_BATCH);
+      assertThat(pagesPerBatch(100_000, 0, 10_000)).isEqualTo(UNKNOWN_DENSITY_PAGES_PER_BATCH);
+    }
+
+    @Test
+    @DisplayName("The batch covers about the target row count, given the table's row density")
+    void given_knownDensity_should_coverAboutTheTargetRows() {
+      // Act + Assert: 10 rows a page
+      assertThat(pagesPerBatch(1_000_000, 100_000, 10_000)).isEqualTo(1_000);
+    }
+
+    @Test
+    @DisplayName("At least one page per batch, even for a very dense table")
+    void given_veryDenseTable_should_useAtLeastOnePage() {
+      // Act + Assert
+      assertThat(pagesPerBatch(1_000_000_000, 100, 10_000)).isEqualTo(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("Range picker")
+  class RangePicker {
+
+    @Test
+    @DisplayName("A page range is read as a Tid Range Scan, in physical order, with no sort")
+    void given_pageRange_should_useATidRangeScan() throws SQLException {
+      // Arrange: RANGE_INSERT's predicate on ie.ctid alone; parameters inlined for EXPLAIN
+      assertThat(RANGE_INSERT).contains("ie.ctid >= ?::tid AND ie.ctid < ?::tid");
+      makePending();
+      execute(CREATE_TABLE);
+      String sql =
+          RANGE_INSERT
+              .replaceFirst("\\?::tid", "'(0,0)'::tid")
+              .replaceFirst("\\?::tid", "'(10,0)'::tid");
+      assertThat(sql).doesNotContain("?");
+
+      // Act: on a near-empty table a seq scan costs the same as any path
+      execute("SET enable_seqscan = off");
+      String plan;
+      try {
+        plan =
+            rows("EXPLAIN " + sql).stream()
+                .map(row -> (String) row[0])
+                .reduce("", (left, right) -> left + "\n" + right);
+      } finally {
+        execute("RESET enable_seqscan");
+      }
+
+      // Assert
+      assertThat(plan).contains("Tid Range Scan").doesNotContain("Sort");
+    }
+  }
+
+  @Nested
+  @DisplayName("Reindex")
+  class Reindex {
+
+    @Test
+    @DisplayName(
+        "The migration writes the reset sentinel and registers the in-process reset request")
+    void given_migration_should_requestAFullReindexAtStartup() throws Exception {
+      // Arrange
+      makePending();
+
+      // Act
+      migration.migrate(connection);
+
+      // Assert
+      assertThat(
+              count(
+                  "SELECT count(*) FROM indexing_status WHERE indexing_status_type = '"
+                      + EXPECTATION_INJECT_MODEL
+                      + "' AND indexing_status_indexing_date = TIMESTAMPTZ '"
+                      + EsIndexingUtils.REINDEX_REQUESTED_CURSOR
+                      + "'"))
+          .as("the sentinel cursor is written")
+          .isEqualTo(1);
+      assertThat(EsIndexingUtils.isRollingDeployReset(EXPECTATION_INJECT_MODEL, Optional.empty()))
+          .as("the in-process reset request is registered for this startup")
+          .isTrue();
     }
   }
 
@@ -259,9 +649,10 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
         "A run that fails partway leaves the JSON column in place and the ranges before the"
             + " failure committed; a second run finishes with no duplicate")
     void given_failureAfterSomeRanges_should_finishOnRerunWithNoDuplicate() throws SQLException {
-      // Arrange: six expectations over several pages; the trigger fails the result of the sixth.
-      // PLAIN storage keeps the filler inline (never TOASTed out of the row), so six rows reliably
-      // span more than one page regardless of what other tests already put in this shared table.
+      // Arrange: six expectations over several pages; the trigger fails the result of the one
+      // with the highest ctid, whichever seeding order left it. PLAIN storage keeps the filler
+      // inline (never TOASTed out of the row), so six rows reliably span more than one page
+      // regardless of what other tests already put in this shared table.
       makePending();
       execute(
           "ALTER TABLE " + SOURCE_TABLE + " ALTER COLUMN " + JSON_COLUMN + " SET STORAGE PLAIN");
@@ -269,7 +660,7 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
       for (int i = 1; i <= 6; i++) {
         expectations.add(seedExpectation(inject, "[{\"result\":\"" + randomFiller() + "\"}]"));
       }
-      String failing = expectations.get(5);
+      String failing = highestCtid(expectations);
       execute(
           "CREATE FUNCTION test_result_fail() RETURNS trigger AS $$ BEGIN"
               + " IF NEW.inject_expectation_result_inject_expectation_id = '"
@@ -278,30 +669,13 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
               + " RETURN NEW; END $$ LANGUAGE plpgsql");
       // Create the table ourselves (makePending() already dropped it) so the trigger can be
       // attached to it before the migration runs.
-      execute(
-          """
-          CREATE TABLE inject_expectation_results(
-              inject_expectation_result_id VARCHAR(255) PRIMARY KEY,
-              inject_expectation_result_source_id VARCHAR(255) NULL,
-              inject_expectation_result_source_type VARCHAR(255) NULL,
-              inject_expectation_result_source_name VARCHAR(255) NULL,
-              inject_expectation_result_source_asset_id VARCHAR(255) NULL,
-              inject_expectation_result_source_platform VARCHAR(255) NULL,
-              inject_expectation_result_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()::timestamptz,
-              inject_expectation_result_result TEXT NULL,
-              inject_expectation_result_score NUMERIC NULL,
-              inject_expectation_result_metadata JSONB,
-              inject_expectation_result_created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()::timestamptz,
-              inject_expectation_result_updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()::timestamptz,
-              inject_expectation_result_inject_expectation_id VARCHAR(255) NOT NULL REFERENCES injects_expectations(inject_expectation_id) ON DELETE CASCADE
-          )
-          """);
+      execute(CREATE_TABLE);
       execute(
           "CREATE TRIGGER test_result_fail BEFORE INSERT ON "
               + RESULTS_TABLE
               + " FOR EACH ROW EXECUTE FUNCTION test_result_fail()");
 
-      // Act: the first run fails on the range holding the sixth expectation
+      // Act: the first run fails on the range holding the failing expectation
       assertThatThrownBy(() -> small.migrate(connection))
           .isInstanceOf(SQLException.class)
           .hasMessageContaining("seeded failure");
@@ -316,7 +690,8 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
       assertThat(filled).isBetween(1L, 5L);
       assertThat(
               count(
-                  "SELECT count(*) FROM information_schema.columns WHERE table_name = '"
+                  "SELECT count(*) FROM information_schema.columns WHERE table_schema ="
+                      + " current_schema() AND table_name = '"
                       + SOURCE_TABLE
                       + "' AND column_name = '"
                       + JSON_COLUMN
@@ -364,30 +739,166 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
     }
   }
 
+  // -- scripted migrations --
+
+  private interface LagReadings {
+    long next() throws SQLException;
+  }
+
+  /**
+   * One page a batch, no pause, a 100-byte bound, scripted lag; Flyway needs the versioned name.
+   */
+  private static final class V6_20261023184049806__Scripted_lag
+      extends V6_20261023184049806__Add_expectation_results_table {
+
+    private final LagReadings readings;
+
+    V6_20261023184049806__Scripted_lag(LagReadings readings) {
+      // A huge override, so the whole table (however much other tests have bloated it) is one
+      // range: the test is about pacing, not about the walk's own page-batching logic.
+      super(1_000_000L, 0, 100);
+      this.readings = readings;
+    }
+
+    @Override
+    long walLagBytes(Connection ignored, String startWalFile) throws SQLException {
+      return readings.next();
+    }
+  }
+
+  /** The first attempt to drop the JSON column times out on a lock; the retry succeeds. */
+  private static final class V6_20261023184049806__Scripted_lock
+      extends V6_20261023184049806__Add_expectation_results_table {
+
+    private boolean timedOut;
+
+    V6_20261023184049806__Scripted_lock() {
+      super(1L, 0, Long.MAX_VALUE);
+    }
+
+    @Override
+    void dropJsonColumn(Statement statement) throws SQLException {
+      if (!timedOut) {
+        timedOut = true;
+        throw new SQLException("canceling statement due to lock timeout", "55P03");
+      }
+      super.dropJsonColumn(statement);
+    }
+  }
+
+  /** The first batch hits a scripted foreign-key violation; the retry runs it for real. */
+  private static final class V6_20261023184049806__Scripted_conflict
+      extends V6_20261023184049806__Add_expectation_results_table {
+
+    private boolean thrown;
+
+    V6_20261023184049806__Scripted_conflict() {
+      super(1L, 0, Long.MAX_VALUE);
+    }
+
+    @Override
+    long runOnce(PreparedStatement statement) throws SQLException {
+      if (!thrown) {
+        thrown = true;
+        throw new SQLException("concurrent delete of the expectation", FOREIGN_KEY_VIOLATION);
+      }
+      return super.runOnce(statement);
+    }
+  }
+
+  /**
+   * Inserts more rows once the walk has already measured the table's page count, so the catch-up
+   * pass is the only thing that can fill them. Inner (not static): it seeds through the outer
+   * test's own helper and parent inject.
+   */
+  private final class V6_20261023184049806__Scripted_growth
+      extends V6_20261023184049806__Add_expectation_results_table {
+
+    private final List<String> lateExpectations = new ArrayList<>();
+
+    V6_20261023184049806__Scripted_growth() {
+      super(1L, 0, Long.MAX_VALUE);
+    }
+
+    @Override
+    TableSize tableSize(Connection connection) throws SQLException {
+      TableSize measured = super.tableSize(connection);
+      for (int i = 0; i < 3; i++) {
+        lateExpectations.add(seedExpectation(inject, "[{\"result\":\"" + randomFiller() + "\"}]"));
+      }
+      return measured;
+    }
+  }
+
   // -- assertions --
 
   private void assertFullSchema() throws SQLException {
     assertThat(
             count(
-                "SELECT count(*) FROM information_schema.columns WHERE table_name = '"
+                "SELECT count(*) FROM information_schema.columns WHERE table_schema ="
+                    + " current_schema() AND table_name = '"
                     + SOURCE_TABLE
                     + "' AND column_name = '"
                     + JSON_COLUMN
                     + "'"))
         .as("the JSON column is dropped")
         .isZero();
-    assertThat(count("SELECT count(*) FROM pg_class WHERE relname = '" + RESULTS_TABLE + "'"))
-        .as("the results table exists")
+    assertThat(
+            rows(
+                "SELECT column_name, data_type, is_nullable, (column_default IS NOT NULL)"
+                    + " FROM information_schema.columns WHERE table_schema = current_schema()"
+                    + " AND table_name = '"
+                    + RESULTS_TABLE
+                    + "' ORDER BY ordinal_position"))
+        .as("the final column set, types, nullability and which ones have a default")
+        .containsExactly(
+            new Object[] {"inject_expectation_result_id", "character varying", "NO", false},
+            new Object[] {"inject_expectation_result_source_id", "character varying", "YES", false},
+            new Object[] {
+              "inject_expectation_result_source_type", "character varying", "YES", false
+            },
+            new Object[] {
+              "inject_expectation_result_source_name", "character varying", "YES", false
+            },
+            new Object[] {
+              "inject_expectation_result_source_asset_id", "character varying", "YES", false
+            },
+            new Object[] {
+              "inject_expectation_result_source_platform", "character varying", "YES", false
+            },
+            new Object[] {"inject_expectation_result_date", "timestamp with time zone", "NO", true},
+            new Object[] {"inject_expectation_result_result", "text", "YES", false},
+            new Object[] {"inject_expectation_result_score", "numeric", "YES", false},
+            new Object[] {"inject_expectation_result_metadata", "jsonb", "YES", false},
+            new Object[] {
+              "inject_expectation_result_created_at", "timestamp with time zone", "NO", true
+            },
+            new Object[] {
+              "inject_expectation_result_updated_at", "timestamp with time zone", "NO", true
+            },
+            new Object[] {
+              "inject_expectation_result_inject_expectation_id", "character varying", "NO", false
+            });
+    assertThat(
+            count(
+                "SELECT count(*) FROM pg_constraint WHERE conrelid = '"
+                    + RESULTS_TABLE
+                    + "'::regclass AND contype = 'f' AND confrelid = '"
+                    + SOURCE_TABLE
+                    + "'::regclass AND confdeltype = 'c' AND convalidated"))
+        .as("the foreign key to the source table is in place, validated, ON DELETE CASCADE")
         .isEqualTo(1);
     assertThat(
             count(
                 "SELECT count(*) FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid"
+                    + " JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = i.indkey[0]"
                     + " WHERE c.relname = '"
                     + INDEX
                     + "' AND i.indrelid = '"
                     + RESULTS_TABLE
-                    + "'::regclass AND i.indisvalid"))
-        .as("the lookup index is in place")
+                    + "'::regclass AND i.indisvalid"
+                    + " AND a.attname = 'inject_expectation_result_inject_expectation_id'"))
+        .as("the lookup index is in place, on the expectation id column")
         .isEqualTo(1);
   }
 
@@ -402,6 +913,29 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
             + " WHERE inject_expectation_result_inject_expectation_id = '"
             + expectation
             + "'");
+  }
+
+  private long distinctPages(List<String> expectationIds) throws SQLException {
+    return count(
+        "SELECT count(DISTINCT (ctid::text::point)[0]) FROM "
+            + SOURCE_TABLE
+            + " WHERE inject_expectation_id = ANY(?)",
+        expectationIds);
+  }
+
+  /** The seeded expectation whose row physically sits last, whatever the insertion order left. */
+  private String highestCtid(List<String> expectationIds) throws SQLException {
+    try (PreparedStatement statement =
+        connection.prepareStatement(
+            "SELECT inject_expectation_id FROM "
+                + SOURCE_TABLE
+                + " WHERE inject_expectation_id = ANY(?) ORDER BY ctid DESC LIMIT 1")) {
+      statement.setArray(1, connection.createArrayOf("varchar", expectationIds.toArray()));
+      try (ResultSet result = statement.executeQuery()) {
+        result.next();
+        return result.getString(1);
+      }
+    }
   }
 
   // -- seeding --
