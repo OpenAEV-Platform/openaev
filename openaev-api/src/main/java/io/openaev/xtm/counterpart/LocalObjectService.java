@@ -6,9 +6,9 @@ import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.repository.AssetRepository;
-import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.ScenarioRepository;
-import io.openaev.database.repository.VulnerabilityRepository;
+import io.openaev.rest.attack_pattern.service.AttackPatternService;
+import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -27,7 +27,8 @@ import org.springframework.stereotype.Service;
  *
  * <p>Reads go through the request's transaction, so the statement inspector restricts the rows to
  * the caller's tenant scope and markings: a product connected with a user token sees what that user
- * sees, nothing more.
+ * sees, nothing more. Attack patterns and vulnerabilities are tenant-active tables: they are read
+ * through their reviewed services (TenantActiveTableAccessArchTest), never their repositories.
  */
 @Service
 @RequiredArgsConstructor
@@ -38,8 +39,8 @@ public class LocalObjectService {
 
   private final OpenAEVConfig openAEVConfig;
   private final AssetRepository assetRepository;
-  private final AttackPatternRepository attackPatternRepository;
-  private final VulnerabilityRepository vulnerabilityRepository;
+  private final AttackPatternService attackPatternService;
+  private final VulnerabilityService vulnerabilityService;
   private final ScenarioRepository scenarioRepository;
 
   public List<LocalObject> find(CounterpartKind kind, Collection<String> keys) {
@@ -89,8 +90,7 @@ public class LocalObjectService {
 
   private List<LocalObject> attackPatterns(Set<String> mitreIds) {
     Map<String, LocalObject> byKey = new LinkedHashMap<>();
-    for (AttackPattern ap :
-        attackPatternRepository.findAllByExternalIdInIgnoreCase(List.copyOf(mitreIds))) {
+    for (AttackPattern ap : attackPatternService.getAttackPatternsByExternalIds(mitreIds)) {
       String key = ap.getExternalId().toUpperCase(Locale.ROOT);
       byKey.putIfAbsent(
           key,
@@ -106,7 +106,7 @@ public class LocalObjectService {
 
   private List<LocalObject> vulnerabilities(Set<String> cves) {
     Map<String, LocalObject> byKey = new LinkedHashMap<>();
-    for (Vulnerability v : vulnerabilityRepository.getAllByExternalIdInIgnoreCase(cves)) {
+    for (Vulnerability v : vulnerabilityService.getVulnerabilitiesByExternalIds(cves)) {
       String key = v.getExternalId().toUpperCase(Locale.ROOT);
       byKey.putIfAbsent(
           key,

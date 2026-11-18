@@ -12,9 +12,9 @@ import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.repository.AssetRepository;
-import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.ScenarioRepository;
-import io.openaev.database.repository.VulnerabilityRepository;
+import io.openaev.rest.attack_pattern.service.AttackPatternService;
+import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.xtm.counterpart.LocalObjectService.LocalObject;
 import java.util.List;
 import java.util.Set;
@@ -26,8 +26,8 @@ class LocalObjectServiceTest {
 
   private OpenAEVConfig config;
   private AssetRepository assets;
-  private AttackPatternRepository attackPatterns;
-  private VulnerabilityRepository vulnerabilities;
+  private AttackPatternService attackPatterns;
+  private VulnerabilityService vulnerabilities;
   private ScenarioRepository scenarios;
   private LocalObjectService service;
 
@@ -36,8 +36,8 @@ class LocalObjectServiceTest {
     config = new OpenAEVConfig();
     config.setBaseUrl("https://aev.example/");
     assets = mock(AssetRepository.class);
-    attackPatterns = mock(AttackPatternRepository.class);
-    vulnerabilities = mock(VulnerabilityRepository.class);
+    attackPatterns = mock(AttackPatternService.class);
+    vulnerabilities = mock(VulnerabilityService.class);
     scenarios = mock(ScenarioRepository.class);
     service = new LocalObjectService(config, assets, attackPatterns, vulnerabilities, scenarios);
   }
@@ -66,7 +66,7 @@ class LocalObjectServiceTest {
     ap.setId("ap-1");
     ap.setName("Command and Scripting Interpreter");
     ap.setExternalId("t1059");
-    when(attackPatterns.findAllByExternalIdInIgnoreCase(List.of("T1059")))
+    when(attackPatterns.getAttackPatternsByExternalIds(Set.of("T1059")))
         .thenReturn(List.of(ap, ap));
 
     List<LocalObject> found =
@@ -84,7 +84,7 @@ class LocalObjectServiceTest {
     Vulnerability v = new Vulnerability();
     v.setId("v-1");
     v.setExternalId("CVE-2024-1234");
-    when(vulnerabilities.getAllByExternalIdInIgnoreCase(Set.of("CVE-2024-1234")))
+    when(vulnerabilities.getVulnerabilitiesByExternalIds(Set.of("CVE-2024-1234")))
         .thenReturn(Set.of(v));
 
     List<LocalObject> found = service.find(CounterpartKind.VULNERABILITY, List.of("cve-2024-1234"));
