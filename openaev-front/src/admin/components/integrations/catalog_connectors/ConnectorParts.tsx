@@ -44,7 +44,9 @@ export const CollapsedUseCaseChips = ({ useCases }: { useCases: string[] }) => {
       <Box sx={{ display: 'flex' }}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Chip label={first} severity="info" style={{ maxWidth: '100%' }} />
+            <span className="inline-flex" style={{ maxWidth: '100%' }}>
+              <Chip label={first} style={{ maxWidth: '100%' }} />
+            </span>
           </TooltipTrigger>
           {first && <TooltipContent>{first}</TooltipContent>}
         </Tooltip>
@@ -53,7 +55,9 @@ export const CollapsedUseCaseChips = ({ useCases }: { useCases: string[] }) => {
         <Box sx={{ flexShrink: 0 }}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Chip label={`+${others.length}`} severity="info" />
+              <span className="inline-flex">
+                <Chip label={`+${others.length}`} />
+              </span>
             </TooltipTrigger>
             <TooltipContent>{others.join(', ')}</TooltipContent>
           </Tooltip>

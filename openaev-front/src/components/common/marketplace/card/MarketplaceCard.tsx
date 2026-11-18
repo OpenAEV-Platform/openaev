@@ -7,7 +7,6 @@ import {
   CardInfoGroup,
   CardOverview,
   CardTitle,
-  Text,
   Thumbnail,
 } from '@filigran/design-system';
 import { Box } from '@mui/material';
@@ -23,8 +22,11 @@ interface Props {
   subtitle?: string;
   description?: string;
   chips?: ReactNode;
-  /** Metadata at the start of the footer, e.g. the version. */
-  caption?: string;
+  /** Label and value pairs under the description. */
+  info?: {
+    label: string;
+    value: string;
+  }[];
   /** The card's actions or status, at the end of the footer. */
   action?: ReactNode;
   linkTo?: string;
@@ -39,7 +41,7 @@ const MarketplaceCard: FunctionComponent<Props> = ({
   subtitle,
   description,
   chips,
-  caption,
+  info,
   action,
   linkTo,
   testId,
@@ -51,8 +53,8 @@ const MarketplaceCard: FunctionComponent<Props> = ({
           <Box sx={{
             'display': 'flex',
             '& img': {
-              width: theme => theme.spacing(4),
-              height: theme => theme.spacing(4),
+              width: theme => theme.spacing(3),
+              height: theme => theme.spacing(3),
               objectFit: 'contain',
             },
           }}
@@ -72,12 +74,12 @@ const MarketplaceCard: FunctionComponent<Props> = ({
       )}
       {chips}
       {description && <CardDescription>{description}</CardDescription>}
-      {(caption || action) && (
-        <CardFooter
-          start={caption && <Text variant="content-caption" className="text-default-secondary">{caption}</Text>}
-          end={action}
-        />
+      {info && (
+        <CardInfoGroup type="block">
+          {info.map(item => <CardInfo key={item.label} label={item.label} value={item.value} />)}
+        </CardInfoGroup>
       )}
+      {action && <CardFooter end={action} />}
     </Card>
   );
 };

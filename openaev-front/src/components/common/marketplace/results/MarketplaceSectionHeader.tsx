@@ -29,7 +29,7 @@ const MarketplaceSectionHeader: FunctionComponent<Props> = ({ icon, label, count
       {icon}
     </Box>
     <Text as="h2" variant="title-sm">{label}</Text>
-    <Chip size="sm" label={String(count)} />
+    <Chip label={String(count)} />
     <Divider sx={{ flex: 1 }} />
   </Box>
 );

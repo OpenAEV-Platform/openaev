@@ -248,7 +248,6 @@
         "openaev-front/src/admin/components/integrations/common/DeployButton.tsx",
         "openaev-front/src/admin/components/integrations/common/MigrateButton.tsx",
         "openaev-front/src/admin/components/integrations/connector_instance/ConnectorInstanceForm.tsx",
-        "openaev-front/src/admin/components/integrations/deployed/DeployedConnectors.tsx",
         "openaev-front/src/admin/components/lessons/scenarios/LessonsCategories.tsx",
         "openaev-front/src/admin/components/lessons/simulations/LessonsCategories.tsx",
         "openaev-front/src/admin/components/nav/BulkOperationsIndicator.tsx",

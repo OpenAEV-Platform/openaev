@@ -28,12 +28,27 @@ const CatalogConnectorCard = ({ connector, action }: Props) => {
       description={connector.description}
       chips={<CollapsedUseCaseChips useCases={connector.useCases} />}
       action={action}
-      caption={[
-        // No image to deploy: the connector ships with the platform.
-        // Tags such as "rolling" are not version numbers.
-        connector.version ? `${/^\d/.test(connector.version) ? 'v' : `${t('Version')}: `}${connector.version}` : `${t('Built-in')}${platformVersion ? ` · v${platformVersion}` : ''}`,
-        connector.lastVerifiedAt ? `${t('Verified')} ${nsd(connector.lastVerifiedAt)}` : null,
-      ].filter(Boolean).join(' · ') || undefined}
+      info={[
+        {
+          label: t('Version'),
+          // Tags such as "rolling" are not version numbers; a built-in connector ships with the platform.
+          value: connector.version
+            ? `${/^\d/.test(connector.version) ? 'v' : ''}${connector.version}`
+            : [t('Built-in'), platformVersion && `v${platformVersion}`].filter(Boolean).join(' · '),
+        },
+        ...(connector.lastVerifiedAt
+          ? [{
+              label: t('Verified'),
+              value: nsd(connector.lastVerifiedAt),
+            }]
+          : []),
+        ...(connector.lastSeen
+          ? [{
+              label: t('Last Seen'),
+              value: connector.lastSeen,
+            }]
+          : []),
+      ]}
       linkTo={connector.detailUrl}
     />
   );

@@ -1,4 +1,4 @@
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
@@ -87,63 +87,77 @@ const ConnectorList: FunctionComponent<Props> = ({ items, sectionLabel, sectionI
     </div>
   );
 
-  const row = (item: ConnectorItem) => {
-    const content = (
-      <>
-        <ListItemIcon sx={theme => ({
-          '& img, & svg': {
-            width: theme.spacing(3),
-            height: theme.spacing(3),
-            objectFit: 'contain',
-          },
-        })}
+  // Only the name is a link; its area stretches over the row, under the chips and the action.
+  const name = (item: ConnectorItem) => (item.detailUrl
+    ? (
+        <Box
+          component={Link}
+          to={item.detailUrl}
+          sx={{
+            'color': 'inherit',
+            'textDecoration': 'none',
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              inset: 0,
+            },
+          }}
         >
-          <ConnectorLogo connector={item} />
-        </ListItemIcon>
-        <ListItemText
-          primary={(
-            <div style={bodyItemsStyles.bodyItems}>
-              {cell('name', item.title)}
-              {cell('type', typeLabels[item.type], 'text-filigran-brand-primary')}
-              {cell('description', item.description || '-', 'text-default-secondary')}
-              {cell('use_cases', <CollapsedUseCaseChips useCases={item.useCases} />)}
-              {cell('support', <ConnectorSupportIcon connector={item} />)}
-              <div
-                style={{
-                  ...bodyItemsStyles.bodyItem,
-                  ...INLINE_STYLES.action,
-                }}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                }}
-              >
-                {renderAction?.(item)}
-              </div>
-            </div>
-          )}
-        />
-      </>
-    );
-    return (
-      <ListItem key={item.id} divider disablePadding data-testid="connector-line">
-        {item.detailUrl
-          ? <ListItemButton component={Link} to={item.detailUrl}>{content}</ListItemButton>
-          : (
-              <Box sx={{
-                display: 'flex',
-                alignItems: 'center',
-                width: '100%',
-                paddingInline: 2,
-                paddingBlock: 1,
-              }}
-              >
-                {content}
-              </Box>
-            )}
-      </ListItem>
-    );
-  };
+          {item.title}
+        </Box>
+      )
+    : item.title);
+
+  const raised = (field: string, content: ReactNode) => (
+    <div
+      style={{
+        ...bodyItemsStyles.bodyItem,
+        ...INLINE_STYLES[field],
+        position: 'relative',
+        zIndex: 1,
+      }}
+    >
+      {content}
+    </div>
+  );
+
+  const row = (item: ConnectorItem) => (
+    <ListItem
+      key={item.id}
+      divider
+      disablePadding
+      data-testid="connector-line"
+      sx={theme => ({
+        'position': 'relative',
+        'paddingInline': 2,
+        'paddingBlock': 1,
+        '&:hover': item.detailUrl ? { backgroundColor: theme.palette.action.hover } : {},
+      })}
+    >
+      <ListItemIcon sx={theme => ({
+        '& img, & svg': {
+          width: theme.spacing(3),
+          height: theme.spacing(3),
+          objectFit: 'contain',
+        },
+      })}
+      >
+        <ConnectorLogo connector={item} />
+      </ListItemIcon>
+      <ListItemText
+        primary={(
+          <div style={bodyItemsStyles.bodyItems}>
+            {cell('name', name(item))}
+            {cell('type', typeLabels[item.type], 'text-filigran-brand-primary')}
+            {cell('description', item.description || '-', 'text-default-secondary')}
+            {raised('use_cases', <CollapsedUseCaseChips useCases={item.useCases} />)}
+            {raised('support', <ConnectorSupportIcon connector={item} />)}
+            {raised('action', renderAction?.(item))}
+          </div>
+        )}
+      />
+    </ListItem>
+  );
 
   return (
     <List disablePadding>

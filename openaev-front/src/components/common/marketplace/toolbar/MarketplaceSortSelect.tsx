@@ -43,7 +43,7 @@ const MarketplaceSortSelect: FunctionComponent<Props> = ({ sortHelpers, options,
         onValueChange={next => handleFieldChange(next)}
       >
         <SelectLabel className="mb-0">{t('Sort by')}</SelectLabel>
-        <SelectTrigger style={{ minWidth: 110 }}>
+        <SelectTrigger>
           <SelectValue placeholder={t('Sort by')} />
         </SelectTrigger>
         <SelectContent>

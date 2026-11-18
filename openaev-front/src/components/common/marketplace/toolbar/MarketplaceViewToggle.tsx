@@ -1,5 +1,4 @@
-import { ButtonGroup, ButtonGroupItem, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
+import { ButtonGroup, ButtonGroupItem, Icon, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../i18n';
@@ -21,13 +20,13 @@ const MarketplaceViewToggle: FunctionComponent<Props> = ({ value, onChange }) =>
     >
       <Tooltip>
         <TooltipTrigger asChild>
-          <ButtonGroupItem value="grid" aria-label={t('Grid view')} data-testid="marketplace-view-cards" icon={<GridViewOutlined fontSize="small" />} />
+          <ButtonGroupItem value="grid" aria-label={t('Grid view')} data-testid="marketplace-view-cards" icon={<Icon name="layout-grid" size={16} />} />
         </TooltipTrigger>
         <TooltipContent>{t('Grid view')}</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <ButtonGroupItem value="list" aria-label={t('List view')} data-testid="marketplace-view-list" icon={<ViewListOutlined fontSize="small" />} />
+          <ButtonGroupItem value="list" aria-label={t('List view')} data-testid="marketplace-view-list" icon={<Icon name="list" size={16} />} />
         </TooltipTrigger>
         <TooltipContent>{t('List view')}</TooltipContent>
       </Tooltip>

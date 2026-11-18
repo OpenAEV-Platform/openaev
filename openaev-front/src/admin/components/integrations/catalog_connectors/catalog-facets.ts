@@ -39,6 +39,8 @@ export interface ConnectorItem {
   logoSrc?: string;
   version?: string;
   lastVerifiedAt?: string;
+  /** Last contact of a deployed connector, as shown. */
+  lastSeen?: string;
   /** Card link target; a card without a detail page is not clickable. */
   detailUrl?: string;
 }

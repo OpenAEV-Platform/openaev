@@ -1,4 +1,4 @@
-import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useMemo, useState } from 'react';
 
@@ -77,6 +77,11 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     const catalogById = new Map(catalogConnectors.map(connector => [connector.catalog_connector_id, connector]));
     const allItems: ConnectorItem[] = [];
     const meta = new Map<string, DeployedMeta>();
+    const lastSeenLabel = (connector: ConnectorOutput) => {
+      const { lastSeen, builtIn } = computeConnectorLiveliness(connector);
+      if (builtIn) return t('Runs inside the platform');
+      return lastSeen ? nsdt(lastSeen) : t('Never updated');
+    };
 
     const append = <T,>(
       rawConnectors: T[],
@@ -124,6 +129,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
           logoSrc,
           version: catalogMatch?.catalog_connector_container_version,
           lastVerifiedAt: catalogMatch?.catalog_connector_last_verified_date,
+          lastSeen: lastSeenLabel(connector),
           detailUrl: clickable ? config.routes.detail(connector.id) : undefined,
         });
         meta.set(connector.id, {
@@ -174,9 +180,6 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     setOpenMigrateDrawer(true);
   };
 
-  // Uniform status on every card: a glowing health disk (green = started and
-  // heartbeat within the 2-minute threshold, red otherwise), the last-seen
-  // date in standard color, and a compact Started / Stopped chip.
   const renderAction = (item: ConnectorItem) => {
     const deployed = metaById.get(item.id);
     if (!deployed) return null;
@@ -188,20 +191,12 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     // no-op click.
     const canMigrate = connector.isExternal && connector.connectorInstance == null
       && isXtmComposerUp && deployed.catalogConnector != null;
-    const { started, lastSeen, healthy, builtIn } = computeConnectorLiveliness(connector);
+    const { started, healthy, builtIn } = computeConnectorLiveliness(connector);
     let statusChip = <Chip label={t('Stopped')} severity="neutral" />;
     if (started) {
       statusChip = builtIn || healthy
         ? <Chip label={t('Running (connector)')} severity="low" />
         : <Chip label={t('Not responding')} severity="high" />;
-    }
-    let lastSeenTooltip: string;
-    if (builtIn) {
-      lastSeenTooltip = t('Runs inside the platform');
-    } else if (lastSeen) {
-      lastSeenTooltip = `${t('Last Seen')}: ${nsdt(lastSeen)}`;
-    } else {
-      lastSeenTooltip = t('Never updated');
     }
     return (
       <div style={{
@@ -212,14 +207,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
       }}
       >
         {canMigrate && <MigrateButton onMigrateBtnClick={e => onMigrateBtnClick(e, deployed)} />}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="inline-flex">
-              {statusChip}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>{lastSeenTooltip}</TooltipContent>
-        </Tooltip>
+        {statusChip}
       </div>
     );
   };
