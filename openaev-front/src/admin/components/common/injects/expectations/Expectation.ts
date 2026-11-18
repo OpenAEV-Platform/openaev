@@ -56,7 +56,7 @@ export type ExpectationResultType = 'PREVENTION' | 'DETECTION' | 'LOGGING' | 'VU
 
 export const expectationResultTypes: ExpectationResultType [] = ['PREVENTION', 'DETECTION', 'LOGGING', 'VULNERABILITY', 'HUMAN_RESPONSE'];
 
-export const mitreMatrixExpectationTypes: ExpectationResultType [] = ['PREVENTION', 'DETECTION', 'VULNERABILITY'];
+export const mitreMatrixExpectationTypes: ExpectationResultType [] = ['PREVENTION', 'DETECTION', 'LOGGING', 'VULNERABILITY'];
 
 // Answered by security platforms, and scoped per security platform type. Display order.
 export const TECHNICAL_EXPECTATION_TYPES: string[] = [ExpectationType.PREVENTION, ExpectationType.DETECTION, ExpectationType.LOGGING, ExpectationType.VULNERABILITY];
@@ -64,11 +64,12 @@ export const TECHNICAL_EXPECTATION_TYPES: string[] = [ExpectationType.PREVENTION
 // Validated by people. Display order.
 export const HUMAN_EXPECTATION_TYPES: string[] = [ExpectationType.MANUAL, ExpectationType.ARTICLE, ExpectationType.CHALLENGE];
 
-// The expectation types a posture (assets, security platforms, reports) is broken down by. Logging
-// is not part of the posture score yet.
+// The expectation types a posture (assets, security platforms, reports) is broken down by and scored on,
+// in display order. A score only counts the types that have results.
 export const POSTURE_EXPECTATION_TYPES: string[] = [
   ExpectationType.PREVENTION,
   ExpectationType.DETECTION,
+  ExpectationType.LOGGING,
   ExpectationType.VULNERABILITY,
   ...HUMAN_EXPECTATION_TYPES,
 ];

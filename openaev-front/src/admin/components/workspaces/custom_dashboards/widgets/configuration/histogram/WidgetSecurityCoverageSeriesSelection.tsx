@@ -1,4 +1,4 @@
-import { ShieldOutlined, type SvgIconComponent, TrackChangesOutlined } from '@mui/icons-material';
+import { ReceiptLongOutlined, ShieldOutlined, type SvgIconComponent, TrackChangesOutlined } from '@mui/icons-material';
 import { Card, CardActionArea, CardContent, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
@@ -10,13 +10,13 @@ import { useFormatter } from '../../../../../../../components/i18n';
 import Loader from '../../../../../../../components/Loader';
 import { type InjectExpectationOutput, type Series } from '../../../../../../../utils/api-types';
 import type { GroupOption } from '../../../../../../../utils/Option';
+import { isFeatureEnabled } from '../../../../../../../utils/utils';
 import { CustomDashboardContext } from '../../../CustomDashboardContext';
 import { extractGroupOptionsFromCustomDashboardParameters, getSeries, updateSimulationFilterOnSeries } from '../../WidgetUtils';
 
 const useStyles = makeStyles()(theme => ({
   container: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
     gap: theme.spacing(2),
   },
   content: {
@@ -25,7 +25,7 @@ const useStyles = makeStyles()(theme => ({
     gap: theme.spacing(2),
     justifyItems: 'center',
   },
-  allWidth: { gridColumn: 'span 2' },
+  allWidth: { gridColumn: '1 / -1' },
 }));
 
 const perspectives: {
@@ -43,6 +43,11 @@ const perspectives: {
   title: 'Prevention',
   description: 'Focus your widget on injects prevented by your security system',
   type: 'PREVENTION',
+}, {
+  icon: () => ReceiptLongOutlined,
+  title: 'Logging',
+  description: 'Focus your widget on injects logged by your security system',
+  type: 'LOGGING',
 }];
 
 interface Props {
@@ -58,6 +63,9 @@ const WidgetSecurityCoverageSeriesSelection: FunctionComponent<Props> = ({ value
   const { classes } = useStyles();
   const theme = useTheme();
   const { customDashboard } = useContext(CustomDashboardContext);
+  const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
+  // Logging is offered only while its preview feature is on.
+  const visiblePerspectives = perspectives.filter(perspective => isLoggingEnabled || perspective.type !== 'LOGGING');
 
   const [simulationId, setSimulationId] = useState<string | undefined>();
   const [loader, setLoader] = useState<boolean>(true);
@@ -97,8 +105,8 @@ const WidgetSecurityCoverageSeriesSelection: FunctionComponent<Props> = ({ value
   }
 
   return (
-    <div className={classes.container}>
-      {perspectives.map((perspective) => {
+    <div className={classes.container} style={{ gridTemplateColumns: `repeat(${visiblePerspectives.length}, 1fr)` }}>
+      {visiblePerspectives.map((perspective) => {
         const isSelected = value.filter(v => v.filter?.filters?.find(f => f.values?.includes(perspective.type))).length > 0;
         const Icon = perspective.icon();
         return (
