@@ -18,12 +18,15 @@ import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.utils.helpers.MockCloudServer;
+import io.openaev.utils.helpers.TlsTestSupport;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.Date;
 import java.util.concurrent.CountDownLatch;
+import javax.net.ssl.SSLContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -59,7 +62,9 @@ class GcpCredentialConnectivityCheckTest {
   private GcpCredentialConnectivityCheck validator;
 
   @BeforeEach
-  void setUp() {
+  void setUp() throws NoSuchAlgorithmException {
+    // Only read by the project read, which a stubbed test reaches when it names a project.
+    lenient().when(googleCredentialsFactory.sslContext()).thenReturn(SSLContext.getDefault());
     validator = new GcpCredentialConnectivityCheck(googleCredentialsFactory);
     // The timeout is a @Value field: without a Spring context it stays 0, which the validator
     // would clamp to 1s anyway — set it explicitly so the intent is visible.
@@ -506,7 +511,8 @@ class GcpCredentialConnectivityCheckTest {
     void startCloud() throws IOException {
       cloud = MockCloudServer.start();
       cloudCheck =
-          new GcpCredentialConnectivityCheck(new DefaultGcpCredentialConnectivityCheckFactory());
+          new GcpCredentialConnectivityCheck(
+              new DefaultGcpCredentialConnectivityCheckFactory(TlsTestSupport.jdkTrustManager()));
       ReflectionTestUtils.setField(cloudCheck, "timeoutSeconds", ROUND_TRIP_TIMEOUT_SECONDS);
     }
 

@@ -2,6 +2,7 @@ package io.openaev.secrets.provider.impl.validators;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
+import javax.net.ssl.SSLContext;
 
 /**
  * Builds the Google SDK credential objects used to probe a stored GCP credential.
@@ -46,4 +47,14 @@ public interface GcpCredentialConnectivityCheckFactory {
       String refreshToken,
       String scope,
       String customTokenUri);
+
+  /**
+   * The TLS context the credentials built here use for their token calls.
+   *
+   * <p>The project read goes through it too, so that both calls trust certificates the same way: a
+   * second client with its own trust can reach the token endpoint and fail on the very same host.
+   *
+   * @return the shared TLS context, never null
+   */
+  SSLContext sslContext();
 }

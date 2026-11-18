@@ -3,6 +3,7 @@ package io.openaev.secrets.provider.impl.validators;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.openaev.utils.helpers.TlsTestSupport;
 import java.net.URI;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -17,7 +18,7 @@ import software.amazon.awssdk.services.sts.StsClient;
 class DefaultAwsCredentialConnectivityCheckFactoryTest {
 
   private final DefaultAwsCredentialConnectivityCheckFactory factory =
-      new DefaultAwsCredentialConnectivityCheckFactory();
+      new DefaultAwsCredentialConnectivityCheckFactory(TlsTestSupport.jdkTrustManager());
 
   @Nested
   @DisplayName("STS endpoint")

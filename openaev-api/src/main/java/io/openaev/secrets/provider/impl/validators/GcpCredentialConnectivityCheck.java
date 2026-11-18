@@ -219,7 +219,11 @@ public class GcpCredentialConnectivityCheck {
    */
   private SecretConnectionResult probeProject(
       String projectsEndpoint, String projectId, String token, Duration timeout) {
-    try (HttpClient httpClient = HttpClient.newBuilder().connectTimeout(timeout).build()) {
+    try (HttpClient httpClient =
+        HttpClient.newBuilder()
+            .connectTimeout(timeout)
+            .sslContext(googleCredentialsFactory.sslContext())
+            .build()) {
       URI uri = URI.create(projectsEndpoint + projectId);
       HttpRequest request =
           HttpRequest.newBuilder(uri)

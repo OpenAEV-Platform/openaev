@@ -4,7 +4,10 @@ import static io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_
 
 import io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE;
 import io.openaev.database.model.AwsRegion;
+import jakarta.annotation.PreDestroy;
 import java.time.Duration;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -14,6 +17,8 @@ import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
@@ -24,8 +29,28 @@ import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 public class DefaultAwsCredentialConnectivityCheckFactory
     implements AwsCredentialConnectivityCheckFactory {
 
+  /**
+   * Shared by every STS client built here: a client handed to the builder is not closed with the
+   * STS client, so it is created once and closed with the factory.
+   */
+  private final SdkHttpClient httpClient;
+
   @Value("${openaev.credentials.status-validation.timeout-seconds:10}")
   private int timeoutSeconds;
+
+  public DefaultAwsCredentialConnectivityCheckFactory(X509TrustManager trustManager) {
+    // The SDK's own Apache transport, proxy settings included: only its TLS trust is swapped for
+    // the platform's, extra trusted certs included.
+    this.httpClient =
+        ApacheHttpClient.builder()
+            .tlsTrustManagersProvider(() -> new TrustManager[] {trustManager})
+            .build();
+  }
+
+  @PreDestroy
+  void close() {
+    httpClient.close();
+  }
 
   @Override
   public AwsCredentials forAccessKey(
@@ -65,6 +90,7 @@ public class DefaultAwsCredentialConnectivityCheckFactory
     StsClientBuilder builder =
         StsClient.builder()
             .region(Region.of(region.code()))
+            .httpClient(httpClient)
             .credentialsProvider(credentialsProvider)
             .overrideConfiguration(
                 ClientOverrideConfiguration.builder()

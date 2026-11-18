@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.auth.oauth2.UserCredentials;
+import io.openaev.utils.helpers.TlsTestSupport;
 import java.io.IOException;
 import java.net.URI;
 import org.junit.jupiter.api.DisplayName;
@@ -24,7 +25,7 @@ class DefaultGcpCredentialConnectivityCheckFactoryTest {
   private static final String LIBRARY_DEFAULT_TOKEN_HOST = "oauth2.googleapis.com";
 
   private final DefaultGcpCredentialConnectivityCheckFactory factory =
-      new DefaultGcpCredentialConnectivityCheckFactory();
+      new DefaultGcpCredentialConnectivityCheckFactory(TlsTestSupport.jdkTrustManager());
 
   @Nested
   @DisplayName("Service account")

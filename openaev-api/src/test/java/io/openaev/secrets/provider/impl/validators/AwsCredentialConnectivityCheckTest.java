@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.utils.helpers.MockCloudServer;
 import io.openaev.utils.helpers.MockCloudServer.CannedResponse;
+import io.openaev.utils.helpers.TlsTestSupport;
 import java.io.IOException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,7 +43,7 @@ class AwsCredentialConnectivityCheckTest {
   void setUp() throws IOException {
     sts = MockCloudServer.start();
     DefaultAwsCredentialConnectivityCheckFactory factory =
-        new DefaultAwsCredentialConnectivityCheckFactory();
+        new DefaultAwsCredentialConnectivityCheckFactory(TlsTestSupport.jdkTrustManager());
     // A @Value field: without a Spring context it stays 0, which the factory clamps to 1s. A
     // wider budget keeps the local round trips clear of the timeout under a loaded test run.
     ReflectionTestUtils.setField(factory, "timeoutSeconds", TIMEOUT_SECONDS);

@@ -1,11 +1,17 @@
 package io.openaev.secrets.provider.impl.validators;
 
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.auth.http.HttpTransportFactory;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.auth.oauth2.UserCredentials;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.List;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import org.springframework.stereotype.Component;
 
 /** Default {@link GcpCredentialConnectivityCheckFactory}, backed by the Google Auth library. */
@@ -13,11 +19,32 @@ import org.springframework.stereotype.Component;
 public class DefaultGcpCredentialConnectivityCheckFactory
     implements GcpCredentialConnectivityCheckFactory {
 
+  private final SSLContext sslContext;
+
+  /** Carries the token exchange of every credential built here over the platform's TLS trust. */
+  private final HttpTransportFactory transportFactory;
+
+  public DefaultGcpCredentialConnectivityCheckFactory(X509TrustManager trustManager) {
+    // Only the TLS trust of the library's own transport is swapped for the platform's, extra
+    // trusted certs included.
+    try {
+      SSLContext context = SSLContext.getInstance("TLS");
+      context.init(null, new TrustManager[] {trustManager}, null);
+      this.sslContext = context;
+    } catch (GeneralSecurityException e) {
+      throw new IllegalStateException("Cannot build the TLS context of the GCP probes", e);
+    }
+    NetHttpTransport transport =
+        new NetHttpTransport.Builder().setSslSocketFactory(sslContext.getSocketFactory()).build();
+    this.transportFactory = () -> transport;
+  }
+
   @Override
   public GoogleCredentials forServiceAccount(
       byte[] privateKeyJson, String scope, String customResourceManagerUri) throws IOException {
     ServiceAccountCredentials.Builder builder =
-        ServiceAccountCredentials.fromStream(new ByteArrayInputStream(privateKeyJson)).toBuilder();
+        ServiceAccountCredentials.fromStream(new ByteArrayInputStream(privateKeyJson)).toBuilder()
+            .setHttpTransportFactory(transportFactory);
     if (isPresent(customResourceManagerUri)) {
       builder.setTokenServerUri(EndpointUrls.requireHttpUri(customResourceManagerUri));
     }
@@ -39,11 +66,17 @@ public class DefaultGcpCredentialConnectivityCheckFactory
         UserCredentials.newBuilder()
             .setClientId(clientId)
             .setClientSecret(clientSecret)
-            .setRefreshToken(refreshToken);
+            .setRefreshToken(refreshToken)
+            .setHttpTransportFactory(transportFactory);
     if (isPresent(customTokenUri)) {
       builder.setTokenServerUri(EndpointUrls.requireHttpUri(customTokenUri));
     }
     return builder.build();
+  }
+
+  @Override
+  public SSLContext sslContext() {
+    return sslContext;
   }
 
   private static boolean isPresent(String value) {
