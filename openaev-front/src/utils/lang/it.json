@@ -2087,6 +2087,7 @@
   "in {duration}": "tra {duration}",
   "In autonomous mode an AI orchestrator drives the run live and adapts in real time - reacting to findings, adding steps and consulting specialist agents to pursue the objective. Set an objective, pick the specialist agents it may consult, and optionally scope the perimeter with the allow / deny lists - or skip scoping and the AI will ask you which targets are in scope.": "In modalità autonoma un orchestratore IA guida l'esecuzione dal vivo e si adatta in tempo reale - reagendo alle scoperte, aggiungendo passaggi e consultando agenti specialisti per perseguire l'obiettivo. Imposta un obiettivo, scegli gli agenti specialisti che può consultare e, facoltativamente, delimita il perimetro con le liste di autorizzazione / divieto - oppure salta la delimitazione e l'IA ti chiederà quali obiettivi rientrano nell'ambito.",
   "In flight": "In corso",
+  "In OpenCTI": "In OpenCTI",
   "In preview mode, attempts are not counted and results are not recorded.": "In modalità anteprima, i tentativi non vengono conteggiati e i risultati non vengono registrati.",
   "In scope": "Nell’ambito di applicazione",
   "in the documentation": "nella documentazione",

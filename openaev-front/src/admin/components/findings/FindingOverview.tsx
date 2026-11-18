@@ -12,6 +12,7 @@ import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
+import OpenCtiPivot, { OpenCtiCard } from '../../../components/xtm/XtmPivot';
 import type { FindingOutput, FindingSummaryOutput } from '../../../utils/api-types';
 import { emptyFilled } from '../../../utils/String';
 import ContractOutputElementType from './ContractOutputElementType';
@@ -76,6 +77,7 @@ const FindingOverview = () => {
         iconNode={<FindingIcon findingType={finding.finding_type} />}
         overline={typeLabel}
         title={finding.finding_value}
+        action={isCVE ? <OpenCtiPivot kind="vulnerabilities" objectKey={finding.finding_value} /> : undefined}
         chips={cvssScore != null
           ? <Chip label={`CVSS ${cvssScore.toFixed(1)}`} severity="info" />
           : undefined}
@@ -138,6 +140,14 @@ const FindingOverview = () => {
           cveId={finding.finding_value}
           onCvssScore={setCvssScore}
         />
+      )}
+
+      {/* The same CVE in OpenCTI: its knowledge (threats, reports) one click away, or the
+          "Connect OpenCTI" call to action when the tenant is not connected. */}
+      {isCVE && (
+        <InformationGrid title={t('In OpenCTI')}>
+          <OpenCtiCard kind="vulnerabilities" objectKey={finding.finding_value} />
+        </InformationGrid>
       )}
 
       {/* Occurrence timeline: one entry per inject that produced this finding,
