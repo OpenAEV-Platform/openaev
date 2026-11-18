@@ -10,7 +10,27 @@ import { useFormatter } from '../../../components/i18n';
 import { type Filter, type SearchPaginationInput } from '../../../utils/api-types';
 import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from './ContractOutputElementType';
 
+const SEVERITY_FILTER_KEY = 'finding_severity';
 const TYPE_FILTER_KEY = 'finding_type';
+// CVSS v3.1 ratings, highest first. Only a CVE the platform knows has one.
+const SEVERITIES = [
+  {
+    id: 'CRITICAL',
+    label: 'Critical',
+  },
+  {
+    id: 'HIGH',
+    label: 'High',
+  },
+  {
+    id: 'MEDIUM',
+    label: 'Medium',
+  },
+  {
+    id: 'LOW',
+    label: 'Low',
+  },
+];
 const ASSET_FILTER_KEY = 'finding_assets';
 const ASSET_GROUP_FILTER_KEY = 'finding_asset_groups';
 
@@ -105,8 +125,16 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers, contextId = '' }
 
     return [
       {
+        id: 'severities',
+        label: t('Severity'),
+        rows: buildRows(SEVERITY_FILTER_KEY, SEVERITIES.map(severity => ({
+          id: severity.id,
+          label: t(severity.label),
+        }))),
+      },
+      {
         id: 'types',
-        label: t('Finding type'),
+        label: t('Type'),
         rows: buildRows(TYPE_FILTER_KEY, typeOptions, (type) => {
           const TypeIcon = () => <FindingIcon findingType={type} />;
           return TypeIcon;

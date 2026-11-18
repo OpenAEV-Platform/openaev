@@ -65,6 +65,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
   };
 
   const availableFilterNames = [
+    'finding_severity',
     'finding_type',
     'finding_created_at',
     'finding_updated_at',
