@@ -240,16 +240,15 @@ public class UserService {
     if (StringUtils.hasLength(password)) {
       user.setPassword(this.encodeUserPassword(password));
     }
-    // Saved first: the auto-assign groups below are granted row by row through the shared
-    // membership service, which needs a persisted user id, not an in-memory association on a
-    // transient user.
-    User savedUser = userRepository.save(user);
     // Creation enters every scope at once: the platform when created from the platform screen,
-    // plus each tenant attached in the input.
-    assignAutoAssignGroups(
-        savedUser,
-        savedUser.getTenants().stream().map(Tenant::getId).toList(),
+    // plus each tenant attached in the input. The user is new, so its groups are complete in memory
+    // and the event of its creation carries them: they are set before the first save, as one
+    // insert per row, where a user that already exists is granted row by row.
+    grantAutoAssignGroupsToNewUser(
+        user,
+        user.getTenants().stream().map(Tenant::getId).toList(),
         scope == UserCreationScope.PLATFORM);
+    User savedUser = userRepository.save(user);
     this.createUserToken(savedUser, token);
     return savedUser;
   }
@@ -1116,8 +1115,32 @@ public class UserService {
    */
   private void assignAutoAssignGroups(
       User user, Collection<String> tenantIds, boolean includePlatformScope) {
-    if (!includePlatformScope && tenantIds.isEmpty()) {
+    autoAssignGroups(tenantIds, includePlatformScope)
+        .forEach(group -> userGroupMembershipService.addMembership(user.getId(), group.getId()));
+  }
+
+  /**
+   * Sets the auto-assign groups on a user that has not been saved yet. Only for a new user: its
+   * groups are complete in memory, so setting them cannot drop a row it never loaded.
+   */
+  private void grantAutoAssignGroupsToNewUser(
+      User user, Collection<String> tenantIds, boolean includePlatformScope) {
+    List<Group> applicableGroups = autoAssignGroups(tenantIds, includePlatformScope);
+    if (applicableGroups.isEmpty()) {
       return;
+    }
+    List<Group> current = new ArrayList<>(user.getUnscopedGroups());
+    for (Group group : applicableGroups) {
+      if (!current.contains(group)) {
+        current.add(group);
+      }
+    }
+    user.setGroups(current);
+  }
+
+  private List<Group> autoAssignGroups(Collection<String> tenantIds, boolean includePlatformScope) {
+    if (!includePlatformScope && tenantIds.isEmpty()) {
+      return List.of();
     }
     Specification<Group> spec =
         includePlatformScope ? GroupSpecification.defaultUserAssignablePlatform() : null;
@@ -1125,9 +1148,7 @@ public class UserService {
       Specification<Group> tenantSpec = GroupSpecification.defaultUserAssignableTenant(tenantId);
       spec = spec == null ? tenantSpec : spec.or(tenantSpec);
     }
-    List<Group> applicableGroups = groupRepository.findAll(spec);
-    applicableGroups.forEach(
-        group -> userGroupMembershipService.addMembership(user.getId(), group.getId()));
+    return groupRepository.findAll(spec);
   }
 
   /**

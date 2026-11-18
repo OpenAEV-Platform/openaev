@@ -183,7 +183,7 @@ class SecurityServiceTest extends IntegrationTest {
 
       // -- ASSERT --
       assertThat(result.isAdmin()).isFalse();
-      assertThat(groupIds(result)).contains(adminGroup.getId());
+      assertThat(memberIds(adminGroup)).contains(result.getId());
     }
 
     @Test
@@ -202,7 +202,7 @@ class SecurityServiceTest extends IntegrationTest {
 
       // -- ASSERT --
       assertThat(result.isAdmin()).isFalse();
-      assertThat(groupIds(result)).doesNotContain(adminGroup.getId());
+      assertThat(memberIds(adminGroup)).doesNotContain(result.getId());
     }
 
     @Test
@@ -235,8 +235,11 @@ class SecurityServiceTest extends IntegrationTest {
                       .get());
     }
 
-    private List<String> groupIds(User user) {
-      return user.getUnscopedGroups().stream().map(Group::getId).toList();
+    // The membership is written one row at a time from the group side, so the group is the one
+    // that lists it: the groups held by the user returned are not updated in memory.
+    private List<String> memberIds(Group group) {
+      entityManager.flush();
+      return groupRepository.findUserIdsByGroupId(group.getId());
     }
   }
 }
