@@ -69,8 +69,8 @@ public class GraphExplorationService {
 
     /**
      * Attack-path steps (#9447): per edge, the worst verdict per simulation that drew it. A step is
-     * only as visible as one of its simulations, and its verdict is the worst over the visible ones,
-     * so a simulation the caller may not read never leaks through a shared edge.
+     * only as visible as one of its simulations, and its verdict is the worst over the visible
+     * ones, so a simulation the caller may not read never leaks through a shared edge.
      */
     final Map<String, Map<String, GraphResult>> stepSimulations = new HashMap<>();
 
@@ -105,7 +105,8 @@ public class GraphExplorationService {
     /** Records an attack-path step of one simulation between two asset nodes. */
     void step(String source, String target, String simulationId, GraphResult result) {
       String id = GraphEdgeOutput.idOf(GraphEdgeType.ATTACK_STEP, source, target);
-      edges.putIfAbsent(id, new GraphEdgeOutput(id, GraphEdgeType.ATTACK_STEP, source, target, null));
+      edges.putIfAbsent(
+          id, new GraphEdgeOutput(id, GraphEdgeType.ATTACK_STEP, source, target, null));
       stepSimulations
           .computeIfAbsent(id, k -> new HashMap<>())
           .merge(simulationId, result, GraphResult::worst);
@@ -432,12 +433,7 @@ public class GraphExplorationService {
               });
         }
         if (want.test(GraphEdgeType.ATTACK_STEP)) {
-          steps(
-              slice,
-              tenantIds,
-              "(x.sourceAssetId = :id OR x.targetAssetId = :id)",
-              id,
-              cap);
+          steps(slice, tenantIds, "(x.sourceAssetId = :id OR x.targetAssetId = :id)", id, cap);
         }
         if (want.test(GraphEdgeType.FOUND_ON)) {
           rows(
