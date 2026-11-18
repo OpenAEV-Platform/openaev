@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -33,6 +34,8 @@ public interface GroupRepository
   // -- Tenant-scoped --
 
   Optional<Group> findByIdAndTenantId(String id, String tenantId);
+
+  Optional<Group> findByIdAndTenantIdIn(String id, Collection<String> tenantIds);
 
   List<Group> findAllByTenantId(String tenantId);
 
