@@ -46,6 +46,7 @@ public class UserMappingService {
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
   private final TenantScopedTransaction tenantScopedTransaction;
+  private final UserGroupMembershipService userGroupMembershipService;
   public static final String ROLES_PATH_SUFFIX = "roles_path";
   public static final String GROUPS_PATH_SUFFIX = "groups_path";
 
@@ -106,17 +107,13 @@ public class UserMappingService {
       return;
     }
     String adminGroupId = adminGroup.get().getId();
-    List<Group> userGroups = user.getUnscopedGroups();
-    boolean member = userGroups.stream().anyMatch(g -> g.getId().equals(adminGroupId));
-    if (isAdmin == member) {
-      return;
+    boolean changed =
+        isAdmin
+            ? userGroupMembershipService.addMembership(user.getId(), adminGroupId)
+            : userGroupMembershipService.removeMembership(user.getId(), adminGroupId);
+    if (changed) {
+      markingClearanceCacheManager.evictForUser(user.getId());
     }
-    if (isAdmin) {
-      userGroups.add(adminGroup.get());
-    } else {
-      userGroups.removeIf(g -> g.getId().equals(adminGroupId));
-    }
-    markingClearanceCacheManager.evictForUser(user.getId());
   }
 
   private static List<GroupMapping> safeParseMappings(String json) {
@@ -141,13 +138,20 @@ public class UserMappingService {
       return false;
     }
     Optional<Group> group = findOrCreateGroup(mapping, tenant);
-    group.ifPresent(userGroups::add);
-    return group.isPresent();
+    return group
+        .map(g -> userGroupMembershipService.addMembership(user.getId(), g.getId()))
+        .orElse(false);
   }
 
   /** The user left the group in the identity provider. */
-  private static boolean revokeGroup(User user, String userGroup, Tenant tenant) {
-    return user.getUnscopedGroups().removeIf(g -> isMappedGroup(g, userGroup, tenant));
+  private boolean revokeGroup(User user, String userGroup, Tenant tenant) {
+    boolean changed = false;
+    for (Group group : user.getUnscopedGroups().stream().toList()) {
+      if (isMappedGroup(group, userGroup, tenant)) {
+        changed |= userGroupMembershipService.removeMembership(user.getId(), group.getId());
+      }
+    }
+    return changed;
   }
 
   /** A mapping with a tenant targets a group of that tenant, otherwise a platform group. */
