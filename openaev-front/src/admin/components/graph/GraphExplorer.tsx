@@ -547,7 +547,7 @@ const GraphExplorerInner = ({
           checked={showFailed}
           onCheckedChange={checked => setShowFailed(checked === true)}
         />
-        <div className="flex-grow" />
+        <div style={{ flexGrow: 1 }} />
         <ButtonGroup
           value={layout}
           onValueChange={(value) => {
@@ -594,7 +594,7 @@ const GraphExplorerInner = ({
     >
       <div className="flex items-center gap-2">
         {NODE_ICON[selectedNode.node_type]()}
-        <Text variant="title-sm" as="div" className="min-w-0 flex-grow truncate">
+        <Text variant="title-sm" as="div" className="min-w-0 truncate" style={{ flexGrow: 1 }}>
           {selectedNode.node_label}
         </Text>
         <IconButton priority="tertiary" icon={<CloseOutlined fontSize="small" />} onClick={() => setSelected(null)} aria-label={t('Close')} />
@@ -755,7 +755,7 @@ const GraphExplorerInner = ({
           onOpen();
         } : undefined}
         aria-label={focusNode ? `${t('Explore in graph')}: ${focusNode.node_label}` : t('Explore in graph')}
-        className="block rounded-[var(--radius-md,4px)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--border-focus,currentColor)]"
+        className="block rounded-[var(--radius-md,4px)] focus-visible:outline focus-visible:outline-[var(--border-focus,currentColor)]"
         style={{
           height,
           color: 'inherit',
@@ -804,7 +804,15 @@ const GraphExplorerInner = ({
       >
         {canvas}
         {loading && (
-          <div className="absolute left-3 top-3" role="status" aria-label={t('Loading')}>
+          <div
+            className="absolute"
+            style={{
+              left: 12,
+              top: 12,
+            }}
+            role="status"
+            aria-label={t('Loading')}
+          >
             <Spinner size="sm" />
           </div>
         )}
