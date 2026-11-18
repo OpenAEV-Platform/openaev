@@ -1091,6 +1091,35 @@ class CredentialApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given_azureInputWithScope_should_storeAndReturnScope")
+    void given_azureInputWithScope_should_storeAndReturnScope() throws Exception {
+      // Arrange
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-scope");
+      CredentialInput input =
+          CredentialInputFixture.azureServicePrincipalInputWithScope("azure-scope", AZURE_SCOPE);
+
+      // Act
+      String response =
+          mvc.perform(
+                  multipartCreate(tenantCredentialsUri(tenant.getId()), input)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat((String) JsonPath.read(response, "$.credential_azure_scope"))
+          .isEqualTo(AZURE_SCOPE);
+      CredentialSecretReference credential =
+          credentialSecretReferenceRepository
+              .findById(JsonPath.read(response, "$.credential_id"))
+              .orElseThrow();
+      Secret secret = secretRepository.findById(credential.getLocation()).orElseThrow();
+      assertThat(((AzureServicePrincipalSecret) secret).getAzureScope()).isEqualTo(AZURE_SCOPE);
+    }
+
+    @Test
     @DisplayName("given_oversizedAzureCertificate_should_failCreation")
     void given_oversizedAzureCertificate_should_failCreation() throws Exception {
       // Arrange
@@ -2067,6 +2096,7 @@ class CredentialApiTest extends IntegrationTest {
         null,
         null,
         null,
+        null,
         // GCP
         null,
         null,
@@ -2105,6 +2135,7 @@ class CredentialApiTest extends IntegrationTest {
         null,
         null,
         // AZURE
+        null,
         null,
         null,
         null,

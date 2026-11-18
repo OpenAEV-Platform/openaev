@@ -558,6 +558,7 @@
   "azure_client_secret": "클라이언트 시크릿",
   "azure_environment": "환경",
   "azure_requests_certificate": "요청 인증서",
+  "azure_scope": "범위",
   "azure_subscription_id": "구독 ID",
   "azure_tenant_id": "테넌트 ID",
   "Back": "뒤로",

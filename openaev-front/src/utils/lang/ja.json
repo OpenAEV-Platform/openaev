@@ -558,6 +558,7 @@
   "azure_client_secret": "クライアントシークレット",
   "azure_environment": "環境",
   "azure_requests_certificate": "リクエスト証明書",
+  "azure_scope": "スコープ",
   "azure_subscription_id": "サブスクリプション ID",
   "azure_tenant_id": "テナント ID",
   "Back": "戻る",

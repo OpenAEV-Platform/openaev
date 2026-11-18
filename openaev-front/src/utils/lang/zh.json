@@ -558,6 +558,7 @@
   "azure_client_secret": "客户端密钥",
   "azure_environment": "环境",
   "azure_requests_certificate": "请求证书",
+  "azure_scope": "范围",
   "azure_subscription_id": "订阅 ID",
   "azure_tenant_id": "租户 ID",
   "Back": "前一个",

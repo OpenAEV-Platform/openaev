@@ -558,6 +558,7 @@
   "azure_client_secret": "Секретный ключ клиента",
   "azure_environment": "Параметры среды",
   "azure_requests_certificate": "Сертификат запросов",
+  "azure_scope": "Область",
   "azure_subscription_id": "Идентификатор подписки",
   "azure_tenant_id": "Идентификатор арендатора",
   "Back": "Назад",

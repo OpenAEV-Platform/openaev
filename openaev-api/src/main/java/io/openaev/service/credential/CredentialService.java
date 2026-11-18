@@ -253,6 +253,12 @@ public class CredentialService {
                     .required(false)
                     .build(),
                 CredentialContractField.builder()
+                    .fieldName("azure_scope")
+                    .endpoint(true)
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build(),
+                CredentialContractField.builder()
                     .fieldName("azure_requests_certificate")
                     .fieldType(CredentialContractFieldType.file)
                     .required(false)
@@ -280,6 +286,11 @@ public class CredentialService {
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("azure_authority_host_uri")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("azure_scope")
                     .fieldType(CredentialContractFieldType.text)
                     .required(false)
                     .build(),
@@ -638,6 +649,7 @@ public class CredentialService {
         input.gcpCustomIamUri(),
         input.gcpCustomOauthAccessToken(),
         input.azureAuthorityHostUri(),
+        input.azureScope(),
         azureRequestsCertificate);
   }
 

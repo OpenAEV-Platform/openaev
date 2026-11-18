@@ -266,10 +266,11 @@ class SecretHandlerValidateConnectionTest {
       secret.setAzureClientSecret(ENCRYPTED_CLIENT_SECRET);
       secret.setAzureSubscriptionId(AZURE_SUBSCRIPTION_ID);
       secret.setAzureAuthorityHostUri(AZURE_AUTHORITY_HOST_URI);
+      secret.setAzureScope(AZURE_SCOPE);
       when(nativeEncryptionService.decrypt(ENCRYPTED_CLIENT_SECRET))
           .thenReturn(AZURE_CLIENT_SECRET);
       when(azureCredentialConnectivityCheck.validateServicePrincipal(
-              any(), any(), any(), any(), any(), any()))
+              any(), any(), any(), any(), any(), any(), any()))
           .thenReturn(SecretConnectionResult.active());
 
       // Act
@@ -286,7 +287,8 @@ class SecretHandlerValidateConnectionTest {
               // The plaintext, never the stored ciphertext.
               eq(AZURE_CLIENT_SECRET),
               eq(AZURE_SUBSCRIPTION_ID),
-              eq(AZURE_AUTHORITY_HOST_URI));
+              eq(AZURE_AUTHORITY_HOST_URI),
+              eq(AZURE_SCOPE));
     }
 
     @Test
@@ -327,7 +329,7 @@ class SecretHandlerValidateConnectionTest {
       secret.setAzureEnvironment(AZURE_ENVIRONMENT);
       secret.setAzureClientId(AZURE_CLIENT_ID);
       secret.setAzureSubscriptionId(AZURE_SUBSCRIPTION_ID);
-      secret.setAzureAuthorityHostUri(AZURE_AUTHORITY_HOST_URI);
+      secret.setAzureScope(AZURE_SCOPE);
       when(azureCredentialConnectivityCheck.validateManagedIdentity(any(), any(), any(), any()))
           .thenReturn(SecretConnectionResult.active());
 
@@ -341,7 +343,7 @@ class SecretHandlerValidateConnectionTest {
               eq(AZURE_ENVIRONMENT),
               eq(AZURE_CLIENT_ID),
               eq(AZURE_SUBSCRIPTION_ID),
-              eq(AZURE_AUTHORITY_HOST_URI));
+              eq(AZURE_SCOPE));
     }
 
     @Test

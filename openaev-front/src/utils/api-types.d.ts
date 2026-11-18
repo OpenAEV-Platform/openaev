@@ -2070,6 +2070,7 @@ export type AzureManagedIdentity = Value & {
   azure_environment?: string;
   /** @format byte */
   azure_requests_certificate?: Blob;
+  azure_scope?: string;
   azure_subscription_id?: string;
 };
 
@@ -2080,6 +2081,7 @@ export type AzureServicePrincipal = Value & {
   azure_environment?: string;
   /** @format byte */
   azure_requests_certificate?: Blob;
+  azure_scope?: string;
   azure_subscription_id?: string;
   azure_tenant_id?: string;
 };
@@ -3559,6 +3561,8 @@ export interface CredentialFullOutput {
   credential_azure_environment?: string;
   /** Whether an Azure requests certificate is stored; the certificate itself is never returned */
   credential_azure_requests_certificate_defined?: boolean;
+  /** Azure scope */
+  credential_azure_scope?: string;
   /** Azure subscription id */
   credential_azure_subscription_id?: string;
   /** Azure tenant id */
@@ -3691,6 +3695,11 @@ export interface CredentialInput {
   azure_client_id?: string;
   azure_client_secret?: string;
   azure_environment?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  azure_scope?: string;
   azure_subscription_id?: string;
   azure_tenant_id?: string;
   credential_auth_method:

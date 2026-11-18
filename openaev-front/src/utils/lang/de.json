@@ -558,6 +558,7 @@
   "azure_client_secret": "Client-Secret",
   "azure_environment": "Umgebung",
   "azure_requests_certificate": "Anfragezertifikat",
+  "azure_scope": "Geltungsbereich",
   "azure_subscription_id": "Abonnement-ID",
   "azure_tenant_id": "Tenant-ID",
   "Back": "Zurück",

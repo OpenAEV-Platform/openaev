@@ -52,6 +52,10 @@ public class AzureServicePrincipalSecret extends Secret {
   @JsonProperty("secret_azure_authority_host_uri")
   private String azureAuthorityHostUri;
 
+  @Column(name = "secret_azure_scope")
+  @JsonProperty("secret_azure_scope")
+  private String azureScope;
+
   /** Encrypted content of the uploaded certificate file, handed to the injectors only. */
   @Column(name = "secret_azure_requests_certificate")
   @JsonIgnore
