@@ -12,7 +12,9 @@ import { useFormatter } from '../../../components/i18n';
 import { type DetectionRemediationInput } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
+import { isFeatureEnabled } from '../../../utils/utils';
 import EEChip from '../common/entreprise_edition/EEChip';
+import { defaultPayloadExpectations } from '../common/injects/expectations/Expectation';
 import { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../findings/ContractOutputElementType';
 import { hasSpecificDirtyFieldAI, trackedFields } from '../payloads/utils/payloadFormToPayloadInput';
 import CommandsFormTab from './form/CommandsFormTab';
@@ -41,7 +43,6 @@ const ThreatArsenalActionForm = ({
     action_type: '',
     action_name: '',
     action_platforms: [],
-    action_expectations: ['PREVENTION', 'DETECTION'],
     action_expected_security_platforms: {},
     action_description: '',
     command_executor: '',
@@ -69,6 +70,7 @@ const ThreatArsenalActionForm = ({
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
   const { snapshot } = useSnapshotRemediation();
+  const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
   type ThreatArsenalActionCreateInput = z.infer<typeof schema>;
 
   const regexGroupObject = z.object({
@@ -122,7 +124,7 @@ const ThreatArsenalActionForm = ({
     action_tags: z.string().array().optional(),
     // action_domains: z.array(domainZodObject).refine(arr => arr.length > 0, t('Should not be empty')).describe('General-tab'),
     action_domains: z.string().array().refine(arr => arr.length > 0, t('Should not be empty')).describe('General-tab'),
-    action_expectations: z.enum(['PREVENTION', 'DETECTION', 'VULNERABILITY', 'MANUAL', 'TEXT', 'CHALLENGE', 'DOCUMENT', 'ARTICLE']).array(),
+    action_expectations: z.enum(['PREVENTION', 'DETECTION', 'LOGGING', 'VULNERABILITY', 'MANUAL', 'TEXT', 'CHALLENGE', 'DOCUMENT', 'ARTICLE']).array(),
     // Bound per-expectation by ExpectationSecurityPlatformsField, whose Controllers
     // may leave freshly mounted entries as `undefined` before the user touches them.
     // Normalise (drop undefined/empty scopes) so an untouched form still validates.
@@ -189,7 +191,11 @@ const ThreatArsenalActionForm = ({
   const methods = useForm<ThreatArsenalActionCreateCustomInput>({
     mode: 'onTouched',
     resolver: zodResolver(schema) as Resolver<ThreatArsenalActionCreateCustomInput>,
-    defaultValues: initialValues,
+    // A new payload gets its default expectations here, where the preview feature can be read.
+    defaultValues: {
+      ...initialValues,
+      action_expectations: initialValues.action_expectations ?? defaultPayloadExpectations(isLoggingEnabled),
+    },
   });
   const {
     handleSubmit,

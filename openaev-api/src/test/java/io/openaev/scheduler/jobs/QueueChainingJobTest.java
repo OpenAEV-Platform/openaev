@@ -2,7 +2,6 @@ package io.openaev.scheduler.jobs;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -48,6 +47,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
@@ -76,6 +76,10 @@ class QueueChainingJobTest extends IntegrationTest {
   @Autowired private TenantRepository tenantRepository;
   @Autowired private CweRepository cweRepository;
   @Autowired private TenantScopedTransaction tenantTx;
+
+  @Value("${openaev.tenant.active-tables:}")
+  private List<String> activeTables;
+
   @MockitoSpyBean private StepService stepService;
   @MockitoSpyBean private WorkflowService workflowService;
 
@@ -154,7 +158,7 @@ class QueueChainingJobTest extends IntegrationTest {
     StepDelayQueue dueEntry = persistDueDelayQueueEntry(scenarioBackedRun);
     doThrow(new IllegalStateException("processing blew up"))
         .when(stepService)
-        .createReadySteps(any(), any(), any(), anyInt());
+        .createReadySteps(any(), any(), any());
 
     // Act & Assert: the exception escapes the job's top-level transaction uncaught ...
     assertThatThrownBy(() -> job.execute(null)).isInstanceOf(IllegalStateException.class);
@@ -177,7 +181,7 @@ class QueueChainingJobTest extends IntegrationTest {
     Workflow scenarioBackedRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
     StepDelayQueue dueEntry = persistDueDelayQueueEntry(scenarioBackedRun);
     String runId = dueEntry.getWorkflowRun().getId();
-    doReturn(List.of()).when(stepService).createReadySteps(any(), any(), any(), anyInt());
+    doReturn(List.of()).when(stepService).createReadySteps(any(), any(), any());
     AtomicBoolean entryGoneWhenEvaluated = new AtomicBoolean();
     doAnswer(
             invocation -> {
@@ -202,7 +206,7 @@ class QueueChainingJobTest extends IntegrationTest {
     Workflow scenarioBackedRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
     StepDelayQueue dueEntry = persistDueDelayQueueEntry(scenarioBackedRun);
     String runId = dueEntry.getWorkflowRun().getId();
-    doReturn(List.of(new Step())).when(stepService).createReadySteps(any(), any(), any(), anyInt());
+    doReturn(List.of(new Step())).when(stepService).createReadySteps(any(), any(), any());
     doThrow(new ChainingException("broker down")).when(stepService).enqueueReadySteps(any(), any());
     doAnswer(invocation -> invocation.getArgument(0))
         .when(workflowService)
@@ -221,7 +225,7 @@ class QueueChainingJobTest extends IntegrationTest {
     // Arrange
     Workflow scenarioBackedRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
     persistDueDelayQueueEntry(scenarioBackedRun);
-    doReturn(List.of(new Step())).when(stepService).createReadySteps(any(), any(), any(), anyInt());
+    doReturn(List.of(new Step())).when(stepService).createReadySteps(any(), any(), any());
     doNothing().when(stepService).enqueueReadySteps(any(), any());
 
     // Act
@@ -254,18 +258,25 @@ class QueueChainingJobTest extends IntegrationTest {
       persistDueEntryOf(otherTenant);
       doThrow(new IllegalStateException("processing blew up"))
           .when(stepService)
-          .createReadySteps(any(), any(), any(), anyInt());
+          .createReadySteps(any(), any(), any());
       TenantContext.clearCurrentTenant();
 
       // Act
       assertThatThrownBy(() -> job.execute(null)).isInstanceOf(IllegalStateException.class);
-      Cwe nextWrite = persistCweWithoutTenant();
 
-      // Assert
-      assertThat(nextWrite.getTenant().getId())
-          .isNotEqualTo(otherTenant.getId())
-          .isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      // Assert: the thread carries no tenant, so the next unattributed write is handled as
+      // production handles it for that table: refused when the table is active, stamped with the
+      // default tenant when it is not. It is never stamped with the tenant of the failed pass.
       assertThat(TenantContext.hasCurrentTenant()).isFalse();
+      if (isCweTableActive()) {
+        assertThatThrownBy(this::persistCweWithoutTenant)
+            .hasStackTraceContaining("unattributed tenant write: Cwe");
+      } else {
+        Cwe nextWrite = persistCweWithoutTenant();
+        assertThat(nextWrite.getTenant().getId())
+            .isNotEqualTo(otherTenant.getId())
+            .isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      }
     }
 
     @Test
@@ -276,7 +287,7 @@ class QueueChainingJobTest extends IntegrationTest {
       persistDueEntryOf(otherTenant);
       doThrow(new IllegalStateException("processing blew up"))
           .when(stepService)
-          .createReadySteps(any(), any(), any(), anyInt());
+          .createReadySteps(any(), any(), any());
       TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
 
       // Act
@@ -301,6 +312,12 @@ class QueueChainingJobTest extends IntegrationTest {
       scenario.setTenant(tenant);
       persistDueDelayQueueEntry(
           WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN), scenario);
+    }
+
+    private boolean isCweTableActive() {
+      return activeTables.stream()
+          .map(String::trim)
+          .anyMatch(t -> t.equalsIgnoreCase("cwes") || t.equals("*"));
     }
 
     private Cwe persistCweWithoutTenant() {

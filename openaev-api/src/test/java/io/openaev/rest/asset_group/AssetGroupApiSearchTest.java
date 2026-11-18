@@ -13,12 +13,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.AssetGroup;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.*;
@@ -32,23 +34,29 @@ public class AssetGroupApiSearchTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private AssetGroupRepository assetGroupRepository;
+  @Autowired private RowTenantScope rowTenantScope;
 
   private static final List<String> ASSET_GROUP_IDS = new ArrayList<>();
 
   @BeforeAll
   void beforeAll() {
-    AssetGroup assetGroup1 = AssetGroupFixture.createDefaultAssetGroup("Asset Group 1");
-    AssetGroup assetGroup1Saved = this.assetGroupRepository.save(assetGroup1);
-    ASSET_GROUP_IDS.add(assetGroup1Saved.getId());
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          AssetGroup assetGroup1 = AssetGroupFixture.createDefaultAssetGroup("Asset Group 1");
+          AssetGroup assetGroup1Saved = this.assetGroupRepository.save(assetGroup1);
+          ASSET_GROUP_IDS.add(assetGroup1Saved.getId());
 
-    AssetGroup assetGroup2 = AssetGroupFixture.createDefaultAssetGroup("Asset Group 2");
-    AssetGroup assetGroup2Saved = this.assetGroupRepository.save(assetGroup2);
-    ASSET_GROUP_IDS.add(assetGroup2Saved.getId());
+          AssetGroup assetGroup2 = AssetGroupFixture.createDefaultAssetGroup("Asset Group 2");
+          AssetGroup assetGroup2Saved = this.assetGroupRepository.save(assetGroup2);
+          ASSET_GROUP_IDS.add(assetGroup2Saved.getId());
+        });
   }
 
   @AfterAll
   void afterAll() {
-    this.assetGroupRepository.deleteAllById(ASSET_GROUP_IDS);
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID, () -> this.assetGroupRepository.deleteAllById(ASSET_GROUP_IDS));
   }
 
   @Nested
@@ -61,6 +69,7 @@ public class AssetGroupApiSearchTest extends IntegrationTest {
     @DisplayName("Searching page of asset groups")
     class SearchingPageOfAssetGroups {
 
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @Test
       @DisplayName("Retrieving first page of asset groups by text search")
       void given_working_search_input_should_return_a_page_of_asset_groups() throws Exception {
@@ -76,6 +85,7 @@ public class AssetGroupApiSearchTest extends IntegrationTest {
             .andExpect(jsonPath("$.numberOfElements").value(2));
       }
 
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @Test
       @DisplayName("Not retrieving first page of asset groups by text search")
       void given_not_working_search_input_should_return_a_page_of_asset_groups() throws Exception {
@@ -96,6 +106,7 @@ public class AssetGroupApiSearchTest extends IntegrationTest {
     @DisplayName("Sorting page of asset groups")
     class SortingPageOfAssetGroups {
 
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @Test
       @DisplayName("Sorting page of asset groups by name asc")
       void given_sorting_input_by_name_should_return_a_page_of_asset_groups_sort_by_name_asc()
@@ -115,6 +126,7 @@ public class AssetGroupApiSearchTest extends IntegrationTest {
             .andExpect(jsonPath("$.content.[1].asset_group_name").value("Asset Group 2"));
       }
 
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @Test
       @DisplayName("Sorting page of asset groups by name desc")
       void given_sorting_input_by_name_should_return_a_page_of_asset_groups_sort_by_name_desc()
@@ -141,6 +153,7 @@ public class AssetGroupApiSearchTest extends IntegrationTest {
     @DisplayName("Filtering page of asset groups")
     class FilteringPageOfAssetGroups {
 
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @Test
       @DisplayName("Filtering page of asset groups by name")
       void given_filter_input_by_name_should_return_a_page_of_asset_groups_filter_by_name()
@@ -157,6 +170,7 @@ public class AssetGroupApiSearchTest extends IntegrationTest {
             .andExpect(jsonPath("$.numberOfElements").value(2));
       }
 
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @Test
       @DisplayName("Filtering page of asset groups by description")
       void given_filter_input_by_sttaus_should_return_a_page_of_asset_groups_filter_by_description()

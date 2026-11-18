@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Domain;
 import io.openaev.database.raw.RawDomainIndexing;
 import jakarta.annotation.Nonnull;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -13,6 +14,7 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.Assert;
 
 @Repository
 public interface DomainRepository
@@ -57,4 +59,18 @@ public interface DomainRepository
               + "WHERE d.domain_updated_at > :from ORDER BY d.domain_updated_at LIMIT :limit;",
       nativeQuery = true)
   List<RawDomainIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
+
+  /** The domains among the given ids that belong to the given tenant. */
+  @NotNull
+  List<Domain> findAllByIdInAndTenantId(@NotNull Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The domains among the given ids that belong to the given tenant. Refuses a null id list, as
+   * {@code findAllById} does.
+   */
+  @NotNull
+  default List<Domain> findAllByIdInTenant(Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 }

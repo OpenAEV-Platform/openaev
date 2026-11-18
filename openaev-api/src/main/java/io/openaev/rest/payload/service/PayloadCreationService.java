@@ -107,15 +107,21 @@ public class PayloadCreationService {
     // those defaults with null. Spring Data's findAllById throws IllegalArgumentException
     // ("Ids must not be null") on a null argument, surfacing as a confusing 400. Treat an
     // absent collection as "no associations" instead.
+    // The ids named in the body resolve in the tenant of the payload written: an id of another
+    // tenant is treated like an unknown id.
+    String payloadTenantId = payloadSaved.getTenant().getId();
     InjectorContract injectorContract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
             payloadSaved,
             fromIterable(
-                attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds()))),
-            iterableToSet(domainService.findAllById(emptyIfNull(input.getDomainIds()))),
+                attackPatternRepository.findAllByIdInTenant(
+                    emptyIfNull(input.getAttackPatternsIds()), payloadTenantId)),
+            iterableToSet(
+                domainService.findAllByIdInTenant(
+                    emptyIfNull(input.getDomainIds()), payloadTenantId)),
             iterableToSet(
                 tagRepository.findAllByIdInTenant(
-                    emptyIfNull(input.getTagIds()), payloadSaved.getTenant().getId())));
+                    emptyIfNull(input.getTagIds()), payloadTenantId)));
     // Telemetry: one payload created, by type - recorded only once the payload and
     // its injector contract are persisted (a rollback would otherwise inflate the counter).
     resultsMetricCollector.recordPayloadCreated(payloadType.key);

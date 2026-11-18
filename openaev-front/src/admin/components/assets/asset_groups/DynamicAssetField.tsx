@@ -25,16 +25,28 @@ const DynamicAssetField: FunctionComponent<Props> = ({
 
   const [filterGroup, helpers] = useFiltersState(value ?? emptyFilterGroup, undefined, onChange);
 
+  // Every filterable attribute an asset group rule can resolve on the backend
+  // (AssetGroupService.computeDynamicAssets): base asset fields, then endpoint-only ones.
   const availableFilterNames = [
+    'asset_tags',
+    'asset_name',
+    'asset_description',
+    'asset_external_reference',
     'asset_category',
     'asset_subcategory',
     'asset_criticality',
-    'asset_cloud_provider',
+    'asset_status',
     'asset_internet_facing',
-    'endpoint_arch',
+    'asset_cloud_provider',
+    'asset_cloud_region',
+    'asset_cloud_native_type',
     'asset_hostname',
     'asset_ips',
+    'asset_seen_ip',
+    'asset_mac_addresses',
+    'asset_url',
     'endpoint_platform',
+    'endpoint_arch',
   ];
 
   return (

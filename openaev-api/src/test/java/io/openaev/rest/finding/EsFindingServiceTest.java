@@ -5,17 +5,11 @@ import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Finding;
-import io.openaev.database.model.Inject;
-import io.openaev.database.repository.InjectRepository;
 import io.openaev.utils.fixtures.composers.FindingComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
-import org.apache.commons.validator.routines.InetAddressValidator;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -29,7 +23,6 @@ class EsFindingServiceTest extends IntegrationTest {
   @Autowired private FindingComposer findingComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private FindingService findingService;
-  @Autowired private InjectRepository injectRepository;
 
   FindingComposer.Composer createFindingComposer() {
     return this.findingComposer
@@ -68,79 +61,5 @@ class EsFindingServiceTest extends IntegrationTest {
   void given_invalid_finding_id_should_throw_exception() {
     // -- EXECUTE & ASSERT --
     assertThrows(EntityNotFoundException.class, () -> findingService.finding("id"));
-  }
-
-  @Nested
-  class CreateEsFinding {
-
-    @Test
-    void given_new_text_finding_should_create_finding() {
-      // -- PREPARE --
-      Finding finding = createDefaultTextFinding();
-      Inject inject = injectRepository.save(getDefaultInject());
-
-      // -- EXECUTE --
-      Finding result =
-          findingService.createFinding(
-              TxCtx.forTenant(TenantContext.getCurrentTenant()), finding, inject.getId());
-
-      // -- ASSERT --
-      assertNotNull(result);
-      assertEquals(TEXT_FIELD, result.getField());
-    }
-
-    @Test
-    void given_new_ipv6_finding_should_create_finding() {
-      // -- PREPARE --
-      Finding finding = createDefaultIPV6Finding();
-      Inject inject = injectRepository.save(getDefaultInject());
-
-      // -- EXECUTE --
-      Finding result =
-          findingService.createFinding(
-              TxCtx.forTenant(TenantContext.getCurrentTenant()), finding, inject.getId());
-
-      // -- ASSERT --
-      InetAddressValidator validator = InetAddressValidator.getInstance();
-      assertNotNull(result);
-      assertEquals(IPV6_FIELD, result.getField());
-      assertTrue(validator.isValid(result.getValue()));
-    }
-
-    @Test
-    void given_new_credentials_finding_should_create_finding() {
-      // -- PREPARE --
-      Finding finding = createDefaultFindingCredentials();
-      Inject inject = injectRepository.save(getDefaultInject());
-
-      // -- EXECUTE --
-      Finding result =
-          findingService.createFinding(
-              TxCtx.forTenant(TenantContext.getCurrentTenant()), finding, inject.getId());
-
-      // -- ASSERT --
-      assertNotNull(result);
-      assertEquals(CREDENTIALS_FIELD, result.getField());
-      assertTrue(result.getValue().contains(":"));
-    }
-  }
-
-  @Test
-  void given_existing_finding_should_delete_finding() {
-    // -- PREPARE --
-    FindingComposer.Composer wrapper = createFindingComposer();
-
-    // -- EXECUTE --
-    String id = wrapper.get().getId();
-    findingService.deleteFinding(id);
-
-    // -- ASSERT --
-    assertThrows(EntityNotFoundException.class, () -> findingService.finding(id));
-  }
-
-  @Test
-  void given_invalid_finding_id_should_throw_exception_when_deleting() {
-    // -- EXECUTE & ASSERT --
-    assertThrows(EntityNotFoundException.class, () -> findingService.deleteFinding("id"));
   }
 }

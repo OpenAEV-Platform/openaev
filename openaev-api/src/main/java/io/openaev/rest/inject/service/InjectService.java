@@ -57,6 +57,7 @@ import io.openaev.rest.exception.CredentialResolutionException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.LicenseRestrictionException;
+import io.openaev.rest.inject.InjectLinksInitializer;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -589,6 +590,10 @@ public class InjectService {
 
   // -- SPECIFIC GETTER --
 
+  public Set<Inject> findByScenarioId(String scenarioId) {
+    return injectRepository.findByScenarioId(scenarioId);
+  }
+
   public List<Inject> getExecutedAndNotFinished() {
     return this.injectRepository.findAll(
         hasStatus(List.of(EXECUTED, ERROR, MAYBE_PREVENTED, PARTIAL, MAYBE_PARTIAL_PREVENTED))
@@ -1047,6 +1052,11 @@ public class InjectService {
   @Transactional(readOnly = true)
   public List<Inject> getInjectsAndCheckPermission(
       TxCtx ctx, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
+    return findInjectsAndCheckPermission(ctx, input, requested_grant_level);
+  }
+
+  private List<Inject> findInjectsAndCheckPermission(
+      TxCtx ctx, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
     // Control and format inputs
     // Specification building
     Specification<Inject> filterSpecifications =
@@ -1056,6 +1066,19 @@ public class InjectService {
     // Bulk select, only on injects granted through scenario or simulation (or without grant for
     // atomic tests)
     return this.injectRepository.findAll(filterSpecifications);
+  }
+
+  /**
+   * Resolves the injects of a bulk delete like {@link #getInjectsAndCheckPermission} and loads
+   * their tags and secret references in the same scoped transaction. The native delete that follows
+   * removes the {@code injects_tags} rows, and the response serializes after the commit with no
+   * tenant scope, so both reads happen here.
+   */
+  @Transactional(readOnly = true)
+  public List<Inject> getInjectsToDeleteWithLinks(TxCtx ctx, InjectBulkProcessingInput input) {
+    List<Inject> injects = findInjectsAndCheckPermission(ctx, input, Grant.GRANT_TYPE.PLANNER);
+    InjectLinksInitializer.initialize(injects);
+    return injects;
   }
 
   /**
@@ -1853,6 +1876,7 @@ public class InjectService {
     healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
     healthChecks.addAll(healthCheckUtils.runContentChecks(inject));
+    healthChecks.addAll(healthCheckUtils.runRevocationChecks(List.of(inject)));
 
     return healthChecks;
   }

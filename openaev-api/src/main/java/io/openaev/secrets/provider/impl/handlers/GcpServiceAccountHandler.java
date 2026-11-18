@@ -53,6 +53,9 @@ public class GcpServiceAccountHandler implements SecretHandler {
     boolean creating = !(existingSecret instanceof GcpServiceAccountSecret);
     GcpServiceAccountSecret gcpSecret =
         creating ? new GcpServiceAccountSecret() : (GcpServiceAccountSecret) existingSecret;
+    if (!creating) {
+      refuseUriChangeWithoutNewKeyFile(gcpSecret, request);
+    }
 
     // A null value means "left untouched by the client", so the stored value must be kept: the
     // form strips unchanged write-only fields from the payload, and the key file part is simply
@@ -88,6 +91,24 @@ public class GcpServiceAccountHandler implements SecretHandler {
     }
 
     return gcpSecret;
+  }
+
+  /**
+   * The stored key file must not be replayed against a new resource manager or projects URI: the
+   * caller has to upload it again, otherwise whoever can edit the credential could redirect it to a
+   * host they control.
+   */
+  private static void refuseUriChangeWithoutNewKeyFile(
+      GcpServiceAccountSecret existing, SecretStoreRequest request) {
+    boolean redirected =
+        SecretHandler.redirectsEndpoint(
+                existing.getCustomResourceManagerUri(), request.gcpCustomResourceManagerUri())
+            || SecretHandler.redirectsEndpoint(
+                existing.getCustomProjectsUri(), request.gcpCustomProjectsUri());
+    if (redirected && request.gcpPrivateKeyJson() == null) {
+      throw new IllegalArgumentException(
+          "GCP service account key file must be reset in order to change the resource manager or projects URI");
+    }
   }
 
   /**

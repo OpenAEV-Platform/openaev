@@ -90,6 +90,14 @@ public class AssetGroupService {
     return computeDynamicAssets(assetGroups);
   }
 
+  /** The asset groups among the given ids that belong to the given tenant. */
+  public List<AssetGroup> assetGroups(
+      @NotNull final List<String> assetGroupIds, @NotBlank final String tenantId) {
+    List<AssetGroup> assetGroups =
+        this.assetGroupRepository.findAllByIdInTenant(assetGroupIds, tenantId);
+    return computeDynamicAssets(assetGroups);
+  }
+
   /**
    * The asset groups targeted by the inject, without loading the inject. Dynamic members are not
    * computed: use {@link #isAssetInDynamicGroup(Asset, AssetGroup)} to check a given asset.
@@ -260,6 +268,20 @@ public class AssetGroupService {
   }
 
   /**
+   * Same as {@link #assetsFromAssetGroup(String)} for a group of the given tenant: a group of
+   * another tenant is an unknown id.
+   */
+  @Transactional(readOnly = true)
+  public List<Asset> assetsFromAssetGroup(
+      @NotBlank final String assetGroupId, @NotBlank final String tenantId) {
+    return this.assetGroupRepository.findAllByIdInTenant(List.of(assetGroupId), tenantId).stream()
+        .findFirst()
+        .map(this::computeDynamicAssets)
+        .map(this::assetsFromAssetGroup)
+        .orElseThrow(() -> new ElementNotFoundException("Asset group not found: " + assetGroupId));
+  }
+
+  /**
    * Same as {@link #assetsFromAssetGroup(String)} but for a group whose dynamic assets are already
    * resolved - avoids re-running the (potentially expensive) dynamic resolution.
    */
@@ -304,6 +326,7 @@ public class AssetGroupService {
           computeFilterGroupJpa(assetGroup.getDynamicFilter());
       Specification<Endpoint> specification =
           filterSpecification
+              .and(endpointsOfTenantOf(assetGroup))
               .and(EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints())
               .and((root, query, cb) -> cb.equal(root.get("id"), asset.getId()));
       return !this.endpointService.endpoints(specification).isEmpty();
@@ -319,6 +342,15 @@ public class AssetGroupService {
     return !this.assetService.assets(specification).isEmpty();
   }
 
+  /**
+   * Restricts a dynamic filter to the endpoints of the tenant that owns the group. The request or
+   * job scope can span several tenants, and a filter alone matches the endpoints of all of them.
+   */
+  private static Specification<Endpoint> endpointsOfTenantOf(final AssetGroup assetGroup) {
+    String tenantId = assetGroup.getTenant().getId();
+    return (root, query, cb) -> cb.equal(root.get("tenant").get("id"), tenantId);
+  }
+
   private List<AssetGroup> computeDynamicAssets(@NotNull final List<AssetGroup> assetGroups) {
     if (assetGroups.stream()
         .allMatch(assetGroup -> isEmptyFilterGroup(assetGroup.getDynamicFilter()))) {
@@ -328,8 +360,10 @@ public class AssetGroupService {
     assetGroups.forEach(
         assetGroup -> {
           if (!isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
-            Specification<Endpoint> specification =
+            Specification<Endpoint> filterSpecification =
                 computeFilterGroupJpa(assetGroup.getDynamicFilter());
+            Specification<Endpoint> specification =
+                filterSpecification.and(endpointsOfTenantOf(assetGroup));
             List<Asset> assets = new ArrayList<>();
             this.endpointService.endpoints(specification).stream()
                 .map(Asset.class::cast)
@@ -345,7 +379,10 @@ public class AssetGroupService {
     if (isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
       return assetGroup;
     }
-    Specification<Endpoint> specification = computeFilterGroupJpa(assetGroup.getDynamicFilter());
+    Specification<Endpoint> filterSpecification =
+        computeFilterGroupJpa(assetGroup.getDynamicFilter());
+    Specification<Endpoint> specification =
+        filterSpecification.and(endpointsOfTenantOf(assetGroup));
     Specification<Endpoint> specification2 =
         EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints();
     List<Asset> assets = new ArrayList<>();

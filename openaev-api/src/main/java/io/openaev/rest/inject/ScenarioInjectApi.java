@@ -133,7 +133,7 @@ public class ScenarioInjectApi extends RestBehavior {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     assert scenarioId.equals(scenario.getId());
     this.scenarioInjectService.requireInjectInScenario(ctx, scenarioId, injectId);
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new));
   }
 
@@ -271,7 +271,7 @@ public class ScenarioInjectApi extends RestBehavior {
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody InjectUpdateActivationInput input) {
     scenarioInjectService.requireInjectInScenario(ctx, scenarioId, injectId);
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         scenarioInjectService.updateInjectActivationForScenario(scenarioId, injectId, input));
   }
 
@@ -346,9 +346,13 @@ public class ScenarioInjectApi extends RestBehavior {
     this.scenarioInjectService.deleteInject(ctx, scenarioId, injectId);
   }
 
-  /** See {@link KillChainPhaseInitializer}: hydrate before open-in-view rendering. */
-  private static Inject hydrateKillChainPhases(Inject inject) {
+  /**
+   * See {@link KillChainPhaseInitializer} and {@link InjectLinksInitializer}: hydrate before
+   * open-in-view rendering.
+   */
+  private static Inject hydrateForResponse(Inject inject) {
     KillChainPhaseInitializer.initializeFromInjects(List.of(inject));
+    InjectLinksInitializer.initialize(List.of(inject));
     return inject;
   }
 }

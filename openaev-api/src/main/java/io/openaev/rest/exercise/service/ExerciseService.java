@@ -955,6 +955,10 @@ public class ExerciseService {
       exercise.setEnd(null);
       exercise.setCurrentPause(null);
       exerciseRepository.save(exercise);
+      // Captured now, before the afterCommit callback below: the entity is not safe to read once
+      // the transaction has committed, and the directory must be removed from the exercise's own
+      // tenant path, not the caller's ambient one (it differs on the non-prefixed route).
+      final String exerciseTenantId = exercise.getTenant().getId();
       // Delete exercise transient files (communications, ...) AFTER commit: this is an external
       // MinIO/S3 call. Running it inside the transaction pinned the DB connection and every row
       // lock taken by the deletes above for the whole duration of the object-storage roundtrips,
@@ -965,9 +969,23 @@ public class ExerciseService {
             @Override
             public void afterCommit() {
               try {
-                fileService.deleteDirectory(exerciseId);
+                fileService.deleteDirectory(exerciseTenantId, exerciseId);
               } catch (Exception e) {
                 log.error("Failed to delete directory for exercise {}", exerciseId, e);
+              }
+              // Attachments uploaded under the earlier storage layout (#7961) sit under the
+              // default tenant's prefix, regardless of the exercise's own tenant. During the
+              // compatibility period, clear that prefix too, unless it is the one already cleared
+              // above.
+              if (!Tenant.DEFAULT_TENANT_UUID.equals(exerciseTenantId)) {
+                try {
+                  fileService.deleteDirectory(Tenant.DEFAULT_TENANT_UUID, exerciseId);
+                } catch (Exception e) {
+                  log.error(
+                      "Failed to delete default-tenant-prefixed directory for exercise {}",
+                      exerciseId,
+                      e);
+                }
               }
             }
           });
@@ -1644,6 +1662,8 @@ public class ExerciseService {
     }
 
     List<HealthCheck> healthChecks = new ArrayList<>();
+    healthChecks.addAll(
+        healthCheckUtils.runRevocationChecks(injectRepository.findByExerciseId(exerciseId)));
 
     // Scope definition check
     workflowService

@@ -54,6 +54,7 @@ import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.threat_arsenal.ProvidingFilterSpecificationBuilder;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TriVoid;
 import io.openaev.utils.TxCtxScopeUtils;
@@ -119,6 +120,7 @@ public class InjectorContractService implements DependenciesManager {
   private final StepRepository stepRepository;
   private final ChainingStepCleanupService chainingStepCleanupService;
   private final WorkflowOwnerScope workflowOwnerScope;
+  private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
 
   /**
    * Built-in contracts whose injectors start with the platform through an autostart instance, so
@@ -575,14 +577,15 @@ public class InjectorContractService implements DependenciesManager {
     // Callers converting threat arsenal action inputs can carry null id collections
     // (the action DTO fields are nullable); treat an absent collection as "no associations"
     // instead of failing on new HashSet<>(null) / findAllById(null).
+    String tenantId = injectorContract.getTenant().getId();
     injectorContract.setAttackPatterns(
         attackPatternService.findAllByInternalIdsThrowIfMissing(
-            new HashSet<>(emptyIfNull(input.getAttackPatternsIds())),
-            injectorContract.getTenant().getId()));
+            new HashSet<>(emptyIfNull(input.getAttackPatternsIds())), tenantId));
     injectorContract.setTags(
-        iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds()))));
+        iterableToSet(tagRepository.findAllByIdInTenant(emptyIfNull(input.getTagIds()), tenantId)));
     injectorContract.setDomains(
-        iterableToSet(domainService.findAllById(emptyIfNull(input.getDomainIds()))));
+        iterableToSet(
+            domainService.findAllByIdInTenant(emptyIfNull(input.getDomainIds()), tenantId)));
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
   }
@@ -1185,8 +1188,26 @@ public class InjectorContractService implements DependenciesManager {
    * access control, exactly like the search route.
    */
   private Specification<InjectorContract> facetBaseSpec(SearchPaginationInput input) {
-    Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
+    // The providing filter is matched by its dedicated builder, as on the search route. The
+    // builder strips it from the filter group it reads, so it reads a copy: the facet endpoints
+    // call this method several times on the same input.
+    SearchPaginationInput copy = new SearchPaginationInput();
+    copy.setTextSearch(input.getTextSearch());
+    if (input.getFilterGroup() != null) {
+      Filters.FilterGroup group = new Filters.FilterGroup();
+      group.setMode(input.getFilterGroup().getMode());
+      group.setFilters(
+          input.getFilterGroup().getFilters() == null
+              ? null
+              : new ArrayList<>(input.getFilterGroup().getFilters()));
+      copy.setFilterGroup(group);
+    }
+    ProvidingFilterSpecificationBuilder.ProvidingFilterContext providing =
+        providingFilterSpecificationBuilder.extractProvidingFilter(copy);
     Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
+    Specification<InjectorContract> filterSpec =
+        providingFilterSpecificationBuilder.combine(
+            computeFilterGroupJpa(providing.searchInput().getFilterGroup()), providing, searchSpec);
     Specification<InjectorContract> visible =
         InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
     Specification<InjectorContract> accessSpec =

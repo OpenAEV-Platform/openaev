@@ -199,6 +199,7 @@ import io.openaev.rest.executor.ExecutorApi;
 import io.openaev.rest.exercise.ExerciseApi;
 import io.openaev.rest.exercise.ExerciseDashboardApi;
 import io.openaev.rest.exercise.ExerciseImportApi;
+import io.openaev.rest.exercise.ExerciseResponseHydrator;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.finding.FindingDistinctSearchService;
@@ -240,6 +241,7 @@ import io.openaev.rest.reporting.service.ReportingScheduleService;
 import io.openaev.rest.scenario.ScenarioApi;
 import io.openaev.rest.scenario.ScenarioDashboardApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
+import io.openaev.rest.scenario.ScenarioResponseHydrator;
 import io.openaev.rest.settings.TenantSettingsApi;
 import io.openaev.rest.team.TeamApi;
 import io.openaev.rest.user.MeApi;
@@ -277,9 +279,9 @@ import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.autonomous.AutonomousTimeoutService;
 import io.openaev.service.autonomous.CapabilityResolverService;
 import io.openaev.service.catalog.CatalogListService;
-import io.openaev.service.catalog.CatalogPayloadOfferService;
-import io.openaev.service.catalog.CatalogPayloadService;
 import io.openaev.service.catalog.CatalogService;
+import io.openaev.service.catalog.payload.CatalogPayloadOfferService;
+import io.openaev.service.catalog.payload.CatalogPayloadService;
 import io.openaev.service.chaining.ScopeSnapshotService;
 import io.openaev.service.chaining.StepEventService;
 import io.openaev.service.chaining.WorkflowEndService;
@@ -287,6 +289,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.custom_domain.CustomDomainPublicLookupService;
 import io.openaev.service.expectation.ChallengeBehavior;
+import io.openaev.service.finding.FindingRecordingService;
 import io.openaev.service.finding.FindingValueDisplayBackfill;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
@@ -437,7 +440,9 @@ class TenantActiveTableAccessArchTest {
           "injectors_contracts_domains",
           "injectors_contracts_vulnerabilities",
           "injectors_injector_contracts",
-          "catalog_history");
+          "catalog_history",
+          "scenario_identities",
+          "payload_revocations");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -870,7 +875,10 @@ class TenantActiveTableAccessArchTest {
               // step handlers open:
               InjectExecutionStep.class,
               // Exporter mapping the exercise documents inside the export endpoint's transaction:
-              ExerciseFileExport.class)
+              ExerciseFileExport.class,
+              // Response hydration, called by the TxCtx-carrying simulation handlers before the
+              // response is serialized open-in-view:
+              ExerciseResponseHydrator.class)
           .should()
           .callMethod(Exercise.class, "getDocuments")
           .because(
@@ -901,7 +909,10 @@ class TenantActiveTableAccessArchTest {
               ScenarioInjectService.class,
               // Chaining engine step data, built under the per-tenant transaction the queue and
               // step handlers open:
-              InjectExecutionStep.class)
+              InjectExecutionStep.class,
+              // Response hydration, called by the TxCtx-carrying scenario handlers before the
+              // response is serialized open-in-view:
+              ScenarioResponseHydrator.class)
           .should()
           .callMethod(Scenario.class, "getDocuments")
           .because(
@@ -1613,9 +1624,10 @@ class TenantActiveTableAccessArchTest {
               FindingDistinctSearchService.class,
               // Reached only from those handlers, inside their scoped transaction.
               FindingMapper.class,
-              // REQUIRES_NEW, so it declares its own TxCtx and the aspect scopes the new
+              // REQUIRES_NEW, so each declares its own TxCtx and the aspect scopes the new
               // transaction (see the note on the class).
               FindingWriter.class,
+              FindingRecordingService.class,
               // Background writers, each reaching the primitive with the tenant taken from the
               // inject or run that owns the work.
               AttackPathExecutionIngestionService.class,
@@ -2363,7 +2375,10 @@ class TenantActiveTableAccessArchTest {
           .that()
           .doNotBelongToAnyOf(
               // Called by the catalogue API and sync, inside their scoped transactions:
-              CatalogService.class, CatalogListService.class, CatalogPayloadOfferService.class)
+              CatalogService.class,
+              CatalogListService.class,
+              CatalogPayloadOfferService.class,
+              io.openaev.service.catalog.payload.CatalogPayloadStatuses.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(CatalogItemRepository.class)
@@ -2728,6 +2743,9 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.chaining.ConditionService.class,
               io.openaev.service.chaining.ChainingStepCleanupService.class,
               io.openaev.service.chaining.QueueChainingService.class,
+              // Counts the READY inject steps of a simulation for the chaining rate limit, called
+              // only by the chaining engine in the same scope as its launched-inject count:
+              io.openaev.service.chaining.SimulationRateLimitService.class,
               // Attack-path graph and seeding, reached only from the TxCtx-carrying AttackPathApi:
               io.openaev.service.attackpath.AttackPathGraphService.class,
               io.openaev.service.attackpath.AttackPathCausalSeedService.class,
@@ -3357,6 +3375,10 @@ class TenantActiveTableAccessArchTest {
             "sendPasswordResetEmail",
             Scope.OPENED_AROUND_LAMBDA),
         at(io.openaev.service.UserService.class, "requestEmailChange", Scope.OPENED_AROUND_LAMBDA),
+        at(
+            io.openaev.service.UserService.class,
+            "notifyPreviousAddressOfChange",
+            Scope.OPENED_AROUND_LAMBDA),
         at(
             io.openaev.service.UserService.class,
             "sendEmailChangeConfirmationEmail",
@@ -4322,5 +4344,34 @@ class TenantActiveTableAccessArchTest {
           .areAssignableTo(io.openaev.database.repository.CatalogHistoryRepository.class)
           .because(
               "catalog_history is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule scenario_identities_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Catalogue installs and offer, in a TxCtx-scoped transaction with the tenantId:
+              io.openaev.service.catalog.scenario.CatalogScenarioService.class,
+              io.openaev.service.catalog.scenario.CatalogScenarioOfferService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.ScenarioIdentityRepository.class)
+          .because(
+              "scenario_identities is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule payload_revocations_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Keyed by tenant, inside the scoped transaction of the revocation routes:
+              io.openaev.service.payload.PayloadRevocationService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.PayloadRevocationRepository.class)
+          .because(
+              "payload_revocations is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 }

@@ -3,6 +3,8 @@ package io.openaev.service.attackpath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.service.attackpath.dto.AttackPathSeedResultDTO;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
@@ -42,12 +44,30 @@ import org.springframework.transaction.annotation.Transactional;
 class AttackPathSeedServiceTest extends IntegrationTest {
 
   @Autowired private AttackPathSeedService seedService;
+  @Autowired private TenantScopedTransaction tenantTx;
+
+  /**
+   * Seeds under a tenant created for the test and run inside that tenant's scope, as the seed
+   * endpoint runs for the tenant its caller names. Flushed on purpose: the seed writes raw JDBC on
+   * the session's own connection, which only sees what Hibernate has already sent, so without the
+   * flush the tenant would not exist yet and the rows would fail their foreign key.
+   */
+  private AttackPathSeedResultDTO seedUnderOwnTenant(AttackPathSeedParams params, String name) {
+    Tenant target = tenantRepository.saveAndFlush(TenantFixture.getTenant(name));
+    return seedIn(params, target);
+  }
+
+  private AttackPathSeedResultDTO seedIn(AttackPathSeedParams params, Tenant target) {
+    return tenantTx.executeOnCurrentTransaction(
+        TxCtx.forTenant(target.getId()), () -> seedService.generate(params, target.getId()));
+  }
 
   @Test
   @DisplayName(
       "a smoke run generates fan-out, shared findings, discovered endpoints and an outlier")
   void smokeRunGeneratesStructuredData() {
-    AttackPathSeedResultDTO result = seedService.generate(AttackPathSeedParams.smoke(42));
+    AttackPathSeedResultDTO result =
+        seedUnderOwnTenant(AttackPathSeedParams.smoke(42), "ap-seed-smoke");
 
     assertThat(result.simulations()).isEqualTo(6);
     assertThat(result.executions()).isGreaterThan(200); // at least the one outlier simulation
@@ -115,8 +135,9 @@ class AttackPathSeedServiceTest extends IntegrationTest {
   @Test
   @DisplayName("the same seed produces the same row counts")
   void sameSeedSameCounts() {
-    AttackPathSeedResultDTO first = seedService.generate(AttackPathSeedParams.smoke(7));
-    AttackPathSeedResultDTO second = seedService.generate(AttackPathSeedParams.smoke(7));
+    Tenant target = tenantRepository.saveAndFlush(TenantFixture.getTenant("ap-seed-determinism"));
+    AttackPathSeedResultDTO first = seedIn(AttackPathSeedParams.smoke(7), target);
+    AttackPathSeedResultDTO second = seedIn(AttackPathSeedParams.smoke(7), target);
 
     assertThat(second.simulations()).isEqualTo(first.simulations());
     assertThat(second.executions()).isEqualTo(first.executions());
@@ -126,12 +147,9 @@ class AttackPathSeedServiceTest extends IntegrationTest {
   @Test
   @DisplayName("seeding under an existing tenant attributes every row to that tenant")
   void seedingUnderATenantAttributesEveryRowToIt() {
-    // Flushed on purpose: the seed writes raw JDBC on the session's own connection, which only sees
-    // what Hibernate has already sent. Without this the tenant would not exist yet and the rows
-    // would fail their foreign key.
     Tenant target = tenantRepository.saveAndFlush(TenantFixture.getTenant("ap-seed-attribution"));
 
-    seedService.generate(AttackPathSeedParams.smoke(11), target.getId());
+    seedIn(AttackPathSeedParams.smoke(11), target);
 
     // The raw-JDBC path bypasses the inspector by design, so attribution is entirely on the seed's
     // shoulders. This is the property that makes the bypass acceptable, so it is pinned rather than

@@ -106,6 +106,7 @@ class InjectsPlayedSearchApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Injects directly targeting the asset are returned")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_inject_directly_targeting_asset_should_return_inject() throws Exception {
       EndpointComposer.Composer endpoint =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
@@ -122,6 +123,7 @@ class InjectsPlayedSearchApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Injects targeting an asset group containing the asset are returned")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_inject_targeting_group_of_asset_should_return_inject() throws Exception {
       EndpointComposer.Composer endpoint =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
@@ -143,6 +145,7 @@ class InjectsPlayedSearchApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Simulation injects evidenced only by a technical expectation are returned")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_simulation_inject_with_expectation_evidence_should_return_inject() throws Exception {
       // The inject does NOT target the asset directly: only the expectation persisted at
       // execution time references it (dynamic asset-group membership case).
@@ -167,6 +170,7 @@ class InjectsPlayedSearchApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Unrelated injects and scenario template injects are excluded")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_unrelated_and_scenario_injects_should_return_empty_page() throws Exception {
       EndpointComposer.Composer endpoint =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();

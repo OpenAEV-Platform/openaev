@@ -966,7 +966,8 @@ public class ConditionService {
     // Remove duplicates while preserving order
     List<String> uniqueStepIds = new ArrayList<>(new LinkedHashSet<>(stepIds));
 
-    List<Step> steps = stepRepository.findAllById(uniqueStepIds);
+    // A step of another tenant than the condition's is an unknown id.
+    List<Step> steps = stepRepository.findAllByIdInTenant(uniqueStepIds, root.getTenant().getId());
 
     if (steps.size() != uniqueStepIds.size()) {
       Set<String> found = steps.stream().map(Step::getId).collect(Collectors.toSet());

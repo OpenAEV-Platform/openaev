@@ -189,9 +189,17 @@ public class ScenarioLessonsApi extends RestBehavior {
       @PathVariable String lessonsCategoryId,
       @Valid @RequestBody LessonsCategoryTeamsInput input) {
     LessonsCategory lessonsCategory = categoryOfScenario(scenarioId, lessonsCategoryId);
-    Iterable<Team> lessonsCategoryTeams = teamRepository.findAllById(input.getTeamIds());
+    Iterable<Team> lessonsCategoryTeams =
+        teamRepository.findAllByIdInTenant(input.getTeamIds(), parentTenantId(lessonsCategory));
     lessonsCategory.setTeams(fromIterable(lessonsCategoryTeams));
     return hydrateForResponse(lessonsCategoryRepository.save(lessonsCategory));
+  }
+
+  /** The tenant of the scenario, or of the simulation, the lessons category belongs to. */
+  private static String parentTenantId(LessonsCategory lessonsCategory) {
+    return lessonsCategory.getScenario() != null
+        ? lessonsCategory.getScenario().getTenant().getId()
+        : lessonsCategory.getExercise().getTenant().getId();
   }
 
   @GetMapping({

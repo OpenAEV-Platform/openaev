@@ -15,7 +15,9 @@ export const searchMarkingDefinitions = (searchPaginationInput: SearchPagination
 
 // The tenant's marking definitions narrowed server-side to the current user's own clearance
 // (cumulative per type, same rule enforced when a marking is actually assigned) - for populating
-// an assignment picker with only the options a submission would actually be allowed to include.
+// an assignment picker with only the options a submission would actually be allowed to include,
+// and the marking filter's value pickers (a marking above the clearance could only match rows the
+// user cannot see).
 // Unlike searchMarkingDefinitions, this returns a plain array, not a paginated {content: [...]}.
 export const fetchAssignableMarkingDefinitions = () => {
   return simpleCall(`${MARKING_DEFINITIONS_URI}/assignable`);
@@ -40,15 +42,4 @@ export const updateMarkingDefinition = (
 
 export const deleteMarkingDefinition = (markingDefinitionId: string) => (dispatch: Dispatch) => {
   return delReferential(`${MARKING_DEFINITIONS_URI}/${markingDefinitionId}`, 'marking_definitions', markingDefinitionId)(dispatch);
-};
-
-// -- OPTIONS --
-
-export const searchMarkingDefinitionAsOption = (searchText: string = '') => {
-  const params = { searchText };
-  return simpleCall(`${MARKING_DEFINITIONS_URI}/options`, { params });
-};
-
-export const searchMarkingDefinitionByIdAsOption = (ids: string[]) => {
-  return simplePostCall(`${MARKING_DEFINITIONS_URI}/options`, ids);
 };

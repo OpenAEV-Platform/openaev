@@ -42,8 +42,10 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
 import org.hibernate.Hibernate;
+import org.hibernate.Session;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -66,8 +68,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
 
 /**
  * Service for managing user accounts and authentication.
@@ -79,6 +83,7 @@ import org.springframework.util.StringUtils;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
   @Value("${openbas.admin.email:${openaev.admin.email:#{null}}}")
@@ -234,6 +239,10 @@ public class UserService {
    *
    * <p>No {@code @Transactional} here: {@code userRepository.findById(...)} already runs under its
    * own Spring Data JPA transaction.
+   *
+   * <p>The roles of the user's groups are not read under the user's tenant memberships: a caller
+   * that evaluates the user's capabilities loads it through {@link #userWithRoles(String)}, as
+   * {@link #currentUser()} does.
    */
   public User user(@NotBlank final String userId) {
     return userRepository
@@ -519,27 +528,72 @@ public class UserService {
           user.getId(), new EmailChangeRequest(confirmationCode, newEmail));
     }
 
-    String subject = "OpenAEV email change to " + newEmail + " requested";
-    String body =
+    String confirmLink =
+        openAEVConfig.getBaseUrl() + "/api/me/confirm-email-change/" + confirmationCode;
+    String validityMinutes = String.valueOf(Math.ceilDivExact(tenMinutes, 60000));
+
+    // Send the confirmation link to the NEW address, so the change only takes effect once its
+    // holder
+    // confirms it. The recipient carries only the new address and no platform account, which the
+    // email injector already supports for non-platform recipients.
+    User newAddressRecipient = new User();
+    // Give the transient recipient an id so the email injector's execution traces can reference it,
+    // as EmailExecutor.buildSyntheticRecipient does; it is never persisted.
+    newAddressRecipient.setId(UUID.randomUUID().toString());
+    newAddressRecipient.setEmail(newEmail);
+    String confirmSubject = "OpenAEV email change to " + newEmail + " requested";
+    String confirmBody =
         """
-            Hi %s,<br/>
+            Hi,<br/>
             <br/>
-            A request to change your account's email address on OpenAEV was submitted. The change will only
-            take effect after you confirm the request.<br/>
+            This address was submitted as the new email address for an OpenAEV account. The change
+            will only take effect after you confirm it from this address.<br/>
             <br/>
-            If you have not requested this change yourself, please take steps to secure your account.<br/>
+            If you did not expect this, you can ignore this message.<br/>
             <br/>
             Follow this link to confirm and apply the email address change: <a href="%s">confirm email change</a>.<br/>
             <br/>
             The link is valid for %s minutes.
             """
-            .formatted(
-                user.getName(),
-                openAEVConfig.getBaseUrl() + "/api/me/confirm-email-change/" + confirmationCode,
-                String.valueOf(Math.ceilDivExact(tenMinutes, 60000)));
+            .formatted(confirmLink, validityMinutes);
+
+    // Notify the current address that a change was requested, without the confirmation link, so the
+    // account owner can react if they did not start it.
+    String noticeSubject = "OpenAEV email change requested";
+    String noticeBody =
+        """
+            Hi %s,<br/>
+            <br/>
+            A request to change your account's email address on OpenAEV was submitted. The change
+            will only take effect after it is confirmed from the new address.<br/>
+            <br/>
+            If you have not requested this change yourself, please take steps to secure your account.<br/>
+            """
+            .formatted(user.getName());
+
     tenantTx.executeNew(
         TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
-        () -> mailingService.sendEmail(subject, body, List.of(user)));
+        () -> {
+          // The two deliveries are independent: sendEmail throws on a failed delivery, so a failure
+          // of one must not suppress the other. The current-address notice is attempted even when
+          // the confirmation delivery fails (the owner is still warned), and a notice-only failure
+          // does not abort a request whose confirmation link is already out. A failed confirmation
+          // delivery is surfaced, so the caller learns the change was not actually set in motion.
+          RuntimeException confirmFailure = null;
+          try {
+            mailingService.sendEmail(confirmSubject, confirmBody, List.of(newAddressRecipient));
+          } catch (RuntimeException e) {
+            confirmFailure = e;
+          }
+          try {
+            mailingService.sendEmail(noticeSubject, noticeBody, List.of(user));
+          } catch (RuntimeException e) {
+            log.warn("Email-change notice to the current address could not be delivered", e);
+          }
+          if (confirmFailure != null) {
+            throw confirmFailure;
+          }
+        });
   }
 
   public User confirmEmailChange(String confirmationCode) {
@@ -563,8 +617,58 @@ public class UserService {
       throw new ElementNotFoundException("Could not find user");
     }
 
+    String previousEmail = user.get().getEmail();
     user.get().setEmail(ecr.getValue().newEmail());
-    return userRepository.save(user.get());
+    User saved = userRepository.save(user.get());
+    notifyPreviousAddressOfChange(previousEmail, saved.getEmail());
+    return saved;
+  }
+
+  // Escape a value embedded in an email body that is processed by FreeMarker and then rendered as
+  // HTML: htmlEscape neutralises tags and <#...>/<@...> directives (all start with '<'); breaking
+  // "${" and "#{" stops FreeMarker interpolation. The value is caller-controlled (a quoted
+  // @Email local part can carry these metacharacters).
+  static String escapeForEmailBody(String raw) {
+    if (raw == null) {
+      return "";
+    }
+    return HtmlUtils.htmlEscape(raw).replace("${", "&#36;{").replace("#{", "&#35;{");
+  }
+
+  // Tell the previous address that the change was applied, so the account owner can react if they
+  // did not start it. Independent delivery: a failure here must not undo a change that has already
+  // taken effect, so the whole body — recipient construction and the transactional send — is
+  // guarded
+  // (the executeNew begin/commit itself can throw, e.g. UnexpectedRollbackException).
+  private void notifyPreviousAddressOfChange(String previousEmail, String newEmail) {
+    // Nothing to warn about when there is no previous address or the address did not actually
+    // change
+    // (a replay of the confirmation code within its validity window yields previous == new).
+    if (previousEmail == null
+        || previousEmail.isBlank()
+        || previousEmail.equalsIgnoreCase(newEmail)) {
+      return;
+    }
+    try {
+      User previousAddressRecipient = new User();
+      previousAddressRecipient.setId(UUID.randomUUID().toString());
+      previousAddressRecipient.setEmail(previousEmail);
+      String subject = "OpenAEV account email changed";
+      String body =
+          """
+              Hi,<br/>
+              <br/>
+              Your OpenAEV account's email address was changed to %s.<br/>
+              <br/>
+              If you did not make this change, please take steps to secure your account.<br/>
+              """
+              .formatted(escapeForEmailBody(newEmail));
+      tenantTx.executeNew(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> mailingService.sendEmail(subject, body, List.of(previousAddressRecipient)));
+    } catch (RuntimeException e) {
+      log.warn("Email-change completion notice to the previous address could not be delivered", e);
+    }
   }
 
   public void sendEmailChangeConfirmationEmail(User user) {
@@ -815,7 +919,7 @@ public class UserService {
     if (principal instanceof OpenAEVAnonymous) {
       return null;
     }
-    return this.userRepository.findById(principal.getId()).orElse(null);
+    return findWithRoles(principal.getId()).orElse(null);
   }
 
   public User currentUser() {
@@ -831,8 +935,7 @@ public class UserService {
       // If not, we get it
       if (user == null) {
         user =
-            this.userRepository
-                .findById(SessionHelper.currentUser().getId())
+            findWithRoles(SessionHelper.currentUser().getId())
                 .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
 
         // If the user is admin, we put him in cache
@@ -843,11 +946,75 @@ public class UserService {
     } else {
       // If for some reason, the cache is unavailable, we just get the user and return it
       user =
-          this.userRepository
-              .findById(SessionHelper.currentUser().getId())
+          findWithRoles(SessionHelper.currentUser().getId())
               .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
     }
     return user;
+  }
+
+  /**
+   * Returns a user whose capabilities the caller evaluates, with the roles of its groups.
+   *
+   * <p>For a caller off the request thread, such as the stream, that has no user of its own to load
+   * through {@link #currentUser()}.
+   */
+  public User userWithRoles(@NotBlank final String userId) {
+    return findWithRoles(userId)
+        .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
+  }
+
+  /**
+   * Loads the user so that the roles of its groups, an eager association read with the user, are
+   * read in scope: a tenant role is a row of an active table and a load with no scope reads none.
+   *
+   * <p>With no transaction open, the load runs in a read-only one scoped to the tenants the user
+   * belongs to: read-only, as the repository's own {@code findById} is, so that a managed entity
+   * the request's session holds pending is not written by it. A user with no membership is loaded
+   * as is: the rows of a platform role are readable whatever the scope. In a transaction already
+   * open the load takes the scope and the read-only state of that transaction, the request's or the
+   * job's.
+   */
+  private Optional<User> findWithRoles(String userId) {
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      return userRepository.findById(userId);
+    }
+    List<String> tenantIds = tenantMembershipCacheManager.findTenantIdsByUserId(userId);
+    if (tenantIds.isEmpty()) {
+      return userRepository.findById(userId);
+    }
+    TxCtx scope = TxCtx.forTenants(tenantIds);
+    return tenantTx.executeReadOnly(
+        scope,
+        () -> {
+          Optional<User> user = userRepository.findById(userId);
+          if (user.isEmpty()) {
+            return user;
+          }
+          List<Group> differing =
+              GroupRolesInScope.withDifferingRoles(entityManager, user.get().getUnscopedGroups());
+          return differing.isEmpty()
+              ? user
+              : loadRolesFromTheDatabase(user.get(), differing, scope);
+        });
+  }
+
+  /**
+   * Reads the roles of the groups of {@code user} the load has to hand out. A load by id of a user
+   * or a group the session already holds, read with no scope or in another tenant's scope, hands
+   * out that instance with the roles of its first read: the eager associations are not read again.
+   *
+   * <p>When the session holds no pending change, the {@code differing} groups, the ones whose roles
+   * are not the roles of the scope, are refreshed and the others are left as they are. When it
+   * holds one, a refresh would replace the pending state of a group, so the user is loaded in a
+   * persistence context of its own, which the caller's entities never join: the result is detached
+   * and the caller's session keeps what it holds.
+   */
+  private Optional<User> loadRolesFromTheDatabase(User held, List<Group> differing, TxCtx scope) {
+    if (entityManager.unwrap(Session.class).isDirty()) {
+      return tenantTx.executeNew(scope, () -> userRepository.findById(held.getId()));
+    }
+    differing.forEach(entityManager::refresh);
+    return Optional.of(held);
   }
 
   /**

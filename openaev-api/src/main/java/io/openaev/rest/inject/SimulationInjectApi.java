@@ -408,7 +408,7 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectUpdateActivationInput input) {
     simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         simulationInjectService.updateInjectActivationForSimulation(exerciseId, injectId, input));
   }
 
@@ -424,7 +424,7 @@ public class SimulationInjectApi extends RestBehavior {
   public Inject updateInjectTrigger(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
     simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         simulationInjectService.triggerInjectForSimulation(exerciseId, injectId));
   }
 
@@ -443,7 +443,7 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectUpdateStatusInput input) {
     simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         simulationInjectService.setInjectStatusForSimulation(exerciseId, injectId, input));
   }
 
@@ -462,7 +462,7 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectTeamsInput input) {
     simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         simulationInjectService.updateInjectTeamsForSimulation(exerciseId, injectId, input));
   }
 
@@ -534,9 +534,13 @@ public class SimulationInjectApi extends RestBehavior {
     this.simulationInjectService.deleteInject(ctx, exerciseId, injectId);
   }
 
-  /** See {@link KillChainPhaseInitializer}: hydrate before open-in-view rendering. */
-  private static Inject hydrateKillChainPhases(Inject inject) {
+  /**
+   * See {@link KillChainPhaseInitializer} and {@link InjectLinksInitializer}: hydrate before
+   * open-in-view rendering.
+   */
+  private static Inject hydrateForResponse(Inject inject) {
     KillChainPhaseInitializer.initializeFromInjects(List.of(inject));
+    InjectLinksInitializer.initialize(List.of(inject));
     return inject;
   }
 }

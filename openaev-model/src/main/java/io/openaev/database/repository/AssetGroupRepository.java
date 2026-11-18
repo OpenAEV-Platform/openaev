@@ -5,6 +5,7 @@ import io.openaev.database.raw.RawAssetGroupDynamicFilter;
 import io.openaev.database.raw.RawAssetGroupIndexing;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -16,6 +17,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.Assert;
 
 @Repository
 public interface AssetGroupRepository
@@ -176,4 +178,19 @@ public interface AssetGroupRepository
       nativeQuery = true)
   List<RawAssetGroupIndexing> findForIndexing(
       @Param("from") Instant from, @Param("limit") int limit);
+
+  /** The asset groups among the given ids that belong to the given tenant. */
+  @NotNull
+  List<AssetGroup> findAllByIdInAndTenantId(
+      @NotNull Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The asset groups among the given ids that belong to the given tenant. Refuses a null id list,
+   * as {@code findAllById} does.
+   */
+  @NotNull
+  default List<AssetGroup> findAllByIdInTenant(Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 }

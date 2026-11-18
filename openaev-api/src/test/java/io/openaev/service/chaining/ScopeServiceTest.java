@@ -69,6 +69,7 @@ class ScopeServiceTest {
 
   private WorkflowScopeRule allowlistRule(ScopeRuleValueType type, String value) {
     return WorkflowScopeRule.builder()
+        .tenant(new Tenant(Tenant.DEFAULT_TENANT_UUID))
         .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
         .valueType(type)
         .ruleValue(value)
@@ -77,6 +78,7 @@ class ScopeServiceTest {
 
   private WorkflowScopeRule denylistRule(ScopeRuleValueType type, String value) {
     return WorkflowScopeRule.builder()
+        .tenant(new Tenant(Tenant.DEFAULT_TENANT_UUID))
         .selectedMode(ScopeRuleSelectedMode.DENYLIST)
         .valueType(type)
         .ruleValue(value)
@@ -94,7 +96,8 @@ class ScopeServiceTest {
 
     when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
         .thenReturn(List.of(allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-1")));
-    when(assetService.assets(List.of("asset-1"))).thenReturn(List.of(endpoint));
+    when(assetService.assets(List.of("asset-1"), Tenant.DEFAULT_TENANT_UUID))
+        .thenReturn(List.of(endpoint));
 
     List<Asset> result = scopeService.getValidAssets(WORKFLOW_ID);
 
@@ -126,7 +129,8 @@ class ScopeServiceTest {
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-1"),
                 denylistRule(ScopeRuleValueType.IP, "192.168.1.1"),
                 denylistRule(ScopeRuleValueType.IP, "172.16.0.1")));
-    when(assetService.assets(List.of("asset-1"))).thenReturn(List.of(endpoint));
+    when(assetService.assets(List.of("asset-1"), Tenant.DEFAULT_TENANT_UUID))
+        .thenReturn(List.of(endpoint));
 
     List<Asset> result = scopeService.getValidAssets(WORKFLOW_ID);
 
@@ -148,7 +152,7 @@ class ScopeServiceTest {
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-2"),
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-3"),
                 denylistRule(ScopeRuleValueType.IP, "10.0.0.1")));
-    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3")))
+    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3"), Tenant.DEFAULT_TENANT_UUID))
         .thenReturn(List.of(targeted, other1, other2));
 
     List<Asset> result = scopeService.getValidAssets(WORKFLOW_ID);
@@ -173,7 +177,7 @@ class ScopeServiceTest {
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-2"),
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-3"),
                 denylistRule(ScopeRuleValueType.IP, "10.0.0.99")));
-    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3")))
+    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3"), Tenant.DEFAULT_TENANT_UUID))
         .thenReturn(List.of(targeted, other1, other2));
 
     List<Asset> result = scopeService.getValidAssets(WORKFLOW_ID);
@@ -198,7 +202,7 @@ class ScopeServiceTest {
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-2"),
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-3"),
                 denylistRule(ScopeRuleValueType.IP_SUBNET, "192.168.1.0/24")));
-    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3")))
+    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3"), Tenant.DEFAULT_TENANT_UUID))
         .thenReturn(List.of(targeted, other1, other2));
 
     List<Asset> result = scopeService.getValidAssets(WORKFLOW_ID);
@@ -223,7 +227,7 @@ class ScopeServiceTest {
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-2"),
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-3"),
                 denylistRule(ScopeRuleValueType.IP_SUBNET, "192.168.1.0/24")));
-    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3")))
+    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3"), Tenant.DEFAULT_TENANT_UUID))
         .thenReturn(List.of(targeted, other1, other2));
 
     List<Asset> result = scopeService.getValidAssets(WORKFLOW_ID);
@@ -401,13 +405,16 @@ class ScopeServiceTest {
     Team kept = new Team();
     kept.setId("team-1");
 
-    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
-        .thenReturn(
-            List.of(
-                allowlistRule(ScopeRuleValueType.TEAM_ID, "team-1"),
-                allowlistRule(ScopeRuleValueType.TEAM_ID, "team-2"),
-                denylistRule(ScopeRuleValueType.TEAM_ID, "team-2")));
-    when(teamRepository.findAllById(List.of("team-1"))).thenReturn(List.of(kept));
+    List<WorkflowScopeRule> rules =
+        List.of(
+            allowlistRule(ScopeRuleValueType.TEAM_ID, "team-1"),
+            allowlistRule(ScopeRuleValueType.TEAM_ID, "team-2"),
+            denylistRule(ScopeRuleValueType.TEAM_ID, "team-2"));
+    // Every rule carries the tenant of its workflow.
+    rules.forEach(rule -> rule.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID)));
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID)).thenReturn(rules);
+    when(teamRepository.findAllByIdInTenant(List.of("team-1"), Tenant.DEFAULT_TENANT_UUID))
+        .thenReturn(List.of(kept));
 
     List<Team> result = scopeService.getValidTeams(WORKFLOW_ID);
 

@@ -76,6 +76,7 @@ public class SecretStoreRequestFixture {
   public static final String GCP_OTHER_CUSTOM_RESOURCE_MANAGER_URI =
       "http://sovereign.example/resource-manager";
   public static final String GCP_CUSTOM_IAM_URI = "http://localhost:4588/iam";
+  public static final String GCP_OTHER_CUSTOM_IAM_URI = "http://sovereign.example/iam";
   public static final String GCP_CUSTOM_OAUTH_ACCESS_TOKEN = "ya29.customAccessTokenEXAMPLE";
   public static final String GCP_OTHER_CUSTOM_OAUTH_ACCESS_TOKEN =
       "ya29.otherCustomAccessTokenEXAMPLE";

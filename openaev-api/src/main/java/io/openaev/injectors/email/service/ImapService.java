@@ -286,8 +286,10 @@ public class ImapService extends ExternalServiceBase {
                     exerciseId != null
                         ? "/" + exerciseId + "/communications/" + recorded.communicationId()
                         : "/communications/" + recorded.communicationId();
+                // Explicit tenant: this job sets no ambient TenantContext, so the object is written
+                // under the inject's own tenant path.
                 String uploadName =
-                    fileService.uploadStream(path, fileName, dataSource.getInputStream());
+                    fileService.uploadStream(tenantId, path, fileName, dataSource.getInputStream());
                 uploads.add(uploadName);
               }
               // Add attachment in the communication

@@ -328,6 +328,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   class SearchScenarioTeams {
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Returns global and scenario teams when searching teams")
     void givenContextualOnlyFalse_whenSearchingTeams_shouldReturnGlobalAndScenarioTeams()
         throws Exception {
@@ -364,6 +365,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Returns only scenario teams")
     void givenContextualOnlyTrue_whenSearchingTeams_shouldReturnOnlyScenarioTeams()
         throws Exception {

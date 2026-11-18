@@ -53,9 +53,19 @@ public record CredentialFullOutput(
     @Schema(description = "AWS source identity type")
         @JsonProperty("credential_aws_source_identity_type")
         AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE awsSourceIdentityType,
+    @Schema(
+            description =
+                "Whether an AWS external id is stored; the external id itself is never returned")
+        @JsonProperty("credential_aws_external_id_defined")
+        boolean awsExternalIdDefined,
     @Schema(description = "AWS source profile access key id")
         @JsonProperty("credential_aws_source_profile_access_key_id")
         String awsSourceProfileAccessKeyId,
+    @Schema(
+            description =
+                "Whether an AWS source profile secret access key is stored; the key itself is never returned")
+        @JsonProperty("credential_aws_source_profile_secret_access_key_defined")
+        boolean awsSourceProfileSecretAccessKeyDefined,
     @Schema(description = "AWS account id") @JsonProperty("credential_aws_account_id")
         String awsAccountId,
     @Schema(description = "AWS endpoint URL override") @JsonProperty("credential_aws_endpoint_url")

@@ -16,6 +16,7 @@ import io.openaev.utils.TargetType;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
 
 /**
@@ -284,7 +285,13 @@ public class InjectMapper {
     return injectOutput;
   }
 
+  /**
+   * Must run inside the request's scoped transaction: the output holds the inject's tags, which are
+   * loaded here, since the response is serialized after the commit where an isolated table reads
+   * zero rows.
+   */
   public InjectOutput toInjectOutput(Inject inject, List<HealthCheck> healthchecks) {
+    Hibernate.initialize(inject.getTags());
     InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
     String type = inject.getType();
     InjectOutput output =
