@@ -11,7 +11,6 @@ import java.sql.Statement;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
@@ -34,11 +33,14 @@ import org.springframework.stereotype.Component;
  * lands silently in the default tenant.
  *
  * <p>The migration runs outside a wrapping transaction ({@link #canExecuteInTransaction()} returns
- * false), on a connection in autocommit mode, so the extra disk it needs is bounded by one range of
- * pages at a time, not by the size of the table:
+ * false), on a connection in autocommit mode, so every batch commits on its own and the WAL it
+ * writes stays close to the size of the table:
  *
  * <ol>
- *   <li>the column is added, nullable and with no default (a catalog change only);
+ *   <li>the column is added, nullable and with no default (a catalog change only). Every statement
+ *       that takes a lock other sessions wait on runs under a short {@code lock_timeout} and
+ *       retries after a pause: a lock request that waits behind a long transaction makes every
+ *       later query on the table wait behind it;
  *   <li>the backfill walks the table in physical order, one range of pages at a time ({@code ctid
  *       >= '(p,0)' AND ctid < '(p+N,0)'}), each range in its own committed transaction. Both sides
  *       of the update, the rows read and the rows written, are a {@code Tid Range Scan} on that
@@ -49,23 +51,28 @@ import org.springframework.stereotype.Component;
  *       covers about {@value #TARGET_ROWS_PER_BATCH} rows; with no statistics yet (a table never
  *       analyzed, for instance right after a restore), a range is {@value
  *       #UNKNOWN_DENSITY_PAGES_PER_BATCH} pages;
- *   <li>no {@code VACUUM} runs during or after the walk. Autovacuum reclaims the dead row versions
- *       on its own schedule: each page is rewritten once, inside one range's own transaction, so
- *       the space of that range is reclaimable the moment it commits;
+ *   <li>no {@code VACUUM} runs during or after the walk. Each page is rewritten once, inside one
+ *       range's own transaction, and autovacuum reclaims the dead row versions of a range once it
+ *       commits, on its own schedule. Until it does, the table and its indexes grow: the disk needs
+ *       free space up to the size of the table, less when autovacuum runs as fast as the walk;
  *   <li>between ranges, the migration pauses a fixed, short duration, and, when the server reports
  *       archiving ({@code pg_stat_archiver}) or a replica ({@code pg_stat_replication}, {@code
  *       pg_replication_slots}, active slots only), it waits longer while the WAL not yet archived
  *       or replayed is above a bound, so that archiving and any replica catch up, and logs every
  *       minute it waits. A role that cannot read those views falls back to the fixed pause alone,
- *       logged once;
+ *       logged once. An inactive slot is only logged at the start, with the WAL it retains: nothing
+ *       consumes it during the run, so a wait on it never ends;
  *   <li>a running instance can insert rows with no tenant that the walk above does not reach (its
  *       page range is fixed before the insert happens), so a drain builds a temporary partial index
  *       of the rows with no tenant ({@code CONCURRENTLY}, so inserts go on), walks it in primary
- *       key order and fills them in committed, paced batches: each row is read once, whatever the
- *       size of that backlog;
- *   <li>one short transaction locks the table, fills the last rows with no tenant (served by the
- *       partial index), drops the partial index, then sets {@code NOT NULL}, adds the foreign key
- *       and creates the index.
+ *       key order and fills them in committed, paced batches. The ids are random, so a row inserted
+ *       during a pass can land behind its cursor: passes repeat until one finds less than a batch;
+ *   <li>the index on {@code tenant_id} is built {@code CONCURRENTLY}, so writes go on;
+ *   <li>one transaction locks the table, fills the last rows with no tenant (served by the partial
+ *       index), drops the partial index, sets {@code NOT NULL} and adds the foreign key {@code NOT
+ *       VALID}. {@code SET NOT NULL} reads the whole table under the lock; it writes no row;
+ *   <li>the foreign key is validated after that commit, under a lock that lets reads and writes go
+ *       on.
  * </ol>
  *
  * <p>Every step is guarded ({@code IF NOT EXISTS}, {@code WHERE tenant_id IS NULL}), so a run
@@ -84,7 +91,10 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
   static final int PAUSE_MILLIS = 200;
   static final long WAL_LAG_BOUND_BYTES = 1_024L * 1_024 * 1_024;
   private static final long MEGABYTE = 1_024L * 1_024;
-  private static final Duration WAIT_LOG_INTERVAL = Duration.ofMinutes(1);
+  private static final Duration LOG_INTERVAL = Duration.ofMinutes(1);
+  private static final String LOCK_TIMEOUT = "5s";
+  private static final int LOCK_RETRY_MILLIS = 5_000;
+  private static final String LOCK_NOT_AVAILABLE = "55P03";
   static final String FOREIGN_KEY = "fk_" + TABLE + "_tenant_id";
   static final String INDEX = "idx_" + TABLE + "_tenant_id";
   static final String PENDING_INDEX = "idx_" + TABLE + "_tenant_id_pending";
@@ -124,7 +134,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
 
   private static final String BATCH_UPDATE =
       BACKFILL.formatted("x.execution_trace_id = ANY(?)", "t.execution_trace_id = ANY(?)");
-  private static final String FINAL_UPDATE = BACKFILL.formatted("true", "true");
+  private static final String FINAL_UPDATE = BACKFILL.formatted("true", "t.tenant_id IS NULL");
 
   /** Picks the next rows with no tenant in primary key order, served by the partial index. */
   static final String NEXT_PENDING_IDS =
@@ -137,10 +147,13 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
    * Returns how much WAL is not yet archived or replayed: the largest of the archiver's lag, every
    * streaming replica's lag and every active replication slot's lag, in bytes. {@code NULL} (no
    * archiving, no replica, no active slot) reads as zero. An inactive slot is left out: nothing
-   * consumes it while the migration runs, so a wait on it never ends. The archiver's lag is the
-   * distance between the current WAL segment and the last archived one, both read from their file
-   * names (timeline, log, segment, 8 hex digits each), which every supported server version parses;
-   * a {@code .history} or {@code .partial} file name is skipped.
+   * consumes it while the migration runs, so a wait on it never ends. With {@code archive_mode}
+   * off, the archiver is left out too: its last archived file name outlives the setting, and the
+   * distance to it grows without end. With archiving on and nothing archived yet, the distance is
+   * counted from the WAL file current when the run started (the parameter). The archiver's lag is
+   * the distance between the current WAL segment and the last archived one, both read from their
+   * file names (timeline, log, segment, 8 hex digits each), which every supported server version
+   * parses; a {@code .history} or {@code .partial} file name is skipped.
    */
   private static final String WAL_LAG_QUERY =
       "SELECT MAX(lag) FROM ("
@@ -155,10 +168,15 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
           + " + ('x' || substr(cur, 17, 8))::bit(32)::bigint"
           + " - ('x' || substr(done, 17, 8))::bit(32)::bigint) * seg AS lag"
           + " FROM (SELECT pg_walfile_name(pg_current_wal_lsn()) AS cur,"
-          + " last_archived_wal AS done,"
+          + " COALESCE(last_archived_wal, ?) AS done,"
           + " pg_size_bytes(current_setting('wal_segment_size')) AS seg"
-          + " FROM pg_stat_archiver) archiver"
+          + " FROM pg_stat_archiver WHERE current_setting('archive_mode') <> 'off') archiver"
           + " WHERE done ~ '^[0-9A-F]{24}$') lags";
+
+  /** The WAL each inactive replication slot retains, in bytes. */
+  private static final String INACTIVE_SLOTS_QUERY =
+      "SELECT slot_name, pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)"
+          + " FROM pg_replication_slots WHERE NOT active AND restart_lsn IS NOT NULL";
 
   private final int drainBatchSize;
   private final Long pagesPerBatchOverride;
@@ -205,10 +223,49 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
   void migrate(Connection connection) throws SQLException {
     connection.setAutoCommit(true);
     // Table and column names below are constants of this class, never input.
-    try (Statement statement = connection.createStatement()) {
-      statement.execute(
-          "ALTER TABLE " + TABLE + " ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255)");
+    withLockRetry(
+        connection,
+        "adding the column",
+        () -> {
+          try (Statement statement = connection.createStatement()) {
+            statement.execute(
+                "ALTER TABLE " + TABLE + " ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255)");
+          }
+          return null;
+        });
+    logInactiveSlots(connection);
+    WalGuard walGuard = new WalGuard(currentWalFile(connection));
+    long orphans = walk(connection, walGuard).orphans();
+    orphans += drain(connection, walGuard);
+    buildTenantIndex(connection);
+    orphans += withLockRetry(connection, "locking the table", () -> finish(connection));
+    withLockRetry(
+        connection,
+        "validating the foreign key",
+        () -> {
+          try (Statement statement = connection.createStatement()) {
+            statement.execute("ALTER TABLE " + TABLE + " VALIDATE CONSTRAINT " + FOREIGN_KEY);
+          }
+          return null;
+        });
+    if (orphans > 0) {
+      log.warn(
+          "{} row(s) of {} have no parent to take a tenant from and were attributed to the"
+              + " default tenant",
+          orphans,
+          TABLE);
     }
+  }
+
+  /** Rows written by a fill, and how many of them had no parent tenant. */
+  record Fill(long written, long orphans) {}
+
+  /**
+   * Measures the table, then walks it one range of pages at a time, in physical order, each range
+   * in its own transaction. Rows outside every range at the time it is read (inserted after the
+   * table is measured, or moved by a concurrent update) are left to {@link #drain}.
+   */
+  Fill walk(Connection connection, WalGuard walGuard) throws SQLException {
     TableSize size = tableSize(connection);
     long pagesPerBatch =
         Math.max(
@@ -223,32 +280,17 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
         size.pages(),
         size.estimatedRows(),
         pagesPerBatch);
-    AtomicBoolean walGuardAvailable = new AtomicBoolean(true);
-    long orphans = backfillByPageRanges(connection, size.pages(), pagesPerBatch, walGuardAvailable);
-    orphans += drain(connection, walGuardAvailable);
-    orphans += finish(connection);
-    if (orphans > 0) {
-      log.warn(
-          "{} row(s) of {} have no parent to take a tenant from and were attributed to the"
-              + " default tenant",
-          orphans,
-          TABLE);
-    }
+    return backfillByPageRanges(connection, size.pages(), pagesPerBatch, walGuard);
   }
 
-  /**
-   * Walks the table one range of pages at a time, in physical order, each range in its own
-   * transaction. Rows outside every range at the time it is read (inserted after this method
-   * measured the table, or missed for any other reason) are left to {@link #drain}. Returns the
-   * orphans.
-   */
-  private long backfillByPageRanges(
-      Connection connection, long totalPages, long pagesPerBatch, AtomicBoolean walGuardAvailable)
+  private Fill backfillByPageRanges(
+      Connection connection, long totalPages, long pagesPerBatch, WalGuard walGuard)
       throws SQLException {
     long written = 0;
     long orphans = 0;
     long batches = 0;
     long startedAt = System.nanoTime();
+    long nextLogAt = startedAt + LOG_INTERVAL.toNanos();
     try (PreparedStatement update = connection.prepareStatement(RANGE_UPDATE)) {
       for (long page = 0; page < totalPages; page += pagesPerBatch) {
         update.setString(1, DEFAULT_TENANT_UUID);
@@ -262,7 +304,16 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
           orphans += result.getLong("orphans");
         }
         batches++;
-        pace(connection, walGuardAvailable);
+        if (System.nanoTime() - nextLogAt >= 0) {
+          log.info(
+              "{}: page {} of {} walked, {} row(s) filled",
+              TABLE,
+              Math.min(page + pagesPerBatch, totalPages),
+              totalPages,
+              written);
+          nextLogAt = System.nanoTime() + LOG_INTERVAL.toNanos();
+        }
+        pace(connection, walGuard);
       }
     }
     log.info(
@@ -272,7 +323,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
         batches,
         pagesPerBatch,
         Duration.ofNanos(System.nanoTime() - startedAt).toSeconds());
-    return orphans;
+    return new Fill(written, orphans);
   }
 
   private static String tid(long page) {
@@ -282,9 +333,10 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
   /**
    * Fills, in committed, paced batches, the rows with no tenant left after the walk: those its
    * fixed page ranges did not cover. A temporary partial index holds only those rows, so each batch
-   * reads its rows and no other. Returns the orphans.
+   * reads its rows and no other. A pass walks that index in primary key order; passes repeat until
+   * one finds less than a batch, and the locked step fills what is left. Returns the orphans.
    */
-  private long drain(Connection connection, AtomicBoolean walGuardAvailable) throws SQLException {
+  private long drain(Connection connection, WalGuard walGuard) throws SQLException {
     try (Statement statement = connection.createStatement()) {
       // A leftover of an interrupted run can be invalid: rebuild it.
       statement.execute("DROP INDEX CONCURRENTLY IF EXISTS " + PENDING_INDEX);
@@ -297,38 +349,73 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
     long drained = 0;
     long orphans = 0;
-    String lastId = "";
     try (PreparedStatement pick = connection.prepareStatement(NEXT_PENDING_IDS);
         PreparedStatement update = connection.prepareStatement(BATCH_UPDATE)) {
-      while (true) {
-        pick.setString(1, lastId);
-        pick.setInt(2, drainBatchSize);
-        List<String> ids = new ArrayList<>(drainBatchSize);
-        try (ResultSet result = pick.executeQuery()) {
-          while (result.next()) {
-            ids.add(result.getString(1));
-          }
-        }
-        if (ids.isEmpty()) {
-          break;
-        }
-        Array idArray = connection.createArrayOf("varchar", ids.toArray());
-        update.setString(1, DEFAULT_TENANT_UUID);
-        update.setArray(2, idArray);
-        update.setArray(3, idArray);
-        orphans += orphansOf(update);
-        lastId = ids.getLast();
-        drained += ids.size();
-        pace(connection, walGuardAvailable);
-      }
+      Fill pass;
+      do {
+        pass = drainPass(connection, pick, update, walGuard);
+        drained += pass.written();
+        orphans += pass.orphans();
+      } while (pass.written() >= drainBatchSize);
     }
     log.info("{}: {} row(s) outside the walked ranges filled in batches", TABLE, drained);
     return orphans;
   }
 
+  private Fill drainPass(
+      Connection connection, PreparedStatement pick, PreparedStatement update, WalGuard walGuard)
+      throws SQLException {
+    long drained = 0;
+    long orphans = 0;
+    String lastId = "";
+    while (true) {
+      pick.setString(1, lastId);
+      pick.setInt(2, drainBatchSize);
+      List<String> ids = new ArrayList<>(drainBatchSize);
+      try (ResultSet result = pick.executeQuery()) {
+        while (result.next()) {
+          ids.add(result.getString(1));
+        }
+      }
+      if (ids.isEmpty()) {
+        return new Fill(drained, orphans);
+      }
+      Array idArray = connection.createArrayOf("varchar", ids.toArray());
+      update.setString(1, DEFAULT_TENANT_UUID);
+      update.setArray(2, idArray);
+      update.setArray(3, idArray);
+      orphans += orphansOf(update);
+      lastId = ids.getLast();
+      drained += ids.size();
+      pace(connection, walGuard);
+    }
+  }
+
   /**
-   * One short transaction: with the table locked, fills the rows left with no tenant, then
-   * completes the schema. Returns the orphans of those rows.
+   * Builds the index on {@code tenant_id} without blocking writes. A build interrupted by an
+   * earlier run leaves an invalid index, dropped first.
+   */
+  private static void buildTenantIndex(Connection connection) throws SQLException {
+    try (Statement statement = connection.createStatement()) {
+      boolean invalid;
+      try (ResultSet result =
+          statement.executeQuery(
+              "SELECT NOT indisvalid FROM pg_index WHERE indexrelid = to_regclass('"
+                  + INDEX
+                  + "')")) {
+        invalid = result.next() && result.getBoolean(1);
+      }
+      if (invalid) {
+        statement.execute("DROP INDEX CONCURRENTLY IF EXISTS " + INDEX);
+      }
+      statement.execute(
+          "CREATE INDEX CONCURRENTLY IF NOT EXISTS " + INDEX + " ON " + TABLE + " (tenant_id)");
+    }
+  }
+
+  /**
+   * One transaction: with the table locked, fills the rows left with no tenant, sets {@code NOT
+   * NULL} and adds the foreign key {@code NOT VALID}. Returns the orphans of those rows.
    */
   private long finish(Connection connection) throws SQLException {
     connection.setAutoCommit(false);
@@ -351,8 +438,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
               + " ADD CONSTRAINT "
               + FOREIGN_KEY
               + " FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)"
-              + " ON DELETE CASCADE; END IF; END $$");
-      statement.execute("CREATE INDEX IF NOT EXISTS " + INDEX + " ON " + TABLE + "(tenant_id)");
+              + " ON DELETE CASCADE NOT VALID; END IF; END $$");
       connection.commit();
       return orphans;
     } catch (SQLException | RuntimeException e) {
@@ -383,6 +469,58 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
+  /** A step that runs SQL and returns a value. */
+  private interface SqlStep<T> {
+    T run() throws SQLException;
+  }
+
+  /**
+   * Runs {@code step} under a short {@code lock_timeout}, and again after a pause each time it
+   * times out on a lock another transaction holds: a lock request that waits makes every later
+   * query on the table wait behind it.
+   */
+  private static <T> T withLockRetry(Connection connection, String what, SqlStep<T> step)
+      throws SQLException {
+    while (true) {
+      try (Statement statement = connection.createStatement()) {
+        statement.execute("SET lock_timeout = '" + LOCK_TIMEOUT + "'");
+      }
+      try {
+        return step.run();
+      } catch (SQLException e) {
+        if (!LOCK_NOT_AVAILABLE.equals(e.getSQLState())) {
+          throw e;
+        }
+        log.info("{}: {} waits for a lock another transaction holds, retrying", TABLE, what);
+      } finally {
+        try (Statement statement = connection.createStatement()) {
+          statement.execute("RESET lock_timeout");
+        }
+      }
+      sleep(LOCK_RETRY_MILLIS);
+    }
+  }
+
+  /**
+   * Logs each inactive replication slot and the WAL it retains: the migration does not wait for a
+   * slot nothing consumes, and its writes add to that WAL until the slot is consumed or dropped.
+   */
+  private static void logInactiveSlots(Connection connection) {
+    try (Statement statement = connection.createStatement();
+        ResultSet result = statement.executeQuery(INACTIVE_SLOTS_QUERY)) {
+      while (result.next()) {
+        log.warn(
+            "{}: inactive replication slot {} retains {} MB of WAL; the backfill does not wait"
+                + " for it, and its writes add to that WAL",
+            TABLE,
+            result.getString(1),
+            result.getLong(2) / MEGABYTE);
+      }
+    } catch (SQLException e) {
+      log.warn("{}: cannot read pg_replication_slots: {}", TABLE, e.getMessage());
+    }
+  }
+
   /** Runs a fill statement and returns how many of the rows it wrote had no parent tenant. */
   private static long orphansOf(PreparedStatement statement) throws SQLException {
     try (ResultSet result = statement.executeQuery()) {
@@ -397,13 +535,13 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
    * views (a permission error, or a server without them) disables this wait for the rest of the
    * run, logs once, and the fixed pause alone paces every later batch.
    */
-  private void pace(Connection connection, AtomicBoolean walGuardAvailable) throws SQLException {
+  private void pace(Connection connection, WalGuard walGuard) {
     sleep(pauseMillis);
-    if (!walGuardAvailable.get()) {
+    if (!walGuard.available) {
       return;
     }
     try {
-      long lag = walLagBytes(connection);
+      long lag = walLagBytes(connection, walGuard.startWalFile);
       long nextLogAt = System.nanoTime();
       while (lag > walLagBoundBytes) {
         if (System.nanoTime() - nextLogAt >= 0) {
@@ -412,13 +550,13 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
               TABLE,
               lag / MEGABYTE,
               walLagBoundBytes / MEGABYTE);
-          nextLogAt = System.nanoTime() + WAIT_LOG_INTERVAL.toNanos();
+          nextLogAt = System.nanoTime() + LOG_INTERVAL.toNanos();
         }
         sleep(Math.max(pauseMillis, 1_000));
-        lag = walLagBytes(connection);
+        lag = walLagBytes(connection, walGuard.startWalFile);
       }
     } catch (SQLException e) {
-      walGuardAvailable.set(false);
+      walGuard.available = false;
       log.warn(
           "{}: cannot read pg_stat_archiver / pg_stat_replication / pg_replication_slots,"
               + " pacing on the fixed pause alone: {}",
@@ -427,12 +565,42 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
-  static long walLagBytes(Connection connection) throws SQLException {
+  /**
+   * Returns the WAL not yet archived or replayed, in bytes; {@code startWalFile} stands for the
+   * last archived file when archiving is on and nothing is archived yet.
+   */
+  long walLagBytes(Connection connection, String startWalFile) throws SQLException {
+    try (PreparedStatement statement = connection.prepareStatement(WAL_LAG_QUERY)) {
+      statement.setString(1, startWalFile);
+      try (ResultSet result = statement.executeQuery()) {
+        result.next();
+        long lag = result.getLong(1);
+        return result.wasNull() ? 0 : lag;
+      }
+    }
+  }
+
+  /**
+   * The pacing state of one run: the WAL file current when it started, and whether the WAL-lag
+   * views are readable.
+   */
+  static final class WalGuard {
+    private final String startWalFile;
+    private boolean available = true;
+
+    WalGuard(String startWalFile) {
+      this.startWalFile = startWalFile;
+    }
+  }
+
+  /** Returns the WAL file current now, or {@code null} when the server does not say. */
+  private static String currentWalFile(Connection connection) {
     try (Statement statement = connection.createStatement();
-        ResultSet result = statement.executeQuery(WAL_LAG_QUERY)) {
+        ResultSet result = statement.executeQuery("SELECT pg_walfile_name(pg_current_wal_lsn())")) {
       result.next();
-      long lag = result.getLong(1);
-      return result.wasNull() ? 0 : lag;
+      return result.getString(1);
+    } catch (SQLException e) {
+      return null;
     }
   }
 

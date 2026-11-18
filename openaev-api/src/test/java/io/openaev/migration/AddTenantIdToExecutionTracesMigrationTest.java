@@ -7,21 +7,24 @@ import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execut
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.TABLE;
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.UNKNOWN_DENSITY_PAGES_PER_BATCH;
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.pagesPerBatch;
-import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.walLagBytes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
+import io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.WalGuard;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.sql.DataSource;
 import org.flywaydb.core.api.configuration.Configuration;
@@ -233,6 +236,33 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
       }
       assertFullSchema();
     }
+
+    @Test
+    @DisplayName("The page-range walk alone fills every row, before any drain")
+    void given_pendingRows_should_beFilledByTheWalkAlone() throws SQLException {
+      // Arrange: the drain and the locked step fill any row the walk misses, so a migrate-level
+      // test passes even with no walk at all
+      makePending();
+      for (int i = 0; i < 7; i++) {
+        seedTrace("m-walk-" + i, statusOfB, null, null);
+      }
+
+      // Act
+      V6_20261112060000000__Add_tenant_id_to_execution_traces.Fill fill =
+          small.walk(connection, new WalGuard(null));
+
+      // Assert
+      assertThat(
+              count(
+                  "SELECT count(*) FROM "
+                      + TABLE
+                      + " WHERE execution_trace_id LIKE 'm-walk-%' AND tenant_id IS NULL"))
+          .isZero();
+      assertThat(fill.written()).isGreaterThanOrEqualTo(7);
+      for (int i = 0; i < 7; i++) {
+        assertThat(tenantOf("m-walk-" + i)).isEqualTo(tenantB);
+      }
+    }
   }
 
   @Nested
@@ -419,10 +449,59 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     @DisplayName("The WAL lag query runs on the server and reads zero or more bytes")
     void given_server_should_readTheWalLag() throws SQLException {
       // Act: a failure here disables the wait for a whole run, so the query must parse and run
-      long lag = walLagBytes(connection);
+      long lag = small.walLagBytes(connection, null);
 
       // Assert
       assertThat(lag).isGreaterThanOrEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("A batch waits while the WAL lag is above the bound, and goes on once it falls")
+    void given_lagAboveTheBound_should_waitUntilItFalls() throws SQLException {
+      // Arrange: one range for the whole table, so the walk paces once
+      makePending();
+      seedTrace("m-wait", statusOfB, null, null);
+      Deque<Long> lags = new ArrayDeque<>(List.of(500L, 500L, 0L));
+      AtomicInteger reads = new AtomicInteger();
+      V6_20261112060000000__Add_tenant_id_to_execution_traces migration =
+          new V6_20261112060000000__Scripted_lag(
+              () -> {
+                reads.incrementAndGet();
+                Long lag = lags.poll();
+                return lag == null ? 0 : lag;
+              });
+
+      // Act
+      migration.walk(connection, new WalGuard(null));
+
+      // Assert: read after the batch, twice more while above the bound, then no more
+      assertThat(reads).hasValue(3);
+      assertThat(lags).isEmpty();
+      assertThat(tenantOf("m-wait")).isEqualTo(tenantB);
+    }
+
+    @Test
+    @DisplayName("A lag that cannot be read stops the lag reads for the run, and the walk goes on")
+    void given_unreadableLag_should_fallBackToThePauseAlone() throws SQLException {
+      // Arrange
+      makePending();
+      seedTrace("m-unreadable", statusOfB, null, null);
+      AtomicInteger reads = new AtomicInteger();
+      V6_20261112060000000__Add_tenant_id_to_execution_traces migration =
+          new V6_20261112060000000__Scripted_lag(
+              () -> {
+                reads.incrementAndGet();
+                throw new SQLException("permission denied for view pg_stat_replication");
+              });
+      WalGuard guard = new WalGuard(null);
+
+      // Act: two walks share the run's guard, as the walk and the drain do
+      migration.walk(connection, guard);
+      migration.walk(connection, guard);
+
+      // Assert
+      assertThat(reads).hasValue(1);
+      assertThat(tenantOf("m-unreadable")).isEqualTo(tenantB);
     }
   }
 
@@ -516,17 +595,73 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
       assertFullSchema();
     }
 
-    /**
-     * A before-update trigger that runs {@code insertSql} when the row {@code m-3} is updated, and
-     * raises when a seeded row other than {@code m-1} is written while the session holds an
-     * exclusive lock on the table (the row {@code m-1} is the one with an old creation time).
-     */
+    @Test
+    @DisplayName("A row inserted behind the drain's cursor is filled by a later pass, not locked")
+    void given_rowInsertedBehindTheDrainCursor_should_beFilledByALaterPass() throws SQLException {
+      // Arrange: the walk's update of m-3 inserts m-0-1..m-0-3, which only the drain reaches; the
+      // drain's update of m-0-3 inserts m-0-0, behind its cursor. The trigger raises if the locked
+      // step writes any of them.
+      makePending();
+      seedTrace("m-2", statusOfB, null, null);
+      seedTrace("m-3", statusOfB, null, null);
+      String insert =
+          "INSERT INTO "
+              + TABLE
+              + " (execution_trace_id, execution_inject_status_id, execution_message,"
+              + " execution_status) VALUES ('%s', '"
+              + statusWithoutInject
+              + "', '"
+              + SEED_MESSAGE
+              + "', 'INFO') ON CONFLICT DO NOTHING";
+      createInsertingTrigger(
+          "m-3",
+          insert.formatted("m-0-1")
+              + "; "
+              + insert.formatted("m-0-2")
+              + "; "
+              + insert.formatted("m-0-3"),
+          "m-0-3",
+          insert.formatted("m-0-0"));
+
+      // Act
+      new V6_20261112060000000__Add_tenant_id_to_execution_traces(1, 1L, 0, Long.MAX_VALUE)
+          .migrate(connection);
+
+      // Assert
+      for (int i = 0; i <= 3; i++) {
+        assertThat(tenantOf("m-0-" + i)).isEqualTo(DEFAULT_TENANT_UUID);
+      }
+      assertFullSchema();
+    }
+
     private void createInsertingTrigger(String insertSql) throws SQLException {
+      createInsertingTrigger("m-3", insertSql, null, null);
+    }
+
+    /**
+     * A before-update trigger that runs {@code insertSql} when the row {@code rowId} is updated
+     * (and {@code secondSql} when {@code secondRowId} is, when given), and raises when a seeded row
+     * other than {@code m-1} is written while the session holds an exclusive lock on the table (the
+     * row {@code m-1} is the one with an old creation time).
+     */
+    private void createInsertingTrigger(
+        String rowId, String insertSql, String secondRowId, String secondSql) throws SQLException {
+      String second =
+          secondRowId == null
+              ? ""
+              : " IF NEW.execution_trace_id = '"
+                  + secondRowId
+                  + "' THEN "
+                  + secondSql
+                  + "; END IF;";
       execute(
           "CREATE FUNCTION test_trace_fail() RETURNS trigger AS $$ BEGIN"
-              + " IF NEW.execution_trace_id = 'm-3' THEN "
+              + " IF NEW.execution_trace_id = '"
+              + rowId
+              + "' THEN "
               + insertSql
               + "; END IF;"
+              + second
               + " IF EXISTS (SELECT 1 FROM pg_locks WHERE pid = pg_backend_pid()"
               + " AND locktype = 'relation' AND relation = '"
               + TABLE
@@ -694,6 +829,32 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
 
   // -- assertions --
 
+  /** A source of WAL-lag readings for {@link V6_20261112060000000__Scripted_lag}. */
+  private interface LagReadings {
+    long next() throws SQLException;
+  }
+
+  /**
+   * The migration with one range for the whole table, no fixed pause, a bound of 100 bytes, and its
+   * WAL-lag reads answered by {@code readings}. Flyway reads the version from the class name, which
+   * therefore follows the migration naming shape.
+   */
+  private static final class V6_20261112060000000__Scripted_lag
+      extends V6_20261112060000000__Add_tenant_id_to_execution_traces {
+
+    private final LagReadings readings;
+
+    V6_20261112060000000__Scripted_lag(LagReadings readings) {
+      super(2, 1_000_000L, 0, 100);
+      this.readings = readings;
+    }
+
+    @Override
+    long walLagBytes(Connection ignored, String startWalFile) throws SQLException {
+      return readings.next();
+    }
+  }
+
   private void assertFullSchema() throws SQLException {
     assertThat(
             rows(
@@ -709,8 +870,8 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
                     + TABLE
                     + "'::regclass AND contype = 'f' AND conname = '"
                     + FOREIGN_KEY
-                    + "' AND confrelid = 'tenants'::regclass AND confdeltype = 'c'"))
-        .as("the foreign key to tenants is in place, ON DELETE CASCADE")
+                    + "' AND confrelid = 'tenants'::regclass AND confdeltype = 'c' AND convalidated"))
+        .as("the foreign key to tenants is in place and validated, ON DELETE CASCADE")
         .isEqualTo(1);
     assertThat(
             count(
