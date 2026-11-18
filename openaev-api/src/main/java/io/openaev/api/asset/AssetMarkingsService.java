@@ -2,6 +2,7 @@ package io.openaev.api.asset;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.marking.MarkingEscalationValidator.assertCanAssignMarkings;
+import static io.openaev.utils.MarkingUtils.markingIds;
 
 import io.openaev.api.asset.dto.AssetBulkReplaceMarkingsInput;
 import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
@@ -142,7 +143,7 @@ public class AssetMarkingsService {
    * drift apart.
    */
   private Set<String> applyAssetMarkings(Asset asset, Set<String> requested) {
-    Set<String> previous = AssetMarkingIds.of(asset);
+    Set<String> previous = markingIds(asset);
     Set<String> added = new HashSet<>(requested);
     added.removeAll(previous);
     Set<String> removed = new HashSet<>(previous);

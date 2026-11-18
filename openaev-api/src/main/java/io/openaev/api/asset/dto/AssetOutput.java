@@ -1,10 +1,10 @@
 package io.openaev.api.asset.dto;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
+import static io.openaev.utils.MarkingUtils.markingIds;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.api.asset.AssetMarkingIds;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.AssetCriticality;
@@ -93,7 +93,7 @@ public class AssetOutput {
         .subcategory(asset.getSubcategory())
         .criticality(asset.getCriticality())
         .tags(asset.getTags().stream().map(tag -> tag.getId()).collect(Collectors.toSet()))
-        .markings(AssetMarkingIds.of(asset))
+        .markings(markingIds(asset))
         .hostname(asset.getHostname())
         .platform(unproxied instanceof Endpoint endpoint ? endpoint.getPlatform() : null)
         .aiTargetProvider(asset.getAiTargetProvider())

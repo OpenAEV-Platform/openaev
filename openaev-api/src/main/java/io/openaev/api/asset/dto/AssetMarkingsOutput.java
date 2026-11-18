@@ -1,10 +1,10 @@
 package io.openaev.api.asset.dto;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
+import static io.openaev.utils.MarkingUtils.markingIds;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.api.asset.AssetMarkingIds;
 import io.openaev.database.model.Asset;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -43,7 +43,7 @@ public class AssetMarkingsOutput {
     return AssetMarkingsOutput.builder()
         .id(asset.getId())
         .name(asset.getName())
-        .markingIds(AssetMarkingIds.of(asset))
+        .markingIds(markingIds(asset))
         .build();
   }
 }
