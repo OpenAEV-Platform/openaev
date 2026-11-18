@@ -4678,5 +4678,11 @@
   "YYYY": "YYYY",
   "ZIP must contain a json file": "ZIPファイルにはjsonファイルが含まれている必要があります",
   "Zoom in": "ズームイン",
-  "Zoom out": "ズームアウト"
+  "Zoom out": "ズームアウト",
+  "Connect OpenCTI": "OpenCTI を接続",
+  "Not in OpenCTI": "OpenCTI にありません",
+  "OpenCTI is unavailable": "OpenCTI は利用できません",
+  "Hide this suggestion": "この提案を非表示",
+  "Ask an administrator to connect OpenCTI to see this object there.": "このオブジェクトを OpenCTI で表示するには、管理者に OpenCTI の接続を依頼してください。",
+  "This object is not known in the connected OpenCTI.": "このオブジェクトは接続された OpenCTI にありません。"
 }

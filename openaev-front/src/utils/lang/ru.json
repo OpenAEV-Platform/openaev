@@ -4678,5 +4678,11 @@
   "YYYY": "ГГГГ",
   "ZIP must contain a json file": "Архив ZIP должен содержать файл JSON",
   "Zoom in": "Приблизить",
-  "Zoom out": "Отдалить"
+  "Zoom out": "Отдалить",
+  "Connect OpenCTI": "Подключить OpenCTI",
+  "Not in OpenCTI": "Нет в OpenCTI",
+  "OpenCTI is unavailable": "OpenCTI недоступен",
+  "Hide this suggestion": "Скрыть это предложение",
+  "Ask an administrator to connect OpenCTI to see this object there.": "Попросите администратора подключить OpenCTI, чтобы увидеть этот объект там.",
+  "This object is not known in the connected OpenCTI.": "Этот объект не найден в подключенном OpenCTI."
 }

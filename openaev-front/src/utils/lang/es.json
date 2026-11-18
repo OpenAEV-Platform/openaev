@@ -4678,5 +4678,11 @@
   "YYYY": "YYYY",
   "ZIP must contain a json file": "El archivo ZIP debe contener un archivo JSON",
   "Zoom in": "Acercar",
-  "Zoom out": "Alejar"
+  "Zoom out": "Alejar",
+  "Connect OpenCTI": "Conectar OpenCTI",
+  "Not in OpenCTI": "No está en OpenCTI",
+  "OpenCTI is unavailable": "OpenCTI no está disponible",
+  "Hide this suggestion": "Ocultar esta sugerencia",
+  "Ask an administrator to connect OpenCTI to see this object there.": "Pida a un administrador que conecte OpenCTI para ver este objeto allí.",
+  "This object is not known in the connected OpenCTI.": "Este objeto no existe en el OpenCTI conectado."
 }
