@@ -1,5 +1,6 @@
 package io.openaev.utils.mapper;
 
+import static io.openaev.utils.InjectStatusUtils.visibleStatus;
 import static io.openaev.utils.mapper.AgentMapper.toAgentOutput;
 
 import io.openaev.database.model.*;
@@ -22,6 +23,7 @@ public class InjectStatusMapper {
                 this.<InjectStatusOutput>buildInjectStatusOutput(
                     InjectStatusOutput.builder().build(),
                     status,
+                    visibleStatus(status),
                     status.getTraces().stream().filter(ExecutionTrace::isGlobal).toList()))
         .orElseGet(() -> InjectStatusOutput.builder().build());
   }
@@ -37,7 +39,7 @@ public class InjectStatusMapper {
             status -> {
               InjectStatusOutput output = InjectStatusOutput.builder().build();
               output.setId(status.getId());
-              output.setName(status.getName().name());
+              output.setName(visibleStatus(status).name());
               output.setTraces(toExecutionTracesOutput(status.getTraces()));
               output.setTrackingSentDate(status.getTrackingSentDate());
               output.setTrackingEndDate(status.getTrackingEndDate());
@@ -56,6 +58,7 @@ public class InjectStatusMapper {
     buildInjectStatusOutput(
         output,
         injectTestStatus,
+        injectTestStatus.getName(),
         injectTestStatus.getTraces().stream().filter(trace -> trace.getAgent() == null).toList());
 
     output.setInjectId(injectTestStatus.getInject().getId());
@@ -66,9 +69,9 @@ public class InjectStatusMapper {
   }
 
   private <T extends InjectStatusOutput> T buildInjectStatusOutput(
-      T output, BaseInjectStatus status, List<ExecutionTrace> mainTraces) {
+      T output, BaseInjectStatus status, ExecutionStatus name, List<ExecutionTrace> mainTraces) {
     output.setId(status.getId());
-    output.setName(status.getName().name());
+    output.setName(name.name());
     output.setTraces(toExecutionTracesOutput(mainTraces));
     output.setTrackingSentDate(status.getTrackingSentDate());
     output.setTrackingEndDate(status.getTrackingEndDate());
@@ -81,7 +84,7 @@ public class InjectStatusMapper {
             status ->
                 InjectStatusSimple.builder()
                     .id(status.getId())
-                    .name(status.getName().name())
+                    .name(visibleStatus(status).name())
                     .trackingSentDate(status.getTrackingSentDate())
                     .trackingEndDate(status.getTrackingEndDate())
                     .build())

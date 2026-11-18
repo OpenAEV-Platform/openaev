@@ -1,7 +1,9 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.ExecutionTrace;
+import io.openaev.database.model.ExecutionTraceAction;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -61,6 +63,19 @@ public interface ExecutionTraceRepository
       nativeQuery = true)
   List<ExecutionTrace> findByInjectIdAndPlayerId(
       @Param("injectId") String injectId, @Param("targetId") String targetId);
+
+  /**
+   * The status and agent of every trace of the given injects that carries the given action, one row
+   * per trace the reader may see: {@code [injectId, ExecutionTraceStatus, agentId or null]}. The
+   * marking filter on {@code execution_traces} drops the traces of agents above the reader's
+   * clearance.
+   */
+  @Query(
+      "SELECT s.inject.id, t.status, t.agent.id FROM ExecutionTrace t JOIN t.injectStatus s"
+          + " WHERE s.inject.id IN :injectIds AND t.action = :action")
+  List<Object[]> findStatusesAndAgentsByInjectIdsAndAction(
+      @Param("injectIds") Collection<String> injectIds,
+      @Param("action") ExecutionTraceAction action);
 
   /**
    * Deletes one bounded batch of execution traces older than the given threshold. Batched so the

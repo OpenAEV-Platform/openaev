@@ -546,8 +546,9 @@ What leaks today, on the "Execution details" tab (`AtomicTestingExecutionDetails
 
 ## Chunk 11 — UX enhancement: global inject status from what the user can see
 
-**Status**: not started. **The PO needs to design it**; this is
-a later enhancement: consolidate the displayed value from what the viewing user can see.
+**Status**: 🟡 in progress on `issue-8559/execution-status`: #1, #2, #3 and #5 implemented and tested (steps
+11.1 to 11.6), with `NOT_VISIBLE` (11.10, question 1 option B). #4 (simulation timeline) is the follow-up 11.9.
+Question 2 still open.
 
 The global inject status can look odd when the user does not see all the assets, because it is computed over
 every asset.
@@ -562,18 +563,77 @@ ES). Only what is **displayed** to a reader is recomputed, from the COMPLETE tra
 ("Where the status reaches a reader: five places"). This chunk covers #1, #2, #3 and #5; #4 (simulation
 timeline, `Iterable<Inject>` entity) needs an output DTO and is a follow-up.
 
-**Rule** (tech design, "The rule: only a PARTIAL verdict depends on the reader"): EXECUTED and ERROR read the
-same on any subset of the traces, so only a stored PARTIAL is recomputed, from the COMPLETE traces the reader can
-see. The admin view never changes, including for statuses set directly (manual update, `failInjectStatus`,
-workflow timeout).
+**Rule implemented today** (steps 11.1 to 11.6): only a stored PARTIAL is recomputed, from the COMPLETE traces the
+reader can see; EXECUTED and ERROR are kept. **Rule to implement with question 1** (step 11.10, tech design "The
+rule: recompute only when the reader misses agents"): compare the visible agents with `status_expected_agent_count`,
+which also turns EXECUTED and ERROR into `NOT_VISIBLE` when every agent is hidden. In both, the admin view never
+changes, including for statuses set directly (manual update, `failInjectStatus`, simulation stop).
 
-**PO decisions**:
+### Questions for the PO
 
-1. A PARTIAL inject whose COMPLETE traces are all hidden from the reader: show what? The stored PARTIAL tells
-   the reader something about hidden targets. Proposal: a neutral "No visible result". Until decided, the stored
-   value is kept.
-2. The "inject status" filter of the lists keeps matching the stored verdict (SQL predicate on `status.name`).
-   Accept, or remove the filter for restricted readers, or invest in a SQL recompute (see tech design).
+Context: an admin cleared `TLP:RED` launches an inject on a RED and a GREEN asset. A user cleared `TLP:AMBER` sees
+only the GREEN target. The status they are shown is now recomputed from the GREEN agent only: if RED succeeded and
+GREEN failed, the admin reads PARTIAL and the AMBER user ERROR.
+
+**Question 1 — every target hidden.** The AMBER user sees none of the inject's targets (all RED). What does their
+status chip say? The stored value tells them the outcome on targets they cannot see: EXECUTED if the RED agents all
+succeeded, ERROR if they all failed, PARTIAL if mixed.
+
+| Option | AMBER user sees | Effect |
+|---|---|---|
+| A. Keep the stored value (current code) | EXECUTED / ERROR / PARTIAL | Tells them the outcome on the hidden targets |
+| **B. A neutral value: `NOT_VISIBLE` (preferred path)** | "Not visible" | Says nothing about hidden targets; a new value in the API and the UI |
+| C. ERROR | ERROR | Wrong: nothing failed for them, they cannot see it |
+
+Preferred path B, what it implies:
+
+- `NOT_VISIBLE` is a display value, never stored: `injects_statuses.status_name` keeps the system verdict. It is
+  added to `ExecutionStatus` with `@Hidden`, like the deprecated `MAYBE_*` values: out of the filter picker (never
+  stored, a filter on it would match nothing) and out of the generated API types; the front gets its label, colour
+  and tooltip.
+- **It needs one more input than the traces.** The marking filter removes rows without saying so: "every trace is
+  hidden from me" and "there is no trace" look the same. Some injects close with no agent trace at all, for
+  everyone: a status set by hand, a close by the platform (`failInjectStatus`, simulation stop). The rule
+  therefore compares what the reader sees with `status_expected_agent_count` (E), the agents the inject was
+  dispatched to, already stored at launch and never filtered:
+
+  | Condition | Shown |
+  |---|---|
+  | In flight, or E = 0 (no agent: manual, mail, agentless injector) | stored |
+  | Closed by the platform (a COMPLETE error trace with no agent) | stored |
+  | The reader sees the COMPLETE trace of every agent (V = E) | stored: same as the admin |
+  | The reader sees no agent (V = 0) | `NOT_VISIBLE` |
+  | The reader sees some agents (0 < V < E) | recomputed from the visible ones |
+
+  Exact because every dispatched agent ends with exactly one COMPLETE trace of its own (result, `TIMEOUT`,
+  `ASSET_CLEARANCE_RESTRICTED`, dispatch error); details and examples in the tech design, "The rule: recompute only
+  when the reader misses agents".
+- Unlike the current code, this recomputes EXECUTED and ERROR too, not only PARTIAL: 2 RED agents that both
+  succeeded read EXECUTED for the admin and `NOT_VISIBLE` for the AMBER user.
+
+**Question 2 — filtering on the status.** The API filter and sort on the status (`inject_status`, an SQL predicate
+on the stored `status.name`) keep matching the stored verdict: "status = ERROR" does not return the inject the
+AMBER user sees as ERROR, because it is stored PARTIAL.
+
+| Option | Cost |
+|---|---|
+| A. Accept the mismatch, document it | None |
+| B. Hide the status filter from restricted readers | Small; removes a feature for them |
+| **C. Filter and sort on the reader's status (preferred path)** | Server cost when a status filter or sort is used, see the study |
+
+Study of C: tech design, "Filtering and sorting on the reader's status". In short:
+
+- **No screen uses it today**: the inject lists do not offer the status filter, and the column is not sortable. It
+  only serves API clients; dashboards filter in ES (Chunk 13).
+- **Cost only when used**: per request, every closed inject dispatched to agents matching the other filters, not
+  just the page, is recomputed, twice (page and count). With many agents per inject that is likely seconds instead
+  of milliseconds, to be measured. `NOT_VISIBLE` (question 1, B) makes it costlier: every closed inject needs the
+  subquery, not only the PARTIAL ones.
+- **Mitigations**: build the expression only when the filter or sort is present; a partial index on the COMPLETE
+  traces (one row per agent instead of all traces); skip the subquery for in-flight injects and injects without
+  agents.
+- **Decision needed**: ship C now (API clients rely on the filter) or when a screen offers it; in both cases after
+  an `EXPLAIN ANALYZE` on realistic volumes.
 
 ### Steps
 
@@ -598,6 +658,21 @@ workflow timeout).
 - **11.8** Depends on Chunk 4: until it ships, an agent-less COMPLETE trace naming a RED asset is still visible
   and still counted.
 - **11.9** Follow-up, #4: `GET /exercises/{id}/injects` returns an output DTO, built with `visibleStatus`.
+- **11.10** ✅ done. Question 1, option B:
+  - `ExecutionStatus.NOT_VISIBLE` (`@Hidden`), never written by the write path; front label, colour, tooltip and
+    translations; the attack path badge treats it as terminal. The API types do not change.
+  - `InjectStatusUtils.visibleStatus` takes the rule of the tech design (E = `status_expected_agent_count`, V =
+    agents with a visible COMPLETE trace) instead of "PARTIAL only".
+  - Inputs: `InjectStatusMapper` and the attack path detail read E on the `InjectStatus` entity; the batched query of
+    `InjectVisibleStatusService` returns `(inject id, trace status, agent id, E)` for every closed inject with E > 0,
+    not only PARTIAL; the stream counts the agents with a COMPLETE trace before and after pruning.
+  - Tests: 2 RED agents that succeeded → admin EXECUTED, AMBER `NOT_VISIBLE`; RED success + GREEN failure → admin
+    PARTIAL, AMBER ERROR; a status set by hand → the same for both; a simulation stopped before the agents
+    answered → ERROR for both.
+- **11.11** Once question 2 is answered (preferred C): measure first (`EXPLAIN ANALYZE`, ≥ 100k traces, with and
+  without the partial COMPLETE index), then a specification for the `inject_status` filter and sort key on the
+  reader's status, built only when the key is present. Tests: the AMBER user filtering "status = ERROR" gets the
+  inject; the statement count without the filter is unchanged.
 
 ## Chunk 12 — UX enhancement: platforms in the scenario list for a user
 

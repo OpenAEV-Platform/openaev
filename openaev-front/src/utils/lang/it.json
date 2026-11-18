@@ -12,6 +12,8 @@
   ".": ".",
   "Filigran license": "Licenza Filigran",
   "Filigran license (through XTM One)": "Licenza Filigran (tramite XTM One)",
+  "Not visible": "Non visibile",
+  "Your marking clearance does not cover any target of this inject, so its result is not shown.": "La tua autorizzazione di marcatura non copre alcun obiettivo di questo inject, quindi il suo risultato non viene mostrato.",
   "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.": "“Sì, sempre” salva questa impostazione per te. Lo strumento verrà quindi eseguito senza chiedere conferma — anche nelle esecuzioni pianificate che nessuno sta monitorando — finché non revocherai questa impostazione.",
   "(last 180 days)": "(ultimi 180 giorni)",
   "(no output)": "(nessun output)",
