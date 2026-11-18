@@ -23,8 +23,13 @@ way to fix a released migration that is dangerous and has not run everywhere yet
 ## 2. Decision
 
 Option B by default, Option C for a table where the walk's startup delay is not acceptable, and
-never Option A on a table with random ids, because B fixes the cause in one release and C costs a
-second release and code that tolerates `NULL`.
+never Option A on a table with random ids, because B fixes the cause in one release, and C costs a
+second release, code that tolerates `NULL`, and a second migration that can do B's walk anyway
+for an upgrade that skips releases.
+
+A large table is one that grows with the use of the platform (traces, expectations, statuses,
+findings, events, logs), as opposed to a catalog table that grows with its configuration (tenants,
+roles, groups, tags, settings).
 
 The rules that apply this decision (no `VACUUM`, index `CONCURRENTLY`, constraints `NOT VALID` then
 `VALIDATE`, `lock_timeout` with retry, pacing on WAL lag, resumable steps) live in rule 5 of
@@ -50,9 +55,11 @@ pages again in full, and a `VACUUM` between batches reads the whole table again.
 
 ### C. Background job fills a nullable column, a later migration sets `NOT NULL`
 
-**Pros**: no startup delay; the fill can follow live traffic.
-**Cons**: two releases; code must handle `NULL` until the job ends on every platform, and the second
-migration needs a way to know it ended.
+**Pros**: no startup delay for a platform that upgrades one release at a time; the fill can follow
+live traffic.
+**Cons**: two releases; code must handle `NULL` until the job ends. An upgrade can skip releases,
+so both migrations can run back to back before the job ever starts: the second one then fills the
+remaining rows itself, in the shape of Option B, and that upgrade waits for it like Option B.
 
 ## 4. Consequences
 

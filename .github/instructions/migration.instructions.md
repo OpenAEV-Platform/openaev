@@ -56,7 +56,9 @@ public class V4_57__AddTenantToAlerts extends BaseJavaMigration {
    job.
 3. **Never drop columns or tables** without a deprecation migration first
 4. **Always add default values** for new `NOT NULL` columns on existing tables
-5. **Large-table data migrations** follow ADR-023.
+5. **Large-table data migrations** follow ADR-023. A large table grows with the use of the platform
+   (for example `execution_traces`, `injects_expectations`, `injects_statuses`, `findings`), a
+   catalog table with its configuration (tenants, roles, groups, tags, settings).
    Batching alone is not enough: primary-key-order batches on a table with random (UUID) primary
    keys scatter each batch across the whole table and turn a periodic `VACUUM` into a near-full-table
    rescan (the cause of a production WAL-fill incident). Default to a physical walk by `ctid` page
@@ -66,7 +68,8 @@ public class V4_57__AddTenantToAlerts extends BaseJavaMigration {
    resumable after a crash. Reference implementation:
    `V6_20261112060000000__Add_tenant_id_to_execution_traces.java`. Use a background-job fill with a
    later `NOT NULL` migration instead only when the walk's startup delay is unacceptable for that
-   table, and say why in the migration's Javadoc.
+   table, and say why in the migration's Javadoc. The later migration fills the rows left with no
+   value itself: an upgrade can skip releases and run both before the job starts.
 6. **Search index rebuild**: if the migration changes data an indexed model reads, or how its documents are built, request a rebuild of that model (its `indexing_status_type` is the `index` of its `@Indexable` class) — never with `DELETE FROM indexing_status`. A pod still running during a rolling deploy re-creates the deleted row before the new pod's boot check, so the wipe silently never happens. Pick one of the two patterns of `EsIndexingUtils`:
    - **Re-feed in place** — the documents only need rewriting: move the cursor back to epoch (`UPDATE indexing_status SET indexing_status_indexing_date = Instant.EPOCH, indexing_status_last_id = NULL WHERE indexing_status_type = '<model>' AND indexing_status_indexing_date < EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD`) and call `EsIndexingUtils.requestRefeedAtStartup("<model>")`. The index stays complete throughout. Example: `V6_20261022140626000__Request_finding_refeed_after_sensitive_value_masking`.
    - **Reset** — stale documents must disappear (rows deleted by raw SQL, changed ids): upsert the `EsIndexingUtils.REINDEX_REQUESTED_CURSOR` sentinel and call `EsIndexingUtils.requestReindexAtStartup("<model>")`. The index is wiped and rebuilt, so its dashboards are incomplete until the rebuild ends. Example: `V6_20260924120000000__Request_expectation_inject_reindex_after_group_parent_dedup`.

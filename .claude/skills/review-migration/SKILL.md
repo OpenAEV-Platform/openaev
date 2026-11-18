@@ -122,6 +122,8 @@ ADR-023 (`migration.instructions.md` rule 5) instead:
 - ☐ Every step resumable after a crash
 - ☐ If a background-job fill with a later `NOT NULL` migration is used in place of the walk, the
   migration's Javadoc says why (startup delay unacceptable, or pacing against live traffic needed)
+- ☐ The later `NOT NULL` migration of a background-job fill fills the rows left with no value itself
+  (an upgrade can skip releases and run both migrations before the job starts)
 - ☐ If an existing released migration is modified in place rather than replaced with a new one, it is
   only because it is dangerous and the new version reaches the same final state from any partial
   state the old one can leave (the ADR-023 exception to "never modify an existing migration")
