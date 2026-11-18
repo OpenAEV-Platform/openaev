@@ -69,14 +69,23 @@ public class ContractOutputElementService {
    * </ul>
    */
   public void copyContractOutputElementsFromInput(
-      Set<ContractOutputElementInput> source, OutputParser targetElement, String tenantId) {
+      Set<ContractOutputElementInput> source, OutputParser targetElement) {
     if (source == null || targetElement == null) {
       return;
     }
+    // The tag ids resolve in the tenant of the payload: an id of another tenant is ignored.
+    String tenantId = targetElement.getPayload().getTenant().getId();
     Set<ContractOutputElement> contractOutputElements =
         source.stream()
             .filter(Objects::nonNull)
-            .map(input -> mapFromInput(input, tenantId))
+            .map(
+                input -> {
+                  ContractOutputElement element = mapFromInput(input);
+                  element.setTags(
+                      new HashSet<>(
+                          tagService.tagsInTenant(emptyIfNull(input.getTagIds()), tenantId)));
+                  return element;
+                })
             .peek(contractOutputElement -> contractOutputElement.setOutputParser(targetElement))
             .collect(Collectors.toSet());
 
@@ -89,11 +98,11 @@ public class ContractOutputElementService {
    * <p>If the input has an ID, fetches the corresponding entity from the repository and updates it.
    * If not, creates a new instance. Regex groups are copied accordingly.
    */
-  private ContractOutputElement mapFromInput(ContractOutputElementInput input, String tenantId) {
+  private ContractOutputElement mapFromInput(ContractOutputElementInput input) {
     if (input.getId() == null) {
       ContractOutputElement newElement =
           ContractOutputElementUtils.copyFromInput(input, new ContractOutputElement());
-      copyLinksFromInput(input, newElement, tenantId);
+      regexGroupService.copyRegexGroupsFromInput(input.getRegexGroups(), newElement);
       return newElement;
     }
     return contractOutputElementRepository
@@ -101,26 +110,15 @@ public class ContractOutputElementService {
         .map(
             source -> {
               ContractOutputElement copy = ContractOutputElementUtils.copyFromInput(input, source);
-              copyLinksFromInput(input, copy, tenantId);
+              regexGroupService.copyRegexGroupsFromInput(input.getRegexGroups(), copy);
               return copy;
             })
         .orElseGet(
             () -> {
               ContractOutputElement copy =
                   ContractOutputElementUtils.copyFromInput(input, new ContractOutputElement());
-              copyLinksFromInput(input, copy, tenantId);
+              regexGroupService.copyRegexGroupsFromInput(input.getRegexGroups(), copy);
               return copy;
             });
-  }
-
-  /**
-   * Copies the regex groups and the tags of the input into the element. The tag ids are resolved in
-   * the tenant of the payload: an id of another tenant is treated like an unknown id.
-   */
-  private void copyLinksFromInput(
-      ContractOutputElementInput input, ContractOutputElement element, String tenantId) {
-    regexGroupService.copyRegexGroupsFromInput(input.getRegexGroups(), element);
-    element.setTags(
-        new HashSet<>(tagService.tagsInTenant(emptyIfNull(input.getTagIds()), tenantId)));
   }
 }
