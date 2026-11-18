@@ -20,6 +20,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Capability;
+import io.openaev.database.model.Grant;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Step;
@@ -31,11 +33,15 @@ import io.openaev.database.repository.PayloadRevocationRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CatalogReleaseFixture.ReleasedPayload;
 import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.InjectorContractComposer;
+import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
@@ -76,6 +82,8 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
   @Autowired private InjectComposer injectComposer;
   @Autowired private WorkflowComposer workflowComposer;
   @Autowired private StepComposer stepComposer;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private PayloadComposer payloadComposer;
 
   @BeforeEach
   void attachToDefaultTenant() {
@@ -151,6 +159,19 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
     return scenario.get().getId();
   }
 
+  /** A local payload action, built without the catalogue routes a non-admin cannot call. */
+  private InjectorContract localAction() {
+    InjectorContract action =
+        injectorContractComposer
+            .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+            .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()))
+            .persist()
+            .get();
+    entityManager.flush();
+    return action;
+  }
+
   private JsonNode body(ResultActions result) throws Exception {
     return mapper.readTree(result.andReturn().getResponse().getContentAsString());
   }
@@ -222,15 +243,60 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
                 DEFAULT_TENANT_UUID,
                 used.getId()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.length()").value(3))
+        .andExpect(jsonPath("$.payload_usages.length()").value(3))
+        .andExpect(jsonPath("$.payload_usages_hidden_count").value(0))
         .andExpect(
-            jsonPath("$[*].usage_type")
+            jsonPath("$.payload_usages[*].usage_type")
                 .value(containsInAnyOrder("inject", "atomic_testing", "step")))
         .andExpect(
-            jsonPath("$[*].usage_name")
+            jsonPath("$.payload_usages[*].usage_name")
                 .value(containsInAnyOrder("Scenario inject", "Atomic testing", "Chained step")))
-        .andExpect(jsonPath("$[?(@.usage_type == 'step')].usage_scenario_id").value(scenarioId))
-        .andExpect(jsonPath("$[?(@.usage_type == 'inject')].usage_scenario_id").value(scenarioId));
+        .andExpect(
+            jsonPath("$.payload_usages[?(@.usage_type == 'step')].usage_scenario_id")
+                .value(scenarioId))
+        .andExpect(
+            jsonPath("$.payload_usages[?(@.usage_type == 'inject')].usage_scenario_id")
+                .value(scenarioId));
+  }
+
+  @Test
+  @WithMockUser(withCapabilities = {Capability.ACCESS_THREAT_ARSENALS})
+  @DisplayName("counts the usages in a scenario the user cannot read without naming them")
+  void given_scenarioNotReadable_should_countItsUsagesOnly() throws Exception {
+    // Arrange
+    InjectorContract action = localAction();
+    scenarioRunning(action);
+
+    // Act & Assert
+    mvc.perform(
+            get(
+                TENANT_THREAT_ARSENAL_URL + "/{actionId}/usages",
+                DEFAULT_TENANT_UUID,
+                action.getId()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.payload_usages.length()").value(0))
+        .andExpect(jsonPath("$.payload_usages_hidden_count").value(2));
+  }
+
+  @Test
+  @WithMockUser(withCapabilities = {Capability.ACCESS_THREAT_ARSENALS})
+  @DisplayName("lists the usages in a scenario the user is granted to read")
+  void given_scenarioGranted_should_listItsUsages() throws Exception {
+    // Arrange
+    InjectorContract action = localAction();
+    String scenarioId = scenarioRunning(action);
+    addGrantToCurrentUser(
+        Grant.GRANT_RESOURCE_TYPE.SCENARIO, Grant.GRANT_TYPE.OBSERVER, scenarioId);
+
+    // Act & Assert
+    mvc.perform(
+            get(
+                TENANT_THREAT_ARSENAL_URL + "/{actionId}/usages",
+                DEFAULT_TENANT_UUID,
+                action.getId()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.payload_usages.length()").value(2))
+        .andExpect(jsonPath("$.payload_usages_hidden_count").value(0));
   }
 
   // -- SEARCH --

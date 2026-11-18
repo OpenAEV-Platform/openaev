@@ -1,7 +1,9 @@
 package io.openaev.api.threat_arsenal.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Step;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -28,6 +30,17 @@ public record PayloadUsageOutput(
         ? new PayloadUsageOutput(TYPE_ATOMIC_TESTING, inject.getId(), inject.getTitle(), null, null)
         : new PayloadUsageOutput(
             TYPE_INJECT, inject.getId(), inject.getTitle(), scenario.getId(), scenario.getName());
+  }
+
+  /** What a user must be able to read to see this usage: its scenario, or the atomic testing. */
+  @JsonIgnore
+  public ResourceType readResourceType() {
+    return scenarioId == null ? ResourceType.ATOMIC_TESTING : ResourceType.SCENARIO;
+  }
+
+  @JsonIgnore
+  public String readResourceId() {
+    return scenarioId == null ? id : scenarioId;
   }
 
   public static PayloadUsageOutput of(Step step, String title) {

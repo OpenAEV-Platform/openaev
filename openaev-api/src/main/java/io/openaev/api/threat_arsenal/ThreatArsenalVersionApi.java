@@ -5,7 +5,7 @@ import static io.openaev.api.threat_arsenal.ThreatArsenalApi.THREAT_ARSENAL_URL;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.catalog.CatalogFeature;
-import io.openaev.api.threat_arsenal.dto.PayloadUsageOutput;
+import io.openaev.api.threat_arsenal.dto.PayloadUsagesOutput;
 import io.openaev.api.threat_arsenal.dto.PayloadVersionOutput;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TxCtx;
@@ -47,7 +47,9 @@ public class ThreatArsenalVersionApi {
   }
 
   @Operation(
-      summary = "Scenario injects, atomic testings and chained scenario steps running the action")
+      summary =
+          "Scenario injects, atomic testings and chained scenario steps running the action that"
+              + " the user can read, and how many others")
   @GetMapping({
     THREAT_ARSENAL_URL + "/{actionId}/usages",
     TENANT_THREAT_ARSENAL_URL + "/{actionId}/usages"
@@ -57,7 +59,7 @@ public class ThreatArsenalVersionApi {
       resourceId = "#actionId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.THREAT_ARSENAL)
-  public List<PayloadUsageOutput> usages(
+  public PayloadUsagesOutput usages(
       @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
     catalogFeature.require();
     return payloadVersionService.usages(TxCtxScopeUtils.requireOneTenantOfScope(ctx), actionId);

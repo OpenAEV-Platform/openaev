@@ -10239,6 +10239,43 @@ export interface PayloadUpsertInput {
   payload_type: string;
 }
 
+export interface PayloadUsageOutput {
+  /** @minLength 1 */
+  usage_id: string;
+  usage_name?: string;
+  usage_scenario_id?: string;
+  usage_scenario_name?: string;
+  /** @minLength 1 */
+  usage_type: "inject" | "atomic_testing" | "step";
+}
+
+export interface PayloadUsagesOutput {
+  payload_usages: PayloadUsageOutput[];
+  /** @format int32 */
+  payload_usages_hidden_count?: number;
+}
+
+export interface PayloadVersionOutput {
+  /**
+   * The Threat Arsenal action of this version
+   * @minLength 1
+   */
+  payload_action_id: string;
+  /** @minLength 1 */
+  payload_id: string;
+  payload_is_latest: boolean;
+  payload_revocation_reason?: string;
+  payload_revoked: boolean;
+  /** @format date-time */
+  payload_revoked_at?: string;
+  /** The admin who revoked it; empty when revoked by the catalogue */
+  payload_revoked_by?: string;
+  /** Revoked by the catalogue: the tenant cannot lift it */
+  payload_revoked_by_catalogue: boolean;
+  /** @minLength 1 */
+  payload_version: string;
+}
+
 export interface PayloadsDeprecateInput {
   collector_id: string;
   payload_external_ids: string[];
@@ -13119,6 +13156,12 @@ export interface ThreatArsenalAction {
   action_labels?: Record<string, string>;
   /** Payload attached */
   action_payload?: PayloadSimple;
+  /** The attached payload comes from the Filigran catalogue */
+  action_payload_managed?: boolean;
+  /** The attached payload version is revoked in the tenant */
+  action_payload_revoked?: boolean;
+  /** Version of the attached payload */
+  action_payload_version?: string;
   /** Platforms */
   action_platforms?: (
     | "Linux"
