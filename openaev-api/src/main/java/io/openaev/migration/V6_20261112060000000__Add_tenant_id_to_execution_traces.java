@@ -17,67 +17,26 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 /**
- * Gives {@code execution_traces} its own {@code tenant_id}, so that each trace is scoped on its own
- * column, with no join through its status's inject.
+ * Gives {@code execution_traces} its own {@code tenant_id}: the tenant of the inject of the trace's
+ * inject status, else of its inject test status, else the default tenant (counted in a warning).
  *
- * <p>The tenant of a trace is, in this order:
- *
- * <ul>
- *   <li>the tenant of the inject of the trace's inject status;
- *   <li>the tenant of the inject of the trace's inject test status;
- *   <li>the default tenant when the parent gives no tenant (an inject status with a null {@code
- *       status_inject}); these traces are counted in a warning of the log.
- * </ul>
- *
- * <p>The column has no default: a row written without a tenant fails on {@code NOT NULL}, and none
- * lands silently in the default tenant.
- *
- * <p>The migration runs outside a wrapping transaction ({@link #canExecuteInTransaction()} returns
- * false), on a connection in autocommit mode, so every batch commits on its own and the WAL it
+ * <p>Built for a large table in use. It runs outside a wrapping transaction, so that the WAL it
  * writes stays close to the size of the table:
  *
  * <ol>
- *   <li>the column is added, nullable and with no default (a catalog change only). Every statement
- *       that takes a lock other sessions wait on runs under a short {@code lock_timeout} and
- *       retries after a pause: a lock request that waits behind a long transaction makes every
- *       later query on the table wait behind it;
- *   <li>the backfill walks the table in physical order, one range of pages at a time ({@code ctid
- *       >= '(p,0)' AND ctid < '(p+N,0)'}), each range in its own committed transaction. Both sides
- *       of the update, the rows read and the rows written, are a {@code Tid Range Scan} on that
- *       range: each page is read once, in the order it sits on disk, not in the primary key's
- *       random order, which touches pages all over the table. The walk covers the table's size on
- *       disk when it starts ({@code pg_relation_size}). {@code N} is picked once, from the table's
- *       average row density ({@code pg_class.reltuples} and {@code relpages}), so that a range
- *       covers about {@value #TARGET_ROWS_PER_BATCH} rows; with no statistics yet (a table never
- *       analyzed, for instance right after a restore), a range is {@value
- *       #UNKNOWN_DENSITY_PAGES_PER_BATCH} pages;
- *   <li>no {@code VACUUM} runs during or after the walk. Each page is rewritten once, inside one
- *       range's own transaction, and autovacuum reclaims the dead row versions of a range once it
- *       commits, on its own schedule. Until it does, the table and its indexes grow: the disk needs
- *       free space up to the size of the table, less when autovacuum runs as fast as the walk;
- *   <li>between ranges, the migration pauses a fixed, short duration, and, when the server reports
- *       archiving ({@code pg_stat_archiver}) or a replica ({@code pg_stat_replication}, {@code
- *       pg_replication_slots}, active slots only), it waits longer while the WAL not yet archived
- *       or replayed is above a bound, so that archiving and any replica catch up, and logs every
- *       minute it waits. A role that cannot read those views falls back to the fixed pause alone,
- *       logged once. An inactive slot is only logged at the start, with the WAL it retains: nothing
- *       consumes it during the run, so a wait on it never ends;
- *   <li>a running instance can insert rows with no tenant that the walk above does not reach (its
- *       page range is fixed before the insert happens), so a drain builds a temporary partial index
- *       of the rows with no tenant ({@code CONCURRENTLY}, so inserts go on), walks it in primary
- *       key order and fills them in committed, paced batches. The ids are random, so a row inserted
- *       during a pass can land behind its cursor: passes repeat until one finds less than a batch;
- *   <li>the index on {@code tenant_id} is built {@code CONCURRENTLY}, so writes go on;
- *   <li>one transaction locks the table, fills the last rows with no tenant (served by the partial
- *       index), drops the partial index, sets {@code NOT NULL} and adds the foreign key {@code NOT
- *       VALID}. {@code SET NOT NULL} reads the whole table under the lock; it writes no row;
- *   <li>the foreign key is validated after that commit, under a lock that lets reads and writes go
- *       on.
+ *   <li>add the column, nullable;
+ *   <li>walk the table in physical order, one committed transaction per range of pages, so each
+ *       page is rewritten once; no {@code VACUUM}, autovacuum reclaims the old row versions;
+ *   <li>after each batch, pause, and wait while WAL archiving or a replica is too far behind;
+ *   <li>build the index {@code CONCURRENTLY};
+ *   <li>drain the rows written in the meantime, through a temporary partial index;
+ *   <li>under a table lock, fill the last rows, {@code SET NOT NULL} and add the foreign key {@code
+ *       NOT VALID}; validate it after the commit.
  * </ol>
  *
- * <p>Every step is guarded ({@code IF NOT EXISTS}, {@code WHERE tenant_id IS NULL}), so a run
- * interrupted at any point, or a table already partly migrated, reaches the same final state when
- * the migration runs again.
+ * <p>Lock requests time out after a few seconds and retry, so the table never queues behind one.
+ * Every step is guarded, so an interrupted run finishes on the next start. The table and its
+ * indexes can grow up to their size until autovacuum reclaims the old row versions.
  */
 @Slf4j
 @Component
@@ -100,10 +59,9 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
   static final String PENDING_INDEX = "idx_" + TABLE + "_tenant_id_pending";
 
   /**
-   * Fills the rows of {@code %1$s} (a predicate on the alias {@code x}) with the tenant of their
-   * parent. Returns, for the rows it wrote, their count and how many had no parent tenant. {@code
-   * %2$s} is the same predicate on the updated alias {@code t}: with the {@code ctid} join alone,
-   * the planner reads the whole table on the {@code t} side of every batch.
+   * Fills the rows {@code %1$s} selects with their parent's tenant; returns how many it wrote and
+   * how many had none. {@code %2$s} repeats the predicate on the updated side: with the {@code
+   * ctid} join alone, the planner reads the whole table there.
    */
   private static final String BACKFILL =
       "WITH written AS ("
@@ -127,7 +85,6 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
           + " SELECT count(*) AS written, count(*) FILTER (WHERE orphan) AS orphans"
           + " FROM written";
 
-  /** One range of pages, in physical order: a {@code Tid Range Scan}, never a table-wide sort. */
   static final String RANGE_UPDATE =
       BACKFILL.formatted(
           "x.ctid >= ?::tid AND x.ctid < ?::tid", "t.ctid >= ?::tid AND t.ctid < ?::tid");
@@ -136,7 +93,6 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
       BACKFILL.formatted("x.execution_trace_id = ANY(?)", "t.execution_trace_id = ANY(?)");
   private static final String FINAL_UPDATE = BACKFILL.formatted("true", "t.tenant_id IS NULL");
 
-  /** Picks the next rows with no tenant in primary key order, served by the partial index. */
   static final String NEXT_PENDING_IDS =
       "SELECT execution_trace_id FROM "
           + TABLE
@@ -144,16 +100,9 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
           + " ORDER BY execution_trace_id LIMIT ?";
 
   /**
-   * Returns how much WAL is not yet archived or replayed: the largest of the archiver's lag, every
-   * streaming replica's lag and every active replication slot's lag, in bytes. {@code NULL} (no
-   * archiving, no replica, no active slot) reads as zero. An inactive slot is left out: nothing
-   * consumes it while the migration runs, so a wait on it never ends. With {@code archive_mode}
-   * off, the archiver is left out too: its last archived file name outlives the setting, and the
-   * distance to it grows without end. With archiving on and nothing archived yet, the distance is
-   * counted from the WAL file current when the run started (the parameter). The archiver's lag is
-   * the distance between the current WAL segment and the last archived one, both read from their
-   * file names (timeline, log, segment, 8 hex digits each), which every supported server version
-   * parses; a {@code .history} or {@code .partial} file name is skipped.
+   * The WAL not yet archived or replayed, in bytes. Inactive slots, and the archiver when {@code
+   * archive_mode} is off, are left out: they never catch up. The archiver's lag comes from WAL file
+   * names, counted from the run's first file (the parameter) while nothing is archived.
    */
   private static final String WAL_LAG_QUERY =
       "SELECT MAX(lag) FROM ("
@@ -173,7 +122,6 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
           + " FROM pg_stat_archiver WHERE current_setting('archive_mode') <> 'off') archiver"
           + " WHERE done ~ '^[0-9A-F]{24}$') lags";
 
-  /** The WAL each inactive replication slot retains, in bytes. */
   private static final String INACTIVE_SLOTS_QUERY =
       "SELECT slot_name, pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)"
           + " FROM pg_replication_slots WHERE NOT active AND restart_lsn IS NOT NULL";
@@ -195,11 +143,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     this.walLagBoundBytes = walLagBoundBytes;
   }
 
-  /**
-   * Pages per batch, from the table's average row density: the pages that cover about {@code
-   * targetRowsPerBatch} rows. An estimate of 0 or below (no {@code ANALYZE} yet) gives {@link
-   * #UNKNOWN_DENSITY_PAGES_PER_BATCH} pages, about 8 MB of table.
-   */
+  /** {@link #UNKNOWN_DENSITY_PAGES_PER_BATCH} when the table has no statistics yet. */
   static long pagesPerBatch(long estimatedRows, long estimatedPages, int targetRowsPerBatch) {
     if (estimatedRows <= 0 || estimatedPages <= 0) {
       return UNKNOWN_DENSITY_PAGES_PER_BATCH;
@@ -219,7 +163,6 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     migrate(context.getConnection());
   }
 
-  /** Runs every step on {@code connection}, which is put in autocommit mode. */
   void migrate(Connection connection) throws SQLException {
     connection.setAutoCommit(true);
     // Table and column names below are constants of this class, never input.
@@ -236,8 +179,8 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     logInactiveSlots(connection);
     WalGuard walGuard = new WalGuard(currentWalFile(connection));
     long orphans = walk(connection, walGuard).orphans();
-    orphans += drain(connection, walGuard);
     buildTenantIndex(connection);
+    orphans += drain(connection, walGuard);
     orphans += withLockRetry(connection, "locking the table", () -> finish(connection));
     withLockRetry(
         connection,
@@ -261,9 +204,8 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
   record Fill(long written, long orphans) {}
 
   /**
-   * Measures the table, then walks it one range of pages at a time, in physical order, each range
-   * in its own transaction. Rows outside every range at the time it is read (inserted after the
-   * table is measured, or moved by a concurrent update) are left to {@link #drain}.
+   * Rows the ranges miss (written meanwhile, or moved by a concurrent update) are left to {@link
+   * #drain}.
    */
   Fill walk(Connection connection, WalGuard walGuard) throws SQLException {
     TableSize size = tableSize(connection);
@@ -331,10 +273,8 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
   }
 
   /**
-   * Fills, in committed, paced batches, the rows with no tenant left after the walk: those its
-   * fixed page ranges did not cover. A temporary partial index holds only those rows, so each batch
-   * reads its rows and no other. A pass walks that index in primary key order; passes repeat until
-   * one finds less than a batch, and the locked step fills what is left. Returns the orphans.
+   * Passes repeat until one finds less than a batch: ids are random, so a row written during a pass
+   * can land behind its cursor. Returns the orphans.
    */
   private long drain(Connection connection, WalGuard walGuard) throws SQLException {
     try (Statement statement = connection.createStatement()) {
@@ -391,10 +331,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
-  /**
-   * Builds the index on {@code tenant_id} without blocking writes. A build interrupted by an
-   * earlier run leaves an invalid index, dropped first.
-   */
+  /** An invalid index left by an interrupted build is dropped first. */
   private static void buildTenantIndex(Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement()) {
       boolean invalid;
@@ -413,10 +350,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
-  /**
-   * One transaction: with the table locked, fills the rows left with no tenant, sets {@code NOT
-   * NULL} and adds the foreign key {@code NOT VALID}. Returns the orphans of those rows.
-   */
+  /** Returns the orphans of the rows it fills. */
   private long finish(Connection connection) throws SQLException {
     connection.setAutoCommit(false);
     try (Statement statement = connection.createStatement()) {
@@ -450,9 +384,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
   }
 
   /**
-   * The table's size: {@code pages}, its exact page count on disk, which bounds the walk, and the
-   * catalog's estimates ({@code reltuples}, {@code relpages}, both as of the last {@code ANALYZE}
-   * or {@code VACUUM}), which give its row density only.
+   * {@code pages} is the size on disk and bounds the walk; the estimates only give the row density.
    */
   private record TableSize(long pages, long estimatedRows, long estimatedPages) {}
 
@@ -469,14 +401,12 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
-  /** A step that runs SQL and returns a value. */
   private interface SqlStep<T> {
     T run() throws SQLException;
   }
 
   /**
-   * Runs {@code step} under a short {@code lock_timeout}, and again after a pause each time it
-   * times out on a lock another transaction holds: a lock request that waits makes every later
+   * Retries {@code step} each time it times out on a lock: a waiting lock request makes every later
    * query on the table wait behind it.
    */
   private static <T> T withLockRetry(Connection connection, String what, SqlStep<T> step)
@@ -501,10 +431,6 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
-  /**
-   * Logs each inactive replication slot and the WAL it retains: the migration does not wait for a
-   * slot nothing consumes, and its writes add to that WAL until the slot is consumed or dropped.
-   */
   private static void logInactiveSlots(Connection connection) {
     try (Statement statement = connection.createStatement();
         ResultSet result = statement.executeQuery(INACTIVE_SLOTS_QUERY)) {
@@ -521,7 +447,6 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
-  /** Runs a fill statement and returns how many of the rows it wrote had no parent tenant. */
   private static long orphansOf(PreparedStatement statement) throws SQLException {
     try (ResultSet result = statement.executeQuery()) {
       result.next();
@@ -530,10 +455,8 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
   }
 
   /**
-   * Sleeps the fixed pause, then, when the WAL-lag views are readable, waits longer while the WAL
-   * not yet archived or replayed is above {@link #walLagBoundBytes}. A role that cannot read those
-   * views (a permission error, or a server without them) disables this wait for the rest of the
-   * run, logs once, and the fixed pause alone paces every later batch.
+   * Pauses, then waits while the WAL lag is above the bound. A lag that cannot be read stops the
+   * wait for the rest of the run.
    */
   private void pace(Connection connection, WalGuard walGuard) {
     sleep(pauseMillis);
@@ -565,10 +488,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
-  /**
-   * Returns the WAL not yet archived or replayed, in bytes; {@code startWalFile} stands for the
-   * last archived file when archiving is on and nothing is archived yet.
-   */
+  /** {@code startWalFile} stands in for the last archived file while nothing is archived. */
   long walLagBytes(Connection connection, String startWalFile) throws SQLException {
     try (PreparedStatement statement = connection.prepareStatement(WAL_LAG_QUERY)) {
       statement.setString(1, startWalFile);
@@ -580,10 +500,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
-  /**
-   * The pacing state of one run: the WAL file current when it started, and whether the WAL-lag
-   * views are readable.
-   */
+  /** The pacing state of one run. */
   static final class WalGuard {
     private final String startWalFile;
     private boolean available = true;
@@ -593,7 +510,6 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
-  /** Returns the WAL file current now, or {@code null} when the server does not say. */
   private static String currentWalFile(Connection connection) {
     try (Statement statement = connection.createStatement();
         ResultSet result = statement.executeQuery("SELECT pg_walfile_name(pg_current_wal_lsn())")) {

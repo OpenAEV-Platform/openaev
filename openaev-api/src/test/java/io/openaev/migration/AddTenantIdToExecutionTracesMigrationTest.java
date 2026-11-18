@@ -39,18 +39,9 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * Verifies, on the live schema, that {@code execution_traces} carries its own {@code tenant_id},
- * that the backfill attributes each row to the tenant of the inject its status belongs to, and that
- * the migration reaches the same final state from every partly migrated state.
- *
- * <p>The migration runs outside a transaction, so this class is not {@code @Transactional}: it
- * seeds and runs the migration on its own autocommit connection, and {@code @AfterEach} removes
- * what it seeded and runs the migration once more so the shared database ends as the rest of the
- * suite expects it (column {@code NOT NULL}, foreign key and index in place).
- *
- * <p>Seeded rows carry a random filler in their message so a handful of them spans more than one
- * heap page: the tests that check partial-commit and resumption behavior need that to force more
- * than one page range.
+ * Not {@code @Transactional}: the migration runs outside a transaction, so each test seeds on its
+ * own autocommit connection, and {@code @AfterEach} runs the migration again to leave the shared
+ * schema complete.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Migration V6_20261112060000000: tenant_id on execution_traces")
@@ -240,8 +231,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     @Test
     @DisplayName("The page-range walk alone fills every row, before any drain")
     void given_pendingRows_should_beFilledByTheWalkAlone() throws SQLException {
-      // Arrange: the drain and the locked step fill any row the walk misses, so a migrate-level
-      // test passes even with no walk at all
+      // Arrange: the walk alone, since the drain fills any row it misses
       makePending();
       for (int i = 0; i < 7; i++) {
         seedTrace("m-walk-" + i, statusOfB, null, null);
@@ -298,9 +288,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
         "A run that fails after some ranges leaves them committed, and a second run finishes")
     void given_failureAfterSomeRanges_should_leaveCommittedRangesAndFinishOnRerun()
         throws SQLException {
-      // Arrange: six rows, each carrying enough filler that four fit on one heap page and two
-      // spill to the next, so the single-page-per-range migration commits at least one range
-      // before the seeded trigger fails the range holding m-6
+      // Arrange: six rows over two pages; the trigger fails the range holding m-6
       makePending();
       for (int i = 1; i <= 6; i++) {
         seedTrace("m-" + i, statusOfB, null, null);
@@ -348,8 +336,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     @Test
     @DisplayName("An unknown row or page estimate gives a fixed range of pages per batch")
     void given_unknownEstimate_should_useTheFixedPageRange() {
-      // Act + Assert: one page per batch would turn a large table never analyzed into millions of
-      // paced batches
+      // Act + Assert
       assertThat(pagesPerBatch(-1, 100, 10_000)).isEqualTo(UNKNOWN_DENSITY_PAGES_PER_BATCH);
       assertThat(pagesPerBatch(0, 100, 10_000)).isEqualTo(UNKNOWN_DENSITY_PAGES_PER_BATCH);
       assertThat(pagesPerBatch(100_000, 0, 10_000)).isEqualTo(UNKNOWN_DENSITY_PAGES_PER_BATCH);
@@ -358,8 +345,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     @Test
     @DisplayName("The batch covers about the target row count, given the table's row density")
     void given_knownDensity_should_coverAboutTheTargetRows() {
-      // Act + Assert: 1,000,000 rows over 100,000 pages is 10 rows/page, so 10,000 rows take 1,000
-      // pages
+      // Act + Assert: 10 rows a page
       assertThat(pagesPerBatch(1_000_000, 100_000, 10_000)).isEqualTo(1_000);
     }
 
@@ -378,10 +364,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     @Test
     @DisplayName("A page range is read as a Tid Range Scan, in physical order, with no sort")
     void given_pageRange_should_useATidRangeScan() throws SQLException {
-      // Arrange: the same predicate shape RANGE_UPDATE's inner scan of x uses, isolated from the
-      // join to the parent tables, whose own statistics can otherwise lead the planner to drive
-      // the join from an index on x rather than a range of x itself. The column must be nullable,
-      // or the planner constant-folds "tenant_id IS NULL" to false from the NOT NULL constraint.
+      // Arrange: RANGE_UPDATE's predicate on x alone; a NOT NULL column would fold it to false
       assertThat(RANGE_UPDATE).contains("x.ctid >= ?::tid AND x.ctid < ?::tid");
       makePending();
       String sql =
@@ -389,7 +372,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
               + TABLE
               + " WHERE tenant_id IS NULL AND ctid >= '(0,0)'::tid AND ctid < '(10,0)'::tid";
 
-      // Act: a near-empty table otherwise costs a seq scan the same as any other access path
+      // Act: on a near-empty table a seq scan costs the same as any path
       execute("SET enable_seqscan = off");
       String plan;
       try {
@@ -408,7 +391,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     @Test
     @DisplayName("Both sides of a range update read the range only, never the whole table")
     void given_rangeUpdate_should_readOnlyTheRangeOnBothSides() throws SQLException {
-      // Arrange: the real statement, its parameters inlined, planned and never run
+      // Arrange: the real statement, parameters inlined
       makePending();
       String sql =
           RANGE_UPDATE
@@ -417,9 +400,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
               .replace("< '(0,0)'::tid", "< '(10,0)'::tid");
       assertThat(sql).doesNotContain("?");
 
-      // Act: a batch of thousands of rows joins by hash, which reads each side on its own; on a
-      // near-empty table the planner joins row by row, or reads it whole at no cost, so both are
-      // off here to force the shape of a real batch
+      // Act: force the hash join a batch of thousands of rows gets
       execute("SET enable_nestloop = off");
       execute("SET enable_seqscan = off");
       String plan;
@@ -433,8 +414,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
         execute("RESET enable_seqscan");
       }
 
-      // Assert: with the ctid join alone, the updated side has no range to scan and reads the
-      // whole table
+      // Assert
       assertThat(plan)
           .contains("Tid Range Scan on " + TABLE + " t")
           .doesNotContain("Seq Scan on " + TABLE);
@@ -448,7 +428,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     @Test
     @DisplayName("The WAL lag query runs on the server and reads zero or more bytes")
     void given_server_should_readTheWalLag() throws SQLException {
-      // Act: a failure here disables the wait for a whole run, so the query must parse and run
+      // Act
       long lag = small.walLagBytes(connection, null);
 
       // Assert
@@ -474,7 +454,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
       // Act
       migration.walk(connection, new WalGuard(null));
 
-      // Assert: read after the batch, twice more while above the bound, then no more
+      // Assert: once after the batch, twice more while above the bound
       assertThat(reads).hasValue(3);
       assertThat(lags).isEmpty();
       assertThat(tenantOf("m-wait")).isEqualTo(tenantB);
@@ -495,7 +475,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
               });
       WalGuard guard = new WalGuard(null);
 
-      // Act: two walks share the run's guard, as the walk and the drain do
+      // Act: one guard for both, as in a run
       migration.walk(connection, guard);
       migration.walk(connection, guard);
 
@@ -539,8 +519,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     @DisplayName(
         "Recent rows inserted while the loop runs are filled by the drain, in several batches, and the locked step writes none")
     void given_rowsInsertedDuringTheLoop_should_beFilledByTheDrainInBatches() throws SQLException {
-      // Arrange: the trigger inserts five rows when the loop updates m-3, after the migration
-      // already measured the table's page count, so none of the five falls inside any page range
+      // Arrange: updating m-3 inserts five rows past the measured pages
       makePending();
       seedTrace("m-2", statusOfB, null, null);
       seedTrace("m-3", statusOfB, null, null);
@@ -554,7 +533,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
               + SEED_MESSAGE
               + "', 'INFO' FROM generate_series(1, 5) g ON CONFLICT DO NOTHING");
 
-      // Act: a failure of the trigger in the locked step would fail the run
+      // Act
       new V6_20261112060000000__Add_tenant_id_to_execution_traces(1, 1L, 0, Long.MAX_VALUE)
           .migrate(connection);
 
@@ -598,9 +577,8 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     @Test
     @DisplayName("A row inserted behind the drain's cursor is filled by a later pass, not locked")
     void given_rowInsertedBehindTheDrainCursor_should_beFilledByALaterPass() throws SQLException {
-      // Arrange: the walk's update of m-3 inserts m-0-1..m-0-3, which only the drain reaches; the
-      // drain's update of m-0-3 inserts m-0-0, behind its cursor. The trigger raises if the locked
-      // step writes any of them.
+      // Arrange: the walk's update of m-3 inserts m-0-1..3; the drain's update of m-0-3 inserts
+      // m-0-0 behind its cursor
       makePending();
       seedTrace("m-2", statusOfB, null, null);
       seedTrace("m-3", statusOfB, null, null);
@@ -639,10 +617,8 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     }
 
     /**
-     * A before-update trigger that runs {@code insertSql} when the row {@code rowId} is updated
-     * (and {@code secondSql} when {@code secondRowId} is, when given), and raises when a seeded row
-     * other than {@code m-1} is written while the session holds an exclusive lock on the table (the
-     * row {@code m-1} is the one with an old creation time).
+     * Runs {@code insertSql} when {@code rowId} is updated (and {@code secondSql} for {@code
+     * secondRowId}), and raises when the locked step writes a seeded row other than {@code m-1}.
      */
     private void createInsertingTrigger(
         String rowId, String insertSql, String secondRowId, String secondSql) throws SQLException {
@@ -678,11 +654,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     }
   }
 
-  /**
-   * Measures the disk the migration needs on a large table: the old, one-transaction shape against
-   * the paced, page-range shape. Prints the figures, asserts nothing on them. Run with {@code
-   * -Dmigration.measure=true}.
-   */
+  /** Prints the size and WAL of a large run; asserts nothing. {@code -Dmigration.measure=true}. */
   @Nested
   @DisplayName("Measurement")
   @EnabledIfSystemProperty(named = "migration.measure", matches = "true")
@@ -829,16 +801,11 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
 
   // -- assertions --
 
-  /** A source of WAL-lag readings for {@link V6_20261112060000000__Scripted_lag}. */
   private interface LagReadings {
     long next() throws SQLException;
   }
 
-  /**
-   * The migration with one range for the whole table, no fixed pause, a bound of 100 bytes, and its
-   * WAL-lag reads answered by {@code readings}. Flyway reads the version from the class name, which
-   * therefore follows the migration naming shape.
-   */
+  /** One range, no pause, a 100-byte bound, scripted lag; Flyway needs the versioned name. */
   private static final class V6_20261112060000000__Scripted_lag
       extends V6_20261112060000000__Add_tenant_id_to_execution_traces {
 
@@ -946,10 +913,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     return id;
   }
 
-  /**
-   * Inserts a trace carrying enough random filler, beyond {@link #SEED_MESSAGE}, that only a
-   * handful of rows already spans more than one heap page.
-   */
+  /** The filler makes a handful of rows span more than one page. */
   private void seedTrace(String key, String status, String testStatus, String presetTenant)
       throws SQLException {
     execute(
@@ -992,11 +956,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
 
   // -- a connection that records the SQL text of every ad-hoc statement it runs --
 
-  /**
-   * Wraps {@code delegate} so that every {@code Statement.execute*(String)} call made through it
-   * (never through a {@code PreparedStatement}, whose text is already a compile-time constant) is
-   * recorded into {@code statements}, in order, before running on the real connection.
-   */
+  /** Records the text of every {@code Statement.execute*(String)} call into {@code statements}. */
   private static Connection recordingConnection(Connection delegate, List<String> statements) {
     return (Connection)
         Proxy.newProxyInstance(
