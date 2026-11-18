@@ -6,6 +6,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class UserGroupMembershipService {
   private final GroupRepository groupRepository;
   private final UserRepository userRepository;
   private final TenantScopedTransaction tenantScopedTransaction;
+  private final EntityManager entityManager;
 
   /** Adds {@code userId} to {@code groupId}. Returns whether the membership is new. */
   public boolean addMembership(@NotBlank final String userId, @NotBlank final String groupId) {
@@ -56,10 +58,22 @@ public class UserGroupMembershipService {
     return true;
   }
 
+  /**
+   * The group as the database holds it. {@code User.groups} and {@code Group.users} are two
+   * independently-owned bags of the same join table, so a membership written from the user side in
+   * this persistence context is not in the group's members yet, and writing from that stale list
+   * would drop or duplicate it. Pending changes are flushed first, as a refresh discards them.
+   */
   private Group findGroup(String groupId) {
-    return groupRepository
-        .findById(groupId)
-        .orElseThrow(() -> new ElementNotFoundException("Group not found with id: " + groupId));
+    Group group =
+        groupRepository
+            .findById(groupId)
+            .orElseThrow(() -> new ElementNotFoundException("Group not found with id: " + groupId));
+    if (entityManager.contains(group)) {
+      entityManager.flush();
+      entityManager.refresh(group);
+    }
+    return group;
   }
 
   private User findUser(String userId) {
