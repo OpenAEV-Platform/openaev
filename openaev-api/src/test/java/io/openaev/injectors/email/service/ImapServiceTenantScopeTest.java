@@ -25,9 +25,14 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.service.FileService;
 import jakarta.mail.Message;
+import jakarta.mail.Part;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMultipart;
+import jakarta.mail.util.ByteArrayDataSource;
+import java.io.InputStream;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
@@ -378,6 +383,88 @@ class ImapServiceTenantScopeTest {
               + " left at allTenants. Got: "
               + used);
     }
+  }
+
+  @Nested
+  @DisplayName("Attachment upload tenant scope")
+  class AttachmentUploadTenantScope {
+
+    @Test
+    @DisplayName("given_messageWithAttachment_should_uploadUnderInjectTenantNotAmbient")
+    void given_messageWithAttachment_should_uploadUnderInjectTenantNotAmbient() throws Exception {
+      // Arrange
+      String tenantId = "tenant-attachment";
+      String injectId = "1a2b3c4d-5e6f-4789-9abc-def012345678";
+      String messageId = "message-attachment";
+
+      Inject inject = new Inject();
+      inject.setId(injectId);
+      inject.setTenant(new Tenant(tenantId));
+
+      io.openaev.database.model.User participant = new io.openaev.database.model.User();
+      participant.setId("user-attachment");
+      participant.setEmail("participant@acme.test");
+
+      when(injectRepository.findTenantRefById(injectId))
+          .thenReturn(java.util.Optional.of(tenantRef(injectId, tenantId)));
+      when(communicationRepository.existsByIdentifierAndInjectTenantId(messageId, tenantId))
+          .thenReturn(false);
+      when(userRepository.findAllByEmailInIgnoreCaseAndTenantId(anyList(), eq(tenantId)))
+          .thenReturn(List.of(participant));
+      when(injectRepository.findById(injectId)).thenReturn(java.util.Optional.of(inject));
+      when(communicationRepository.save(any(Communication.class)))
+          .thenAnswer(
+              invocation -> {
+                Communication saved = invocation.getArgument(0);
+                saved.setId("comm-attachment-1");
+                return saved;
+              });
+      when(fileService.uploadStream(eq(tenantId), anyString(), anyString(), any(InputStream.class)))
+          .thenReturn("/communications/comm-attachment-1/report.txt");
+
+      Message[] messages =
+          new Message[] {buildMessageWithAttachment(messageId, "[inject_id=" + injectId + "]")};
+
+      // Act
+      ReflectionTestUtils.invokeMethod(imapService, "parseMessages", messages, false);
+
+      // Assert - the object must land under the inject's own tenant, not the job's ambient one
+      // (this background job never sets TenantContext, so the ambient tenant always defaults).
+      verify(fileService)
+          .uploadStream(eq(tenantId), anyString(), anyString(), any(InputStream.class));
+      verify(fileService, never()).uploadStream(anyString(), anyString(), any(InputStream.class));
+    }
+  }
+
+  private MimeMessage buildMessageWithAttachment(String messageId, String body) throws Exception {
+    String participantEmail = "participant@acme.test";
+    Session session = Session.getInstance(new Properties());
+    MimeMessage message = new MimeMessage(session);
+    message.setFrom(new InternetAddress(participantEmail));
+    message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(participantEmail));
+    message.setSentDate(new Date());
+
+    MimeBodyPart textPart = new MimeBodyPart();
+    textPart.setText(body);
+
+    MimeBodyPart attachmentPart = new MimeBodyPart();
+    attachmentPart.setDataHandler(
+        new jakarta.activation.DataHandler(
+            new ByteArrayDataSource("file-content".getBytes(), "text/plain")));
+    attachmentPart.setFileName("report.txt");
+    attachmentPart.setDisposition(Part.ATTACHMENT);
+
+    MimeMultipart multipart = new MimeMultipart("mixed");
+    multipart.addBodyPart(textPart);
+    multipart.addBodyPart(attachmentPart);
+    message.setContent(multipart);
+    message.saveChanges();
+
+    MimeMessage spy = Mockito.spy(message);
+    doReturn(messageId).when(spy).getMessageID();
+    lenient().doReturn(new Date()).when(spy).getSentDate();
+    lenient().doReturn(new Date()).when(spy).getReceivedDate();
+    return spy;
   }
 
   /** The projection the cross-tenant resolve reads, which carries two columns and no entity. */

@@ -56,6 +56,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -69,6 +70,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
@@ -1002,19 +1005,52 @@ public class ExerciseApi extends RestBehavior {
     return communications;
   }
 
+  private static final Pattern COMMUNICATION_ID_IN_ATTACHMENT_PATTERN =
+      Pattern.compile("/communications/([^/]+)/");
+
   @GetMapping("/api/communications/attachment")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   //
   public void downloadAttachment(TxCtx ctx, @RequestParam String file, HttpServletResponse response)
       throws IOException {
+    // The communication id is embedded in the attachment path: a primary-key lookup (bypassing the
+    // Hibernate tenant filter, same as the inject load below), avoiding a scan of every
+    // communication's attachment array. This endpoint has no tenant-prefixed route, so the ambient
+    // TenantContext always falls back to the default tenant; the explicit scope check below
+    // refuses a caller resolving (and downloading) an attachment of a tenant outside its own
+    // authorized scope, whatever tenant the path happens to name.
+    Matcher matcher = COMMUNICATION_ID_IN_ATTACHMENT_PATTERN.matcher(file);
+    if (!matcher.find()) {
+      throw new ElementNotFoundException();
+    }
+    Communication communication =
+        communicationRepository
+            .findById(matcher.group(1))
+            .filter(c -> hasAttachment(c, file))
+            .orElseThrow(ElementNotFoundException::new);
+    String tenantId = communication.getInject().getTenant().getId();
+    if (!TxCtxScopeUtils.requestReadScope(ctx).contains(tenantId)) {
+      throw new ElementNotFoundException();
+    }
+    // Attachments uploaded before the storage path fix (#7961) were written under the default
+    // tenant's prefix regardless of the inject's own tenant: fall back to it for this same
+    // communication's attachment, whose ownership is already checked above.
     FileContainer fileContainer =
-        fileService.getFileContainer(file).orElseThrow(ElementNotFoundException::new);
+        fileService
+            .getFileContainer(tenantId, file)
+            .or(() -> fileService.getFileContainer(Tenant.DEFAULT_TENANT_UUID, file))
+            .orElseThrow(ElementNotFoundException::new);
     response.addHeader(
         HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileContainer.getName());
     response.addHeader(HttpHeaders.CONTENT_TYPE, fileContainer.getContentType());
     response.setStatus(HttpServletResponse.SC_OK);
     fileContainer.getInputStream().transferTo(response.getOutputStream());
+  }
+
+  private static boolean hasAttachment(Communication communication, String file) {
+    String[] attachments = communication.getAttachments();
+    return attachments != null && Arrays.asList(attachments).contains(file);
   }
 
   // endregion
