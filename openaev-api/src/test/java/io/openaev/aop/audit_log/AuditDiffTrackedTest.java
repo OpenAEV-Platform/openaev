@@ -201,7 +201,7 @@ class AuditDiffTrackedTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Group members (LAZY, left unloaded by the load and update snapshots)")
+  @DisplayName("Group members (LAZY, read by the update snapshot only when they change)")
   class GroupMembers {
 
     private record GroupWithMembers(String groupId, List<String> memberIds) {}
@@ -278,24 +278,74 @@ class AuditDiffTrackedTest extends IntegrationTest {
     @DisplayName("given_membersReadDuringAnUpdate_should_notReportAMembersChange")
     void given_membersReadDuringAnUpdate_should_notReportAMembersChange() {
       // Arrange
-      String groupId = groupWithMembers("Updated audited group", 2).groupId();
+      GroupWithMembers group = groupWithMembers("Updated audited group", 2);
 
       // Act — the members are loaded after the before-snapshot, then a field changes
-      Group loaded = entityManager.find(Group.class, groupId);
+      Group loaded = entityManager.find(Group.class, group.groupId());
       assertThat(loaded.getUsers()).hasSize(2);
       loaded.setName("Renamed audited group");
       entityManager.flush();
 
       // Assert
+      AuditLogContext.EntitySnapshot snapshot =
+          AuditLogContext.consumeAllSnapshots().get(group.groupId());
+      assertThat(snapshot.before().get("group_users"))
+          .asInstanceOf(InstanceOfAssertFactories.LIST)
+          .containsExactlyInAnyOrderElementsOf(group.memberIds());
+      assertThat(changedFields(snapshot)).containsExactly("group_name");
+    }
+
+    @Test
+    @DisplayName("given_membersUntouchedDuringAnUpdate_should_leaveThemOutOfTheDiff")
+    void given_membersUntouchedDuringAnUpdate_should_leaveThemOutOfTheDiff() {
+      // Arrange
+      String groupId = groupWithMembers("Untouched audited group", 2).groupId();
+
+      // Act
+      Group loaded = entityManager.find(Group.class, groupId);
+      loaded.setName("Renamed untouched group");
+      entityManager.flush();
+
+      // Assert
       AuditLogContext.EntitySnapshot snapshot = AuditLogContext.consumeAllSnapshots().get(groupId);
-      assertThat(snapshot.before().get("group_users")).isEqualTo(AuditLogContext.NOT_LOADED);
+      assertThat(snapshot.before()).doesNotContainKey("group_users");
+      assertThat(snapshot.after()).doesNotContainKey("group_users");
+      assertThat(changedFields(snapshot)).containsExactly("group_name");
+    }
+
+    @Test
+    @DisplayName("given_membersReplacedWithoutBeingRead_should_diffAgainstTheMembersAtLoad")
+    void given_membersReplacedWithoutBeingRead_should_diffAgainstTheMembersAtLoad() {
+      // Arrange
+      GroupWithMembers group = groupWithMembers("Replaced audited group", 2);
+
+      // Act — the list is replaced without being read first: the update snapshot reads the old one
+      Group loaded = entityManager.find(Group.class, group.groupId());
+      loaded.setUsers(new ArrayList<>());
+      entityManager.flush();
+
+      // Assert
+      AuditLogContext.EntitySnapshot snapshot =
+          AuditLogContext.consumeAllSnapshots().get(group.groupId());
+      assertMembersChange(snapshot, group.memberIds(), List.of());
+    }
+
+    private List<String> changedFields(AuditLogContext.EntitySnapshot snapshot) {
+      return ObjectDiffUtils.computeFieldChanges(snapshot.before(), snapshot.after()).stream()
+          .map(ObjectDiffUtils.FieldChange::field)
+          .toList();
+    }
+
+    private void assertMembersChange(
+        AuditLogContext.EntitySnapshot snapshot, List<String> before, List<String> after) {
+      assertThat(snapshot.operation()).isEqualTo("update");
+      assertThat(changedFields(snapshot)).containsExactly("group_users");
+      assertThat(snapshot.before().get("group_users"))
+          .asInstanceOf(InstanceOfAssertFactories.LIST)
+          .containsExactlyInAnyOrderElementsOf(before);
       assertThat(snapshot.after().get("group_users"))
           .asInstanceOf(InstanceOfAssertFactories.LIST)
-          .hasSize(2);
-      assertThat(
-              ObjectDiffUtils.computeFieldChanges(snapshot.before(), snapshot.after()).stream()
-                  .map(ObjectDiffUtils.FieldChange::field))
-          .containsExactly("group_name");
+          .containsExactlyInAnyOrderElementsOf(after);
     }
   }
 }

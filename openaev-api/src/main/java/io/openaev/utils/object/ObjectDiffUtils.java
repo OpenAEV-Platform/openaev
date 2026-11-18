@@ -56,11 +56,6 @@ public class ObjectDiffUtils {
     Set<String> allKeys = new LinkedHashSet<>(after.keySet());
     allKeys.addAll(before.keySet());
     return allKeys.stream()
-        // A not-loaded collection on either side says nothing about a change.
-        .filter(
-            key ->
-                !AuditLogContext.NOT_LOADED.equals(before.get(key))
-                    && !AuditLogContext.NOT_LOADED.equals(after.get(key)))
         .filter(
             key ->
                 !Objects.equals(

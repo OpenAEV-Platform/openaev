@@ -1,5 +1,6 @@
 package io.openaev.database.audit;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.BeanDescription;
@@ -15,15 +16,20 @@ import io.openaev.config.AuditLogProperties;
 import io.openaev.database.model.Base;
 import jakarta.annotation.Resource;
 import jakarta.persistence.*;
+import java.lang.reflect.Field;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
+import org.hibernate.collection.spi.PersistentCollection;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.ReflectionUtils;
 
 /**
  * JPA entity listener that publishes lifecycle events for database entities.
@@ -93,7 +99,10 @@ public class ModelBaseListener {
     if (instance.getId() == null) return;
     try {
       registerCleanupIfNeeded();
-      AuditLogContext.storeBefore(instance.getId(), buildSnapshot(unloadedSafeMapper(), instance));
+      Map<String, Object> before = buildSnapshot(unloadedSafeMapper(), instance);
+      // Kept unread: the update snapshot reads their members only if the update touches them.
+      before.putAll(notLoadedCollections(instance));
+      AuditLogContext.storeBefore(instance.getId(), before);
     } catch (Exception e) {
       log.error(
           "[AuditDiff] Failed to store before-snapshot for {}: {}",
@@ -138,7 +147,8 @@ public class ModelBaseListener {
    *
    * <p>The "before" state is taken from the {@link AuditLogContext} snapshot captured at
    * {@code @PostLoad} time. If no before-snapshot exists (entity was created in this transaction),
-   * the snapshot is skipped.
+   * the snapshot is skipped. An {@link AuditDiffUnloaded} collection is compared only if the update
+   * loaded or replaced it, against its members at load.
    */
   @PreUpdate
   void preUpdateForDiff(Object base) {
@@ -151,7 +161,10 @@ public class ModelBaseListener {
       AuditLogContext.storeSnapshot(
           instance.getId(),
           new AuditLogContext.EntitySnapshot(
-              instance.getClass().getSimpleName(), "update", before, after));
+              instance.getClass().getSimpleName(),
+              "update",
+              resolveNotLoaded(before, after),
+              after));
     } catch (Exception e) {
       log.error(
           "[AuditDiff] Failed to capture update-snapshot for {}: {}",
@@ -277,7 +290,64 @@ public class ModelBaseListener {
     }
   }
 
-  /** Writes {@link AuditLogContext#NOT_LOADED} instead of loading a not-loaded collection. */
+  /**
+   * The {@link AuditDiffUnloaded} collections of the entity that are not loaded, by JSON name. The
+   * load snapshot keeps them as is, without loading them.
+   */
+  private static Map<String, Object> notLoadedCollections(Base entity) {
+    Map<String, Object> notLoaded = new LinkedHashMap<>();
+    ReflectionUtils.doWithFields(
+        entity.getClass(),
+        field -> {
+          ReflectionUtils.makeAccessible(field);
+          Object value = field.get(entity);
+          if (value != null && !Hibernate.isInitialized(value)) {
+            notLoaded.put(jsonName(field), value);
+          }
+        },
+        field -> field.isAnnotationPresent(AuditDiffUnloaded.class));
+    return notLoaded;
+  }
+
+  private static String jsonName(Field field) {
+    JsonProperty property = field.getAnnotation(JsonProperty.class);
+    return property != null && !property.value().isEmpty() ? property.value() : field.getName();
+  }
+
+  /**
+   * Replaces each collection kept unread by the load snapshot with its member ids at load. Only a
+   * collection the update loaded or replaced reaches the after snapshot; an untouched one is left
+   * out of both sides, so it is never loaded.
+   */
+  private static Map<String, Object> resolveNotLoaded(
+      Map<String, Object> before, Map<String, Object> after) {
+    Map<String, Object> resolved = new LinkedHashMap<>(before);
+    before.forEach(
+        (name, value) -> {
+          if (value instanceof PersistentCollection<?> atLoad) {
+            if (after.containsKey(name)) {
+              resolved.put(name, idsAtLoad(atLoad));
+            } else {
+              resolved.remove(name);
+            }
+          }
+        });
+    return resolved;
+  }
+
+  /**
+   * Member ids of the collection as loaded from the database: its stored snapshot ignores the
+   * changes made since. A collection replaced without being read is loaded here, so only for an
+   * update that replaced it.
+   */
+  private static List<String> idsAtLoad(PersistentCollection<?> atLoad) {
+    Hibernate.initialize(atLoad);
+    Object stored = atLoad.getStoredSnapshot();
+    Collection<?> members = stored instanceof Map<?, ?> map ? map.values() : (Collection<?>) stored;
+    return members.stream().map(member -> ((Base) member).getId()).toList();
+  }
+
+  /** Leaves out a not-loaded collection instead of loading it. */
   private static final class UnloadedWriter extends BeanPropertyWriter {
     UnloadedWriter(BeanPropertyWriter base) {
       super(base);
@@ -288,7 +358,6 @@ public class ModelBaseListener {
         throws Exception {
       Object value = get(bean);
       if (value != null && !Hibernate.isInitialized(value)) {
-        gen.writeStringField(getName(), AuditLogContext.NOT_LOADED);
         return;
       }
       super.serializeAsField(bean, gen, prov);
