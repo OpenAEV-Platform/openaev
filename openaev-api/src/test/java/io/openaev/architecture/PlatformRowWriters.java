@@ -361,10 +361,11 @@ final class PlatformRowWriters {
                   + " tenant row"),
           new TenantRowWriter(
               io.openaev.opencti.connectors.service.LegacyOpenCTIConnectorMigration.class,
-              "deleteLegacyConnectorIfExists",
+              "deleteLegacyConnector",
               List.of(String.class),
               "deletes the legacy pre-multi-tenant connector group by its well-known id, which lives"
-                  + " in the default tenant (DEFAULT_TENANT_UUID): a tenant row"),
+                  + " in the default tenant (DEFAULT_TENANT_UUID), inside its own default-tenant"
+                  + " transaction: a tenant row"),
           new TenantRowWriter(
               io.openaev.processor.datapack.V20260330_Default_tenant_data.class,
               "doProcess",
