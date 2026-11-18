@@ -27,6 +27,18 @@ export const deleteCustomDashboard = (id: string) => {
   return simpleDelCall(`${CUSTOM_DASHBOARD_URI}/${id}`);
 };
 
+// -- USAGE --
+
+export const fetchCustomDashboardUsage = (id: string) => {
+  return simpleCall(`${CUSTOM_DASHBOARD_URI}/${id}/usage`);
+};
+
+// -- STARTER PACK --
+
+export const restoreStarterPackDashboards = () => {
+  return simplePostCall(`${CUSTOM_DASHBOARD_URI}/starter-pack/restore`);
+};
+
 // -- OPTION --
 
 export const searchCustomDashboardAsOptions = (searchText: string = '') => {

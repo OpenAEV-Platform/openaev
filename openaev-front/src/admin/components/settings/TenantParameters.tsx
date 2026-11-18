@@ -24,6 +24,7 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import EEChip from '../common/entreprise_edition/EEChip';
 import { SETTINGS_LABEL } from '../nav/config/settings.config';
 import PlatformInfoPanel from './PlatformInfoPanel';
+import StarterPackDashboardsRestore from './StarterPackDashboardsRestore';
 import TenantParametersForm from './TenantParametersForm';
 import ThemeForm from './ThemeForm';
 import ToolsPanel from './ToolsPanel';
@@ -136,6 +137,9 @@ const TenantParameters = () => {
                 }}
                 canNotManage={cannotManage}
               />
+              {!cannotManage && ability.can(ACTIONS.MANAGE, SUBJECTS.DASHBOARDS) && (
+                <StarterPackDashboardsRestore onRestored={() => dispatch(fetchTenantSettings())} />
+              )}
             </Paper>
           </div>
           <div style={{

@@ -210,6 +210,24 @@ public class ZipJsonService<T extends Base> {
    * as {@link #handleImport}, or {@code null} when the document has no data or no type.
    */
   public String readRootType(byte[] fileBytes) throws IOException {
+    JsonApiDocument<ResourceObject> doc = readRootDocument(fileBytes);
+    return doc != null && doc.data() != null ? doc.data().type() : null;
+  }
+
+  /**
+   * Returns the root attribute {@code key} of the JSON:API document of the archive, read without
+   * importing anything (for instance the name of a bundled dashboard), or {@code null} when the
+   * document, its data or the attribute is absent.
+   */
+  public Object readRootAttribute(byte[] fileBytes, String key) throws IOException {
+    JsonApiDocument<ResourceObject> doc = readRootDocument(fileBytes);
+    if (doc == null || doc.data() == null || doc.data().attributes() == null) {
+      return null;
+    }
+    return doc.data().attributes().get(key);
+  }
+
+  private JsonApiDocument<ResourceObject> readRootDocument(byte[] fileBytes) throws IOException {
     // Read only the JSON:API document entries to resolve the root type, without materializing the
     // attachments: import dispatch reads the root type before handleImport parses the whole archive
     // again, and a full readZip here would decompress and buffer every attachment a second time.
@@ -219,13 +237,11 @@ public class ZipJsonService<T extends Base> {
       ZipEntry entry;
       while ((entry = zis.getNextEntry()) != null) {
         if (isDocumentEntry(entry)) {
-          JsonApiDocument<ResourceObject> doc =
-              mapper.readValue(
-                  readAll(zis),
-                  mapper
-                      .getTypeFactory()
-                      .constructParametricType(JsonApiDocument.class, ResourceObject.class));
-          return doc.data() != null ? doc.data().type() : null;
+          return mapper.readValue(
+              readAll(zis),
+              mapper
+                  .getTypeFactory()
+                  .constructParametricType(JsonApiDocument.class, ResourceObject.class));
         }
         zis.closeEntry();
       }

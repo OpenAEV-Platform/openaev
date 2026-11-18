@@ -568,6 +568,8 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#customDashboard",
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#updateCustomDashboard",
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#deleteCustomDashboard",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#customDashboardUsage",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#restoreStarterPackDashboards",
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#optionsByName",
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#optionsById",
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#optionsByResourceId",

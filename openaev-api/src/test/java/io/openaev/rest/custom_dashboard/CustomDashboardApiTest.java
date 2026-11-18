@@ -5,6 +5,8 @@ import static io.openaev.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOA
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.CustomDashboardFixture.NAME;
 import static io.openaev.utils.fixtures.CustomDashboardFixture.createDefaultCustomDashboard;
+import static io.openaev.utils.fixtures.ExerciseFixture.createDefaultExercise;
+import static io.openaev.utils.fixtures.ScenarioFixture.createDefaultIncidentResponseScenario;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -15,13 +17,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboard;
+import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.CustomDashboardRepository;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.rest.custom_dashboard.form.CustomDashboardInput;
 import io.openaev.utils.fixtures.composers.CustomDashboardComposer;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
+import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -38,6 +45,40 @@ class CustomDashboardApiTest extends IntegrationTest {
   @Autowired private CustomDashboardRepository repository;
   @Autowired private CustomDashboardComposer customDashboardComposer;
   @Autowired private SettingRepository settingRepository;
+  @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
+
+  private static final List<String> STARTER_PACK_DASHBOARD_NAMES =
+      List.of(
+          "Tabletop Exercice home",
+          "Tabletop Exercice scenario",
+          "Tabletop Exercice simulation",
+          "Technical home",
+          "Technical scenario",
+          "Technical simulation");
+
+  private void setTenantSetting(String key, String value) {
+    String tenantId = TenantContext.getCurrentTenant();
+    Setting setting =
+        settingRepository
+            .findByKeyAndTenantId(key, tenantId)
+            .orElseGet(
+                () -> {
+                  Setting created = new Setting();
+                  created.setKey(key);
+                  created.setTenant(new Tenant(tenantId));
+                  return created;
+                });
+    setting.setValue(value);
+    settingRepository.save(setting);
+  }
+
+  private String tenantSettingValue(String key) {
+    return settingRepository
+        .findByKeyAndTenantId(key, TenantContext.getCurrentTenant())
+        .map(Setting::getValue)
+        .orElse("");
+  }
 
   CustomDashboardComposer.Composer createCustomDashboardComposer() {
     return this.customDashboardComposer
@@ -222,6 +263,115 @@ class CustomDashboardApiTest extends IntegrationTest {
               .findByKeyAndTenantId(TENANT_SIMULATION_DASHBOARD.key(), tenantId)
               .orElseThrow();
       assertThat(defaultSimulationDashboardSetting.getValue()).isEmpty();
+    }
+  }
+
+  @Nested
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  @DisplayName("Custom dashboard usage")
+  class Usage {
+    @Test
+    void given_dashboard_used_by_scenarios_simulations_and_defaults_should_count_each()
+        throws Exception {
+      // -- PREPARE --
+      CustomDashboard dashboard = createCustomDashboardComposer().get();
+      Tenant tenant = new Tenant(TenantContext.getCurrentTenant());
+      for (int i = 0; i < 2; i++) {
+        Scenario scenario = createDefaultIncidentResponseScenario();
+        scenario.setTenant(tenant);
+        scenario.setCustomDashboard(dashboard);
+        scenarioComposer.forScenario(scenario).persist();
+      }
+      Exercise exercise = createDefaultExercise();
+      exercise.setTenant(tenant);
+      exercise.setCustomDashboard(dashboard);
+      exerciseComposer.forExercise(exercise).persist();
+      setTenantSetting(TENANT_SIMULATION_DASHBOARD.key(), dashboard.getId());
+
+      // -- EXECUTE & ASSERT --
+      mockMvc
+          .perform(get(CUSTOM_DASHBOARDS_URI + "/" + dashboard.getId() + "/usage").with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.custom_dashboard_id").value(dashboard.getId()))
+          .andExpect(jsonPath("$.scenarios_count").value(2))
+          .andExpect(jsonPath("$.simulations_count").value(1))
+          .andExpect(jsonPath("$.default_home_dashboard").value(false))
+          .andExpect(jsonPath("$.default_scenario_dashboard").value(false))
+          .andExpect(jsonPath("$.default_simulation_dashboard").value(true));
+    }
+
+    @Test
+    void given_unused_dashboard_should_report_no_usage() throws Exception {
+      // -- PREPARE --
+      CustomDashboard dashboard = createCustomDashboardComposer().get();
+
+      // -- EXECUTE & ASSERT --
+      mockMvc
+          .perform(get(CUSTOM_DASHBOARDS_URI + "/" + dashboard.getId() + "/usage").with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.scenarios_count").value(0))
+          .andExpect(jsonPath("$.simulations_count").value(0))
+          .andExpect(jsonPath("$.default_home_dashboard").value(false))
+          .andExpect(jsonPath("$.default_scenario_dashboard").value(false))
+          .andExpect(jsonPath("$.default_simulation_dashboard").value(false));
+    }
+  }
+
+  @Nested
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  @DisplayName("Restoring the starter-pack dashboards")
+  class RestoreStarterPack {
+    @Test
+    void given_starter_pack_dashboards_deleted_should_restore_them_once_with_their_names()
+        throws Exception {
+      // -- PREPARE: none of the starter-pack dashboards exists, defaults are empty --
+      STARTER_PACK_DASHBOARD_NAMES.forEach(
+          name -> repository.findByName(name).ifPresent(repository::delete));
+      setTenantSetting(TENANT_SCENARIO_DASHBOARD.key(), "");
+      setTenantSetting(TENANT_SIMULATION_DASHBOARD.key(), "");
+
+      // -- EXECUTE & ASSERT: the first run creates the six dashboards and sets the defaults --
+      mockMvc
+          .perform(post(CUSTOM_DASHBOARDS_URI + "/starter-pack/restore").with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.restored_dashboards.length()").value(6))
+          .andExpect(jsonPath("$.existing_dashboards.length()").value(0))
+          .andExpect(jsonPath("$.defaults_set.length()").value(2));
+
+      STARTER_PACK_DASHBOARD_NAMES.forEach(
+          name -> assertThat(repository.findByName(name)).as(name).isPresent());
+      assertThat(tenantSettingValue(TENANT_SCENARIO_DASHBOARD.key()))
+          .isEqualTo(repository.findByName("Technical scenario").orElseThrow().getId());
+      assertThat(tenantSettingValue(TENANT_SIMULATION_DASHBOARD.key()))
+          .isEqualTo(repository.findByName("Technical simulation").orElseThrow().getId());
+
+      // -- EXECUTE & ASSERT: a second run creates nothing and changes no default --
+      long dashboardsAfterFirstRun = repository.count();
+      mockMvc
+          .perform(post(CUSTOM_DASHBOARDS_URI + "/starter-pack/restore").with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.restored_dashboards.length()").value(0))
+          .andExpect(jsonPath("$.existing_dashboards.length()").value(6))
+          .andExpect(jsonPath("$.defaults_set.length()").value(0));
+      assertThat(repository.count()).isEqualTo(dashboardsAfterFirstRun);
+    }
+
+    @Test
+    void given_defaults_already_set_should_keep_them() throws Exception {
+      // -- PREPARE --
+      CustomDashboard custom = createCustomDashboardComposer().get();
+      setTenantSetting(TENANT_SCENARIO_DASHBOARD.key(), custom.getId());
+      setTenantSetting(TENANT_SIMULATION_DASHBOARD.key(), custom.getId());
+
+      // -- EXECUTE --
+      mockMvc
+          .perform(post(CUSTOM_DASHBOARDS_URI + "/starter-pack/restore").with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.defaults_set.length()").value(0));
+
+      // -- ASSERT --
+      assertThat(tenantSettingValue(TENANT_SCENARIO_DASHBOARD.key())).isEqualTo(custom.getId());
+      assertThat(tenantSettingValue(TENANT_SIMULATION_DASHBOARD.key())).isEqualTo(custom.getId());
     }
   }
 }
