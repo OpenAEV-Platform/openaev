@@ -47,8 +47,7 @@ public class CounterpartService {
 
   public CounterpartService(List<CounterpartProvider> providers) {
     this.providers = List.copyOf(providers);
-    this.cache =
-        Caffeine.newBuilder().expireAfterWrite(CACHE_TTL).maximumSize(50_000).build();
+    this.cache = Caffeine.newBuilder().expireAfterWrite(CACHE_TTL).maximumSize(50_000).build();
   }
 
   public List<Connection> connections(String tenantId) {

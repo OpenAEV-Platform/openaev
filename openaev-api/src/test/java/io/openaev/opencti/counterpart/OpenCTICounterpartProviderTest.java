@@ -63,8 +63,7 @@ class OpenCTICounterpartProviderTest {
     assertThat(vars.path("filters").path("mode").asText()).isEqualTo("or");
     assertThat(groups).hasSize(2);
     assertThat(groups.get(1).path("filters").get(0).path("values")).hasSize(4);
-    assertThat(groups.get(1).path("filters").get(1).path("key").get(0).asText())
-        .isEqualTo("value");
+    assertThat(groups.get(1).path("filters").get(1).path("key").get(0).asText()).isEqualTo("value");
   }
 
   @Test

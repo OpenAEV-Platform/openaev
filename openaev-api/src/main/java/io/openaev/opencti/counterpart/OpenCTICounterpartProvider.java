@@ -158,8 +158,7 @@ public class OpenCTICounterpartProvider implements CounterpartProvider {
     return switch (kind) {
       case ATTACK_PATTERN -> List.of(node.path("x_mitre_id").asText(""));
       case VULNERABILITY -> List.of(node.path("name").asText(""));
-      case ASSET ->
-          List.of(node.path("name").asText(""), node.path("observable_value").asText(""));
+      case ASSET -> List.of(node.path("name").asText(""), node.path("observable_value").asText(""));
       case THREAT -> List.of(node.path("id").asText(""), node.path("standard_id").asText(""));
     };
   }
