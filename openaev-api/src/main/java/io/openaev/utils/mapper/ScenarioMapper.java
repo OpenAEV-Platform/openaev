@@ -1,8 +1,8 @@
 package io.openaev.utils.mapper;
 
+import io.openaev.api.users.dto.UserSimple;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawScenario;
-import io.openaev.rest.atomic_testing.form.UserSimple;
 import io.openaev.rest.document.form.RelatedEntityOutput;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.openaev.rest.scenario.form.ScenarioSimple;

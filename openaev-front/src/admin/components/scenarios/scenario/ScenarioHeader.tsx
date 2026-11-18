@@ -205,7 +205,7 @@ const ScenarioHeader = ({
     if (scheduledById && scheduledById !== scenario.scenario_scheduled_by_user?.user_id) {
       dispatch(fetchScenario(scenarioId));
     }
-  }, [scheduledById]);
+  }, [dispatch, scenarioId, scheduledById, scenario.scenario_scheduled_by_user?.user_id]);
   const isScenarioChaining = !!scenarioWorkflowId;
   const canOpenConfiguration = canManage && !isScenarioChaining;
 

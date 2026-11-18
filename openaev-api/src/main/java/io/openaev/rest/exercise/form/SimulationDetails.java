@@ -4,13 +4,13 @@ import static io.openaev.database.model.ExerciseStatus.valueOf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.api.users.dto.UserSimple;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.ExerciseTeamUser;
 import io.openaev.database.model.KillChainPhase;
 import io.openaev.database.model.Objective;
 import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.database.raw.RawSimulationIndexing;
-import io.openaev.rest.atomic_testing.form.UserSimple;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

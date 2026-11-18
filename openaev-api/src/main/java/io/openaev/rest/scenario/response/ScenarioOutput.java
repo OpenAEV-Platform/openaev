@@ -1,7 +1,7 @@
 package io.openaev.rest.scenario.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.rest.atomic_testing.form.UserSimple;
+import io.openaev.api.users.dto.UserSimple;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;

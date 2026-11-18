@@ -1,4 +1,4 @@
-package io.openaev.rest.atomic_testing.form;
+package io.openaev.api.users.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;

@@ -425,7 +425,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
     if (launchedById && launchedById !== exercise.exercise_launched_by_user?.user_id) {
       dispatch(fetchExercise(exerciseId));
     }
-  }, [launchedById]);
+  }, [dispatch, exerciseId, launchedById, exercise.exercise_launched_by_user?.user_id]);
 
   const injectsCount = injects?.length ?? 0;
   // Teams and articles are counted from their dedicated list fetches for the
