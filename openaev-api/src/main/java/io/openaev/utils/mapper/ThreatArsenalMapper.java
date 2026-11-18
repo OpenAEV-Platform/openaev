@@ -86,6 +86,7 @@ public class ThreatArsenalMapper {
       authorName = authorOrganization.getName();
       authorType = "organization";
     }
+    Payload payload = injectorContract.getPayload();
     return ThreatArsenalAction.builder()
         .id(injectorContract.getId())
         .labels(injectorContract.getLabels())
@@ -95,7 +96,10 @@ public class ThreatArsenalMapper {
         .platforms(injectorContract.getPlatforms())
         .tags(injectorContract.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
         .updatedAt(injectorContract.getUpdatedAt())
-        .payload(payloadMapper.toPayloadSimple(Optional.ofNullable(injectorContract.getPayload())))
+        .payload(payloadMapper.toPayloadSimple(Optional.ofNullable(payload)))
+        .payloadVersion(payload != null ? payload.getVersion() : null)
+        .payloadManaged(payload != null ? payload.isManaged() : null)
+        .payloadRevoked(payload != null ? payload.isRevoked() : null)
         .authorId(authorId)
         .authorName(authorName)
         .authorType(authorType)

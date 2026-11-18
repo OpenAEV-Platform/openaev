@@ -21,6 +21,7 @@ import { isNotEmptyField } from '../../../../../utils/utils';
 import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import InjectIcon from '../../../common/injects/InjectIcon';
 import InjectExpectationContext from '../context/InjectExpectationContext';
+import { hasCollectorTraces, traceWording } from './expectationTraceLabels';
 import StatusPill from './StatusPill';
 import TargetResultAlertNumber from './TargetResultAlertNumber';
 import useExpectationSourceLogo from './useExpectationSourceLogo';
@@ -68,6 +69,7 @@ const InjectExpectationResultList = ({
   const { nsdt, t } = useFormatter();
   const theme = useTheme();
   const navigate = useNavigate();
+  const wording = traceWording(injectExpectation.inject_expectation_type);
 
   const renderBreakdownTooltip = (entries: AgentResultBreakdownEntry[]) => (
     <Box sx={{
@@ -195,8 +197,8 @@ const InjectExpectationResultList = ({
           <Typography sx={headerSx}>{t('Security platforms')}</Typography>
           <Typography sx={headerSx}>{t('Type')}</Typography>
           <Typography sx={headerSx}>{t('Status')}</Typography>
-          <Typography sx={headerSx}>{t('Detection time')}</Typography>
-          <Typography sx={headerSx}>{t('Alerts')}</Typography>
+          <Typography sx={headerSx}>{t(wording.timeColumn)}</Typography>
+          <Typography sx={headerSx}>{t(wording.column)}</Typography>
           <span aria-hidden />
         </Box>
 
@@ -205,16 +207,16 @@ const InjectExpectationResultList = ({
           // ExpectationType says "Partially vulnerable", the frontend status map "Partially
           // Vulnerable"), so match them case-insensitively.
           const resultLabel = expectationResult.result?.toLowerCase();
-          const showDetectionTime = resultLabel === 'prevented' || resultLabel === 'detected' || resultLabel === 'success'
+          const showDetectionTime = hasCollectorTraces(resultLabel) || resultLabel === 'success'
             // Vulnerability verdicts (e.g. written by a scanner platform like Nuclei) carry the scan time.
             || resultLabel === 'not vulnerable' || resultLabel === 'vulnerable' || resultLabel === 'partially vulnerable';
-          // Alerts apply to a collector result that detected/prevented. They render either
-          // for a per-agent row (injectExpectationAgent set) or for the aggregated endpoint
-          // row, where the backend rolls the child agents' traces up onto the asset
-          // expectation id. Anything else (no collector match, non-collector source) shows a dash.
+          // Alerts (log events for Logging) apply to a collector result that prevented, detected
+          // or logged. They render either for a per-agent row (injectExpectationAgent set) or for
+          // the aggregated endpoint row, where the backend rolls the child agents' traces up onto
+          // the asset expectation id. Anything else (no collector match, non-collector source) shows a dash.
           const alertsApplicable = !!expectationResult.sourceId
             && expectationResult.sourceType === 'collector'
-            && (resultLabel === 'prevented' || resultLabel === 'detected');
+            && hasCollectorTraces(resultLabel);
           const alertsInScope = !!injectExpectationAgent || aggregateAgentAlerts;
           const showAlerts = alertsApplicable && alertsInScope;
           const showAlertsDash = !showAlerts;
@@ -347,6 +349,7 @@ const InjectExpectationResultList = ({
                   <TargetResultAlertNumber
                     expectationResult={expectationResult}
                     injectExpectationId={injectExpectation.inject_expectation_id}
+                    showLabel={t(wording.show)}
                     onShowAlerts={() => onOpenAlertsDialog(expectationResult, injectExpectation)}
                   />
                 )}

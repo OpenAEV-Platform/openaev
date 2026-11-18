@@ -28,6 +28,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
+import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -1777,6 +1778,90 @@ public class ThreatArsenalApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(updateInput)))
           .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Updating an action that keeps a name another payload also uses should succeed")
+    void given_unchangedNameSharedWithAnotherPayload_should_updateAction() throws Exception {
+      // Arrange
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput createInput =
+          ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(domain.getId()));
+      String actionId = createAction(createInput);
+      persistPayloadNamed(createInput.name());
+
+      // Act & Assert
+      mvc.perform(
+              put(THREAT_ARSENAL_URI + "/" + actionId)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(updateInputNamed(createInput.name(), domain))))
+          .andExpect(status().is2xxSuccessful());
+    }
+
+    @Test
+    @DisplayName("Renaming an action to the name of another payload should fail")
+    void given_nameOfAnotherPayload_should_returnBadRequest() throws Exception {
+      // Arrange
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      String actionId =
+          createAction(
+              ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(domain.getId())));
+      String takenName = persistPayloadNamed("Name taken by another payload").getName();
+
+      // Act & Assert
+      mvc.perform(
+              put(THREAT_ARSENAL_URI + "/" + actionId)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(updateInputNamed(takenName, domain))))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(PayloadService.PAYLOAD_NAME_TAKEN));
+    }
+
+    private String createAction(ThreatArsenalActionCreateInput createInput) throws Exception {
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(createInput)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      return JsonPath.read(response, "$.injector_contract_id");
+    }
+
+    // Saved without the name check, as a catalogue install does.
+    private Payload persistPayloadNamed(String name) {
+      Payload payload = PayloadFixture.createDefaultCommand();
+      payload.setName(name);
+      return payloadComposer.forPayload(payload).persist().get();
+    }
+
+    private ThreatArsenalActionUpdateInput updateInputNamed(String name, Domain domain) {
+      return new ThreatArsenalActionUpdateInput(
+          name,
+          new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+          "This does something, maybe",
+          "bash",
+          "echo hello",
+          Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+          new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+          Collections.emptyMap(),
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          Collections.emptyList(),
+          Collections.emptyList(),
+          null,
+          null,
+          List.of(domain.getId()));
     }
   }
 

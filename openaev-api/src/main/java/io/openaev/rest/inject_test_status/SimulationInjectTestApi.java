@@ -17,6 +17,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.output.InjectTestStatusOutput;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.SimulationInjectService;
 import io.openaev.service.InjectTestStatusService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,6 +37,7 @@ public class SimulationInjectTestApi extends RestBehavior {
 
   private final InjectTestStatusService injectTestStatusService;
   private final InjectService injectService;
+  private final SimulationInjectService simulationInjectService;
 
   /**
    * @deprecated since 1.16.0, forRemoval = true
@@ -91,6 +93,7 @@ public class SimulationInjectTestApi extends RestBehavior {
       @PathVariable @NotBlank String simulationId,
       @PathVariable @NotBlank String injectId)
       throws Exception {
+    simulationInjectService.requireInjectInSimulation(ctx, simulationId, injectId);
     return injectTestStatusService.testInject(injectId);
   }
 
@@ -119,7 +122,7 @@ public class SimulationInjectTestApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public void deleteInjectTest(
       TxCtx ctx, @PathVariable @NotBlank String simulationId, @PathVariable String testId) {
-    injectTestStatusService.deleteInjectTest(testId);
+    injectTestStatusService.deleteInjectTestOfSimulation(simulationId, testId);
   }
 
   @Operation(

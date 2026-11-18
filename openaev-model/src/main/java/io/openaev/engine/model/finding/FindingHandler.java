@@ -85,6 +85,8 @@ public class FindingHandler implements Handler<EsFinding> {
     esFinding.setBase_inject_side(orEmpty(finding.getInject_ids()));
     esFinding.setBase_simulation_side(orEmpty(finding.getSimulation_ids()));
     esFinding.setBase_scenario_side(orEmpty(finding.getScenario_ids()));
+    // A side, not a dependency: deleting an asset group leaves the finding in place.
+    esFinding.setBase_asset_groups_side(orEmpty(finding.getAsset_group_ids()));
     if (!isEmpty(finding.getAsset_ids())) {
       dependencies.addAll(finding.getAsset_ids());
       esFinding.setBase_endpoint_side(finding.getAsset_ids());

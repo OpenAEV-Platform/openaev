@@ -265,6 +265,8 @@ public class ThreatArsenalService {
    */
   @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction create(TxCtx ctx, ThreatArsenalActionCreateInput actionInput) {
+    payloadService.assertNameAvailable(
+        writeScopeResolver.tenantForWrite(ctx, null), actionInput.name(), null);
     PayloadCreateInput payloadCreateInput =
         convertActionCreateInputToPayloadCreateInput(actionInput);
     PayloadCreationService.PayloadInjectorContractCreationResult result =
@@ -306,6 +308,8 @@ public class ThreatArsenalService {
     if (actionInput.expectations() == null) {
       throw new BadRequestException("action_expectations is required for payload-based actions");
     }
+    Payload payload = injectorContract.getPayload();
+    payloadService.assertRenameAvailable(payload, actionInput.name());
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);
     // update payload using the resolved payload ID
@@ -435,14 +439,8 @@ public class ThreatArsenalService {
       Specification<InjectorContract> baseSpecification,
       ProvidingFilterSpecificationBuilder.ProvidingFilterContext providingFilterContext,
       Specification<InjectorContract> searchSpecification) {
-    if (!providingFilterContext.hasProvidingFilters()) {
-      return baseSpecification;
-    }
-    if (providingFilterContext.mode() == io.openaev.database.model.Filters.FilterMode.or
-        && providingFilterContext.hasRemainingFilters()) {
-      return baseSpecification.or(providingFilterContext.specification().and(searchSpecification));
-    }
-    return baseSpecification.and(providingFilterContext.specification());
+    return providingFilterSpecificationBuilder.combine(
+        baseSpecification, providingFilterContext, searchSpecification);
   }
 
   /**

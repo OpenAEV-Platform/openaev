@@ -18,6 +18,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.service.period.RecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
@@ -77,6 +78,7 @@ public class AtomicTestingService {
   private final InjectUtils injectUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+  private final RecurrenceService recurrenceService;
 
   // -- CRUD --
 
@@ -357,6 +359,10 @@ public class AtomicTestingService {
         (input.getRecurrence() == null || input.getRecurrence().isBlank())
             ? null
             : input.getRecurrence().trim();
+    // Refuse an expression the scheduler could never fire (a Unix 5-field cron, a Quartz cron
+    // with a year...) before any gate or write: it would otherwise be stored, answered 200, and
+    // silently never run.
+    recurrenceService.validateExpression(recurrence);
     // Scheduling itself is a Community Edition feature, but the Enterprise executor gate still
     // applies: without it, scheduling would bypass the licence check enforced on manual launches
     // (scheduled executions deliberately skip the gate at run time). A recurrence with a null
