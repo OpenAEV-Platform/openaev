@@ -602,4 +602,10 @@ class ImportMapperActivationConfigTest {
   void prodConfigActivatesRoles() throws Exception {
     assertActiveTableEntry("roles");
   }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains groups")
+  void prodConfigActivatesGroups() throws Exception {
+    assertActiveTableEntry("groups");
+  }
 }
