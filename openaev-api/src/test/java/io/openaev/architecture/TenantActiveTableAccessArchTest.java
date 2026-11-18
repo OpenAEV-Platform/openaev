@@ -418,6 +418,9 @@ class TenantActiveTableAccessArchTest {
     // SSO group mapping and the user-side group reads: reads by name/id, the platform-group create
     // wrapped in executeNewAsPlatformWrite, the tenant-group create through TenantGroupService:
     io.openaev.service.UserService.class,
+    // Adds or removes one users_groups row from the group side, by (user, group) id: the group is
+    // looked up by id and the row write is bounded to that one group's own rows:
+    io.openaev.service.UserGroupMembershipService.class,
     // Resolves a notification trigger's recipient group ids inside the TxCtx-scoped
     // NotificationTriggerApi transaction; the inspector scopes the lookup:
     NotificationTriggerMapper.class,
