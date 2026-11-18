@@ -1342,7 +1342,7 @@ public class InjectorContractApiTest extends ProductionTablesIntegrationTest {
       private InjectorContract nativeReportContract;
 
       @BeforeEach
-      void seed() {
+      void seed() throws Exception {
         // A contract without payload declaring its outputs in its content, as a native injector
         // (a network scanner) registers it.
         nativePortContract =
