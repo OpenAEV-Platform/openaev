@@ -324,6 +324,115 @@ class GraphExplorationServiceTest extends IntegrationTest {
     assertThat(edgeTypes(out)).contains(GraphEdgeType.IDENTITY_OF);
   }
 
+  private void insertStep(String sourceId, String targetId, String prevention) {
+    entityManager
+        .createNativeQuery(
+            "INSERT INTO attackpath_execution (attackpath_execution_id, tenant_id,"
+                + " attackpath_execution_simulation_id, attackpath_execution_source_kind,"
+                + " attackpath_execution_source_asset_id, attackpath_execution_target_kind,"
+                + " attackpath_execution_target_asset_id, attackpath_execution_target_key,"
+                + " attackpath_execution_executed_at, attackpath_execution_row_version,"
+                + " attackpath_execution_prevention_status)"
+                + " VALUES (:id, :tenant, :sim, 'AGENT', :src, 'ASSET', :tgt, :tgt, now(), 0, :p)")
+        .setParameter("id", UUID.randomUUID().toString())
+        .setParameter("tenant", tenant)
+        .setParameter("sim", x.getId())
+        .setParameter("src", sourceId)
+        .setParameter("tgt", targetId)
+        .setParameter("p", prevention)
+        .executeUpdate();
+  }
+
+  @Test
+  @DisplayName(
+      "an attack-path step is an ATTACK_STEP edge from both assets and from its simulation")
+  void attackStepsFromAssetAndSimulation() {
+    scopeToAmbientTenant();
+    insertStep(e1.getId(), e2.getId(), "Not Prevented");
+    String from = id(GraphNodeType.ASSET, e1.getId());
+    String to = id(GraphNodeType.ASSET, e2.getId());
+
+    for (String focus : List.of(e1.getId(), e2.getId())) {
+      GraphOutput out =
+          service.neighbourhood(
+              scope,
+              GraphNodeType.ASSET,
+              focus,
+              Set.of(GraphEdgeType.ATTACK_STEP),
+              50,
+              GraphVisibility.ALL);
+      assertThat(out.edges())
+          .singleElement()
+          .satisfies(
+              e -> {
+                assertThat(e.edgeType()).isEqualTo(GraphEdgeType.ATTACK_STEP);
+                assertThat(e.source()).isEqualTo(from);
+                assertThat(e.target()).isEqualTo(to);
+              });
+    }
+
+    GraphOutput simulation =
+        service.neighbourhood(
+            scope,
+            GraphNodeType.SIMULATION,
+            x.getId(),
+            Set.of(GraphEdgeType.ATTACK_STEP),
+            50,
+            GraphVisibility.ALL);
+    assertThat(nodeIds(simulation)).contains(from, to);
+    assertThat(edgeTypes(simulation)).contains(GraphEdgeType.ATTACK_STEP);
+  }
+
+  @Test
+  @DisplayName("a step drawn only by a simulation the caller cannot read is dropped")
+  void attackStepGatedBySimulation() {
+    scopeToAmbientTenant();
+    insertStep(e1.getId(), e2.getId(), "Prevented");
+
+    GraphOutput hidden =
+        service.neighbourhood(
+            scope,
+            GraphNodeType.ASSET,
+            e1.getId(),
+            Set.of(GraphEdgeType.ATTACK_STEP),
+            50,
+            visibility(false, true, true));
+
+    assertThat(hidden.edges()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("asset links and steps are invisible from a tenant scope that does not hold them")
+  void linksAndStepsStayInTheirTenant() {
+    scopeToAmbientTenant();
+    linkAssets(e2.getId(), e1.getId(), "RUNS_ON");
+    insertStep(e1.getId(), e2.getId(), "Not Prevented");
+    List<String> otherTenant = List.of(UUID.randomUUID().toString());
+
+    GraphOutput out =
+        service.neighbourhood(
+            otherTenant,
+            GraphNodeType.ASSET,
+            e1.getId(),
+            Set.of(GraphEdgeType.LINKED_TO, GraphEdgeType.ATTACK_STEP),
+            50,
+            GraphVisibility.ALL);
+
+    assertThat(out.nodes()).isEmpty();
+    assertThat(out.edges()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("the landing ring carries the attack-path steps between hot assets")
+  void hotPathsCarryAttackSteps() {
+    scopeToAmbientTenant();
+    insertStep(e1.getId(), e2.getId(), "Not Prevented");
+
+    GraphOutput out = service.hotPaths(scope, 15, GraphVisibility.ALL);
+
+    assertThat(edgeTypes(out)).contains(GraphEdgeType.ATTACK_STEP);
+  }
+
   private static GraphVisibility noPeople() {
     return new GraphVisibility() {
       @Override

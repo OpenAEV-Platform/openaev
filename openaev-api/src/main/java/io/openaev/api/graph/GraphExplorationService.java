@@ -225,6 +225,10 @@ public class GraphExplorationService {
   /**
    * The landing view, "exposure hot paths": the assets carrying the most failed expectations, the
    * injects that failed on them, their asset groups and their findings. Risk first, and small.
+   *
+   * <p>#9447: the ring also carries the attack-path steps that leave or reach each hot asset and
+   * the person the asset is the identity of, so the landing shows how an exposed asset chains to
+   * the next one and whose account it is, not only what failed on it. Both stay capped per asset.
    */
   public GraphOutput hotPaths(Collection<String> tenantIds, int limit, GraphVisibility visibility) {
     int cap = Math.min(clamp(limit), 25);
@@ -247,7 +251,12 @@ public class GraphExplorationService {
       String assetId = (String) r[0];
       slice.node(GraphNodeType.ASSET, assetId, (String) r[1], (String) r[2]);
       Set<GraphEdgeType> ring =
-          Set.of(GraphEdgeType.MEMBER_OF, GraphEdgeType.FOUND_ON, GraphEdgeType.TARGETS);
+          Set.of(
+              GraphEdgeType.MEMBER_OF,
+              GraphEdgeType.FOUND_ON,
+              GraphEdgeType.TARGETS,
+              GraphEdgeType.ATTACK_STEP,
+              GraphEdgeType.IDENTITY_OF);
       expand(slice, tenantIds, GraphNodeType.ASSET, assetId, ring, 5);
     }
     return slice.build(null, gate(tenantIds, visibility), List.of());
