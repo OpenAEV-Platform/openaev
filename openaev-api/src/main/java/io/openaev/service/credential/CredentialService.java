@@ -286,11 +286,13 @@ public class CredentialService {
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("azure_authority_host_uri")
+                    .endpoint(true)
                     .fieldType(CredentialContractFieldType.text)
                     .required(false)
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("azure_scope")
+                    .endpoint(true)
                     .fieldType(CredentialContractFieldType.text)
                     .required(false)
                     .build(),

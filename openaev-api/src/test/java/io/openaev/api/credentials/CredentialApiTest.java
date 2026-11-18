@@ -131,12 +131,23 @@ class CredentialApiTest extends IntegrationTest {
       assertThat(keyFieldTypes).containsExactly("file");
     }
 
+    private static final Set<String> ENDPOINT_FIELDS =
+        Set.of(
+            "aws_endpoint_url",
+            "azure_authority_host_uri",
+            "azure_scope",
+            "gcp_custom_resource_manager_uri",
+            "gcp_custom_projects_uri",
+            "gcp_custom_token_uri",
+            "gcp_custom_iam_uri");
+
     static Stream<Arguments> sovereignCloudFields() {
       Map<String, String> aws = new LinkedHashMap<>();
       aws.put("aws_account_id", "text");
       aws.put("aws_endpoint_url", "text");
       Map<String, String> azure = new LinkedHashMap<>();
       azure.put("azure_authority_host_uri", "text");
+      azure.put("azure_scope", "text");
       azure.put("azure_requests_certificate", "file");
       Map<String, String> gcpServiceAccount = new LinkedHashMap<>();
       gcpServiceAccount.put("gcp_custom_resource_manager_uri", "text");
@@ -191,6 +202,10 @@ class CredentialApiTest extends IntegrationTest {
             List<Boolean> required = JsonPath.read(response, fieldPath + ".required");
             assertThat(types).as(fieldName).containsExactly(fieldType);
             assertThat(required).as(fieldName).containsExactly(false);
+            // Every field holding a URL, URI, authority host or scope is an endpoint, whichever
+            // auth method declares it.
+            List<Boolean> endpoint = JsonPath.read(response, fieldPath + ".endpoint");
+            assertThat(endpoint).as(fieldName).containsExactly(ENDPOINT_FIELDS.contains(fieldName));
           });
     }
 
