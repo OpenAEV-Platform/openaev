@@ -380,11 +380,8 @@ final class PlatformRowWriters {
 
   /**
    * {@code groups} is dual-scope like {@code roles}: a platform group ({@code tenant_id IS NULL})
-   * is readable under any scope and written only inside a platform-write transaction. Prepared
-   * ahead of the activation that arms {@code groups}: the table is not in {@code
-   * openaev.tenant.active-tables} yet, so the database accepts an unmarked write today, but every
-   * writer this rule can see is already marked or listed, so the write-marker guard is a formality
-   * to turn on, not a scramble.
+   * is readable under any scope and written only inside a platform-write transaction. Every writer
+   * this rule can see is marked or listed as a writer of tenant groups only.
    */
   static final DualScopeTable GROUPS =
       new DualScopeTable(
