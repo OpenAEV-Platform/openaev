@@ -15,6 +15,14 @@ public interface GraphVisibility {
 
   boolean canReadAtomicTesting(String injectId);
 
+  /**
+   * Persons, organizations and teams (#9447) are capability-gated: a person node needs the player
+   * read capability, an organization the organization one, a team the team one.
+   */
+  default boolean canReadPeople(io.openaev.api.graph.dto.GraphNodeType type) {
+    return true;
+  }
+
   /** Everything visible: for tests and for callers that gate elsewhere. */
   GraphVisibility ALL =
       new GraphVisibility() {

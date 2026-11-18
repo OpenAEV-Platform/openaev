@@ -6,6 +6,10 @@ import io.openaev.api.graph.dto.GraphNodeOutput;
 import io.openaev.api.graph.dto.GraphNodeType;
 import io.openaev.api.graph.dto.GraphOutput;
 import io.openaev.api.graph.dto.GraphResult;
+import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetGroup;
+import io.openaev.expectation.ExpectationType;
+import io.openaev.service.AssetGroupService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
@@ -19,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 /**
@@ -44,7 +50,14 @@ public class GraphExplorationService {
 
   static final int MAX_PATH_VISITED = 2_000;
 
+  /** Dynamic asset groups whose filter is tested against one asset, at most, per expansion. */
+  static final int MAX_DYNAMIC_GROUPS = 50;
+
+  private static final String PREVENTED = ExpectationType.PREVENTION.successLabel;
+
   @PersistenceContext private EntityManager entityManager;
+
+  @Autowired @Lazy private AssetGroupService assetGroupService;
 
   /** Builder of one slice, deduplicating nodes and edges as rows come in. */
   static final class Slice {
@@ -53,6 +66,14 @@ public class GraphExplorationService {
     final Map<String, GraphResult> nodeResults = new HashMap<>();
     final Map<String, Long> failed = new HashMap<>();
     final Map<String, Long> findings = new HashMap<>();
+
+    /**
+     * Attack-path steps (#9447): per edge, the worst verdict per simulation that drew it. A step is
+     * only as visible as one of its simulations, and its verdict is the worst over the visible ones,
+     * so a simulation the caller may not read never leaks through a shared edge.
+     */
+    final Map<String, Map<String, GraphResult>> stepSimulations = new HashMap<>();
+
     boolean truncated;
 
     String node(GraphNodeType type, String id, String label, String subtype) {
@@ -81,6 +102,15 @@ public class GraphExplorationService {
       }
     }
 
+    /** Records an attack-path step of one simulation between two asset nodes. */
+    void step(String source, String target, String simulationId, GraphResult result) {
+      String id = GraphEdgeOutput.idOf(GraphEdgeType.ATTACK_STEP, source, target);
+      edges.putIfAbsent(id, new GraphEdgeOutput(id, GraphEdgeType.ATTACK_STEP, source, target, null));
+      stepSimulations
+          .computeIfAbsent(id, k -> new HashMap<>())
+          .merge(simulationId, result, GraphResult::worst);
+    }
+
     GraphOutput build(String focus, Predicate<GraphNodeOutput> visible, List<String> path) {
       List<GraphNodeOutput> kept = new ArrayList<>();
       for (GraphNodeOutput n : nodes.values()) {
@@ -100,12 +130,72 @@ public class GraphExplorationService {
       }
       Set<String> ids = new java.util.HashSet<>();
       kept.forEach(n -> ids.add(n.nodeId()));
-      List<GraphEdgeOutput> keptEdges =
-          edges.values().stream()
-              .filter(e -> ids.contains(e.source()) && ids.contains(e.target()))
-              .toList();
+      List<GraphEdgeOutput> keptEdges = new ArrayList<>();
+      for (GraphEdgeOutput e : edges.values()) {
+        if (!ids.contains(e.source()) || !ids.contains(e.target())) {
+          continue;
+        }
+        Map<String, GraphResult> sims = stepSimulations.get(e.edgeId());
+        if (sims == null) {
+          keptEdges.add(e);
+          continue;
+        }
+        GraphResult worst = null;
+        boolean any = false;
+        for (Map.Entry<String, GraphResult> s : sims.entrySet()) {
+          if (visible.test(simulationProbe(s.getKey()))) {
+            any = true;
+            worst = GraphResult.worst(worst, s.getValue());
+          }
+        }
+        if (any) {
+          keptEdges.add(
+              new GraphEdgeOutput(e.edgeId(), e.edgeType(), e.source(), e.target(), worst));
+        }
+      }
       return new GraphOutput(focus, kept, keptEdges, truncated, path);
     }
+  }
+
+  /** A simulation node used only to ask the gate whether the caller reads that simulation. */
+  static GraphNodeOutput simulationProbe(String simulationId) {
+    return new GraphNodeOutput(
+        GraphNodeOutput.idOf(GraphNodeType.SIMULATION, simulationId),
+        GraphNodeType.SIMULATION,
+        simulationId,
+        simulationId,
+        null,
+        null,
+        0,
+        0);
+  }
+
+  /**
+   * The verdict of one attack-path execution, read the way the attack path view colours it:
+   * prevented is a success, anything else that was evaluated is a failure (detected but not
+   * prevented included), and no verdict at all is pending.
+   */
+  static GraphResult stepResult(String preventionStatus, String detectionStatus) {
+    if (PREVENTED.equals(preventionStatus)) {
+      return GraphResult.SUCCESS;
+    }
+    if (preventionStatus == null && detectionStatus == null) {
+      return GraphResult.PENDING;
+    }
+    return GraphResult.FAILED;
+  }
+
+  /** A person's label: full name, else email, else id. */
+  static String personLabel(Object id, Object firstname, Object lastname, Object email) {
+    String name =
+        ((firstname == null ? "" : firstname.toString())
+                + " "
+                + (lastname == null ? "" : lastname.toString()))
+            .trim();
+    if (!name.isEmpty()) {
+      return name;
+    }
+    return email != null ? email.toString() : str(id);
   }
 
   // -- Public reads --
@@ -256,6 +346,7 @@ public class GraphExplorationService {
           node.nodeId(),
           k ->
               switch (node.nodeType()) {
+                case PERSON, ORGANIZATION, TEAM -> visibility.canReadPeople(node.nodeType());
                 case SIMULATION -> visibility.canReadSimulation(node.entityId());
                 case SCENARIO -> visibility.canReadScenario(node.entityId());
                 case INJECT -> {
@@ -320,6 +411,33 @@ public class GraphExplorationService {
                     slice.node(GraphNodeType.ASSET_GROUP, (String) r[0], (String) r[1], null);
                 slice.edge(GraphEdgeType.MEMBER_OF, here, g, null);
               });
+          dynamicGroupsOf(slice, tenantIds, id, here, cap);
+        }
+        if (want.test(GraphEdgeType.IDENTITY_OF)) {
+          rows(
+              slice,
+              "SELECT u.id, u.firstname, u.lastname, u.email FROM Asset a, User u"
+                  + " WHERE a.id = :id AND u.id = a.linkedPerson AND a.tenant.id IN :tenantIds",
+              tenantIds,
+              id,
+              1,
+              r -> {
+                String p =
+                    slice.node(
+                        GraphNodeType.PERSON,
+                        (String) r[0],
+                        personLabel(r[0], r[1], r[2], r[3]),
+                        null);
+                slice.edge(GraphEdgeType.IDENTITY_OF, here, p, null);
+              });
+        }
+        if (want.test(GraphEdgeType.ATTACK_STEP)) {
+          steps(
+              slice,
+              tenantIds,
+              "(x.sourceAssetId = :id OR x.targetAssetId = :id)",
+              id,
+              cap);
         }
         if (want.test(GraphEdgeType.FOUND_ON)) {
           rows(
@@ -365,6 +483,7 @@ public class GraphExplorationService {
                     slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], (String) r[2]);
                 slice.edge(GraphEdgeType.MEMBER_OF, here, a, null);
               });
+          dynamicMembersOf(slice, tenantIds, id, here, cap);
         }
         if (want.test(GraphEdgeType.TARGETS)) {
           targets(slice, tenantIds, "e.assetGroup.id = :id", id, cap);
@@ -494,6 +613,149 @@ public class GraphExplorationService {
                 slice.edge(GraphEdgeType.RUN_OF, here, s, null);
               });
         }
+        if (want.test(GraphEdgeType.ATTACK_STEP)) {
+          steps(slice, tenantIds, "x.simulationId = :id", id, cap);
+        }
+      }
+      case PERSON -> {
+        focus = personNode(slice, tenantIds, id);
+        if (focus == null) {
+          return null;
+        }
+        final String here = focus;
+        if (want.test(GraphEdgeType.IDENTITY_OF)) {
+          rows(
+              slice,
+              "SELECT a.id, a.name, a.type FROM Asset a"
+                  + " WHERE a.linkedPerson = :id AND a.tenant.id IN :tenantIds ORDER BY a.name",
+              tenantIds,
+              id,
+              cap,
+              r -> {
+                String a =
+                    slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], (String) r[2]);
+                slice.edge(GraphEdgeType.IDENTITY_OF, a, here, null);
+              });
+        }
+        if (want.test(GraphEdgeType.WORKS_FOR)) {
+          rows(
+              slice,
+              "SELECT o.id, o.name FROM Organization o JOIN o.users u"
+                  + " WHERE u.id = :id AND o.tenant.id IN :tenantIds ORDER BY o.name",
+              tenantIds,
+              id,
+              cap,
+              r -> {
+                String o =
+                    slice.node(GraphNodeType.ORGANIZATION, (String) r[0], (String) r[1], null);
+                slice.edge(GraphEdgeType.WORKS_FOR, here, o, null);
+              });
+        }
+        if (want.test(GraphEdgeType.IN_TEAM)) {
+          rows(
+              slice,
+              "SELECT t.id, t.name FROM Team t JOIN t.users u"
+                  + " WHERE u.id = :id AND t.tenant.id IN :tenantIds ORDER BY t.name",
+              tenantIds,
+              id,
+              cap,
+              r -> {
+                String t = slice.node(GraphNodeType.TEAM, (String) r[0], (String) r[1], null);
+                slice.edge(GraphEdgeType.IN_TEAM, here, t, null);
+              });
+        }
+      }
+      case ORGANIZATION -> {
+        focus =
+            single(
+                slice,
+                "SELECT o.id, o.name FROM Organization o"
+                    + " WHERE o.id = :id AND o.tenant.id IN :tenantIds",
+                tenantIds,
+                id,
+                r -> slice.node(GraphNodeType.ORGANIZATION, (String) r[0], (String) r[1], null));
+        if (focus == null) {
+          return null;
+        }
+        final String here = focus;
+        if (want.test(GraphEdgeType.WORKS_FOR)) {
+          rows(
+              slice,
+              "SELECT u.id, u.firstname, u.lastname, u.email FROM Organization o JOIN o.users u"
+                  + " WHERE o.id = :id AND o.tenant.id IN :tenantIds"
+                  + " ORDER BY u.lastname, u.firstname, u.email",
+              tenantIds,
+              id,
+              cap,
+              r -> {
+                String p =
+                    slice.node(
+                        GraphNodeType.PERSON,
+                        (String) r[0],
+                        personLabel(r[0], r[1], r[2], r[3]),
+                        null);
+                slice.edge(GraphEdgeType.WORKS_FOR, p, here, null);
+              });
+        }
+        if (want.test(GraphEdgeType.TEAM_OF)) {
+          rows(
+              slice,
+              "SELECT t.id, t.name FROM Team t"
+                  + " WHERE t.organization.id = :id AND t.tenant.id IN :tenantIds ORDER BY t.name",
+              tenantIds,
+              id,
+              cap,
+              r -> {
+                String t = slice.node(GraphNodeType.TEAM, (String) r[0], (String) r[1], null);
+                slice.edge(GraphEdgeType.TEAM_OF, t, here, null);
+              });
+        }
+      }
+      case TEAM -> {
+        focus =
+            single(
+                slice,
+                "SELECT t.id, t.name FROM Team t WHERE t.id = :id AND t.tenant.id IN :tenantIds",
+                tenantIds,
+                id,
+                r -> slice.node(GraphNodeType.TEAM, (String) r[0], (String) r[1], null));
+        if (focus == null) {
+          return null;
+        }
+        final String here = focus;
+        if (want.test(GraphEdgeType.IN_TEAM)) {
+          rows(
+              slice,
+              "SELECT u.id, u.firstname, u.lastname, u.email FROM Team t JOIN t.users u"
+                  + " WHERE t.id = :id AND t.tenant.id IN :tenantIds"
+                  + " ORDER BY u.lastname, u.firstname, u.email",
+              tenantIds,
+              id,
+              cap,
+              r -> {
+                String p =
+                    slice.node(
+                        GraphNodeType.PERSON,
+                        (String) r[0],
+                        personLabel(r[0], r[1], r[2], r[3]),
+                        null);
+                slice.edge(GraphEdgeType.IN_TEAM, p, here, null);
+              });
+        }
+        if (want.test(GraphEdgeType.TEAM_OF)) {
+          rows(
+              slice,
+              "SELECT o.id, o.name FROM Team t JOIN t.organization o"
+                  + " WHERE t.id = :id AND t.tenant.id IN :tenantIds AND o.tenant.id IN :tenantIds",
+              tenantIds,
+              id,
+              1,
+              r -> {
+                String o =
+                    slice.node(GraphNodeType.ORGANIZATION, (String) r[0], (String) r[1], null);
+                slice.edge(GraphEdgeType.TEAM_OF, here, o, null);
+              });
+        }
       }
       case SCENARIO -> {
         // A scenario is reached through its simulations, so its scope is theirs: a scenario
@@ -573,6 +835,151 @@ public class GraphExplorationService {
       }
       slice.edge(GraphEdgeType.TARGETS, inject, target, result);
     }
+  }
+
+  /**
+   * Attack-path steps (#9447): source asset to target asset of the attack-path executions matching
+   * {@code predicate}, each pair carrying the worst verdict per simulation. Discovered targets (no
+   * asset) and injector sources (no asset) are not part of the estate graph and are skipped.
+   */
+  private void steps(
+      Slice slice, Collection<String> tenantIds, String predicate, String id, int cap) {
+    List<Object[]> rows =
+        entityManager
+            .createQuery(
+                "SELECT x.simulationId, sa.id, sa.name, sa.type, ta.id, ta.name, ta.type,"
+                    + " x.preventionStatus, x.detectionStatus"
+                    + " FROM AttackPathExecution x, Asset sa, Asset ta"
+                    + " WHERE "
+                    + predicate
+                    + " AND sa.id = x.sourceAssetId AND ta.id = x.targetAssetId"
+                    + " AND x.tenant.id IN :tenantIds"
+                    + " AND sa.tenant.id IN :tenantIds AND ta.tenant.id IN :tenantIds"
+                    + " ORDER BY x.executedAt DESC",
+                Object[].class)
+            .setParameter("id", id)
+            .setParameter("tenantIds", tenantIds)
+            .setMaxResults(cap * 4 + 1)
+            .getResultList();
+    if (rows.size() > cap * 4) {
+      slice.truncated = true;
+    }
+    int pairs = 0;
+    for (Object[] r : rows) {
+      if (r[1].equals(r[4])) {
+        continue;
+      }
+      String source = GraphNodeOutput.idOf(GraphNodeType.ASSET, (String) r[1]);
+      String target = GraphNodeOutput.idOf(GraphNodeType.ASSET, (String) r[4]);
+      boolean known =
+          slice.edges.containsKey(GraphEdgeOutput.idOf(GraphEdgeType.ATTACK_STEP, source, target));
+      if (!known && ++pairs > cap) {
+        slice.truncated = true;
+        break;
+      }
+      slice.node(GraphNodeType.ASSET, (String) r[1], (String) r[2], (String) r[3]);
+      slice.node(GraphNodeType.ASSET, (String) r[4], (String) r[5], (String) r[6]);
+      slice.step(source, target, (String) r[0], stepResult(str(r[7]), str(r[8])));
+    }
+  }
+
+  /**
+   * The asset groups an asset belongs to through their dynamic filter (#9447): each dynamic group
+   * of the scope is tested with one id-constrained query, at most {@value #MAX_DYNAMIC_GROUPS} of
+   * them, so a member list is never materialised.
+   */
+  private void dynamicGroupsOf(
+      Slice slice, Collection<String> tenantIds, String assetId, String here, int cap) {
+    if (assetGroupService == null) {
+      return;
+    }
+    Asset asset = entityManager.find(Asset.class, assetId);
+    if (asset == null) {
+      return;
+    }
+    List<AssetGroup> groups =
+        entityManager
+            .createQuery(
+                "SELECT g FROM AssetGroup g WHERE g.tenant.id IN :tenantIds ORDER BY g.name",
+                AssetGroup.class)
+            .setParameter("tenantIds", tenantIds)
+            .getResultList();
+    int tested = 0;
+    int added = 0;
+    for (AssetGroup g : groups) {
+      if (io.openaev.database.model.Filters.isEmptyFilterGroup(g.getDynamicFilter())) {
+        continue;
+      }
+      String groupNode = GraphNodeOutput.idOf(GraphNodeType.ASSET_GROUP, g.getId());
+      if (slice.edges.containsKey(GraphEdgeOutput.idOf(GraphEdgeType.MEMBER_OF, here, groupNode))) {
+        continue;
+      }
+      if (++tested > MAX_DYNAMIC_GROUPS || added >= cap) {
+        slice.truncated = true;
+        return;
+      }
+      if (assetGroupService.isAssetInDynamicGroup(asset, g)) {
+        slice.node(GraphNodeType.ASSET_GROUP, g.getId(), g.getName(), null);
+        slice.edge(GraphEdgeType.MEMBER_OF, here, groupNode, null);
+        added++;
+      }
+    }
+  }
+
+  /** The members of an asset group through its dynamic filter (#9447), capped. */
+  private void dynamicMembersOf(
+      Slice slice, Collection<String> tenantIds, String groupId, String here, int cap) {
+    if (assetGroupService == null) {
+      return;
+    }
+    List<AssetGroup> found =
+        entityManager
+            .createQuery(
+                "SELECT g FROM AssetGroup g WHERE g.id = :id AND g.tenant.id IN :tenantIds",
+                AssetGroup.class)
+            .setParameter("id", groupId)
+            .setParameter("tenantIds", tenantIds)
+            .getResultList();
+    if (found.isEmpty()
+        || io.openaev.database.model.Filters.isEmptyFilterGroup(found.get(0).getDynamicFilter())) {
+      return;
+    }
+    AssetGroup group = assetGroupService.computeDynamicAssets(found.get(0));
+    int added = 0;
+    for (Asset a : group.getDynamicAssets()) {
+      String assetNode = GraphNodeOutput.idOf(GraphNodeType.ASSET, a.getId());
+      if (slice.edges.containsKey(GraphEdgeOutput.idOf(GraphEdgeType.MEMBER_OF, here, assetNode))) {
+        continue;
+      }
+      if (added >= cap) {
+        slice.truncated = true;
+        return;
+      }
+      slice.node(GraphNodeType.ASSET, a.getId(), a.getName(), a.getType());
+      slice.edge(GraphEdgeType.MEMBER_OF, here, assetNode, null);
+      added++;
+    }
+  }
+
+  /**
+   * A person is part of the scope when one of its identity assets, organizations or teams is: users
+   * are platform-wide, so the tenant comes from what links them to the estate.
+   */
+  private String personNode(Slice slice, Collection<String> tenantIds, String id) {
+    return single(
+        slice,
+        "SELECT u.id, u.firstname, u.lastname, u.email FROM User u WHERE u.id = :id AND ("
+            + " EXISTS (SELECT 1 FROM Asset a WHERE a.linkedPerson = u.id"
+            + " AND a.tenant.id IN :tenantIds)"
+            + " OR EXISTS (SELECT 1 FROM Organization o JOIN o.users ou WHERE ou.id = u.id"
+            + " AND o.tenant.id IN :tenantIds)"
+            + " OR EXISTS (SELECT 1 FROM Team t JOIN t.users tu WHERE tu.id = u.id"
+            + " AND t.tenant.id IN :tenantIds))",
+        tenantIds,
+        id,
+        r ->
+            slice.node(
+                GraphNodeType.PERSON, (String) r[0], personLabel(r[0], r[1], r[2], r[3]), null));
   }
 
   private String assetNode(Slice slice, Collection<String> tenantIds, String id) {

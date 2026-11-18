@@ -140,6 +140,16 @@ public class GraphExplorationApi extends RestBehavior {
         return can(injectId, ResourceType.ATOMIC_TESTING);
       }
 
+      @Override
+      public boolean canReadPeople(GraphNodeType type) {
+        return switch (type) {
+          case PERSON -> can(null, ResourceType.PLAYER);
+          case ORGANIZATION -> can(null, ResourceType.ORGANIZATION);
+          case TEAM -> can(null, ResourceType.TEAM);
+          default -> true;
+        };
+      }
+
       private boolean can(String id, ResourceType type) {
         return permissionService.holdsInScope(
             ctx,
