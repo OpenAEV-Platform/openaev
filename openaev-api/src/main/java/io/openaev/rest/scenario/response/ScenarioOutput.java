@@ -150,7 +150,9 @@ public class ScenarioOutput {
   @Schema(description = "Whether the scenario is an autonomous (AI-driven) attack-path scenario")
   private boolean autonomous;
 
-  @JsonProperty("scenario_scheduled_by")
+  // Not "scenario_scheduled_by": the Scenario entity sends the bare user id under that key, and
+  // both shapes merge into the same frontend store entry.
+  @JsonProperty("scenario_scheduled_by_user")
   @Schema(description = "User who last configured the scenario's recurrence")
   private UserSimple scheduledBy;
 }

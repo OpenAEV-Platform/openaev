@@ -90,7 +90,7 @@ public class InjectResultOverviewOutput {
   private Instant recurrenceEnd;
 
   @Schema(description = "User who launched this inject")
-  @JsonProperty("inject_launched_by")
+  @JsonProperty("inject_launched_by_user")
   private UserSimple launchedBy;
 
   // -- COMPUTED ATTRIBUTES --
