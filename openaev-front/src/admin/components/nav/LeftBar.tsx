@@ -32,7 +32,7 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
-import { analyticsEntryPath, REPORTING_BASE_URL, useAnalyticsTabs } from '../workspaces/AnalyticsTabs';
+import useAnalyticsTabs, { analyticsEntryPath, REPORTING_BASE_URL } from '../workspaces/useAnalyticsTabs';
 import settingsEntries from './config/settings.config';
 import LeftBarHeader from './LeftBarHeader';
 import TenantSwitcher from './LeftBarTenantSwitcher';
