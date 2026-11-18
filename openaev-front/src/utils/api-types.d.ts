@@ -6735,10 +6735,17 @@ export interface InjectAuthorisation {
   inject_id?: string;
 }
 
-export interface InjectBulkProcessingInput {
+export interface InjectBulkDeleteInput {
   inject_ids_to_ignore?: string[];
   inject_ids_to_process?: string[];
   keep_findings?: boolean;
+  search_pagination_input?: SearchPaginationInput;
+  simulation_or_scenario_id?: string;
+}
+
+export interface InjectBulkProcessingInput {
+  inject_ids_to_ignore?: string[];
+  inject_ids_to_process?: string[];
   search_pagination_input?: SearchPaginationInput;
   simulation_or_scenario_id?: string;
 }

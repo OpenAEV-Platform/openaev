@@ -5,6 +5,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Inject;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.form.InjectBulkDeleteInput;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.form.InjectBulkUpdateInputs;
 import io.openaev.rest.inject.service.InjectService;
@@ -45,7 +46,7 @@ public class BulkInjectService {
     }
   }
 
-  public List<Inject> bulkDeleteWithMonitoring(TxCtx ctx, InjectBulkProcessingInput input) {
+  public List<Inject> bulkDeleteWithMonitoring(TxCtx ctx, InjectBulkDeleteInput input) {
     List<Inject> injectsToDelete = injectService.getInjectsToDeleteWithLinks(ctx, input);
     refuseMissingTargets(input, injectsToDelete);
     String operationId = bulkOperationMonitor.start("delete", "injects", injectsToDelete.size());

@@ -323,7 +323,7 @@ public class ScenarioInjectApi extends RestBehavior {
   public List<Inject> bulkDeleteInjectsForScenario(
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
-      @RequestBody @Valid final InjectBulkProcessingInput input) {
+      @RequestBody @Valid final InjectBulkDeleteInput input) {
     input.setSimulationOrScenarioId(scenarioId);
     return bulkInjectService.bulkDeleteWithMonitoring(ctx, input);
   }

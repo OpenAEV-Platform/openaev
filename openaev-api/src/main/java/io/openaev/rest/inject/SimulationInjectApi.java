@@ -514,7 +514,7 @@ public class SimulationInjectApi extends RestBehavior {
   public List<Inject> bulkDeleteInjectsForSimulation(
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
-      @RequestBody @Valid final InjectBulkProcessingInput input) {
+      @RequestBody @Valid final InjectBulkDeleteInput input) {
     input.setSimulationOrScenarioId(exerciseId);
     return bulkInjectService.bulkDeleteWithMonitoring(ctx, input);
   }
