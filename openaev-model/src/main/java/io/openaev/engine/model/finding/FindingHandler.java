@@ -11,10 +11,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 @Service
 public class FindingHandler implements Handler<EsFinding> {
@@ -73,15 +71,10 @@ public class FindingHandler implements Handler<EsFinding> {
     esFinding.setFinding_field(orEmpty(finding.getFinding_fields()));
     esFinding.setFinding_value(displayedValue);
     esFinding.setFinding_masking_version(SensitiveValueMaskingUtils.MASKING_VERSION);
-    // Dependencies (see base_dependencies in EsBase): only what deletes the finding with it. The
-    // injects of the other occurrences are sides: deleting one leaves the finding in place.
+    // Dependencies (see base_dependencies in EsBase): only what deletes the finding with it, its
+    // location. Injects, simulations and scenarios are sides: deleting one leaves the finding in
+    // place (finding_inject_id_fk is ON DELETE SET NULL).
     List<String> dependencies = new ArrayList<>();
-    Stream.of(
-            finding.getFinding_inject_id(),
-            finding.getFinding_simulation_id(),
-            finding.getFinding_scenario_id())
-        .filter(StringUtils::hasText)
-        .forEach(dependencies::add);
     esFinding.setBase_inject_side(orEmpty(finding.getInject_ids()));
     esFinding.setBase_simulation_side(orEmpty(finding.getSimulation_ids()));
     esFinding.setBase_scenario_side(orEmpty(finding.getScenario_ids()));

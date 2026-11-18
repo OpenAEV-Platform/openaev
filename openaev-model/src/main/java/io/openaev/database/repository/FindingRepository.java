@@ -191,7 +191,7 @@ public interface FindingRepository
               + " array_agg(DISTINCT se.scenario_id)"
               + " FILTER ( WHERE se.scenario_id IS NOT NULL ) AS scenario_ids,"
               + " array_agg(DISTINCT fa.asset_id) FILTER ( WHERE fa.asset_id IS NOT NULL ) AS asset_ids,"
-              // The inject the finding is deleted with (ON DELETE CASCADE), and its context
+              // The inject that created the finding (ON DELETE SET NULL), and its context
               + " f.finding_inject_id, li.inject_exercise AS finding_simulation_id,"
               + " MAX(lse.scenario_id) AS finding_scenario_id,"
               + " f.finding_created_at, f.finding_updated_at, f.tenant_id "

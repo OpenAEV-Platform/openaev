@@ -431,9 +431,11 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   private List<BaseInjectExpectation> expectations = new ArrayList<>();
 
+  // No cascade and no orphan removal: a finding describes a real asset or user and outlives the
+  // inject that produced it (finding_inject_id_fk is ON DELETE SET NULL).
   @JsonIgnore
   @Getter
-  @OneToMany(mappedBy = "inject", cascade = CascadeType.ALL, orphanRemoval = true)
+  @OneToMany(mappedBy = "inject")
   private List<Finding> findings = new ArrayList<>();
 
   @Getter
@@ -503,6 +505,9 @@ public class Inject implements GrantableBase, Injection, TenantBase {
     if (this.findings == null) {
       this.findings = new ArrayList<>();
     } else {
+      // A relaunch detaches the findings of the previous run instead of deleting them: they
+      // describe real assets, and their occurrences keep the history of this inject.
+      this.findings.forEach(finding -> finding.setInject(null));
       this.findings.clear();
     }
     this.setCollectExecutionStatus(COLLECTING);
