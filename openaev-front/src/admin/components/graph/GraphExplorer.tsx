@@ -49,7 +49,7 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import { toPng } from 'html-to-image';
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type MouseEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
 import { fetchGraphNeighbourhood, fetchGraphPath } from '../../../actions/graph/graph-actions';
@@ -767,18 +767,25 @@ const GraphExplorerInner = ({
     const focusNode = state.focus ? state.nodes[state.focus] : undefined;
     const href = focusNode ? graphHref(focusNode.node_type, focusNode.node_entity_id) : '/admin/graph';
     return (
-      <Link
+      <Box
+        component={Link}
         to={href}
-        onClick={onOpen ? (event) => {
+        onClick={onOpen ? (event: MouseEvent) => {
           event.preventDefault();
           onOpen();
         } : undefined}
         aria-label={focusNode ? `${t('Explore in graph')}: ${focusNode.node_label}` : t('Explore in graph')}
-        className="block rounded-[var(--radius-md,4px)] focus-visible:outline focus-visible:outline-[var(--border-focus,currentColor)]"
-        style={{
+        sx={{
+          'display': 'block',
           height,
-          color: 'inherit',
-          textDecoration: 'none',
+          'borderRadius': 1,
+          'color': 'inherit',
+          'textDecoration': 'none',
+          // The global `:focus { outline: 0 }` would hide the keyboard focus: the ring is drawn here.
+          '&:focus-visible': {
+            outline: `2px solid ${theme.palette.primary.main}`,
+            outlineOffset: 2,
+          },
         }}
       >
         <Box
@@ -796,7 +803,7 @@ const GraphExplorerInner = ({
         >
           {canvas}
         </Box>
-      </Link>
+      </Box>
     );
   }
 
