@@ -2,8 +2,6 @@ import { Skeleton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type ReactNode } from 'react';
 
-import { ENTITY_CARD_HEIGHT } from './EntityCard';
-
 interface Props {
   children?: ReactNode;
   /** Renders placeholders of the card size instead of the children. */
@@ -11,6 +9,9 @@ interface Props {
   style?: CSSProperties;
 }
 
+// Height of the loading placeholders. A card itself fits its content, and the
+// grid gives every card of a page the height of the tallest one.
+const SKELETON_HEIGHT = 256;
 const MAX_COLUMNS = 4;
 const MIN_CARD_WIDTH = 280;
 const SKELETON_COUNT = 8;
@@ -40,7 +41,7 @@ const CardGrid = ({ children, loading = false, style }: Props) => {
             <Skeleton
               key={idx}
               variant="rectangular"
-              height={ENTITY_CARD_HEIGHT}
+              height={SKELETON_HEIGHT}
               animation="wave"
               sx={{ borderRadius: 1 }}
             />

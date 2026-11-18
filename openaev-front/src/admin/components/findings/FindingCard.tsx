@@ -1,9 +1,20 @@
-import { Chip, HeroStat, type HeroStatSeverity } from '@filigran/design-system';
+import {
+  Card,
+  CardHeader,
+  CardInfo,
+  CardInfoGroup,
+  CardOverview,
+  CardTitle,
+  Chip,
+  HeroStat,
+  type HeroStatSeverity,
+} from '@filigran/design-system';
 import { type FunctionComponent, useEffect, useState } from 'react';
+import { Link } from 'react-router';
 
 import { fetchFindingSummary } from '../../../actions/findings/finding-actions';
 import { fetchVulnerabilityByExternalId } from '../../../actions/vulnerability-actions';
-import EntityCard from '../../../components/common/card/EntityCard';
+import CardThumbnail from '../../../components/common/card/CardThumbnail';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import { type AggregatedFindingOutput, type FindingSummaryOutput, type VulnerabilityOutput } from '../../../utils/api-types';
@@ -31,7 +42,7 @@ const CRITICALITY_LABELS: Record<SeverityAndColor['severity'], string> = {
 interface Props { finding: AggregatedFindingOutput }
 
 const FindingCard: FunctionComponent<Props> = ({ finding }) => {
-  const { t } = useFormatter();
+  const { t, fldt } = useFormatter();
   const isCve = finding.finding_type === 'cve';
   const [cvssScore, setCvssScore] = useState<number | null>(null);
   const [occurrences, setOccurrences] = useState<number | null>(null);
@@ -83,18 +94,16 @@ const FindingCard: FunctionComponent<Props> = ({ finding }) => {
   const assetsCount = finding.finding_assets?.length ?? 0;
 
   return (
-    // DS 2026 layout (Figma Design_System_2026, node 8745:64999): finding type
-    // and value, the CVSS and criticality chips of a CVE, then the figures
-    // (library HeroStat). No footer band. The height fits the content;
-    // the grid then gives every card of the page the tallest one's height.
-    <EntityCard
-      testId="finding-card"
-      to={`/admin/findings/${finding.finding_id}`}
-      footer={false}
-      icon={<FindingIcon findingType={finding.finding_type} />}
-      overline={t(ContractOutputElementType[finding.finding_type] ?? finding.finding_type)}
-      title={finding.finding_value}
-      tags={cvss && (
+    // Library Card (Figma Design_System_2026, node 8745:64999): finding type
+    // and value, the CVSS and criticality chips of a CVE, the figures (library
+    // HeroStat) and the last seen line. No footer. The height fits the
+    // content; the grid gives every card of the page the tallest one's height.
+    <Card data-testid="finding-card" to={`/admin/findings/${finding.finding_id}`} linkComponent={Link}>
+      <CardHeader icon={<CardThumbnail icon={<FindingIcon findingType={finding.finding_type} />} />}>
+        <CardOverview>{t(ContractOutputElementType[finding.finding_type] ?? finding.finding_type)}</CardOverview>
+        <CardTitle>{finding.finding_value}</CardTitle>
+      </CardHeader>
+      {cvss && (
         <div style={{
           display: 'flex',
           flexWrap: 'wrap',
@@ -108,7 +117,6 @@ const FindingCard: FunctionComponent<Props> = ({ finding }) => {
           />
         </div>
       )}
-    >
       <div style={{
         display: 'flex',
         flexWrap: 'wrap',
@@ -129,7 +137,11 @@ const FindingCard: FunctionComponent<Props> = ({ finding }) => {
           />
         )}
       </div>
-    </EntityCard>
+      {/* Group-wide last seen (the aggregated list already carries it). */}
+      <CardInfoGroup>
+        <CardInfo label={`${t('Last seen')}:`} value={fldt(finding.finding_updated_at)} />
+      </CardInfoGroup>
+    </Card>
   );
 };
 

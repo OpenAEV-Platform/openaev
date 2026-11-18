@@ -8,7 +8,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type AggregatedFindingOutput } from '../../../../utils/api-types';
 
-vi.mock('../../../../components/i18n', () => ({ useFormatter: () => ({ t: (value: string) => value }) }));
+vi.mock('../../../../components/i18n', () => ({
+  useFormatter: () => ({
+    t: (value: string) => value,
+    fldt: (value: string) => value,
+  }),
+}));
 
 const fetchVulnerabilityByExternalId = vi.fn();
 vi.mock('../../../../actions/vulnerability-actions', () => ({ fetchVulnerabilityByExternalId: (...args: unknown[]) => fetchVulnerabilityByExternalId(...args) }));
@@ -68,6 +73,8 @@ describe('FindingCard', () => {
     expect(screen.getByText('443')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('Impacted assets')).toBeInTheDocument();
+    expect(screen.getByText('Last seen:')).toBeInTheDocument();
+    expect(screen.getByText('2026-10-16T10:00:00Z')).toBeInTheDocument();
     expect(fetchVulnerabilityByExternalId).not.toHaveBeenCalled();
   });
 

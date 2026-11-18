@@ -1,7 +1,9 @@
+import { Card, CardDescription, CardHeader, CardInfo, CardInfoGroup, CardOverview, CardTitle } from '@filigran/design-system';
 import { AnalyticsOutlined } from '@mui/icons-material';
 import { type FunctionComponent } from 'react';
+import { Link } from 'react-router';
 
-import EntityCard from '../../../../components/common/card/EntityCard';
+import CardThumbnail from '../../../../components/common/card/CardThumbnail';
 import { useFormatter } from '../../../../components/i18n';
 import { type CustomDashboard } from '../../../../utils/api-types';
 import CustomDashboardPopover from './CustomDashboardPopover';
@@ -20,28 +22,35 @@ const CustomDashboardCard: FunctionComponent<Props> = ({
   const { t, fldt } = useFormatter();
 
   return (
-    // DS 2026 layout (Figma Design_System_2026, node 8461:13606): framed icon,
-    // type and title, description, last update line, ⋮ menu in the footer band.
-    <EntityCard
-      testId="custom-dashboard-card"
+    // Library Card (Figma Design_System_2026, node 8461:13606): framed icon,
+    // type and title, description, last update line. The ⋮ menu is the only
+    // action, so it is the header's single action and the card has no footer.
+    <Card
+      data-testid="custom-dashboard-card"
       to={`/admin/workspaces/custom_dashboards/${customDashboard.custom_dashboard_id}`}
-      icon={<AnalyticsOutlined sx={{ fontSize: 24 }} />}
-      overline={t('Dashboard')}
-      title={customDashboard.custom_dashboard_name}
-      description={customDashboard.custom_dashboard_description}
-      meta={{
-        label: `${t('Updated')}:`,
-        value: fldt(customDashboard.custom_dashboard_updated_at),
-      }}
-      menu={(
-        <CustomDashboardPopover
-          customDashboard={customDashboard}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-          inList
-        />
+      linkComponent={Link}
+    >
+      <CardHeader
+        icon={<CardThumbnail icon={<AnalyticsOutlined sx={{ fontSize: 24 }} />} />}
+        action={(
+          <CustomDashboardPopover
+            customDashboard={customDashboard}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+            inList
+          />
+        )}
+      >
+        <CardOverview>{t('Dashboard')}</CardOverview>
+        <CardTitle>{customDashboard.custom_dashboard_name}</CardTitle>
+      </CardHeader>
+      {customDashboard.custom_dashboard_description && (
+        <CardDescription>{customDashboard.custom_dashboard_description}</CardDescription>
       )}
-    />
+      <CardInfoGroup>
+        <CardInfo label={`${t('Updated')}:`} value={fldt(customDashboard.custom_dashboard_updated_at)} />
+      </CardInfoGroup>
+    </Card>
   );
 };
 

@@ -1,8 +1,20 @@
-import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { type FunctionComponent, type MouseEvent, useMemo } from 'react';
+import {
+  Card,
+  CardFooter,
+  CardHeader,
+  CardInfo,
+  CardInfoGroup,
+  CardTitle,
+  Checkbox,
+  Chip,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@filigran/design-system';
+import { type FunctionComponent, type MouseEvent, useMemo, useState } from 'react';
 
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
-import EntityCard from '../../../components/common/card/EntityCard';
+import CardThumbnail from '../../../components/common/card/CardThumbnail';
 import { useFormatter } from '../../../components/i18n';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
@@ -47,6 +59,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   disableJsonExport,
   disableDelete,
 }) => {
+  const [hovered, setHovered] = useState(false);
   const { t, tPick, nsdt } = useFormatter();
 
   const allDomains: Domain[] = useHelper(
@@ -87,18 +100,40 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   }
 
   return (
-    // DS 2026 layout (Figma Design_System_2026, node 8470:25385): icon and
-    // title, domain chips, last update line, then a footer band with the
-    // payload status and the platforms on the left and the ⋮ menu on the right.
-    // The checkbox sits on the top right corner of the header.
-    <EntityCard
-      testId="threat-arsenal-card"
+    // Library Card (Figma Design_System_2026, node 8470:25385): icon and
+    // title, domain chips, last update line, then a footer with the payload
+    // status and the platforms on the left and the ⋮ menu on the right. The
+    // selection checkbox is the header's single action; the card opens the
+    // drawer in place.
+    <Card
+      data-testid="threat-arsenal-card"
       onClick={onSelect}
       selected={selected}
-      image={thumbnailImage}
-      icon={<InjectIcon type={iconType} isPayload={payload != null} />}
-      title={name}
-      tags={domains.length > 0 ? (
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <CardHeader
+        icon={<CardThumbnail image={thumbnailImage} icon={<InjectIcon type={iconType} isPayload={payload != null} />} />}
+        action={(
+          // Shown on hover, and kept once a selection has started. Faded, not
+          // hidden, so it stays reachable from the keyboard.
+          <div
+            style={{
+              display: 'flex',
+              opacity: hovered || anySelected || selected || checked ? 1 : 0,
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleEntity(event);
+            }}
+          >
+            <Checkbox checked={checked} aria-label={name} />
+          </div>
+        )}
+      >
+        <CardTitle>{name}</CardTitle>
+      </CardHeader>
+      {domains.length > 0 && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -118,55 +153,44 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
             </Tooltip>
           )}
         </div>
-      ) : undefined}
-      meta={{
-        label: `${t('Updated')}:`,
-        value: nsdt(action.injector_contract_updated_at),
-      }}
-      selection={{
-        checked,
-        alwaysVisible: anySelected || selected,
-        onToggle: onToggleEntity,
-        label: name,
-      }}
-      menu={(
-        <ThreatArsenalActionPopover
-          actionId={action.injector_contract_id}
-          payloadId={payload?.payload_id ?? ''}
-          grantResourceId={action.action_grant_resource_id}
-          name={name}
-          onUpdate={onUpdate}
-          onDuplicate={onDuplicate}
-          onDelete={onDelete}
-          disableUpdate={disableUpdate}
-          disableDuplicate={disableDuplicate}
-          disableJsonExport={disableJsonExport}
-          disableDelete={disableDelete}
-        />
       )}
-      footerStart={(
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          minWidth: 0,
-        }}
-        >
-          {statusLabel && <Chip label={t(statusLabel)} severity={getStatusSeverity(status)} />}
-          {platforms.slice(0, MAX_PLATFORMS).map(platform => (
-            <PlatformIcon
-              key={platform}
-              width={24}
-              platform={platform}
-              tooltip
-            />
-          ))}
-          {platforms.length > MAX_PLATFORMS && (
-            <span className="text-default-secondary">{`+${platforms.length - MAX_PLATFORMS}`}</span>
-          )}
-        </div>
-      )}
-    />
+      <CardInfoGroup>
+        <CardInfo label={`${t('Updated')}:`} value={nsdt(action.injector_contract_updated_at)} />
+      </CardInfoGroup>
+      <CardFooter
+        start={(
+          <>
+            {statusLabel && <Chip label={t(statusLabel)} severity={getStatusSeverity(status)} />}
+            {platforms.slice(0, MAX_PLATFORMS).map(platform => (
+              <PlatformIcon
+                key={platform}
+                width={24}
+                platform={platform}
+                tooltip
+              />
+            ))}
+            {platforms.length > MAX_PLATFORMS && (
+              <span className="text-default-secondary">{`+${platforms.length - MAX_PLATFORMS}`}</span>
+            )}
+          </>
+        )}
+        end={(
+          <ThreatArsenalActionPopover
+            actionId={action.injector_contract_id}
+            payloadId={payload?.payload_id ?? ''}
+            grantResourceId={action.action_grant_resource_id}
+            name={name}
+            onUpdate={onUpdate}
+            onDuplicate={onDuplicate}
+            onDelete={onDelete}
+            disableUpdate={disableUpdate}
+            disableDuplicate={disableDuplicate}
+            disableJsonExport={disableJsonExport}
+            disableDelete={disableDelete}
+          />
+        )}
+      />
+    </Card>
   );
 };
 

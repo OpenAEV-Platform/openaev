@@ -154,7 +154,7 @@
         "openaev-front/src/admin/components/teams/OrganizationsList.tsx",
         "openaev-front/src/admin/components/teams/Players.tsx",
         "openaev-front/src/admin/components/threat_arsenal/ThreatArsenal.tsx",
-        "openaev-front/src/components/common/card/EntityCard.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalListRow.tsx",
         "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/configuration/list/WidgetColumnsCustomizationInput.tsx",
         "openaev-front/src/components/CheckboxField.jsx",

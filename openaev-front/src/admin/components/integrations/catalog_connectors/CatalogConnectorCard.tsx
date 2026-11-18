@@ -1,10 +1,22 @@
-import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import {
+  Card,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardOverview,
+  CardTitle,
+  Chip,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@filigran/design-system';
 import { GroupsOutlined, HelpCenterOutlined } from '@mui/icons-material';
 import { Box, Stack, SvgIcon } from '@mui/material';
 import { LogoFiligranIcon } from 'filigran-icon';
 import { type ReactNode } from 'react';
+import { Link } from 'react-router';
 
-import EntityCard from '../../../../components/common/card/EntityCard';
+import CardThumbnail from '../../../../components/common/card/CardThumbnail';
 import { useFormatter } from '../../../../components/i18n';
 import { type ConnectorItem, type ConnectorItemType, prettifyUseCase } from './catalog-facets';
 import useChipOverflow from './useChipOverflow';
@@ -140,31 +152,39 @@ const CatalogConnectorCard = ({ connector, footerAction, footerStatus }: Props) 
   };
 
   return (
-    // DS 2026 layout (Figma Design_System_2026, node 8461:13814): thumbnail,
-    // type and title, use-case chips, description, then a footer band with the
-    // status and the support logo on the left and the action on the right.
-    <EntityCard
-      testId="connector-card"
+    // Library Card (Figma Design_System_2026, node 8461:13814): thumbnail,
+    // type and title, use-case chips, description, then a footer with the
+    // status on the left and the action on the right.
+    <Card
+      data-testid="connector-card"
       to={connector.detailUrl}
-      // A logo fills the thumbnail; without one, a 24px glyph in the frame.
-      image={connector.logoSrc ? {
-        src: connector.logoSrc,
-        alt: connector.title,
-      } : undefined}
-      icon={(
-        <HelpCenterOutlined sx={{
-          fontSize: 24,
-          color: 'text.secondary',
-        }}
-        />
-      )}
-      overline={typeLabels[connector.type]}
-      title={connector.title}
-      tags={connector.useCases.length > 0 ? <UseCaseChips useCases={connector.useCases} /> : undefined}
-      description={connector.description}
-      footerStart={footerStatus}
-      footerEnd={footerAction}
-    />
+      linkComponent={connector.detailUrl ? Link : undefined}
+    >
+      <CardHeader
+        icon={(
+          // A logo fills the thumbnail; without one, a 24px glyph in the frame.
+          <CardThumbnail
+            image={connector.logoSrc ? {
+              src: connector.logoSrc,
+              alt: connector.title,
+            } : undefined}
+            icon={(
+              <HelpCenterOutlined sx={{
+                fontSize: 24,
+                color: 'text.secondary',
+              }}
+              />
+            )}
+          />
+        )}
+      >
+        <CardOverview>{typeLabels[connector.type]}</CardOverview>
+        <CardTitle>{connector.title}</CardTitle>
+      </CardHeader>
+      {connector.useCases.length > 0 && <UseCaseChips useCases={connector.useCases} />}
+      {connector.description && <CardDescription>{connector.description}</CardDescription>}
+      {(footerStatus || footerAction) && <CardFooter start={footerStatus} end={footerAction} />}
+    </Card>
   );
 };
 
