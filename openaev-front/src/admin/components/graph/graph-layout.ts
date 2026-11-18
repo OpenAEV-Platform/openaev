@@ -103,6 +103,56 @@ const radial = (nodes: GraphNodeOutput[], edges: GraphEdgeOutput[], focus?: stri
   return positions;
 };
 
+/** The box a node occupies (circle and label under it), kept clear of every other node's box. */
+export const MIN_NODE_DX = 150;
+export const MIN_NODE_DY = 90;
+
+/**
+ * Pushes overlapping nodes apart along the axis of least overlap until no two node boxes overlap
+ * (bounded passes): many parallel edges between few nodes make the force step pull them closer
+ * than their labels allow. The focused node stays put.
+ */
+export const separate = (positions: Map<string, Point>, ids: string[], focus?: string | null) => {
+  for (let pass = 0; pass < 50; pass += 1) {
+    let moved = false;
+    for (let i = 0; i < ids.length; i += 1) {
+      for (let j = i + 1; j < ids.length; j += 1) {
+        const a = positions.get(ids[i]) as Point;
+        const b = positions.get(ids[j]) as Point;
+        const ox = MIN_NODE_DX - Math.abs(a.x - b.x);
+        const oy = MIN_NODE_DY - Math.abs(a.y - b.y);
+        if (ox <= 0 || oy <= 0) {
+          continue;
+        }
+        moved = true;
+        const aFixed = ids[i] === focus;
+        const bFixed = ids[j] === focus;
+        const share = aFixed || bFixed ? 1 : 0.5;
+        if (ox / MIN_NODE_DX < oy / MIN_NODE_DY) {
+          const dir = a.x < b.x || (a.x === b.x && i < j) ? -1 : 1;
+          if (!aFixed) {
+            a.x += dir * ox * share;
+          }
+          if (!bFixed) {
+            b.x -= dir * ox * share;
+          }
+        } else {
+          const dir = a.y < b.y || (a.y === b.y && i < j) ? -1 : 1;
+          if (!aFixed) {
+            a.y += dir * oy * share;
+          }
+          if (!bFixed) {
+            b.y -= dir * oy * share;
+          }
+        }
+      }
+    }
+    if (!moved) {
+      return;
+    }
+  }
+};
+
 /**
  * A deterministic force-directed layout (Fruchterman-Reingold), seeded by the radial layout so the
  * same graph always lands the same way: repulsion between every pair, attraction along edges, a
@@ -167,6 +217,7 @@ const force = (nodes: GraphNodeOutput[], edges: GraphEdgeOutput[], focus?: strin
     });
     temperature *= 0.95;
   }
+  separate(positions, ids, focus);
   positions.forEach((p) => {
     p.x = Math.round(p.x);
     p.y = Math.round(p.y);

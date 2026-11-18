@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { distances, layoutGraph } from '../../../../admin/components/graph/graph-layout';
+import { distances, layoutGraph, MIN_NODE_DX, MIN_NODE_DY, type Point, separate } from '../../../../admin/components/graph/graph-layout';
 import { type GraphEdgeOutput, graphHref, type GraphNodeOutput, type GraphOutput, parseNodeType } from '../../../../admin/components/graph/graph-model';
 import {
   DEFAULT_FILTERS,
@@ -165,5 +165,36 @@ describe('graph-layout', () => {
       expect(Number.isFinite(p.x)).toBe(true);
       expect(Number.isFinite(p.y)).toBe(true);
     });
+  });
+
+  it('separates node boxes that overlap and keeps the focus in place', () => {
+    const positions = new Map<string, Point>([
+      ['a', {
+        x: 0,
+        y: 0,
+      }],
+      ['b', {
+        x: 10,
+        y: 5,
+      }],
+      ['c', {
+        x: -5,
+        y: 12,
+      }],
+    ]);
+    separate(positions, ['a', 'b', 'c'], 'a');
+    expect(positions.get('a')).toEqual({
+      x: 0,
+      y: 0,
+    });
+    const ids = ['a', 'b', 'c'];
+    for (let i = 0; i < ids.length; i += 1) {
+      for (let j = i + 1; j < ids.length; j += 1) {
+        const p = positions.get(ids[i]) as Point;
+        const q = positions.get(ids[j]) as Point;
+        const clear = Math.abs(p.x - q.x) >= MIN_NODE_DX - 0.001 || Math.abs(p.y - q.y) >= MIN_NODE_DY - 0.001;
+        expect(clear).toBe(true);
+      }
+    }
   });
 });

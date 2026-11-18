@@ -34,7 +34,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import {
   Background,
   Controls,
@@ -53,6 +53,7 @@ import { Link } from 'react-router';
 
 import { fetchGraphNeighbourhood, fetchGraphPath } from '../../../actions/graph/graph-actions';
 import { useFormatter } from '../../../components/i18n';
+import { NODE_LABEL_OFFSET, NODE_WIDTH } from './graph-edge-geometry';
 import NODE_ICON from './graph-icons';
 import { type GraphLayout, layoutGraph } from './graph-layout';
 import {
@@ -84,6 +85,8 @@ import {
 } from './graph-state';
 import GraphEntityNode, { type GraphEntityNodeType } from './GraphEntityNode';
 import GraphFloatingEdge from './GraphFloatingEdge';
+
+const NODE_BOX_HEIGHT = NODE_LABEL_OFFSET + 20;
 
 const nodeTypes = { entity: GraphEntityNode };
 const edgeTypes = { floating: GraphFloatingEdge };
@@ -195,6 +198,10 @@ const GraphExplorerInner = ({
   const flowNodes: GraphEntityNodeType[] = shownNodes.map(n => ({
     id: n.node_id,
     type: 'entity',
+    // Declared size (circle and label): the mini-map draws a node only once it has one, and the
+    // nodes are controlled here without the measurement round-trip of onNodesChange.
+    width: NODE_WIDTH,
+    height: NODE_BOX_HEIGHT,
     position: positions.get(n.node_id) ?? {
       x: 0,
       y: 0,
@@ -226,7 +233,11 @@ const GraphExplorerInner = ({
       type: 'floating',
       source: e.edge_source,
       target: e.edge_target,
-      label: interactive && (isPath || isFailed) ? t(EDGE_TYPE_LABEL[e.edge_type]) : undefined,
+      // The relation name only where it is read: on a path, or around the selected node (a failed
+      // edge already says it by its colour; a label on each of them piles up between close nodes).
+      label: interactive && (isPath || (selected !== null && (e.edge_source === selected || e.edge_target === selected)))
+        ? t(EDGE_TYPE_LABEL[e.edge_type])
+        : undefined,
       animated: isPath,
       markerEnd: {
         type: MarkerType.ArrowClosed,
@@ -670,7 +681,17 @@ const GraphExplorerInner = ({
           >
             <Background />
             {interactive && <Controls showInteractive={false} />}
-            {variant === 'page' && <MiniMap pannable zoomable />}
+            {variant === 'page' && (
+              <MiniMap
+                pannable
+                zoomable
+                bgColor={theme.palette.background.paper}
+                maskColor={alpha(theme.palette.background.default, 0.6)}
+                nodeColor={n => ((n.data as GraphEntityNodeType['data']).node.node_failed_count > 0 ? theme.palette.error.main : theme.palette.primary.main)}
+                nodeStrokeWidth={0}
+                nodeBorderRadius={12}
+              />
+            )}
           </ReactFlow>
         )}
         {loading && (
