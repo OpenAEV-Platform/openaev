@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
@@ -30,6 +31,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import io.openaev.utilstest.WithoutTenantScope;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -97,6 +99,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Each test stays on a single tenant selection: the per-request scope is set once and the aspect
  * refuses to redefine it within one transaction.
  */
+@CoversTenantIsolation("autonomous_runs")
 @Transactional
 @TestPropertySource(
     properties = {
@@ -999,10 +1002,20 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
           .executeUpdate();
     }
 
+    // Seeds the scenario the way a caller of its tenant creates it: in that tenant's scope, and
+    // written before the request, so the rows of the seed are never written under the scope of the
+    // request that follows. The class runs without a scope: the scope is cleared afterwards.
     private String seedChainingScenario(String tenantId) throws Exception {
-      Scenario scenario = ScenarioFixture.getScenario();
-      scenario.setTenant(new Tenant(tenantId));
-      return scenarioService.createScenarioChaining(scenario).getId();
+      DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenantId);
+      try {
+        Scenario scenario = ScenarioFixture.getScenario();
+        scenario.setTenant(new Tenant(tenantId));
+        String scenarioId = scenarioService.createScenarioChaining(scenario).getId();
+        entityManager.flush();
+        return scenarioId;
+      } finally {
+        DefaultTenantScopeTestListener.setAmbientScope(entityManager, "");
+      }
     }
 
     private MockHttpServletRequestBuilder createFromScenarioRequest(

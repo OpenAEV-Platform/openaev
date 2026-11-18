@@ -487,7 +487,9 @@ public class TenantRoleApiTest extends IntegrationTest {
           TenantRoleFixture.getRole(
               roleName, Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES));
       role.setTenant(new Tenant(tenantId));
-      return roleRepository.save(role).getId();
+      // Flushed here, while the scope of the test holds the tenant: a request starts from a
+      // cleared one
+      return roleRepository.saveAndFlush(role).getId();
     }
 
     @Test

@@ -2,8 +2,11 @@ package io.openaev.executors.crowdstrike.service;
 
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -15,6 +18,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
+import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeDevice;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeHostGroup;
 import io.openaev.executors.crowdstrike.model.ResourcesGroups;
@@ -23,10 +27,14 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.*;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -197,5 +205,46 @@ public class CrowdstrikeExecutorServiceTest {
 
     // Assert
     verify(client).executeAction(any(), any(), any());
+  }
+
+  @Test
+  @DisplayName("executeActions should dispatch the rest of the batch when one agent fails")
+  void given_failureOnOneAgent_should_stillDispatchTheFollowingAgents() {
+    // Arrange: one batch of 3 actions, the second agent fails
+    crowdStrikeExecutorContextService.setScheduler(immediateScheduler());
+    when(config.getApiBatchExecutionActionPagination()).thenReturn(3);
+    List<CrowdStrikeAction> actions = new ArrayList<>();
+    for (int i = 1; i <= 3; i++) {
+      CrowdStrikeAction action = new CrowdStrikeAction();
+      action.setAgentExternalReference("agent-" + i);
+      action.setScriptName("MyScript");
+      action.setCommandEncoded("encoded-" + i);
+      actions.add(action);
+    }
+    lenient()
+        .doThrow(new RuntimeException("vendor unavailable"))
+        .when(client)
+        .executeAction(eq("agent-2"), any(), any());
+
+    // Act
+    assertDoesNotThrow(() -> crowdStrikeExecutorContextService.executeActions(actions));
+
+    // Assert: agent 3 is still dispatched after the failure on agent 2
+    for (int i = 1; i <= 3; i++) {
+      verify(client).executeAction("agent-" + i, "MyScript", "encoded-" + i);
+    }
+  }
+
+  private static ScheduledExecutorService immediateScheduler() {
+    ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
+    doAnswer(
+            invocation -> {
+              Runnable runnable = invocation.getArgument(0);
+              runnable.run();
+              return mock(ScheduledFuture.class);
+            })
+        .when(scheduler)
+        .schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+    return scheduler;
   }
 }

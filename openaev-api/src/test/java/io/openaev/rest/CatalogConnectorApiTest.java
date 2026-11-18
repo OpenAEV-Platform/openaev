@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
@@ -203,7 +204,8 @@ public class CatalogConnectorApiTest extends IntegrationTest {
     void given_manageUsersCapability_should_rotateTokenAndUpdateInstances() throws Exception {
       // Arrange
       String previousToken =
-          catalogConnectorPrivilegeService.getOrCreateToken(Tenant.DEFAULT_TENANT_UUID);
+          catalogConnectorPrivilegeService.getOrCreateToken(
+              TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), Tenant.DEFAULT_TENANT_UUID);
       ConnectorInstanceConfiguration tokenConfiguration = givenInstanceHoldingToken(previousToken);
       entityManager.flush();
       entityManager.clear();
@@ -215,7 +217,8 @@ public class CatalogConnectorApiTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
       String rotatedToken =
-          catalogConnectorPrivilegeService.getOrCreateToken(Tenant.DEFAULT_TENANT_UUID);
+          catalogConnectorPrivilegeService.getOrCreateToken(
+              TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), Tenant.DEFAULT_TENANT_UUID);
       assertThat(rotatedToken).isNotEqualTo(previousToken);
       assertThat(storedToken(tokenConfiguration)).isEqualTo(rotatedToken);
     }
@@ -227,7 +230,8 @@ public class CatalogConnectorApiTest extends IntegrationTest {
         autoJoinDefaultTenant = true)
     void given_instanceInAnotherTenant_should_keepItsToken() throws Exception {
       // Arrange
-      catalogConnectorPrivilegeService.getOrCreateToken(Tenant.DEFAULT_TENANT_UUID);
+      catalogConnectorPrivilegeService.getOrCreateToken(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), Tenant.DEFAULT_TENANT_UUID);
       Tenant otherTenant = tenantIsolationHelper.createTenant("Other tenant");
       tenantIsolationHelper.switchToTenant(otherTenant.getId(), entityManager);
       ConnectorInstanceConfiguration otherTenantConfiguration =

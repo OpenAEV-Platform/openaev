@@ -156,6 +156,7 @@ const MarkingField: FunctionComponent<Props> = ({
             variant="standard"
             fullWidth
             error={!!error}
+            helperText={error?.message}
             required={required}
           />
         )}

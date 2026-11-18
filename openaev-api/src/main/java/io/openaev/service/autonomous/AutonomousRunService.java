@@ -2351,7 +2351,7 @@ public class AutonomousRunService {
   public AutonomousScopeView getRunScopeView(String runId) {
     AutonomousRun run = require(runId);
     List<WorkflowScopeRule> rules = readScopeRules(run);
-    Map<String, String> names = resolveScopeNames(rules);
+    Map<String, String> names = resolveScopeNames(rules, runTenantId(run));
     List<AutonomousScopeEntry> allow = new ArrayList<>();
     List<AutonomousScopeEntry> deny = new ArrayList<>();
     for (WorkflowScopeRule rule : rules) {
@@ -2412,30 +2412,35 @@ public class AutonomousRunService {
     return source.name() + "|" + value;
   }
 
-  /** Batch-resolves entity display names per kind so scope reads never issue a query per rule. */
-  private Map<String, String> resolveScopeNames(List<WorkflowScopeRule> rules) {
+  /**
+   * Batch-resolves entity display names per kind so scope reads never issue a query per rule. The
+   * rules store the ids their requests name: an id of another tenant than {@code tenantId} is an
+   * unknown id and carries no name.
+   */
+  private Map<String, String> resolveScopeNames(List<WorkflowScopeRule> rules, String tenantId) {
     Map<String, String> names = new HashMap<>();
     List<String> assetIds = idsForSource(rules, ScopeRuleSource.ASSET);
     List<String> groupIds = idsForSource(rules, ScopeRuleSource.ASSET_GROUP);
     List<String> teamIds = idsForSource(rules, ScopeRuleSource.TEAM);
     List<String> playerIds = idsForSource(rules, ScopeRuleSource.PLAYER);
     if (!assetIds.isEmpty()) {
-      for (Endpoint endpoint : endpointService.endpoints(assetIds)) {
+      for (Endpoint endpoint : endpointService.endpoints(assetIds, tenantId)) {
         names.put(nameKey(ScopeRuleSource.ASSET, endpoint.getId()), endpoint.getName());
       }
     }
     if (!groupIds.isEmpty()) {
-      for (AssetGroup group : assetGroupRepository.findAllById(groupIds)) {
+      for (AssetGroup group : assetGroupRepository.findAllByIdInTenant(groupIds, tenantId)) {
         names.put(nameKey(ScopeRuleSource.ASSET_GROUP, group.getId()), group.getName());
       }
     }
     if (!teamIds.isEmpty()) {
-      for (Team team : teamRepository.findAllById(teamIds)) {
+      for (Team team : teamRepository.findAllByIdInTenant(teamIds, tenantId)) {
         names.put(nameKey(ScopeRuleSource.TEAM, team.getId()), team.getName());
       }
     }
     if (!playerIds.isEmpty()) {
-      for (User user : userRepository.findAllById(playerIds)) {
+      // Users are platform entities: only the members of the run tenant carry a name.
+      for (User user : userRepository.findAllByIdInAndTenantId(playerIds, tenantId)) {
         names.put(nameKey(ScopeRuleSource.PLAYER, user.getId()), scopePlayerName(user));
       }
     }
@@ -2900,6 +2905,8 @@ public class AutonomousRunService {
           throw new ConflictException(
               "The autonomous run has neither a live simulation nor a scenario to update steps on");
         }
+        // The step id comes from the caller: only a step of this run's own workflow may be edited.
+        workflowService.assertStepTemplateOnScenarioWorkflow(run.getScenarioId(), stepTemplateId);
         // Validate a reused event id up front so a bad/foreign id is a precise 400. In
         // author-scenario mode the event lives on the scenario's own workflow.
         if (reuseEvent) {
@@ -2932,6 +2939,7 @@ public class AutonomousRunService {
             null);
         return stepTemplateId;
       }
+      workflowService.assertStepTemplateOnSimulationWorkflow(run.getSimulationId(), stepTemplateId);
       // Validate a reused event id up front so a bad/foreign id is a precise 400. In live mode the
       // event lives on the simulation's own workflow (the state read surfaces simulation event
       // ids).
@@ -3007,6 +3015,13 @@ public class AutonomousRunService {
     String previousTenant = hadTenant ? TenantContext.getCurrentTenant() : null;
     TenantContext.setCurrentTenant(runTenantId(run));
     try {
+      // The step id comes from the caller: only a step of this run's own workflow may be deleted.
+      if (hasText(run.getSimulationId())) {
+        workflowService.assertStepTemplateOnSimulationWorkflow(
+            run.getSimulationId(), stepTemplateId);
+      } else {
+        workflowService.assertStepTemplateOnScenarioWorkflow(run.getScenarioId(), stepTemplateId);
+      }
       try {
         workflowService.deleteChainedStep(stepTemplateId);
       } catch (ChainingException e) {
@@ -3541,7 +3556,7 @@ public class AutonomousRunService {
     AutonomousRun run = require(runId);
     Finding finding =
         findingRepository
-            .findById(findingId)
+            .findByIdAndTenantId(findingId, runTenantId(run))
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Finding not found"));
     // Promotion mints a brand-new endpoint, so it is a discovery-creation gated by the acting
@@ -3797,8 +3812,10 @@ public class AutonomousRunService {
     }
     Set<String> allowedMembers = new HashSet<>(allowPlayerIds);
     if (!allowTeamIds.isEmpty()) {
+      // The rules store the team ids their requests name: a team of another tenant than the run
+      // is an unknown id and grants nothing.
       teamRepository
-          .findAllById(allowTeamIds)
+          .findAllByIdInTenant(allowTeamIds, runTenantId(run))
           .forEach(team -> team.getUsers().forEach(user -> allowedMembers.add(user.getId())));
     }
     return players.stream()

@@ -69,6 +69,7 @@ export type ContractType
     | 'ai-target'
     | 'payload'
     | 'targeted-asset'
+    | 'document'
     | 'password'
     | 'credential-reference';
 
@@ -119,6 +120,7 @@ export type EnhancedContractElement = ContractElement & {
   isInMandatoryGroup: boolean;
   mandatoryGroupContractElementLabels: string;
   writeOnly?: boolean;
+  helperText?: string;
   settings?: {
     rows?: number;
     required?: boolean;

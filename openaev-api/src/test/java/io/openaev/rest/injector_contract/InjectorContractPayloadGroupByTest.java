@@ -5,7 +5,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Injector;
@@ -30,27 +30,32 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * With {@code payloads} v2-activated, {@code InjectorContractService}'s tuple queries (FULL,
- * THREAT_ARSENAL and THREAT_ARSENAL_CONTENT) project {@code payload.type}, {@code
- * payload.executionArch} and {@code payload.status} while grouping only by {@code payload.id}
- * ({@code getCommonGroupBy}). {@code TenantStatementInspector} wraps the joined {@code payloads}
- * table in a filtered derived table, which has no primary key, so PostgreSQL rejects the statement:
- * the selected columns are no longer functionally dependent on the grouped {@code id}. This
- * surfaces as a 500 on {@code POST /injector_contracts/search} (full details) and on both {@code
- * /threat_arsenals/search} routes.
+ * Pins that the contract searches answer a success status on the production list of isolated
+ * tables, which holds {@code payloads}. The tuple queries of {@code InjectorContractService} group
+ * by the id and every projected column ({@code getCommonGroupBy}); {@code TenantStatementInspector}
+ * wraps the joined {@code payloads} table in a filtered derived table, which has no primary key, so
+ * the statement is valid only if the projected columns are part of the grouping. Each test posts
+ * one search on the tenant route with the default input:
  *
- * <p>Deliberately NOT {@code @Transactional}, same shape as {@code
- * InjectorContractCollectorTypeGroupByTest}: a test-managed transaction changes how the tenant
- * scope is applied to the request and was found to mask this exact defect.
+ * <ul>
+ *   <li>{@code given_payloadsActive_should_notFailOnInjectorContractSearch} posts {@code
+ *       /api/tenants/{id}/injector_contracts/search}, whose default input asks for the full
+ *       details;
+ *   <li>{@code given_payloadsActive_should_notFailOnThreatArsenalSearch} posts {@code
+ *       /api/tenants/{id}/threat_arsenals/search}, whose default input selects the THREAT_ARSENAL
+ *       mode.
+ * </ul>
+ *
+ * <p>Not {@code @Transactional}, same shape as {@code InjectorContractCollectorTypeGroupByTest}:
+ * the request runs in its own transaction, as in production, and applies the tenant scope itself.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=payloads")
 @WithMockUser(isAdmin = true)
-@DisplayName("InjectorContractApi/ThreatArsenalApi search with payloads active")
-class InjectorContractPayloadGroupByTest extends IntegrationTest {
+@DisplayName(
+    "InjectorContractApi/ThreatArsenalApi search on the production list of isolated tables")
+class InjectorContractPayloadGroupByTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -100,9 +105,8 @@ class InjectorContractPayloadGroupByTest extends IntegrationTest {
     tenantTx.execute(
         TxCtx.forTenant(tenantId),
         () -> {
-          // Direct query, no entity loading, same shape as
-          // InjectorContractService#deleteInjectorContractById: the contract and the injector's
-          // own cascade would otherwise race to delete this join row twice.
+          // Direct query, no entity loading: the contract and the injector's own cascade would
+          // otherwise race to delete this join row twice.
           entityManager
               .createNativeQuery(
                   "DELETE FROM injectors_injector_contracts WHERE injector_contract_id = :contractId"
@@ -119,7 +123,8 @@ class InjectorContractPayloadGroupByTest extends IntegrationTest {
 
   @Test
   @DisplayName(
-      "POST /injector_contracts/search with full details does not 500 once payloads is active")
+      "POST /api/tenants/{tenantId}/injector_contracts/search with full details answers a success"
+          + " status on the production list of isolated tables")
   void given_payloadsActive_should_notFailOnInjectorContractSearch() throws Exception {
     SearchPaginationInput input = new SearchPaginationInput();
 
@@ -132,7 +137,9 @@ class InjectorContractPayloadGroupByTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("POST /threat_arsenals/search does not 500 once payloads is active")
+  @DisplayName(
+      "POST /api/tenants/{tenantId}/threat_arsenals/search in THREAT_ARSENAL mode answers a success"
+          + " status on the production list of isolated tables")
   void given_payloadsActive_should_notFailOnThreatArsenalSearch() throws Exception {
     SearchPaginationInput input = new SearchPaginationInput();
 

@@ -161,8 +161,6 @@ class BulkDeleteExecutorTest {
     List<String> deleted = executor.deleteInChunks("things", ids, calls::add);
 
     assertThat(deleted).hasSameSizeAs(ids);
-    // One single inline call with every id: chunked commits are impossible inside the caller's
-    // transaction.
     assertThat(calls).hasSize(1);
     assertThat(calls.get(0)).hasSameSizeAs(ids);
     // Inline deletions (transactional tests) are not tracked as massive operations.
@@ -189,5 +187,18 @@ class BulkDeleteExecutorTest {
 
     assertThat(deleted).isEmpty();
     assertThat(calls).isEmpty();
+  }
+
+  @Test
+  @DisplayName(
+      "Given a non-delete action through processInChunks, should surface that label instead of"
+          + " \"delete\"")
+  void given_nonDeleteAction_should_surfaceItToTheMonitor() {
+    List<String> processed =
+        executor.processInChunks(
+            null, "replace-markings", "assets", List.of("a", "b"), chunk -> {});
+
+    assertThat(processed).containsExactly("a", "b");
+    verify(bulkOperationMonitor).start("replace-markings", "assets", 2);
   }
 }

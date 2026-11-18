@@ -32,6 +32,7 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -217,7 +218,8 @@ public class TeamService {
     newTeam.setDescription(teamToCopy.getDescription());
     newTeam.setTags(CopyObjectListUtils.copy(teamToCopy.getTags(), Tag.class));
     newTeam.setOrganization(teamToCopy.getOrganization());
-    newTeam.setUsers(CopyObjectListUtils.copy(teamToCopy.getUsers(), User.class));
+    // The copy references the saved users: their collections are never copied
+    newTeam.setUsers(new ArrayList<>(teamToCopy.getUsers()));
     newTeam.setContextual(teamToCopy.getContextual());
     return newTeam;
   }

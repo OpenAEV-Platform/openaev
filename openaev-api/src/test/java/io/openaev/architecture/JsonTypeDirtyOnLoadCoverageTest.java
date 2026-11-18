@@ -49,19 +49,11 @@ class JsonTypeDirtyOnLoadCoverageTest {
           "InjectExpectationResult.metadata",
           "TechnicalInjectExpectation.expectedSecurityPlatforms",
           "CatalogConnectorConfiguration.connectorConfigurationDefault",
-          "Condition.keyTypes",
           "ConnectorInstanceConfiguration.value",
           "InjectDependency.injectDependencyCondition",
           "InjectStatus.payloadOutput",
-          "Step.conditionKeyTypes",
-          "Step.data",
-          "Step.input",
-          "Step.output",
-          "Step.outputParser",
           "Scenario.autonomousConfig",
-          "UserEvent.payload",
-          "WorkflowScopeRule.snapshotEnd",
-          "WorkflowScopeRule.snapshotStart");
+          "UserEvent.payload");
 
   @Nested
   @DisplayName("the inventory it is built on")

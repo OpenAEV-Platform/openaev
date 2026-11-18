@@ -526,15 +526,4 @@ describe('NewsFeedList', () => {
       await waitFor(() => expect(lastSearch().page).toBe(1));
     });
   });
-
-  describe('Page header', () => {
-    it('is titled News feed in the breadcrumbs', async () => {
-      // Act
-      renderList();
-
-      // Assert
-      expect(await screen.findByText('News feed')).toBeInTheDocument();
-      await screen.findByText(NO_ITEMS);
-    });
-  });
 });

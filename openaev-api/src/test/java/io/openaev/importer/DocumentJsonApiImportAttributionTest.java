@@ -1,13 +1,19 @@
 package io.openaev.importer;
 
+import static io.openaev.jsonapi.GenericJsonApiIUtils.resolveType;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Document;
 import io.openaev.jsonapi.GenericJsonApiImporter;
+import io.openaev.jsonapi.ImportTypes;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.service.MinioService;
+import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.io.ByteArrayInputStream;
@@ -15,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.AfterEach;
@@ -44,6 +51,7 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
   @Autowired private GenericJsonApiImporter importer;
   @Autowired private MinioService minioService;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private ObjectMapper objectMapper;
 
   private String tenantA;
   private String tenantB;
@@ -94,7 +102,7 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
     TenantContext.setCurrentTenant(tenantA);
 
     // Act
-    importer.handleImportEntity(doc, null, null, tenantB);
+    importer.handleImportEntity(doc, null, null, tenantB, ImportTypes.ANY);
 
     // Assert
     assertEquals(
@@ -109,16 +117,20 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
   @SuppressWarnings("unchecked")
   void given_ambientTenantDiffersFromWriteScope_should_storeImportedObjectUnderWriteScope()
       throws Exception {
-    // Arrange: an included document resource carrying its file bytes, imported to tenant B while
-    // the
-    // ambient context is A.
+    // Arrange: an included document resource shaped like the export (type "documents", extras
+    // keyed by document_target, read back from the archive as a map), imported to tenant B while
+    // the ambient context is A.
     byte[] bytes = ("jsonapi-import-body-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
     String target = DigestUtils.md5Hex(new ByteArrayInputStream(bytes)) + ".txt";
     ResourceObject includedDocument =
         new ResourceObject(
-            UUID.randomUUID().toString(), "document", Map.of("document_name", target), null);
+            UUID.randomUUID().toString(),
+            resolveType(Document.class),
+            Map.of("document_name", "original-name.txt", "document_target", target),
+            null);
     JsonApiDocument<ResourceObject> doc =
-        new JsonApiDocument<>(null, List.of((Object) includedDocument));
+        new JsonApiDocument<>(
+            null, List.of(objectMapper.convertValue(includedDocument, Map.class)));
     Map<String, byte[]> extras = Map.of(target, bytes);
     TenantContext.setCurrentTenant(tenantA);
 
@@ -135,6 +147,95 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
         0,
         minioService.countObjects(tenantA + "/" + target),
         "the imported object must not be stored under the ambient tenant's prefix (A)");
+  }
+
+  @Test
+  @DisplayName("given_targetThatIsNotTheHashOfItsBytes_should_keepTheExistingObject")
+  @SuppressWarnings("unchecked")
+  void given_targetThatIsNotTheHashOfItsBytes_should_keepTheExistingObject() throws Exception {
+    // Arrange: tenant B already stores an object, and a crafted archive reuses its target with
+    // other bytes
+    byte[] original =
+        ("jsonapi-import-original-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+    String target = DigestUtils.md5Hex(original) + ".txt";
+    minioService.uploadFileForTenant(
+        tenantB, target, new ByteArrayInputStream(original), original.length, "text/plain");
+    uploadedObjects.add(new String[] {tenantB, target});
+    ResourceObject includedDocument =
+        new ResourceObject(
+            UUID.randomUUID().toString(),
+            resolveType(Document.class),
+            Map.of("document_target", target),
+            null);
+    JsonApiDocument<ResourceObject> doc =
+        new JsonApiDocument<>(
+            null, List.of(objectMapper.convertValue(includedDocument, Map.class)));
+    byte[] crafted = "overwritten".getBytes(StandardCharsets.UTF_8);
+
+    // Act
+    importer.handleImportDocument(doc, Map.of(target, crafted), tenantB);
+
+    // Assert
+    try (var stored = minioService.getFilePathForTenant(tenantB, target).orElseThrow()) {
+      assertArrayEquals(original, stored.readAllBytes(), "the existing object must be kept");
+    }
+  }
+
+  @Test
+  @DisplayName("given_typeSetWithoutTheDocumentType_should_notStoreTheObject")
+  void given_typeSetWithoutTheDocumentType_should_notStoreTheObject() throws Exception {
+    // Arrange: the same included document carrying its bytes as in the test above
+    byte[] bytes = ("jsonapi-import-body-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+    String target = DigestUtils.md5Hex(new ByteArrayInputStream(bytes)) + ".txt";
+    ResourceObject includedDocument =
+        new ResourceObject(
+            UUID.randomUUID().toString(),
+            resolveType(Document.class),
+            Map.of("document_target", target),
+            null);
+    JsonApiDocument<ResourceObject> doc =
+        new JsonApiDocument<>(null, List.of((Object) includedDocument));
+    Map<String, byte[]> extras = Map.of(target, bytes);
+    TenantContext.setCurrentTenant(tenantA);
+
+    // Act: a type set that does not permit the type of the resource
+    importer.handleImportDocument(
+        doc, extras, tenantB, ImportTypes.only(Set.of(), Set.of("domains", "tags")));
+    uploadedObjects.add(new String[] {tenantB, target});
+
+    // Assert
+    assertEquals(
+        0,
+        minioService.countObjects(tenantB + "/" + target),
+        "no object may be stored for a resource whose type the import does not permit");
+  }
+
+  @Test
+  @DisplayName("given_typeSetWithTheDocumentType_should_storeTheObject")
+  void given_typeSetWithTheDocumentType_should_storeTheObject() throws Exception {
+    // Arrange
+    byte[] bytes = ("jsonapi-import-body-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+    String target = DigestUtils.md5Hex(new ByteArrayInputStream(bytes)) + ".txt";
+    ResourceObject includedDocument =
+        new ResourceObject(
+            UUID.randomUUID().toString(),
+            resolveType(Document.class),
+            Map.of("document_target", target),
+            null);
+    JsonApiDocument<ResourceObject> doc =
+        new JsonApiDocument<>(null, List.of((Object) includedDocument));
+    TenantContext.setCurrentTenant(tenantA);
+
+    // Act: the production allowlist, which carries the document type as
+    // resolveType(Document.class),
+    // must let the document object through (a literal "document" would hide the singular/plural
+    // mismatch between the wire type and the allowlist).
+    importer.handleImportDocument(
+        doc, Map.of(target, bytes), tenantB, ThreatArsenalImportService.CONTRACT_IMPORT);
+    uploadedObjects.add(new String[] {tenantB, target});
+
+    // Assert: the gate, not another condition, is what refused the object above
+    assertEquals(1, minioService.countObjects(tenantB + "/" + target));
   }
 
   private String rowTenant(String documentName) {

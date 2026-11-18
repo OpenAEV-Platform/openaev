@@ -54,7 +54,7 @@ public class TagRuleService {
       final List<String> assetGroupIds,
       final boolean allowCreatingReserved,
       @NotBlank final String tenantId) {
-    return createTagRule(getTag(tagName), assetGroupIds, allowCreatingReserved, tenantId);
+    return createTagRule(getTag(tagName, tenantId), assetGroupIds, allowCreatingReserved, tenantId);
   }
 
   public TagRule createTagRule(
@@ -71,7 +71,7 @@ public class TagRuleService {
     // if the tag  or one of the asset group doesn't exist we exist throw a ElementNotFoundException
     TagRule tagRule = new TagRule();
     tagRule.setTag(tag);
-    tagRule.setAssetGroups(getAssetGroups(assetGroupIds));
+    tagRule.setAssetGroups(getAssetGroups(assetGroupIds, tenantId));
     tagRule.setTenant(new Tenant(tenantId));
     return tagRuleRepository.save(tagRule);
   }
@@ -87,10 +87,10 @@ public class TagRuleService {
             .orElseThrow(
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
 
-    Tag newTag = getTag(tagName);
+    Tag newTag = getTag(tagName, tagRule.getTenant().getId());
 
     // if one of the asset groups doesn't exist throw a ResourceNotFoundException
-    List<AssetGroup> assetGroups = getAssetGroups(assetGroupIds);
+    List<AssetGroup> assetGroups = getAssetGroups(assetGroupIds, tagRule.getTenant().getId());
 
     return updateTagRule(tagRule, newTag, assetGroups);
   }
@@ -147,10 +147,10 @@ public class TagRuleService {
   }
 
   @VisibleForTesting
-  protected Tag getTag(@NotBlank final String tagName) {
+  protected Tag getTag(@NotBlank final String tagName, @NotBlank final String tenantId) {
     // TODO: tag name normalization needs to be implemented in a reusable method
     return tagRepository
-        .findByName(tagName.toLowerCase())
+        .findByNameAndTenantId(tagName.toLowerCase(), tenantId)
         .orElseThrow(() -> new ElementNotFoundException("Tag not found with name: " + tagName));
   }
 
@@ -203,14 +203,15 @@ public class TagRuleService {
   }
 
   @VisibleForTesting
-  protected List<AssetGroup> getAssetGroups(final List<String> assetGroupIds) {
+  protected List<AssetGroup> getAssetGroups(
+      final List<String> assetGroupIds, @NotBlank final String ownerTenantId) {
     return assetGroupIds == null
         ? new ArrayList<>()
         : assetGroupIds.stream()
             .map(
                 id ->
                     assetGroupRepository
-                        .findById(id)
+                        .findByIdAndTenantId(id, ownerTenantId)
                         .orElseThrow(
                             () ->
                                 new ElementNotFoundException(

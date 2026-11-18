@@ -3,8 +3,10 @@ package io.openaev.architecture;
 import com.tngtech.archunit.core.domain.JavaClass;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.asm.ClassReader;
@@ -29,10 +31,12 @@ final class CallSites {
   /**
    * Targets called directly in a method body, targets called only from its lambdas, and for a
    * method reference the type of the object it is taken on: the handle of {@code repo::delete}
-   * names the declaring type ({@code CrudRepository}), never {@code repo}'s own type.
+   * names the declaring type ({@code CrudRepository}), never {@code repo}'s own type. The receivers
+   * of a target are listed once per reference, in order, so two references on two types that share
+   * a declaring type stay two.
    */
   record Sites(
-      Set<Target> direct, Set<Target> inLambdas, Map<Target, Set<String>> referenceReceivers) {
+      Set<Target> direct, Set<Target> inLambdas, Map<Target, List<String>> referenceReceivers) {
     Sites() {
       this(new HashSet<>(), new HashSet<>(), new HashMap<>());
     }
@@ -75,7 +79,16 @@ final class CallSites {
    * reference.
    */
   static Set<String> receiversOf(JavaClass owner, String methodName, Target target) {
-    return of(owner, methodName).referenceReceivers().getOrDefault(target, Set.of());
+    return new HashSet<>(receiverList(owner, methodName, target));
+  }
+
+  /**
+   * The type of each reference to {@code target} in {@code methodName}, one entry per bytecode
+   * reference, so the same type repeats when the method refers to it twice. A reference whose
+   * receiver cannot be read has no entry.
+   */
+  static List<String> receiverList(JavaClass owner, String methodName, Target target) {
+    return of(owner, methodName).referenceReceivers().getOrDefault(target, List.of());
   }
 
   static boolean directlyCalls(JavaClass owner, String methodName, Target target) {
@@ -87,7 +100,7 @@ final class CallSites {
     Map<String, Set<Target>> bodies = new HashMap<>();
     Map<String, String> creatorOfLambda = new HashMap<>();
     Map<String, Set<Target>> referencedBy = new HashMap<>();
-    Map<String, Map<Target, Set<String>>> receiversBy = new HashMap<>();
+    Map<String, Map<Target, List<String>>> receiversBy = new HashMap<>();
     try (InputStream in = owner.reflect().getClassLoader().getResourceAsStream(resource)) {
       if (in == null) {
         return Map.of();
@@ -126,7 +139,7 @@ final class CallSites {
                           if (receiver != null) {
                             receiversBy
                                 .computeIfAbsent(name, n -> new HashMap<>())
-                                .computeIfAbsent(reference, t -> new HashSet<>())
+                                .computeIfAbsent(reference, t -> new ArrayList<>())
                                 .add(receiver);
                           }
                         }
@@ -164,7 +177,7 @@ final class CallSites {
                     sites
                         .computeIfAbsent(topCreator(creator, creatorOfLambda), n -> new Sites())
                         .referenceReceivers()
-                        .computeIfAbsent(reference, t -> new HashSet<>())
+                        .computeIfAbsent(reference, t -> new ArrayList<>())
                         .addAll(types)));
     return sites;
   }

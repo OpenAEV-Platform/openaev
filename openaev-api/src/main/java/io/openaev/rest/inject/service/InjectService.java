@@ -57,6 +57,7 @@ import io.openaev.rest.exception.CredentialResolutionException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.LicenseRestrictionException;
+import io.openaev.rest.inject.InjectLinksInitializer;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -208,8 +209,13 @@ public class InjectService {
       throw new IllegalArgumentException("Exactly one of exercise or scenario should be present");
     }
 
+    // Resolved in the parent's own tenant, not the request's ambient scope: a built-in contract id
+    // repeats across tenants (#8485), and a caller creating this inject can belong to several.
+    String parentTenantId =
+        exercise != null ? exercise.getTenant().getId() : scenario.getTenant().getId();
     InjectorContract injectorContract =
-        this.injectorContractService.injectorContract(input.getInjectorContract());
+        this.injectorContractService.injectorContractInTenant(
+            input.getInjectorContract(), parentTenantId);
 
     if (injectorContract.getConvertedContent() == null) {
       injectorContract.setConvertedContent(convertContent(injectorContract.getContent()));
@@ -292,6 +298,15 @@ public class InjectService {
     }
 
     return inject;
+  }
+
+  /**
+   * The tenant of each given inject, as {@code [inject_id, tenant_id]} rows read from the inject's
+   * own column by a native projection that no tenant scope narrows. For the callers that resolve an
+   * inject's owner before acting in its tenant; an unknown inject is absent from the result.
+   */
+  public List<Object[]> findTenantIdsByInjectIds(Collection<String> injectIds) {
+    return injectRepository.findTenantIdsByInjectIds(injectIds);
   }
 
   /**
@@ -575,6 +590,10 @@ public class InjectService {
 
   // -- SPECIFIC GETTER --
 
+  public Set<Inject> findByScenarioId(String scenarioId) {
+    return injectRepository.findByScenarioId(scenarioId);
+  }
+
   public List<Inject> getExecutedAndNotFinished() {
     return this.injectRepository.findAll(
         hasStatus(List.of(EXECUTED, ERROR, MAYBE_PREVENTED, PARTIAL, MAYBE_PARTIAL_PREVENTED))
@@ -695,11 +714,7 @@ public class InjectService {
    */
   private boolean isVisibleUnderClearance(Asset asset, MarkingCtx clearance) {
     String[] assetMarkingIds = asset.getMarkingIds();
-    if (assetMarkingIds == null || assetMarkingIds.length == 0) {
-      return true;
-    }
-    return clearance instanceof MarkingCtx.Restricted restricted
-        && restricted.markingIds().containsAll(Arrays.asList(assetMarkingIds));
+    return clearance.allows(assetMarkingIds == null ? List.of() : Arrays.asList(assetMarkingIds));
   }
 
   /**
@@ -1037,6 +1052,11 @@ public class InjectService {
   @Transactional(readOnly = true)
   public List<Inject> getInjectsAndCheckPermission(
       TxCtx ctx, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
+    return findInjectsAndCheckPermission(ctx, input, requested_grant_level);
+  }
+
+  private List<Inject> findInjectsAndCheckPermission(
+      TxCtx ctx, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
     // Control and format inputs
     // Specification building
     Specification<Inject> filterSpecifications =
@@ -1046,6 +1066,19 @@ public class InjectService {
     // Bulk select, only on injects granted through scenario or simulation (or without grant for
     // atomic tests)
     return this.injectRepository.findAll(filterSpecifications);
+  }
+
+  /**
+   * Resolves the injects of a bulk delete like {@link #getInjectsAndCheckPermission} and loads
+   * their tags and secret references in the same scoped transaction. The native delete that follows
+   * removes the {@code injects_tags} rows, and the response serializes after the commit with no
+   * tenant scope, so both reads happen here.
+   */
+  @Transactional(readOnly = true)
+  public List<Inject> getInjectsToDeleteWithLinks(TxCtx ctx, InjectBulkProcessingInput input) {
+    List<Inject> injects = findInjectsAndCheckPermission(ctx, input, Grant.GRANT_TYPE.PLANNER);
+    InjectLinksInitializer.initialize(injects);
+    return injects;
   }
 
   /**
@@ -1081,7 +1114,8 @@ public class InjectService {
 
     // Resolve injector explicitly (BeanUtils cannot copy String → Injector)
     if (StringUtils.isNotBlank(input.getInjectorId())) {
-      inject.setInjector(injectUtils.resolveInjector(input.getInjectorId(), null));
+      inject.setInjector(
+          injectUtils.resolveInjectorInTenant(input.getInjectorId(), inject.getTenant().getId()));
     }
 
     // Set dependencies
@@ -1842,6 +1876,7 @@ public class InjectService {
     healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
     healthChecks.addAll(healthCheckUtils.runContentChecks(inject));
+    healthChecks.addAll(healthCheckUtils.runRevocationChecks(List.of(inject)));
 
     return healthChecks;
   }

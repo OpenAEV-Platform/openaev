@@ -31,6 +31,7 @@ class GrantServiceTest {
 
   private static final String USER_ID = "userid";
   private static final String RESOURCE_ID = "resourceid";
+  private static final String TENANT_ID = "tenantid";
 
   @Mock private GrantRepository grantRepository;
   @Mock private ExerciseRepository exerciseRepository;
@@ -155,7 +156,8 @@ class GrantServiceTest {
   void given_resourceOfTheDeclaredType_should_acceptGrant() {
     when(exerciseRepository.existsById(RESOURCE_ID)).thenReturn(true);
 
-    assertDoesNotThrow(() -> grantService.validateResourceIdForGrant(RESOURCE_ID, SIMULATION));
+    assertDoesNotThrow(
+        () -> grantService.validateResourceIdForGrant(RESOURCE_ID, SIMULATION, TENANT_ID));
     verifyNoInteractions(scenarioRepository, injectRepository, injectorContractRepository);
   }
 
@@ -166,7 +168,7 @@ class GrantServiceTest {
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> grantService.validateResourceIdForGrant(RESOURCE_ID, SIMULATION));
+        () -> grantService.validateResourceIdForGrant(RESOURCE_ID, SIMULATION, TENANT_ID));
     verifyNoInteractions(scenarioRepository);
   }
 
@@ -175,20 +177,21 @@ class GrantServiceTest {
     when(scenarioRepository.existsById(RESOURCE_ID)).thenReturn(true);
     when(injectRepository.existsByIdAndScenarioIsNullAndExerciseIsNull(RESOURCE_ID))
         .thenReturn(true);
-    when(injectorContractRepository.existsByContractId(RESOURCE_ID)).thenReturn(true);
+    when(injectorContractRepository.existsByContractIdAndTenant(RESOURCE_ID, TENANT_ID))
+        .thenReturn(true);
 
     assertDoesNotThrow(
         () ->
             grantService.validateResourceIdForGrant(
-                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.SCENARIO));
+                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.SCENARIO, TENANT_ID));
     assertDoesNotThrow(
         () ->
             grantService.validateResourceIdForGrant(
-                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING));
+                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING, TENANT_ID));
     assertDoesNotThrow(
         () ->
             grantService.validateResourceIdForGrant(
-                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL));
+                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL, TENANT_ID));
     verifyNoInteractions(exerciseRepository);
   }
 
@@ -198,9 +201,9 @@ class GrantServiceTest {
         IllegalArgumentException.class,
         () ->
             grantService.validateResourceIdForGrant(
-                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.UNKNOWN));
+                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.UNKNOWN, TENANT_ID));
     assertThrows(
         IllegalArgumentException.class,
-        () -> grantService.validateResourceIdForGrant(RESOURCE_ID, null));
+        () -> grantService.validateResourceIdForGrant(RESOURCE_ID, null, TENANT_ID));
   }
 }

@@ -226,7 +226,7 @@ public class WorkflowApi extends RestBehavior {
       @PathVariable @NotBlank final String workflowId,
       @PathVariable @NotBlank final String injectorContractId) {
     return WorkflowInjectorContractOutput.fromInjectorContract(
-        injectorContractService.injectorContractForWorkflow(injectorContractId, workflowId));
+        injectorContractService.injectorContractForWorkflow(ctx, injectorContractId, workflowId));
   }
 
   // -- UPDATE --

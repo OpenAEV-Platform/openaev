@@ -45,6 +45,16 @@ public class DashboardService {
   private final EsSecurityDomainService esSecurityDomainService;
 
   private final RawUserAuthMapper rawUserAuthMapper;
+  private final BaseEntityValidator baseEntityValidator;
+
+  /**
+   * The {@code base_entity} values a widget filter may name: the index names of the engine models.
+   *
+   * @return the valid values, sorted
+   */
+  public List<String> baseEntities() {
+    return List.copyOf(baseEntityValidator.validBaseEntities());
+  }
 
   /**
    * Retrieves count data from Elasticsearch for a specific widget based on its configuration.
@@ -220,6 +230,7 @@ public class DashboardService {
    */
   public List<EsSeries> adHocSeries(
       TxCtx ctx, WidgetConfiguration configuration, Map<String, String> parameters) {
+    baseEntityValidator.validate(configuration);
     RawUserAuth user = currentUserAuth();
     Map<String, String> params = parameters == null ? Map.of() : parameters;
     Map<String, CustomDashboardParameters> defParams = adHocDefinitionParameters();
@@ -247,6 +258,7 @@ public class DashboardService {
       throw new UnsupportedOperationException(
           "Unsupported ad-hoc widget configuration: " + configuration.getConfigurationType());
     }
+    baseEntityValidator.validate(config);
     RawUserAuth user = currentUserAuth();
     Map<String, String> params = parameters == null ? Map.of() : parameters;
     return engineService.average(
@@ -271,6 +283,7 @@ public class DashboardService {
       throw new UnsupportedOperationException(
           "Unsupported ad-hoc widget configuration: " + configuration.getConfigurationType());
     }
+    baseEntityValidator.validate(config);
     RawUserAuth user = currentUserAuth();
     Map<String, String> params = parameters == null ? Map.of() : parameters;
     return engineService.count(
@@ -294,6 +307,7 @@ public class DashboardService {
       throw new UnsupportedOperationException(
           "Unsupported ad-hoc widget configuration: " + configuration.getConfigurationType());
     }
+    baseEntityValidator.validate(config);
     RawUserAuth user = currentUserAuth();
     Map<String, String> params = parameters == null ? Map.of() : parameters;
     return engineService.entities(
@@ -316,6 +330,7 @@ public class DashboardService {
       WidgetType widgetType,
       WidgetConfiguration configuration,
       WidgetToEntitiesInput input) {
+    baseEntityValidator.validate(configuration);
     Widget transientWidget = new Widget();
     transientWidget.setType(widgetType);
     transientWidget.setWidgetConfiguration(configuration);
@@ -401,6 +416,9 @@ public class DashboardService {
       parameters = Map.of();
     }
     Widget widget = widgetService.widget(widgetId);
+    // A stored widget can carry a value saved before its model was renamed or removed: refuse it
+    // rather than answer an empty result the caller would read as a real zero.
+    baseEntityValidator.validate(widget.getWidgetConfiguration());
     CustomDashboard dashboard = widget.getCustomDashboard();
     Map<String, CustomDashboardParameters> defParams = dashboard.toParametersMap();
     List<RawUserAuthFlat> usersWithAuthFlat = userRepository.getUserWithAuth(currentUser().getId());

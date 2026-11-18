@@ -149,7 +149,7 @@ public class Asset implements TenantBase {
   @NotBlank
   private String name;
 
-  @Queryable(sortable = true)
+  @Queryable(filterable = true, sortable = true)
   @Column(name = "asset_description")
   @JsonProperty("asset_description")
   private String description;
@@ -246,6 +246,7 @@ public class Asset implements TenantBase {
   @JsonProperty("asset_url")
   private String url;
 
+  @Queryable(filterable = true)
   @Type(StringArrayType.class)
   @Column(name = "asset_mac_addresses")
   @JsonProperty("asset_mac_addresses")
@@ -423,6 +424,12 @@ public class Asset implements TenantBase {
   @Override
   public int hashCode() {
     return Objects.hash(id);
+  }
+
+  @Override
+  @JsonIgnore
+  public String getStreamSchema() {
+    return category == AssetCategory.AI_TARGET ? "aitargets" : null;
   }
 
   public Asset() {}

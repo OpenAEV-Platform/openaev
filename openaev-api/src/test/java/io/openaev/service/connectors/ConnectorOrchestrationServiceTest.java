@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ConnectorInstancePersisted;
@@ -39,6 +40,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 class ConnectorOrchestrationServiceTest {
 
   private static final String TENANT_ID = "2cffad3a-0001-4078-b0e2-ef74274022c3";
+  private static final TxCtx CTX = TxCtx.forTenant(TENANT_ID);
   private static final String COLLECTOR_ID = "c4b850fa-6893-4b0b-bafd-ac571e502590";
 
   @Mock private ConnectorInstanceService connectorInstanceService;
@@ -98,7 +100,7 @@ class ConnectorOrchestrationServiceTest {
     assertThatThrownBy(
             () ->
                 service.createConnectorInstance(
-                    collectorCatalog(), migrationInput(COLLECTOR_ID), TENANT_ID))
+                    CTX, collectorCatalog(), migrationInput(COLLECTOR_ID), TENANT_ID))
         .isInstanceOf(BadRequestException.class)
         .isNotInstanceOf(DataIntegrityViolationException.class)
         .hasMessageContaining(COLLECTOR_ID)
@@ -113,9 +115,9 @@ class ConnectorOrchestrationServiceTest {
 
     CreateConnectorInstanceInput input = migrationInput(COLLECTOR_ID);
     ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalog = collectorCatalog();
-    service.createConnectorInstance(catalog, input, TENANT_ID);
+    service.createConnectorInstance(CTX, catalog, input, TENANT_ID);
 
-    verify(connectorInstanceService).createConnectorInstance(catalog, input, TENANT_ID);
+    verify(connectorInstanceService).createConnectorInstance(CTX, catalog, input, TENANT_ID);
   }
 
   @Test
@@ -134,10 +136,12 @@ class ConnectorOrchestrationServiceTest {
 
     CreateConnectorInstanceInput input = migrationInput(COLLECTOR_ID);
     ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalog = collectorCatalog();
-    ConnectorInstancePersisted result = service.createConnectorInstance(catalog, input, TENANT_ID);
+    ConnectorInstancePersisted result =
+        service.createConnectorInstance(CTX, catalog, input, TENANT_ID);
 
     assertThat(result).isSameAs(existingInstance);
-    verify(connectorInstanceService, never()).createConnectorInstance(catalog, input, TENANT_ID);
+    verify(connectorInstanceService, never())
+        .createConnectorInstance(CTX, catalog, input, TENANT_ID);
   }
 
   @Test
@@ -151,7 +155,8 @@ class ConnectorOrchestrationServiceTest {
     idConfig.setValue(NullNode.getInstance());
     input.setConfigurations(List.of(idConfig));
 
-    assertThatThrownBy(() -> service.createConnectorInstance(collectorCatalog(), input, TENANT_ID))
+    assertThatThrownBy(
+            () -> service.createConnectorInstance(CTX, collectorCatalog(), input, TENANT_ID))
         .isInstanceOf(BadRequestException.class)
         .hasMessageContaining("A connector id is required");
   }
@@ -168,7 +173,8 @@ class ConnectorOrchestrationServiceTest {
     idConfig.setValue(null);
     input.setConfigurations(List.of(idConfig));
 
-    assertThatThrownBy(() -> service.createConnectorInstance(collectorCatalog(), input, TENANT_ID))
+    assertThatThrownBy(
+            () -> service.createConnectorInstance(CTX, collectorCatalog(), input, TENANT_ID))
         .isInstanceOf(BadRequestException.class)
         .hasMessageContaining("A connector id is required");
   }
@@ -179,9 +185,9 @@ class ConnectorOrchestrationServiceTest {
     CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
     ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalog = collectorCatalog();
 
-    service.createConnectorInstance(catalog, input, TENANT_ID);
+    service.createConnectorInstance(CTX, catalog, input, TENANT_ID);
 
-    verify(connectorInstanceService).createConnectorInstance(catalog, input, TENANT_ID);
+    verify(connectorInstanceService).createConnectorInstance(CTX, catalog, input, TENANT_ID);
     assertThat(input.getConfigurations()).isEmpty();
   }
 }

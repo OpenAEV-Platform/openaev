@@ -52,7 +52,7 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [autoNewMarking, setAutoNewMarking] = useState(false);
   const ability = useAbility();
-  const canAssignMarking = ability.can(ACTIONS.ASSIGN, SUBJECTS.MARKING);
+  const canAssignMarking = ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_ASSIGNMENT);
 
   useEffect(() => {
     if (open) {

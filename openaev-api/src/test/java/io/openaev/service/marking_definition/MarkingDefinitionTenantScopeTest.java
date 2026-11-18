@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.repository.MarkingDefinitionRepository;
@@ -35,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
  * through the repository instead, with nothing but the transaction scope in play, so it fails as
  * soon as the table leaves the list.
  */
+@CoversTenantIsolation("marking_definitions")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=marking_definitions")
 @WithMockUser(isAdmin = true)

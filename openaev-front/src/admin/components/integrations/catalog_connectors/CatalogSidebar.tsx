@@ -15,7 +15,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, useMemo } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
-import { computeBannerSettings } from '../../../../public/components/systembanners/utils';
+import useBannerSettings from '../../../../public/components/systembanners/useBannerSettings';
 import useAuth from '../../../../utils/hooks/useAuth';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import {
@@ -162,7 +162,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
   // viewport. Clear the fixed app bar (68px) plus any active top banner, then
   // add a small gap, so the panel's "Filters" title never slides under the
   // header instead of sticking below it.
-  const { bannerHeightNumber } = computeBannerSettings(settings);
+  const { bannerHeightNumber } = useBannerSettings(settings);
   const stickyTop = `calc(var(--fds-header-height, 68px) + ${bannerHeightNumber}px + ${theme.spacing(2)})`;
 
   const groups: FacetGroup[] = useMemo(() => {

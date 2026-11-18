@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.cache.LicenseCacheManager;
@@ -21,6 +22,7 @@ import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.*;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.period.CronService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -34,7 +36,10 @@ import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
+import jakarta.persistence.EntityManager;
+import java.time.Instant;
 import java.util.*;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -48,6 +53,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @ExtendWith(MockitoExtension.class)
 class ExerciseServiceUnitTest {
@@ -86,10 +92,120 @@ class ExerciseServiceUnitTest {
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
   @Mock private WorkflowService workflowService;
+  @Mock private WorkflowOwnerScope workflowOwnerScope;
   @Mock private LessonsService lessonsService;
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private EntityManager entityManager;
+  @Mock private PauseExerciseService pauseExerciseService;
+  @Mock private UrlAccessTokenService urlAccessTokenService;
+  @Mock private FileService fileService;
 
   @Spy @InjectMocks private ExerciseService mockedExerciseService;
+
+  @AfterEach
+  void clearTransactionSynchronization() {
+    // Safety net: the reset-storage test below opens a TransactionSynchronizationManager scope
+    // manually (it's thread-bound state, not a mock), so a failure mid-test must not leak it into
+    // the next test's thread.
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
+  }
+
+  @Nested
+  @DisplayName("Resetting a closed simulation to scheduled")
+  class ResetToScheduled {
+
+    @Test
+    @DisplayName(
+        "given_closedSimulationOfAnotherTenant_when_resetWithAmbientDefault_should_deleteDirectoryUnderBothStorageLayouts")
+    void
+        given_closedSimulationOfAnotherTenant_when_resetWithAmbientDefault_should_deleteDirectoryUnderBothStorageLayouts()
+            throws ChainingException {
+      // Arrange - the simulation lives in a tenant of its own, not the default one, and may carry
+      // attachments under the earlier storage layout (the default tenant's prefix)
+      String exerciseId = "9b1c2d3e-4f50-4617-8829-aabbccddeeff";
+      String owningTenantId = "4e5f6071-8293-4a5b-9c0d-1e2f30415263";
+      Exercise exercise = new Exercise();
+      exercise.setId(exerciseId);
+      exercise.setStatus(ExerciseStatus.CANCELED);
+      exercise.setStart(Instant.now());
+      exercise.setTenant(new Tenant(owningTenantId));
+
+      when(exerciseRepository.findByIdAndTenantIdIn(eq(exerciseId), any()))
+          .thenReturn(Optional.of(exercise));
+      when(exerciseRepository.save(any(Exercise.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+      when(workflowOwnerScope.call(any(Exercise.class), any()))
+          .thenAnswer(
+              invocation ->
+                  invocation
+                      .<io.openaev.context.TenantScopedTransaction.ScopedWork<?, ?>>getArgument(1)
+                      .get());
+      // @InjectMocks only wires the biggest constructor; the @PersistenceContext field is set
+      // separately, the same way EmailService's ImapService test sets its @Value fields.
+      org.springframework.test.util.ReflectionTestUtils.setField(
+          mockedExerciseService, "entityManager", entityManager);
+
+      // The non-prefixed route never sets the ambient TenantContext: it falls back to the default
+      // tenant, whatever tenant the request's TxCtx actually names.
+      TenantContext.clearCurrentTenant();
+      TransactionSynchronizationManager.initSynchronization();
+
+      // Act - the request scope names the simulation's own tenant (e.g. via X-Tenant-Ids)
+      mockedExerciseService.changeExerciseStatus(
+          TxCtx.forTenant(owningTenantId), ExerciseStatus.SCHEDULED, exerciseId);
+      TransactionSynchronizationManager.getSynchronizations()
+          .forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit);
+
+      // Assert - the directory is removed from both the simulation's own tenant path and the
+      // default tenant's prefix, never the ambient (1-arg) method.
+      verify(fileService).deleteDirectory(eq(owningTenantId), eq(exerciseId));
+      verify(fileService).deleteDirectory(eq(Tenant.DEFAULT_TENANT_UUID), eq(exerciseId));
+      verify(fileService, never()).deleteDirectory(anyString());
+    }
+
+    @Test
+    @DisplayName(
+        "given_closedSimulationOfTheDefaultTenant_when_reset_should_deleteItsDirectoryOnlyOnce")
+    void given_closedSimulationOfTheDefaultTenant_when_reset_should_deleteItsDirectoryOnlyOnce()
+        throws ChainingException {
+      // Arrange - the simulation already lives in the default tenant, so its own prefix and the
+      // earlier layout's prefix are the same path
+      String exerciseId = "1a2b3c4d-5e6f-4789-90ab-cdef01234567";
+      Exercise exercise = new Exercise();
+      exercise.setId(exerciseId);
+      exercise.setStatus(ExerciseStatus.CANCELED);
+      exercise.setStart(Instant.now());
+      exercise.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+
+      when(exerciseRepository.findByIdAndTenantIdIn(eq(exerciseId), any()))
+          .thenReturn(Optional.of(exercise));
+      when(exerciseRepository.save(any(Exercise.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+      when(workflowOwnerScope.call(any(Exercise.class), any()))
+          .thenAnswer(
+              invocation ->
+                  invocation
+                      .<io.openaev.context.TenantScopedTransaction.ScopedWork<?, ?>>getArgument(1)
+                      .get());
+      org.springframework.test.util.ReflectionTestUtils.setField(
+          mockedExerciseService, "entityManager", entityManager);
+
+      TenantContext.clearCurrentTenant();
+      TransactionSynchronizationManager.initSynchronization();
+
+      // Act
+      mockedExerciseService.changeExerciseStatus(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), ExerciseStatus.SCHEDULED, exerciseId);
+      TransactionSynchronizationManager.getSynchronizations()
+          .forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit);
+
+      // Assert - a single delete, not a second one for the same path
+      verify(fileService, times(1)).deleteDirectory(eq(Tenant.DEFAULT_TENANT_UUID), eq(exerciseId));
+      verify(fileService, never()).deleteDirectory(anyString());
+    }
+  }
 
   @Test
   @DisplayName("Should get exercises global scores")
@@ -414,6 +530,17 @@ class ExerciseServiceUnitTest {
       exercise = mock(Exercise.class);
     }
 
+    // The owner's tenant scope is the integration tests' concern; here the work just runs.
+    private void runScopedWorkInPlace() throws Exception {
+      doAnswer(
+              invocation -> {
+                invocation.<WorkflowOwnerScope.ScopedAction<?>>getArgument(1).run();
+                return null;
+              })
+          .when(workflowOwnerScope)
+          .run(any(Exercise.class), any());
+    }
+
     @Test
     void findAllById_shouldDelegate() {
       List<String> ids = List.of("1", "2");
@@ -431,12 +558,15 @@ class ExerciseServiceUnitTest {
     }
 
     @Test
-    void deleteById_shouldCheckTenantAndDelegate() {
+    void deleteById_shouldCheckTenantAndDelegate() throws Exception {
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class);
           MockedStatic<SessionHelper> sh = mockStatic(SessionHelper.class)) {
         // Arrange
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(exerciseRepository.existsByIdAndTenantId("id", "tenant-1")).thenReturn(true);
+        when(exerciseRepository.findByIdAndTenantId("id", "tenant-1"))
+            .thenReturn(Optional.of(exercise));
+        when(exercise.getId()).thenReturn("id");
+        runScopedWorkInPlace();
         OpenAEVPrincipal principal = mock(OpenAEVPrincipal.class);
         when(principal.getId()).thenReturn("user-1");
         sh.when(SessionHelper::currentUser).thenReturn(principal);
@@ -445,7 +575,7 @@ class ExerciseServiceUnitTest {
         mockedExerciseService.deleteById("id");
 
         // Assert
-        verify(exerciseRepository).existsByIdAndTenantId("id", "tenant-1");
+        verify(exerciseRepository).findByIdAndTenantId("id", "tenant-1");
         verify(exerciseRepository).deleteById("id");
       }
     }
@@ -455,7 +585,7 @@ class ExerciseServiceUnitTest {
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         // Arrange
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(exerciseRepository.existsByIdAndTenantId("id", "tenant-1")).thenReturn(false);
+        when(exerciseRepository.findByIdAndTenantId("id", "tenant-1")).thenReturn(Optional.empty());
 
         // Act & Assert
         assertThrows(ElementNotFoundException.class, () -> mockedExerciseService.deleteById("id"));

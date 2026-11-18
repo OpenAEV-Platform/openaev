@@ -52,6 +52,60 @@ describe('SseActionBatcher', () => {
     expect(actions[0].type).toBe(DATA_UPDATE_SUCCESS);
   });
 
+  describe('partial snapshots of the same entity', () => {
+    type UserEntities = { entities: Record<string, Record<string, Record<string, unknown>>> };
+
+    it('given a second snapshot without a key, should keep the key of the first and the other fields of the second', () => {
+      // Arrange
+      const batcher = new SseActionBatcher();
+      batcher.addUpsert(DATA_UPDATE_SUCCESS, 'users', 'u1', payloadFor('users', 'u1', {
+        user_email: 'first@example.com',
+        user_tags: ['t1'],
+      }));
+      // Act
+      batcher.addUpsert(DATA_UPDATE_SUCCESS, 'users', 'u1', payloadFor('users', 'u1', { user_email: 'second@example.com' }));
+      const actions = batcher.drain();
+      // Assert
+      expect(actions).toHaveLength(1);
+      const user = (actions[0].payload as UserEntities).entities.users.u1;
+      expect(user.user_tags).toEqual(['t1']);
+      expect(user.user_email).toBe('second@example.com');
+    });
+
+    it('given a second snapshot with an empty list, should replace the list of the first', () => {
+      // Arrange
+      const batcher = new SseActionBatcher();
+      batcher.addUpsert(DATA_UPDATE_SUCCESS, 'users', 'u1', payloadFor('users', 'u1', { user_tags: ['t1'] }));
+      // Act
+      batcher.addUpsert(DATA_UPDATE_SUCCESS, 'users', 'u1', payloadFor('users', 'u1', { user_tags: [] }));
+      const actions = batcher.drain();
+      // Assert
+      const user = (actions[0].payload as UserEntities).entities.users.u1;
+      expect(user.user_tags).toEqual([]);
+    });
+
+    it('given a delete between two snapshots, should hold the fields of the second only and no delete action', () => {
+      // Arrange
+      const batcher = new SseActionBatcher();
+      batcher.addUpsert(DATA_UPDATE_SUCCESS, 'users', 'u1', payloadFor('users', 'u1', {
+        user_email: 'first@example.com',
+        user_tags: ['t1'],
+      }));
+      batcher.addDelete('users', 'u1');
+      // Act
+      batcher.addUpsert(DATA_UPDATE_SUCCESS, 'users', 'u1', payloadFor('users', 'u1', { user_email: 'second@example.com' }));
+      const actions = batcher.drain();
+      // Assert
+      expect(actions.map(a => a.type)).toEqual([DATA_UPDATE_SUCCESS]);
+      expect(actions.some(a => a.type === DATA_DELETE_BATCH_SUCCESS)).toBe(false);
+      const user = (actions[0].payload as UserEntities).entities.users.u1;
+      expect(user).toEqual({
+        user_id: 'u1',
+        user_email: 'second@example.com',
+      });
+    });
+  });
+
   it('merges distinct entities into one composite action per event type', () => {
     const batcher = new SseActionBatcher();
     batcher.addUpsert(DATA_UPDATE_SUCCESS, 'injects', 'i1', payloadFor('injects', 'i1', { v: 1 }));

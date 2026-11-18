@@ -1,6 +1,5 @@
 package io.openaev.service;
 
-import static io.openaev.database.model.Filters.FilterMode.and;
 import static io.openaev.database.model.Filters.isEmptyFilterGroup;
 import static io.openaev.database.specification.EndpointSpecification.*;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -13,8 +12,6 @@ import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static java.time.Instant.now;
-import static java.util.Optional.ofNullable;
-import static java.util.stream.Collectors.toList;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.OpenAEVConfig;
@@ -67,8 +64,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Slf4j
 public class EndpointService implements AuditLoggedService {
-
-  private static final String ASSET_GROUP_FILTER = "assetGroups";
 
   public static final int DELETE_TTL = 86400000; // 24 hours
   public static final String OPENAEV_AGENT_INSTALLER = "openaev-agent-installer";
@@ -161,7 +156,8 @@ public class EndpointService implements AuditLoggedService {
     endpoint.setIps(ips);
     ensureSeenIp(endpoint);
     endpoint.setMacAddresses(EndpointMapper.setMacAddresses(input.getMacAddresses()));
-    endpoint.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    endpoint.setTags(
+        iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
     endpoint.setEoL(input.isEol());
     return createEndpoint(endpoint, tenantId);
   }
@@ -235,6 +231,12 @@ public class EndpointService implements AuditLoggedService {
     return fromIterable(this.endpointRepository.findAll(fromIds(endpointIds)));
   }
 
+  /** The endpoints among the given ids that belong to the given tenant. */
+  public List<Endpoint> endpoints(
+      @NotNull final List<String> endpointIds, @NotBlank final String tenantId) {
+    return this.endpointRepository.findAllByIdInTenant(endpointIds, tenantId);
+  }
+
   public List<Endpoint> endpoints(@NotNull final Specification<Endpoint> specification) {
     return fromIterable(this.endpointRepository.findAll(specification));
   }
@@ -245,9 +247,13 @@ public class EndpointService implements AuditLoggedService {
   }
 
   public void deleteEndpoint(@NotBlank final String endpointId) {
-    this.endpointRepository.deleteById(endpointId);
+    int deleted = this.endpointRepository.deleteEndpointById(endpointId);
+    if (deleted == 0) {
+      throw new ElementNotFoundException("Endpoint not found");
+    }
     // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
-    // must be notified explicitly (endpoint + vulnerable-endpoint docs would stay stale).
+    // is notified explicitly (endpoint and vulnerable-endpoint documents would stay stale).
+    // The index delete event is published only for a row the scoped DELETE removed.
     eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, endpointId));
   }
 
@@ -276,76 +282,6 @@ public class EndpointService implements AuditLoggedService {
         (Specification<Endpoint> specification, Pageable pageable) ->
             this.endpointRepository.findAll(
                 findEndpointsForInjectionOrAgentlessEndpoints().and(specification), pageable),
-        handleEndpointFilter(searchPaginationInput),
-        Endpoint.class);
-  }
-
-  private List<Specification<Endpoint>> getDynamicAssetGroupSpecifications(
-      List<AssetGroup> assetGroups) {
-    return assetGroups.stream()
-        .filter(assetGroup -> !isEmptyFilterGroup(assetGroup.getDynamicFilter()))
-        .map(
-            assetGroup -> {
-              Specification<Endpoint> specificationDynamic =
-                  computeFilterGroupJpa(assetGroup.getDynamicFilter());
-              return specificationDynamic;
-            })
-        .collect(toList());
-  }
-
-  private List<AssetGroup> getAssetGroupFromFilter(Filters.Filter assetGroupFilter) {
-    return fromIterable(assetGroupRepository.findAllById(assetGroupFilter.getValues()));
-  }
-
-  private Specification<Endpoint> getStaticAssetGroupSpecification(
-      SearchPaginationInput searchPaginationInput, Filters.Filter assetGroupFilter) {
-    Filters.FilterGroup filterGroup = new Filters.FilterGroup();
-    filterGroup.setMode(searchPaginationInput.getFilterGroup().getMode());
-    filterGroup.setFilters(List.of(assetGroupFilter));
-    return computeFilterGroupJpa(filterGroup);
-  }
-
-  private Specification<Endpoint> buildAdditionalEndpointSpecifications(
-      SearchPaginationInput searchPaginationInput) {
-    Optional<Filters.Filter> assetGroupFilter =
-        ofNullable(searchPaginationInput.getFilterGroup())
-            .flatMap(f -> f.findByKey(ASSET_GROUP_FILTER));
-
-    if (assetGroupFilter.isEmpty()) {
-      return findEndpointsForInjectionOrAgentlessEndpoints();
-    }
-
-    // Handle dynamic asset group filters
-    List<AssetGroup> assetGroups = getAssetGroupFromFilter(assetGroupFilter.get());
-    List<Specification<Endpoint>> assetGroupSpecifications =
-        getDynamicAssetGroupSpecifications(assetGroups);
-
-    // Handle static asset group filter
-    assetGroupSpecifications.add(
-        getStaticAssetGroupSpecification(searchPaginationInput, assetGroupFilter.get()));
-    searchPaginationInput.getFilterGroup().removeByKey(ASSET_GROUP_FILTER);
-
-    return Specification.anyOf(assetGroupSpecifications)
-        .and(findEndpointsForInjectionOrAgentlessEndpoints());
-  }
-
-  public Page<Endpoint> searchManagedEndpoints(SearchPaginationInput searchPaginationInput) {
-    if (searchPaginationInput.getFilterGroup() == null) {
-      searchPaginationInput.setFilterGroup(Filters.FilterGroup.defaultFilterGroup());
-    }
-    Specification<Endpoint> finalSpec =
-        buildAdditionalEndpointSpecifications(searchPaginationInput);
-    Filters.FilterMode mode = searchPaginationInput.getFilterGroup().getMode();
-
-    return buildPaginationJPA(
-        (Specification<Endpoint> specification, Pageable pageable) ->
-            this.endpointRepository.findAll(
-                searchPaginationInput.getFilterGroup().getFilters().isEmpty()
-                    ? finalSpec
-                    : (and.equals(mode)
-                        ? finalSpec.and(specification)
-                        : finalSpec.or(specification)),
-                pageable),
         handleEndpointFilter(searchPaginationInput),
         Endpoint.class);
   }
@@ -385,7 +321,8 @@ public class EndpointService implements AuditLoggedService {
     toUpdate.setUpdateAttributes(input);
     ensureSeenIp(toUpdate);
     toUpdate.setEoL(input.isEol());
-    toUpdate.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    toUpdate.setTags(
+        iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
     return updateEndpoint(toUpdate);
   }
 
@@ -1114,13 +1051,13 @@ public class EndpointService implements AuditLoggedService {
       Endpoint endpointToUpdate = endpoint.get();
       // Mandatory fields
       endpointToUpdate.setName(input.getName());
-      Iterable<String> tags =
+      List<String> tags =
           Stream.concat(
                   endpointToUpdate.getTags().stream().map(Tag::getId).toList().stream(),
                   input.getTagIds().stream())
               .distinct()
               .toList();
-      endpointToUpdate.setTags(iterableToSet(tagRepository.findAllById(tags)));
+      endpointToUpdate.setTags(iterableToSet(tagRepository.findAllByIdInTenant(tags, tenantId)));
       // Optional fields: only override when provided so category inputs that omit
       // platform/arch (web app, cloud, ...) do not reset existing values to Unknown.
       if (input.getArch() != null) {

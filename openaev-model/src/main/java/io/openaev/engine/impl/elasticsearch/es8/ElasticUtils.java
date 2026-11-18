@@ -1,5 +1,7 @@
 package io.openaev.engine.impl.elasticsearch.es8;
 
+import static io.openaev.engine.EsUtils.toEngineDate;
+
 import es8.co.elastic.clients.elasticsearch._types.aggregations.*;
 import es8.co.elastic.clients.elasticsearch._types.aggregations.Aggregation.Builder.ContainerBuilder;
 import es8.co.elastic.clients.elasticsearch._types.query_dsl.*;
@@ -81,7 +83,9 @@ public class ElasticUtils {
    * Builds the exclusive "resume after (ts, id)" keyset predicate used by cursor-paged search:
    * either strictly after {@code ts}, or equal to {@code ts} and strictly after {@code id}. The
    * equality branch is written as a double-bounded range (not a term) so it parses {@code ts}
-   * through the same date path as the {@code gt} branch.
+   * through the same date path as the {@code gt} branch. The bound goes through {@link
+   * io.openaev.engine.EsUtils#toEngineDate}: a whole-second bound without its fraction would be
+   * rounded up by the engine and the {@code gt} branch would skip the rest of that second.
    *
    * @param tsField the date field to compare the timestamp on (must not be blank)
    * @param idField the sortable id field, e.g. {@code base_id.keyword} (must not be blank)
@@ -93,17 +97,14 @@ public class ElasticUtils {
       @NotBlank final String idField,
       @NotNull final Instant ts,
       @NotBlank final String id) {
+    String bound = toEngineDate(ts);
     Query strictlyAfterTs =
-        DateRangeQuery.of(d -> d.field(tsField).gt(String.valueOf(ts)))._toRangeQuery()._toQuery();
+        DateRangeQuery.of(d -> d.field(tsField).gt(bound))._toRangeQuery()._toQuery();
     Query sameTsAfterId =
         BoolQuery.of(
                 b ->
                     b.must(
-                        DateRangeQuery.of(
-                                d ->
-                                    d.field(tsField)
-                                        .gte(String.valueOf(ts))
-                                        .lte(String.valueOf(ts)))
+                        DateRangeQuery.of(d -> d.field(tsField).gte(bound).lte(bound))
                             ._toRangeQuery()
                             ._toQuery(),
                         TermRangeQuery.of(t -> t.field(idField).gt(id))._toRangeQuery()._toQuery()))

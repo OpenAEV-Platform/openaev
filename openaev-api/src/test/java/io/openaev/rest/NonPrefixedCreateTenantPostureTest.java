@@ -16,7 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.InjectorContract;
@@ -53,12 +53,17 @@ import org.springframework.transaction.annotation.Transactional;
  * scope that does not pin exactly one tenant is refused before anything is written. The injects
  * created with a scenario from injector contracts follow their scenario, and so does the workflow
  * of a chained simulation or scenario. The prefixed route is the control.
+ *
+ * <p>{@code injectors_contracts} is tenant-active: the test classpath arms no active-tables list by
+ * default, so this class arms the production one, or the injector-contract search behind the
+ * "scenario from injector contracts" create runs unscoped and matches the default tenant's copy of
+ * the built-in contract regardless of the request scope (#8485).
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Simulation and scenario creates take their tenant from the request scope")
-class NonPrefixedCreateTenantPostureTest extends IntegrationTest {
+class NonPrefixedCreateTenantPostureTest extends ProductionTablesIntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";

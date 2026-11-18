@@ -34,16 +34,7 @@ const legacyRamdaFiles = [
   'src/admin/components/integrations/injectors/injector_contracts/CreateInjectorContract.jsx',
   'src/admin/components/integrations/injectors/injector_contracts/InjectorContractCustomForm.jsx',
   'src/admin/components/integrations/injectors/injector_contracts/InjectorContractPopover.jsx',
-  'src/admin/components/lessons/LessonsObjectives.jsx',
-  'src/admin/components/lessons/ObjectiveEvaluations.jsx',
-  'src/admin/components/lessons/ObjectivePopover.jsx',
-  'src/admin/components/lessons/categories/LessonsCategoryAddTeams.jsx',
-  'src/admin/components/lessons/categories/LessonsCategoryPopover.jsx',
-  'src/admin/components/lessons/categories/questions/LessonsQuestionPopover.jsx',
-  'src/admin/components/lessons/scenarios/LessonsCategories.jsx',
-  'src/admin/components/lessons/simulations/CrysisIntensity.jsx',
   'src/admin/components/lessons/simulations/Lessons.tsx',
-  'src/admin/components/lessons/simulations/LessonsCategories.jsx',
   'src/admin/components/profile/Index.jsx',
   'src/admin/components/scenarios/scenario/Scenario.tsx',
   'src/admin/components/settings/attack_patterns/AttackPatternPopover.jsx',
@@ -101,7 +92,7 @@ const legacyRamdaFiles = [
   'src/utils/utils.ts',
 ];
 
-const restrictedImports = ({ allowRamda }) => [
+const restrictedImports = ({ allowRamda, extraPaths = [] }) => [
   'error', {
     patterns: [
       {
@@ -124,6 +115,7 @@ const restrictedImports = ({ allowRamda }) => [
             name: 'ramda',
             message: 'Ramda is being removed: use native JavaScript instead.',
           }]),
+      ...extraPaths,
     ],
   },
 ];
@@ -270,6 +262,22 @@ export default [
     files: ['tests_e2e/**/*'],
     // rules recommended by eslint-plugin-playwright
     ...playwright.configs['flat/recommended'],
+  },
+
+  // e2e specs log in through the persona fixture; no project sets storageState, so a spec on the
+  // base `test` would run logged out (a later config replaces the rule's options, it does not merge them)
+  {
+    files: ['tests_e2e/tests/**/*'],
+    rules: {
+      'no-restricted-imports': restrictedImports({
+        allowRamda: false,
+        extraPaths: [{
+          name: '@playwright/test',
+          importNames: ['test'],
+          message: 'Import `test` from tests_e2e/fixtures: its persona fixture logs the test in (admin by default).',
+        }],
+      }),
+    },
   },
 
   // ignores patterns

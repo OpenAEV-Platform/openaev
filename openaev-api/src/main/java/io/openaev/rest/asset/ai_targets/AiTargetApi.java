@@ -64,7 +64,10 @@ public class AiTargetApi {
   private Asset prepareAiTarget(Asset aiTarget, AiTargetInput input) {
     aiTarget.setUpdateAttributes(input);
     aiTarget.setCategory(AssetCategory.AI_TARGET);
-    aiTarget.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    aiTarget.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), aiTarget.getTenant().getId())));
     return aiTarget;
   }
 

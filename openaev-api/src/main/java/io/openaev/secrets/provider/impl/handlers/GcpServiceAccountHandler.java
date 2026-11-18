@@ -53,6 +53,9 @@ public class GcpServiceAccountHandler implements SecretHandler {
     boolean creating = !(existingSecret instanceof GcpServiceAccountSecret);
     GcpServiceAccountSecret gcpSecret =
         creating ? new GcpServiceAccountSecret() : (GcpServiceAccountSecret) existingSecret;
+    if (!creating) {
+      refuseUriChangeWithoutNewKeyFile(gcpSecret, request);
+    }
 
     // A null value means "left untouched by the client", so the stored value must be kept: the
     // form strips unchanged write-only fields from the payload, and the key file part is simply
@@ -71,6 +74,15 @@ public class GcpServiceAccountHandler implements SecretHandler {
       gcpSecret.setPrivateKeyJson(nativeEncryptionService.encrypt(request.gcpPrivateKeyJson()));
     }
 
+    if (request.gcpCustomResourceManagerUri() != null) {
+      gcpSecret.setCustomResourceManagerUri(
+          SecretHandler.blankToNull(request.gcpCustomResourceManagerUri()));
+    }
+
+    if (request.gcpCustomProjectsUri() != null) {
+      gcpSecret.setCustomProjectsUri(SecretHandler.blankToNull(request.gcpCustomProjectsUri()));
+    }
+
     // The FINAL state of the entity is validated, not the incoming request: an update that does
     // not resend the key file is legitimate, and checking the request would make key rotation the
     // only way to ever edit a GCP credential.
@@ -79,6 +91,24 @@ public class GcpServiceAccountHandler implements SecretHandler {
     }
 
     return gcpSecret;
+  }
+
+  /**
+   * The stored key file must not be replayed against a new resource manager or projects URI: the
+   * caller has to upload it again, otherwise whoever can edit the credential could redirect it to a
+   * host they control.
+   */
+  private static void refuseUriChangeWithoutNewKeyFile(
+      GcpServiceAccountSecret existing, SecretStoreRequest request) {
+    boolean redirected =
+        SecretHandler.redirectsEndpoint(
+                existing.getCustomResourceManagerUri(), request.gcpCustomResourceManagerUri())
+            || SecretHandler.redirectsEndpoint(
+                existing.getCustomProjectsUri(), request.gcpCustomProjectsUri());
+    if (redirected && request.gcpPrivateKeyJson() == null) {
+      throw new IllegalArgumentException(
+          "GCP service account key file must be reset in order to change the resource manager or projects URI");
+    }
   }
 
   /**
@@ -91,7 +121,11 @@ public class GcpServiceAccountHandler implements SecretHandler {
   public SecretMetadata toMetadata(Secret secret) {
     if (secret instanceof GcpServiceAccountSecret gcpSecret) {
       return SecretMetadata.forGcpServiceAccount(
-          gcpSecret.getScope(), gcpSecret.getProjectId(), gcpSecret.getPrivateKeyJson() != null);
+          gcpSecret.getScope(),
+          gcpSecret.getProjectId(),
+          gcpSecret.getPrivateKeyJson() != null,
+          gcpSecret.getCustomResourceManagerUri(),
+          gcpSecret.getCustomProjectsUri());
     }
     throw new IllegalArgumentException(TYPE_MISMATCH_MESSAGE);
   }
@@ -102,7 +136,8 @@ public class GcpServiceAccountHandler implements SecretHandler {
       return SecretResolvedValue.forGcpServiceAccount(
           gcpSecret.getScope(),
           gcpSecret.getProjectId(),
-          nativeEncryptionService.decrypt(gcpSecret.getPrivateKeyJson()));
+          nativeEncryptionService.decrypt(gcpSecret.getPrivateKeyJson()),
+          gcpSecret.getCustomResourceManagerUri());
     }
     throw new IllegalArgumentException(TYPE_MISMATCH_MESSAGE);
   }

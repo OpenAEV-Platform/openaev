@@ -1,21 +1,17 @@
 package io.openaev.rest.user;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.helper.DatabaseHelper.resolveTenantOrganization;
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.SessionManager;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
 import io.openaev.rest.atomic_testing.form.InjectResultOutput;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.user.form.player.PlayerBulkProcessingInput;
@@ -25,6 +21,7 @@ import io.openaev.service.InjectSearchService;
 import io.openaev.service.UserService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -34,6 +31,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.transaction.annotation.Propagation;
@@ -50,9 +48,7 @@ public class PlayerApi extends RestBehavior {
   @Resource private SessionManager sessionManager;
 
   private final CommunicationRepository communicationRepository;
-  private final OrganizationRepository organizationRepository;
   private final UserRepository userRepository;
-  private final TagRepository tagRepository;
   private final UserService userService;
   private final PlayerService playerService;
   private final InjectSearchService injectSearchService;
@@ -61,10 +57,14 @@ public class PlayerApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackFor = Exception.class)
   public Iterable<RawPlayer> players(TxCtx ctx) {
-    List<RawPlayer> players;
-    User currentUser = userService.currentUser();
-    players = fromIterable(userRepository.rawAllPlayers());
-    return players;
+    // Read the roster in the caller's resolved tenant scope, so it answers from the tenants the
+    // caller belongs to and not the ambient default tenant the non-prefixed route falls back to. An
+    // empty scope (no tenant resolved) reads nothing (fail closed).
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty()) {
+      return List.of();
+    }
+    return fromIterable(userRepository.rawPlayersInScope(scope));
   }
 
   @LogExecutionTime
@@ -73,7 +73,8 @@ public class PlayerApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public Page<PlayerOutput> players(
       TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
-    return this.playerService.playerPagination(searchPaginationInput);
+    return this.playerService.playerPagination(
+        TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx), searchPaginationInput);
   }
 
   /**
@@ -122,30 +123,16 @@ public class PlayerApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLAYER)
   public User updatePlayer(
-      TxCtx ctx, @PathVariable String userId, @Valid @RequestBody PlayerInput input) {
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String userId,
+      @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
-    User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+    User user = playerService.findPlayerOfWriteTenant(ctx, userId);
     ReservedKeyValidator.validateUserEmailPattern(user.getEmail());
     if (user.isAdmin() && !userService.currentUser().isAdmin()) {
       throw new ForbiddenException("Only an administrator can update a platform administrator");
     }
-    applyProfile(user, input);
-    return hydrateUserForResponse(userRepository.save(user));
-  }
-
-  private void applyProfile(User user, PlayerInput input) {
-    user.setFirstname(input.getFirstname());
-    user.setLastname(input.getLastname());
-    user.setPhone(input.getPhone());
-    user.setPhone2(input.getPhone2());
-    user.setPgpKey(input.getPgpKey());
-    user.setCountry(input.getCountry());
-    user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    String tenantId = TenantContext.getCurrentTenant();
-    userRepository.assignOrganization(
-        user,
-        tenantId,
-        resolveTenantOrganization(input.getOrganizationId(), tenantId, organizationRepository));
+    return hydrateUserForResponse(playerService.updatePlayer(ctx, user, input));
   }
 
   @DeleteMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
@@ -154,8 +141,8 @@ public class PlayerApi extends RestBehavior {
       resourceId = "#userId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PLAYER)
-  public void deletePlayer(TxCtx ctx, @PathVariable String userId) {
-    User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+  public void deletePlayer(@RequireTenantSelector TxCtx ctx, @PathVariable String userId) {
+    User user = playerService.findPlayerOfWriteTenant(ctx, userId);
     // Mirror the bulk deletion guards: platform administrator accounts and the
     // current user can never be removed through the players API.
     if (user.isAdmin()) {
@@ -165,7 +152,7 @@ public class PlayerApi extends RestBehavior {
     if (user.getId().equals(userService.currentUser().getId())) {
       throw new ForbiddenException("You cannot delete your own account");
     }
-    userService.delete(userId);
+    playerService.deletePlayerOfTenant(ctx, userId);
   }
 
   @ApiResponses(
@@ -181,7 +168,7 @@ public class PlayerApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLAYER)
   public List<String> bulkDeletePlayers(
-      TxCtx ctx, @RequestBody @Valid final PlayerBulkProcessingInput input) {
+      @RequireTenantSelector TxCtx ctx, @RequestBody @Valid final PlayerBulkProcessingInput input) {
     return playerService.bulkDeletePlayers(ctx, input);
   }
 
@@ -194,8 +181,12 @@ public class PlayerApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public List<FilterUtilsJpa.Option> optionsByName(
       TxCtx ctx, @RequestParam(required = false) final String searchText) {
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty()) {
+      return List.of();
+    }
     String search = searchText == null ? "" : searchText.toLowerCase();
-    return fromIterable(userRepository.findAll()).stream()
+    return userRepository.findPlayersInScope(scope).stream()
         .filter(
             user ->
                 search.isEmpty()
@@ -211,7 +202,11 @@ public class PlayerApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
-    return fromIterable(userRepository.findAllById(ids)).stream()
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty() || ids.isEmpty()) {
+      return List.of();
+    }
+    return userRepository.findPlayersByIdInScope(ids, scope).stream()
         .map(user -> new FilterUtilsJpa.Option(user.getId(), user.getNameOrEmail()))
         .toList();
   }

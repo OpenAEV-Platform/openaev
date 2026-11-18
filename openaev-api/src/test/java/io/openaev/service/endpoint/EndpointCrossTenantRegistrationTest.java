@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -42,11 +43,13 @@ public class EndpointCrossTenantRegistrationTest extends IntegrationTest {
     // Arrange — create two tenants and seed one executor per tenant via JDBC
     String tenantId1 =
         tenantIsolationTestHelper.createTenantWithCurrentUser("cross_tenant_reg_1").getId();
-    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId1);
+    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+        TxCtx.forTenant(tenantId1), tenantId1);
 
     String tenantId2 =
         tenantIsolationTestHelper.createTenantWithCurrentUser("cross_tenant_reg_2").getId();
-    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId2);
+    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+        TxCtx.forTenant(tenantId2), tenantId2);
 
     seedExecutor(OPENAEV_EXECUTOR_ID, tenantId1);
     seedExecutor(OPENAEV_EXECUTOR_ID, tenantId2);

@@ -19,7 +19,14 @@ import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.author.Authored;
 import io.openaev.database.model.author.Authorship;
+import io.openaev.database.model.catalog.CatalogContent;
+import io.openaev.database.model.catalog.ContentType;
+import io.openaev.database.model.hash.ContentHashed;
+import io.openaev.database.model.hash.Hashed;
+import io.openaev.database.model.hash.NotHashed;
 import io.openaev.database.model.payload.HasPayloadIdentity;
+import io.openaev.database.model.payload.PayloadChangeGuard;
+import io.openaev.database.model.payload.PayloadDeleteGuard;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
@@ -44,7 +51,12 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "payloads")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "payload_type", discriminatorType = STRING)
-@EntityListeners({ModelBaseListener.class, AuditableListener.class})
+@EntityListeners({
+  ModelBaseListener.class,
+  AuditableListener.class,
+  PayloadChangeGuard.class,
+  PayloadDeleteGuard.class
+})
 // payloads is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter, no
 // TenantBaseListener (#6437, #6430). A create path that forgets to stamp the tenant fails loudly
 // on the NOT NULL constraint instead of being silently defaulted to the ambient tenant.
@@ -71,7 +83,14 @@ import org.hibernate.type.SqlTypes;
       @DiscriminatorMapping(value = AiAttack.AI_ATTACK_TYPE, schema = AiAttack.class)
     })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.PAYLOAD)
-public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadIdentity, Auditable {
+public class Payload
+    implements GrantableBase,
+        TenantBase,
+        Authored,
+        HasPayloadIdentity,
+        Auditable,
+        ContentHashed,
+        CatalogContent {
 
   private static final int DEFAULT_NUMBER_OF_ACTIONS_FOR_PAYLOAD = 1;
 
@@ -93,6 +112,7 @@ public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadI
     ALL_ARCHITECTURES,
   }
 
+  @NotHashed
   @Id
   @ControlledUuidGeneration
   @Column(name = "payload_id")
@@ -100,22 +120,26 @@ public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadI
   @NotBlank
   private String id;
 
+  @NotHashed
   @Column(name = "payload_type", insertable = false, updatable = false)
   @JsonProperty("payload_type")
   @Setter(NONE)
   private String type;
 
+  @Hashed
   @Queryable(filterable = true, searchable = true, sortable = true)
   @Column(name = "payload_name")
   @JsonProperty("payload_name")
   @NotBlank
   private String name;
 
+  @Hashed
   @Queryable(filterable = true, sortable = true)
   @Column(name = "payload_description")
   @JsonProperty("payload_description")
   private String description;
 
+  @Hashed(order = Hashed.Order.SET)
   @Queryable(filterable = true, searchable = true)
   @Type(StringArrayType.class)
   @Column(name = "payload_platforms", columnDefinition = "text[]")
@@ -123,31 +147,37 @@ public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadI
   @NotEmpty
   private PLATFORM_TYPE[] platforms = new PLATFORM_TYPE[0];
 
+  @Hashed
   @Setter
   @Column(name = "payload_cleanup_executor")
   @JsonProperty("payload_cleanup_executor")
   private String cleanupExecutor;
 
+  @Hashed
   @Setter
   @Column(name = "payload_cleanup_command")
   @JsonProperty("payload_cleanup_command")
   private String cleanupCommand;
 
+  @Hashed
   @Getter
   @Column(name = "payload_elevation_required")
   @JsonProperty("payload_elevation_required")
   private boolean elevationRequired;
 
+  @Hashed(order = Hashed.Order.LIST)
   @Type(JsonType.class)
   @Column(name = "payload_arguments", nullable = false)
   @JsonProperty("payload_arguments")
   private List<PayloadArgument> arguments = new ArrayList<>();
 
+  @Hashed(order = Hashed.Order.LIST)
   @Type(JsonType.class)
   @Column(name = "payload_prerequisites", nullable = false)
   @JsonProperty("payload_prerequisites")
   private List<PayloadPrerequisite> prerequisites = new ArrayList<>();
 
+  @Hashed(order = Hashed.Order.SET)
   @Queryable(filterable = true, searchable = true)
   @Type(StringArrayType.class)
   @Column(name = "payload_expectations", columnDefinition = "text[]")
@@ -160,6 +190,7 @@ public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadI
    * means "any security platform" (legacy behaviour). Used to pre-seed only the relevant collectors
    * when this payload's predefined expectations are instantiated on an inject.
    */
+  @Hashed(order = Hashed.Order.SET)
   @Setter
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "payload_expected_security_platforms", columnDefinition = "jsonb")
@@ -167,6 +198,7 @@ public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadI
   private Map<EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
       expectedSecurityPlatforms = new HashMap<>();
 
+  @NotHashed
   @Setter
   @Queryable(filterable = true)
   @Column(name = "payload_status")
@@ -175,6 +207,7 @@ public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadI
   @NotNull
   private PAYLOAD_STATUS status;
 
+  @Hashed
   @Queryable(filterable = true, searchable = true)
   @Column(name = "payload_execution_arch", nullable = false)
   @JsonProperty("payload_execution_arch")
@@ -182,6 +215,7 @@ public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadI
   @NotNull
   private PAYLOAD_EXECUTION_ARCH executionArch = Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES;
 
+  @NotHashed
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
@@ -195,6 +229,7 @@ public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadI
   // -- IDENTITY --
 
   // EAGER: read after the transaction closes. The database deletes it with its last version.
+  @NotHashed
   @ManyToOne(
       fetch = FetchType.EAGER,
       cascade = {CascadeType.PERSIST, CascadeType.MERGE})
@@ -204,9 +239,16 @@ public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadI
 
   public static final String FIRST_VERSION = "1.0.0";
 
+  @NotHashed
   @Column(name = "payload_version", nullable = false)
   @JsonIgnore
   private String version = FIRST_VERSION;
+
+  // SHA-256 of the canonical content: same content, same hash, on any platform.
+  @NotHashed
+  @Column(name = "payload_content_hash")
+  @JsonIgnore
+  private String contentHash;
 
   // The filter schema reads the JSON name on the same method as @Queryable.
   @Override
@@ -216,7 +258,30 @@ public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadI
     return HasPayloadIdentity.super.getSource();
   }
 
+  // -- CATALOGUE --
+
+  @Override
+  public ContentType getCatalogType() {
+    return ContentType.PAYLOAD;
+  }
+
+  @Override
+  public String getCatalogRepository() {
+    return getIdentity().getRepository();
+  }
+
+  @Override
+  public String getCatalogExternalId() {
+    return getExternalId();
+  }
+
+  @Override
+  public String getCatalogVersion() {
+    return version;
+  }
+
   // -- AUTHOR --
+  @NotHashed
   @Embedded
   @AssociationOverride(name = "user", joinColumns = @JoinColumn(name = "payload_author_user"))
   @AssociationOverride(
@@ -247,6 +312,7 @@ public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadI
     return Authored.super.getAuthorOrganization();
   }
 
+  @Hashed(order = Hashed.Order.OBJECTS)
   @OneToMany(
       mappedBy = "payload",
       cascade = CascadeType.ALL,
@@ -257,6 +323,7 @@ public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadI
 
   // -- OUTPUT PARSERS
 
+  @Hashed(order = Hashed.Order.OBJECTS)
   @OneToMany(
       mappedBy = "payload",
       fetch = FetchType.EAGER,
@@ -265,6 +332,7 @@ public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadI
   @JsonProperty("payload_output_parsers")
   private Set<OutputParser> outputParsers = new HashSet<>();
 
+  @NotHashed
   @Getter
   @OneToMany
   @JoinColumn(
@@ -278,11 +346,13 @@ public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadI
 
   // -- AUDIT --
 
+  @NotHashed
   @Column(name = "payload_created_at", updatable = false)
   @JsonProperty("payload_created_at")
   @NotNull
   private Instant createdAt = now();
 
+  @NotHashed
   @Queryable(filterable = true, sortable = true)
   @Column(name = "payload_updated_at")
   @JsonProperty("payload_updated_at")

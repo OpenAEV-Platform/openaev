@@ -1,14 +1,14 @@
 import { RichTextEditor } from '@filigran/rich-text-editor';
 import { FormHelperText, InputLabel } from '@mui/material';
 import { type CSSProperties } from 'react';
-import { type Control, Controller } from 'react-hook-form';
+import { type Control, Controller, type FieldPath, type FieldValues } from 'react-hook-form';
 
 import TextFieldAskAI from '../../admin/components/common/form/TextFieldAskAI';
 
-interface Props {
+interface Props<TFieldValues extends FieldValues = FieldValues> {
   label: string;
-  control: Control;
-  name: string;
+  control: Control<TFieldValues>;
+  name: FieldPath<TFieldValues>;
   style?: CSSProperties;
   disabled: boolean;
   askAi: boolean;
@@ -16,7 +16,7 @@ interface Props {
   required?: boolean;
 }
 
-const RichTextField = ({
+const RichTextField = <TFieldValues extends FieldValues = FieldValues>({
   control,
   label,
   name,
@@ -25,7 +25,7 @@ const RichTextField = ({
   askAi,
   inInject,
   required,
-}: Props) => {
+}: Props<TFieldValues>) => {
   return (
     <div style={{
       ...style,

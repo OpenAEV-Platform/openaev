@@ -16,6 +16,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.Assert;
 
 @Repository
 public interface TeamRepository
@@ -114,6 +115,20 @@ public interface TeamRepository
   List<RawTeamIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
   Optional<Team> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  @NotNull
+  List<Team> findAllByIdInAndTenantId(@NotNull Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The teams among the given ids that belong to the given tenant. A null id list is refused with
+   * an {@code IllegalArgumentException} ("Ids must not be null"), as {@code findAllById} does,
+   * which the REST layer answers with a 400.
+   */
+  @NotNull
+  default List<Team> findAllByIdInTenant(Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 
   /**
    * By-id read keyed on a request's resolved tenant scope rather than on the v1 ambient tenant. The

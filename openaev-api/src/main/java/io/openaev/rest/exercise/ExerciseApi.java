@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.healthcheck.utils.HealthCheckUtils.READINESS_CHECK_TIMEOUT_SECONDS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.rest.exercise.ExerciseResponseHydrator.hydrateForResponse;
 import static io.openaev.rest.exercise.form.SimulationDetails.fromRawExercise;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static java.time.Instant.now;
@@ -45,15 +46,17 @@ import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
+import io.openaev.rest.scenario.ScenarioResponseHydrator;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -67,6 +70,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
@@ -124,6 +129,7 @@ public class ExerciseApi extends RestBehavior {
   private final UserService userService;
   private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
+  private final WorkflowOwnerScope workflowOwnerScope;
   private final ExpectationsDriftService expectationsDriftService;
   private final EnterpriseEditionService enterpriseEditionService;
   private final TenantWriteScopeResolver writeScopeResolver;
@@ -276,7 +282,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String logId,
       @Valid @RequestBody LogCreateInput input) {
     requireSimulationInScope(ctx, exerciseId);
-    Log log = logRepository.findById(logId).orElseThrow(ElementNotFoundException::new);
+    Log log = logOfExercise(exerciseId, logId);
     log.setUpdateAttributes(input);
     log.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     return logRepository.save(log);
@@ -293,7 +299,15 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public void deleteLog(TxCtx ctx, @PathVariable String exerciseId, @PathVariable String logId) {
     requireSimulationInScope(ctx, exerciseId);
-    logRepository.deleteById(logId);
+    logRepository.delete(logOfExercise(exerciseId, logId));
+  }
+
+  /** The log, only when it belongs to the given simulation. */
+  private Log logOfExercise(String exerciseId, String logId) {
+    return logRepository
+        .findById(logId)
+        .filter(log -> log.getExercise() != null && exerciseId.equals(log.getExercise().getId()))
+        .orElseThrow(ElementNotFoundException::new);
   }
 
   // endregion
@@ -896,7 +910,10 @@ public class ExerciseApi extends RestBehavior {
     Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     exercise.setUpdatedAt(now());
     Document doc =
-        documentRepository.findById(documentId).orElseThrow(ElementNotFoundException::new);
+        exercise.getDocuments().stream()
+            .filter(linked -> documentId.equals(linked.getId()))
+            .findFirst()
+            .orElseThrow(ElementNotFoundException::new);
     // Drop the link from the exercise side as well: the response serializes exercise_documents
     // from this instance, and the removal below only rewrites the join table from the document
     // side. Loading the collection here also keeps it inside the scoped transaction.
@@ -999,19 +1016,52 @@ public class ExerciseApi extends RestBehavior {
     return communications;
   }
 
+  private static final Pattern COMMUNICATION_ID_IN_ATTACHMENT_PATTERN =
+      Pattern.compile("/communications/([^/]+)/");
+
   @GetMapping("/api/communications/attachment")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   //
   public void downloadAttachment(TxCtx ctx, @RequestParam String file, HttpServletResponse response)
       throws IOException {
+    // The communication id is embedded in the attachment path: a primary-key lookup (bypassing the
+    // Hibernate tenant filter, same as the inject load below), avoiding a scan of every
+    // communication's attachment array. This endpoint has no tenant-prefixed route, so the ambient
+    // TenantContext always falls back to the default tenant; the explicit scope check below
+    // refuses a caller resolving (and downloading) an attachment of a tenant outside its own
+    // authorized scope, whatever tenant the path happens to name.
+    Matcher matcher = COMMUNICATION_ID_IN_ATTACHMENT_PATTERN.matcher(file);
+    if (!matcher.find()) {
+      throw new ElementNotFoundException();
+    }
+    Communication communication =
+        communicationRepository
+            .findById(matcher.group(1))
+            .filter(c -> hasAttachment(c, file))
+            .orElseThrow(ElementNotFoundException::new);
+    String tenantId = communication.getInject().getTenant().getId();
+    if (!TxCtxScopeUtils.requestReadScope(ctx).contains(tenantId)) {
+      throw new ElementNotFoundException();
+    }
+    // Attachments uploaded before the storage path fix (#7961) were written under the default
+    // tenant's prefix regardless of the inject's own tenant: fall back to it for this same
+    // communication's attachment, whose ownership is already checked above.
     FileContainer fileContainer =
-        fileService.getFileContainer(file).orElseThrow(ElementNotFoundException::new);
+        fileService
+            .getFileContainer(tenantId, file)
+            .or(() -> fileService.getFileContainer(Tenant.DEFAULT_TENANT_UUID, file))
+            .orElseThrow(ElementNotFoundException::new);
     response.addHeader(
         HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileContainer.getName());
     response.addHeader(HttpHeaders.CONTENT_TYPE, fileContainer.getContentType());
     response.setStatus(HttpServletResponse.SC_OK);
     fileContainer.getInputStream().transferTo(response.getOutputStream());
+  }
+
+  private static boolean hasAttachment(Communication communication, String file) {
+    String[] attachments = communication.getAttachments();
+    return attachments != null && Arrays.asList(attachments).contains(file);
   }
 
   // endregion
@@ -1034,7 +1084,11 @@ public class ExerciseApi extends RestBehavior {
       throws IOException {
     Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     int exportOptionsMask = ExportOptions.mask(isWithPlayers, isWithTeams, isWithVariableValues);
-    boolean isChaining = workflowService.isSimulationChaining(exerciseId);
+    // The file name says whether the simulation is chained, read in the simulation's own tenant
+    // whatever the caller's scope. The export reads its workflow in that tenant too, and every
+    // other table it serialises under the request's scope, see ExportService#exportExerciseToZip.
+    boolean isChaining =
+        workflowOwnerScope.call(exercise, () -> workflowService.isSimulationChaining(exerciseId));
 
     byte[] zippedExport =
         exportService.exportExerciseToZip(exercise, exportOptionsMask, isWithScopeDefinition);
@@ -1218,23 +1272,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable @NotBlank @Schema(description = "ID of the simulation")
           final String simulationId) {
     Scenario scenario = scenarioService.scenarioFromSimulationId(ctx, simulationId);
-    KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
-    // Same open-in-view reason as hydrateForResponse: scenario_teams would serialize empty.
-    Hibernate.initialize(scenario.getTeams());
-    return scenario;
-  }
-
-  /**
-   * Hydrates, inside the scoped transaction, the lazy associations the response serializes. Both
-   * are read after the controller returns, through open-in-view, where the tenant scope is already
-   * gone: a lazy load at that point runs unscoped and fails closed, so {@code exercise_teams} comes
-   * back empty although the links exist. {@code exercise_kill_chain_phases} walks the injects down
-   * to the lazy attack-pattern phases, see {@link KillChainPhaseInitializer}.
-   */
-  private static Exercise hydrateForResponse(Exercise exercise) {
-    KillChainPhaseInitializer.initializeFromInjects(exercise.getInjects());
-    Hibernate.initialize(exercise.getTeams());
-    return exercise;
+    return ScenarioResponseHydrator.hydrateForResponse(scenario);
   }
 
   // end region

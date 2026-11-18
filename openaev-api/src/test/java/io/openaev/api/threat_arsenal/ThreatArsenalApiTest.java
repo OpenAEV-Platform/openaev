@@ -28,6 +28,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
@@ -77,6 +78,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   @Autowired private DetectionRemediationComposer detectionRemediationComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private UserTestHelper userTestHelper;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
@@ -1385,6 +1387,10 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       }
       // Create test user based on type
       User testUser = userTestHelper.createTestUser(userType, grantedResourceIds).persist().get();
+      // injectors_contracts is tenant-active: a user with no tenant membership resolves no scope
+      // and sees nothing regardless of RBAC. The static contracts below are created in the default
+      // tenant.
+      tenantHelper.attachUserToTenant(testUser.getId(), Tenant.DEFAULT_TENANT_UUID);
       Authentication auth = buildAuthenticationToken(testUser);
 
       String response =

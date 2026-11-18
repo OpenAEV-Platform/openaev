@@ -4,16 +4,18 @@ import static io.openaev.database.model.CapabilityScope.PLATFORM;
 import static io.openaev.database.model.Role.capabilitiesOf;
 import static io.openaev.database.specification.GroupSpecification.platformScope;
 import static io.openaev.service.account.PrivilegeEscalationValidator.assertCanAssignCapabilities;
+import static io.openaev.service.account.PrivilegeEscalationValidator.capabilitiesOfAllRoles;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
-import io.openaev.database.repository.RoleRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.UserService;
+import io.openaev.service.platform.roles.PlatformRoleService;
 import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
@@ -36,7 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PlatformGroupService {
 
   private final GroupRepository groupRepository;
-  private final RoleRepository roleRepository;
+  private final PlatformRoleService platformRoleService;
   private final UserRepository userRepository;
   private final UserService userService;
   private final ReferenceResolver referenceResolver;
@@ -121,7 +123,7 @@ public class PlatformGroupService {
     Group group = findById(groupId);
     if (defaultUserAssignation && !group.isDefaultUserAssignation()) {
       assertCanAssignCapabilities(
-          userService.currentUser(), capabilitiesOf(group.getRoles()), PLATFORM);
+          userService.currentUser(), capabilitiesOfRolesOf(group), PLATFORM);
     }
     group.setName(name);
     group.setDescription(description);
@@ -132,7 +134,7 @@ public class PlatformGroupService {
   public Set<String> updateGroupRoles(@NotBlank final String groupId, List<String> roleIds) {
     Group group = findById(groupId);
     Set<String> uniqueRoleIds = new LinkedHashSet<>(roleIds);
-    List<Role> roles = roleRepository.findAllById(uniqueRoleIds);
+    List<Role> roles = platformRoleService.findByIds(new ArrayList<>(uniqueRoleIds));
     if (roles.size() != uniqueRoleIds.size()) {
       throw new EntityNotFoundException("One or more Role not found in: " + uniqueRoleIds);
     }
@@ -144,8 +146,7 @@ public class PlatformGroupService {
 
   public List<String> updateGroupUsers(@NotBlank final String groupId, List<String> userIds) {
     Group group = findById(groupId);
-    assertCanAssignCapabilities(
-        userService.currentUser(), capabilitiesOf(group.getRoles()), PLATFORM);
+    assertCanAssignCapabilities(userService.currentUser(), capabilitiesOfRolesOf(group), PLATFORM);
     Set<String> uniqueUserIds = new LinkedHashSet<>(userIds);
     // Union of before and after: a user dropped from the group loses clearance (fail-open if the
     // stale entry survives), a user added gains it (fail-closed, but still wrong until evicted).
@@ -171,5 +172,9 @@ public class PlatformGroupService {
     groupRepository.delete(group);
     // Deleting the group revokes whatever markings it granted, for every member at once.
     markingClearanceCacheManager.evictForUsers(members);
+  }
+
+  private Set<Capability> capabilitiesOfRolesOf(Group group) {
+    return capabilitiesOfAllRoles(group, groupRepository.findRoleIdsByGroupId(group.getId()));
   }
 }

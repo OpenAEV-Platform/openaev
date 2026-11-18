@@ -4,6 +4,7 @@ import static io.openaev.api.credentials.CredentialApi.*;
 import static io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.*;
 import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
+import static io.openaev.service.credential.CredentialService.AWS_ACCOUNT_ID_DESCRIPTION;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
@@ -37,11 +38,12 @@ import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -127,6 +129,92 @@ class CredentialApiTest extends IntegrationTest {
       List<String> keyFieldTypes =
           JsonPath.read(response, String.format(fieldPath, "gcp_private_key_json") + ".field_type");
       assertThat(keyFieldTypes).containsExactly("file");
+    }
+
+    static Stream<Arguments> sovereignCloudFields() {
+      Map<String, String> aws = new LinkedHashMap<>();
+      aws.put("aws_account_id", "text");
+      aws.put("aws_endpoint_url", "text");
+      Map<String, String> azure = new LinkedHashMap<>();
+      azure.put("azure_authority_host_uri", "text");
+      azure.put("azure_requests_certificate", "file");
+      Map<String, String> gcpServiceAccount = new LinkedHashMap<>();
+      gcpServiceAccount.put("gcp_custom_resource_manager_uri", "text");
+      gcpServiceAccount.put("gcp_custom_projects_uri", "text");
+      Map<String, String> gcpOAuth2 = new LinkedHashMap<>();
+      gcpOAuth2.put("gcp_custom_token_uri", "text");
+      gcpOAuth2.put("gcp_custom_projects_uri", "text");
+      gcpOAuth2.put("gcp_custom_iam_uri", "text");
+      gcpOAuth2.put("gcp_custom_oauth_access_token", "password");
+      return Stream.of(
+          Arguments.of(CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY, aws),
+          Arguments.of(CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE, aws),
+          Arguments.of(
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL, azure),
+          Arguments.of(
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY, azure),
+          Arguments.of(
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.GCP_SERVICE_ACCOUNT,
+              gcpServiceAccount),
+          Arguments.of(CredentialSecretReference.CREDENTIAL_AUTH_METHOD.GCP_OAUTH2, gcpOAuth2));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("sovereignCloudFields")
+    @DisplayName("given_cloudContract_should_exposeSovereignCloudFieldsLastAndOptional")
+    void given_cloudContract_should_exposeSovereignCloudFieldsLastAndOptional(
+        CredentialSecretReference.CREDENTIAL_AUTH_METHOD authMethod,
+        Map<String, String> expectedTypesByField)
+        throws Exception {
+      // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-sovereign");
+      String uri = tenantCredentialsUri(tenant.getId()) + "/contracts";
+
+      // Act
+      String response =
+          mvc.perform(get(uri).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      String contractPath = "$[?(@.credential_auth_method == '" + authMethod.name() + "')]";
+      List<String> fieldNames = JsonPath.read(response, contractPath + ".fields[*].field_name");
+      List<String> expectedFields = new ArrayList<>(expectedTypesByField.keySet());
+      assertThat(fieldNames.subList(fieldNames.size() - expectedFields.size(), fieldNames.size()))
+          .containsExactlyElementsOf(expectedFields);
+      expectedTypesByField.forEach(
+          (fieldName, fieldType) -> {
+            String fieldPath = contractPath + ".fields[?(@.field_name == '" + fieldName + "')]";
+            List<String> types = JsonPath.read(response, fieldPath + ".field_type");
+            List<Boolean> required = JsonPath.read(response, fieldPath + ".required");
+            assertThat(types).as(fieldName).containsExactly(fieldType);
+            assertThat(required).as(fieldName).containsExactly(false);
+          });
+    }
+
+    @Test
+    @DisplayName("given_awsContracts_should_describeAccountIdField")
+    void given_awsContracts_should_describeAccountIdField() throws Exception {
+      // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-aws-desc");
+      String uri = tenantCredentialsUri(tenant.getId()) + "/contracts";
+
+      // Act
+      String response =
+          mvc.perform(get(uri).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> descriptions =
+          JsonPath.read(
+              response, "$[*].fields[?(@.field_name == 'aws_account_id')].field_description");
+      assertThat(descriptions)
+          .containsExactly(AWS_ACCOUNT_ID_DESCRIPTION, AWS_ACCOUNT_ID_DESCRIPTION);
     }
   }
 
@@ -941,6 +1029,151 @@ class CredentialApiTest extends IntegrationTest {
       // Act & Assert
       mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input))
           .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("given_uriLongerThanItsColumn_should_failCreation")
+    void given_uriLongerThanItsColumn_should_failCreation() throws Exception {
+      // Arrange: the override columns are VARCHAR(255), a longer value must not reach the insert
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-uri-too-long");
+      CredentialInput input =
+          CredentialInputFixture.azureServicePrincipalInputWithAuthorityHost(
+              "azure-uri-too-long", "https://" + "a".repeat(256) + ".example.com");
+
+      // Act & Assert
+      mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("given_azureInputWithCertificatePart_should_storeEncryptedCertificate")
+    void given_azureInputWithCertificatePart_should_storeEncryptedCertificate() throws Exception {
+      // Arrange
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-certificate");
+      CredentialInput input =
+          CredentialInputFixture.azureServicePrincipalInputWithAuthorityHost(
+              "azure-certificate", AZURE_AUTHORITY_HOST_URI);
+
+      // Act
+      String response =
+          mvc.perform(
+                  multipartCreateWithCertificate(
+                          tenantCredentialsUri(tenant.getId()),
+                          input,
+                          azureRequestsCertificateBytes())
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      CredentialSecretReference credential =
+          credentialSecretReferenceRepository
+              .findById(JsonPath.read(response, "$.credential_id"))
+              .orElseThrow();
+      Secret secret = secretRepository.findById(credential.getLocation()).orElseThrow();
+      assertThat(secret).isInstanceOf(AzureServicePrincipalSecret.class);
+      AzureServicePrincipalSecret azureSecret = (AzureServicePrincipalSecret) secret;
+      assertThat(azureSecret.getAzureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      // The certificate is stored encrypted, never as the uploaded bytes
+      assertThat(azureSecret.getAzureRequestsCertificate())
+          .isNotNull()
+          .isNotEqualTo(azureRequestsCertificateBytes());
+    }
+
+    @Test
+    @DisplayName("given_oversizedAzureCertificate_should_failCreation")
+    void given_oversizedAzureCertificate_should_failCreation() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-big-cert");
+      CredentialInput input = CredentialInputFixture.azureServicePrincipalInput("azure-big-cert");
+      byte[] oversizedCertificate = new byte[(int) MAX_CREDENTIAL_FILE_SIZE_BYTES + 1];
+
+      // Act
+      String errorResponse =
+          mvc.perform(
+                  multipartCreateWithCertificate(
+                      tenantCredentialsUri(tenant.getId()), input, oversizedCertificate))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat(errorResponse).containsIgnoringCase("The provided file must not exceed");
+    }
+
+    @Test
+    @DisplayName("given_emptyAzureCertificate_should_failCreation")
+    void given_emptyAzureCertificate_should_failCreation() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-empty-cert");
+      CredentialInput input = CredentialInputFixture.azureServicePrincipalInput("azure-empty-cert");
+
+      // Act: a present but empty part is a client error, never a silent "keep the stored one"
+      String errorResponse =
+          mvc.perform(
+                  multipartCreateWithCertificate(
+                      tenantCredentialsUri(tenant.getId()), input, new byte[0]))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat(errorResponse).containsIgnoringCase("must not be empty");
+    }
+
+    @Test
+    @DisplayName("given_updateWithoutCertificatePart_should_keepStoredCertificate")
+    void given_updateWithoutCertificatePart_should_keepStoredCertificate() throws Exception {
+      // Arrange
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-cert-update");
+      CredentialInput input = CredentialInputFixture.azureServicePrincipalInput("azure-cert-keep");
+      String credentialId =
+          JsonPath.read(
+              mvc.perform(
+                      multipartCreateWithCertificate(
+                              tenantCredentialsUri(tenant.getId()),
+                              input,
+                              azureRequestsCertificateBytes())
+                          .accept(MediaType.APPLICATION_JSON))
+                  .andExpect(status().is2xxSuccessful())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString(),
+              "$.credential_id");
+      CredentialSecretReference created =
+          credentialSecretReferenceRepository.findById(credentialId).orElseThrow();
+      byte[] storedCertificate =
+          ((AzureServicePrincipalSecret)
+                  secretRepository.findById(created.getLocation()).orElseThrow())
+              .getAzureRequestsCertificate();
+
+      // Act: no certificate part on the update
+      String response =
+          mvc.perform(
+                  multipartUpdate(tenantCredentialsUri(tenant.getId()) + "/" + credentialId, input)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      CredentialSecretReference updated =
+          credentialSecretReferenceRepository.findById(credentialId).orElseThrow();
+      AzureServicePrincipalSecret updatedSecret =
+          (AzureServicePrincipalSecret)
+              secretRepository.findById(updated.getLocation()).orElseThrow();
+      assertThat(updatedSecret.getAzureRequestsCertificate()).isEqualTo(storedCertificate);
+      assertThatJson(response)
+          .node("credential_azure_requests_certificate_defined")
+          .isEqualTo(true);
     }
   }
 
@@ -1813,13 +2046,21 @@ class CredentialApiTest extends IntegrationTest {
         null,
         null,
         null,
+        null,
+        null,
         // AZURE
         null,
         null,
         null,
         null,
         null,
+        null,
         // GCP
+        null,
+        null,
+        null,
+        null,
+        null,
         null,
         null,
         null,
@@ -1849,13 +2090,21 @@ class CredentialApiTest extends IntegrationTest {
         STATIC_ACCESS_KEY,
         AWS_SOURCE_PROFILE_ACCESS_KEY_ID,
         AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY,
+        null,
+        null,
         // AZURE
         null,
         null,
         null,
         null,
         null,
+        null,
         // GCP
+        null,
+        null,
+        null,
+        null,
+        null,
         null,
         null,
         null,
@@ -1886,6 +2135,19 @@ class CredentialApiTest extends IntegrationTest {
   private MockMultipartHttpServletRequestBuilder multipartCreate(
       String uri, CredentialInput input) {
     return multipartCreate(uri, input, null);
+  }
+
+  /** Same as {@link #multipartCreate}, with the Azure requests certificate as its own part. */
+  private MockMultipartHttpServletRequestBuilder multipartCreateWithCertificate(
+      String uri, CredentialInput input, byte[] azureRequestsCertificate) {
+    MockMultipartHttpServletRequestBuilder builder = multipartCreate(uri, input);
+    builder.file(
+        new MockMultipartFile(
+            AZURE_REQUESTS_CERTIFICATE_PART,
+            "ca.pem",
+            "application/x-pem-file",
+            azureRequestsCertificate));
+    return builder;
   }
 
   /** Same as {@link #multipartCreate}, forced to PUT: MockMvc's multipart defaults to POST. */

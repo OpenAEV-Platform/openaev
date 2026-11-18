@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.model.hash.ContentHashed;
+import io.openaev.database.model.hash.FileFingerprint;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -35,7 +37,7 @@ import org.hibernate.annotations.UuidGenerator;
         @NamedAttributeNode("exercises")
       })
 })
-public class Document implements TenantBase {
+public class Document implements TenantBase, ContentHashed {
 
   @Id
   @Column(name = "document_id")
@@ -54,6 +56,16 @@ public class Document implements TenantBase {
   @Column(name = "document_target")
   @JsonProperty("document_target")
   private String target;
+
+  // SHA-256 of the bytes, filled on upload or on the first payload content hash.
+  @Column(name = "document_content_hash")
+  @JsonIgnore
+  private String contentHash;
+
+  public void describeFile(FileFingerprint fingerprint) {
+    this.target = fingerprint.storageName();
+    this.contentHash = fingerprint.contentHash();
+  }
 
   @Column(name = "document_description")
   @JsonProperty("document_description")

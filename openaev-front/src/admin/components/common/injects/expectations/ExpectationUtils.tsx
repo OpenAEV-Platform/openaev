@@ -1,25 +1,42 @@
 import { type InjectExpectationOutput, type InjectExpectationResult } from '../../../../../utils/api-types';
 import expectationIconByType from '../../ExpectationIconByType';
-import { ExpectationType, type InjectExpectationsStore } from './Expectation';
+import { ExpectationType, HUMAN_EXPECTATION_TYPES, type InjectExpectationsStore, TECHNICAL_EXPECTATION_TYPES } from './Expectation';
 
 export const FAILED = 'Failed';
 export const SUCCESS = 'Successful';
 
-export const HUMAN_EXPECTATION = ['MANUAL', 'CHALLENGE', 'ARTICLE'];
+const AUTOMATIC_EXPECTATION_TYPES: string[] = [
+  ExpectationType.ARTICLE,
+  ExpectationType.PREVENTION,
+  ExpectationType.DETECTION,
+  ExpectationType.LOGGING,
+  ExpectationType.VULNERABILITY,
+];
 
-export const isAutomatic = (type: string) => {
-  return [ExpectationType.ARTICLE.toString(), ExpectationType.PREVENTION.toString(), ExpectationType.DETECTION.toString(), ExpectationType.VULNERABILITY.toString()].includes(type);
-};
+export const isAutomatic = (type: string) => AUTOMATIC_EXPECTATION_TYPES.includes(type);
 
 // Single source of truth for expectation-type icons (shared coherent set).
 export const typeIcon = (type: string) => expectationIconByType(type);
 
-export const isTechnicalExpectation = (type: string) => {
-  return [ExpectationType.PREVENTION.toString(), ExpectationType.DETECTION.toString(), ExpectationType.VULNERABILITY.toString()].includes(type);
-};
-export const isManualExpectation = (type: string) => {
-  return [ExpectationType.MANUAL.toString(), ExpectationType.ARTICLE.toString(), ExpectationType.CHALLENGE.toString()].includes(type);
-};
+export const isTechnicalExpectation = (type: string) => TECHNICAL_EXPECTATION_TYPES.includes(type);
+
+export const isManualExpectation = (type: string) => HUMAN_EXPECTATION_TYPES.includes(type);
+
+// A contract keeps the Logging expectation it was synchronised with while the preview feature was
+// on: new content must not take it from the contract once the feature is off.
+export const enabledExpectations = <T extends { expectation_type: string }>(
+  expectations: T[] | undefined,
+  isLoggingEnabled: boolean,
+): T[] => (expectations ?? []).filter(expectation => isLoggingEnabled || expectation.expectation_type !== ExpectationType.LOGGING);
+
+// The contract expectations a new inject starts with.
+export const predefinedExpectations = <T extends {
+  expectation_type: string;
+  expectation_is_predefined?: boolean;
+}>(
+  expectations: T[] | undefined,
+  isLoggingEnabled: boolean,
+): T[] => enabledExpectations(expectations, isLoggingEnabled).filter(expectation => expectation.expectation_is_predefined);
 
 /**
  * Returns a formatted label for the source of an expectation result.
@@ -77,7 +94,7 @@ export const useIsManuallyUpdatable = (injectExpectation: InjectExpectationOutpu
   // Technical: manually updatable at agent level (result on that agent only, then
   // propagated up) and at asset level (result written on each agent of the endpoint).
   // Asset groups are always computed from their assets, never updated directly.
-  if (['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(expectationType)) {
+  if (isTechnicalExpectation(expectationType)) {
     return !isAssetGroupExpectation(injectExpectation);
   }
   return isManualExpectation(expectationType);

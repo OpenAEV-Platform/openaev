@@ -11,7 +11,7 @@ import TenantSwitcherComponent from '../../model/nav/TenantSwitcherComponent';
 import TenantsPage from '../../model/platform/TenantsPage';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
 import { executeAgentInstall, getAgentPlatform } from '../../utils/agent';
-import { AUTH_FILE, TIMEOUT } from '../../utils/constants';
+import { AUTH_ADMIN, TIMEOUT } from '../../utils/constants';
 import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
@@ -35,7 +35,7 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     const platform = getAgentPlatform();
 
     const context = await browser.newContext({
-      storageState: AUTH_FILE,
+      storageState: AUTH_ADMIN,
       baseURL: APP_URL,
     });
     const page = await context.newPage();

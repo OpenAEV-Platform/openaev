@@ -134,6 +134,9 @@ public class InjectorApiTest extends IntegrationTest {
   @DisplayName("Retrieve injectors")
   class GetInjectors {
     @Test
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_TENANT_SETTINGS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Should retrieve all injectors")
     void shouldRetrieveAllInjectors() throws Exception {
       Injector injector = getInjector("nuclei");
@@ -171,6 +174,9 @@ public class InjectorApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_TENANT_SETTINGS},
+        autoJoinDefaultTenant = true)
     @DisplayName(
         "Given queryParams include_next to true should retrieve all injectors and and pending injectors")
     void givenQueryParamsIncludeNextToTrue_shouldRetrieveAllInjectorsAndPendingInjectors()
@@ -501,8 +507,10 @@ public class InjectorApiTest extends IntegrationTest {
         "Should adopt an injector-less contract (starter-pack import) on injector registration")
     void shouldAdoptInjectorlessContractOnRegistration() throws Exception {
       // -- ARRANGE --
-      // Simulate a starter-pack import: the contract exists without any injector link
+      // Simulate a starter-pack import: the contract exists in the registering tenant without any
+      // injector link
       InjectorContract orphanContract = InjectorContractFixture.createDefaultInjectorContract();
+      orphanContract.setTenant(new Tenant(tenantId));
       orphanContract.clearInjectors();
       em.persist(orphanContract);
       injectorContractRepository.save(orphanContract);
@@ -532,8 +540,11 @@ public class InjectorApiTest extends IntegrationTest {
       assertThat(realInjector).isPresent();
       assertThat(realInjector.get().isExternal()).isTrue();
 
+      // The orphan was seeded in tenantId, the tenant the registration writes to: a built-in-shaped
+      // id repeats across tenants (#8485), so the assertion reads that tenant's row, not a bare id
+      // lookup.
       Optional<InjectorContract> adoptedContract =
-          injectorContractRepository.findById(orphanContractId);
+          injectorContractRepository.findByContractIdAndTenant(orphanContractId, tenantId);
       assertThat(adoptedContract).isPresent();
       assertThat(adoptedContract.get().getInjectors())
           .extracting(Injector::getId)

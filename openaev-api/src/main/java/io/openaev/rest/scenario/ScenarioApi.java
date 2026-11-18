@@ -6,6 +6,7 @@ import static io.openaev.database.specification.ScenarioSpecification.byName;
 import static io.openaev.healthcheck.utils.HealthCheckUtils.READINESS_CHECK_TIMEOUT_SECONDS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.rest.scenario.ScenarioResponseHydrator.hydrateForResponse;
 import static java.time.Instant.now;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.springframework.util.StringUtils.hasText;
@@ -37,18 +38,20 @@ import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.ExerciseResponseHydrator;
 import io.openaev.rest.exercise.form.LessonsInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.scenario.form.*;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.period.RecurrenceService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
@@ -65,7 +68,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -91,6 +93,7 @@ public class ScenarioApi extends RestBehavior {
   private final ScenarioToExerciseService scenarioToExerciseService;
   private final ImportService importService;
   private final ScenarioService scenarioService;
+  private final RecurrenceService recurrenceService;
   private final TeamService teamService;
   private final AssetGroupService assetGroupService;
   private final EndpointService endpointService;
@@ -98,6 +101,7 @@ public class ScenarioApi extends RestBehavior {
   private final DocumentService documentService;
   private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
+  private final WorkflowOwnerScope workflowOwnerScope;
   private final StepService stepService;
   private final ExpectationsDriftService expectationsDriftService;
   private final AutonomousRunService autonomousRunService;
@@ -612,6 +616,9 @@ public class ScenarioApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioRecurrenceInput input) {
+    // Refuse an expression the scheduler could never fire before any gate or write (a blank one
+    // clears the schedule and stays accepted).
+    this.recurrenceService.validateExpression(input.getRecurrence());
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     // Scheduling itself is a Community Edition feature, but the Enterprise executor gate still
     // applies: without it, scheduling would bypass the licence check enforced on manual launches
@@ -704,14 +711,20 @@ public class ScenarioApi extends RestBehavior {
       TxCtx ctx, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     String launchedById = currentUser().getId();
-    boolean chaining = workflowService.isScenarioChaining(scenarioId);
+    // The scenario's workflow is read, and its simulation's started, in the scenario's own tenant
+    // whatever the caller's scope: access to the scenario was granted, its workflow follows it.
+    boolean chaining =
+        workflowOwnerScope.call(scenario, () -> workflowService.isScenarioChaining(scenarioId));
 
     if (chaining) {
       // A normal (operator-driven) launch makes any prior autonomous AI outcome on this scenario
       // stale: clear a settled run so the scenario reverts to its normal overview / hero (the AI
       // plan or run outcome is no longer the latest activity). No-op when the scenario carries no
-      // run or the feature is off, and never tears down a still-active run.
-      autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId);
+      // run or the feature is off, and never tears down a still-active run. Read and written in
+      // the scenario's own tenant, like its workflow: the run follows its scenario, whatever the
+      // caller's scope.
+      workflowOwnerScope.run(
+          scenario, () -> autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId));
     } else {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
     }
@@ -735,11 +748,15 @@ public class ScenarioApi extends RestBehavior {
                       true,
                       launchedBy);
               if (chaining) {
-                workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
+                workflowOwnerScope.run(
+                    scenario,
+                    () ->
+                        workflowService.startWorkflowByScenarioIdAndSimulation(
+                            scenarioId, simulation));
               }
               return simulation.getId();
             });
-    return exerciseService.exercise(simulationId);
+    return ExerciseResponseHydrator.hydrateForResponse(exerciseService.exercise(simulationId));
   }
 
   @PostMapping({
@@ -877,18 +894,4 @@ public class ScenarioApi extends RestBehavior {
   }
 
   // end region
-
-  /**
-   * Hydrates, inside the scoped transaction, the lazy associations the response serializes, or
-   * open-in-view rendering serializes empty lists. {@code scenario_kill_chain_phases} walks the
-   * scenario's injects down to the LAZY attack-pattern phases, see {@link
-   * KillChainPhaseInitializer}. {@code scenario_teams} is a lazy collection on a tenant-active
-   * table: loaded after the controller returns, the tenant scope is already gone and the
-   * fail-closed read returns nothing.
-   */
-  private static Scenario hydrateForResponse(Scenario scenario) {
-    KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
-    Hibernate.initialize(scenario.getTeams());
-    return scenario;
-  }
 }

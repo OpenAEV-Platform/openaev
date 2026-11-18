@@ -15,6 +15,7 @@ import io.openaev.config.TenantFilteringException;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.exception.ActionRefusedException;
 import io.openaev.exception.UnknownEngineFieldException;
 import io.openaev.ratelimit.aop.RateLimitAspect;
 import io.openaev.ratelimit.exception.RateLimitedException;
@@ -525,6 +526,11 @@ public class RestBehavior {
 
   // Spring also matches this handler when the exception arrives wrapped in another one.
   @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(ActionRefusedException.class)
+  public ResponseEntity<ErrorMessage> handleActionRefusedException(ActionRefusedException ex) {
+    return new ResponseEntity<>(new ErrorMessage(ex.getMessage()), HttpStatus.BAD_REQUEST);
+  }
+
   @ExceptionHandler(UnknownEngineFieldException.class)
   public ResponseEntity<ErrorMessage> handleUnknownEngineFieldException(
       UnknownEngineFieldException ex) {
@@ -561,6 +567,15 @@ public class RestBehavior {
       TenantSelectorRequiredException ex) {
     return new ResponseEntity<>(
         new ErrorMessage("TENANT_SELECTOR_REQUIRED"), HttpStatus.BAD_REQUEST);
+  }
+
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(TenantSingleScopeRequiredException.class)
+  public ResponseEntity<ErrorMessage> handleTenantSingleScopeRequiredException(
+      TenantSingleScopeRequiredException ex) {
+    log.debug("TenantSingleScopeRequiredException: {}", ex.getMessage(), ex);
+    return new ResponseEntity<>(
+        new ErrorMessage(TenantSingleScopeRequiredException.CODE), HttpStatus.BAD_REQUEST);
   }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)

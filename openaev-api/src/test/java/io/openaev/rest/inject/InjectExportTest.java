@@ -376,6 +376,7 @@ public class InjectExportTest extends IntegrationTest {
   @DisplayName("When standard user with staggered privileges")
   public class WhenStandardUserWithStaggeredPrivileges {
     @Test
+    @WithMockUser(autoJoinDefaultTenant = true)
     @DisplayName("When lacking OBSERVER grant on some scenarios, return NOT FOUND")
     public void whenLackingOBSERVERGrantOnSomeScenariosReturnNOTFOUND() throws Exception {
       List<InjectComposer.Composer> injectWrappers = createDefaultInjectWrappers();
@@ -608,6 +609,7 @@ public class InjectExportTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(autoJoinDefaultTenant = true)
       @DisplayName("With OBSERVER grant on exercise, return injects")
       public void withOBSERVERGrantOnExerciseReturnInjects() throws Exception {
         List<InjectComposer.Composer> injectWrappers = createDefaultInjectWrappers();
@@ -653,6 +655,7 @@ public class InjectExportTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(autoJoinDefaultTenant = true)
       @DisplayName("With OBSERVER grant on exercise with exclusion, return correct injects")
       public void withOBSERVERGrantOnExerciseWithExclusionReturnCorrectInjects() throws Exception {
         List<InjectComposer.Composer> injectWrappers = createDefaultInjectWrappers();
@@ -830,6 +833,7 @@ public class InjectExportTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Returned zip file contains json with correct challenges")
       public void returnedZipFileContainsJsonWithCorrectChallenges() throws Exception {
         byte[] response = doExport();
@@ -889,6 +893,7 @@ public class InjectExportTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Returned zip file contains json with correct documents")
       public void returnedZipFileContainsJsonWithCorrectDocuments() throws Exception {
         byte[] response = doExport();
@@ -930,6 +935,7 @@ public class InjectExportTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Returned zip file contains document files")
       public void returnedZipFileContainsDocumentFiles() throws Exception {
         byte[] response = doExport();

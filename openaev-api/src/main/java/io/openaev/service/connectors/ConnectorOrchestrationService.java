@@ -3,6 +3,7 @@ package io.openaev.service.connectors;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -204,11 +205,13 @@ public class ConnectorOrchestrationService {
   /**
    * Create connector instance. Validates license and XTM Composer connectivity if required.
    *
+   * @param ctx the scope of the request; it must contain {@code tenantId}
    * @param catalogConnectorWithConfigMap the catalog connector with its configurations map
    * @param input CreateConnectorInstanceInput
    * @return Created ConnectorInstance
    */
   public ConnectorInstancePersisted createConnectorInstance(
+      TxCtx ctx,
       CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
       CreateConnectorInstanceInput input,
       String tenantId) {
@@ -233,7 +236,7 @@ public class ConnectorOrchestrationService {
     }
 
     return connectorInstanceService.createConnectorInstance(
-        catalogConnectorWithConfigMap, input, tenantId);
+        ctx, catalogConnectorWithConfigMap, input, tenantId);
   }
 
   /**

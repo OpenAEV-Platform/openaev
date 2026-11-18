@@ -369,10 +369,8 @@ public class PhishingLandingPageService {
                 () -> {
                   InjectorContract created = new InjectorContract();
                   created.setId(landingPage.getId());
-                  // Explicit, not left to InjectorContract's own v1 TenantBaseListener: that
-                  // listener reads TenantContext.getCurrentTenant(), which onboarding never
-                  // updates (it sets the v2 scope only), so it would stamp the ambient/default
-                  // tenant here while every other write in this method already uses tenantId.
+                  // A contract lives in the tenant of its landing page: InjectorContract has no
+                  // tenant listener, so the write names tenantId like every other write here.
                   created.setTenant(new Tenant(tenantId));
                   return created;
                 });
@@ -574,13 +572,14 @@ public class PhishingLandingPageService {
         prevention,
         buildPhishingStep(
             PhishingTrackingService.STEP_OPENED,
-            "Red once the recipient opens the lure email (tracking pixel loaded); green while the"
-                + " email is never opened.",
+            "Red once the recipient interacts with the phishing landing page, which proves they"
+                + " opened the lure email; the tracking image alone is not counted, as mail"
+                + " scanners load it too.",
             1),
         buildPhishingStep(
             PhishingTrackingService.STEP_CLICKED,
-            "Red once the recipient opens the phishing landing page; green while the link is never"
-                + " followed.",
+            "Red once the recipient interacts with the phishing landing page (mouse, touch,"
+                + " keyboard or scroll); green while the link is never followed.",
             2),
         buildPhishingStep(
             PhishingTrackingService.STEP_SUBMITTED,

@@ -1,5 +1,5 @@
 import { SECURITY_PLATFORM_TYPE_LABELS, type SecurityPlatformType } from '../../../../../components/securityPlatformType';
-import { type InjectExpectationOutput } from '../../../../../utils/api-types';
+import { type InjectExpectationOutput, type ThreatArsenalActionCreateInput } from '../../../../../utils/api-types';
 
 export interface InjectExpectationsStore extends Omit<InjectExpectationOutput, 'inject_expectation_team' | 'inject_expectation_user' | 'inject_expectation_article' | 'inject_expectation_challenge' | 'inject_expectation_asset'> {
   inject_expectation_id: string;
@@ -57,3 +57,42 @@ export type ExpectationResultType = 'PREVENTION' | 'DETECTION' | 'LOGGING' | 'VU
 export const expectationResultTypes: ExpectationResultType [] = ['PREVENTION', 'DETECTION', 'LOGGING', 'VULNERABILITY', 'HUMAN_RESPONSE'];
 
 export const mitreMatrixExpectationTypes: ExpectationResultType [] = ['PREVENTION', 'DETECTION', 'VULNERABILITY'];
+
+// Answered by security platforms, and scoped per security platform type. Display order.
+export const TECHNICAL_EXPECTATION_TYPES: string[] = [ExpectationType.PREVENTION, ExpectationType.DETECTION, ExpectationType.LOGGING, ExpectationType.VULNERABILITY];
+
+// Validated by people. Display order.
+export const HUMAN_EXPECTATION_TYPES: string[] = [ExpectationType.MANUAL, ExpectationType.ARTICLE, ExpectationType.CHALLENGE];
+
+// The expectation types a posture (assets, security platforms, reports) is broken down by. Logging
+// is not part of the posture score yet.
+export const POSTURE_EXPECTATION_TYPES: string[] = [
+  ExpectationType.PREVENTION,
+  ExpectationType.DETECTION,
+  ExpectationType.VULNERABILITY,
+  ...HUMAN_EXPECTATION_TYPES,
+];
+
+// The expectations a new payload starts with: Logging joins Prevention and Detection while its
+// preview feature is on.
+export const defaultPayloadExpectations = (isLoggingEnabled: boolean): ThreatArsenalActionCreateInput['action_expectations'] => (
+  isLoggingEnabled ? ['PREVENTION', 'DETECTION', 'LOGGING'] : ['PREVENTION', 'DETECTION']
+);
+
+// i18n key of each expectation type label, the HUMAN_RESPONSE result type included.
+const EXPECTATION_TYPE_LABELS: Record<string, string> = {
+  PREVENTION: 'Prevention',
+  DETECTION: 'Detection',
+  LOGGING: 'Logging',
+  VULNERABILITY: 'Vulnerability',
+  HUMAN_RESPONSE: 'Human Response',
+  MANUAL: 'Manual',
+  ARTICLE: 'Article',
+  CHALLENGE: 'Challenge',
+};
+
+// Case-insensitive: the dashboards hand over lowercase keys. Undefined for an unknown type, so
+// each caller keeps its own fallback.
+export const expectationTypeLabelKey = (type: string | undefined): string | undefined => {
+  return EXPECTATION_TYPE_LABELS[(type ?? '').toUpperCase()];
+};

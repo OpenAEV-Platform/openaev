@@ -194,14 +194,12 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.attackpath.AttackPathApi#simulations",
           "io.openaev.api.attackpath.AttackPathApi#expandEndpointFindings",
           // marking_definitions (v2)
-          "io.openaev.api.marking_definition.MarkingDefinitionApi#list",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#search",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#create",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#update",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#delete",
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#assignable",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#assigned",
-          "io.openaev.api.marking_definition.MarkingDefinitionApi#optionsByName",
-          "io.openaev.api.marking_definition.MarkingDefinitionApi#optionsById",
           "io.openaev.api.attackpath.AttackPathApi#relations",
           "io.openaev.api.attackpath.AttackPathApi#findings",
           "io.openaev.api.attackpath.AttackPathApi#executionDetail",
@@ -277,7 +275,6 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.asset.endpoint.EndpointApi#endpoints",
           "io.openaev.rest.asset.endpoint.EndpointApi#endpoint",
           "io.openaev.rest.asset.endpoint.EndpointApi#assets",
-          "io.openaev.rest.asset.endpoint.EndpointApi#targetEndpoints",
           "io.openaev.rest.asset.endpoint.EndpointApi#findEndpoints",
           "io.openaev.rest.asset.endpoint.EndpointApi#updateEndpoint",
           "io.openaev.rest.asset.endpoint.EndpointApi#deleteEndpoint",
@@ -344,6 +341,10 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.xtmhub.XtmHubApi#refreshConnectivity",
           "io.openaev.api.xtmhub.XtmHubApi#autoRegister",
           "io.openaev.api.xtmhub.XtmHubApi#contactUs",
+          // news feed: the unread count and read-all read the registration of the tenants in
+          // scope to tell whether the news feed is served
+          "io.openaev.api.news_feed.NewsFeedItemApi#countMyUnreadNewsFeedItems",
+          "io.openaev.api.news_feed.NewsFeedItemApi#markAllMyNewsFeedItemsRead",
           // threat arsenal: create/update/duplicate go through PayloadCreationService/
           // PayloadUpdateService into the same synchroniseInjectorContractBasedOnPayload path
           "io.openaev.api.threat_arsenal.ThreatArsenalApi#createAction",
@@ -664,7 +665,21 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // tenant-active tables (findings, assets); without the TxCtx scope it reads zero rows
           // and reports a ready snapshot while rows are still pending.
           "io.openaev.api.snapshot.SnapshotObservationApi#searchAttackObservations",
-          "io.openaev.api.snapshot.SnapshotObservationApi#searchVulnerabilityObservations");
+          "io.openaev.api.snapshot.SnapshotObservationApi#searchVulnerabilityObservations",
+          // tenant roles: every endpoint resolves its tenant from the request scope
+          "io.openaev.rest.role.TenantRoleApi#create",
+          "io.openaev.rest.role.TenantRoleApi#delete",
+          "io.openaev.rest.role.TenantRoleApi#findRole",
+          "io.openaev.rest.role.TenantRoleApi#roles",
+          "io.openaev.rest.role.TenantRoleApi#search",
+          "io.openaev.rest.role.TenantRoleApi#update",
+          // payloads, payload_identities, catalog_items, catalog_history: catalogue installs.
+          "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installPayload",
+          "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installAllPayloads",
+          "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#uninstallPayload",
+          // payload_revocations: a tenant admin revokes a payload version.
+          "io.openaev.api.payload.PayloadRevocationApi#revoke",
+          "io.openaev.api.payload.PayloadRevocationApi#lift");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =

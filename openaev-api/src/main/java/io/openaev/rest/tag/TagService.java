@@ -124,6 +124,11 @@ public class TagService {
     return iterableToSet(this.tagRepository.findAllById(tagIds));
   }
 
+  public List<Tag> tagsInTenant(
+      @NotNull final List<String> tagIds, @NotNull final String tenantId) {
+    return tagRepository.findAllByIdInTenant(tagIds, tenantId);
+  }
+
   public Iterable<Tag> tags() {
     return tagRepository.findAll();
   }

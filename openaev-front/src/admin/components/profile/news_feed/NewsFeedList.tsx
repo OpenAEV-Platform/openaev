@@ -4,7 +4,6 @@ import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useRef, useState } from 'react';
 
 import { searchMyNewsFeedItems } from '../../../../actions/news_feed/news-feed-actions';
-import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -19,20 +18,9 @@ import { type NewsFeedItemOutput, type SearchPaginationInput } from '../../../..
 import { XTM_HUB_DEFAULT_URL } from '../../../../utils/Environment';
 import useAuth from '../../../../utils/hooks/useAuth';
 import TopBarIconLink from '../../nav/TopBarIconLink';
+import { buildHubUrl } from './newsFeedUtils';
 
 const MAX_DISPLAYED_TAGS = 3;
-
-// The path comes from XTM Hub data: only a link that stays on the XTM Hub origin is rendered.
-const buildHubUrl = (urlPath: string, hubUrl: string): string | null => {
-  try {
-    const base = new URL(hubUrl);
-    const url = new URL(urlPath, base);
-    const isWeb = url.protocol === 'https:' || url.protocol === 'http:';
-    return isWeb && url.origin === base.origin ? url.toString() : null;
-  } catch {
-    return null;
-  }
-};
 
 const inlineStyles: Record<string, CSSProperties> = {
   news_feed_item_type: { width: '12%' },
@@ -155,13 +143,6 @@ const NewsFeedList = () => {
 
   return (
     <>
-      <Breadcrumbs
-        variant="list"
-        elements={[{
-          label: t('News feed'),
-          current: true,
-        }]}
-      />
       <PaginationComponentV2
         fetch={searchItemsToLoad}
         searchPaginationInput={searchPaginationInput}

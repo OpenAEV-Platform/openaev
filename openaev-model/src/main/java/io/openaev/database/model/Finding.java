@@ -10,12 +10,12 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditLogIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
-import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -43,9 +43,9 @@ public class Finding implements TenantBase {
   // so keeping it costs no isolation.
   //
   // It is redundant rather than load-bearing: both production create paths resolve the tenant
-  // explicitly from the inject that produced the finding (FindingService.createFinding and
-  // createFindings), and FindingWriter receives it as a required argument and now refuses a blank
-  // one. What #7844 still has to prepare is the test ground: twenty-two test sites persist a
+  // explicitly from the inject that produced the finding. FindingService.createFindings stamps it,
+  // and FindingWriter receives it as a required argument and now refuses a blank one. What #7844
+  // still has to prepare is the test ground: twenty-two test sites persist a
   // Finding straight through a repository, and neither FindingFixture nor FindingComposer stamps a
   // tenant, so they all lean on this listener today.
 
@@ -57,10 +57,10 @@ public class Finding implements TenantBase {
   @NotBlank
   private String id;
 
-  @Queryable(searchable = true, filterable = true, sortable = true)
-  @Column(name = "finding_field", nullable = false)
-  @JsonProperty("finding_field")
-  @NotBlank
+  // Write path only, like inject: readers use the field of the occurrence.
+  // NULL on the findings of the new writer: the field lives on their occurrences
+  @Column(name = "finding_field")
+  @JsonIgnore
   private String field;
 
   @Queryable(filterable = true, sortable = true, label = "finding type")
@@ -99,6 +99,7 @@ public class Finding implements TenantBase {
 
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
+  @Fetch(FetchMode.SUBSELECT)
   @JoinTable(
       name = "findings_tags",
       joinColumns = @JoinColumn(name = "finding_id"),
@@ -115,15 +116,47 @@ public class Finding implements TenantBase {
   // the inject
   private Tenant tenant;
 
-  // -- RELATION --
+  // -- IDENTITY --
+
+  @Column(name = "finding_value_hash", updatable = false)
+  @JsonIgnore
+  private String valueHash;
 
   @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "finding_location_id", updatable = false)
+  @JsonIgnore
+  private FindingLocation location;
+
+  @Column(name = "finding_first_seen")
+  @JsonIgnore
+  private Instant firstSeen;
+
+  @Column(name = "finding_last_seen")
+  @JsonIgnore
+  private Instant lastSeen;
+
+  // -- RELATION --
+
+  // Write path only, until every source writes occurrences (chunk 4). Readers go through
+  // occurrences.
+  @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "finding_inject_id")
-  @JsonProperty("finding_inject_id")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @Schema(implementation = String.class)
-  @Queryable(filterable = true, dynamicValues = true, sortable = true, path = "inject.id")
+  @JsonIgnore
   private Inject inject;
+
+  // REMOVE while deleting an inject still deletes its findings: the delete event loads the
+  // occurrences into the session, which must drop them along with the finding
+  @OneToMany(mappedBy = "finding", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+  @Fetch(FetchMode.SUBSELECT)
+  @JsonIgnore
+  @Queryable(
+      searchable = true,
+      paths = {
+        "occurrences.inject.title",
+        "occurrences.inject.exercise.name",
+        "occurrences.inject.exercise.scenario.name"
+      })
+  private List<FindingOccurrence> occurrences = new ArrayList<>();
 
   // -- AUDIT --
 
@@ -249,57 +282,48 @@ public class Finding implements TenantBase {
     this.valueDisplay = getValueDisplay();
   }
 
+  @JsonProperty("finding_inject_id")
+  @JsonSerialize(using = MultiIdListSerializer.class)
+  @Schema(implementation = String[].class)
+  @Queryable(filterable = true, dynamicValues = true, path = "occurrences.inject.id")
+  public List<Inject> getInjects() {
+    return occurrences.stream().map(FindingOccurrence::getInject).filter(Objects::nonNull).toList();
+  }
+
+  @JsonProperty("finding_field")
+  @Queryable(searchable = true, filterable = true, path = "occurrences.field")
+  public List<String> getFields() {
+    return occurrences.stream()
+        .map(FindingOccurrence::getField)
+        .filter(Objects::nonNull)
+        .distinct()
+        .toList();
+  }
+
   @JsonProperty("finding_simulation")
-  @Queryable(filterable = true, dynamicValues = true, path = "inject.exercise.id")
-  public Exercise getSimulation() {
-    if (getInject() == null) {
-      return null;
-    }
-    return getInject().getExercise();
+  @JsonSerialize(using = MultiIdListSerializer.class)
+  @Schema(implementation = String[].class)
+  @Queryable(filterable = true, dynamicValues = true, path = "occurrences.inject.exercise.id")
+  public List<Exercise> getSimulations() {
+    return getInjects().stream().map(Inject::getExercise).filter(Objects::nonNull).toList();
   }
 
   @JsonProperty("finding_scenario")
-  @Queryable(filterable = true, dynamicValues = true, path = "inject.exercise.scenario.id")
-  public Scenario getScenario() {
-    if (getInject() == null) {
-      return null;
-    }
-    return Optional.ofNullable(getInject().getExercise()).map(Exercise::getScenario).orElse(null);
+  @JsonSerialize(using = MultiIdListSerializer.class)
+  @Schema(implementation = String[].class)
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      path = "occurrences.inject.exercise.scenario.id")
+  public List<Scenario> getScenarios() {
+    return getSimulations().stream().map(Exercise::getScenario).filter(Objects::nonNull).toList();
   }
 
   @JsonProperty("finding_asset_groups")
-  @Queryable(filterable = true, dynamicValues = true, path = "inject.assetGroups.id")
+  @Queryable(filterable = true, dynamicValues = true, path = "occurrences.inject.assetGroups.id")
   public Set<AssetGroup> getAssetGroups() {
-    if (getInject() == null) {
-      return Collections.emptySet();
-    }
-    return getInject().getAssetGroups().stream().collect(Collectors.toSet());
-  }
-
-  // -- TEXT SEARCH ON THE CONTEXT --
-  // The occurrences of one finding all share its type, field, value and name, so a text search on
-  // the finding detail page could only match everything or nothing (#8176). These search-only
-  // properties let the search box also match the inject, simulation and scenario an occurrence
-  // comes from. They are private, never serialized, never filterable nor sortable: they only add
-  // ILIKE predicates on many-to-one paths, which never multiply the rows.
-
-  @JsonIgnore
-  @Queryable(searchable = true, path = "inject.title")
-  private String getSearchInjectTitle() {
-    return getInject() == null ? null : getInject().getTitle();
-  }
-
-  @JsonIgnore
-  @Queryable(searchable = true, path = "inject.exercise.name")
-  private String getSearchSimulationName() {
-    return Optional.ofNullable(getSimulation()).map(Exercise::getName).orElse(null);
-  }
-
-  @JsonIgnore
-  @Queryable(searchable = true, path = "inject.scenario.name")
-  private String getSearchScenarioName() {
-    return getInject() == null
-        ? null
-        : Optional.ofNullable(getInject().getScenario()).map(Scenario::getName).orElse(null);
+    return getInjects().stream()
+        .flatMap(inject -> inject.getAssetGroups().stream())
+        .collect(Collectors.toSet());
   }
 }

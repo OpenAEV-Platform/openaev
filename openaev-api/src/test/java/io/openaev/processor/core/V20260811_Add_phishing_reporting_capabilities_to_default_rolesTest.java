@@ -95,7 +95,9 @@ public class V20260811_Add_phishing_reporting_capabilities_to_default_rolesTest
   @Test
   @DisplayName("Should add phishing and reporting capabilities to a pristine Manager role")
   void given_pristineManagerRole_should_addPhishingAndReportingCapabilities() {
-    Role manager = roleService.createRole("Manager", "Manager", PRE_FIX_MANAGER);
+    Role manager =
+        roleService.createRole(
+            TenantContext.getCurrentTenant(), "Manager", "Manager", PRE_FIX_MANAGER);
 
     migration.doMigrate(new Tenant(TenantContext.getCurrentTenant()));
 
@@ -113,7 +115,9 @@ public class V20260811_Add_phishing_reporting_capabilities_to_default_rolesTest
   @Test
   @DisplayName("Should add access phishing and reporting capabilities to a pristine Observer role")
   void given_pristineObserverRole_should_addAccessCapabilities() {
-    Role observer = roleService.createRole("Observer", "Observer", PRE_FIX_OBSERVER);
+    Role observer =
+        roleService.createRole(
+            TenantContext.getCurrentTenant(), "Observer", "Observer", PRE_FIX_OBSERVER);
 
     migration.doMigrate(new Tenant(TenantContext.getCurrentTenant()));
 
@@ -130,7 +134,8 @@ public class V20260811_Add_phishing_reporting_capabilities_to_default_rolesTest
     // An admin restricted the role: it no longer matches the auto-generated defaults.
     Set<Capability> customized = new HashSet<>(PRE_FIX_MANAGER);
     customized.remove(Capability.DELETE_ASSESSMENT);
-    Role manager = roleService.createRole("Manager", "Manager", customized);
+    Role manager =
+        roleService.createRole(TenantContext.getCurrentTenant(), "Manager", "Manager", customized);
     Set<Capability> before = Set.copyOf(reload(manager).getCapabilities());
 
     migration.doMigrate(new Tenant(TenantContext.getCurrentTenant()));
@@ -152,7 +157,8 @@ public class V20260811_Add_phishing_reporting_capabilities_to_default_rolesTest
             Capability.ACCESS_PHISHING,
             Capability.MANAGE_PHISHING,
             Capability.DELETE_PHISHING));
-    Role manager = roleService.createRole("Manager", "Manager", fixed);
+    Role manager =
+        roleService.createRole(TenantContext.getCurrentTenant(), "Manager", "Manager", fixed);
     Set<Capability> before = Set.copyOf(reload(manager).getCapabilities());
 
     migration.doMigrate(new Tenant(TenantContext.getCurrentTenant()));

@@ -440,6 +440,8 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
           Exercise exercise = createDefaultExercise();
           exercise.setTenant(new Tenant(tenant));
           exerciseComposer.forExercise(exercise).withTeam(teamWrapper).withTeamUsers().persist();
+          // A player is updated in the tenant of the request, which it belongs to.
+          tenantHelper.attachUserToTenant(playerWrapper.get().getId(), tenant);
 
           Scenario scenario = createDefaultCrisisScenario();
           scenario.setTenant(new Tenant(tenant));

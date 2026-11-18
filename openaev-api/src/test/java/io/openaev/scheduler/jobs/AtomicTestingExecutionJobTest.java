@@ -4,11 +4,15 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.ExecutionStatus;
+import io.openaev.database.model.Executor;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -22,6 +26,7 @@ import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectStatusComposer;
+import io.openaev.utilstest.RowTenantScope;
 import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -29,6 +34,7 @@ import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -60,6 +66,8 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private AgentRepository agentRepository;
   @Autowired private EndpointRepository endpointRepository;
+  @Autowired private RowTenantScope rowTenantScope;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   private final String titlePrefix = "AtomicTestingExecutionJobTest-" + UUID.randomUUID();
 
@@ -72,12 +80,16 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
                 inject -> inject.getTitle() != null && inject.getTitle().startsWith(titlePrefix))
             .toList();
     injectRepository.deleteAll(leftovers);
-    agentRepository.deleteAll(
-        agentRepository.findAllById(
-            agentComposer.generatedItems.stream().map(Agent::getId).toList()));
-    endpointRepository.deleteAll(
-        endpointRepository.findAllById(
-            endpointComposer.generatedItems.stream().map(Asset::getId).toList()));
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          agentRepository.deleteAll(
+              agentRepository.findAllById(
+                  agentComposer.generatedItems.stream().map(Agent::getId).toList()));
+          endpointRepository.deleteAll(
+              endpointRepository.findAllById(
+                  endpointComposer.generatedItems.stream().map(Asset::getId).toList()));
+        });
     injectComposer.reset();
     injectStatusComposer.reset();
     agentComposer.reset();
@@ -94,6 +106,8 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
     inject.setRecurrence(recurrence);
     inject.setRecurrenceStart(recurrenceStart);
     inject.setRecurrenceEnd(recurrenceEnd);
+    // The default executor is looked up by its fixed id, a read of a tenant-active table.
+    Executor executor = inDefaultScope(() -> executorFixture.getDefaultExecutor());
     InjectComposer.Composer composer =
         injectComposer
             .forInject(inject)
@@ -101,13 +115,17 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
                 endpointComposer
                     .forEndpoint(EndpointFixture.createEndpoint())
                     .withAgent(
-                        agentComposer.forAgent(
-                            AgentFixture.createDefaultAgentSession(
-                                executorFixture.getDefaultExecutor()))));
+                        agentComposer.forAgent(AgentFixture.createDefaultAgentSession(executor))));
     if (injectStatus != null) {
       composer = composer.withInjectStatus(injectStatusComposer.forInjectStatus(injectStatus));
     }
-    return composer.persist().get();
+    InjectComposer.Composer toPersist = composer;
+    rowTenantScope.write(Tenant.DEFAULT_TENANT_UUID, toPersist::persist);
+    return toPersist.get();
+  }
+
+  private <T> T inDefaultScope(Supplier<T> work) {
+    return tenantTx.execute(TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), work);
   }
 
   private List<Inject> atomicTestingsWithRecurrence(String recurrence) {
@@ -117,6 +135,13 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
         .filter(inject -> recurrence.equals(inject.getRecurrence()))
         .toList();
   }
+
+  /**
+   * Fires at second 0 of every minute, so the occurrence after any instant is the next minute
+   * whatever minute the job reads from the clock. A cron computed from a clock read of the test
+   * rolls past the job's own read when a minute ends in between.
+   */
+  private static final String EVERY_MINUTE_CRON = "0 * * * * *";
 
   /** Daily cron at now + the given amount of minutes (UTC). */
   private String dailyCronInMinutes(int minutes) {
@@ -143,7 +168,7 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
   @Test
   @DisplayName("Relaunch a recurring atomic testing due now, carrying the recurrence over")
   void given_cron_in_one_minute_should_relaunch() throws JobExecutionException {
-    String cron = dailyCronInMinutes(1);
+    String cron = EVERY_MINUTE_CRON;
     // Truncate to seconds: PostgreSQL timestamps keep microseconds, not nanoseconds.
     Instant recurrenceEnd = Instant.now().plus(10, ChronoUnit.DAYS).truncatedTo(ChronoUnit.SECONDS);
     Inject inject = persistAtomicTesting(cron, null, recurrenceEnd, null);
@@ -171,7 +196,7 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
   @Test
   @DisplayName("Not relaunch twice within the same occurrence (queued run dedup)")
   void given_cron_in_one_minute_should_not_relaunch_twice() throws JobExecutionException {
-    String cron = dailyCronInMinutes(1);
+    String cron = EVERY_MINUTE_CRON;
     persistAtomicTesting(cron, null, null, null);
 
     // -- EXECUTE --
@@ -191,7 +216,7 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
   @Test
   @DisplayName("Skip an atomic testing whose run is already in progress")
   void given_run_in_progress_should_not_relaunch() throws JobExecutionException {
-    String cron = dailyCronInMinutes(1);
+    String cron = EVERY_MINUTE_CRON;
     Inject inject =
         persistAtomicTesting(cron, null, null, InjectStatusFixture.createPendingInjectStatus());
 
@@ -208,7 +233,7 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
   @Test
   @DisplayName("Self-clear the recurrence when the end date has passed")
   void given_end_date_in_the_past_should_clear_recurrence() throws JobExecutionException {
-    String cron = dailyCronInMinutes(1);
+    String cron = EVERY_MINUTE_CRON;
     Inject inject =
         persistAtomicTesting(
             cron,

@@ -8,7 +8,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.executors.ExecutorContextService;
+import io.openaev.executors.BatchExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
@@ -17,19 +17,15 @@ import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
-@Slf4j
 @Service(CrowdStrikeExecutorContextService.SERVICE_NAME)
 @RequiredArgsConstructor
-public class CrowdStrikeExecutorContextService extends ExecutorContextService {
+public class CrowdStrikeExecutorContextService
+    extends BatchExecutorContextService<CrowdStrikeAction> {
   public static final String SERVICE_NAME = CROWDSTRIKE_EXECUTOR_NAME;
 
   private final CrowdStrikeExecutorConfig crowdStrikeExecutorConfig;
@@ -38,13 +34,6 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
   private final OpenAEVConfig openAEVConfig;
-
-  ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-
-  @Override
-  public void shutdown() {
-    scheduledExecutorService.shutdown();
-  }
 
   @Override
   public void launchExecutorSubprocess(
@@ -96,28 +85,26 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
     return csAgents;
   }
 
+  // Batches of apiBatchExecutionActionPagination calls, one batch every 5 s: each action calls the
+  // CrowdStrike API to execute the implant, and each implant calls the OpenAEV API to set traces.
   public void executeActions(List<CrowdStrikeAction> actions) {
-    int paginationLimit = this.crowdStrikeExecutorConfig.getApiBatchExecutionActionPagination();
-    int paginationCount = (int) Math.ceil(actions.size() / (double) paginationLimit);
+    dispatch(actions);
+  }
 
-    for (int batchIndex = 0; batchIndex < paginationCount; batchIndex++) {
-      int fromIndex = (batchIndex * paginationLimit);
-      int toIndex = Math.min(fromIndex + paginationLimit, actions.size());
-      List<CrowdStrikeAction> batchActions = actions.subList(fromIndex, toIndex);
-      // Pagination of XXX calls (paginationLimit) per batch with 5s waiting
-      // because each action will call the CS API to execute the implant
-      // and each implant will call OpenAEV API to set traces
-      scheduledExecutorService.schedule(
-          () ->
-              batchActions.forEach(
-                  action ->
-                      this.crowdStrikeExecutorClient.executeAction(
-                          action.getAgentExternalReference(),
-                          action.getScriptName(),
-                          action.getCommandEncoded())),
-          batchIndex * 5L,
-          TimeUnit.SECONDS);
-    }
+  @Override
+  protected void send(CrowdStrikeAction action) {
+    this.crowdStrikeExecutorClient.executeAction(
+        action.getAgentExternalReference(), action.getScriptName(), action.getCommandEncoded());
+  }
+
+  @Override
+  protected String agentReference(CrowdStrikeAction action) {
+    return action.getAgentExternalReference();
+  }
+
+  @Override
+  protected Integer batchSize() {
+    return this.crowdStrikeExecutorConfig.getApiBatchExecutionActionPagination();
   }
 
   private List<CrowdStrikeAction> getWindowsActions(

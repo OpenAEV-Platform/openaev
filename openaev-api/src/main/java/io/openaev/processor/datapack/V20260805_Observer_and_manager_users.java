@@ -2,16 +2,11 @@ package io.openaev.processor.datapack;
 
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.repository.GroupRepository;
-import io.openaev.database.repository.UserRepository;
 import io.openaev.service.DataPackService;
-import io.openaev.service.TenantRoleService;
+import io.openaev.service.TenantGroupService;
 import io.openaev.service.UserService;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,22 +37,15 @@ public class V20260805_Observer_and_manager_users extends DataPack {
   private String configuredUserPassword;
 
   private final UserService userService;
-  private final UserRepository userRepository;
-  private final GroupRepository groupRepository;
-  private final TenantRoleService tenantRoleService;
-  @PersistenceContext private EntityManager entityManager;
+  private final TenantGroupService tenantGroupService;
 
   public V20260805_Observer_and_manager_users(
       DataPackService dataPackService,
       UserService userService,
-      UserRepository userRepository,
-      GroupRepository groupRepository,
-      TenantRoleService tenantRoleService) {
+      TenantGroupService tenantGroupService) {
     super(dataPackService);
     this.userService = userService;
-    this.userRepository = userRepository;
-    this.groupRepository = groupRepository;
-    this.tenantRoleService = tenantRoleService;
+    this.tenantGroupService = tenantGroupService;
   }
 
   @Override
@@ -82,26 +70,7 @@ public class V20260805_Observer_and_manager_users extends DataPack {
 
   private void ensureRolesAndGroups(Tenant tenant) {
     String tenantId = tenant.getId();
-    PresetTenantData.DEFAULT_ROLES.forEach(
-        (roleName, capabilities) -> {
-          if (groupRepository.findByNameAndTenantId(roleName, tenantId).isPresent()) {
-            return;
-          }
-          Role role = createRoleIfMissing(roleName, capabilities);
-          Group group = new Group();
-          group.setName(roleName);
-          group.setDescription(roleName);
-          group.setDefaultUserAssignation(false);
-          group.setTenant(entityManager.getReference(Tenant.class, tenantId));
-          group.setRoles(List.of(role));
-          groupRepository.save(group);
-          log.info("Created group {} for tenant {}", roleName, tenantId);
-        });
-  }
-
-  private Role createRoleIfMissing(String roleName, Set<Capability> capabilities) {
-    return tenantRoleService.createRoleInternal(
-        UUID.randomUUID().toString(), roleName, roleName, capabilities, null);
+    tenantGroupService.findOrCreateDefaultGroups(tenantId);
   }
 
   private void createUserInGroup(
@@ -111,7 +80,7 @@ public class V20260805_Observer_and_manager_users extends DataPack {
       String lastname,
       String groupName,
       String password) {
-    if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
+    if (userService.findByEmailIgnoreCase(email).isPresent()) {
       log.info("User {} already exists, skipping", email);
       return;
     }
@@ -122,11 +91,11 @@ public class V20260805_Observer_and_manager_users extends DataPack {
     user.setPassword(userService.encodeUserPassword(password));
     user.setTenants(new ArrayList<>(List.of(new Tenant(tenant.getId()))));
 
-    groupRepository
-        .findByNameAndTenantId(groupName, tenant.getId())
+    tenantGroupService
+        .findFirstByName(tenant.getId(), groupName)
         .ifPresent(group -> user.setGroups(new ArrayList<>(List.of(group))));
 
-    userRepository.save(user);
+    userService.saveUser(user);
     log.info("Created test-bench user {} in group {}", email, groupName);
   }
 }

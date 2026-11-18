@@ -10,6 +10,7 @@ import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Step;
+import io.openaev.database.model.Tenant;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -67,8 +68,10 @@ class StepTargetingServiceTest {
       "{\\"fields\\":[{\\"key\\":\\"target_selector\\",\\"type\\":\\"select\\"}]}"}}
       """;
 
+  private static final String STEP_TENANT_ID = "step-targeting-tenant";
+
   private Step stepWithData(String data) {
-    return Step.builder().data(data).build();
+    return Step.builder().data(data).tenant(new Tenant(STEP_TENANT_ID)).build();
   }
 
   // ---------------------------------------------------------------------------
@@ -157,7 +160,8 @@ class StepTargetingServiceTest {
         .put(InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY, "teams")
         .put(InjectorContract.CONTRACT_ELEMENT_CONTENT_TYPE, "team");
     liveContract.setConvertedContent(content);
-    when(injectorContractService.injectorContract("contract-live")).thenReturn(liveContract);
+    when(injectorContractService.injectorContractInTenant("contract-live", STEP_TENANT_ID))
+        .thenReturn(liveContract);
 
     assertThat(stepTargetingService.isAssetCentric(stepWithData(data))).isFalse();
   }

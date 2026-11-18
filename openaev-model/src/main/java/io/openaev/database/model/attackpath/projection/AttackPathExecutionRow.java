@@ -42,4 +42,6 @@ public record AttackPathExecutionRow(
     // the Result drawer's detail read does, so a row's "did it actually run" status ships with the
     // graph instead of costing two client round-trips per visible row.
     String stepId,
-    String payloadId) {}
+    String payloadId,
+    // The tenant of the execution, which the contracts the graph names are read in.
+    String tenantId) {}

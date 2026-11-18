@@ -3,7 +3,6 @@ package io.openaev.utils.fixtures.composers;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Organization;
-import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
@@ -11,7 +10,6 @@ import io.openaev.database.repository.UserRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -63,9 +61,7 @@ public class UserComposer extends ComposerBase<User> {
 
     public Composer withTag(TagComposer.Composer tagComposer) {
       tagComposers.add(tagComposer);
-      Set<Tag> tempTags = this.user.getTags();
-      tempTags.add(tagComposer.get());
-      this.user.setTags(tempTags);
+      this.user.getTags().add(tagComposer.get());
       return this;
     }
 

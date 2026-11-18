@@ -5,6 +5,7 @@ import io.openaev.database.model.Endpoint;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -14,10 +15,22 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.Assert;
 
 @Repository
 public interface EndpointRepository
     extends CrudRepository<Endpoint, String>, JpaSpecificationExecutor<Endpoint> {
+
+  List<Endpoint> findAllByIdInAndTenantId(Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The endpoints among the given ids that belong to the given tenant. Refuses a null id list, as
+   * {@code findAllById} does.
+   */
+  default List<Endpoint> findAllByIdInTenant(Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 
   // Asset.activityStatus is a @Formula property, so Hibernate expects a result-set column literally
   // named "activityStatus" when hydrating an Endpoint from a native query. A bare "select e.*" does
@@ -125,7 +138,7 @@ public interface EndpointRepository
               + "INNER JOIN injects_assets ia ON e.asset_id = ia.asset_id "
               + "WHERE e.asset_type = '"
               + AssetType.Values.ENDPOINT_TYPE
-              + "' AND e.tenant_id = :#{#tenantContext.currentTenant}",
+              + "'",
       nativeQuery = true)
   List<Endpoint> findAllEndpointsForAtomicTestingsSimulationsAndScenarios();
 
@@ -138,8 +151,7 @@ public interface EndpointRepository
                   SELECT DISTINCT fa.asset_id
                   FROM findings f
                   LEFT JOIN findings_assets fa ON fa.finding_id = f.finding_id
-              ) AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-              AND a.tenant_id = :#{#tenantContext.currentTenant};
+              ) AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')));
               """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindings(@Param("name") String name, Pageable pageable);
@@ -154,7 +166,8 @@ public interface EndpointRepository
                   FROM findings_assets fa1
                   INNER JOIN findings f ON f.finding_id = fa1.finding_id
                   INNER JOIN findings_assets fa2 ON f.finding_id = fa2.finding_id
-                  INNER JOIN injects i ON f.finding_inject_id = i.inject_id
+                  INNER JOIN finding_occurrences fo ON fo.finding_occurrence_finding_id = f.finding_id
+                  INNER JOIN injects i ON i.inject_id = fo.finding_occurrence_inject_id
                   LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise
                   WHERE (
                       fa1.asset_id = :sourceId
@@ -164,8 +177,7 @@ public interface EndpointRepository
                   )
                   AND fa2.asset_id != :sourceId
               )
-              AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-              AND a.tenant_id = :#{#tenantContext.currentTenant};
+              AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')));
               """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindingsWithContext(
@@ -187,13 +199,18 @@ public interface EndpointRepository
 
   // Replace Hibernate query by native query for perfs
   // Native query does the same as Hibernate query here because all "cascade" and other relations
-  // are properly set in the database
+  // are properly set in the database.
+  // Returns the number of rows removed: a caller publishes follow-up events only for a deleted row.
+  // Not named deleteById: the inherited CrudRepository method returns void and cannot be widened.
+  // Removes a row of type Endpoint only: the assets table also holds the other asset types.
   @Modifying
   @Query(
       value =
-          "DELETE FROM assets WHERE asset_id = :assetId AND tenant_id = :#{#tenantContext.currentTenant}",
+          "DELETE FROM assets WHERE asset_id = :assetId AND asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "'",
       nativeQuery = true)
-  void deleteById(@Param("assetId") @NotBlank String assetId);
+  int deleteEndpointById(@Param("assetId") @NotBlank String assetId);
 
   List<Endpoint> findDistinctByInjectsScenarioId(String scenarioId);
 

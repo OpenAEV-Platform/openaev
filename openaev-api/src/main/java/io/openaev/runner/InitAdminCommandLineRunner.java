@@ -64,7 +64,8 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
   public void run(String... args) {
     // The eager Group.markings read below is fail-closed without a scope, and this runner
     // provisions the default tenant only.
-    this.tenantScopedTransaction.setScopeOnCurrentTransaction(TxCtx.forTenant(DEFAULT_TENANT_UUID));
+    TxCtx ctx = TxCtx.forTenant(DEFAULT_TENANT_UUID);
+    this.tenantScopedTransaction.setScopeOnCurrentTransaction(ctx);
 
     // Handle admin user
     Optional<User> adminUserOptional = this.userRepository.findById(ADMIN_UUID);
@@ -78,8 +79,8 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
     // The default tenant comes from a Flyway migration and never runs the provisioning chain that
     // seeds these groups, so both are bootstrapped here. Platform first: the tenant path clears
     // the persistence context last.
-    this.adminPrivilegeService.ensurePlatformAdminGroup(adminUser);
-    this.adminPrivilegeService.ensureAdminGroup(DEFAULT_TENANT_UUID, adminUser);
+    this.adminPrivilegeService.ensurePlatformAdminGroup(ctx, adminUser);
+    this.adminPrivilegeService.ensureAdminGroup(ctx, DEFAULT_TENANT_UUID, adminUser);
   }
 
   // -- USER --

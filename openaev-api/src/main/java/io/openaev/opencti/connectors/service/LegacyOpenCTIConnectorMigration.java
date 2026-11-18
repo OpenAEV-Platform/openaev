@@ -1,5 +1,6 @@
 package io.openaev.opencti.connectors.service;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.service.account.ReservedServiceAccount.OPENCTI_CONNECTOR;
 
 import io.openaev.database.model.User;
@@ -61,7 +62,8 @@ public class LegacyOpenCTIConnectorMigration {
       if (groupRepository.existsById(OPENCTI_CONNECTOR.access().groupId())) {
         groupRepository.deleteById(OPENCTI_CONNECTOR.access().groupId());
       }
-      tenantRoleService.delete(OPENCTI_CONNECTOR.access().roleId());
+      // The pre-multi-tenant account lives in the default tenant.
+      tenantRoleService.delete(DEFAULT_TENANT_UUID, OPENCTI_CONNECTOR.access().roleId());
     }
     migrationDone = true;
   }

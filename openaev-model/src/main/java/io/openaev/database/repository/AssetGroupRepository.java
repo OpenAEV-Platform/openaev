@@ -5,6 +5,7 @@ import io.openaev.database.raw.RawAssetGroupDynamicFilter;
 import io.openaev.database.raw.RawAssetGroupIndexing;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -16,6 +17,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.Assert;
 
 @Repository
 public interface AssetGroupRepository
@@ -140,7 +142,8 @@ public interface AssetGroupRepository
     WHERE ag.asset_group_id IN (
         SELECT DISTINCT iag.asset_group_id
         FROM injects i
-        INNER JOIN findings f ON f.finding_inject_id = i.inject_id
+        INNER JOIN finding_occurrences fo ON fo.finding_occurrence_inject_id = i.inject_id
+        INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
         INNER JOIN injects_asset_groups iag ON iag.inject_id = i.inject_id
     ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
     """,
@@ -155,7 +158,8 @@ public interface AssetGroupRepository
     WHERE ag.asset_group_id IN (
         SELECT DISTINCT iag.asset_group_id
         FROM injects i
-        INNER JOIN findings f ON f.finding_inject_id = i.inject_id
+        INNER JOIN finding_occurrences fo ON fo.finding_occurrence_inject_id = i.inject_id
+        INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
         LEFT JOIN findings_assets fa ON fa.finding_id = f.finding_id
         LEFT JOIN injects_asset_groups iag ON iag.inject_id = i.inject_id
         LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise
@@ -174,4 +178,19 @@ public interface AssetGroupRepository
       nativeQuery = true)
   List<RawAssetGroupIndexing> findForIndexing(
       @Param("from") Instant from, @Param("limit") int limit);
+
+  /** The asset groups among the given ids that belong to the given tenant. */
+  @NotNull
+  List<AssetGroup> findAllByIdInAndTenantId(
+      @NotNull Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The asset groups among the given ids that belong to the given tenant. Refuses a null id list,
+   * as {@code findAllById} does.
+   */
+  @NotNull
+  default List<AssetGroup> findAllByIdInTenant(Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 }

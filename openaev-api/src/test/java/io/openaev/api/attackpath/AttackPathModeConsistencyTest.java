@@ -14,7 +14,6 @@ import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
-import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -47,7 +46,7 @@ class AttackPathModeConsistencyTest extends IntegrationTest {
 
   @BeforeEach
   void seed() {
-    tenant = tenantRepository.save(TenantFixture.getTenant("ap-consistency-tenant"));
+    tenant = new Tenant(Tenant.DEFAULT_TENANT_UUID);
     // One execution on host-x produces a linked credentials finding.
     String execId = execution("nmap", "host-x", "Prevented", "Not Detected");
     linkedFinding("host-x", "credentials", "admin:secret", execId);

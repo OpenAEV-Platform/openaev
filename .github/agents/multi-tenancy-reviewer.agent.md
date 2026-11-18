@@ -55,6 +55,8 @@ of the intended finding:
   cross-tenant is not: it widens nothing (see `multi-tenancy.instructions.md`
   > Background Threads Carry Both Scopes), and `TenantFilterDisableArchTest`
   rejects any new call. Ask for the primitive with an explicit scope instead.
+  A new `TenantContext` or `AmbientTenantBridge` call, tenant listener or `#tenantContext` query fails
+  `V1TenantConstructArchTest`; a line added to `v1-tenant-construct-baseline.txt` is flagged 🟠 HIGH.
 - **Step 3 (native queries)**: besides the v1/v2 shape checks, look at what the
   join is *keyed on*. An id that repeats across tenants by design, which is any
   key whose uniqueness is composite with `tenant_id`, is not a tenant boundary:
@@ -65,6 +67,16 @@ of the intended finding:
   carries a reasoned waiver, and the waiver's `reaches-active-table:` and
   `until-active:` reasons are themselves checked against the activation list,
   so an activation can expire one. Flag an unwaived one as 🟠 HIGH.
+- **Step 3b (ids named in a request body)**: a write that links rows by ids from the body
+  resolves them with `findAllByIdInTenant(ids, tenantId)` and the tenant of the entity written
+  (rule 10), so an id of another tenant is treated like an unknown id. `findAllById`,
+  `getReferenceById` or an unscoped `findAllByIdIn*` on the repository of an active table is
+  caught by `LinkedIdResolutionArchTest`; `linked-id-resolution-baseline.txt` only shrinks, and a
+  new `link` line is never accepted. Outside that guard, so look for them by reading and flag them
+  as 🟠 HIGH: `findById` on a body id, a call through a generic helper (`DatabaseHelper`), an id
+  lookup declared under another name (`findAllByIds`, `findAiTargetsByIds`,
+  `findAllByIdOrExternalIdIn`), `deleteAllById`, `findAll(Specification)` and
+  `entityManager.find`.
 
 ## Model Policy
 

@@ -31,6 +31,7 @@ export const MESSAGING$ = {
   redirect: new Subject<string>(),
   refreshMe: new Subject<void>(),
   refreshHealthchecks: new Subject<void>(),
+  refreshNewsFeedUnreadCount: new Subject<void>(),
   toggleArianeChat: new Subject<void>(),
   setArianeChatMode: new Subject<ArianeChatMode>(),
 };

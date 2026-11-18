@@ -3,6 +3,7 @@ package io.openaev.service.attackpath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -71,6 +72,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * refuses to open inside an active one, and {@code onRun}'s own {@code REQUIRES_NEW} commits
  * independently of any test transaction anyway), so cleanup below is explicit.
  */
+@CoversTenantIsolation({"attackpath_execution_collector", "attackpath_execution_remediation"})
 @TestPropertySource(
     properties =
         "openaev.tenant.active-tables=attackpath_execution_collector,attackpath_execution_remediation")

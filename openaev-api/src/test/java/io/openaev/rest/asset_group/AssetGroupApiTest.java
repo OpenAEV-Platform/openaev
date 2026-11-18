@@ -16,6 +16,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.AssetGroupRepository;
+import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.asset_group.form.AssetGroupBulkProcessingInput;
@@ -73,6 +74,7 @@ class AssetGroupApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private AssetGroupRepository assetGroupRepository;
+  @Autowired private EndpointRepository endpointRepository;
   @Autowired private TagRepository tagRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private ExerciseService exerciseService;
@@ -89,6 +91,16 @@ class AssetGroupApiTest extends IntegrationTest {
    */
   private String writeTenantId;
 
+  /**
+   * A create resolves the tags of its body in the tenant it writes to, so a tag named in the body
+   * belongs to that tenant; the fixture would otherwise seed it in the default one.
+   */
+  private Tag saveTagOfWriteTenant() {
+    Tag tag = TagFixture.getTagNoId();
+    tag.setTenant(new Tenant(writeTenantId));
+    return tagRepository.save(tag);
+  }
+
   @DisplayName(
       "Given valid AssetGroupInput, should create and get assetGroup without dynamic filter successfully")
   @Test
@@ -96,7 +108,7 @@ class AssetGroupApiTest extends IntegrationTest {
   void given_validAssetGroupInput_should_createAndGetAssetGroupWithoutDynamicFilterSuccessfully()
       throws Exception {
     // -- PREPARE --
-    Tag tag = tagRepository.save(TagFixture.getTagNoId());
+    Tag tag = saveTagOfWriteTenant();
     AssetGroupInput assetGroupInput = createAssetGroupWithTags("Asset group", List.of(tag.getId()));
     Filters.FilterGroup filterGroupExpected = Filters.FilterGroup.defaultFilterGroup();
 
@@ -214,7 +226,7 @@ class AssetGroupApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void should_createOneAssetGroupWithJavaAndOneWithSQLAndCompareThem() throws Exception {
     // -- PREPARE --
-    Tag tag = tagRepository.save(TagFixture.getTagNoId());
+    Tag tag = saveTagOfWriteTenant();
     AssetGroupInput assetGroupInput = createAssetGroupWithTags("Asset group", List.of(tag.getId()));
 
     // --EXECUTE--
@@ -233,7 +245,7 @@ class AssetGroupApiTest extends IntegrationTest {
     entityManager
         .createNativeQuery(
             "INSERT INTO asset_groups (asset_group_id, asset_group_name, tenant_id) VALUES ('test_id', 'test_name', '"
-                + Tenant.DEFAULT_TENANT_UUID
+                + writeTenantId
                 + "')")
         .executeUpdate();
     Object resultSql =
@@ -724,6 +736,147 @@ class AssetGroupApiTest extends IntegrationTest {
               List.of("win-host"),
               List.of("windowsX86", "windowsArm")),
           Arguments.of("asset_ips", "contains", List.of("10.0.1"), List.of("linuxX86")));
+    }
+
+    private Tag saveTag(String name) {
+      Tag tag = TagFixture.getTagWithText(name);
+      tag.setTenant(new Tenant(writeTenantId));
+      return tagRepository.save(tag);
+    }
+
+    private Filters.Filter ruleOf(String key, Filters.FilterOperator operator, String value) {
+      return Filters.Filter.builder()
+          .key(key)
+          .mode(Filters.FilterMode.or)
+          .operator(operator)
+          .values(List.of(value))
+          .build();
+    }
+
+    private List<String> resolveDynamicAssetIds(
+        String groupName, Filters.FilterMode mode, List<Filters.Filter> rules) throws Exception {
+      Filters.FilterGroup dynamicFilter =
+          Filters.FilterGroup.builder().mode(mode).filters(rules).build();
+      assetGroupComposer
+          .forAssetGroup(createAssetGroupWithDynamicFilter(groupName, dynamicFilter))
+          .persist();
+      String response =
+          mvc.perform(get(ASSET_GROUP_URI).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      return getDynamicAssetIds(response, groupName);
+    }
+
+    private void assertSameIds(List<String> actual, Endpoint... expected) {
+      List<String> expectedIds = Stream.of(expected).map(Endpoint::getId).toList();
+      assertEquals(expectedIds.size(), actual.size(), "members: " + actual);
+      assertTrue(actual.containsAll(expectedIds), "members: " + actual);
+    }
+
+    @Nested
+    @DisplayName("Dynamic rule on tags and the other asset attributes")
+    class DynamicRuleOnTags {
+
+      private Tag workplace;
+      private Tag server;
+
+      @BeforeEach
+      void tagEndpoints() {
+        workplace = saveTag("workplace");
+        server = saveTag("server");
+        windowsX86.getTags().add(workplace);
+        linuxX86.getTags().add(workplace);
+        windowsArm.getTags().add(server);
+        windowsArm.setDescription("Kiosk in the lobby");
+        linuxX86.setMacAddresses(new String[] {"aa:bb:cc:dd:ee:ff"});
+        endpointRepository.saveAll(List.of(windowsX86, windowsArm, linuxX86));
+        entityManager.flush();
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true)
+      @DisplayName("asset_tags = X resolves exactly the endpoints carrying tag X")
+      void given_tagRule_should_resolveOnlyTaggedEndpoints() throws Exception {
+        List<String> members =
+            resolveDynamicAssetIds(
+                "Workplace",
+                Filters.FilterMode.and,
+                List.of(ruleOf("asset_tags", Filters.FilterOperator.eq, workplace.getId())));
+        assertSameIds(members, windowsX86, linuxX86);
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true)
+      @DisplayName("asset_tags != X resolves the endpoints without tag X")
+      void given_negativeTagRule_should_resolveUntaggedEndpoints() throws Exception {
+        List<String> members =
+            resolveDynamicAssetIds(
+                "Not workplace",
+                Filters.FilterMode.and,
+                List.of(ruleOf("asset_tags", Filters.FilterOperator.not_eq, workplace.getId())));
+        assertSameIds(members, windowsArm);
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true)
+      @DisplayName("asset_tags = X AND platform = Windows resolves the intersection")
+      void given_tagRuleAndPlatformRule_should_resolveIntersection() throws Exception {
+        List<String> members =
+            resolveDynamicAssetIds(
+                "Windows workplace",
+                Filters.FilterMode.and,
+                List.of(
+                    ruleOf("asset_tags", Filters.FilterOperator.eq, workplace.getId()),
+                    ruleOf(
+                        "endpoint_platform",
+                        Filters.FilterOperator.eq,
+                        Endpoint.PLATFORM_TYPE.Windows.name())));
+        assertSameIds(members, windowsX86);
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true)
+      @DisplayName("asset_tags = X OR platform = Linux resolves the union")
+      void given_tagRuleOrPlatformRule_should_resolveUnion() throws Exception {
+        List<String> members =
+            resolveDynamicAssetIds(
+                "Servers or Linux",
+                Filters.FilterMode.or,
+                List.of(
+                    ruleOf("asset_tags", Filters.FilterOperator.eq, server.getId()),
+                    ruleOf(
+                        "endpoint_platform",
+                        Filters.FilterOperator.eq,
+                        Endpoint.PLATFORM_TYPE.Linux.name())));
+        assertSameIds(members, windowsArm, linuxX86);
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true)
+      @DisplayName("asset_description contains resolves on the description")
+      void given_descriptionRule_should_resolveMatchingEndpoints() throws Exception {
+        List<String> members =
+            resolveDynamicAssetIds(
+                "Lobby",
+                Filters.FilterMode.and,
+                List.of(ruleOf("asset_description", Filters.FilterOperator.contains, "lobby")));
+        assertSameIds(members, windowsArm);
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true)
+      @DisplayName("asset_mac_addresses contains resolves on the MAC addresses")
+      void given_macAddressRule_should_resolveMatchingEndpoints() throws Exception {
+        List<String> members =
+            resolveDynamicAssetIds(
+                "MAC",
+                Filters.FilterMode.and,
+                List.of(
+                    ruleOf("asset_mac_addresses", Filters.FilterOperator.contains, "aa:bb:cc")));
+        assertSameIds(members, linuxX86);
+      }
     }
   }
 }

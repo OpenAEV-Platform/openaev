@@ -365,6 +365,7 @@
     "~{count} injects"
   ],
   "it": [
+    "Asset",
     "Audio",
     "Auto",
     "Branding",

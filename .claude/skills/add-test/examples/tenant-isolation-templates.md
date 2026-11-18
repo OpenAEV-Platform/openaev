@@ -37,7 +37,7 @@ time, so they stay as-is in the copied code.
 ```java
 package io.openaev.rest.{domain};
 
-// imports: same set as ImportMapperHttpIsolationTest
+// imports: same set as ImportMapperHttpIsolationTest, with io.openaev.architecture.CoversTenantIsolation
 
 /**
  * End-to-end proof that, with {table} activated, the tenant scope set from the
@@ -48,7 +48,7 @@ package io.openaev.rest.{domain};
  */
 @Transactional
 @WithMockUser(isAdmin = true)
-// @CoversTenantIsolation("{table}") // uncomment when the tenant-scope-coverage CI gate (#6389) lands
+@CoversTenantIsolation("{table}")
 @DisplayName("{table} read and write isolation through the real HTTP endpoint")
 class {Entity}HttpIsolationTest extends IntegrationTest {
 

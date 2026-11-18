@@ -31,10 +31,13 @@ public class AzureServicePrincipalHandler implements SecretHandler {
 
   @Override
   public Secret buildOrUpdate(Secret existingSecret, SecretStoreRequest request) {
-    AzureServicePrincipalSecret azureSecret =
-        existingSecret instanceof AzureServicePrincipalSecret casted
-            ? casted
-            : new AzureServicePrincipalSecret();
+    AzureServicePrincipalSecret azureSecret;
+    if (existingSecret instanceof AzureServicePrincipalSecret casted) {
+      refuseAuthorityHostChangeWithoutNewClientSecret(casted, request);
+      azureSecret = casted;
+    } else {
+      azureSecret = new AzureServicePrincipalSecret();
+    }
 
     // A null value means "left untouched by the client", so the stored value must be kept: the form
     // strips unchanged write-only fields from the payload.
@@ -60,6 +63,17 @@ public class AzureServicePrincipalHandler implements SecretHandler {
       azureSecret.setAzureSubscriptionId(request.azureSubscriptionId());
     }
 
+    if (request.azureAuthorityHostUri() != null) {
+      azureSecret.setAzureAuthorityHostUri(
+          SecretHandler.blankToNull(request.azureAuthorityHostUri()));
+    }
+
+    // Absent file part = left untouched, like the GCP service account key file.
+    if (request.azureRequestsCertificate() != null) {
+      azureSecret.setAzureRequestsCertificate(
+          nativeEncryptionService.encrypt(request.azureRequestsCertificate()));
+    }
+
     if (azureSecret.getAzureEnvironment() == null
         || azureSecret.getAzureClientId() == null
         || azureSecret.getAzureClientSecret() == null
@@ -71,6 +85,21 @@ public class AzureServicePrincipalHandler implements SecretHandler {
     return azureSecret;
   }
 
+  /**
+   * The stored client secret must not be replayed against a new authority host: the caller has to
+   * supply it again, otherwise whoever can edit the credential could redirect it to a host they
+   * control.
+   */
+  private static void refuseAuthorityHostChangeWithoutNewClientSecret(
+      AzureServicePrincipalSecret existing, SecretStoreRequest request) {
+    if (SecretHandler.redirectsEndpoint(
+            existing.getAzureAuthorityHostUri(), request.azureAuthorityHostUri())
+        && request.azureClientSecret() == null) {
+      throw new IllegalArgumentException(
+          "Azure client secret must be reset in order to change the authority host URI");
+    }
+  }
+
   @Override
   public SecretMetadata toMetadata(Secret secret) {
     if (secret instanceof AzureServicePrincipalSecret azureServicePrincipalSecret) {
@@ -78,7 +107,9 @@ public class AzureServicePrincipalHandler implements SecretHandler {
           azureServicePrincipalSecret.getAzureEnvironment(),
           azureServicePrincipalSecret.getAzureClientId(),
           azureServicePrincipalSecret.getAzureTenantId(),
-          azureServicePrincipalSecret.getAzureSubscriptionId());
+          azureServicePrincipalSecret.getAzureSubscriptionId(),
+          azureServicePrincipalSecret.getAzureAuthorityHostUri(),
+          azureServicePrincipalSecret.getAzureRequestsCertificate() != null);
     }
     throw new IllegalArgumentException(
         "Secret type mismatch: expected AZURE_SERVICE_PRINCIPAL secret");
@@ -90,12 +121,18 @@ public class AzureServicePrincipalHandler implements SecretHandler {
       throw new IllegalArgumentException(
           "Secret type mismatch: expected AZURE_SERVICE_PRINCIPAL secret");
     }
+    byte[] requestsCertificate =
+        azureSecret.getAzureRequestsCertificate() == null
+            ? null
+            : nativeEncryptionService.decrypt(azureSecret.getAzureRequestsCertificate());
     return SecretResolvedValue.forAzureServicePrincipal(
         azureSecret.getAzureEnvironment(),
         azureSecret.getAzureClientId(),
         nativeEncryptionService.decrypt(azureSecret.getAzureClientSecret()),
         azureSecret.getAzureTenantId(),
-        azureSecret.getAzureSubscriptionId());
+        azureSecret.getAzureSubscriptionId(),
+        azureSecret.getAzureAuthorityHostUri(),
+        requestsCertificate);
   }
 
   /**

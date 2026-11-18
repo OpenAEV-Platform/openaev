@@ -67,6 +67,12 @@ public class ZipJsonApi<T extends Base> {
   }
 
   // -- IMPORT --
+
+  /** The root type of the document that {@code handleImport} would import from this file. */
+  public String readRootType(MultipartFile file) throws IOException {
+    return this.zipJsonService.readRootType(file.getBytes());
+  }
+
   public ZipJsonService.ImportOutput<T> handleImport(
       MultipartFile file,
       String nameAttributeKey,
@@ -74,12 +80,26 @@ public class ZipJsonApi<T extends Base> {
       Function<T, T> sanityCheck,
       String writeTenantId)
       throws IOException {
+    return handleImport(
+        file, nameAttributeKey, includeOptions, sanityCheck, writeTenantId, ImportTypes.ANY);
+  }
+
+  /** Same import, restricted to the given resource types. */
+  public ZipJsonService.ImportOutput<T> handleImport(
+      MultipartFile file,
+      String nameAttributeKey,
+      IncludeOptions includeOptions,
+      Function<T, T> sanityCheck,
+      String writeTenantId,
+      ImportTypes types)
+      throws IOException {
     return this.zipJsonService.handleImport(
         file.getBytes(),
         nameAttributeKey,
         includeOptions,
         sanityCheck,
         IMPORTED_OBJECT_NAME_SUFFIX,
-        writeTenantId);
+        writeTenantId,
+        types);
   }
 }

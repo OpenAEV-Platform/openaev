@@ -10,8 +10,6 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.service.TenantRoleService;
-import io.openaev.service.account.AbstractPrivilegeService;
-import io.openaev.service.account.AdminPrivilegeService;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.HashSet;
 import java.util.List;
@@ -97,7 +95,8 @@ class V20261001_Default_tenant_roles_and_groupsTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Should bind each default group to the Flyway-seeded role without duplicating it")
+  @DisplayName(
+      "Should bind the Manager and Observer groups to the Flyway-seeded role, leaving Admin to the bootstrap")
   void given_freshDefaultTenant_should_bindEachDefaultGroupToTheExistingRole() {
     Map<String, Integer> roleCountsBefore =
         PresetTenantData.DEFAULT_ROLES.keySet().stream()
@@ -107,19 +106,13 @@ class V20261001_Default_tenant_roles_and_groupsTest extends IntegrationTest {
     assertThat(dataPack.doProcess(new Tenant(TENANT_ID))).isTrue();
 
     Map<String, Group> groups = defaultGroupsByName();
-    assertThat(groups).containsOnlyKeys(PresetTenantData.DEFAULT_ROLES.keySet());
+    assertThat(groups).containsOnlyKeys("Manager", "Observer");
     groups.forEach(
         (name, group) -> {
           assertThat(group.isDefaultUserAssignation()).isFalse();
           assertThat(group.getRoles()).extracting(Role::getName).containsExactly(name);
           assertThat(rolesNamed(name)).hasSize(roleCountsBefore.get(name));
         });
-    String bootstrapAdminRoleId =
-        AbstractPrivilegeService.getUUIDFromName(
-            AdminPrivilegeService.ADMIN_ACCESS.roleId(), TENANT_ID);
-    assertThat(groups.get(PresetTenantData.ADMIN).getRoles())
-        .extracting(Role::getId)
-        .doesNotContain(bootstrapAdminRoleId);
   }
 
   @Test

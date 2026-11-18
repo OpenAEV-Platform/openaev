@@ -4,6 +4,8 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.hash.Hashed;
+import io.openaev.database.model.hash.NotHashed;
 import io.openaev.jsonapi.InnerRelationship;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -23,6 +25,7 @@ import org.hibernate.annotations.UuidGenerator;
 @InnerRelationship
 public class OutputParser implements Base {
 
+  @NotHashed
   @Id
   @Column(name = "output_parser_id")
   @GeneratedValue(generator = "UUID")
@@ -31,23 +34,27 @@ public class OutputParser implements Base {
   @NotBlank
   private String id;
 
+  @NotHashed
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "output_parser_payload_id", nullable = false)
   @JsonIgnore
   private Payload payload;
 
+  @Hashed
   @Enumerated(EnumType.STRING)
   @Column(name = "output_parser_mode")
   @JsonProperty("output_parser_mode")
   @NotNull
   private ParserMode mode;
 
+  @Hashed
   @Enumerated(EnumType.STRING)
   @Column(name = "output_parser_type")
   @JsonProperty("output_parser_type")
   @NotNull
   private ParserType type;
 
+  @Hashed(order = Hashed.Order.OBJECTS)
   @OneToMany(
       mappedBy = "outputParser",
       fetch = FetchType.EAGER,
@@ -59,12 +66,14 @@ public class OutputParser implements Base {
 
   // -- AUDIT --
 
+  @NotHashed
   @CreationTimestamp
   @Column(name = "output_parser_created_at")
   @JsonProperty("output_parser_created_at")
   @NotNull
   private Instant createdAt = now();
 
+  @NotHashed
   @UpdateTimestamp
   @Column(name = "output_parser_updated_at")
   @JsonProperty("output_parser_updated_at")

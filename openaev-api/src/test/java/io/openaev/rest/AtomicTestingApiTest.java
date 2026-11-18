@@ -16,10 +16,13 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.DocumentRepository;
+import io.openaev.database.repository.FindingOccurrenceRepository;
+import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
 import io.openaev.rest.atomic_testing.form.InjectRecurrenceInput;
+import io.openaev.service.period.RecurrenceService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -59,6 +62,9 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private ExecutorFixture executorFixture;
+  @Autowired private FindingComposer findingComposer;
+  @Autowired private FindingRepository findingRepository;
+  @Autowired private FindingOccurrenceRepository findingOccurrenceRepository;
 
   @Autowired private MockMvc mvc;
   @Autowired private InjectRepository injectRepository;
@@ -301,6 +307,78 @@ public class AtomicTestingApiTest extends IntegrationTest {
         .andExpect(status().is2xxSuccessful());
   }
 
+  @Nested
+  @DisplayName("Launch in place of an Atomic Testing that has findings")
+  @WithMockUser(isAdmin = true)
+  class LaunchInPlaceWithFindings {
+
+    @Test
+    @DisplayName("Should delete the findings the inject wrote, and their occurrences")
+    void given_injectWithFindings_should_deleteThemOnLaunch() throws Exception {
+      // Arrange
+      findingComposer.reset();
+      FindingComposer.Composer findingWrapper =
+          findingComposer.forFinding(FindingFixture.createDefaultTextFindingWithRandomValue());
+      Inject atomicTesting =
+          getAtomicTestingWrapper(null, null).withFinding(findingWrapper).persist().get();
+      String findingId = findingWrapper.get().getId();
+      entityManager.flush();
+      entityManager.clear();
+      // withFinding recorded the finding's occurrence on the inject
+      assertThat(findingRepository.findById(findingId)).isPresent();
+      assertThat(
+              findingOccurrenceRepository.findByFindingIdAndInjectId(
+                  findingId, atomicTesting.getId()))
+          .isPresent();
+
+      // Act
+      mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/launch").with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert
+      entityManager.flush();
+      entityManager.clear();
+      assertThat(findingRepository.findById(findingId)).isEmpty();
+      assertThat(
+              findingOccurrenceRepository.findByFindingIdAndInjectId(
+                  findingId, atomicTesting.getId()))
+          .isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Delete an Atomic Testing that has findings")
+  @WithMockUser(isAdmin = true)
+  class DeleteWithFindings {
+
+    @Test
+    @DisplayName("Should delete the findings of the inject, and their occurrences")
+    void given_injectWithFindings_should_deleteThemWithTheInject() throws Exception {
+      // Arrange
+      findingComposer.reset();
+      FindingComposer.Composer findingWrapper =
+          findingComposer.forFinding(FindingFixture.createDefaultTextFindingWithRandomValue());
+      Inject atomicTesting =
+          getAtomicTestingWrapper(null, null).withFinding(findingWrapper).persist().get();
+      String findingId = findingWrapper.get().getId();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      mvc.perform(delete(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId()).with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert
+      entityManager.flush();
+      entityManager.clear();
+      assertThat(findingRepository.findById(findingId)).isEmpty();
+      assertThat(
+              findingOccurrenceRepository.findByFindingIdAndInjectId(
+                  findingId, atomicTesting.getId()))
+          .isEmpty();
+    }
+  }
+
   @Test
   @DisplayName("Set, carry over on relaunch, then clear the recurrence of an Atomic Testing")
   @WithMockUser(isAdmin = true)
@@ -340,6 +418,79 @@ public class AtomicTestingApiTest extends IntegrationTest {
     mvc.perform(
             put(ATOMIC_TESTINGS_URI + "/" + relaunchedInjectId + "/recurrence")
                 .content(asJsonString(new InjectRecurrenceInput()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.inject_recurrence").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("Refuse a recurrence the scheduler cannot parse, accept a cron or a period")
+  @WithMockUser(isAdmin = true)
+  void updateAtomicTestingRecurrenceValidatesTheExpression() throws Exception {
+    Inject atomicTesting =
+        getAtomicTestingWrapper(InjectStatusFixture.createQueuingInjectStatus(), null)
+            .persist()
+            .get();
+    String uri = ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/recurrence";
+
+    // -- A Unix 5-field cron is refused with the accepted forms, and nothing is stored --
+    InjectRecurrenceInput unixCron = new InjectRecurrenceInput();
+    unixCron.setRecurrence("0 2 * * *");
+    unixCron.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(unixCron))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            jsonPath("$.message")
+                .value(
+                    "Unsupported recurrence expression '0 2 * * *': "
+                        + RecurrenceService.ACCEPTED_RECURRENCE_FORMS));
+    assertNull(injectRepository.findById(atomicTesting.getId()).orElseThrow().getRecurrence());
+
+    // -- A Quartz 7-field cron with a year is refused too --
+    InjectRecurrenceInput quartzCron = new InjectRecurrenceInput();
+    quartzCron.setRecurrence("0 0 2 * * ? 2030");
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(quartzCron))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isBadRequest());
+
+    // -- A Spring 6-field cron is stored --
+    InjectRecurrenceInput springCron = new InjectRecurrenceInput();
+    springCron.setRecurrence("0 0 2 * * *");
+    springCron.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(springCron))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.inject_recurrence").value("0 0 2 * * *"));
+
+    // -- An ISO 8601 period is stored --
+    InjectRecurrenceInput period = new InjectRecurrenceInput();
+    period.setRecurrence("P1D");
+    period.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(period))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.inject_recurrence").value("P1D"));
+
+    // -- A blank recurrence still clears the schedule --
+    InjectRecurrenceInput blank = new InjectRecurrenceInput();
+    blank.setRecurrence("   ");
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(blank))
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful())

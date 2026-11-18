@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Finding;
@@ -74,6 +76,7 @@ import org.springframework.transaction.annotation.Transactional;
 class CursorPagedSearchTest extends IntegrationTest {
 
   @Autowired private EngineService engineService;
+  @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private EngineContext engineContext;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private FindingComposer findingComposer;
@@ -228,6 +231,8 @@ class CursorPagedSearchTest extends IntegrationTest {
     // watermark, so a rewound timestamp older than that watermark would silently never be
     // re-picked-up; clearing the watermark forces a full re-fetch every time instead.
     indexingStatusRepository.deleteAll();
+    // Production runs the sweep under the all-tenants scope (EngineSyncExecutionJob).
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.allTenants());
     engineService.bulkProcessing(engineContext.getModels().stream());
   }
 
@@ -446,7 +451,10 @@ class CursorPagedSearchTest extends IntegrationTest {
     @Test
     @DisplayName("a document past windowEnd is never returned; the bound is inclusive")
     void given_documentPastWindowEnd_should_neverBeReturned() {
-      Instant windowEnd = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MILLIS);
+      // A whole-second bound on purpose: it is the case Instant.toString writes without a fraction
+      // and the engine used to round up to .999, letting windowEnd + 1 ms through (issue/9095).
+      // It was hit only when now() landed on .000, about once in a thousand runs.
+      Instant windowEnd = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
       Grain withinWindow = newGrain();
       Grain pastWindow = newGrain();
       indexAll();

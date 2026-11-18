@@ -2,7 +2,10 @@ package io.openaev.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.config.EngineConfig;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
@@ -18,8 +21,14 @@ import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -63,6 +72,10 @@ class CursorPagedSearchResultWindowTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private FindingComposer findingComposer;
   @Autowired private InjectComposer injectComposer;
+  @Autowired private EngineConfig engineConfig;
+
+  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final HttpClient httpClient = HttpClient.newHttpClient();
 
   private static final Instant WINDOW_END = Instant.now().plus(1, ChronoUnit.DAYS);
 
@@ -96,6 +109,39 @@ class CursorPagedSearchResultWindowTest extends IntegrationTest {
     }
   }
 
+  /**
+   * Number of documents of the vulnerability observation index once every pending write is
+   * searchable, read through the engine's REST API so it does not depend on the code under test.
+   */
+  private long indexedObservationCount() throws Exception {
+    String alias =
+        engineContext.getModels().stream()
+            .filter(model -> EsVulnerabilityObservation.class.equals(model.getModel()))
+            .findFirst()
+            .orElseThrow()
+            .getIndex(engineConfig);
+    engineRequest("POST", "/" + alias + "/_refresh");
+    HttpResponse<String> response = engineRequest("GET", "/" + alias + "/_count");
+    assertThat(response.statusCode()).as("count on %s: %s", alias, response.body()).isEqualTo(200);
+    JsonNode body = objectMapper.readTree(response.body());
+    return body.path("count").asLong();
+  }
+
+  private HttpResponse<String> engineRequest(String method, String path) throws Exception {
+    HttpRequest.Builder request =
+        HttpRequest.newBuilder(URI.create(engineConfig.getUrl() + path))
+            .header("Content-Type", "application/json")
+            .method(method, HttpRequest.BodyPublishers.noBody());
+    if (engineConfig.getUsername() != null) {
+      String credentials = engineConfig.getUsername() + ":" + engineConfig.getPassword();
+      request.header(
+          "Authorization",
+          "Basic "
+              + Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8)));
+    }
+    return httpClient.send(request.build(), HttpResponse.BodyHandlers.ofString());
+  }
+
   private void newGrain() {
     EndpointComposer.Composer endpointWrapper =
         endpointComposer.forEndpoint(EndpointFixture.createEndpoint("ep-" + UUID.randomUUID()));
@@ -119,12 +165,18 @@ class CursorPagedSearchResultWindowTest extends IntegrationTest {
   @DisplayName(
       "paging past max_result_window=10 with size 5 walks the whole set (a `from`-based "
           + "implementation would fail with \"Result window is too large\")")
-  void given_datasetLargerThanMaxResultWindow_should_pageThroughAllDocuments() {
+  void given_datasetLargerThanMaxResultWindow_should_pageThroughAllDocuments() throws Exception {
     int total = 25;
     for (int i = 0; i < total; i++) {
       newGrain();
     }
     indexAll();
+    // Diagnostic for issue #8943 (20 or 22 of 25 seen on elk8-3): separates an indexing loss
+    // (bulk outcome, batch cut, concurrent writer) from a paging loss. The walk below is only
+    // meaningful once every observation is in the index.
+    assertThat(indexedObservationCount())
+        .as("vulnerability observations indexed before the walk")
+        .isEqualTo(total);
 
     Set<String> seen = new LinkedHashSet<>();
     CursorPageQuery.Keyset cursor = null;
