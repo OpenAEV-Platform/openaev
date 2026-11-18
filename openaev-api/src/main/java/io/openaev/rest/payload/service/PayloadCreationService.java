@@ -80,11 +80,13 @@ public class PayloadCreationService {
 
     Payload payload = payloadType.getPayloadSupplier().get();
     payloadUtils.copyProperties(input, payload);
-    payload.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, explicitTenant)));
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, explicitTenant);
+    payload.setTenant(new Tenant(tenantId));
     if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
+      executable.setExecutableFile(
+          documentService.documentInTenant(input.getExecutableFile(), tenantId));
     } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
+      fileDrop.setFileDropFile(documentService.documentInTenant(input.getFileDropFile(), tenantId));
     }
     return payload;
   }

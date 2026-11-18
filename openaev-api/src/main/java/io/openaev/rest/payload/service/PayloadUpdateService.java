@@ -74,10 +74,12 @@ public class PayloadUpdateService {
     payload.setDetectionRemediations(Collections.emptyList());
     payload.setDetectionRemediations(originalDrs);
 
+    String tenantId = existingPayload.getTenant().getId();
     if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
+      executable.setExecutableFile(
+          documentService.documentInTenant(input.getExecutableFile(), tenantId));
     } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
+      fileDrop.setFileDropFile(documentService.documentInTenant(input.getFileDropFile(), tenantId));
     }
 
     Payload saved = payloadRepository.save(payload);
