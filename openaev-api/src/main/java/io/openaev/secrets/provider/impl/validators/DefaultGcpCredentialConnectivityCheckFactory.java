@@ -5,7 +5,6 @@ import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.auth.oauth2.UserCredentials;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.net.URI;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +19,7 @@ public class DefaultGcpCredentialConnectivityCheckFactory
     ServiceAccountCredentials.Builder builder =
         ServiceAccountCredentials.fromStream(new ByteArrayInputStream(privateKeyJson)).toBuilder();
     if (isPresent(customResourceManagerUri)) {
-      builder.setTokenServerUri(URI.create(customResourceManagerUri));
+      builder.setTokenServerUri(EndpointUrls.requireHttpUri(customResourceManagerUri));
     }
     // Scoping is mandatory for a service account: an unscoped credential refuses to mint a token.
     return builder.build().createScoped(List.of(scope));
@@ -42,7 +41,7 @@ public class DefaultGcpCredentialConnectivityCheckFactory
             .setClientSecret(clientSecret)
             .setRefreshToken(refreshToken);
     if (isPresent(customTokenUri)) {
-      builder.setTokenServerUri(URI.create(customTokenUri));
+      builder.setTokenServerUri(EndpointUrls.requireHttpUri(customTokenUri));
     }
     return builder.build();
   }

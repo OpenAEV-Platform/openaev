@@ -4,7 +4,6 @@ import static io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_
 
 import io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE;
 import io.openaev.database.model.AwsRegion;
-import java.net.URI;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -73,7 +72,7 @@ public class DefaultAwsCredentialConnectivityCheckFactory
                     .apiCallTimeout(timeout)
                     .build());
     if (endpointUrl != null && !endpointUrl.isBlank()) {
-      builder.endpointOverride(URI.create(endpointUrl));
+      builder.endpointOverride(EndpointUrls.requireHttpUri(endpointUrl));
     }
     return builder.build();
   }

@@ -19,6 +19,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
@@ -104,11 +106,12 @@ class AwsCredentialConnectivityCheckTest {
       assertThat(result.status()).isIn(TIMEOUT, NETWORK_ERROR);
     }
 
-    @Test
+    @ParameterizedTest(name = "endpoint=\"{0}\"")
+    @ValueSource(strings = {"http://not a host", "/sts", "file:///tmp/sts"})
     @DisplayName("A malformed endpoint override is a configuration problem")
-    void given_malformedEndpointOverride_should_returnFormatError() {
+    void given_malformedEndpointOverride_should_returnFormatError(String endpoint) {
       // Arrange & Act
-      SecretConnectionResult result = validateAccessKey("http://not a host");
+      SecretConnectionResult result = validateAccessKey(endpoint);
 
       // Assert
       assertThat(result.status()).isEqualTo(FORMAT_ERROR);

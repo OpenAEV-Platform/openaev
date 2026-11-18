@@ -625,16 +625,28 @@ class GcpCredentialConnectivityCheckTest {
       assertThat(result.status()).isEqualTo(NETWORK_ERROR);
     }
 
-    @Test
-    @DisplayName("A malformed override is a configuration problem")
-    void given_malformedOverride_should_returnFormatError() {
+    @ParameterizedTest(name = "override=\"{0}\"")
+    @ValueSource(strings = {"http://not a host/token", "/token", "file:///tmp/token"})
+    @DisplayName("A malformed override is a configuration problem, whatever it overrides")
+    void given_malformedOverride_should_returnFormatError(String override) {
       // Arrange
       cloud.respond(TOKEN_PATH, 200, JSON, TOKEN_RESPONSE);
 
       // Act & Assert
-      assertThat(validateOAuth2("http://not a host/token", null).status()).isEqualTo(FORMAT_ERROR);
-      assertThat(validateOAuth2(cloud.url(TOKEN_PATH), "http://not a host/").status())
+      assertThat(validateOAuth2(override, null).status()).isEqualTo(FORMAT_ERROR);
+      assertThat(validateOAuth2(cloud.url(TOKEN_PATH), override).status()).isEqualTo(FORMAT_ERROR);
+      assertThat(
+              cloudCheck
+                  .validateServiceAccount(
+                      createServiceAccountKeyJson(GCP_KEY_FILE_TOKEN_URI),
+                      GCP_SCOPE,
+                      null,
+                      override,
+                      null)
+                  .status())
           .isEqualTo(FORMAT_ERROR);
+      // Refused before any token is minted: nothing reached the cloud.
+      assertThat(cloud.requests()).isEmpty();
     }
 
     @ParameterizedTest

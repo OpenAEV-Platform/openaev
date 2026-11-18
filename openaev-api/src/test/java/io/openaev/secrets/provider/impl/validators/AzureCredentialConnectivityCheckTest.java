@@ -490,6 +490,49 @@ class AzureCredentialConnectivityCheckTest {
       assertThat(result.wasChecked()).isTrue();
     }
 
+    @ParameterizedTest(name = "override=\"{0}\"")
+    @ValueSource(strings = {"/login", "file:///tmp/login", "https:///login"})
+    @DisplayName("An authority host that is not an absolute HTTP(S) URL is a configuration problem")
+    void given_malformedAuthorityHost_should_returnFormatError(String authorityHost) {
+      // Act
+      SecretConnectionResult result =
+          validator.validateServicePrincipal(
+              AZURE_ENVIRONMENT,
+              AZURE_TENANT_ID,
+              AZURE_CLIENT_ID,
+              AZURE_CLIENT_SECRET,
+              null,
+              authorityHost,
+              null);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+      verifyNoInteractions(tokenCredentialFactory);
+    }
+
+    @ParameterizedTest(name = "scope=\"{0}\"")
+    @ValueSource(strings = {"/management/.default", "file:///tmp/arm", "api://management/.default"})
+    @DisplayName("A scope that is not an absolute HTTP(S) URL is a configuration problem")
+    void given_malformedScope_should_returnFormatError(String scope) {
+      // Act
+      SecretConnectionResult servicePrincipal =
+          validator.validateServicePrincipal(
+              AZURE_ENVIRONMENT,
+              AZURE_TENANT_ID,
+              AZURE_CLIENT_ID,
+              AZURE_CLIENT_SECRET,
+              null,
+              null,
+              scope);
+      SecretConnectionResult managedIdentity =
+          validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null, scope);
+
+      // Assert
+      assertThat(servicePrincipal.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(managedIdentity.status()).isEqualTo(FORMAT_ERROR);
+      verifyNoInteractions(tokenCredentialFactory);
+    }
+
     static Stream<Arguments> transportFailuresOfTheTokenExchange() {
       return Stream.of(
           Arguments.of(

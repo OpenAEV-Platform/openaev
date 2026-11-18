@@ -87,7 +87,12 @@ public class AzureCredentialConnectivityCheck {
       // Stored configuration is wrong, not the credential: it cannot be checked at all.
       return SecretConnectionResult.formatError();
     }
-    if (isBlank(tenantId) || isBlank(clientId) || isBlank(clientSecret)) {
+    String resourceManagerEndpoint = resourceManagerEndpoint(environment, scope);
+    if (isBlank(tenantId)
+        || isBlank(clientId)
+        || isBlank(clientSecret)
+        || EndpointUrls.isMalformedOverride(authorityHostUri)
+        || EndpointUrls.isMalformedOverride(resourceManagerEndpoint)) {
       return SecretConnectionResult.formatError();
     }
 
@@ -100,7 +105,7 @@ public class AzureCredentialConnectivityCheck {
       // The SDK refuses a malformed or non-HTTPS authority host: the stored override is wrong.
       return SecretConnectionResult.formatError();
     }
-    return probe(credential, resourceManagerEndpoint(environment, scope), subscriptionId);
+    return probe(credential, resourceManagerEndpoint, subscriptionId);
   }
 
   /**
@@ -128,8 +133,13 @@ public class AzureCredentialConnectivityCheck {
       return SecretConnectionResult.formatError();
     }
 
+    String resourceManagerEndpoint = resourceManagerEndpoint(environment, scope);
+    if (EndpointUrls.isMalformedOverride(resourceManagerEndpoint)) {
+      return SecretConnectionResult.formatError();
+    }
+
     TokenCredential credential = tokenCredentialFactory.forManagedIdentity(clientId);
-    return probe(credential, resourceManagerEndpoint(environment, scope), subscriptionId);
+    return probe(credential, resourceManagerEndpoint, subscriptionId);
   }
 
   /**
@@ -195,7 +205,7 @@ public class AzureCredentialConnectivityCheck {
                   + "?api-version="
                   + SUBSCRIPTION_API_VERSION);
     } catch (IllegalArgumentException e) {
-      // A malformed scope: the stored configuration is wrong.
+      // A malformed subscription id: the stored configuration is wrong.
       return SecretConnectionResult.formatError();
     }
     request.setHeader(HttpHeaderName.AUTHORIZATION, "Bearer " + token);

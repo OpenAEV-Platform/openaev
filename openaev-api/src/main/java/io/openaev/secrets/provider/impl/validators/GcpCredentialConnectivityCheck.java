@@ -101,7 +101,10 @@ public class GcpCredentialConnectivityCheck {
       String projectId,
       String customResourceManagerUri,
       String customProjectsUri) {
-    if (privateKeyJson == null || privateKeyJson.length == 0 || isBlank(scope)) {
+    if (privateKeyJson == null
+        || privateKeyJson.length == 0
+        || isBlank(scope)
+        || EndpointUrls.isMalformedOverride(customProjectsUri)) {
       return SecretConnectionResult.formatError();
     }
 
@@ -138,7 +141,11 @@ public class GcpCredentialConnectivityCheck {
       String projectId,
       String customTokenUri,
       String customProjectsUri) {
-    if (isBlank(clientId) || isBlank(clientSecret) || isBlank(refreshToken) || isBlank(scope)) {
+    if (isBlank(clientId)
+        || isBlank(clientSecret)
+        || isBlank(refreshToken)
+        || isBlank(scope)
+        || EndpointUrls.isMalformedOverride(customProjectsUri)) {
       return SecretConnectionResult.formatError();
     }
 
