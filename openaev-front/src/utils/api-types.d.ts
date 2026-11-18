@@ -2586,9 +2586,14 @@ export interface CatalogInstallOutput {
 }
 
 export interface CatalogPayloadOutput {
+  catalog_payload_description?: string;
+  catalog_payload_domain?: string;
   /** @minLength 1 */
   catalog_payload_external_id: string;
   catalog_payload_name?: string;
+  catalog_payload_platforms: string[];
+  /** @format date-time */
+  catalog_payload_published_at?: string;
   /** @minLength 1 */
   catalog_payload_version: string;
 }

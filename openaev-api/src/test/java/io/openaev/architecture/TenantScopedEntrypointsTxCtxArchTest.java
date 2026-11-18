@@ -677,6 +677,10 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installPayload",
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installAllPayloads",
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#uninstallPayload",
+          // catalog_items, payload_identities: the Available tab of the Threat Arsenal.
+          "io.openaev.api.catalog.CatalogApi#payloads",
+          "io.openaev.api.catalog.CatalogApi#payloadVersions",
+          "io.openaev.api.catalog.CatalogApi#payloadVersionContent",
           // payload_revocations: a tenant admin revokes a payload version.
           "io.openaev.api.payload.PayloadRevocationApi#revoke",
           "io.openaev.api.payload.PayloadRevocationApi#lift");

@@ -32,6 +32,10 @@ public interface CatalogItemRepository extends JpaRepository<CatalogItem, String
       @Param("externalId") String externalId,
       @Param("version") String version);
 
+  @Query("SELECT i FROM CatalogItem i WHERE TYPE(i) = :type AND i.externalId = :externalId")
+  <T extends CatalogItem> List<T> findAllVersions(
+      @Param("type") Class<T> type, @Param("externalId") String externalId);
+
   // -- SCENARIOS --
 
   @Query("SELECT s FROM CatalogScenario s")
