@@ -1,7 +1,7 @@
-io/openaev/api/notifier/**/*Test.java
-io/openaev/datapack/**/*Test.java
-io/openaev/notification/**/*Test.java
-io/openaev/rest/ConnectorInstanceApiTest.java
-io/openaev/rest/XtmHubApiTest.java
-io/openaev/scheduler/**/*Test.java
-io/openaev/service/tenants/**/*Test.java
+io/openaev/api/autonomous/**/*Test.java
+io/openaev/api/custom_domain/**/*Test.java
+io/openaev/rest/inject/InjectApiTest.java
+io/openaev/rest/inject/InjectListDecisionTenantTest.java
+io/openaev/rest/inject/SimulationInjectApiTest.java
+io/openaev/security/**/*Test.java
+io/openaev/service/autonomous/**/*Test.java
