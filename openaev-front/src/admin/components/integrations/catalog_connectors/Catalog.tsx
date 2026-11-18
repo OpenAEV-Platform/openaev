@@ -3,7 +3,7 @@ import { type SyntheticEvent, useMemo, useState } from 'react';
 import { useFormatter } from '../../../../components/i18n';
 import { type CatalogConnectorOutput } from '../../../../utils/api-types';
 import { isFeatureEnabled } from '../../../../utils/utils';
-import DeployButton from '../common/DeployButton';
+import DeployButton, { DeployedChip } from '../common/DeployButton';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import { type ConnectorItem, fromCatalogConnector } from './catalog-facets';
 import ConnectorMarketplace from './ConnectorMarketplace';
@@ -53,9 +53,11 @@ const Catalog = ({ catalogConnectors, isXtmComposerUp }: Props) => {
             onDeployBtnClick={e => onDeployBtnClick(e, item)}
             deploymentCount={item.deployedCount}
             size={view === 'card' ? 'sm' : 'md'}
+            inCard={view === 'card'}
             buttonStyle={view === 'line' ? { height: 26 } : undefined}
           />
         )}
+        renderFooterStatus={item => (item.deployedCount > 0 ? <DeployedChip count={item.deployedCount} /> : null)}
       />
       <CreateConnectorInstanceDrawer
         open={openCreateConnectorInstanceDrawer}

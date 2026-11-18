@@ -115,7 +115,8 @@ const ItemTags = (props) => {
             <TooltipTrigger asChild>
               <Chip data-tag-chip label={truncate(tag.tag_name, truncateLimit)} color={tag.tag_color} />
             </TooltipTrigger>
-            {tag.tag_name && <TooltipContent>{tag.tag_name}</TooltipContent>}
+            {/* Only a truncated name needs its tooltip. */}
+            {tag.tag_name && tag.tag_name.length > truncateLimit && <TooltipContent>{tag.tag_name}</TooltipContent>}
           </Tooltip>
         ))
       ) : (

@@ -4,9 +4,9 @@ const GAP = 8;
 const RESIZE_DEBOUNCE_MS = 150;
 
 /**
- * How many use-case chips fit on one row: only whole chips show, the rest collapse
- * into "+N" whose width is reserved. A chip is never cut — the library Chip has no
- * ellipsis, so a shrunken one clipped mid-word.
+ * How many chips fit on one row (use cases, domains...): as many whole chips as the
+ * width allows, the rest collapse into "+N" whose width is reserved. A chip is never
+ * cut — the library Chip has no ellipsis, so a shrunken one clipped mid-word.
  */
 const useChipOverflow = (items: string[]) => {
   const [visibleCount, setVisibleCount] = useState(items.length);
@@ -37,7 +37,7 @@ const useChipOverflow = (items: string[]) => {
       visibleChips += 1;
     }
 
-    // One chip always shows: a lone "+3" says less than a use case and a count.
+    // One chip always shows: a lone "+3" says less than a chip and a count.
     setVisibleCount(Math.max(1, visibleChips));
   }, [items.length]);
 
