@@ -118,15 +118,21 @@ interface PivotProps {
   objectKey: string | null | undefined;
 }
 
+// "sm" in a hero bar beside its icon buttons; "md" in a panel of full-size actions (graph drawer).
+type PivotSize = 'sm' | 'md';
+
 /** Renders the answer once loaded; kept separate so tests drive every state. */
-export const OpenCtiPivotView: FunctionComponent<{ answer: CounterpartAnswer }> = ({ answer }) => {
+export const OpenCtiPivotView: FunctionComponent<{
+  answer: CounterpartAnswer;
+  size?: PivotSize;
+}> = ({ answer, size = 'sm' }) => {
   const { t } = useFormatter();
   switch (answer.state) {
     case 'match':
       return (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button asChild priority="secondary" size="sm">
+            <Button asChild priority="secondary" size={size}>
               <a href={answer.counterpart?.counterpart_url} target="_blank" rel="noopener noreferrer" data-testid="xtm-pivot-open">
                 <ProductMark />
                 {t('Open in OpenCTI')}
@@ -161,9 +167,9 @@ export const OpenCtiPivotView: FunctionComponent<{ answer: CounterpartAnswer }> 
 };
 
 /** Hero action: "Open in OpenCTI", "Not in OpenCTI" or "Connect OpenCTI". */
-const OpenCtiPivot: FunctionComponent<PivotProps> = ({ kind, objectKey }) => {
+const OpenCtiPivot: FunctionComponent<PivotProps & { size?: PivotSize }> = ({ kind, objectKey, size }) => {
   const answer = useCounterpart(kind, objectKey, OPENCTI_PRODUCT);
-  return <OpenCtiPivotView answer={answer} />;
+  return <OpenCtiPivotView answer={answer} size={size} />;
 };
 
 /**

@@ -42,6 +42,23 @@ describe('OpenCtiPivotView', () => {
     expect(screen.getByText('Open in OpenCTI')).toBeTruthy();
   });
 
+  it('given the panel size should render the match at a different size than the hero', () => {
+    const answer = {
+      state: 'match' as const,
+      product: 'opencti',
+      counterpart: {
+        counterpart_url: 'https://octi.example/dashboard/id/abc',
+        counterpart_name: 'srv-01',
+      },
+    };
+    renderPivot(<OpenCtiPivotView answer={answer} />);
+    const hero = screen.getByTestId('xtm-pivot-open').className;
+    cleanup();
+    renderPivot(<OpenCtiPivotView answer={answer} size="md" />);
+    const panel = screen.getByTestId('xtm-pivot-open').className;
+    expect(panel).not.toBe(hero);
+  });
+
   it('given connected without a match should say so', () => {
     renderPivot(
       <OpenCtiPivotView answer={{

@@ -648,7 +648,7 @@ const GraphExplorerInner = ({
       <div className="mt-4 flex flex-col gap-2">
         {/* The node's OpenCTI counterpart, looked up only for the selected node: "Open in OpenCTI",
             "Not in OpenCTI" or the connect call to action, as on the entity's own screen. */}
-        {counterpart && <OpenCtiPivot kind={counterpart.kind} objectKey={counterpart.key} />}
+        {counterpart && <OpenCtiPivot kind={counterpart.kind} objectKey={counterpart.key} size="md" />}
         {nodeHref(selectedNode) && (
           <Button asChild priority="secondary">
             <Link to={nodeHref(selectedNode) as string}>
