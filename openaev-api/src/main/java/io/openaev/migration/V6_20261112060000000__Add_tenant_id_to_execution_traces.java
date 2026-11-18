@@ -102,7 +102,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
   /**
    * The WAL not yet archived or replayed, in bytes. Inactive slots, and the archiver when {@code
    * archive_mode} is off, are left out: they never catch up. The archiver's lag comes from WAL file
-   * names, counted from the run's first file (the parameter) while nothing is archived.
+   * names, counted from the run's first file (the parameter) while no WAL segment is archived.
    */
   private static final String WAL_LAG_QUERY =
       "SELECT MAX(lag) FROM ("
@@ -117,7 +117,8 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
           + " + ('x' || substr(cur, 17, 8))::bit(32)::bigint"
           + " - ('x' || substr(done, 17, 8))::bit(32)::bigint) * seg AS lag"
           + " FROM (SELECT pg_walfile_name(pg_current_wal_lsn()) AS cur,"
-          + " COALESCE(last_archived_wal, ?) AS done,"
+          + " COALESCE(CASE WHEN last_archived_wal ~ '^[0-9A-F]{24}$'"
+          + " THEN last_archived_wal END, ?) AS done,"
           + " pg_size_bytes(current_setting('wal_segment_size')) AS seg"
           + " FROM pg_stat_archiver WHERE current_setting('archive_mode') <> 'off') archiver"
           + " WHERE done ~ '^[0-9A-F]{24}$') lags";
@@ -488,7 +489,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
-  /** {@code startWalFile} stands in for the last archived file while nothing is archived. */
+  /** {@code startWalFile} stands in for the last archived file while no WAL segment is archived. */
   long walLagBytes(Connection connection, String startWalFile) throws SQLException {
     try (PreparedStatement statement = connection.prepareStatement(WAL_LAG_QUERY)) {
       statement.setString(1, startWalFile);
