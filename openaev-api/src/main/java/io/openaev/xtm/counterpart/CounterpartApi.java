@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -34,6 +35,7 @@ public class CounterpartApi extends RestBehavior {
 
   @LogExecutionTime
   @GetMapping("/connections")
+  @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
   @Operation(summary = "List the XTM products this tenant is connected to")
   public List<XtmConnectionOutput> connections(TxCtx ctx, @PathVariable String tenantId) {
@@ -44,6 +46,7 @@ public class CounterpartApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/counterparts/assets")
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   @Operation(summary = "Find assets in the connected XTM products")
   public List<CounterpartOutput> assets(
@@ -53,6 +56,7 @@ public class CounterpartApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/counterparts/attack-patterns")
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
   @Operation(summary = "Find attack patterns in the connected XTM products")
   public List<CounterpartOutput> attackPatterns(
@@ -62,6 +66,7 @@ public class CounterpartApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/counterparts/vulnerabilities")
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.VULNERABILITY)
   @Operation(summary = "Find vulnerabilities in the connected XTM products")
   public List<CounterpartOutput> vulnerabilities(
@@ -71,6 +76,7 @@ public class CounterpartApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/counterparts/threats")
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   @Operation(summary = "Find scenario threat sources in the connected XTM products")
   public List<CounterpartOutput> threats(
