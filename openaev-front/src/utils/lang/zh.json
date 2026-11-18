@@ -10,6 +10,7 @@
   "-": "-",
   ",": ",",
   ".": ".",
+  "A payload with this name already exists": "已存在同名载荷",
   "Filigran license": "Filigran 许可证",
   "Filigran license (through XTM One)": "Filigran 许可证（通过 XTM One）",
   "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.": "“是，始终”会为您保存该偏好设置。此后，该工具将无需询问即可运行——包括在无人监视的定时运行中——直到您撤销该设置为止。",

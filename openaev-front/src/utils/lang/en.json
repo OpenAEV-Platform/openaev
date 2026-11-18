@@ -10,6 +10,7 @@
   "-": "None",
   ",": ",",
   ".": ".",
+  "A payload with this name already exists": "A payload with this name already exists",
   "Filigran license": "Filigran license",
   "Filigran license (through XTM One)": "Filigran license (through XTM One)",
   "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.": "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.",
