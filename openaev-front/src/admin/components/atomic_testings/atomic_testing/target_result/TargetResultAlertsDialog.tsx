@@ -8,6 +8,7 @@ import { fetchExpectationTraces } from '../../../../../actions/atomic_testings/a
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemSecurityPlatformType from '../../../../../components/ItemSecurityPlatformType';
+import { OpenCtiRowMark } from '../../../../../components/xtm/XtmPivot';
 import type { InjectExpectationResult, InjectExpectationTrace } from '../../../../../utils/api-types';
 import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import { traceMatchTypeLabelKey, traceWording } from './expectationTraceLabels';
@@ -319,10 +320,9 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
                 ...(traceIndex > 0 && { borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.05)}` }),
               } as const;
 
-              return alertLink
+              const row = alertLink
                 ? (
                     <Box
-                      key={expectationTrace.inject_expectation_trace_id}
                       component="a"
                       href={alertLink}
                       target="_blank"
@@ -330,6 +330,8 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
                       data-testid="target-result-alert-row"
                       sx={{
                         ...rowSx,
+                        'flex': 1,
+                        'minWidth': 0,
                         'textDecoration': 'none',
                         'cursor': 'pointer',
                         '&:hover': {
@@ -343,13 +345,32 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
                   )
                 : (
                     <Box
-                      key={expectationTrace.inject_expectation_trace_id}
                       data-testid="target-result-alert-row"
-                      sx={rowSx}
+                      sx={{
+                        ...rowSx,
+                        flex: 1,
+                        minWidth: 0,
+                      }}
                     >
                       {rowContent}
                     </Box>
                   );
+
+              // The same alert known in OpenCTI (an incident or sighting carrying its link as an
+              // external reference): "Investigate in OpenCTI" beside the row, nothing otherwise.
+              return (
+                <Box
+                  key={expectationTrace.inject_expectation_trace_id}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
+                >
+                  {row}
+                  {alertLink && <OpenCtiRowMark kind="alerts" objectKey={alertLink} label="Investigate in OpenCTI" />}
+                </Box>
+              );
             })}
           </Box>
         )}
