@@ -54,6 +54,7 @@ import { Link } from 'react-router';
 
 import { fetchGraphNeighbourhood, fetchGraphPath } from '../../../actions/graph/graph-actions';
 import { useFormatter } from '../../../components/i18n';
+import OpenCtiPivot from '../../../components/xtm/XtmPivot';
 import { NODE_LABEL_OFFSET, NODE_WIDTH } from './graph-edge-geometry';
 import NODE_ICON from './graph-icons';
 import { entering, type GraphLayout, interpolate, layoutFrames, miniLayout, type Point } from './graph-layout';
@@ -68,6 +69,7 @@ import {
   type GraphOutput,
   type GraphResult,
   NODE_TYPE_LABEL,
+  nodeCounterpart,
   nodeHref,
   RESULT_LABEL,
 } from './graph-model';
@@ -584,6 +586,7 @@ const GraphExplorerInner = ({
   );
 
   const panelOpen = Boolean(selectedNode && interactive);
+  const counterpart = selectedNode ? nodeCounterpart(selectedNode) : null;
 
   const panel = selectedNode && interactive && (
     <Drawer
@@ -622,6 +625,9 @@ const GraphExplorerInner = ({
         <Chip label={`${t('Findings')}: ${selectedNode.node_finding_count}`} />
       </div>
       <div className="mt-4 flex flex-col gap-2">
+        {/* The node's OpenCTI counterpart, looked up only for the selected node: "Open in OpenCTI",
+            "Not in OpenCTI" or the connect call to action, as on the entity's own screen. */}
+        {counterpart && <OpenCtiPivot kind={counterpart.kind} objectKey={counterpart.key} />}
         {nodeHref(selectedNode) && (
           <Button asChild priority="secondary">
             <Link to={nodeHref(selectedNode) as string}>
