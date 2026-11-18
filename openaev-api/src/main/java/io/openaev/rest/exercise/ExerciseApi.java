@@ -57,6 +57,7 @@ import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.TxCtxScopeUtils;
+import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -118,6 +119,7 @@ public class ExerciseApi extends RestBehavior {
   private final AssetGroupService assetGroupService;
   private final CustomDashboardService customDashboardService;
   private final EndpointService endpointService;
+  private final EndpointMapper endpointMapper;
   private final FileService fileService;
   private final InjectService injectService;
   private final ImportService importService;
@@ -1217,8 +1219,10 @@ public class ExerciseApi extends RestBehavior {
   @Transactional
   // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
   // executors table (each endpoint's agents eager-load their executor).
-  public List<Endpoint> endpoints(TxCtx ctx, @PathVariable String exerciseId) {
-    return this.endpointService.endpointsForSimulation(exerciseId);
+  public List<EndpointOutput> endpoints(TxCtx ctx, @PathVariable String exerciseId) {
+    return this.endpointService.endpointsForSimulation(exerciseId).stream()
+        .map(endpointMapper::toEndpointOutput)
+        .toList();
   }
 
   @PostMapping({
