@@ -144,7 +144,7 @@
         "openaev-front/src/admin/components/profile/notifications/Notifications.tsx",
         "openaev-front/src/admin/components/profile/triggers/TriggerForm.tsx",
         "openaev-front/src/admin/components/scenarios/ScenarioForm.tsx",
-        "openaev-front/src/admin/components/scenarios/Scenarios.tsx",
+        "openaev-front/src/admin/components/scenarios/list/ScenariosList.tsx",
         "openaev-front/src/admin/components/settings/groups/tenant_groups/grants/atomic_testings/useAtomicTestingGrant.tsx",
         "openaev-front/src/admin/components/settings/groups/tenant_groups/grants/scenarios/useScenarioGrant.tsx",
         "openaev-front/src/admin/components/settings/groups/tenant_groups/grants/simulations/useSimulationGrant.tsx",
@@ -598,7 +598,8 @@
         "openaev-front/src/components/common/marketplace/toolbar/MarketplaceResultsCount.tsx",
         "openaev-front/src/components/common/marketplace/results/MarketplaceSectionHeader.tsx",
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
+        "openaev-front/src/components/common/marketplace/card/MarketplaceCardMeta.tsx"
       ]
     },
     {

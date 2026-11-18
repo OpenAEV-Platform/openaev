@@ -7,11 +7,16 @@ import groupSections from './groupSections';
 import MarketplaceGrid from './MarketplaceGrid';
 import MarketplaceSectionHeader from './MarketplaceSectionHeader';
 
-interface Props<T> {
-  items: T[];
+interface Sections<T> {
   sectionKey: (item: T) => string | undefined;
   sectionLabel: (key: string | undefined) => string;
   sectionIcon: (key: string | undefined) => ReactNode;
+}
+
+interface Props<T> {
+  items: T[];
+  // Without sections, the items fill one grid.
+  sections?: Sections<T>;
   renderItem: (item: T) => ReactNode;
   emptyState: ReactNode;
   loading?: boolean;
@@ -19,9 +24,7 @@ interface Props<T> {
 
 const MarketplaceSections = <T, >({
   items,
-  sectionKey,
-  sectionLabel,
-  sectionIcon,
+  sections,
   renderItem,
   emptyState,
   loading = false,
@@ -46,6 +49,9 @@ const MarketplaceSections = <T, >({
   if (items.length === 0) {
     return <>{emptyState}</>;
   }
+  if (!sections) {
+    return <MarketplaceGrid>{items.map(renderItem)}</MarketplaceGrid>;
+  }
   return (
     <Box sx={{
       display: 'flex',
@@ -53,7 +59,7 @@ const MarketplaceSections = <T, >({
       gap: 2,
     }}
     >
-      {groupSections(items, sectionKey).map(section => (
+      {groupSections(items, sections.sectionKey).map(section => (
         <Box
           component="section"
           key={section.key ?? 'other'}
@@ -63,7 +69,7 @@ const MarketplaceSections = <T, >({
             gap: 1.5,
           }}
         >
-          <MarketplaceSectionHeader icon={sectionIcon(section.key)} label={sectionLabel(section.key)} count={section.items.length} />
+          <MarketplaceSectionHeader icon={sections.sectionIcon(section.key)} label={sections.sectionLabel(section.key)} count={section.items.length} />
           <MarketplaceGrid>{section.items.map(renderItem)}</MarketplaceGrid>
         </Box>
       ))}

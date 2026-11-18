@@ -126,9 +126,11 @@ const ConnectorMarketplace = ({ items, renderAction, searchPlaceholder }: Props)
         : (
             <MarketplaceSections
               items={filteredItems}
-              sectionKey={item => item.type}
-              sectionLabel={type => typeMeta[type as ConnectorItemType].label}
-              sectionIcon={type => typeMeta[type as ConnectorItemType].icon}
+              sections={{
+                sectionKey: item => item.type,
+                sectionLabel: type => typeMeta[type as ConnectorItemType].label,
+                sectionIcon: type => typeMeta[type as ConnectorItemType].icon,
+              }}
               renderItem={item => (
                 <CatalogConnectorCard
                   key={item.id}
