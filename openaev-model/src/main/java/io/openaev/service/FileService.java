@@ -177,6 +177,20 @@ public class FileService {
   }
 
   /**
+   * Same as {@link #deleteDirectory(String)}, under an explicitly named tenant rather than the
+   * ambient {@link io.openaev.context.TenantContext}. Use it when the owning row's tenant is known,
+   * so the directory removed is the one the row's files were written under, whatever scope or
+   * thread-local the caller runs with (e.g. a post-commit callback with no request thread-local
+   * left to fall back on).
+   *
+   * @param tenantId the owning tenant
+   * @param directory the directory prefix to delete
+   */
+  public void deleteDirectoryForTenant(String tenantId, String directory) {
+    minioService.deleteDirectoryForTenant(tenantId, directory);
+  }
+
+  /**
    * Uploads a multipart file to MinIO.
    *
    * @param name the target file path/name in the bucket

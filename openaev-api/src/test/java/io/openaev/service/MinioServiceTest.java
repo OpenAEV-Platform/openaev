@@ -144,6 +144,29 @@ class MinioServiceTest extends IntegrationTest {
     assertThat(minioService.countObjectsForCurrentTenant(dir)).isZero();
   }
 
+  @Test
+  void should_delete_directory_for_an_explicit_tenant_regardless_of_the_ambient_one()
+      throws Exception {
+    // -- ARRANGE: the object is written under an explicit, non-ambient tenant (as the exercise
+    // reset callback does, running after the ambient thread-local request scope is gone).
+    String explicitTenant = UUID.randomUUID().toString();
+    String directory = "exercises/ex-explicit-delete/";
+    String fullPrefix = explicitTenant + "/" + directory;
+    InputStream data = new ByteArrayInputStream(TEST_CONTENT);
+    minioService.uploadFileForTenant(
+        explicitTenant, directory + "file1.txt", data, TEST_CONTENT.length, TEST_CONTENT_TYPE);
+    assertThat(minioService.countObjects(fullPrefix)).isEqualTo(1);
+    assertThat(minioService.countObjectsForCurrentTenant(directory))
+        .as("nothing was written under the ambient tenant's own path")
+        .isZero();
+
+    // -- ACT --
+    minioService.deleteDirectoryForTenant(explicitTenant, directory);
+
+    // -- ASSERT --
+    assertThat(minioService.countObjects(fullPrefix)).isZero();
+  }
+
   // -- HEALTH CHECK --
 
   @Test

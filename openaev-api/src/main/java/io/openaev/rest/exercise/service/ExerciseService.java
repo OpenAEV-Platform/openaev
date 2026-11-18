@@ -948,12 +948,16 @@ public class ExerciseService {
       // lock taken by the deletes above for the whole duration of the object-storage roundtrips,
       // which starved the Hikari pool platform-wide when storage was slow (simulation reset
       // outage). Also avoids deleting files if the transaction ends up rolling back.
+      // The deletion runs after the request's transaction committed, with no scope left to fall
+      // back on: the owning tenant is captured now, from the reloaded exercise, rather than read
+      // from the ambient TenantContext at that later point.
+      String exerciseTenantId = exercise.getTenant().getId();
       TransactionSynchronizationManager.registerSynchronization(
           new TransactionSynchronization() {
             @Override
             public void afterCommit() {
               try {
-                fileService.deleteDirectory(exerciseId);
+                fileService.deleteDirectoryForTenant(exerciseTenantId, exerciseId);
               } catch (Exception e) {
                 log.error("Failed to delete directory for exercise {}", exerciseId, e);
               }
