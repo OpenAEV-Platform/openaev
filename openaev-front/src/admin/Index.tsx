@@ -123,6 +123,7 @@ const Index = () => {
   const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
   const isCatalogEnabled = isFeatureEnabled('CATALOG');
   const isExplorationGraphEnabled = isFeatureEnabled('EXPLORATION_GRAPH');
+  const isMarkingEnabled = isFeatureEnabled('MARKING');
 
   const { currentUserTenant } = useAuth();
 
@@ -150,10 +151,10 @@ const Index = () => {
     dispatch(fetchKillChainPhases());
     dispatch(fetchTags());
     dispatch(fetchDomains());
-    if (isFeatureEnabled('MARKING')) {
+    if (isMarkingEnabled) {
       dispatch(fetchMarkingDefinitions());
     }
-  }, [currentUserTenant?.tenant_id]);
+  }, [currentUserTenant?.tenant_id, isMarkingEnabled]);
   const { bannerHeight, bannerHeightNumber } = useBannerSettings(settings);
   const [goToGettingStarted, setGoToGettingStarted] = useLocalStorage<boolean>(GETTING_STARTED_LOCAL_STORAGE_KEY, true);
   useEffect(() => {
