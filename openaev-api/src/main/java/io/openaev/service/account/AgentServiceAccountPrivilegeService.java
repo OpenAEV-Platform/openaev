@@ -30,6 +30,7 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
       TenantUserService tenantUserService,
       MarkingClearanceCacheManager markingClearanceCacheManager,
       TenantWriteScopeResolver writeScopeResolver,
+      UserGroupMembershipService userGroupMembershipService,
       SessionManager sessionManager) {
     super(
         tenantRoleService,
@@ -37,7 +38,8 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
         userService,
         tenantUserService,
         markingClearanceCacheManager,
-        writeScopeResolver);
+        writeScopeResolver,
+        userGroupMembershipService);
     this.sessionManager = sessionManager;
   }
 
@@ -84,7 +86,7 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
       User user =
           userService.createInternalUser(
               email, SERVICE_FIRSTNAME, null, false, UUID.randomUUID().toString());
-      user.setGroups(new ArrayList<>(List.of(group)));
+      userGroupMembershipService.addMembership(user.getId(), group.getId());
       tenantUserService.attachToTenant(user.getId(), tenantId);
       userService.saveUser(user);
     }
