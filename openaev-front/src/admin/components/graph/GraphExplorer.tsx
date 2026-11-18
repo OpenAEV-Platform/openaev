@@ -549,8 +549,9 @@ const GraphExplorerInner = ({
         <Typography
           variant="h6"
           sx={{
-            flexGrow: 1,
-            textTransform: 'none',
+            'flexGrow': 1,
+            'textTransform': 'none',
+            '&::first-letter': { textTransform: 'none' },
           }}
           noWrap
         >
