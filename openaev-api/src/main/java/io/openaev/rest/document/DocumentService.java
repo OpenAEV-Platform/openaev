@@ -64,9 +64,9 @@ public class DocumentService {
   }
 
   /**
-   * Same as {@link #document(String)}, scoped to the tenant the resolved document is bound to: a
-   * document id named in a request body resolves within that tenant, so an id of another tenant is
-   * treated like an unknown id.
+   * Same as {@link #document(String)}, resolved within the given tenant: a document id named in a
+   * request body resolves only within {@code tenantId}, so an id of another tenant is treated like
+   * an unknown id.
    */
   public Document documentInTenant(
       @NotBlank final String documentId, @NotBlank final String tenantId) {
