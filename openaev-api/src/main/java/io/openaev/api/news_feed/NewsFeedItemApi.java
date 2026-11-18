@@ -7,12 +7,14 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.NewsFeedCategory;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.NewsFeedItemService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.xtmhub.XtmHubService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,6 +40,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class NewsFeedItemApi {
 
   public static final String TENANT_NEWS_FEED_URI = TENANT_PREFIX + "/news-feed";
+
+  private static final String CATEGORY_DESCRIPTION =
+      "Only the items of this category: the blogposts, or the resources (every other type)."
+          + " All the items when absent";
 
   private final NewsFeedItemService newsFeedItemService;
   private final XtmHubService xtmHubService;
@@ -57,10 +64,13 @@ public class NewsFeedItemApi {
         @ApiResponse(responseCode = "404", description = "The news feed feature is disabled")
       })
   public Page<NewsFeedItemOutput> searchMyNewsFeedItems(
-      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx,
+      @RequestBody @Valid SearchPaginationInput searchPaginationInput,
+      @Parameter(description = CATEGORY_DESCRIPTION) @RequestParam(required = false)
+          NewsFeedCategory category) {
     assertFeatureEnabled();
     return xtmHubService
-        .searchMyNewsFeedItems(ctx, searchPaginationInput)
+        .searchMyNewsFeedItems(ctx, searchPaginationInput, category)
         .map(NewsFeedItemMapper::toOutput);
   }
 
@@ -76,9 +86,12 @@ public class NewsFeedItemApi {
         @ApiResponse(responseCode = "200", description = "The number of unread items"),
         @ApiResponse(responseCode = "404", description = "The news feed feature is disabled")
       })
-  public long countMyUnreadNewsFeedItems(TxCtx ctx) {
+  public long countMyUnreadNewsFeedItems(
+      TxCtx ctx,
+      @Parameter(description = CATEGORY_DESCRIPTION) @RequestParam(required = false)
+          NewsFeedCategory category) {
     assertFeatureEnabled();
-    return xtmHubService.countMyUnreadNewsFeedItems(ctx);
+    return xtmHubService.countMyUnreadNewsFeedItems(ctx, category);
   }
 
   @LogExecutionTime
@@ -97,9 +110,12 @@ public class NewsFeedItemApi {
         @ApiResponse(responseCode = "204", description = "The items are read"),
         @ApiResponse(responseCode = "404", description = "The news feed feature is disabled")
       })
-  public void markAllMyNewsFeedItemsRead(TxCtx ctx) {
+  public void markAllMyNewsFeedItemsRead(
+      TxCtx ctx,
+      @Parameter(description = CATEGORY_DESCRIPTION) @RequestParam(required = false)
+          NewsFeedCategory category) {
     assertFeatureEnabled();
-    xtmHubService.markMyNewsFeedItemsRead(ctx);
+    xtmHubService.markMyNewsFeedItemsRead(ctx, category);
   }
 
   private void assertFeatureEnabled() {

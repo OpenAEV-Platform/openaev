@@ -16,6 +16,7 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.NewsFeedCategory;
 import io.openaev.database.model.NewsFeedItem;
 import io.openaev.database.model.NewsFeedType;
 import io.openaev.database.model.User;
@@ -33,6 +34,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
@@ -128,7 +130,8 @@ class NewsFeedItemServiceTest {
   }
 
   private static ProvisionedNewsFeedItem item(String id, String title, String type) {
-    return new ProvisionedNewsFeedItem(id, title, type, List.of(), null, CREATION_DATE, false);
+    return new ProvisionedNewsFeedItem(
+        id, title, type, List.of(), null, Map.of(), CREATION_DATE, false);
   }
 
   private static List<ProvisionedNewsFeedItem> items(int count) {
@@ -315,6 +318,7 @@ class NewsFeedItemServiceTest {
                 "RESOURCE_SCENARIO",
                 List.of(),
                 null,
+                Map.of(),
                 CREATION_DATE,
                 true),
             item("hub-unknown", "Unknown", "RESOURCE_PLAYBOOK")),
@@ -328,7 +332,8 @@ class NewsFeedItemServiceTest {
   // -- Deleted and changed items --
 
   private static ProvisionedNewsFeedItem deletedItem(String id, String type) {
-    return new ProvisionedNewsFeedItem(id, "Deleted", type, List.of(), null, CREATION_DATE, true);
+    return new ProvisionedNewsFeedItem(
+        id, "Deleted", type, List.of(), null, Map.of(), CREATION_DATE, true);
   }
 
   private static NewsFeedItem row(String rowId, String hubItemId) {
@@ -549,7 +554,14 @@ class NewsFeedItemServiceTest {
     private ProvisionedNewsFeedItem changed(
         String title, List<String> tags, String urlPath, String type) {
       return new ProvisionedNewsFeedItem(
-          "hub-1", title, type, tags, urlPath, Instant.parse("2027-01-01T00:00:00Z"), false);
+          "hub-1",
+          title,
+          type,
+          tags,
+          urlPath,
+          Map.of(),
+          Instant.parse("2027-01-01T00:00:00Z"),
+          false);
     }
 
     @Test
@@ -774,6 +786,152 @@ class NewsFeedItemServiceTest {
     }
   }
 
+  @Nested
+  @DisplayName("Blogposts")
+  class BlogPosts {
+
+    private static final Map<String, String> METADATA =
+        Map.of("description", "A description", "read_minutes", "7");
+
+    private ProvisionedNewsFeedItem blogPost(Map<String, String> metadata) {
+      return new ProvisionedNewsFeedItem(
+          "hub-1", "Blogpost", "BLOG_POST", List.of(), "/blog/1", metadata, CREATION_DATE, false);
+    }
+
+    @Test
+    @DisplayName("Given a blogpost, should create it with its metadata for the subscribed users")
+    void given_blogPost_should_createItWithMetadataForSubscribedUsers() {
+      // Arrange
+      when(userService.newsFeedRecipients(TENANTS))
+          .thenReturn(
+              List.of(
+                  recipient("subscribed", "RESOURCE_SCENARIO"),
+                  recipient("unsubscribed", "BLOG_POST")));
+
+      // Act
+      service.applyProvisionedItems(List.of(blogPost(METADATA)), TENANTS);
+
+      // Assert
+      verify(referenceResolver, times(1)).resolve("subscribed", User.class);
+      assertThat(savedBatches(1).getFirst())
+          .singleElement()
+          .satisfies(
+              created -> {
+                assertThat(created.getType()).isEqualTo(NewsFeedType.BLOG_POST.name());
+                assertThat(created.getMetadata()).isEqualTo(METADATA);
+              });
+    }
+
+    @Test
+    @DisplayName("Given changed metadata, should replace the metadata of the rows in full")
+    void given_changedMetadata_should_replaceThemInFull() {
+      // Arrange
+      NewsFeedItem row = blogPostRow(Map.of("description", "Old", "image_url", "https://img"));
+      givenRows("hub-1", row);
+
+      // Act
+      service.applyProvisionedItems(List.of(blogPost(METADATA)), TENANTS);
+
+      // Assert
+      assertThat(savedBatches(1).getFirst()).containsExactly(row);
+      assertThat(row.getMetadata()).isEqualTo(METADATA);
+    }
+
+    @Test
+    @DisplayName("Given the same metadata, should not write the rows")
+    void given_sameMetadata_should_notWriteTheRows() {
+      // Arrange
+      givenRows("hub-1", blogPostRow(METADATA));
+
+      // Act
+      service.applyProvisionedItems(List.of(blogPost(METADATA)), TENANTS);
+
+      // Assert
+      verify(newsFeedItemRepository, never()).saveAllAndFlush(anyCollection());
+    }
+
+    private NewsFeedItem blogPostRow(Map<String, String> metadata) {
+      NewsFeedItem row = row("row-1", "hub-1");
+      row.setTitle("Blogpost");
+      row.setType(NewsFeedType.BLOG_POST);
+      row.setTags(new String[0]);
+      row.setUrlPath("/blog/1");
+      row.getMetadata().putAll(metadata);
+      return row;
+    }
+  }
+
+  @Nested
+  @DisplayName("Categories")
+  class Categories {
+
+    private static final String BLOG_POST = NewsFeedType.BLOG_POST.name();
+
+    private User me;
+
+    @BeforeEach
+    void setUpCurrentUser() {
+      me = new User();
+      me.setId("me");
+      when(userService.currentUser()).thenReturn(me);
+    }
+
+    @Test
+    @DisplayName("Given the blogpost category, should count only the unread blogposts")
+    void given_blogPostCategory_should_countOnlyUnreadBlogPosts() {
+      // Arrange
+      when(newsFeedItemRepository.countByUserIdAndReadFalseAndType("me", BLOG_POST)).thenReturn(2L);
+
+      // Act & Assert
+      assertThat(service.countMyUnreadItems(NewsFeedCategory.BLOG_POST)).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("Given the resource category, should count the unread items of the other types")
+    void given_resourceCategory_should_countUnreadItemsOfOtherTypes() {
+      // Arrange
+      when(newsFeedItemRepository.countByUserIdAndReadFalseAndTypeNot("me", BLOG_POST))
+          .thenReturn(4L);
+
+      // Act & Assert
+      assertThat(service.countMyUnreadItems(NewsFeedCategory.RESOURCE)).isEqualTo(4L);
+    }
+
+    @Test
+    @DisplayName("Given the blogpost category, should mark only the blogposts as read")
+    void given_blogPostCategory_should_markOnlyBlogPostsRead() {
+      // Arrange
+      NewsFeedItem blogPost = NewsFeedItemFixture.createNewsFeedItem(me, "hub-1");
+      blogPost.setType(NewsFeedType.BLOG_POST);
+      when(newsFeedItemRepository.findAllByUserIdAndReadFalseAndType("me", BLOG_POST))
+          .thenReturn(List.of(blogPost));
+
+      // Act
+      service.markMyItemsRead(NewsFeedCategory.BLOG_POST);
+
+      // Assert
+      assertThat(blogPost.isRead()).isTrue();
+      verify(newsFeedItemRepository).saveAll(List.of(blogPost));
+      verify(newsFeedItemRepository, never()).findAllByUserIdAndReadFalse(any());
+    }
+
+    @Test
+    @DisplayName("Given the resource category, should mark only the other types as read")
+    void given_resourceCategory_should_markOnlyOtherTypesRead() {
+      // Arrange
+      NewsFeedItem scenario = NewsFeedItemFixture.createNewsFeedItem(me, "hub-1");
+      when(newsFeedItemRepository.findAllByUserIdAndReadFalseAndTypeNot("me", BLOG_POST))
+          .thenReturn(List.of(scenario));
+
+      // Act
+      service.markMyItemsRead(NewsFeedCategory.RESOURCE);
+
+      // Assert
+      assertThat(scenario.isRead()).isTrue();
+      verify(newsFeedItemRepository).saveAll(List.of(scenario));
+    }
+  }
+
   @Test
   @DisplayName("Given the current user, should count only their unread items")
   void given_currentUser_should_countTheirUnreadItems() {
@@ -784,7 +942,7 @@ class NewsFeedItemServiceTest {
     when(newsFeedItemRepository.countByUserIdAndReadFalse("me")).thenReturn(3L);
 
     // Act & Assert
-    assertThat(service.countMyUnreadItems()).isEqualTo(3L);
+    assertThat(service.countMyUnreadItems(null)).isEqualTo(3L);
   }
 
   @Test
@@ -801,7 +959,7 @@ class NewsFeedItemServiceTest {
     when(newsFeedItemRepository.findAllByUserIdAndReadFalse("me")).thenReturn(unread);
 
     // Act
-    service.markMyItemsRead();
+    service.markMyItemsRead(null);
 
     // Assert
     assertThat(unread).allMatch(NewsFeedItem::isRead);

@@ -3,6 +3,7 @@ package io.openaev.xtmhub;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.NewsFeedCategory;
 import io.openaev.database.model.NewsFeedItem;
 import io.openaev.database.model.NewsFeedType;
 import io.openaev.database.model.Tenant;
@@ -20,6 +21,7 @@ import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.LicenseUtils;
+import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.xtmhub.config.XtmHubConfig;
@@ -27,9 +29,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -72,54 +76,60 @@ public class XtmHubService {
   }
 
   /**
-   * Searches the news feed items of the current user. The items carry no tenant, so the page is
-   * empty when no tenant in the scope of the request is registered on XTM Hub (a tenant that lost
-   * its connectivity still shows the items it retrieved).
+   * Searches the news feed items of the current user, only those of the given category when there
+   * is one. The items carry no tenant, so the page is empty when no tenant in the scope of the
+   * request is registered on XTM Hub (a tenant that lost its connectivity still shows the items it
+   * retrieved).
    */
   public Page<NewsFeedItem> searchMyNewsFeedItems(
-      TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx,
+      @NotNull final SearchPaginationInput searchPaginationInput,
+      final NewsFeedCategory category) {
     if (!isNewsFeedServed(registrationStatuses(ctx))) {
       return new PageImpl<>(
           List.of(),
           PageRequest.of(searchPaginationInput.getPage(), searchPaginationInput.getSize()),
           0);
     }
-    return newsFeedItemService.searchMyItems(searchPaginationInput);
+    return newsFeedItemService.searchMyItems(searchPaginationInput, category);
   }
 
   /**
-   * The number of unread news feed items of the current user. Like {@link #searchMyNewsFeedItems},
-   * it is 0 when no tenant in the scope of the request is registered on XTM Hub: the user cannot
-   * see the items there.
+   * The number of unread news feed items of the current user, only those of the given category when
+   * there is one. Like {@link #searchMyNewsFeedItems}, it is 0 when no tenant in the scope of the
+   * request is registered on XTM Hub: the user cannot see the items there.
    */
-  public long countMyUnreadNewsFeedItems(TxCtx ctx) {
+  public long countMyUnreadNewsFeedItems(TxCtx ctx, final NewsFeedCategory category) {
     if (!isNewsFeedServed(registrationStatuses(ctx))) {
       return 0;
     }
-    return newsFeedItemService.countMyUnreadItems();
+    return newsFeedItemService.countMyUnreadItems(category);
   }
 
   /**
-   * Marks all the news feed items of the current user as read. Does nothing when no tenant in the
-   * scope of the request is registered on XTM Hub: the user cannot see the items there, so they
-   * must not be read for the tenants that do show them.
+   * Marks all the news feed items of the current user as read, only those of the given category
+   * when there is one. Does nothing when no tenant in the scope of the request is registered on XTM
+   * Hub: the user cannot see the items there, so they must not be read for the tenants that do show
+   * them.
    */
-  public void markMyNewsFeedItemsRead(TxCtx ctx) {
+  public void markMyNewsFeedItemsRead(TxCtx ctx, final NewsFeedCategory category) {
     if (isNewsFeedServed(registrationStatuses(ctx))) {
-      newsFeedItemService.markMyItemsRead();
+      newsFeedItemService.markMyItemsRead(category);
     }
   }
 
   /**
    * The news feed settings of the current user: the types they are subscribed to, whether their
-   * news feed is served by XTM Hub, and whether XTM Hub is connected.
+   * news feed is served by XTM Hub, whether XTM Hub is connected, and the types XTM Hub provisions.
    */
   public NewsFeedSettings getMyNewsFeedSettings(TxCtx ctx) {
-    Set<XtmHubRegistrationStatus> statuses = registrationStatuses(ctx);
+    List<TenantXtmHubRegistration> registrations = registrationsInScope(ctx);
+    Set<XtmHubRegistrationStatus> statuses = statusesOf(registrations);
     return new NewsFeedSettings(
         newsFeedItemService.getMySubscribedTypes(),
         isNewsFeedServed(statuses),
-        isHubConnected(statuses));
+        isHubConnected(statuses),
+        availableNewsFeedTypes(registrations));
   }
 
   /**
@@ -131,25 +141,54 @@ public class XtmHubService {
    */
   public NewsFeedSettings updateMyNewsFeedSettings(
       TxCtx ctx, @NotNull final Collection<NewsFeedType> subscribedTypes) {
-    Set<XtmHubRegistrationStatus> statuses = registrationStatuses(ctx);
+    List<TenantXtmHubRegistration> registrations = registrationsInScope(ctx);
+    Set<XtmHubRegistrationStatus> statuses = statusesOf(registrations);
     if (!isNewsFeedServed(statuses)) {
       throw new ForbiddenException("The tenant is not registered on XTM Hub");
     }
     return new NewsFeedSettings(
         newsFeedItemService.updateMySubscribedTypes(subscribedTypes),
         true,
-        isHubConnected(statuses));
+        isHubConnected(statuses),
+        availableNewsFeedTypes(registrations));
   }
 
-  /** The registration statuses of the tenants in the scope of the request, read at once. */
-  private Set<XtmHubRegistrationStatus> registrationStatuses(TxCtx ctx) {
+  /** The registrations of the tenants in the scope of the request, read at once. */
+  private List<TenantXtmHubRegistration> registrationsInScope(TxCtx ctx) {
     Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
     if (tenantIds.isEmpty()) {
-      return Set.of();
+      return List.of();
     }
-    return tenantXtmHubRegistrationRepository.findByTenantIdIn(tenantIds).stream()
+    return tenantXtmHubRegistrationRepository.findByTenantIdIn(tenantIds);
+  }
+
+  private Set<XtmHubRegistrationStatus> registrationStatuses(TxCtx ctx) {
+    return statusesOf(registrationsInScope(ctx));
+  }
+
+  private static Set<XtmHubRegistrationStatus> statusesOf(
+      List<TenantXtmHubRegistration> registrations) {
+    return registrations.stream()
         .map(TenantXtmHubRegistration::getRegistrationStatus)
         .collect(Collectors.toSet());
+  }
+
+  /**
+   * The known news feed types XTM Hub provisions for the registrations that serve the news feed,
+   * none when no registration in scope does.
+   */
+  private static List<NewsFeedType> availableNewsFeedTypes(
+      List<TenantXtmHubRegistration> registrations) {
+    Set<String> types = new LinkedHashSet<>();
+    registrations.stream()
+        .filter(registration -> servesNewsFeed(registration.getRegistrationStatus()))
+        .forEach(registration -> types.addAll(Arrays.asList(availableTypesOf(registration))));
+    return NewsFeedUtils.fromHubValues(types);
+  }
+
+  private static String[] availableTypesOf(TenantXtmHubRegistration registration) {
+    String[] types = registration.getAvailableNewsFeedTypes();
+    return types == null ? new String[0] : types;
   }
 
   /**
@@ -157,8 +196,12 @@ public class XtmHubService {
    * is registered (a tenant that lost its connectivity still is).
    */
   private static boolean isNewsFeedServed(Set<XtmHubRegistrationStatus> statuses) {
-    return statuses.contains(XtmHubRegistrationStatus.REGISTERED)
-        || statuses.contains(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+    return statuses.stream().anyMatch(XtmHubService::servesNewsFeed);
+  }
+
+  private static boolean servesNewsFeed(XtmHubRegistrationStatus status) {
+    return status == XtmHubRegistrationStatus.REGISTERED
+        || status == XtmHubRegistrationStatus.LOST_CONNECTIVITY;
   }
 
   /**
@@ -360,6 +403,7 @@ public class XtmHubService {
       switch (xtmHubClient.consumeProvisionedNewsFeedItems(registration.getToken(), platformId)) {
         case NewsFeedFetchResult.Fetched fetched -> {
           newsFeedTokensRejectedLogged.set(false);
+          saveAvailableNewsFeedTypes(registrations, fetched.payload().availableTypes());
           newsFeedItemService.applyProvisionedItems(fetched.payload().items(), registeredTenantIds);
           return;
         }
@@ -374,6 +418,40 @@ public class XtmHubService {
     }
     if (newsFeedTokensRejectedLogged.compareAndSet(false, true)) {
       log.error("XTM Hub rejected the registration token of every registered tenant");
+    }
+  }
+
+  /**
+   * Stores the news feed types the Hub provisions on the registrations whose users receive the
+   * items, those whose stored types differ only, each in the transaction of its tenant. A tenant
+   * that cannot be written keeps its previous types and does not stop the others nor the items.
+   */
+  private void saveAvailableNewsFeedTypes(
+      List<TenantXtmHubRegistration> registrations, List<String> availableTypes) {
+    String[] types = availableTypes.toArray(String[]::new);
+    for (TenantXtmHubRegistration registration : registrations) {
+      if (Arrays.equals(availableTypesOf(registration), types)) {
+        continue;
+      }
+      String tenantId = registration.getTenant().getId();
+      try {
+        tenantTx.execute(
+            TxCtx.forTenant(tenantId),
+            () ->
+                tenantXtmHubRegistrationRepository
+                    .findByTenantId(tenantId)
+                    .ifPresent(
+                        current -> {
+                          current.setAvailableNewsFeedTypes(types);
+                          tenantXtmHubRegistrationRepository.save(current);
+                        }));
+      } catch (Exception e) {
+        log.error(
+            "Could not store the news feed types XTM Hub provisions for tenant {}: {}",
+            tenantId,
+            e.getMessage(),
+            e);
+      }
     }
   }
 

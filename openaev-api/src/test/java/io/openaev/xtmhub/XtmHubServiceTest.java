@@ -1536,6 +1536,7 @@ class XtmHubServiceTest {
                   "RESOURCE_SCENARIO",
                   List.of("phishing"),
                   "/scenarios/1",
+                  Map.of("document_id", "doc-1"),
                   Instant.parse("2026-10-20T10:15:30Z"),
                   false));
     }
@@ -1581,6 +1582,34 @@ class XtmHubServiceTest {
 
       // Assert
       assertThat(recipientTenantIds()).containsExactlyInAnyOrder("tenant-a", "tenant-b");
+    }
+
+    @Test
+    @DisplayName(
+        "Given the types the Hub provisions, should store them on the changed registrations")
+    void given_availableTypes_should_storeThemOnChangedRegistrations() {
+      // Arrange
+      TenantXtmHubRegistration stale = registered("tenant-a", FIRST_TOKEN, now.minusDays(10));
+      TenantXtmHubRegistration upToDate = registered("tenant-b", SECOND_TOKEN, now.minusDays(1));
+      upToDate.setAvailableNewsFeedTypes(new String[] {"RESOURCE_SCENARIO", "BLOG_POST"});
+      givenRegistrations(stale, upToDate);
+      when(tenantXtmHubRegistrationRepository.findByTenantId("tenant-a"))
+          .thenReturn(Optional.of(stale));
+      givenHubAnswers(
+          FIRST_TOKEN,
+          200,
+          "{\"data\":{\"consumeProvisionedNewsFeedItems\":{\"news_feed_items\":[],"
+              + "\"available_news_feed_types\":[\"RESOURCE_SCENARIO\",\"BLOG_POST\"]}}}");
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      assertThat(stale.getAvailableNewsFeedTypes())
+          .containsExactly("RESOURCE_SCENARIO", "BLOG_POST");
+      verify(tenantXtmHubRegistrationRepository).save(stale);
+      verify(tenantXtmHubRegistrationRepository, never()).findByTenantId("tenant-b");
+      verify(newsFeedItemService).applyProvisionedItems(List.of(), Set.of("tenant-a", "tenant-b"));
     }
 
     @Test
@@ -1995,6 +2024,29 @@ class XtmHubServiceTest {
       assertThat(settings.subscribedTypes()).containsExactly(NewsFeedType.RESOURCE_SCENARIO);
       assertThat(settings.hubRegistered()).isTrue();
       assertThat(settings.hubConnected()).isFalse();
+    }
+
+    @Test
+    @DisplayName(
+        "Given the types XTM Hub provisions, should expose the known ones of the serving tenants")
+    void given_availableTypes_should_exposeKnownOnesOfServingTenants() {
+      // Arrange
+      TenantXtmHubRegistration serving = buildRegistration(TENANT_A, "token", now.minusHours(1));
+      serving.setRegistrationStatus(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+      serving.setAvailableNewsFeedTypes(new String[] {"BLOG_POST", "RESOURCE_PLAYBOOK"});
+      TenantXtmHubRegistration unregistered =
+          buildRegistration(TENANT_B, "token", now.minusHours(1));
+      unregistered.setRegistrationStatus(XtmHubRegistrationStatus.UNREGISTERED);
+      unregistered.setAvailableNewsFeedTypes(new String[] {"RESOURCE_SCENARIO"});
+      when(tenantXtmHubRegistrationRepository.findByTenantIdIn(Set.of(TENANT_A, TENANT_B)))
+          .thenReturn(List.of(serving, unregistered));
+
+      // Act
+      NewsFeedSettings settings =
+          xtmHubService.getMyNewsFeedSettings(TxCtx.forTenants(List.of(TENANT_A, TENANT_B)));
+
+      // Assert
+      assertThat(settings.availableTypes()).containsExactly(NewsFeedType.BLOG_POST);
     }
 
     @Test

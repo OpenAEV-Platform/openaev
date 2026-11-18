@@ -4,6 +4,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.NewsFeedCategory;
 import io.openaev.database.model.NewsFeedItem;
 import io.openaev.database.model.NewsFeedType;
 import io.openaev.database.model.User;
@@ -63,28 +64,54 @@ public class NewsFeedItemService {
 
   private record TypedItem(ProvisionedNewsFeedItem item, NewsFeedType type) {}
 
+  private static final String BLOG_POST = NewsFeedType.BLOG_POST.name();
+
   // -- READ --
 
   public boolean isFeatureEnabled() {
     return previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED);
   }
 
-  /** Searches the news feed items of the current user. */
+  /**
+   * Searches the news feed items of the current user, only those of the given category when there
+   * is one.
+   */
   public Page<NewsFeedItem> searchMyItems(
-      @NotNull final SearchPaginationInput searchPaginationInput) {
+      @NotNull final SearchPaginationInput searchPaginationInput, final NewsFeedCategory category) {
     String userId = userService.currentUser().getId();
     Specification<NewsFeedItem> ownerSpec =
         (root, query, cb) -> cb.equal(root.get("user").get("id"), userId);
+    Specification<NewsFeedItem> mySpec =
+        category == null ? ownerSpec : ownerSpec.and(inCategory(category));
     return buildPaginationJPA(
         (specification, pageable) ->
-            newsFeedItemRepository.findAll(ownerSpec.and(specification), pageable),
+            newsFeedItemRepository.findAll(mySpec.and(specification), pageable),
         searchPaginationInput,
         NewsFeedItem.class);
   }
 
-  /** The number of news feed items of the current user that are not read yet. */
-  public long countMyUnreadItems() {
-    return newsFeedItemRepository.countByUserIdAndReadFalse(userService.currentUser().getId());
+  /**
+   * The number of news feed items of the current user that are not read yet, only those of the
+   * given category when there is one.
+   */
+  public long countMyUnreadItems(final NewsFeedCategory category) {
+    String userId = userService.currentUser().getId();
+    if (category == null) {
+      return newsFeedItemRepository.countByUserIdAndReadFalse(userId);
+    }
+    return switch (category) {
+      case BLOG_POST -> newsFeedItemRepository.countByUserIdAndReadFalseAndType(userId, BLOG_POST);
+      case RESOURCE ->
+          newsFeedItemRepository.countByUserIdAndReadFalseAndTypeNot(userId, BLOG_POST);
+    };
+  }
+
+  /** The items of a category, by their stored type: the resources are all the other types. */
+  private static Specification<NewsFeedItem> inCategory(NewsFeedCategory category) {
+    return switch (category) {
+      case BLOG_POST -> (root, query, cb) -> cb.equal(root.get("type"), BLOG_POST);
+      case RESOURCE -> (root, query, cb) -> cb.notEqual(root.get("type"), BLOG_POST);
+    };
   }
 
   /** The news feed types the current user is subscribed to. */
@@ -109,7 +136,8 @@ public class NewsFeedItemService {
   }
 
   /**
-   * Marks all the unread news feed items of the current user as read, and only theirs. Idempotent.
+   * Marks all the unread news feed items of the current user as read, and only theirs, only those
+   * of the given category when there is one. Idempotent.
    *
    * <p>The items are updated through the session rather than by a bulk update: a bulk update would
    * skip the listener chain, so the user's other open tabs would not be told over SSE that their
@@ -124,9 +152,17 @@ public class NewsFeedItemService {
    * as a side effect of visiting the page: the client ignores its failure and the next visit marks
    * the items again, the deleted one no longer being there.
    */
-  public void markMyItemsRead() {
+  public void markMyItemsRead(final NewsFeedCategory category) {
+    String userId = userService.currentUser().getId();
     List<NewsFeedItem> unreadItems =
-        newsFeedItemRepository.findAllByUserIdAndReadFalse(userService.currentUser().getId());
+        category == null
+            ? newsFeedItemRepository.findAllByUserIdAndReadFalse(userId)
+            : switch (category) {
+              case BLOG_POST ->
+                  newsFeedItemRepository.findAllByUserIdAndReadFalseAndType(userId, BLOG_POST);
+              case RESOURCE ->
+                  newsFeedItemRepository.findAllByUserIdAndReadFalseAndTypeNot(userId, BLOG_POST);
+            };
     unreadItems.forEach(item -> item.setRead(true));
     newsFeedItemRepository.saveAll(unreadItems);
   }
@@ -138,9 +174,10 @@ public class NewsFeedItemService {
    *
    * <ul>
    *   <li>a deleted item deletes its rows, those of every user;
-   *   <li>an item whose title, tags, type or URL path changed updates its existing rows, those of
-   *       every user whatever they are subscribed to: the read state and the creation date are
-   *       kept, and a row that already holds the values is not written, so it publishes no event;
+   *   <li>an item whose title, tags, type, URL path or metadata changed updates its existing rows,
+   *       those of every user whatever they are subscribed to: the metadata are replaced in full,
+   *       the read state and the creation date are kept, and a row that already holds the values is
+   *       not written, so it publishes no event;
    *   <li>for every user of the given tenants who is subscribed to its type and does not have it
    *       yet, an item gets a row. The Hub sends a changed item again as a whole and does not tell
    *       it from a new one, so a changed item is also created for such a user (who joined, or
@@ -297,6 +334,9 @@ public class NewsFeedItemService {
 
   /**
    * Sets on the row what the Hub changed, nothing else (not the read state nor the creation date).
+   * The metadata are a collection of the row: a row whose only change is its metadata is written
+   * without an update of the row itself, so it publishes no event, and the open pages show it on
+   * their next refresh.
    *
    * @return whether the row changed
    */
@@ -318,6 +358,11 @@ public class NewsFeedItemService {
     }
     if (!Objects.equals(row.getUrlPath(), item.urlPath())) {
       row.setUrlPath(item.urlPath());
+      changed = true;
+    }
+    if (!row.getMetadata().equals(item.metadata())) {
+      row.getMetadata().clear();
+      row.getMetadata().putAll(item.metadata());
       changed = true;
     }
     return changed;
@@ -461,6 +506,7 @@ public class NewsFeedItemService {
     newsFeedItem.setType(typed.type());
     newsFeedItem.setTags(item.tags().toArray(String[]::new));
     newsFeedItem.setUrlPath(item.urlPath());
+    newsFeedItem.getMetadata().putAll(item.metadata());
     newsFeedItem.setCreationDate(item.creationDate());
     newsFeedItem.setUser(referenceResolver.resolve(userId, User.class));
     return newsFeedItem;

@@ -45,6 +45,7 @@ class NewsFeedSettingsApiTest extends IntegrationTest {
   private static final String SUBSCRIBED_TYPES_FIELD = "news_feed_settings_subscribed_types";
   private static final String HUB_REGISTERED_FIELD = "news_feed_settings_hub_registered";
   private static final String HUB_CONNECTED_FIELD = "news_feed_settings_hub_connected";
+  private static final String AVAILABLE_TYPES_FIELD = "news_feed_settings_available_types";
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -106,9 +107,30 @@ class NewsFeedSettingsApiTest extends IntegrationTest {
       String response = getSettings();
 
       // Assert
-      assertThatJson(response).node(SUBSCRIBED_TYPES_FIELD).isEqualTo("[\"RESOURCE_SCENARIO\"]");
+      assertThatJson(response)
+          .node(SUBSCRIBED_TYPES_FIELD)
+          .isEqualTo("[\"RESOURCE_SCENARIO\", \"BLOG_POST\"]");
       assertThatJson(response).node(HUB_REGISTERED_FIELD).isEqualTo(true);
       assertThatJson(response).node(HUB_CONNECTED_FIELD).isEqualTo(true);
+    }
+
+    @Test
+    @DisplayName("Given the types XTM Hub provisions, should return the known ones")
+    void given_availableTypes_should_returnKnownOnes() throws Exception {
+      // Arrange
+      TenantXtmHubRegistration registration = new TenantXtmHubRegistration();
+      registration.setToken("token");
+      registration.setRegistrationDate(LocalDateTime.now());
+      registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
+      registration.setAvailableNewsFeedTypes(new String[] {"BLOG_POST", "RESOURCE_PLAYBOOK"});
+      registration.setTenant(new Tenant(tenantId));
+      registrationRepository.save(registration);
+
+      // Act
+      String response = getSettings();
+
+      // Assert
+      assertThatJson(response).node(AVAILABLE_TYPES_FIELD).isEqualTo("[\"BLOG_POST\"]");
     }
 
     @Test
@@ -120,6 +142,7 @@ class NewsFeedSettingsApiTest extends IntegrationTest {
       // Assert
       assertThatJson(response).node(HUB_REGISTERED_FIELD).isEqualTo(false);
       assertThatJson(response).node(HUB_CONNECTED_FIELD).isEqualTo(false);
+      assertThatJson(response).node(AVAILABLE_TYPES_FIELD).isArray().isEmpty();
     }
 
     @Test
@@ -172,19 +195,20 @@ class NewsFeedSettingsApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Given a type ticked again after unsubscribing from everything, should restore it")
+    @DisplayName(
+        "Given the types ticked again after unsubscribing from everything, should restore them")
     void given_typeTickedAgain_should_restoreIt() throws Exception {
       // Arrange
       registerTenant(tenantId, XtmHubRegistrationStatus.REGISTERED);
       putSettings().andExpect(status().isOk());
 
       // Act
-      putSettings("RESOURCE_SCENARIO").andExpect(status().isOk());
+      putSettings("RESOURCE_SCENARIO", "BLOG_POST").andExpect(status().isOk());
 
       // Assert
       assertThatJson(getSettings())
           .node(SUBSCRIBED_TYPES_FIELD)
-          .isEqualTo("[\"RESOURCE_SCENARIO\"]");
+          .isEqualTo("[\"RESOURCE_SCENARIO\", \"BLOG_POST\"]");
       assertThat(userRepository.findById(userId).orElseThrow())
           .extracting(User::getUnsubscribedNewsFeedTypes)
           .isEqualTo(new String[0]);

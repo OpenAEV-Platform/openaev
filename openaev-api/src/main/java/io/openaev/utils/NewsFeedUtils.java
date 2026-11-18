@@ -20,6 +20,15 @@ public final class NewsFeedUtils {
         .findFirst();
   }
 
+  /** The types sent by XTM Hub that OpenAEV knows, in the order sent, each once. */
+  public static List<NewsFeedType> fromHubValues(Collection<String> values) {
+    return values.stream()
+        .map(NewsFeedUtils::fromHubValue)
+        .flatMap(Optional::stream)
+        .distinct()
+        .toList();
+  }
+
   /** Whether a user who unsubscribed from {@code unsubscribedTypes} must not receive this type. */
   public static boolean isUnsubscribed(NewsFeedType type, String[] unsubscribedTypes) {
     if (unsubscribedTypes == null) {
