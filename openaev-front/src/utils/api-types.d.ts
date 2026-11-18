@@ -6131,6 +6131,11 @@ export interface ExportOptionsInput {
   with_variable_values?: boolean;
 }
 
+export interface FactOutput {
+  fact_key?: string;
+  fact_value?: string;
+}
+
 export interface FileDrop {
   file_drop_file: string;
   listened?: boolean;
@@ -8208,6 +8213,7 @@ export interface ListPerspective {
 }
 
 export interface LocalObjectOutput {
+  object_facts?: FactOutput[];
   object_id?: string;
   object_key?: string;
   object_name?: string;

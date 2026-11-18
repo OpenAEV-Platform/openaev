@@ -3,9 +3,14 @@ package io.openaev.xtm.counterpart;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.repository.AssetRepository;
+import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.ExerciseRepository.ScenarioSimulationsRow;
+import io.openaev.database.repository.FindingRepository;
+import io.openaev.database.repository.FindingRepository.FindingCountRow;
 import io.openaev.database.repository.InjectExpectationTraceRepository;
 import io.openaev.database.repository.InjectExpectationTraceRepository.AlertInjectRow;
 import io.openaev.database.repository.ScenarioRepository;
@@ -13,6 +18,7 @@ import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -36,8 +42,26 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class LocalObjectService {
 
-  /** One object of this OpenAEV matching a key. */
-  public record LocalObject(String key, String id, String type, String name, String url) {}
+  /**
+   * One key fact of a matched object, shown next to the pivot by the product that asked: a stable
+   * key the caller translates (findings, affected_assets, simulations, last_simulation) and its
+   * value as text (a count, or an ISO-8601 instant).
+   */
+  public record Fact(String key, String value) {}
+
+  /** One object of this OpenAEV matching a key, with its key facts. */
+  public record LocalObject(
+      String key, String id, String type, String name, String url, List<Fact> facts) {
+
+    public LocalObject(String key, String id, String type, String name, String url) {
+      this(key, id, type, name, url, List.of());
+    }
+  }
+
+  static final String FACT_FINDINGS = "findings";
+  static final String FACT_AFFECTED_ASSETS = "affected_assets";
+  static final String FACT_SIMULATIONS = "simulations";
+  static final String FACT_LAST_SIMULATION = "last_simulation";
 
   private final OpenAEVConfig openAEVConfig;
   private final AssetRepository assetRepository;
@@ -45,6 +69,8 @@ public class LocalObjectService {
   private final VulnerabilityService vulnerabilityService;
   private final ScenarioRepository scenarioRepository;
   private final InjectExpectationTraceRepository injectExpectationTraceRepository;
+  private final FindingRepository findingRepository;
+  private final ExerciseRepository exerciseRepository;
 
   public List<LocalObject> find(CounterpartKind kind, Collection<String> keys) {
     Set<String> normalised = normalise(kind, keys);
@@ -76,18 +102,34 @@ public class LocalObjectService {
 
   private List<LocalObject> assets(Set<String> hostnames) {
     // Hostnames are stored lower-case (Asset#setHostname), the ASSET kind normalises the same way.
-    Map<String, LocalObject> byKey = new LinkedHashMap<>();
+    Map<String, Asset> byKey = new LinkedHashMap<>();
     for (Asset asset : assetRepository.findAllByHostnameIn(hostnames)) {
-      byKey.putIfAbsent(
-          asset.getHostname(),
+      byKey.putIfAbsent(asset.getHostname(), asset);
+    }
+    if (byKey.isEmpty()) {
+      return List.of();
+    }
+    // One grouped read for the findings of every matched asset.
+    Map<String, Long> findings = new HashMap<>();
+    for (FindingCountRow row :
+        findingRepository.countFindingsByAssetIdIn(
+            byKey.values().stream().map(Asset::getId).toList())) {
+      findings.put(row.getObjectKey(), row.getFindings());
+    }
+    List<LocalObject> out = new ArrayList<>();
+    for (Asset asset : byKey.values()) {
+      out.add(
           new LocalObject(
               asset.getHostname(),
               asset.getId(),
               "asset",
               asset.getName(),
-              link("/admin/assets/" + asset.getId())));
+              link("/admin/assets/" + asset.getId()),
+              List.of(
+                  new Fact(
+                      FACT_FINDINGS, String.valueOf(findings.getOrDefault(asset.getId(), 0L))))));
     }
-    return new ArrayList<>(byKey.values());
+    return out;
   }
 
   private List<LocalObject> attackPatterns(Set<String> mitreIds) {
@@ -107,37 +149,75 @@ public class LocalObjectService {
   }
 
   private List<LocalObject> vulnerabilities(Set<String> cves) {
-    Map<String, LocalObject> byKey = new LinkedHashMap<>();
+    Map<String, Vulnerability> byKey = new LinkedHashMap<>();
     for (Vulnerability v : vulnerabilityService.getVulnerabilitiesByExternalIds(cves)) {
-      String key = v.getExternalId().toUpperCase(Locale.ROOT);
-      byKey.putIfAbsent(
-          key,
-          new LocalObject(
-              key,
-              v.getId(),
-              "vulnerability",
-              v.getExternalId(),
-              link("/admin/settings/taxonomies/vulnerabilities")));
+      byKey.putIfAbsent(v.getExternalId().toUpperCase(Locale.ROOT), v);
     }
-    return new ArrayList<>(byKey.values());
+    if (byKey.isEmpty()) {
+      return List.of();
+    }
+    // One grouped read: the CVE findings of the simulations, and the assets they were found on.
+    Map<String, FindingCountRow> findings = new HashMap<>();
+    for (FindingCountRow row :
+        findingRepository.countFindingsByTypeAndValueIn(ContractOutputType.CVE, byKey.keySet())) {
+      findings.put(row.getObjectKey(), row);
+    }
+    List<LocalObject> out = new ArrayList<>();
+    byKey.forEach(
+        (key, v) -> {
+          FindingCountRow row = findings.get(key);
+          out.add(
+              new LocalObject(
+                  key,
+                  v.getId(),
+                  "vulnerability",
+                  v.getExternalId(),
+                  link("/admin/settings/taxonomies/vulnerabilities"),
+                  List.of(
+                      new Fact(FACT_FINDINGS, String.valueOf(row == null ? 0 : row.getFindings())),
+                      new Fact(
+                          FACT_AFFECTED_ASSETS,
+                          String.valueOf(row == null ? 0 : row.getAssets())))));
+        });
+    return out;
   }
 
   private List<LocalObject> scenarios(Set<String> stixIds) {
     // A scenario generated from OpenCTI knowledge keeps the STIX id it came from as its external
     // reference; several scenarios may share it, the first (most recent) one is the pivot.
-    Map<String, LocalObject> byKey = new LinkedHashMap<>();
+    Map<String, Scenario> byKey = new LinkedHashMap<>();
     for (Scenario s :
         scenarioRepository.findAllByExternalReferenceInOrderByUpdatedAtDesc(stixIds)) {
-      byKey.putIfAbsent(
-          s.getExternalReference(),
+      byKey.putIfAbsent(s.getExternalReference(), s);
+    }
+    if (byKey.isEmpty()) {
+      return List.of();
+    }
+    // One grouped read: how many simulations each pivot scenario ran, and when the latest started.
+    Map<String, ScenarioSimulationsRow> runs = new HashMap<>();
+    for (ScenarioSimulationsRow row :
+        exerciseRepository.countSimulationsByScenarioIdIn(
+            byKey.values().stream().map(Scenario::getId).toList())) {
+      runs.put(row.getScenarioId(), row);
+    }
+    List<LocalObject> out = new ArrayList<>();
+    for (Scenario s : byKey.values()) {
+      ScenarioSimulationsRow row = runs.get(s.getId());
+      List<Fact> facts = new ArrayList<>();
+      facts.add(new Fact(FACT_SIMULATIONS, String.valueOf(row == null ? 0 : row.getSimulations())));
+      if (row != null && row.getLastStart() != null) {
+        facts.add(new Fact(FACT_LAST_SIMULATION, row.getLastStart().toString()));
+      }
+      out.add(
           new LocalObject(
               s.getExternalReference(),
               s.getId(),
               "scenario",
               s.getName(),
-              link("/admin/scenarios/" + s.getId())));
+              link("/admin/scenarios/" + s.getId()),
+              List.copyOf(facts)));
     }
-    return new ArrayList<>(byKey.values());
+    return out;
   }
 
   private List<LocalObject> alerts(Set<String> alertLinks) {
