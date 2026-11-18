@@ -171,7 +171,7 @@ public class ExerciseService {
   // Lazy: PermissionService reaches the services this one is built from.
   private final ObjectProvider<PermissionService> permissionServiceProvider;
 
-  private final FindingRepository findingRepository;
+  private final io.openaev.service.finding.FindingDetachService findingDetachService;
 
   // region properties
   @Resource private PlatformMailSender platformMailSender;
@@ -789,7 +789,7 @@ public class ExerciseService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteById(TxCtx ctx, String simulationId) {
-    deleteById(ctx, simulationId, false);
+    delete(exercise(ctx, simulationId), false);
   }
 
   /**
@@ -831,7 +831,7 @@ public class ExerciseService {
 
     if (keepFindings) {
       // Right before the native delete: finding_inject_id_fk would otherwise cascade to them
-      findingRepository.detachFromSimulations(List.of(simulationId));
+      findingDetachService.detachFromSimulations(List.of(simulationId));
     }
     exerciseRepository.deleteById(simulationId);
     // The repository delete is a native query: no JPA lifecycle event fires, so the search engine

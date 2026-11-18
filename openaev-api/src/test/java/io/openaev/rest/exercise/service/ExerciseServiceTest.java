@@ -103,7 +103,7 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private InjectExpectationMapper injectExpectationMapper;
   @Mock private AttackPathExecutionIngestionService attackPathExecutionService;
   @Mock private AutonomousRunRepository autonomousRunRepository;
-  @Mock private io.openaev.database.repository.FindingRepository findingRepository;
+  @Mock private io.openaev.service.finding.FindingDetachService findingDetachService;
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
   @Autowired private ObjectProvider<PermissionService> permissionServiceProvider;
   @Autowired private WorkflowEndService workflowEndService;
@@ -154,7 +154,7 @@ class ExerciseServiceTest extends IntegrationTest {
         attackPathExecutionService,
         autonomousRunRepository,
         permissionServiceProvider,
-        findingRepository);
+        findingDetachService);
 
     scenarioComposer.reset();
     exerciseComposer.reset();

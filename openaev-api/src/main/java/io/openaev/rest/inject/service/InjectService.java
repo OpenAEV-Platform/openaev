@@ -134,7 +134,7 @@ public class InjectService {
   private final InjectRepository injectRepository;
   private final InjectAuthorisationRepository injectAuthorisationRepository;
   private final InjectDocumentRepository injectDocumentRepository;
-  private final io.openaev.database.repository.FindingRepository findingRepository;
+  private final io.openaev.service.finding.FindingDetachService findingDetachService;
   private final GrantRepository grantRepository;
   private final InjectorService injectorService;
   private final InjectStatusRepository injectStatusRepository;
@@ -544,7 +544,7 @@ public class InjectService {
 
   @Transactional(rollbackFor = Exception.class)
   public void deleteAllByIds(TxCtx ctx, List<String> injectIds) {
-    deleteAllByIds(ctx, injectIds, false);
+    deleteInjects(injectIds, false);
   }
 
   /**
@@ -555,9 +555,14 @@ public class InjectService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteAllByIds(TxCtx ctx, List<String> injectIds, boolean keepFindings) {
+    deleteInjects(injectIds, keepFindings);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points (no self-invocation).
+  private void deleteInjects(List<String> injectIds, boolean keepFindings) {
     if (!CollectionUtils.isEmpty(injectIds)) {
       if (keepFindings) {
-        findingRepository.detachFromInjects(injectIds);
+        findingDetachService.detachFromInjects(injectIds);
       }
       injectRepository.deleteByAllIdsNative(injectIds);
       // Native delete: no JPA lifecycle event fires, notify the search engine explicitly so the
@@ -870,7 +875,7 @@ public class InjectService {
 
   @Transactional
   public void delete(String id) {
-    delete(id, false);
+    deleteInject(id, false);
   }
 
   /**
@@ -881,10 +886,15 @@ public class InjectService {
    */
   @Transactional
   public void delete(String id, boolean keepFindings) {
+    deleteInject(id, keepFindings);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points (no self-invocation).
+  private void deleteInject(String id, boolean keepFindings) {
     if (keepFindings) {
       // Clears the session: the inject is loaded again without the detached findings, so its
       // cascade (Inject.findings) no longer removes them.
-      findingRepository.detachFromInjects(List.of(id));
+      findingDetachService.detachFromInjects(List.of(id));
     }
     injectRepository.deleteById(id);
   }

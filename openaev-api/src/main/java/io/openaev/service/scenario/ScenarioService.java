@@ -178,7 +178,7 @@ public class ScenarioService {
   private final org.springframework.beans.factory.ObjectProvider<PermissionService>
       permissionServiceProvider;
 
-  private final io.openaev.database.repository.FindingRepository findingRepository;
+  private final io.openaev.service.finding.FindingDetachService findingDetachService;
 
   // -- CREATE --
 
@@ -782,7 +782,7 @@ public class ScenarioService {
 
   @Transactional(rollbackFor = Exception.class)
   public void deleteScenario(@NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
-    deleteScenario(ctx, scenarioId, false);
+    deleteScenarioInScope(ctx, scenarioId, false);
   }
 
   /**
@@ -794,9 +794,15 @@ public class ScenarioService {
   @Transactional(rollbackFor = Exception.class)
   public void deleteScenario(
       @NotNull final TxCtx ctx, @NotBlank final String scenarioId, final boolean keepFindings) {
+    deleteScenarioInScope(ctx, scenarioId, keepFindings);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points (no self-invocation).
+  private void deleteScenarioInScope(
+      final TxCtx ctx, final String scenarioId, final boolean keepFindings) {
     existsInScope(ctx, scenarioId);
     if (keepFindings) {
-      this.findingRepository.detachFromScenarios(List.of(scenarioId));
+      this.findingDetachService.detachFromScenarios(List.of(scenarioId));
     }
     this.scenarioRepository.deleteById(scenarioId);
   }
@@ -889,7 +895,7 @@ public class ScenarioService {
                   this.autonomousRunServiceProvider.getObject();
               chunk.forEach(autonomousRunService::deleteForScenarioForce);
               if (input.isKeepFindings()) {
-                this.findingRepository.detachFromScenarios(chunk);
+                this.findingDetachService.detachFromScenarios(chunk);
               }
               this.scenarioRepository.deleteAll(this.scenarioRepository.findAllById(chunk));
             });
