@@ -10,6 +10,7 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.xtm.counterpart.form.CounterpartLookupInput;
 import io.openaev.xtm.counterpart.form.CounterpartOutput;
+import io.openaev.xtm.counterpart.form.LocalObjectOutput;
 import io.openaev.xtm.counterpart.form.XtmConnectionOutput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,6 +33,7 @@ public class CounterpartApi extends RestBehavior {
   public static final String XTM_API = TENANT_PREFIX + "/xtm";
 
   private final CounterpartService counterpartService;
+  private final LocalObjectService localObjectService;
 
   @LogExecutionTime
   @GetMapping("/connections")
@@ -92,6 +94,56 @@ public class CounterpartApi extends RestBehavior {
   public List<CounterpartOutput> alerts(
       TxCtx ctx, @PathVariable String tenantId, @Valid @RequestBody CounterpartLookupInput input) {
     return lookup(tenantId, CounterpartKind.ALERT, input);
+  }
+
+  // -- REVERSE LOOKUP: what another XTM product asks of this OpenAEV --
+  // OpenCTI calls these with the keys of its own objects to show "Open in OpenAEV". Each read is
+  // guarded by the right to search the kind, and runs in the caller's tenant scope.
+
+  @LogExecutionTime
+  @PostMapping("/objects/assets")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  @Operation(summary = "Find our assets by hostname, for another XTM product")
+  public List<LocalObjectOutput> localAssets(
+      TxCtx ctx, @PathVariable String tenantId, @Valid @RequestBody CounterpartLookupInput input) {
+    return local(CounterpartKind.ASSET, input);
+  }
+
+  @LogExecutionTime
+  @PostMapping("/objects/attack-patterns")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
+  @Operation(summary = "Find our attack patterns by MITRE id, for another XTM product")
+  public List<LocalObjectOutput> localAttackPatterns(
+      TxCtx ctx, @PathVariable String tenantId, @Valid @RequestBody CounterpartLookupInput input) {
+    return local(CounterpartKind.ATTACK_PATTERN, input);
+  }
+
+  @LogExecutionTime
+  @PostMapping("/objects/vulnerabilities")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.VULNERABILITY)
+  @Operation(summary = "Find our vulnerabilities by CVE id, for another XTM product")
+  public List<LocalObjectOutput> localVulnerabilities(
+      TxCtx ctx, @PathVariable String tenantId, @Valid @RequestBody CounterpartLookupInput input) {
+    return local(CounterpartKind.VULNERABILITY, input);
+  }
+
+  @LogExecutionTime
+  @PostMapping("/objects/threats")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
+  @Operation(summary = "Find our scenarios generated from the given STIX ids")
+  public List<LocalObjectOutput> localThreats(
+      TxCtx ctx, @PathVariable String tenantId, @Valid @RequestBody CounterpartLookupInput input) {
+    return local(CounterpartKind.THREAT, input);
+  }
+
+  private List<LocalObjectOutput> local(CounterpartKind kind, CounterpartLookupInput input) {
+    return localObjectService.find(kind, input.keys()).stream()
+        .map(LocalObjectOutput::from)
+        .toList();
   }
 
   private List<CounterpartOutput> lookup(
