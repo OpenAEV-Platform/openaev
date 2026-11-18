@@ -37,7 +37,6 @@ const StarterPackDashboardsRestore: FunctionComponent<Props> = ({ onRestored }) 
       display: 'flex',
       flexDirection: 'column',
       gap: theme.spacing(1),
-      marginTop: theme.spacing(2.5),
     }}
     >
       <span>{t('Re-create the starter pack dashboards that were deleted, under their original names, and set the empty default dashboards back. Existing dashboards are kept.')}</span>

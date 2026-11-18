@@ -137,10 +137,15 @@ const TenantParameters = () => {
                 }}
                 canNotManage={cannotManage}
               />
-              {!cannotManage && ability.can(ACTIONS.MANAGE, SUBJECTS.DASHBOARDS) && (
-                <StarterPackDashboardsRestore onRestored={() => dispatch(fetchTenantSettings())} />
-              )}
             </Paper>
+            {!cannotManage && ability.can(ACTIONS.MANAGE, SUBJECTS.DASHBOARDS) && (
+              <div style={{ marginTop: theme.spacing(3) }}>
+                <SectionLabel>{t('Starter pack dashboards')}</SectionLabel>
+                <Paper padding={16}>
+                  <StarterPackDashboardsRestore onRestored={() => dispatch(fetchTenantSettings())} />
+                </Paper>
+              </div>
+            )}
           </div>
           <div style={{
             display: 'flex',
