@@ -1,0 +1,10 @@
+io/openaev/api/catalog/**/*Test.java
+io/openaev/api/stix_process/**/*Test.java
+io/openaev/api/url_access_token/**/*Test.java
+io/openaev/api/xtmhub/**/*Test.java
+io/openaev/expectation/**/*Test.java
+io/openaev/integration/**/*Test.java
+io/openaev/rest/inject/InjectTagsSerializationTenantScopeTest.java
+io/openaev/rest/lessons_template/**/*Test.java
+io/openaev/rest/mitigation/**/*Test.java
+io/openaev/stix/**/*Test.java
