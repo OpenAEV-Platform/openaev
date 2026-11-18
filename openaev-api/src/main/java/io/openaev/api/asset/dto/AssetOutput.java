@@ -9,6 +9,7 @@ import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.AssetCriticality;
 import io.openaev.database.model.AssetSubCategory;
 import io.openaev.database.model.Endpoint;
+import io.openaev.utils.mapper.EndpointMapper;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Set;
@@ -60,6 +61,10 @@ public class AssetOutput {
   @JsonProperty("asset_tags")
   private Set<String> tags;
 
+  @Schema(description = "Marking definition ids carried by the asset")
+  @JsonProperty("asset_markings")
+  private Set<String> markings;
+
   @Schema(description = "Hostname (network-reachable assets)")
   @JsonProperty("asset_hostname")
   private String hostname;
@@ -88,6 +93,7 @@ public class AssetOutput {
         .subcategory(asset.getSubcategory())
         .criticality(asset.getCriticality())
         .tags(asset.getTags().stream().map(tag -> tag.getId()).collect(Collectors.toSet()))
+        .markings(EndpointMapper.toMarkingIds(asset))
         .hostname(asset.getHostname())
         .platform(unproxied instanceof Endpoint endpoint ? endpoint.getPlatform() : null)
         .aiTargetProvider(asset.getAiTargetProvider())
