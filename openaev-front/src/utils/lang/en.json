@@ -4728,5 +4728,11 @@
   "The graph could not be loaded": "The graph could not be loaded",
   "Undo": "Undo",
   "Unpin": "Unpin",
-  "Exposure hot paths": "Exposure hot paths"
+  "Exposure hot paths": "Exposure hot paths",
+  "Attack step": "Attack step",
+  "Identity of": "Identity of",
+  "In team": "In team",
+  "Linked to": "Linked to",
+  "Team of": "Team of",
+  "Works for": "Works for"
 }

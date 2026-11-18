@@ -1,6 +1,9 @@
 import {
   BugReportOutlined,
   DnsOutlined,
+  DomainOutlined,
+  GroupsOutlined,
+  PersonOutlined,
   PlayCircleOutlineOutlined,
   RouteOutlined,
 } from '@mui/icons-material';
@@ -17,6 +20,9 @@ const NODE_ICON: Record<GraphNodeType, () => ReactElement> = {
   INJECT: () => <Target fontSize="small" />,
   SIMULATION: () => <PlayCircleOutlineOutlined fontSize="small" />,
   SCENARIO: () => <RouteOutlined fontSize="small" />,
+  PERSON: () => <PersonOutlined fontSize="small" />,
+  ORGANIZATION: () => <DomainOutlined fontSize="small" />,
+  TEAM: () => <GroupsOutlined fontSize="small" />,
 };
 
 export default NODE_ICON;

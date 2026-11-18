@@ -4728,5 +4728,11 @@
   "The graph could not be loaded": "Impossibile caricare il grafo",
   "Undo": "Annulla",
   "Unpin": "Sblocca",
-  "Exposure hot paths": "Percorsi critici di esposizione"
+  "Exposure hot paths": "Percorsi critici di esposizione",
+  "Attack step": "Fase di attacco",
+  "Identity of": "Identità di",
+  "In team": "Nel team",
+  "Linked to": "Collegato a",
+  "Team of": "Team di",
+  "Works for": "Lavora per"
 }

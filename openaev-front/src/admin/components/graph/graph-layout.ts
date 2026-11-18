@@ -18,6 +18,10 @@ const TIER: Record<GraphNodeType, number> = {
   ASSET_GROUP: 3,
   ASSET: 4,
   FINDING: 5,
+  // People of #9447 hang below the assets their identities are: person, then team, then organization.
+  PERSON: 5,
+  TEAM: 6,
+  ORGANIZATION: 7,
 };
 
 /** Breadth-first distance from the focus over undirected edges; unreachable nodes get the max + 1. */

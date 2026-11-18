@@ -4728,5 +4728,11 @@
   "The graph could not be loaded": "Le graphe n'a pas pu être chargé",
   "Undo": "Annuler",
   "Unpin": "Désépingler",
-  "Exposure hot paths": "Chemins d'exposition critiques"
+  "Exposure hot paths": "Chemins d'exposition critiques",
+  "Attack step": "Étape d'attaque",
+  "Identity of": "Identité de",
+  "In team": "Dans l'équipe",
+  "Linked to": "Lié à",
+  "Team of": "Équipe de",
+  "Works for": "Travaille pour"
 }

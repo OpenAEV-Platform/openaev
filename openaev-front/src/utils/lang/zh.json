@@ -4728,5 +4728,11 @@
   "The graph could not be loaded": "无法加载图",
   "Undo": "撤销",
   "Unpin": "取消固定",
-  "Exposure hot paths": "暴露热点路径"
+  "Exposure hot paths": "暴露热点路径",
+  "Attack step": "攻击步骤",
+  "Identity of": "身份",
+  "In team": "所在团队",
+  "Linked to": "关联到",
+  "Team of": "组织团队",
+  "Works for": "就职于"
 }

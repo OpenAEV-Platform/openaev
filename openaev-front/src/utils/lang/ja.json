@@ -4728,5 +4728,11 @@
   "The graph could not be loaded": "グラフを読み込めませんでした",
   "Undo": "元に戻す",
   "Unpin": "固定解除",
-  "Exposure hot paths": "露出ホットパス"
+  "Exposure hot paths": "露出ホットパス",
+  "Attack step": "攻撃ステップ",
+  "Identity of": "アイデンティティ",
+  "In team": "チーム所属",
+  "Linked to": "リンク先",
+  "Team of": "組織のチーム",
+  "Works for": "所属組織"
 }

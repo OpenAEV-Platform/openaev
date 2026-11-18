@@ -4728,5 +4728,11 @@
   "The graph could not be loaded": "Не удалось загрузить граф",
   "Undo": "Отменить",
   "Unpin": "Открепить",
-  "Exposure hot paths": "Критические пути воздействия"
+  "Exposure hot paths": "Критические пути воздействия",
+  "Attack step": "Шаг атаки",
+  "Identity of": "Учётная запись",
+  "In team": "В команде",
+  "Linked to": "Связан с",
+  "Team of": "Команда организации",
+  "Works for": "Работает в"
 }

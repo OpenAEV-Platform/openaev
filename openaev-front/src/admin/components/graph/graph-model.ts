@@ -1,8 +1,9 @@
 // Types of the exploration graph API (#9388), mirroring io.openaev.api.graph.dto.
 
-export type GraphNodeType = 'ASSET' | 'ASSET_GROUP' | 'FINDING' | 'INJECT' | 'SIMULATION' | 'SCENARIO';
+export type GraphNodeType = 'ASSET' | 'ASSET_GROUP' | 'FINDING' | 'INJECT' | 'SIMULATION' | 'SCENARIO' | 'PERSON' | 'ORGANIZATION' | 'TEAM';
 
-export type GraphEdgeType = 'MEMBER_OF' | 'FOUND_ON' | 'PRODUCED' | 'TARGETS' | 'PART_OF' | 'RUN_OF';
+export type GraphEdgeType = 'MEMBER_OF' | 'FOUND_ON' | 'PRODUCED' | 'TARGETS' | 'PART_OF' | 'RUN_OF'
+  | 'IDENTITY_OF' | 'WORKS_FOR' | 'IN_TEAM' | 'TEAM_OF' | 'LINKED_TO' | 'ATTACK_STEP';
 
 export type GraphResult = 'SUCCESS' | 'PENDING' | 'FAILED';
 
@@ -33,9 +34,12 @@ export interface GraphOutput {
   graph_path: string[];
 }
 
-export const ALL_NODE_TYPES: GraphNodeType[] = ['ASSET', 'ASSET_GROUP', 'FINDING', 'INJECT', 'SIMULATION', 'SCENARIO'];
+export const ALL_NODE_TYPES: GraphNodeType[] = ['ASSET', 'ASSET_GROUP', 'FINDING', 'INJECT', 'SIMULATION', 'SCENARIO', 'PERSON', 'ORGANIZATION', 'TEAM'];
 
-export const ALL_EDGE_TYPES: GraphEdgeType[] = ['MEMBER_OF', 'FOUND_ON', 'PRODUCED', 'TARGETS', 'PART_OF', 'RUN_OF'];
+export const ALL_EDGE_TYPES: GraphEdgeType[] = [
+  'MEMBER_OF', 'FOUND_ON', 'PRODUCED', 'TARGETS', 'PART_OF', 'RUN_OF',
+  'IDENTITY_OF', 'WORKS_FOR', 'IN_TEAM', 'TEAM_OF', 'LINKED_TO', 'ATTACK_STEP',
+];
 
 export const ALL_RESULTS: GraphResult[] = ['FAILED', 'PENDING', 'SUCCESS'];
 
@@ -47,6 +51,9 @@ export const NODE_TYPE_LABEL: Record<GraphNodeType, string> = {
   INJECT: 'Inject',
   SIMULATION: 'Simulation',
   SCENARIO: 'Scenario',
+  PERSON: 'Person',
+  ORGANIZATION: 'Organization',
+  TEAM: 'Team',
 };
 
 /** Catalog keys of the relation types. */
@@ -57,6 +64,12 @@ export const EDGE_TYPE_LABEL: Record<GraphEdgeType, string> = {
   TARGETS: 'Targets',
   PART_OF: 'Part of',
   RUN_OF: 'Run of',
+  IDENTITY_OF: 'Identity of',
+  WORKS_FOR: 'Works for',
+  IN_TEAM: 'In team',
+  TEAM_OF: 'Team of',
+  LINKED_TO: 'Linked to',
+  ATTACK_STEP: 'Attack step',
 };
 
 export const RESULT_LABEL: Record<GraphResult, string> = {
@@ -90,6 +103,12 @@ export const nodeHref = (node: Pick<GraphNodeOutput, 'node_type' | 'node_entity_
       return `/admin/simulations/${id}`;
     case 'SCENARIO':
       return `/admin/scenarios/${id}`;
+    case 'PERSON':
+      return `/admin/persons/${id}`;
+    case 'ORGANIZATION':
+      return `/admin/organizations/${id}`;
+    case 'TEAM':
+      return `/admin/teams/${id}`;
     default:
       return undefined;
   }

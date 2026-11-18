@@ -304,7 +304,11 @@ const GraphExplorerInner = ({
       stroke = theme.palette.error.main;
     } else if (e.edge_result === 'SUCCESS') {
       stroke = theme.palette.success.main;
+    } else if (e.edge_type === 'ATTACK_STEP') {
+      stroke = theme.palette.warning.main;
     }
+    // An attack-path step (#9447) is drawn dashed so the chain reads apart from the estate links.
+    const isStep = e.edge_type === 'ATTACK_STEP';
     return {
       id: e.edge_id,
       type: 'floating',
@@ -322,7 +326,8 @@ const GraphExplorerInner = ({
       },
       style: {
         stroke,
-        strokeWidth: isPath || isFailed ? 2 : 1,
+        strokeWidth: isPath || isFailed || isStep ? 2 : 1,
+        strokeDasharray: isStep ? '6 4' : undefined,
         opacity: (state.path.length > 0 && !isPath) || (ring !== null && !ring.edgeIds.has(e.edge_id)) ? 0.15 : 1,
         transition: 'opacity 0.2s',
       },
