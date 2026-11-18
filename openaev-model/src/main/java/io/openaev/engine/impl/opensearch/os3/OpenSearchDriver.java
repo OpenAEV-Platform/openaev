@@ -1,6 +1,7 @@
 package io.openaev.engine.impl.opensearch.os3;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.config.EngineConfig;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.repository.IndexingStatusRepository;
@@ -88,7 +89,8 @@ public class OpenSearchDriver {
    * @return the OpenSearchClient
    * @throws URISyntaxException throw an exception in case of a malformed URI
    */
-  private OpenSearchClient standardClient() throws URISyntaxException {
+  @VisibleForTesting
+  OpenSearchClient standardClient() throws URISyntaxException {
     final HttpHost host = HttpHost.create(config.getUrl());
     final ApacheHttpClient5TransportBuilder builder =
         ApacheHttpClient5TransportBuilder.builder(host);

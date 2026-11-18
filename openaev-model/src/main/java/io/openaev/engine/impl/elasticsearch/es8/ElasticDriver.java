@@ -1,6 +1,7 @@
 package io.openaev.engine.impl.elasticsearch.es8;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import es8.co.elastic.clients.elasticsearch.ElasticsearchClient;
 import es8.co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import es8.co.elastic.clients.elasticsearch._types.analysis.CustomNormalizer;
@@ -77,7 +78,8 @@ public class ElasticDriver {
     this.searchEngine = searchEngine;
   }
 
-  private ElasticsearchClient getElasticClient() {
+  @VisibleForTesting
+  ElasticsearchClient getElasticClient() {
     RestClientBuilder restClientBuilder = RestClient.builder(HttpHost.create(config.getUrl()));
     // The library defaults (1s connect / 30s socket timeout, 10 connections per route) are too
     // tight for this platform: during bulk indexing (full reindex after a migration) the async
