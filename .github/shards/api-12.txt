@@ -1,0 +1,12 @@
+io/openaev/api/custom_domain/**/*Test.java
+io/openaev/config/tls/**/*Test.java
+io/openaev/database/model/**/*Test.java
+io/openaev/logging/**/*Test.java
+io/openaev/opencti/**/*Test.java
+io/openaev/output_processor/**/*Test.java
+io/openaev/rest/NonPrefixedCreateTenantPostureTest.java
+io/openaev/rest/inject/InjectAgentTargetCheckTenantScopeTest.java
+io/openaev/rest/inject/InjectExportTest.java
+io/openaev/rest/inject/service/**/*Test.java
+io/openaev/service/chaining/**/*Test.java
+io/openaev/service/settings/**/*Test.java

@@ -1,0 +1,8 @@
+io/openaev/rest/CapabilityDecisionTenantTest.java
+io/openaev/rest/asset/**/*Test.java
+io/openaev/rest/expectation/**/*Test.java
+io/openaev/rest/inject/InjectImplantTenantScopeTest.java
+io/openaev/rest/inject/InjectSecretReferenceSinkTest.java
+io/openaev/rest/vulnerability/**/*Test.java
+io/openaev/telemetry/**/*Test.java
+io/openaev/xtmhub/**/*Test.java
