@@ -140,6 +140,16 @@ public class CounterpartApi extends RestBehavior {
     return local(CounterpartKind.THREAT, input);
   }
 
+  @LogExecutionTime
+  @PostMapping("/objects/alerts")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
+  @Operation(summary = "Find the injects our collected alerts answered, by alert link")
+  public List<LocalObjectOutput> localAlerts(
+      TxCtx ctx, @PathVariable String tenantId, @Valid @RequestBody CounterpartLookupInput input) {
+    return local(CounterpartKind.ALERT, input);
+  }
+
   private List<LocalObjectOutput> local(CounterpartKind kind, CounterpartLookupInput input) {
     return localObjectService.find(kind, input.keys()).stream()
         .map(LocalObjectOutput::from)

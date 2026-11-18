@@ -6,6 +6,8 @@ import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.repository.AssetRepository;
+import io.openaev.database.repository.InjectExpectationTraceRepository;
+import io.openaev.database.repository.InjectExpectationTraceRepository.AlertInjectRow;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
@@ -42,6 +44,7 @@ public class LocalObjectService {
   private final AttackPatternService attackPatternService;
   private final VulnerabilityService vulnerabilityService;
   private final ScenarioRepository scenarioRepository;
+  private final InjectExpectationTraceRepository injectExpectationTraceRepository;
 
   public List<LocalObject> find(CounterpartKind kind, Collection<String> keys) {
     Set<String> normalised = normalise(kind, keys);
@@ -53,8 +56,7 @@ public class LocalObjectService {
       case ATTACK_PATTERN -> attackPatterns(normalised);
       case VULNERABILITY -> vulnerabilities(normalised);
       case THREAT -> scenarios(normalised);
-      // Alerts are collected from security platforms: the other product never asks us for them.
-      case ALERT -> List.of();
+      case ALERT -> alerts(normalised);
     };
   }
 
@@ -134,6 +136,24 @@ public class LocalObjectService {
               "scenario",
               s.getName(),
               link("/admin/scenarios/" + s.getId())));
+    }
+    return new ArrayList<>(byKey.values());
+  }
+
+  private List<LocalObject> alerts(Set<String> alertLinks) {
+    // A collected alert answered an inject expectation: the pivot is that inject, in its
+    // simulation or as an atomic testing. Rows come newest alert first; the first per link wins.
+    Map<String, LocalObject> byKey = new LinkedHashMap<>();
+    for (AlertInjectRow row :
+        injectExpectationTraceRepository.findAlertInjectsByAlertLinkIn(alertLinks)) {
+      String path =
+          row.getExerciseId() == null
+              ? "/admin/atomic_testings/" + row.getInjectId()
+              : "/admin/simulations/" + row.getExerciseId() + "/injects/" + row.getInjectId();
+      byKey.putIfAbsent(
+          row.getAlertLink(),
+          new LocalObject(
+              row.getAlertLink(), row.getInjectId(), "inject", row.getInjectTitle(), link(path)));
     }
     return new ArrayList<>(byKey.values());
   }

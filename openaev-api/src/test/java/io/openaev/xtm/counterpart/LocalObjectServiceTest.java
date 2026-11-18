@@ -12,6 +12,8 @@ import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.repository.AssetRepository;
+import io.openaev.database.repository.InjectExpectationTraceRepository;
+import io.openaev.database.repository.InjectExpectationTraceRepository.AlertInjectRow;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
@@ -29,6 +31,7 @@ class LocalObjectServiceTest {
   private AttackPatternService attackPatterns;
   private VulnerabilityService vulnerabilities;
   private ScenarioRepository scenarios;
+  private InjectExpectationTraceRepository traces;
   private LocalObjectService service;
 
   @BeforeEach
@@ -39,7 +42,9 @@ class LocalObjectServiceTest {
     attackPatterns = mock(AttackPatternService.class);
     vulnerabilities = mock(VulnerabilityService.class);
     scenarios = mock(ScenarioRepository.class);
-    service = new LocalObjectService(config, assets, attackPatterns, vulnerabilities, scenarios);
+    traces = mock(InjectExpectationTraceRepository.class);
+    service =
+        new LocalObjectService(config, assets, attackPatterns, vulnerabilities, scenarios, traces);
   }
 
   @Test
@@ -113,11 +118,67 @@ class LocalObjectServiceTest {
   }
 
   @Test
-  @DisplayName("blank keys and alerts read nothing")
-  void blankAndAlert() {
+  @DisplayName("blank keys read nothing")
+  void blankKeys() {
     assertThat(service.find(CounterpartKind.ASSET, List.of(" ", ""))).isEmpty();
-    assertThat(service.find(CounterpartKind.ALERT, List.of("https://edr/alert/1"))).isEmpty();
-    verifyNoInteractions(assets, attackPatterns, vulnerabilities, scenarios);
+    assertThat(service.find(CounterpartKind.ALERT, List.of(" "))).isEmpty();
+    verifyNoInteractions(assets, attackPatterns, vulnerabilities, scenarios, traces);
+  }
+
+  @Test
+  @DisplayName("an alert link resolves to the inject of its newest trace, in its simulation")
+  void alertToSimulationInject() {
+    when(traces.findAlertInjectsByAlertLinkIn(Set.of("https://edr/alert/1")))
+        .thenReturn(
+            List.of(
+                row("https://edr/alert/1", "i-new", "Dump LSASS", "x-1"),
+                row("https://edr/alert/1", "i-old", "Older", "x-0")));
+
+    List<LocalObject> found = service.find(CounterpartKind.ALERT, List.of(" https://edr/alert/1 "));
+
+    assertThat(found)
+        .containsExactly(
+            new LocalObject(
+                "https://edr/alert/1",
+                "i-new",
+                "inject",
+                "Dump LSASS",
+                "https://aev.example/admin/simulations/x-1/injects/i-new"));
+  }
+
+  @Test
+  @DisplayName("an alert of an atomic testing links to the atomic testing")
+  void alertToAtomicTesting() {
+    when(traces.findAlertInjectsByAlertLinkIn(any()))
+        .thenReturn(List.of(row("https://siem/a/9", "i-9", "Atomic", null)));
+
+    assertThat(service.find(CounterpartKind.ALERT, List.of("https://siem/a/9")).getFirst().url())
+        .isEqualTo("https://aev.example/admin/atomic_testings/i-9");
+  }
+
+  private static AlertInjectRow row(
+      String alertLink, String injectId, String injectTitle, String exerciseId) {
+    return new AlertInjectRow() {
+      @Override
+      public String getAlertLink() {
+        return alertLink;
+      }
+
+      @Override
+      public String getInjectId() {
+        return injectId;
+      }
+
+      @Override
+      public String getInjectTitle() {
+        return injectTitle;
+      }
+
+      @Override
+      public String getExerciseId() {
+        return exerciseId;
+      }
+    };
   }
 
   @Test
