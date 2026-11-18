@@ -107,6 +107,40 @@ const radial = (nodes: GraphNodeOutput[], edges: GraphEdgeOutput[], focus?: stri
 export const MIN_NODE_DX = 150;
 export const MIN_NODE_DY = 90;
 
+/** Half the vertical distance between the two rows of the mini layout. */
+const MINI_ROW = 60;
+
+/**
+ * The layout of the mini graph card (a wide, short strip on an Overview): the focus in the centre,
+ * its neighbours on two rows spreading out to the right and the left, closest first (ordered by
+ * type then label). The strip stays about 180 px high whatever the count, so the card shows it at
+ * zoom 1 with readable labels; the outer columns of a large ring are clipped by the card.
+ */
+export const miniLayout = (nodes: GraphNodeOutput[], focus?: string | null): Map<string, Point> => {
+  const positions = new Map<string, Point>();
+  const centre = focus && nodes.some(n => n.node_id === focus) ? focus : nodes[0]?.node_id;
+  if (!centre) {
+    return positions;
+  }
+  positions.set(centre, {
+    x: 0,
+    y: 0,
+  });
+  nodes
+    .filter(n => n.node_id !== centre)
+    .sort((a, b) => TIER[a.node_type] - TIER[b.node_type] || byLabel(a, b))
+    .forEach((n, i) => {
+      const slot = Math.floor(i / 2);
+      const side = slot % 2 === 0 ? 1 : -1;
+      const column = Math.floor(slot / 2) + 1;
+      positions.set(n.node_id, {
+        x: side * column * MIN_NODE_DX,
+        y: i % 2 === 0 ? -MINI_ROW : MINI_ROW,
+      });
+    });
+  return positions;
+};
+
 /**
  * Pushes overlapping nodes apart along the axis of least overlap until no two node boxes overlap
  * (bounded passes): many parallel edges between few nodes make the force step pull them closer

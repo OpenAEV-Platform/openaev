@@ -56,7 +56,7 @@ import { fetchGraphNeighbourhood, fetchGraphPath } from '../../../actions/graph/
 import { useFormatter } from '../../../components/i18n';
 import { NODE_LABEL_OFFSET, NODE_WIDTH } from './graph-edge-geometry';
 import NODE_ICON from './graph-icons';
-import { entering, type GraphLayout, interpolate, layoutFrames, type Point } from './graph-layout';
+import { entering, type GraphLayout, interpolate, layoutFrames, miniLayout, type Point } from './graph-layout';
 import {
   ALL_EDGE_TYPES,
   ALL_NODE_TYPES,
@@ -92,6 +92,8 @@ const PANEL_WIDTH = 340;
 /** A static layout glides to its place in this time; the force layout plays its frames in about twice it. */
 const MOVE_MS = 400;
 const FRAME_MS = 24;
+// Lowest zoom of the mini graph's fit: node labels are 10 px at zoom 1, so they never shrink below it.
+const MINI_MIN_ZOOM = 1;
 
 const nodeTypes = { entity: GraphEntityNode };
 const edgeTypes = { floating: GraphFloatingEdge };
@@ -183,6 +185,14 @@ const GraphExplorerInner = ({
   const [showFailed, setShowFailed] = useState(true);
   const [hovered, setHovered] = useState<string | null>(null);
   const interactive = variant !== 'mini';
+  // The mini graph never fits below MINI_MIN_ZOOM: its labels stay readable (10 px at zoom 1) and an
+  // outer ring that does not fit is clipped by the card, the full graph being one click away.
+  const fitOptions = useMemo(() => (variant === 'mini'
+    ? {
+        padding: 0.15,
+        minZoom: MINI_MIN_ZOOM,
+      }
+    : { padding: 0.15 }), [variant]);
 
   useEffect(() => {
     setState(fromSlice(initial));
@@ -217,7 +227,11 @@ const GraphExplorerInner = ({
   const onPath = useMemo(() => pathEdges(state.path, shownEdges), [state.path, shownEdges]);
   const pathNodes = useMemo(() => new Set(state.path), [state.path]);
   // The frames toward the current layout: the force simulation's steps, or one static placement.
-  const frames = useMemo(() => layoutFrames(layout, shownNodes, shownEdges, state.focus), [layout, shownNodes, shownEdges, state.focus]);
+  // The mini card draws its own short strip (focus centred, neighbours on two rows) so it fits at zoom 1.
+  const frames = useMemo(
+    () => (variant === 'mini' ? [miniLayout(shownNodes, state.focus)] : layoutFrames(layout, shownNodes, shownEdges, state.focus)),
+    [variant, layout, shownNodes, shownEdges, state.focus],
+  );
   const target = frames[frames.length - 1];
   // What is on screen. A layout switch, an expand or a hide moves the nodes from where they are to
   // where they go: the force layout plays its simulation frames (the forces settle visibly), a static
@@ -318,11 +332,11 @@ const GraphExplorerInner = ({
   useEffect(() => {
     // Fit once the move has landed, so the view frames the settled layout.
     const id = window.setTimeout(() => fitView({
-      padding: 0.15,
+      ...fitOptions,
       duration: 300,
     }), layout === 'force' ? Math.max(MOVE_MS, frames.length * FRAME_MS) + 50 : MOVE_MS + 50);
     return () => window.clearTimeout(id);
-  }, [layout, shownNodes.length, fitView, frames.length]);
+  }, [layout, shownNodes.length, fitView, frames.length, fitOptions]);
 
   const expand = async (node: GraphNodeOutput, edges: GraphEdgeType[] = [], limit = 50) => {
     setLoading(true);
@@ -709,8 +723,10 @@ const GraphExplorerInner = ({
           zoomOnDoubleClick={false}
           preventScrolling={interactive}
           minZoom={0.1}
-          onNodeMouseEnter={interactive ? (_, n) => setHovered(n.id) : undefined}
-          onNodeMouseLeave={interactive ? () => setHovered(null) : undefined}
+          // Set on the mini graph too: React Flow gives a node pointer events only when it has a
+          // handler, and the node's tooltip needs the hover (the pane itself stays inert).
+          onNodeMouseEnter={(_, n) => setHovered(n.id)}
+          onNodeMouseLeave={() => setHovered(null)}
           onNodeClick={interactive
             ? (_, n) => {
                 const node = state.nodes[n.id];
@@ -722,7 +738,9 @@ const GraphExplorerInner = ({
               }
             : undefined}
           onNodeDoubleClick={interactive ? (_, n) => expand(state.nodes[n.id]) : undefined}
+          panOnScroll={false}
           fitView
+          fitViewOptions={fitOptions}
         >
           <Background />
           {interactive && <Controls showInteractive={false} style={{ marginLeft: 8 }} />}
@@ -742,8 +760,9 @@ const GraphExplorerInner = ({
       );
 
   // The mini graph of an Overview is a read-only preview whose only action is to open the graph: a
-  // link with a name, in the tab order, opened by Enter as any link (pointer-events stay off the
-  // canvas so nothing inside it takes the click or the scroll).
+  // link with a name, in the tab order, opened by Enter as any link. The pane takes no pointer event
+  // (a wheel scrolls the page, a drag does nothing); the nodes alone take the hover for their tooltip,
+  // and a click on a node bubbles to the link.
   if (variant === 'mini') {
     const focusNode = state.focus ? state.nodes[state.focus] : undefined;
     const href = focusNode ? graphHref(focusNode.node_type, focusNode.node_entity_id) : '/admin/graph';
@@ -771,7 +790,8 @@ const GraphExplorerInner = ({
             'borderRadius': 1,
             'border': `1px solid ${theme.palette.divider}`,
             'cursor': 'pointer',
-            '& .react-flow': { pointerEvents: 'none' },
+            '& .react-flow, & .react-flow__pane': { pointerEvents: 'none' },
+            '& .react-flow__node': { pointerEvents: 'all' },
           }}
         >
           {canvas}
