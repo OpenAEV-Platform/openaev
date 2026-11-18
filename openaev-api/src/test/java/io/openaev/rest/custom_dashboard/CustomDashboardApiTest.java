@@ -48,14 +48,10 @@ class CustomDashboardApiTest extends IntegrationTest {
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
 
+  // The starter pack the tests see: classpath:starterpack/dashboards/*.zip resolves to the test
+  // fixtures (src/test/resources/starterpack/dashboards), named Test 1, Test 2 and Test 3.
   private static final List<String> STARTER_PACK_DASHBOARD_NAMES =
-      List.of(
-          "Tabletop Exercice home",
-          "Tabletop Exercice scenario",
-          "Tabletop Exercice simulation",
-          "Technical home",
-          "Technical scenario",
-          "Technical simulation");
+      List.of("Test 1", "Test 2", "Test 3");
 
   private void setTenantSetting(String key, String value) {
     String tenantId = TenantContext.getCurrentTenant();
@@ -327,23 +323,26 @@ class CustomDashboardApiTest extends IntegrationTest {
       // -- PREPARE: none of the starter-pack dashboards exists, defaults are empty --
       STARTER_PACK_DASHBOARD_NAMES.forEach(
           name -> repository.findByName(name).ifPresent(repository::delete));
+      setTenantSetting(TENANT_HOME_DASHBOARD.key(), "");
       setTenantSetting(TENANT_SCENARIO_DASHBOARD.key(), "");
       setTenantSetting(TENANT_SIMULATION_DASHBOARD.key(), "");
 
-      // -- EXECUTE & ASSERT: the first run creates the six dashboards and sets the defaults --
+      // -- EXECUTE & ASSERT: the first run creates the three dashboards and sets the defaults --
       mockMvc
           .perform(post(CUSTOM_DASHBOARDS_URI + "/starter-pack/restore").with(csrf()))
           .andExpect(status().isOk())
-          .andExpect(jsonPath("$.restored_dashboards.length()").value(6))
+          .andExpect(jsonPath("$.restored_dashboards.length()").value(3))
           .andExpect(jsonPath("$.existing_dashboards.length()").value(0))
-          .andExpect(jsonPath("$.defaults_set.length()").value(2));
+          .andExpect(jsonPath("$.defaults_set.length()").value(3));
 
       STARTER_PACK_DASHBOARD_NAMES.forEach(
           name -> assertThat(repository.findByName(name)).as(name).isPresent());
+      assertThat(tenantSettingValue(TENANT_HOME_DASHBOARD.key()))
+          .isEqualTo(repository.findByName("Test 1").orElseThrow().getId());
       assertThat(tenantSettingValue(TENANT_SCENARIO_DASHBOARD.key()))
-          .isEqualTo(repository.findByName("Technical scenario").orElseThrow().getId());
+          .isEqualTo(repository.findByName("Test 2").orElseThrow().getId());
       assertThat(tenantSettingValue(TENANT_SIMULATION_DASHBOARD.key()))
-          .isEqualTo(repository.findByName("Technical simulation").orElseThrow().getId());
+          .isEqualTo(repository.findByName("Test 3").orElseThrow().getId());
 
       // -- EXECUTE & ASSERT: a second run creates nothing and changes no default --
       long dashboardsAfterFirstRun = repository.count();
@@ -351,7 +350,7 @@ class CustomDashboardApiTest extends IntegrationTest {
           .perform(post(CUSTOM_DASHBOARDS_URI + "/starter-pack/restore").with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.restored_dashboards.length()").value(0))
-          .andExpect(jsonPath("$.existing_dashboards.length()").value(6))
+          .andExpect(jsonPath("$.existing_dashboards.length()").value(3))
           .andExpect(jsonPath("$.defaults_set.length()").value(0));
       assertThat(repository.count()).isEqualTo(dashboardsAfterFirstRun);
     }
@@ -360,6 +359,7 @@ class CustomDashboardApiTest extends IntegrationTest {
     void given_defaults_already_set_should_keep_them() throws Exception {
       // -- PREPARE --
       CustomDashboard custom = createCustomDashboardComposer().get();
+      setTenantSetting(TENANT_HOME_DASHBOARD.key(), custom.getId());
       setTenantSetting(TENANT_SCENARIO_DASHBOARD.key(), custom.getId());
       setTenantSetting(TENANT_SIMULATION_DASHBOARD.key(), custom.getId());
 
@@ -370,6 +370,7 @@ class CustomDashboardApiTest extends IntegrationTest {
           .andExpect(jsonPath("$.defaults_set.length()").value(0));
 
       // -- ASSERT --
+      assertThat(tenantSettingValue(TENANT_HOME_DASHBOARD.key())).isEqualTo(custom.getId());
       assertThat(tenantSettingValue(TENANT_SCENARIO_DASHBOARD.key())).isEqualTo(custom.getId());
       assertThat(tenantSettingValue(TENANT_SIMULATION_DASHBOARD.key())).isEqualTo(custom.getId());
     }
