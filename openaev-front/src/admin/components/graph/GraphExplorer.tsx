@@ -54,6 +54,7 @@ import { Link } from 'react-router';
 
 import { fetchGraphNeighbourhood, fetchGraphPath } from '../../../actions/graph/graph-actions';
 import { useFormatter } from '../../../components/i18n';
+import useCounterpartMatches, { type CounterpartRef, counterpartRefId } from '../../../components/xtm/useCounterpartMatches';
 import OpenCtiPivot from '../../../components/xtm/XtmPivot';
 import { NODE_LABEL_OFFSET, NODE_WIDTH } from './graph-edge-geometry';
 import NODE_ICON from './graph-icons';
@@ -220,6 +221,25 @@ const GraphExplorerInner = ({
   };
 
   const { nodes: shownNodes, edges: shownEdges, matches } = useMemo(() => visibleGraph(state, filters), [state, filters]);
+  // The OpenCTI mark on the canvas: the shown nodes that carry a real identifier (CVE findings)
+  // are looked up in one batch per kind, only when OpenCTI is connected; the mini graph skips it.
+  const counterpartRefs = useMemo(() => {
+    const refs = new Map<string, CounterpartRef>();
+    if (interactive) {
+      shownNodes.forEach((n) => {
+        const ref = nodeCounterpart(n);
+        if (ref) {
+          refs.set(n.node_id, ref);
+        }
+      });
+    }
+    return refs;
+  }, [interactive, shownNodes]);
+  const counterpartRefList = useMemo(() => Array.from(counterpartRefs.values()), [counterpartRefs]);
+  const counterpartMatches = useCounterpartMatches(counterpartRefList);
+  const inOpenCti = useMemo(() => new Set(Array.from(counterpartRefs.entries())
+    .filter(([, ref]) => counterpartMatches.has(counterpartRefId(ref)))
+    .map(([nodeId]) => nodeId)), [counterpartRefs, counterpartMatches]);
   const failed = useMemo(() => {
     if (!showFailed) {
       return NO_HIGHLIGHT;
@@ -293,6 +313,7 @@ const GraphExplorerInner = ({
         || (ring !== null && !ring.nodeIds.has(n.node_id)),
       highlighted: failed.nodeIds.has(n.node_id) && n.node_type !== 'INJECT',
       truncated: state.truncatedAt.includes(n.node_id),
+      inOpenCti: inOpenCti.has(n.node_id),
     },
   }));
 

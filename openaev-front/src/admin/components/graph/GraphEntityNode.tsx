@@ -5,6 +5,7 @@ import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
+import { ProductMark } from '../../../components/xtm/XtmPivot';
 import { LABEL_MARGIN, NODE_CIRCLE_SIZE, NODE_WIDTH } from './graph-edge-geometry';
 import NODE_ICON from './graph-icons';
 import { type GraphNodeOutput, NODE_TYPE_LABEL } from './graph-model';
@@ -17,6 +18,8 @@ export interface GraphEntityNodeData extends Record<string, unknown> {
   dimmed: boolean;
   highlighted: boolean;
   truncated: boolean;
+  /** The node has a counterpart in the connected OpenCTI: a small product mark on its circle. */
+  inOpenCti?: boolean;
 }
 
 export type GraphEntityNodeType = Node<GraphEntityNodeData, 'entity'>;
@@ -26,7 +29,7 @@ const SIZE = NODE_CIRCLE_SIZE;
 const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const { node, focused, pinned, matched, dimmed, highlighted, truncated } = data;
+  const { node, focused, pinned, matched, dimmed, highlighted, truncated, inOpenCti } = data;
   let ring = theme.palette.divider;
   if (node.node_result === 'FAILED') {
     ring = theme.palette.error.main;
@@ -61,6 +64,7 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
                 width: SIZE,
                 height: SIZE,
                 borderRadius: '50%',
+                position: 'relative',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -73,6 +77,23 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
               }}
             >
               <Icon />
+              {inOpenCti && (
+                <Box
+                  data-testid={`graph-node-opencti-${node.node_id}`}
+                  aria-label={t('In OpenCTI')}
+                  sx={{
+                    position: 'absolute',
+                    top: -6,
+                    left: -6,
+                    display: 'flex',
+                    borderRadius: '50%',
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
+                  }}
+                >
+                  <ProductMark size={16} />
+                </Box>
+              )}
             </Box>
           </Badge>
           <Text
@@ -97,7 +118,10 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
           <Handle type="source" position={Position.Bottom} style={{ visibility: 'hidden' }} />
         </Box>
       </TooltipTrigger>
-      <TooltipContent>{`${t(NODE_TYPE_LABEL[node.node_type])}: ${node.node_label}`}</TooltipContent>
+      <TooltipContent>
+        {`${t(NODE_TYPE_LABEL[node.node_type])}: ${node.node_label}`}
+        {inOpenCti ? ` (${t('In OpenCTI')})` : ''}
+      </TooltipContent>
     </Tooltip>
   );
 };
