@@ -435,14 +435,8 @@ public class ThreatArsenalService {
       Specification<InjectorContract> baseSpecification,
       ProvidingFilterSpecificationBuilder.ProvidingFilterContext providingFilterContext,
       Specification<InjectorContract> searchSpecification) {
-    if (!providingFilterContext.hasProvidingFilters()) {
-      return baseSpecification;
-    }
-    if (providingFilterContext.mode() == io.openaev.database.model.Filters.FilterMode.or
-        && providingFilterContext.hasRemainingFilters()) {
-      return baseSpecification.or(providingFilterContext.specification().and(searchSpecification));
-    }
-    return baseSpecification.and(providingFilterContext.specification());
+    return providingFilterSpecificationBuilder.combine(
+        baseSpecification, providingFilterContext, searchSpecification);
   }
 
   /**
