@@ -4688,5 +4688,8 @@
   "YYYY": "YYYY",
   "ZIP must contain a json file": "ZIP must contain a json file",
   "Zoom in": "Zoom in",
-  "Zoom out": "Zoom out"
+  "Zoom out": "Zoom out",
+  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.",
+  "Do you want to stop this atomic testing: {title}?": "Do you want to stop this atomic testing: {title}?",
+  "Stop execution": "Stop execution"
 }
