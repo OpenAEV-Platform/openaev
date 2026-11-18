@@ -59,8 +59,13 @@ public class NotificationTriggerMapper {
             "Notification trigger"));
     trigger.setRecipientUsers(
         resolveAll(input.getRecipientUserIds(), userRepository::findAllById, "User"));
+    // Recipient groups resolve in the tenant the trigger is written into too, never a group of
+    // another tenant of the scope nor a platform group.
     trigger.setRecipientGroups(
-        resolveAll(input.getRecipientGroupIds(), groupRepository::findAllById, "Group"));
+        resolveAll(
+            input.getRecipientGroupIds(),
+            ids -> groupRepository.findAllByIdInTenant(ids, tenantId),
+            "Group"));
     return trigger;
   }
 
