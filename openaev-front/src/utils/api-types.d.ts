@@ -6464,7 +6464,13 @@ export interface GraphEdgeOutput {
     | "PRODUCED"
     | "TARGETS"
     | "PART_OF"
-    | "RUN_OF";
+    | "RUN_OF"
+    | "IDENTITY_OF"
+    | "WORKS_FOR"
+    | "IN_TEAM"
+    | "TEAM_OF"
+    | "LINKED_TO"
+    | "ATTACK_STEP";
 }
 
 export interface GraphNodeOutput {
@@ -6483,7 +6489,10 @@ export interface GraphNodeOutput {
     | "FINDING"
     | "INJECT"
     | "SIMULATION"
-    | "SCENARIO";
+    | "SCENARIO"
+    | "PERSON"
+    | "ORGANIZATION"
+    | "TEAM";
 }
 
 export interface GraphOutput {
