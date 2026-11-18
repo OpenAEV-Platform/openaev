@@ -4680,9 +4680,9 @@
   "Zoom in": "Zoom in",
   "Zoom out": "Zoom out",
   "Inject execution": "Inject execution",
-  "Inject execution threshold": "Inject execution threshold",
-  "Configured value": "Configured value",
-  "minutes": "minutes",
+  "Inject execution threshold (minutes)": "Inject execution threshold (minutes)",
+  "Time a pending inject waits for its result before it ends in error, in minutes (1 to 1440). Example: 60 for an Nmap scan of more than 100 hosts. Used by inject finalization and, at the next injector registration, by the implant timeout. While it is not set, the configured value applies.": "Time a pending inject waits for its result before it ends in error, in minutes (1 to 1440). Example: 60 for an Nmap scan of more than 100 hosts. Used by inject finalization and, at the next injector registration, by the implant timeout. While it is not set, the configured value applies.",
+  "Configured value: {minutes} minutes": "Configured value: {minutes} minutes",
   "Must be between 1 and 1440 minutes": "Must be between 1 and 1440 minutes",
   "Pending injects past this delay end in error. Agent-based injects are waited on longer and implants are kept alive longer when it is raised.": "Pending injects past this delay end in error. Agent-based injects are waited on longer and implants are kept alive longer when it is raised."
 }

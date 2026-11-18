@@ -61,7 +61,7 @@ const InjectExecutionForm: FunctionComponent<InjectExecutionFormProps> = ({
 
   const sideEffects = t('Pending injects past this delay end in error. Agent-based injects are waited on longer and implants are kept alive longer when it is raised.');
   const helperText = configuredThresholdMinutes !== undefined
-    ? `${sideEffects} ${t('Configured value')}: ${configuredThresholdMinutes} ${t('minutes')}`
+    ? `${sideEffects} ${t('Configured value: {minutes} minutes', { minutes: String(configuredThresholdMinutes) })}`
     : sideEffects;
 
   return (
@@ -80,10 +80,11 @@ const InjectExecutionForm: FunctionComponent<InjectExecutionFormProps> = ({
           required
           type="number"
           min={INJECT_EXECUTION_THRESHOLD_MIN}
+          max={INJECT_EXECUTION_THRESHOLD_MAX}
           step={1}
           name="inject_execution_threshold_minutes"
-          label={t('Inject execution threshold')}
-          endAdornmentLabel={t('minutes')}
+          label={t('Inject execution threshold (minutes)')}
+          infoTooltip={t('Time a pending inject waits for its result before it ends in error, in minutes (1 to 1440). Example: 60 for an Nmap scan of more than 100 hosts. Used by inject finalization and, at the next injector registration, by the implant timeout. While it is not set, the configured value applies.')}
           helperText={helperText}
           disabled={canNotManage}
         />

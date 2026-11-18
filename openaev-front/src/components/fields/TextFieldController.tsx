@@ -1,5 +1,5 @@
 import { Icon } from '@filigran/design-system';
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, type ReactNode, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import DOTS from '../../constants/Strings';
@@ -18,12 +18,15 @@ interface Props {
   helperText?: string;
   type?: 'number' | 'text' | 'password';
   min?: number;
+  max?: number;
   step?: number;
   defaultValue?: string;
   noHelperText?: boolean;
   writeOnly?: boolean;
-  /** Unit or suffix drawn inside the field (library `endText`). */
+  /** Unit or suffix drawn inside the field (library `endText`; dropped by the library on a number field). */
   endAdornmentLabel?: string;
+  /** Content of the info bubble next to the label. */
+  infoTooltip?: ReactNode;
 }
 
 const TextFieldController = ({
@@ -39,11 +42,13 @@ const TextFieldController = ({
   helperText,
   type = 'text',
   min,
+  max,
   step,
   defaultValue = '',
   noHelperText = false,
   writeOnly = false,
   endAdornmentLabel,
+  infoTooltip,
 }: Props) => {
   const { control } = useFormContext();
 
@@ -90,8 +95,10 @@ const TextFieldController = ({
             value={isMasked ? DOTS : field.value}
             readOnly={readOnly}
             min={min}
+            max={max}
             step={step}
             endText={endAdornmentLabel}
+            infoTooltip={infoTooltip}
             endIcon={type === 'password'
               ? {
                   type: 'iconButton',
