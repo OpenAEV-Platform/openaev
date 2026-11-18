@@ -5307,6 +5307,8 @@ export interface EsEntities {
 }
 
 export interface EsFinding {
+  /** @uniqueItems true */
+  base_asset_groups_side?: string[];
   /** @format date-time */
   base_created_at?: string;
   base_dependencies?: string[];
@@ -5965,6 +5967,7 @@ export interface Exercise {
 export interface ExerciseBulkProcessingInput {
   exercise_ids_to_ignore?: string[];
   exercise_ids_to_process?: string[];
+  keep_findings?: boolean;
   search_pagination_input?: SearchPaginationInput;
 }
 
@@ -6450,6 +6453,47 @@ export interface Grant {
   listened?: boolean;
 }
 
+export interface GraphEdgeOutput {
+  edge_id: string;
+  edge_result?: "SUCCESS" | "PENDING" | "FAILED";
+  edge_source: string;
+  edge_target: string;
+  edge_type:
+    | "MEMBER_OF"
+    | "FOUND_ON"
+    | "PRODUCED"
+    | "TARGETS"
+    | "PART_OF"
+    | "RUN_OF";
+}
+
+export interface GraphNodeOutput {
+  node_entity_id: string;
+  /** @format int64 */
+  node_failed_count?: number;
+  /** @format int64 */
+  node_finding_count?: number;
+  node_id: string;
+  node_label: string;
+  node_result?: "SUCCESS" | "PENDING" | "FAILED";
+  node_subtype?: string;
+  node_type:
+    | "ASSET"
+    | "ASSET_GROUP"
+    | "FINDING"
+    | "INJECT"
+    | "SIMULATION"
+    | "SCENARIO";
+}
+
+export interface GraphOutput {
+  graph_edges: GraphEdgeOutput[];
+  graph_focus?: string;
+  graph_nodes: GraphNodeOutput[];
+  graph_path: string[];
+  graph_truncated?: boolean;
+}
+
 export interface Group {
   group_auto_new_marking?: boolean;
   group_default_user_assign?: boolean;
@@ -6732,6 +6776,14 @@ export interface InjectAuthorisation {
   /** @format date-time */
   inject_authorisation_issued_at?: string;
   inject_id?: string;
+}
+
+export interface InjectBulkDeleteInput {
+  inject_ids_to_ignore?: string[];
+  inject_ids_to_process?: string[];
+  keep_findings?: boolean;
+  search_pagination_input?: SearchPaginationInput;
+  simulation_or_scenario_id?: string;
 }
 
 export interface InjectBulkProcessingInput {
@@ -10205,6 +10257,43 @@ export interface PayloadUpsertInput {
   payload_type: string;
 }
 
+export interface PayloadUsageOutput {
+  /** @minLength 1 */
+  usage_id: string;
+  usage_name?: string;
+  usage_scenario_id?: string;
+  usage_scenario_name?: string;
+  /** @minLength 1 */
+  usage_type: "inject" | "atomic_testing" | "step";
+}
+
+export interface PayloadUsagesOutput {
+  payload_usages: PayloadUsageOutput[];
+  /** @format int32 */
+  payload_usages_hidden_count?: number;
+}
+
+export interface PayloadVersionOutput {
+  /**
+   * The Threat Arsenal action of this version
+   * @minLength 1
+   */
+  payload_action_id: string;
+  /** @minLength 1 */
+  payload_id: string;
+  payload_is_latest: boolean;
+  payload_revocation_reason?: string;
+  payload_revoked: boolean;
+  /** @format date-time */
+  payload_revoked_at?: string;
+  /** The admin who revoked it; empty when revoked by the catalogue */
+  payload_revoked_by?: string;
+  /** Revoked by the catalogue: the tenant cannot lift it */
+  payload_revoked_by_catalogue: boolean;
+  /** @minLength 1 */
+  payload_version: string;
+}
+
 export interface PayloadsDeprecateInput {
   collector_id: string;
   payload_external_ids: string[];
@@ -10429,16 +10518,6 @@ export interface PlatformSettings {
   filigran_chatbot_ai_cgu_status?: string;
   /** IMAP Service availability */
   imap_service_available?: string;
-  /**
-   * Minutes OpenAEV waits for an inject to report a terminal trace before it is finalized with a timeout: the platform setting when set, else the configured value
-   * @format int32
-   */
-  inject_execution_threshold_minutes?: number;
-  /**
-   * Threshold set by configuration (inject.execution.threshold.minutes), used while the platform setting is unset. Read-only
-   * @format int32
-   */
-  inject_execution_threshold_minutes_configured?: number;
   /** Current version of Java */
   java_version?: string;
   /** URL of the server containing the map tile with dark theme */
@@ -11509,6 +11588,7 @@ export interface ScenarioAndInjectorContractsInputs {
 }
 
 export interface ScenarioBulkProcessingInput {
+  keep_findings?: boolean;
   scenario_ids_to_ignore?: string[];
   scenario_ids_to_process?: string[];
   search_pagination_input?: SearchPaginationInput;
@@ -12236,16 +12316,6 @@ export interface SettingsChatbotAiCguUpdateInput {
 export interface SettingsEnterpriseEditionUpdateInput {
   /** cert of enterprise edition */
   platform_enterprise_license?: string;
-}
-
-export interface SettingsInjectExecutionUpdateInput {
-  /**
-   * Minutes OpenAEV waits for an inject to report a terminal trace before it is finalized with a timeout (1 to 1440)
-   * @format int32
-   * @min 1
-   * @max 1440
-   */
-  inject_execution_threshold_minutes: number;
 }
 
 export interface SettingsPlatformWhitemarkUpdateInput {
@@ -13113,6 +13183,12 @@ export interface ThreatArsenalAction {
   action_labels?: Record<string, string>;
   /** Payload attached */
   action_payload?: PayloadSimple;
+  /** The attached payload comes from the Filigran catalogue */
+  action_payload_managed?: boolean;
+  /** The attached payload version is revoked in the tenant */
+  action_payload_revoked?: boolean;
+  /** Version of the attached payload */
+  action_payload_version?: string;
   /** Platforms */
   action_platforms?: (
     | "Linux"
