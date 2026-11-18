@@ -53,7 +53,7 @@ import org.hibernate.annotations.UuidGenerator;
 @DiscriminatorColumn(name = "asset_type", discriminatorType = STRING)
 @DiscriminatorValue(AssetType.Values.ASSET_TYPE)
 @EntityListeners(ModelBaseListener.class)
-public class Asset implements TenantBase {
+public class Asset implements TenantBase, Marked {
 
   // assets is on multi-tenancy v2 (#6438 / #6422).
   //

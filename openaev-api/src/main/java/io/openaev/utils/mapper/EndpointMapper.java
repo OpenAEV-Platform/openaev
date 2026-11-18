@@ -2,9 +2,9 @@ package io.openaev.utils.mapper;
 
 import static io.openaev.database.model.Endpoint.*;
 import static io.openaev.utils.AgentUtils.getPrimaryAgents;
+import static io.openaev.utils.MarkingUtils.markingIds;
 import static java.util.Collections.emptySet;
 
-import io.openaev.api.asset.AssetMarkingIds;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Tag;
@@ -54,7 +54,7 @@ public class EndpointMapper {
         .platform(endpoint.getPlatform())
         .arch(endpoint.getArch())
         .tags(endpoint.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
-        .markings(AssetMarkingIds.of(endpoint))
+        .markings(markingIds(endpoint))
         .category(endpoint.getCategory())
         .subcategory(endpoint.getSubcategory())
         .criticality(endpoint.getCriticality())
@@ -85,7 +85,7 @@ public class EndpointMapper {
         .externalReference(asset.getExternalReference())
         .agents(emptySet())
         .tags(asset.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
-        .markings(AssetMarkingIds.of(asset))
+        .markings(markingIds(asset))
         .category(asset.getCategory())
         .subcategory(asset.getSubcategory())
         .criticality(asset.getCriticality())
@@ -110,7 +110,7 @@ public class EndpointMapper {
         .hostname(asset.getHostname())
         .agents(emptySet())
         .tags(asset.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
-        .markings(AssetMarkingIds.of(asset))
+        .markings(markingIds(asset))
         .category(asset.getCategory())
         .subcategory(asset.getSubcategory())
         .criticality(asset.getCriticality())
@@ -196,7 +196,7 @@ public class EndpointMapper {
                 : emptySet())
         .agents(agentMapper.toAgentOutputs(getPrimaryAgents(endpoint)))
         .tags(endpoint.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
-        .markings(AssetMarkingIds.of(endpoint))
+        .markings(markingIds(endpoint))
         .category(endpoint.getCategory())
         .subcategory(endpoint.getSubcategory())
         .criticality(endpoint.getCriticality())

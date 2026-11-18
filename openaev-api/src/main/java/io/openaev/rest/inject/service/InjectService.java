@@ -18,6 +18,7 @@ import static io.openaev.service.InjectExpectationUtils.extractAssetIdsFromInjec
 import static io.openaev.utils.AgentUtils.isPrimaryAgent;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.InjectUtils.extractInjectExpectationsFromInjects;
+import static io.openaev.utils.MarkingUtils.markingIds;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.mapper.InjectStatusMapper.toExecutionTracesOutput;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
@@ -28,7 +29,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.api.asset.AssetMarkingIds;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.MarkingCtx;
@@ -734,7 +734,7 @@ public class InjectService {
    * the clearance covers <b>every</b> marking it carries (STIX AND-of-markings reading, not OR).
    */
   private boolean isVisibleUnderClearance(Asset asset, MarkingCtx clearance) {
-    return clearance.allows(AssetMarkingIds.of(asset));
+    return clearance.allows(markingIds(asset));
   }
 
   /**
