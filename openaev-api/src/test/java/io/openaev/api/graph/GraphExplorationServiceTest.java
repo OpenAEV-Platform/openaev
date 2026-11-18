@@ -228,6 +228,126 @@ class GraphExplorationServiceTest extends IntegrationTest {
     assertThat(out.truncated()).isTrue();
   }
 
+  // -- Links of #9447: assets to assets, assets to persons --
+
+  private void linkAssets(String assetId, String linkedAssetId, String type) {
+    entityManager
+        .createNativeQuery(
+            "INSERT INTO assets_links (asset_id, linked_asset_id, asset_link_type)"
+                + " VALUES (:a, :b, :t)")
+        .setParameter("a", assetId)
+        .setParameter("b", linkedAssetId)
+        .setParameter("t", type)
+        .executeUpdate();
+  }
+
+  private void linkPerson(String assetId, String userId) {
+    entityManager
+        .createNativeQuery("UPDATE assets SET asset_linked_person = :u WHERE asset_id = :a")
+        .setParameter("u", userId)
+        .setParameter("a", assetId)
+        .executeUpdate();
+  }
+
+  @Test
+  @DisplayName(
+      "a link between two assets is a LINKED_TO edge seen from both ends, in its direction")
+  void linkedAssetsBothWays() {
+    scopeToAmbientTenant();
+    linkAssets(e2.getId(), e1.getId(), "RUNS_ON");
+    linkAssets(e2.getId(), e1.getId(), "DEPENDS_ON");
+    String from = id(GraphNodeType.ASSET, e2.getId());
+    String to = id(GraphNodeType.ASSET, e1.getId());
+
+    for (String focus : List.of(e1.getId(), e2.getId())) {
+      GraphOutput out =
+          service.neighbourhood(
+              scope,
+              GraphNodeType.ASSET,
+              focus,
+              Set.of(GraphEdgeType.LINKED_TO),
+              50,
+              GraphVisibility.ALL);
+
+      assertThat(nodeIds(out)).contains(from, to);
+      assertThat(out.edges())
+          .singleElement()
+          .satisfies(
+              e -> {
+                assertThat(e.edgeType()).isEqualTo(GraphEdgeType.LINKED_TO);
+                assertThat(e.source()).isEqualTo(from);
+                assertThat(e.target()).isEqualTo(to);
+              });
+    }
+  }
+
+  @Test
+  @DisplayName("the identity linked to an asset is a person node, dropped without the people right")
+  void identityOfIsGatedByPeopleRight() {
+    scopeToAmbientTenant();
+    linkPerson(e1.getId(), testUserHolder.get().getId());
+    String person = id(GraphNodeType.PERSON, testUserHolder.get().getId());
+
+    GraphOutput visible =
+        service.neighbourhood(
+            scope,
+            GraphNodeType.ASSET,
+            e1.getId(),
+            Set.of(GraphEdgeType.IDENTITY_OF),
+            50,
+            GraphVisibility.ALL);
+    GraphOutput hidden =
+        service.neighbourhood(
+            scope,
+            GraphNodeType.ASSET,
+            e1.getId(),
+            Set.of(GraphEdgeType.IDENTITY_OF),
+            50,
+            noPeople());
+
+    assertThat(nodeIds(visible)).contains(person);
+    assertThat(edgeTypes(visible)).containsExactly(GraphEdgeType.IDENTITY_OF);
+    assertThat(nodeIds(hidden)).doesNotContain(person);
+    assertThat(hidden.edges()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("a person expands back to the assets it is the identity of")
+  void personRing() {
+    scopeToAmbientTenant();
+    linkPerson(e1.getId(), testUserHolder.get().getId());
+
+    GraphOutput out = ring(GraphNodeType.PERSON, testUserHolder.get().getId());
+
+    assertThat(out.focus()).isEqualTo(id(GraphNodeType.PERSON, testUserHolder.get().getId()));
+    assertThat(nodeIds(out)).contains(id(GraphNodeType.ASSET, e1.getId()));
+    assertThat(edgeTypes(out)).contains(GraphEdgeType.IDENTITY_OF);
+  }
+
+  private static GraphVisibility noPeople() {
+    return new GraphVisibility() {
+      @Override
+      public boolean canReadSimulation(String simulationId) {
+        return true;
+      }
+
+      @Override
+      public boolean canReadScenario(String scenarioId) {
+        return true;
+      }
+
+      @Override
+      public boolean canReadAtomicTesting(String injectId) {
+        return true;
+      }
+
+      @Override
+      public boolean canReadPeople(GraphNodeType type) {
+        return false;
+      }
+    };
+  }
+
   @Test
   @DisplayName("an asset group expands to its members and the injects that targeted it")
   void assetGroupRing() {
