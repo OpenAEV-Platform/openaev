@@ -3,13 +3,15 @@ package io.openaev.migration;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.FOREIGN_KEY;
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.INDEX;
-import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.NEXT_IDS;
+import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.RANGE_UPDATE;
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.TABLE;
-import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.vacuumInterval;
+import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.pagesPerBatch;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -36,11 +38,14 @@ import org.springframework.beans.factory.annotation.Autowired;
  * that the backfill attributes each row to the tenant of the inject its status belongs to, and that
  * the migration reaches the same final state from every partly migrated state.
  *
- * <p>The migration runs outside a transaction and uses {@code VACUUM}, which refuses to run in one,
- * so this class is not {@code @Transactional}: it seeds and runs the migration on its own
- * autocommit connection, and {@code @AfterEach} removes what it seeded and runs the migration once
- * more so the shared database ends as the rest of the suite expects it (column {@code NOT NULL},
- * foreign key and index in place).
+ * <p>The migration runs outside a transaction, so this class is not {@code @Transactional}: it
+ * seeds and runs the migration on its own autocommit connection, and {@code @AfterEach} removes
+ * what it seeded and runs the migration once more so the shared database ends as the rest of the
+ * suite expects it (column {@code NOT NULL}, foreign key and index in place).
+ *
+ * <p>Seeded rows carry a random filler in their message so a handful of them spans more than one
+ * heap page: the tests that check partial-commit and resumption behavior need that to force more
+ * than one page range.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Migration V6_20261112060000000: tenant_id on execution_traces")
@@ -48,9 +53,9 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
 
   private static final String SEED_MESSAGE = "migration-test-seed";
 
-  /** Two rows a batch and a vacuum every two batches, so that a handful of rows crosses both. */
+  /** One page a batch, no pause, no WAL-lag wait: deterministic and fast for tests. */
   private final V6_20261112060000000__Add_tenant_id_to_execution_traces small =
-      new V6_20261112060000000__Add_tenant_id_to_execution_traces(2, 2);
+      new V6_20261112060000000__Add_tenant_id_to_execution_traces(2, 1L, 0, Long.MAX_VALUE);
 
   @Autowired private V6_20261112060000000__Add_tenant_id_to_execution_traces migration;
   @Autowired private DataSource dataSource;
@@ -207,8 +212,8 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("More rows than one batch are all filled, over several commits")
-    void given_moreRowsThanOneBatch_should_fillEveryRow() throws SQLException {
+    @DisplayName("More rows than one page range are all filled, over several commits")
+    void given_moreRowsThanOnePageRange_should_fillEveryRow() throws SQLException {
       // Arrange
       makePending();
       for (int i = 0; i < 7; i++) {
@@ -258,10 +263,12 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "A run that fails after some batches leaves them committed, and a second run finishes")
-    void given_failureAfterSomeBatches_should_leaveCommittedBatchesAndFinishOnRerun()
+        "A run that fails after some ranges leaves them committed, and a second run finishes")
+    void given_failureAfterSomeRanges_should_leaveCommittedRangesAndFinishOnRerun()
         throws SQLException {
-      // Arrange
+      // Arrange: six rows, each carrying enough filler that four fit on one heap page and two
+      // spill to the next, so the single-page-per-range migration commits at least one range
+      // before the seeded trigger fails the range holding m-6
       makePending();
       for (int i = 1; i <= 6; i++) {
         seedTrace("m-" + i, statusOfB, null, null);
@@ -280,14 +287,14 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
           .isInstanceOf(SQLException.class)
           .hasMessageContaining("seeded failure");
 
-      // Assert: the batches before the failing one are committed, the failing one is not
+      // Assert: the ranges before the failing one are committed, the failing one is not
       long filledAfterFailure =
           count(
               "SELECT count(*) FROM "
                   + TABLE
-                  + " WHERE execution_message = '"
+                  + " WHERE execution_message LIKE '"
                   + SEED_MESSAGE
-                  + "' AND tenant_id IS NOT NULL");
+                  + "%' AND tenant_id IS NOT NULL");
       assertThat(filledAfterFailure).isBetween(1L, 5L);
 
       // Act: the cause is gone, the migration runs again
@@ -303,67 +310,105 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Vacuum interval")
-  class VacuumInterval {
+  @DisplayName("Pages per batch")
+  class PagesPerBatch {
 
     @Test
-    @DisplayName("An unknown estimate gives the fixed interval")
-    void given_unknownEstimate_should_useTheFixedInterval() {
+    @DisplayName("An unknown row or page estimate gives one page per batch")
+    void given_unknownEstimate_should_useOnePagePerBatch() {
       // Act + Assert
-      assertThat(vacuumInterval(-1, 10_000, 50)).isEqualTo(50);
-      assertThat(vacuumInterval(0, 10_000, 50)).isEqualTo(50);
+      assertThat(pagesPerBatch(-1, 100, 10_000)).isEqualTo(1);
+      assertThat(pagesPerBatch(0, 100, 10_000)).isEqualTo(1);
+      assertThat(pagesPerBatch(100_000, 0, 10_000)).isEqualTo(1);
     }
 
     @Test
-    @DisplayName("A small table gives the fixed interval")
-    void given_smallTable_should_useTheFixedInterval() {
-      // Act + Assert
-      assertThat(vacuumInterval(2_000_000, 10_000, 50)).isEqualTo(50);
+    @DisplayName("The batch covers about the target row count, given the table's row density")
+    void given_knownDensity_should_coverAboutTheTargetRows() {
+      // Act + Assert: 1,000,000 rows over 100,000 pages is 10 rows/page, so 10,000 rows take 1,000
+      // pages
+      assertThat(pagesPerBatch(1_000_000, 100_000, 10_000)).isEqualTo(1_000);
     }
 
     @Test
-    @DisplayName("A large table gives the batches that cover five percent of its rows")
-    void given_largeTable_should_coverFivePercentOfRowsPerInterval() {
+    @DisplayName("At least one page per batch, even for a very dense table")
+    void given_veryDenseTable_should_useAtLeastOnePage() {
       // Act + Assert
-      assertThat(vacuumInterval(100_000_000, 10_000, 50)).isEqualTo(500);
-      assertThat(vacuumInterval(100_000_001, 10_000, 50)).isEqualTo(501);
+      assertThat(pagesPerBatch(1_000_000_000, 100, 10_000)).isEqualTo(1);
     }
   }
 
   @Nested
-  @DisplayName("Batch picker")
-  class BatchPicker {
+  @DisplayName("Range picker")
+  class RangePicker {
 
     @Test
-    @DisplayName("The picker reads the primary key index in order, with no sort and no table scan")
-    void given_picker_should_walkThePrimaryKeyIndex() throws SQLException {
-      // Arrange
+    @DisplayName("A page range is read as a Tid Range Scan, in physical order, with no sort")
+    void given_pageRange_should_useATidRangeScan() throws SQLException {
+      // Arrange: the same predicate shape RANGE_UPDATE's inner scan of x uses, isolated from the
+      // join to the parent tables, whose own statistics can otherwise lead the planner to drive
+      // the join from an index on x rather than a range of x itself. The column must be nullable,
+      // or the planner constant-folds "tenant_id IS NULL" to false from the NOT NULL constraint.
+      assertThat(RANGE_UPDATE).contains("x.ctid >= ?::tid AND x.ctid < ?::tid");
+      makePending();
+      String sql =
+          "SELECT 1 FROM "
+              + TABLE
+              + " WHERE tenant_id IS NULL AND ctid >= '(0,0)'::tid AND ctid < '(10,0)'::tid";
+
+      // Act: a near-empty table otherwise costs a seq scan the same as any other access path
       execute("SET enable_seqscan = off");
+      String plan;
       try {
-        // Act
-        String plan =
-            rows("EXPLAIN " + NEXT_IDS.replaceFirst("\\?", "''").replaceFirst("\\?", "10")).stream()
+        plan =
+            rows("EXPLAIN " + sql).stream()
                 .map(row -> (String) row[0])
                 .reduce("", (left, right) -> left + "\n" + right);
-
-        // Assert
-        assertThat(plan).contains("Index").contains("execution_traces_pkey").doesNotContain("Sort");
       } finally {
         execute("RESET enable_seqscan");
       }
+
+      // Assert
+      assertThat(plan).contains("Tid Range Scan").doesNotContain("Sort");
     }
   }
 
   @Nested
-  @DisplayName("Rows inserted behind the cursor")
+  @DisplayName("No VACUUM")
+  class NoVacuum {
+
+    @Test
+    @DisplayName("A full run, from a pending table to the final state, issues no VACUUM statement")
+    void given_pendingTable_should_issueNoVacuumStatement() throws SQLException {
+      // Arrange
+      makePending();
+      for (int i = 0; i < 5; i++) {
+        seedTrace("m-rec-" + i, statusOfB, null, null);
+      }
+      List<String> statements = new ArrayList<>();
+
+      // Act
+      small.migrate(recordingConnection(connection, statements));
+
+      // Assert
+      assertThat(statements)
+          .as("statements executed by the migration")
+          .isNotEmpty()
+          .noneMatch(sql -> sql.toUpperCase().contains("VACUUM"));
+      assertFullSchema();
+    }
+  }
+
+  @Nested
+  @DisplayName("Rows outside the walked ranges")
   class BehindTheCursor {
 
     @Test
     @DisplayName(
         "Recent rows inserted while the loop runs are filled by the drain, in several batches, and the locked step writes none")
     void given_rowsInsertedDuringTheLoop_should_beFilledByTheDrainInBatches() throws SQLException {
-      // Arrange: with a batch of one row, the trigger inserts five rows that sort before the
-      // cursor when the cursor reaches m-3; it then refuses any write made under the table lock
+      // Arrange: the trigger inserts five rows when the loop updates m-3, after the migration
+      // already measured the table's page count, so none of the five falls inside any page range
       makePending();
       seedTrace("m-2", statusOfB, null, null);
       seedTrace("m-3", statusOfB, null, null);
@@ -378,7 +423,8 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
               + "', 'INFO' FROM generate_series(1, 5) g ON CONFLICT DO NOTHING");
 
       // Act: a failure of the trigger in the locked step would fail the run
-      new V6_20261112060000000__Add_tenant_id_to_execution_traces(1, 50).migrate(connection);
+      new V6_20261112060000000__Add_tenant_id_to_execution_traces(1, 1L, 0, Long.MAX_VALUE)
+          .migrate(connection);
 
       // Assert
       for (int i = 1; i <= 5; i++) {
@@ -390,9 +436,8 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName(
-        "A row with an old creation time inserted behind the cursor is filled by the drain")
-    void given_oldRowInsertedBehindTheCursor_should_beFilledByTheDrain() throws SQLException {
+    @DisplayName("A row inserted behind the walked ranges is filled by the drain")
+    void given_rowInsertedBehindTheWalkedRanges_should_beFilledByTheDrain() throws SQLException {
       // Arrange
       makePending();
       seedTrace("m-2", statusOfB, null, null);
@@ -408,7 +453,8 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
               + "', 'INFO', now() - interval '1 hour') ON CONFLICT DO NOTHING");
 
       // Act
-      new V6_20261112060000000__Add_tenant_id_to_execution_traces(1, 50).migrate(connection);
+      new V6_20261112060000000__Add_tenant_id_to_execution_traces(1, 1L, 0, Long.MAX_VALUE)
+          .migrate(connection);
 
       // Assert
       assertThat(tenantOf("m-1")).isEqualTo(DEFAULT_TENANT_UUID);
@@ -445,23 +491,24 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
   }
 
   /**
-   * Measures the disk the migration needs on a large table: the old shape (every statement in one
-   * transaction) against the batched one. Prints the figures, asserts nothing on them. Run with
-   * {@code -Dmigration.measure=true}.
+   * Measures the disk the migration needs on a large table: the old, one-transaction shape against
+   * the paced, page-range shape. Prints the figures, asserts nothing on them. Run with {@code
+   * -Dmigration.measure=true}.
    */
   @Nested
   @DisplayName("Measurement")
   @EnabledIfSystemProperty(named = "migration.measure", matches = "true")
   class Measurement {
 
-    private static final int ROWS = 200_000;
+    private static final int ROWS = 2_000_000;
 
     @Test
-    @DisplayName("Peak size of the table, old shape against batched shape")
-    void given_largeTable_should_printThePeakSizeOfBothShapes() throws Exception {
+    @DisplayName("Peak size and WAL of the table, old shape against the page-range shape")
+    void given_largeTable_should_printThePeakSizeAndWalOfBothShapes() throws Exception {
       // Arrange
       V6_20261112060000000__Add_tenant_id_to_execution_traces batched =
-          new V6_20261112060000000__Add_tenant_id_to_execution_traces(1_000, 20);
+          new V6_20261112060000000__Add_tenant_id_to_execution_traces(
+              10_000, null, 0, Long.MAX_VALUE);
 
       // Act
       long[] oldShape = measure(this::runOldShape);
@@ -469,7 +516,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
 
       // Assert
       System.out.printf(
-          "MEASURE rows=%d old: start=%d MB peak=%d MB end=%d MB wal=%d MB | batched: start=%d MB"
+          "MEASURE rows=%d old: start=%d MB peak=%d MB end=%d MB wal=%d MB | paced: start=%d MB"
               + " peak=%d MB end=%d MB wal=%d MB%n",
           ROWS,
           mb(oldShape[0]),
@@ -507,6 +554,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
               + "' || repeat('x', 200), 'INFO' FROM generate_series(1, "
               + ROWS
               + ") g");
+      execute("ANALYZE " + TABLE);
       execute("CHECKPOINT");
       long start = size();
       String lsn = (String) rows("SELECT pg_current_wal_lsn()::text").getFirst()[0];
@@ -684,6 +732,10 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     return id;
   }
 
+  /**
+   * Inserts a trace carrying enough random filler, beyond {@link #SEED_MESSAGE}, that only a
+   * handful of rows already spans more than one heap page.
+   */
   private void seedTrace(String key, String status, String testStatus, String presetTenant)
       throws SQLException {
     execute(
@@ -700,7 +752,18 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
             + quoted(presetTenant)
             + ", '"
             + SEED_MESSAGE
+            + "-"
+            + randomFiller()
             + "', 'INFO')");
+  }
+
+  /** Random, barely-compressible filler: distinct UUIDs, never a repeated block. */
+  private static String randomFiller() {
+    StringBuilder filler = new StringBuilder();
+    for (int i = 0; i < 44; i++) {
+      filler.append(UUID.randomUUID());
+    }
+    return filler.toString();
   }
 
   private static String quoted(String value) {
@@ -710,6 +773,52 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
   private void deleteAll(String table, String column, List<String> ids) throws SQLException {
     for (String id : ids) {
       execute("DELETE FROM " + table + " WHERE " + column + " = '" + id + "'");
+    }
+  }
+
+  // -- a connection that records the SQL text of every ad-hoc statement it runs --
+
+  /**
+   * Wraps {@code delegate} so that every {@code Statement.execute*(String)} call made through it
+   * (never through a {@code PreparedStatement}, whose text is already a compile-time constant) is
+   * recorded into {@code statements}, in order, before running on the real connection.
+   */
+  private static Connection recordingConnection(Connection delegate, List<String> statements) {
+    return (Connection)
+        Proxy.newProxyInstance(
+            Connection.class.getClassLoader(),
+            new Class<?>[] {Connection.class},
+            (proxy, method, args) -> {
+              if ("createStatement".equals(method.getName())
+                  && (args == null || args.length == 0)) {
+                return recordingStatement(delegate.createStatement(), statements);
+              }
+              return invoke(delegate, method, args);
+            });
+  }
+
+  private static Statement recordingStatement(Statement delegate, List<String> statements) {
+    return (Statement)
+        Proxy.newProxyInstance(
+            Statement.class.getClassLoader(),
+            new Class<?>[] {Statement.class},
+            (proxy, method, args) -> {
+              if (args != null
+                  && args.length > 0
+                  && args[0] instanceof String sql
+                  && method.getName().startsWith("execute")) {
+                statements.add(sql);
+              }
+              return invoke(delegate, method, args);
+            });
+  }
+
+  private static Object invoke(Object delegate, java.lang.reflect.Method method, Object[] args)
+      throws Throwable {
+    try {
+      return method.invoke(delegate, args);
+    } catch (InvocationTargetException e) {
+      throw e.getCause();
     }
   }
 

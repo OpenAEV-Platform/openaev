@@ -10,6 +10,7 @@ import java.sql.Statement;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
@@ -32,26 +33,32 @@ import org.springframework.stereotype.Component;
  * lands silently in the default tenant.
  *
  * <p>The migration runs outside a wrapping transaction ({@link #canExecuteInTransaction()} returns
- * false), on a connection in autocommit mode, so the extra disk it needs is bounded by one batch of
- * rows, not by the size of the table:
+ * false), on a connection in autocommit mode, so the extra disk it needs is bounded by one range of
+ * pages at a time, not by the size of the table:
  *
  * <ol>
  *   <li>the column is added, nullable and with no default (a catalog change only);
- *   <li>the backfill walks the primary key {@value #BATCH_SIZE} rows at a time, each batch in its
- *       own transaction, so the total read grows with the table and not with its square;
- *   <li>{@code VACUUM} runs every {@link #vacuumInterval} batches and once after the loop, so that
- *       the next batches reuse the space of the old row versions and the table does not double. The
- *       ids are random, so each batch touches pages all over the table and each {@code VACUUM}
- *       reads nearly all of it: the interval is the larger of {@value #VACUUM_EVERY_BATCHES}
- *       batches and the number of batches that cover {@value #VACUUM_SHARE_PERCENT} percent of the
- *       estimated rows ({@code pg_class.reltuples}, read once). That makes about twenty vacuums
- *       whatever the size, and the space held by dead row versions stays near that share of the
- *       table;
- *   <li>a running instance can insert rows with no tenant behind the cursor, so a drain builds a
- *       temporary partial index of the rows with no tenant ({@code CONCURRENTLY}, so inserts go
- *       on), walks it in primary key order and fills them in committed batches, with the same
- *       {@code VACUUM} interval and one {@code VACUUM} at the end if it wrote rows: each row is
- *       read once, whatever the size of that backlog;
+ *   <li>the backfill walks the table in physical order, one range of pages at a time ({@code ctid
+ *       BETWEEN '(p,0)' AND '(p+N,0)'}), each range in its own committed transaction. That is a
+ *       {@code Tid Range Scan}: it reads each page once, in the order it already sits on disk,
+ *       rather than following the primary key's random order, which touches pages all over the
+ *       table. {@code N} is picked once, from the table's average row density ({@code
+ *       pg_class.reltuples} and {@code relpages}), so that a range covers about the same number of
+ *       rows the old, row-counted batches did;
+ *   <li>no {@code VACUUM} runs during or after the walk. Autovacuum reclaims the dead row versions
+ *       on its own schedule: each page is rewritten once, inside one range's own transaction, so
+ *       the space of that range is already reclaimable the moment it commits, and the table never
+ *       doubles in the way a backfill with no pacing can;
+ *   <li>between ranges, the migration pauses a fixed, short duration, and, when the server reports
+ *       archiving ({@code pg_stat_archiver}) or a replica ({@code pg_stat_replication}, {@code
+ *       pg_replication_slots}), it waits longer while the WAL not yet archived or replayed is above
+ *       a bound, so that archiving and any replica stay caught up. A role that cannot read those
+ *       views falls back to the fixed pause alone, logged once;
+ *   <li>a running instance can insert rows with no tenant that the walk above does not reach (its
+ *       page range is fixed before the insert happens), so a drain builds a temporary partial index
+ *       of the rows with no tenant ({@code CONCURRENTLY}, so inserts go on), walks it in primary
+ *       key order and fills them in committed, paced batches: each row is read once, whatever the
+ *       size of that backlog;
  *   <li>one short transaction locks the table, fills the last rows with no tenant (served by the
  *       partial index), drops the partial index, then sets {@code NOT NULL}, adds the foreign key
  *       and creates the index.
@@ -67,23 +74,24 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
 
   public static final String TABLE = "execution_traces";
 
-  static final int BATCH_SIZE = 10_000;
-  static final int VACUUM_EVERY_BATCHES = 50;
-  static final int VACUUM_SHARE_PERCENT = 5;
+  static final int TARGET_ROWS_PER_BATCH = 10_000;
+  static final int DRAIN_BATCH_SIZE = 10_000;
+  static final int PAUSE_MILLIS = 200;
+  static final long WAL_LAG_BOUND_BYTES = 1_024L * 1_024 * 1_024;
   static final String FOREIGN_KEY = "fk_" + TABLE + "_tenant_id";
   static final String INDEX = "idx_" + TABLE + "_tenant_id";
   static final String PENDING_INDEX = "idx_" + TABLE + "_tenant_id_pending";
 
   /**
    * Fills the rows of {@code %s} (a predicate on the alias {@code x}) with the tenant of their
-   * parent. Returns how many of the rows written had no parent tenant.
+   * parent. Returns, for the rows it wrote, their count and how many had no parent tenant.
    */
   private static final String BACKFILL =
       "WITH written AS ("
           + " UPDATE "
           + TABLE
           + " t SET tenant_id = COALESCE(b.parent_tenant, ?) FROM ("
-          + " SELECT x.execution_trace_id AS trace_id,"
+          + " SELECT x.ctid AS trace_ctid,"
           + " COALESCE(inject_of_status.tenant_id, inject_of_test_status.tenant_id) AS parent_tenant"
           + " FROM "
           + TABLE
@@ -95,19 +103,16 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
           + " LEFT JOIN injects inject_of_test_status"
           + " ON inject_of_test_status.inject_id = test_status.status_inject"
           + " WHERE x.tenant_id IS NULL AND %s) b"
-          + " WHERE t.execution_trace_id = b.trace_id"
+          + " WHERE t.ctid = b.trace_ctid"
           + " RETURNING b.parent_tenant IS NULL AS orphan)"
-          + " SELECT count(*) FILTER (WHERE orphan) AS orphans"
+          + " SELECT count(*) AS written, count(*) FILTER (WHERE orphan) AS orphans"
           + " FROM written";
+
+  /** One range of pages, in physical order: a {@code Tid Range Scan}, never a table-wide sort. */
+  static final String RANGE_UPDATE = BACKFILL.formatted("x.ctid >= ?::tid AND x.ctid < ?::tid");
 
   private static final String BATCH_UPDATE = BACKFILL.formatted("x.execution_trace_id = ANY(?)");
   private static final String FINAL_UPDATE = BACKFILL.formatted("true");
-
-  /** Picks the next ids in primary key order: an index range scan, never a rescan of the table. */
-  static final String NEXT_IDS =
-      "SELECT execution_trace_id FROM "
-          + TABLE
-          + " WHERE execution_trace_id > ? ORDER BY execution_trace_id LIMIT ?";
 
   /** Picks the next rows with no tenant in primary key order, served by the partial index. */
   static final String NEXT_PENDING_IDS =
@@ -116,31 +121,53 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
           + " WHERE tenant_id IS NULL AND execution_trace_id > ?"
           + " ORDER BY execution_trace_id LIMIT ?";
 
-  private final int batchSize;
-  private final int minVacuumEveryBatches;
+  /**
+   * Returns how much WAL is not yet archived or replayed: the largest of the archiver's lag, every
+   * streaming replica's lag and every replication slot's lag, in bytes. {@code NULL} (no archiving,
+   * no replica, no slot) reads as zero.
+   */
+  private static final String WAL_LAG_QUERY =
+      "SELECT MAX(lag) FROM ("
+          + " SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn) AS lag"
+          + " FROM pg_stat_replication"
+          + " UNION ALL"
+          + " SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) AS lag"
+          + " FROM pg_replication_slots WHERE restart_lsn IS NOT NULL"
+          + " UNION ALL"
+          + " SELECT ((pg_split_walfile_name(pg_walfile_name(pg_current_wal_lsn()))).segment_number"
+          + " - (pg_split_walfile_name(last_archived_wal)).segment_number)"
+          + " * pg_size_bytes(current_setting('wal_segment_size')) AS lag"
+          + " FROM pg_stat_archiver WHERE last_archived_wal IS NOT NULL) lags";
+
+  private final int drainBatchSize;
+  private final Long pagesPerBatchOverride;
+  private final int pauseMillis;
+  private final long walLagBoundBytes;
 
   public V6_20261112060000000__Add_tenant_id_to_execution_traces() {
-    this(BATCH_SIZE, VACUUM_EVERY_BATCHES);
+    this(DRAIN_BATCH_SIZE, null, PAUSE_MILLIS, WAL_LAG_BOUND_BYTES);
   }
 
   V6_20261112060000000__Add_tenant_id_to_execution_traces(
-      int batchSize, int minVacuumEveryBatches) {
-    this.batchSize = batchSize;
-    this.minVacuumEveryBatches = minVacuumEveryBatches;
+      int drainBatchSize, Long pagesPerBatchOverride, int pauseMillis, long walLagBoundBytes) {
+    this.drainBatchSize = drainBatchSize;
+    this.pagesPerBatchOverride = pagesPerBatchOverride;
+    this.pauseMillis = pauseMillis;
+    this.walLagBoundBytes = walLagBoundBytes;
   }
 
   /**
-   * Number of batches between two vacuums: {@code minBatches}, or the batches that cover {@value
-   * #VACUUM_SHARE_PERCENT} percent of {@code estimatedRows} when that is larger. An estimate of 0
-   * or below means unknown ({@code reltuples} is -1 before the first analyze).
+   * Pages per batch: {@code pagesPerBatchOverride} when set (tests), or, from the table's average
+   * row density, the pages that cover about {@code targetRowsPerBatch} rows. An estimate of 0 or
+   * below (no {@code ANALYZE} yet) gives one page, the safest default.
    */
-  static long vacuumInterval(long estimatedRows, int batchSize, int minBatches) {
-    if (estimatedRows <= 0) {
-      return minBatches;
+  static long pagesPerBatch(long estimatedRows, long estimatedPages, int targetRowsPerBatch) {
+    if (estimatedRows <= 0 || estimatedPages <= 0) {
+      return 1;
     }
-    long batchesOfShare =
-        (estimatedRows * VACUUM_SHARE_PERCENT + 100L * batchSize - 1) / (100L * batchSize);
-    return Math.max(minBatches, batchesOfShare);
+    double rowsPerPage = (double) estimatedRows / estimatedPages;
+    long pages = Math.round(targetRowsPerBatch / Math.max(rowsPerPage, 1.0));
+    return Math.max(1, pages);
   }
 
   @Override
@@ -153,10 +180,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     migrate(context.getConnection());
   }
 
-  /**
-   * Runs every step on {@code connection}, which is put in autocommit mode: {@code VACUUM} refuses
-   * to run in a transaction.
-   */
+  /** Runs every step on {@code connection}, which is put in autocommit mode. */
   void migrate(Connection connection) throws SQLException {
     connection.setAutoCommit(true);
     // Table and column names below are constants of this class, never input.
@@ -164,16 +188,23 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
       statement.execute(
           "ALTER TABLE " + TABLE + " ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255)");
     }
-    long estimatedRows = estimatedRows(connection);
-    long vacuumEvery = vacuumInterval(estimatedRows, batchSize, minVacuumEveryBatches);
+    long[] rowsAndPages = estimatedRowsAndPages(connection);
+    long pagesPerBatch =
+        Math.max(
+            1,
+            pagesPerBatchOverride != null
+                ? pagesPerBatchOverride
+                : pagesPerBatch(rowsAndPages[0], rowsAndPages[1], TARGET_ROWS_PER_BATCH));
     log.info(
-        "{}: about {} row(s), batches of {}, a vacuum every {} batch(es)",
+        "{}: about {} row(s) over {} page(s), {} page(s) per batch",
         TABLE,
-        estimatedRows,
-        batchSize,
-        vacuumEvery);
-    long orphans = backfillInBatches(connection, vacuumEvery);
-    orphans += drain(connection, vacuumEvery);
+        rowsAndPages[0],
+        rowsAndPages[1],
+        pagesPerBatch);
+    AtomicBoolean walGuardAvailable = new AtomicBoolean(true);
+    long orphans =
+        backfillByPageRanges(connection, rowsAndPages[1], pagesPerBatch, walGuardAvailable);
+    orphans += drain(connection, walGuardAvailable);
     orphans += finish(connection);
     if (orphans > 0) {
       log.warn(
@@ -185,63 +216,52 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
   }
 
   /**
-   * Walks the primary key and fills each batch of ids in its own transaction. Rows inserted behind
-   * the cursor are left to {@link #drain}. Returns the orphans.
+   * Walks the table one range of pages at a time, in physical order, each range in its own
+   * transaction. Rows outside every range at the time it is read (inserted after this method
+   * measured the table, or missed for any other reason) are left to {@link #drain}. Returns the
+   * orphans.
    */
-  private long backfillInBatches(Connection connection, long vacuumEvery) throws SQLException {
-    long scanned = 0;
+  private long backfillByPageRanges(
+      Connection connection, long totalPages, long pagesPerBatch, AtomicBoolean walGuardAvailable)
+      throws SQLException {
+    long written = 0;
     long orphans = 0;
     long batches = 0;
     long startedAt = System.nanoTime();
-    String lastId = "";
-    try (PreparedStatement pick = connection.prepareStatement(NEXT_IDS);
-        PreparedStatement update = connection.prepareStatement(BATCH_UPDATE)) {
-      while (true) {
-        pick.setString(1, lastId);
-        pick.setInt(2, batchSize);
-        List<String> ids = new ArrayList<>(batchSize);
-        try (ResultSet result = pick.executeQuery()) {
-          while (result.next()) {
-            ids.add(result.getString(1));
-          }
-        }
-        if (ids.isEmpty()) {
-          break;
-        }
+    try (PreparedStatement update = connection.prepareStatement(RANGE_UPDATE)) {
+      for (long page = 0; page <= totalPages; page += pagesPerBatch) {
         update.setString(1, DEFAULT_TENANT_UUID);
-        update.setArray(2, connection.createArrayOf("varchar", ids.toArray()));
-        orphans += orphansOf(update);
-        lastId = ids.getLast();
-        scanned += ids.size();
-        batches++;
-        if (batches % vacuumEvery == 0) {
-          log.info(
-              "{}: {} row(s) done in {} s",
-              TABLE,
-              scanned,
-              Duration.ofNanos(System.nanoTime() - startedAt).toSeconds());
-          vacuum(connection);
+        update.setString(2, tid(page));
+        update.setString(3, tid(page + pagesPerBatch));
+        try (ResultSet result = update.executeQuery()) {
+          result.next();
+          written += result.getLong("written");
+          orphans += result.getLong("orphans");
         }
+        batches++;
+        pace(connection, walGuardAvailable);
       }
     }
-    if (batches > 0) {
-      vacuum(connection);
-    }
     log.info(
-        "{}: {} row(s) walked in {} batch(es), {} s",
+        "{}: {} row(s) filled over {} range(s) of {} page(s) each, {} s",
         TABLE,
-        scanned,
+        written,
         batches,
+        pagesPerBatch,
         Duration.ofNanos(System.nanoTime() - startedAt).toSeconds());
     return orphans;
   }
 
+  private static String tid(long page) {
+    return "(" + page + ",0)";
+  }
+
   /**
-   * Fills, in committed batches, the rows with no tenant left after the walk: those inserted behind
-   * the cursor by a running instance. A temporary partial index holds only those rows, so each
-   * batch reads its rows and no other. Returns the orphans.
+   * Fills, in committed, paced batches, the rows with no tenant left after the walk: those its
+   * fixed page ranges did not cover. A temporary partial index holds only those rows, so each batch
+   * reads its rows and no other. Returns the orphans.
    */
-  private long drain(Connection connection, long vacuumEvery) throws SQLException {
+  private long drain(Connection connection, AtomicBoolean walGuardAvailable) throws SQLException {
     try (Statement statement = connection.createStatement()) {
       // A leftover of an interrupted run can be invalid: rebuild it.
       statement.execute("DROP INDEX CONCURRENTLY IF EXISTS " + PENDING_INDEX);
@@ -254,14 +274,13 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
     long drained = 0;
     long orphans = 0;
-    long batches = 0;
     String lastId = "";
     try (PreparedStatement pick = connection.prepareStatement(NEXT_PENDING_IDS);
         PreparedStatement update = connection.prepareStatement(BATCH_UPDATE)) {
       while (true) {
         pick.setString(1, lastId);
-        pick.setInt(2, batchSize);
-        List<String> ids = new ArrayList<>(batchSize);
+        pick.setInt(2, drainBatchSize);
+        List<String> ids = new ArrayList<>(drainBatchSize);
         try (ResultSet result = pick.executeQuery()) {
           while (result.next()) {
             ids.add(result.getString(1));
@@ -275,16 +294,10 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
         orphans += orphansOf(update);
         lastId = ids.getLast();
         drained += ids.size();
-        batches++;
-        if (batches % vacuumEvery == 0) {
-          vacuum(connection);
-        }
+        pace(connection, walGuardAvailable);
       }
     }
-    if (drained > 0) {
-      vacuum(connection);
-    }
-    log.info("{}: {} row(s) inserted during the backfill filled in batches", TABLE, drained);
+    log.info("{}: {} row(s) outside the walked ranges filled in batches", TABLE, drained);
     return orphans;
   }
 
@@ -325,12 +338,18 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
-  private static long estimatedRows(Connection connection) throws SQLException {
+  /** Returns the table's estimated row count and page count, read once from the catalog. */
+  private static long[] estimatedRowsAndPages(Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement();
         ResultSet result =
             statement.executeQuery(
-                "SELECT reltuples::bigint FROM pg_class WHERE oid = '" + TABLE + "'::regclass")) {
-      return result.next() ? result.getLong(1) : 0;
+                "SELECT reltuples::bigint, relpages::bigint FROM pg_class WHERE oid = '"
+                    + TABLE
+                    + "'::regclass")) {
+      if (!result.next()) {
+        return new long[] {0, 0};
+      }
+      return new long[] {result.getLong(1), result.getLong(2)};
     }
   }
 
@@ -342,9 +361,50 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
-  private static void vacuum(Connection connection) throws SQLException {
-    try (Statement statement = connection.createStatement()) {
-      statement.execute("VACUUM " + TABLE);
+  /**
+   * Sleeps the fixed pause, then, when the WAL-lag views are readable, waits longer while the WAL
+   * not yet archived or replayed is above {@link #walLagBoundBytes}. A role that cannot read those
+   * views (a permission error, or a server without them) disables this wait for the rest of the
+   * run, logs once, and the fixed pause alone paces every later batch.
+   */
+  private void pace(Connection connection, AtomicBoolean walGuardAvailable) throws SQLException {
+    sleep(pauseMillis);
+    if (!walGuardAvailable.get()) {
+      return;
+    }
+    try {
+      long lag = walLagBytes(connection);
+      while (lag > walLagBoundBytes) {
+        sleep(pauseMillis);
+        lag = walLagBytes(connection);
+      }
+    } catch (SQLException e) {
+      walGuardAvailable.set(false);
+      log.warn(
+          "{}: cannot read pg_stat_archiver / pg_stat_replication / pg_replication_slots,"
+              + " pacing on the fixed pause alone: {}",
+          TABLE,
+          e.getMessage());
+    }
+  }
+
+  private static long walLagBytes(Connection connection) throws SQLException {
+    try (Statement statement = connection.createStatement();
+        ResultSet result = statement.executeQuery(WAL_LAG_QUERY)) {
+      result.next();
+      long lag = result.getLong(1);
+      return result.wasNull() ? 0 : lag;
+    }
+  }
+
+  private static void sleep(int millis) {
+    if (millis <= 0) {
+      return;
+    }
+    try {
+      Thread.sleep(millis);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     }
   }
 
