@@ -52,9 +52,10 @@ const MarketplaceCard: FunctionComponent<Props> = ({
         <Thumbnail>
           <Box sx={{
             'display': 'flex',
+            // An image fills the whole 48px Thumbnail frame; a glyph keeps its 24px.
             '& img': {
-              width: theme => theme.spacing(3),
-              height: theme => theme.spacing(3),
+              width: theme => theme.spacing(6),
+              height: theme => theme.spacing(6),
               objectFit: 'contain',
             },
           }}
