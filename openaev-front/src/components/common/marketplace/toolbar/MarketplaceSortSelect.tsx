@@ -1,6 +1,5 @@
 import { IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowDownwardOutlined, ArrowUpwardOutlined } from '@mui/icons-material';
-import { Box } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../i18n';
@@ -30,11 +29,11 @@ const MarketplaceSortSelect: FunctionComponent<Props> = ({ sortHelpers, options,
   };
 
   return (
-    <Box sx={{
+    <div style={{
       display: 'flex',
-      alignItems: 'center',
-      gap: 0.5,
-      marginLeft: 1,
+      alignItems: 'flex-end',
+      gap: 4,
+      marginLeft: 8,
       flexShrink: 0,
     }}
     >
@@ -42,10 +41,17 @@ const MarketplaceSortSelect: FunctionComponent<Props> = ({ sortHelpers, options,
         value={value}
         onValueChange={next => handleFieldChange(next)}
       >
-        <SelectLabel className="mb-0">{t('Sort by')}</SelectLabel>
-        <SelectTrigger>
-          <SelectValue placeholder={t('Sort by')} />
-        </SelectTrigger>
+        {/* Select renders no wrapper: the label sits above its trigger in a column. */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+        >
+          <SelectLabel>{t('Sort by')}</SelectLabel>
+          <SelectTrigger>
+            <SelectValue placeholder={t('Sort by')} />
+          </SelectTrigger>
+        </div>
         <SelectContent>
           {options.map(option => (
             <SelectItem key={option.field} value={option.field}>
@@ -71,7 +77,7 @@ const MarketplaceSortSelect: FunctionComponent<Props> = ({ sortHelpers, options,
         </TooltipTrigger>
         <TooltipContent>{sortAsc ? t('Sort ascending') : t('Sort descending')}</TooltipContent>
       </Tooltip>
-    </Box>
+    </div>
   );
 };
 
