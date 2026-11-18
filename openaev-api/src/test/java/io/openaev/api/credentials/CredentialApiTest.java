@@ -1138,7 +1138,7 @@ class CredentialApiTest extends IntegrationTest {
           CredentialInputFixture.azureServicePrincipalInputWithScope("azure-scope", AZURE_SCOPE);
 
       // Act
-      String response =
+      String created =
           mvc.perform(
                   multipartCreate(tenantCredentialsUri(tenant.getId()), input)
                       .accept(MediaType.APPLICATION_JSON))
@@ -1146,14 +1146,19 @@ class CredentialApiTest extends IntegrationTest {
               .andReturn()
               .getResponse()
               .getContentAsString();
+      String credentialId = JsonPath.read(created, "$.credential_id");
+      // The creation answers with the short output: the scope is a field of the detail.
+      String detail =
+          mvc.perform(get(tenantCredentialsUri(tenant.getId()) + "/" + credentialId))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
       // Assert
-      assertThat((String) JsonPath.read(response, "$.credential_azure_scope"))
-          .isEqualTo(AZURE_SCOPE);
+      assertThatJson(detail).node("credential_azure_scope").isEqualTo(AZURE_SCOPE);
       CredentialSecretReference credential =
-          credentialSecretReferenceRepository
-              .findById(JsonPath.read(response, "$.credential_id"))
-              .orElseThrow();
+          credentialSecretReferenceRepository.findById(credentialId).orElseThrow();
       Secret secret = secretRepository.findById(credential.getLocation()).orElseThrow();
       assertThat(((AzureServicePrincipalSecret) secret).getAzureScope()).isEqualTo(AZURE_SCOPE);
     }
