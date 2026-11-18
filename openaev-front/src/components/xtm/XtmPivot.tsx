@@ -1,6 +1,6 @@
 import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CloseOutlined, LinkOffOutlined } from '@mui/icons-material';
-import { Avatar, Box, Typography } from '@mui/material';
+import { Avatar, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode, useState } from 'react';
 
@@ -68,9 +68,16 @@ export const ConnectOpenCtiCta: FunctionComponent<{ variant?: 'button' | 'inline
   };
   if (!canConfigure) {
     return (
-      <Typography variant="caption" color="text.secondary" data-testid="xtm-connect-hint">
+      <Box
+        component="span"
+        sx={{
+          typography: 'caption',
+          color: 'text.secondary',
+        }}
+        data-testid="xtm-connect-hint"
+      >
         {t('Ask an administrator to connect OpenCTI to see this object there.')}
-      </Typography>
+      </Box>
     );
   }
   return (
@@ -211,7 +218,15 @@ export const OpenCtiCard: FunctionComponent<PivotProps & { children?: ReactNode 
           }}
           >
             <ProductMark />
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>{answer.counterpart?.counterpart_name}</Typography>
+            <Box
+              component="span"
+              sx={{
+                typography: 'body2',
+                fontWeight: 600,
+              }}
+            >
+              {answer.counterpart?.counterpart_name}
+            </Box>
             {answer.counterpart?.counterpart_entity_type && <Chip label={answer.counterpart.counterpart_entity_type} />}
           </Box>
           {children}
@@ -221,9 +236,15 @@ export const OpenCtiCard: FunctionComponent<PivotProps & { children?: ReactNode 
         <OpenCtiPivotView answer={answer} />
       )}
       {answer.state === 'no_match' && (
-        <Typography variant="caption" color="text.secondary">
+        <Box
+          component="span"
+          sx={{
+            typography: 'caption',
+            color: 'text.secondary',
+          }}
+        >
           {t('This object is not known in the connected OpenCTI.')}
-        </Typography>
+        </Box>
       )}
     </Box>
   );
