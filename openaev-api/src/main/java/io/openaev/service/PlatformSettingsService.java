@@ -32,6 +32,7 @@ import io.openaev.rest.settings.response.OAuthProvider;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.rest.settings.response.PublicPlatformSettings;
 import io.openaev.rest.stream.ai.AiConfig;
+import io.openaev.service.settings.InjectExecutionThresholdService;
 import io.openaev.service.settings.ThemeAssetUrlValidator;
 import io.openaev.utils.InstanceCreationDate;
 import io.openaev.xtmhub.XtmHubConnectivityService;
@@ -86,6 +87,7 @@ public class PlatformSettingsService {
   private final XtmOneIdentity xtmOneIdentity;
   private final OpenTelemetry openTelemetry;
   private final ThemeAssetUrlValidator themeAssetUrlValidator;
+  private final InjectExecutionThresholdService injectExecutionThresholdService;
 
   @Value("${server.servlet.session.timeout:1440m}")
   private java.time.Duration sessionTimeout;
@@ -373,6 +375,12 @@ public class PlatformSettingsService {
             .map(Setting::getValue)
             .map(Integer::parseInt)
             .orElse(Integer.parseInt(PLATFORM_SESSION_MAX_CONCURRENT.defaultValue())));
+
+    // INJECT EXECUTION
+    platformSettings.setInjectExecutionThresholdMinutes(
+        injectExecutionThresholdService.thresholdMinutes());
+    platformSettings.setInjectExecutionThresholdMinutesConfigured(
+        injectExecutionThresholdService.configuredThresholdMinutes());
     return platformSettings;
   }
 
@@ -497,6 +505,16 @@ public class PlatformSettingsService {
             PLATFORM_SESSION_MAX_CONCURRENT.key(),
             String.valueOf(input.getPlatformSessionMaxConcurrent())));
     settingRepository.saveAll(settingsToSave);
+    return findSettings();
+  }
+
+  public PlatformSettings updateSettingsInjectExecution(SettingsInjectExecutionUpdateInput input) {
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
+    settingRepository.save(
+        resolveFromMap(
+            dbSettings,
+            INJECT_EXECUTION_THRESHOLD_MINUTES.key(),
+            String.valueOf(input.getInjectExecutionThresholdMinutes())));
     return findSettings();
   }
 

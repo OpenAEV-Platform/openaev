@@ -135,6 +135,26 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.updateSettingsSessions(input);
   }
 
+  @PutMapping("/inject-execution")
+  @Transactional
+  @PlatformWrite
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "The updated settings"),
+        @ApiResponse(responseCode = "400", description = "Threshold outside 1 to 1440 minutes")
+      })
+  @Operation(
+      summary = "Update inject execution settings",
+      description =
+          "Update the inject execution threshold: the minutes OpenAEV waits for an inject to"
+              + " report before it is finalized with a timeout. Applied at the next run of the"
+              + " finalization job, no restart")
+  public PlatformSettings updateSettingsInjectExecution(
+      TxCtx ctx, @Valid @RequestBody SettingsInjectExecutionUpdateInput input) {
+    return platformSettingsService.updateSettingsInjectExecution(input);
+  }
+
   @PutMapping("/theme/light")
   @Transactional
   @PlatformWrite

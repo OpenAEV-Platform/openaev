@@ -10484,6 +10484,16 @@ export interface PlatformSettings {
    */
   platform_session_max_concurrent?: number;
   /**
+   * Minutes OpenAEV waits for an inject to report a terminal trace before it is finalized with a timeout: the platform setting when set, else the configured value
+   * @format int32
+   */
+  inject_execution_threshold_minutes?: number;
+  /**
+   * Threshold set by configuration (inject.execution.threshold.minutes), used while the platform setting is unset. Read-only
+   * @format int32
+   */
+  inject_execution_threshold_minutes_configured?: number;
+  /**
    * Rolling session timeout in milliseconds (every request extends the session by this duration). Read-only, driven by server configuration
    * @format int64
    */
@@ -12226,6 +12236,16 @@ export interface SettingsChatbotAiCguUpdateInput {
 export interface SettingsEnterpriseEditionUpdateInput {
   /** cert of enterprise edition */
   platform_enterprise_license?: string;
+}
+
+export interface SettingsInjectExecutionUpdateInput {
+  /**
+   * Minutes OpenAEV waits for an inject to report a terminal trace before it is finalized with a timeout (1 to 1440)
+   * @format int32
+   * @min 1
+   * @max 1440
+   */
+  inject_execution_threshold_minutes: number;
 }
 
 export interface SettingsPlatformWhitemarkUpdateInput {

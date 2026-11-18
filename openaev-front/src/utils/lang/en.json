@@ -4678,5 +4678,11 @@
   "YYYY": "YYYY",
   "ZIP must contain a json file": "ZIP must contain a json file",
   "Zoom in": "Zoom in",
-  "Zoom out": "Zoom out"
+  "Zoom out": "Zoom out",
+  "Inject execution": "Inject execution",
+  "Inject execution threshold": "Inject execution threshold",
+  "Configured value": "Configured value",
+  "minutes": "minutes",
+  "Must be between 1 and 1440 minutes": "Must be between 1 and 1440 minutes",
+  "Pending injects past this delay end in error. Agent-based injects are waited on longer and implants are kept alive longer when it is raised.": "Pending injects past this delay end in error. Agent-based injects are waited on longer and implants are kept alive longer when it is raised."
 }

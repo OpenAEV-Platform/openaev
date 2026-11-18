@@ -4678,5 +4678,11 @@
   "YYYY": "YYYY",
   "ZIP must contain a json file": "ZIP 文件必须包含一个 JSON 文件",
   "Zoom in": "放大",
-  "Zoom out": "缩小"
+  "Zoom out": "缩小",
+  "Inject execution": "注入执行",
+  "Inject execution threshold": "注入执行阈值",
+  "Configured value": "配置值",
+  "minutes": "分钟",
+  "Must be between 1 and 1440 minutes": "必须介于 1 到 1440 分钟之间",
+  "Pending injects past this delay end in error. Agent-based injects are waited on longer and implants are kept alive longer when it is raised.": "超过此时长仍待处理的注入将以错误结束。调高该值会让基于代理的注入等待更久，并让植入程序保持运行更久。"
 }

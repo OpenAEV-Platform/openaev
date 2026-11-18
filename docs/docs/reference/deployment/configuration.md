@@ -45,7 +45,7 @@ environment variables (containers). All defaults live in the
 | openaev.healthcheck.connectivity-probe-interval       | OPENAEV_HEALTHCHECK_CONNECTIVITY_PROBE_INTERVAL       | PT10S                 | Interval between two background connectivity probes of the dependencies (ISO-8601 duration). `/api/health` serves the result of the last probe and never contacts a dependency itself; it answers 503 once a required dependency (database, RabbitMQ, file storage) is down or has not been probed for 3 intervals |
 | openaev.healthcheck.storage-probe-interval            | OPENAEV_HEALTHCHECK_STORAGE_PROBE_INTERVAL            | PT4H                  | Interval between two background computations of the storage sizes returned by `/api/health?details=true` and exported as `openaev_storage_used_bytes` (ISO-8601 duration). Computing them walks the whole object storage listing and queries the engine cluster, so low values are costly |
 | openaev.metrics.key                                   | OPENAEV_METRICS_KEY                                   | *empty*               | Scrape key for `/actuator/prometheus`, sent by the scraper as `Authorization: Bearer <key>`. While empty (the default), every `/actuator/**` request is rejected with a 401                |
-| inject.execution.threshold.minutes                    | INJECT_EXECUTION_THRESHOLD_MINUTES                    | 10                    | Time in minutes OpenAEV waits for Agents to report back after an inject is sent. Agents that did not report get a `TIMEOUT` trace and the inject is set to `ERROR` or `PARTIAL`. Late starts are handled by `openaev.scheduling.inject-staleness-threshold`. |
+| inject.execution.threshold.minutes                    | INJECT_EXECUTION_THRESHOLD_MINUTES                    | 10                    | Default inject execution threshold, in minutes: used while the platform setting **Settings > Parameters > Inject execution** is unset. See [Inject execution](#inject-execution). |
 | openaev.cron.config.agent.inactivity.monitor.interval | OPENAEV_CRON_CONFIG_AGENT_INACTIVITY_MONITOR_INTERVAL | 5                     | Polling interval in minutes for the agent inactivity monitor job.                                                                                               |
 | openaev.run-mode                                      | OPENAEV_RUN-MODE                                      | normal                | Startup run mode (`normal` or `safe`). In `safe`, Quartz background processing is disabled. See [Run modes](../../deployment/platform/run-modes.md).                                                       |
 | openaev.starterpack.enabled                           | OPENAEV_STARTERPACK_ENABLED                           | true                  | StarterPack feature, providing default endpoint, asset group, scenarios and dashboards                                                                                                     |
@@ -140,6 +140,23 @@ The inject execution engine runs the actions described in the Injector contracts
 | Parameter                                     | Environment variable                          | Default value | Description                                                                                                                                                                                       |
 |:----------------------------------------------|:----------------------------------------------|:--------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | openaev.scheduling.inject-staleness-threshold | OPENAEV_SCHEDULING_INJECT-STALENESS-THRESHOLD | 4             | Grace period in minutes after the start time of a time-based Inject, during which it can still run. Past this period, the Inject is set in error. Values below `1` are treated as `1`. |
+| inject.execution.threshold.minutes            | INJECT_EXECUTION_THRESHOLD_MINUTES            | 10            | Default inject execution threshold in minutes, used while the platform setting below is unset. |
+
+##### Inject execution threshold
+
+The inject execution threshold is platform-wide (it applies to every inject of every tenant). It is the time OpenAEV waits, once an inject was sent, for its Agents (or for an agentless injector such as a network scanner) to report a terminal result:
+
+- Agents that did not report within it get a `TIMEOUT` trace naming the threshold, and the inject is set to `ERROR` or `PARTIAL`.
+- An agentless inject that did not report within it gets one `TIMEOUT` trace naming the threshold and is set to `ERROR`. A result the injector sends later is still stored.
+- The built-in OpenAEV implant is given the same time (threshold x 60 seconds) before it stops.
+
+It is a platform setting a platform administrator changes in **Settings > Parameters > Inject execution** (or `PUT /api/settings/inject-execution` with `{"inject_execution_threshold_minutes": 60}`), between 1 and 1440 minutes. `GET /api/settings` returns the value in force (`inject_execution_threshold_minutes`) and the configured default (`inject_execution_threshold_minutes_configured`).
+
+- While the setting is unset, `inject.execution.threshold.minutes` (`INJECT_EXECUTION_THRESHOLD_MINUTES`) applies, so an instance that only sets the environment variable behaves as before.
+- A change applies to the timeout of pending injects at the next run of the finalization job, without a restart. The built-in implant reads it when the OpenAEV injector is registered, at startup.
+- Raising it lets long agentless scans (for example a SYN scan of a large asset group) finish with their own status, at the cost of waiting longer for every agent-based inject whose Agents never report.
+- It does not replace `openaev.scheduling.inject-staleness-threshold`: the two are independent checks. The staleness threshold (default 4, minimum 1) bounds how late a time-based inject may *start*; the execution threshold bounds how long a *sent* inject may stay pending.
+- A per-inject override is tracked in a follow-up issue.
 
 {% if feature_visible("CREDENTIAL_ASSET") %}
 #### Credential status validation

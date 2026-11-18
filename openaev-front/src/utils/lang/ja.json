@@ -4678,5 +4678,11 @@
   "YYYY": "YYYY",
   "ZIP must contain a json file": "ZIPファイルにはjsonファイルが含まれている必要があります",
   "Zoom in": "ズームイン",
-  "Zoom out": "ズームアウト"
+  "Zoom out": "ズームアウト",
+  "Inject execution": "インジェクトの実行",
+  "Inject execution threshold": "インジェクト実行のしきい値",
+  "Configured value": "設定値",
+  "minutes": "分",
+  "Must be between 1 and 1440 minutes": "1〜1440分の範囲で指定してください",
+  "Pending injects past this delay end in error. Agent-based injects are waited on longer and implants are kept alive longer when it is raised.": "この時間を過ぎた保留中のインジェクトはエラーで終了します。値を大きくすると、エージェントベースのインジェクトの待機時間とインプラントの稼働時間が長くなります。"
 }

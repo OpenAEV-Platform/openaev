@@ -4678,5 +4678,11 @@
   "YYYY": "ГГГГ",
   "ZIP must contain a json file": "Архив ZIP должен содержать файл JSON",
   "Zoom in": "Приблизить",
-  "Zoom out": "Отдалить"
+  "Zoom out": "Отдалить",
+  "Inject execution": "Выполнение инжектов",
+  "Inject execution threshold": "Порог выполнения инжектов",
+  "Configured value": "Настроенное значение",
+  "minutes": "минут",
+  "Must be between 1 and 1440 minutes": "Должно быть от 1 до 1440 минут",
+  "Pending injects past this delay end in error. Agent-based injects are waited on longer and implants are kept alive longer when it is raised.": "Ожидающие инжекты по истечении этого срока завершаются с ошибкой. При увеличении значения инжекты с агентами ожидаются дольше, а импланты дольше остаются активными."
 }

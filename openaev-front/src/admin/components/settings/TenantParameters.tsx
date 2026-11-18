@@ -2,7 +2,7 @@ import { Paper, Switch } from '@filigran/design-system';
 import { ListItem, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
-import { fetchPlatformParameters, updatePlatformWhitemarkParameters } from '../../../actions/Application';
+import { fetchPlatformParameters, updatePlatformInjectExecutionParameters, updatePlatformWhitemarkParameters } from '../../../actions/Application';
 import type { LoggedHelper } from '../../../actions/helper';
 import {
   fetchTenantSettings,
@@ -15,7 +15,7 @@ import { SectionLabel } from '../../../components/common/detail/EntityDetailComm
 import { useFormatter } from '../../../components/i18n';
 import ItemCopy from '../../../components/ItemCopy';
 import { useHelper } from '../../../store';
-import type { PlatformSettings, SettingsPlatformWhitemarkUpdateInput, TenantSettingsOutput, TenantSettingsUpdateInput, ThemeInput } from '../../../utils/api-types';
+import type { PlatformSettings, SettingsInjectExecutionUpdateInput, SettingsPlatformWhitemarkUpdateInput, TenantSettingsOutput, TenantSettingsUpdateInput, ThemeInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
@@ -23,6 +23,7 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import EEChip from '../common/entreprise_edition/EEChip';
 import { SETTINGS_LABEL } from '../nav/config/settings.config';
+import InjectExecutionForm from './InjectExecutionForm';
 import PlatformInfoPanel from './PlatformInfoPanel';
 import TenantParametersForm from './TenantParametersForm';
 import ThemeForm from './ThemeForm';
@@ -55,6 +56,10 @@ const TenantParameters = () => {
   };
 
   const updatePlatformWhitemark = (data: SettingsPlatformWhitemarkUpdateInput) => dispatch(updatePlatformWhitemarkParameters(data));
+  const onUpdateInjectExecution = async (data: SettingsInjectExecutionUpdateInput) => {
+    // The field holds a string even with type="number"; the form schema coerced it to a number.
+    await dispatch(updatePlatformInjectExecutionParameters({ inject_execution_threshold_minutes: Number(data.inject_execution_threshold_minutes) }));
+  };
 
   const onUpdateDarkTheme = async (data: ThemeInput) => {
     await updateTenantDarkTheme(data);
@@ -218,6 +223,24 @@ const TenantParameters = () => {
           <div>
             <SectionLabel>{t('Tools')}</SectionLabel>
             <ToolsPanel settings={settings} />
+          </div>
+        </div>
+        <div style={{
+          display: 'grid',
+          gap: `0px ${theme.spacing(3)}`,
+          gridTemplateColumns: '1fr 1fr',
+        }}
+        >
+          <div>
+            <SectionLabel>{t('Inject execution')}</SectionLabel>
+            <Paper padding={16}>
+              <InjectExecutionForm
+                onSubmit={onUpdateInjectExecution}
+                initialValues={{ inject_execution_threshold_minutes: settings.inject_execution_threshold_minutes ?? settings.inject_execution_threshold_minutes_configured ?? 10 }}
+                configuredThresholdMinutes={settings.inject_execution_threshold_minutes_configured}
+                canNotManage={ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+              />
+            </Paper>
           </div>
         </div>
         <div style={{ marginBottom: theme.spacing(1) }} />
