@@ -22,6 +22,7 @@ import io.openaev.runner.InitAdminCommandLineRunner;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.scheduler.jobs.QueueChainingJob;
 import io.openaev.search.FullTextSearchService;
+import io.openaev.service.GrantService;
 import io.openaev.service.PermissionService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.account.CallerRightsInTenant;
@@ -169,7 +170,12 @@ final class WorkflowOwnerScopeCallerRules {
           CallerRightsInTenant.class,
           "passes the ambient tenant of the user it is given, and loads that user there, in a"
               + " session of its own, with its eager associations; only the classes of"
-              + " CALLER_RIGHTS_LOADERS call it");
+              + " CALLER_RIGHTS_LOADERS call it",
+          GrantService.class,
+          "narrows the grant existence check to the tenant of the group it is already filtering"
+              + " on (User#scopedTenantId, the group's own tenant or a platform group), so the"
+              + " query's explicit tenant parameter and the scope it runs under always agree, for"
+              + " a grant held through a group of a tenant the request's own scope does not hold");
 
   /** The method of {@link PermissionService} that reaches {@link CallerRightsInTenant}. */
   static final String AMBIENT_CALLER_METHOD = "callerInAmbientTenant";
@@ -182,8 +188,8 @@ final class WorkflowOwnerScopeCallerRules {
       Map.of(
           PermissionService.class,
           AMBIENT_CALLER_METHOD
-              + " passes the user it is given, whose rights in the ambient tenant the scope of"
-              + " the request does not hold");
+              + " and withRolesInAmbientTenant pass the user they are given, whose rights or"
+              + " groups in the ambient tenant the scope of the request does not hold");
 
   /**
    * The classes allowed to call {@link PermissionService#callerInAmbientTenant}, each with the user

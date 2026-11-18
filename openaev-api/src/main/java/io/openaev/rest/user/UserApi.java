@@ -85,7 +85,6 @@ public class UserApi extends RestBehavior {
         if (httpRequest.getSession(false) != null) {
           httpRequest.changeSessionId();
         }
-        permissionService.withRolesInAmbientTenant(user);
         userService.createUserSession(user);
         // Capture auth context in session for reliable expiry audit metadata.
         SessionManager.markAuthenticatedSession(httpRequest, user.getId());
@@ -102,7 +101,8 @@ public class UserApi extends RestBehavior {
                   null);
             });
 
-        return user;
+        // The response describes the user in the ambient tenant, as changePasswordReset does.
+        return permissionService.withRolesInAmbientTenant(user);
       }
     }
     userEventService.createLoginFailedEvent(
