@@ -8,7 +8,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -43,7 +43,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,14 +62,14 @@ import org.springframework.transaction.annotation.Transactional;
  * until-active:attack_patterns} tag on {@code EsAttackPathService}: the tag expired when the table
  * activated, and what it was protecting is now asserted here instead of spelled in a waiver.
  *
- * <p>{@code attack_patterns} is armed alone so the no-property control differs from this run by
- * that table and nothing else.
+ * <p>The class runs on the production list of active tables through {@code
+ * ProductionTablesIntegrationTest}, which arms {@code attack_patterns} among the tables production
+ * arms.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.tenant.active-tables=attack_patterns")
 @DisplayName("Attack-path dashboard attack-pattern read isolation")
-class DashboardAttackPathIsolationTest extends IntegrationTest {
+class DashboardAttackPathIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String ATTACK_PATHS = DASHBOARD_URI + "/attack-paths/";
   private static final String TENANT_ATTACK_PATHS = "/api/tenants/%s/dashboards/attack-paths/%s";

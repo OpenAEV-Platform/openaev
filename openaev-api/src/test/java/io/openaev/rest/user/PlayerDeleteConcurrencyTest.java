@@ -7,8 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
@@ -40,8 +39,6 @@ import org.springframework.context.event.ApplicationEventMulticaster;
 import org.springframework.context.event.SmartApplicationListener;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 /**
@@ -54,13 +51,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
  * was added after the check.
  */
 @DisplayName("Delete of one player from two tenants by concurrent transactions")
-class PlayerDeleteConcurrencyTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class PlayerDeleteConcurrencyTest extends ProductionTablesIntegrationTest {
 
   /** How long a delete waits for the other one between its detach and its check. */
   private static final int MEETING_SECONDS = 3;

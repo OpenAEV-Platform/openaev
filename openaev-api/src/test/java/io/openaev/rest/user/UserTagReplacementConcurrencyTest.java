@@ -4,8 +4,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tag;
@@ -37,8 +36,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * Two independent transactions replacing the tags of the same user, against the real database. Rows
@@ -48,13 +45,7 @@ import org.springframework.test.context.DynamicPropertySource;
  * would otherwise each delete only that set and leave the union of what they asked for.
  */
 @DisplayName("Tag replacement of a user by concurrent transactions")
-class UserTagReplacementConcurrencyTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class UserTagReplacementConcurrencyTest extends ProductionTablesIntegrationTest {
 
   @Autowired private UserService userService;
   @Autowired private UserRepository userRepository;

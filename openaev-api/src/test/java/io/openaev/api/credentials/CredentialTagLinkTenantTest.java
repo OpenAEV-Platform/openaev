@@ -10,9 +10,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.credentials.form.CredentialInput;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.database.repository.TagRepository;
@@ -31,8 +30,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
@@ -52,13 +49,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestPropertySource(properties = "openaev.enabled-dev-features=CREDENTIAL_ASSET")
 @WithMockUser(isAdmin = true)
 @DisplayName("Credential create and update link only the tags of the credential tenant")
-class CredentialTagLinkTenantTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class CredentialTagLinkTenantTest extends ProductionTablesIntegrationTest {
 
   private static final String REFERENCE_TAGS =
       "SELECT tag_id FROM secret_reference_tags WHERE secret_reference_id = ?";

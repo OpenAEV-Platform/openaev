@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import jakarta.servlet.http.Cookie;
@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
@@ -59,9 +58,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * JdbcTemplate} so every read of the request is a statement the inspector rewrites, and removed on
  * teardown.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=challenges,documents")
 @DisplayName("Anonymous player pages of a non-default tenant, challenges and documents active")
-class PlayerDocumentsAnonymousRouteTest extends IntegrationTest {
+class PlayerDocumentsAnonymousRouteTest extends ProductionTablesIntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
   private static final String SIMULATION_DOCUMENTS =

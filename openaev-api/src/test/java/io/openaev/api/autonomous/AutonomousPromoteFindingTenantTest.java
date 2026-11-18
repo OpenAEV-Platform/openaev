@@ -7,8 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
@@ -25,8 +24,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -41,13 +38,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("promoting a finding to an asset reads the finding in the run's tenant")
-class AutonomousPromoteFindingTenantTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class AutonomousPromoteFindingTenantTest extends ProductionTablesIntegrationTest {
 
   private static final String PATH = "/{runId}/findings/{findingId}/promote-to-asset";
   private static final String SCOPED = TENANT_PREFIX + "/autonomous-runs" + PATH;

@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.ContractOutputType;
@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 
@@ -42,11 +41,10 @@ import org.springframework.test.context.event.RecordApplicationEvents;
  * <p>Not {@code @Transactional}: the writer's own {@code REQUIRES_NEW} boundary is the subject, and
  * the seed has to be committed for the conflict to happen at all.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=findings,assets")
 @WithMockUser(isAdmin = true)
 @RecordApplicationEvents
 @DisplayName("the finding writer refuses a write it cannot attribute or cannot see")
-class FindingWriterTest extends IntegrationTest {
+class FindingWriterTest extends ProductionTablesIntegrationTest {
 
   @Autowired private FindingWriter findingWriter;
   @Autowired private DataSource dataSource;

@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Tenant;
@@ -24,7 +24,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,10 +39,9 @@ import org.springframework.transaction.annotation.Transactional;
  * same production configuration so the fix cannot regress it.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=collectors")
 @WithMockUser(isAdmin = true)
 @DisplayName("Security platform endpoints carry the tenant scope with collectors v2-activated")
-class SecurityPlatformCollectorsTenantScopeTest extends IntegrationTest {
+class SecurityPlatformCollectorsTenantScopeTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;

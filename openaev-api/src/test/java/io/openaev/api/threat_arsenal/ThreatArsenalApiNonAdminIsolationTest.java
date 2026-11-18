@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.InjectorContract;
@@ -25,7 +25,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,11 +34,10 @@ import org.springframework.transaction.annotation.Transactional;
  * holding only {@code MANAGE_THREAT_ARSENALS} in the tenant.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=injectors")
 @WithMockUser(isAdmin = false)
 @DisplayName(
     "ThreatArsenalApi scopes the payload-supporting injector lookup for a non-admin caller")
-class ThreatArsenalApiNonAdminIsolationTest extends IntegrationTest {
+class ThreatArsenalApiNonAdminIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String CREATE = "/api/tenants/{tenantId}/threat_arsenals";
   private static final Set<Capability> MANAGE_THREAT_ARSENAL =

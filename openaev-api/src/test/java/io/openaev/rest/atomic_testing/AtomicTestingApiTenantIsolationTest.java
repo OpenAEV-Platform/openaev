@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -19,7 +19,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,10 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
  * with no tenant scope and 404'd even for the caller's own injector.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=injectors")
 @WithMockUser(isAdmin = true)
 @DisplayName("AtomicTestingApi scopes the explicit injector lookup to the caller's tenants")
-class AtomicTestingApiTenantIsolationTest extends IntegrationTest {
+class AtomicTestingApiTenantIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String CREATE = "/api/tenants/{tenantId}/atomic-testings";
   private static final String DETAIL = "/api/tenants/{tenantId}/atomic-testings/{injectId}";

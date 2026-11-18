@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.Scenario;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ScenarioFixture;
@@ -19,16 +19,14 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=tags")
 @WithMockUser(isAdmin = true)
 @DisplayName("ScenarioApi serves scenario details on the tenant path when tags are v2-active")
-class ScenarioApiTenantPathTest extends IntegrationTest {
+class ScenarioApiTenantPathTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private ScenarioComposer scenarioComposer;
