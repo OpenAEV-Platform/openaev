@@ -1,6 +1,6 @@
-import { Chip } from '@filigran/design-system';
+import { Chip, Text } from '@filigran/design-system';
 import { DevicesOutlined, PlayCircleOutlineOutlined, RouteOutlined } from '@mui/icons-material';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { type ReactElement, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router';
@@ -173,12 +173,12 @@ const FindingImpactSections = ({ searchFindings, finding }: Props) => {
         )}
       </DetailSections>
       {total > occurrences.length && (
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+        <Text variant="content-caption" className="text-default-secondary">
           {t('Showing the {shown} most recent of {total} occurrences.', {
             shown: occurrences.length,
             total,
           })}
-        </Typography>
+        </Text>
       )}
     </Box>
   );
