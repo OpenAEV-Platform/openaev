@@ -29,6 +29,10 @@ contexts its classes keep in the test context cache, so the package went to the
 shard with the fewest classes declaring their own context configuration
 (`@MockitoBean`, `@DynamicPropertySource`, `@TestPropertySource`, `@Import`).
 
+`rest/group` moved from shard 6 to shard 9 for the same reason: its group privilege test declares a
+context of its own, which ran shard 6's fork out of heap, and shard 9 has the fewest classes declaring
+their own context configuration.
+
 Custom exclusion files must preserve Surefire's default `**/*$*` exclusion.
 Otherwise nested classes can be discovered again in the catch-all even when
 their enclosing test belongs to an explicit shard. JUnit still runs nested tests
