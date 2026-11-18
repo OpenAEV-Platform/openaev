@@ -1,6 +1,6 @@
 import { Button, Chip } from '@filigran/design-system';
 import { GridViewOutlined } from '@mui/icons-material';
-import { Box } from '@mui/material';
+import { Box, type SxProps, type Theme } from '@mui/material';
 import { cloneElement, type ReactElement, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -80,6 +80,8 @@ interface Props<T> {
   reloadContentCount?: number;
   contextId?: string;
   topPagination?: boolean;
+  /** Spacing override of the active filter chips row (see FilterChips). */
+  filterChipsSx?: SxProps<Theme>;
 }
 
 const PaginationComponentV2 = <T extends object>({
@@ -101,6 +103,7 @@ const PaginationComponentV2 = <T extends object>({
   reloadContentCount = 0,
   contextId,
   topPagination = false,
+  filterChipsSx,
 }: Props<T>) => {
   // Standard hooks
   const { classes } = useStyles({ topPagination });
@@ -361,6 +364,7 @@ const PaginationComponentV2 = <T extends object>({
         helpers={queryableHelpers.filterHelpers}
         pristine={pristine}
         contextId={contextId}
+        sx={filterChipsSx}
       />
     </>
   );

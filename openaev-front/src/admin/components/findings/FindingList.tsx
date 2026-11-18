@@ -42,6 +42,13 @@ type ViewMode = 'cards' | 'list';
 
 const VIEW_MODE_STORAGE_KEY = 'findings:view-mode';
 
+// Findings page: the active filter chips sit right under the toolbar, which
+// already keeps 16px below itself, and keep 16px above the cards.
+const FULL_PAGE_FILTER_CHIPS_SX = {
+  marginTop: 0,
+  marginBottom: 2,
+};
+
 const readViewMode = (): ViewMode => (localStorage.getItem(VIEW_MODE_STORAGE_KEY) === 'list' ? 'list' : 'cards');
 
 const inlineStyles: Record<string, CSSProperties> = ({
@@ -230,6 +237,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
         searchEnable={!compact}
         disableFilters={compact}
         disablePagination={compact}
+        filterChipsSx={fullPage ? FULL_PAGE_FILTER_CHIPS_SX : undefined}
       />
       {viewMode === 'cards' && (
         <>
