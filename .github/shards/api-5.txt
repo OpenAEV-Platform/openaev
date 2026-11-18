@@ -1,7 +1,8 @@
-io/openaev/api/autonomous/**/*Test.java
-io/openaev/rest/EndpointApiTest.java
-io/openaev/rest/PlatformSettingsSafeModeApiTest.java
-io/openaev/rest/TeamApiTest.java
-io/openaev/rest/executor/**/*Test.java
-io/openaev/rest/inject/SimulationInjectApiTest.java
-io/openaev/rest/team/**/*Test.java
+io/openaev/api/notifier/**/*Test.java
+io/openaev/api/payload/**/*Test.java
+io/openaev/database/model/**/*Test.java
+io/openaev/migration/**/*Test.java
+io/openaev/rest/asset_group/**/*Test.java
+io/openaev/rest/tag_rule/**/*Test.java
+io/openaev/rest/user/**/*Test.java
+io/openaev/service/stix/**/*Test.java

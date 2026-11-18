@@ -1,7 +1,9 @@
-io/openaev/api/notifier/**/*Test.java
-io/openaev/datapack/**/*Test.java
-io/openaev/notification/**/*Test.java
-io/openaev/rest/ConnectorInstanceApiTest.java
-io/openaev/rest/XtmHubApiTest.java
-io/openaev/scheduler/**/*Test.java
-io/openaev/service/tenants/**/*Test.java
+io/openaev/api/detection_remediation/**/*Test.java
+io/openaev/api/secrets_providers/**/*Test.java
+io/openaev/debug/**/*Test.java
+io/openaev/rest/exercise/**/*Test.java
+io/openaev/rest/inject_expectation/**/*Test.java
+io/openaev/rest/lessons/**/*Test.java
+io/openaev/rest/reporting/**/*Test.java
+io/openaev/secrets/**/*Test.java
+io/openaev/security/**/*Test.java

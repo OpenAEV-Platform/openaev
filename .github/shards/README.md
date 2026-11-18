@@ -5,13 +5,13 @@ One file per shard, listing Surefire include patterns (relative to
 catch-all: it runs everything **not** listed in any `api-*.txt`, so a newly added
 package starts there and never goes untested.
 
-The current layout is **19 explicit shards + catch-all 20**, shared by Core and
+The current layout is **14 explicit shards + catch-all 15**, shared by Core and
 all Nightly API modes. Every package is assigned to an explicit shard, so the
 catch-all only runs the root `io/openaev/*Test.java` classes and the packages
 added since the last rebalance: it is the smallest API job, with headroom for
 new packages.
 
-The layout was repacked by `balance-api-shards.py 19` from the per-class times of
+The layout was repacked by `balance-api-shards.py 14` from the per-class times of
 the API jobs of ten runs of 17 November 2026, five on each of two layouts, so
 that the slowest shard decides the run length as little as possible. A class
 runs faster or slower depending on the shard it runs in, so the median over two
@@ -53,7 +53,7 @@ durations are workload estimates, not predictions of full CI job duration.
 The existing collection and repacking commands are:
 
     python .github/scripts/collect-test-timings.py <run_id>
-    python .github/scripts/balance-api-shards.py 19
+    python .github/scripts/balance-api-shards.py 14
 
 The first writes `.timings.json` by parsing Surefire's
 `Time elapsed: ... -- in <class>` lines out of the API job logs; the second
@@ -65,7 +65,7 @@ Do not blindly regenerate from the current collector: it misses summaries using
 `@DisplayName`, can count nested durations twice when the enclosing summary
 already includes them, and keeps in a class's time the start of the context it
 shares, which the balancer then counts twice. Check top-level summaries or Surefire XML before using
-the weights. Pass `19` explicitly; the balancer's legacy default is `7`.
+the weights. Pass `14` explicitly; the balancer's legacy default is `7`.
 
 Always verify coverage afterwards:
 
