@@ -429,7 +429,13 @@ public class TenantGroupService {
   public void delete(@NotBlank final String tenantId, @NotBlank final String groupId) {
     Group group = this.findByIdAndTenantForWrite(groupId, tenantId);
     List<String> members = group.getUsers().stream().map(User::getId).toList();
-    group.getUsers().forEach(user -> user.getUnscopedGroups().remove(group));
+    // User.groups is EAGER, so loading group.getUsers() above already pulled each member's own
+    // groups collection into this session, a second mapping of the same join table owned from the
+    // user side. Detaching each member drops it from this session's managed set without editing
+    // that collection, so nothing is flushed through it: there is no stale reference to the group
+    // once it is gone, and no rewrite of a membership set this delete never means to touch.
+    // Deleting the group removes the join rows it owns on its own side (Group.users).
+    group.getUsers().forEach(entityManager::detach);
     groupRepository.delete(group);
     // Deleting the group revokes whatever markings it granted, for every member at once.
     markingClearanceCacheManager.evictForUsers(members);
