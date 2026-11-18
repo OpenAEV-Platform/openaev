@@ -1818,6 +1818,7 @@
   "Findings": "Выводы",
   "FINDINGS": "Выводы",
   "Findings are not available for this report subject.": "Находки недоступны для этого объекта отчета.",
+  "Findings about your assets are kept and stay on the findings page, detached from what you delete.": "Находки о ваших активах сохраняются и остаются на странице находок, отвязанные от того, что вы удаляете.",
   "Findings by type": "Находки по типу",
   "Findings collected over the period, by type and most recent.": "Результаты, собранные за указанный период, по типу и по дате (самые последние).",
   "Findings pagination for {type}": "Постраничная навигация по findings для {type}",

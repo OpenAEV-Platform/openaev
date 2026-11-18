@@ -1818,6 +1818,7 @@
   "Findings": "Risultati",
   "FINDINGS": "Trova",
   "Findings are not available for this report subject.": "I risultati non sono disponibili per l’oggetto di questo report.",
+  "Findings about your assets are kept and stay on the findings page, detached from what you delete.": "I rilevamenti sui tuoi asset vengono conservati e restano nella pagina dei rilevamenti, scollegati da ciò che elimini.",
   "Findings by type": "Rilevamenti per tipo",
   "Findings collected over the period, by type and most recent.": "Risultati raccolti nel periodo, per tipo e in ordine cronologico (dal più recente al più vecchio).",
   "Findings pagination for {type}": "Paginazione dei findings per {type}",

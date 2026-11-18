@@ -1818,6 +1818,7 @@
   "Findings": "ファインディング",
   "FINDINGS": "ファインディング",
   "Findings are not available for this report subject.": "このレポートの対象では、ファインディングを利用できません。",
+  "Findings about your assets are kept and stay on the findings page, detached from what you delete.": "アセットに関するファインディングは保持され、削除する対象から切り離されてファインディングのページに残ります。",
   "Findings by type": "種類別のファインディング",
   "Findings collected over the period, by type and most recent.": "期間中に収集されたファインディングを、種類別および最新順に表示します。",
   "Findings pagination for {type}": "{type} のファインディングのページ送り",

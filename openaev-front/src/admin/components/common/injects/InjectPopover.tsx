@@ -1,5 +1,5 @@
 import { Button } from '@filigran/design-system';
-import { Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Alert, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -308,6 +308,11 @@ const InjectPopover: FunctionComponent<Props> = ({
         handleClose={handleCloseDelete}
         handleSubmit={submitDelete}
         text={`${t('Do you want to delete this inject:')} ${inject.inject_title} ?`}
+        extraContent={(
+          <Alert severity="info" sx={{ mt: 2 }}>
+            {t('Findings about your assets are kept and stay on the findings page, detached from what you delete.')}
+          </Alert>
+        )}
       />
       <DialogTest
         open={openTest}

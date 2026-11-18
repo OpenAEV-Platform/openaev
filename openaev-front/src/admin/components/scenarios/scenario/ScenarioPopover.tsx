@@ -1,3 +1,4 @@
+import { Alert } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -166,6 +167,11 @@ const ScenarioPopover: FunctionComponent<Props> = ({
             handleClose={handleCloseDelete}
             handleSubmit={submitDelete}
             text={`${t('Do you want to delete this scenario:')} ${scenario.scenario_name} ?`}
+            extraContent={(
+              <Alert severity="info" sx={{ mt: 2 }}>
+                {t('Findings about your assets are kept and stay on the findings page, detached from what you delete.')}
+              </Alert>
+            )}
           />
         )}
     </>

@@ -251,15 +251,18 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
         handleClose={handleCloseDelete}
         handleSubmit={submitDelete}
         text={`${t('Do you want to delete this simulation:')} ${exercise.exercise_name} ?`}
-        extraContent={
-          (exercise.exercise_status === 'RUNNING' || exercise.exercise_status === 'PAUSED')
-            ? (
-                <Alert severity="warning" sx={{ mt: 2 }}>
-                  {t('Deleting a running simulation will stop its execution.')}
-                </Alert>
-              )
-            : undefined
-        }
+        extraContent={(
+          <>
+            {(exercise.exercise_status === 'RUNNING' || exercise.exercise_status === 'PAUSED') && (
+              <Alert severity="warning" sx={{ mt: 2 }}>
+                {t('Deleting a running simulation will stop its execution.')}
+              </Alert>
+            )}
+            <Alert severity="info" sx={{ mt: 2 }}>
+              {t('Findings about your assets are kept and stay on the findings page, detached from what you delete.')}
+            </Alert>
+          </>
+        )}
       />
     </>
   );
