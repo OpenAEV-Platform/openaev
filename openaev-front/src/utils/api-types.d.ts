@@ -4566,6 +4566,8 @@ export interface EndpointOutput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   /** Asset external reference */
   asset_external_reference?: string;
+  /** Hostname, the key the XTM counterpart lookup matches on */
+  asset_hostname?: string;
   /**
    * Asset Id
    * @minLength 1
