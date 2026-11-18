@@ -682,6 +682,7 @@ Study of C: tech design, "Filtering and sorting on the reader's status". In shor
   without the partial COMPLETE index), then a specification for the `inject_status` filter and sort key on the
   reader's status, built only when the key is present. Tests: the AMBER user filtering "status = ERROR" gets the
   inject; the statement count without the filter is unchanged.
+  Notification triggers filtered on `inject_status` are not covered here: Chunk 15 (#8924).
 
 ## Chunk 12 — UX enhancement: platforms in the scenario list for a user
 
@@ -741,3 +742,34 @@ UI-driven assertions, not clicking through every setup step):
   `ScenarioApiHelpers`, `TeamApiHelpers`, `DocumentApiHelpers`, `TenantApiHelpers` exist today.
 
 **DoD**: spec green in CI under the existing `test:e2e` job, no new pipeline required.
+
+## Chunk 15 — Notification engine: notifications filtered by the recipient's clearance
+
+**Issue**: [#8924](https://github.com/OpenAEV-Platform/openaev/issues/8924) (spike, US4). **Status**: not started;
+out of scope of the Chunk 11 PR (`issue-8559/execution-status`).
+
+The notification engine checks the tenant only, then sends to every recipient. The spike lists which notifications
+can mention an asset and where to check the recipient's clearance; see the issue for the full list to investigate.
+
+**Found while doing Chunk 11: a live trigger on Inject filtered on the execution status.**
+
+- The trigger form offers `inject_status` on resource Inject (Draft, Error, Executed, Executing, Partial…). It is
+  the execution status of Chunk 11. The Simulation trigger's status is `exercise_status`, the simulation
+  lifecycle, which marking does not change. Scenario has no status.
+- `NotificationMatchingService.matches` evaluates the trigger's filters in the background transaction of
+  `NotificationEngineService` (`TxCtx.forTenant`, every marking), so it matches the **stored** status. A recipient
+  cleared `TLP:AMBER` with a trigger "status = Executed" is notified for an inject on 2 RED agents, while their
+  lists show `NOT_VISIBLE`: the notification tells them the outcome on targets they cannot see. To confirm by
+  hand.
+- A trigger has several recipients (owner, or targeted users and group members), possibly with different
+  clearances, so "the reader's status" is per recipient, not per trigger.
+- **Cost**: small, unlike the lists (Chunk 11, question 2). Matching checks one inject by id per event, so the
+  reader's status adds one query on that inject's COMPLETE traces per trigger and per distinct clearance among its
+  recipients (`MarkingClearanceCacheManager.findClearance`), then `InjectStatusUtils.visibleStatus` in Java.
+
+**Options for the PO**:
+
+| Option | Change |
+|---|---|
+| A. Remove `inject_status` from the Inject trigger form | Front only, plus a migration of the saved triggers that use it |
+| B. Match each recipient on the status they see | Matching, `recordEvents` and dispatch go from per trigger to per group of recipients with the same clearance |
