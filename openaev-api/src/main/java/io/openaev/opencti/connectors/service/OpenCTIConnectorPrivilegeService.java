@@ -39,6 +39,7 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
       TenantUserService tenantUserService,
       MarkingClearanceCacheManager markingClearanceCacheManager,
       TenantWriteScopeResolver writeScopeResolver,
+      UserGroupMembershipService userGroupMembershipService,
       LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration,
       TenantScopedTransaction tenantTx) {
     super(
@@ -47,7 +48,8 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
         userService,
         tenantUserService,
         markingClearanceCacheManager,
-        writeScopeResolver);
+        writeScopeResolver,
+        userGroupMembershipService);
     this.legacyOpenCTIConnectorMigration = legacyOpenCTIConnectorMigration;
     this.tenantTx = tenantTx;
   }
@@ -118,7 +120,7 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
       User user =
           userService.createInternalUser(
               email, CONNECTOR_FIRSTNAME, CONNECTOR_LASTNAME, false, connector.getToken());
-      user.setGroups(new ArrayList<>(List.of(group)));
+      userGroupMembershipService.addMembership(user.getId(), group.getId());
       User savedUser = userService.saveUser(user);
       tenantUserService.attachToTenant(savedUser.getId(), connector.getTenantId());
     }
