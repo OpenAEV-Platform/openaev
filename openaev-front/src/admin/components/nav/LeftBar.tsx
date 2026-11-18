@@ -17,7 +17,6 @@ import {
 } from '@mui/icons-material';
 import {
   Binoculars,
-  FileChartOutline,
   NewspaperVariantMultipleOutline,
   PostOutline,
   SecurityNetwork,
@@ -27,11 +26,13 @@ import {
 
 import AppNavbar from '../../../components/common/menu/navbar/AppNavbar';
 import { type NavMenuEntries } from '../../../components/common/menu/navbar/nav-menu-model';
+import { DASHBOARD_BASE_URL } from '../../../constants/BaseUrls';
 import useAuth from '../../../utils/hooks/useAuth';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
+import { analyticsEntryPath, REPORTING_BASE_URL, useAnalyticsTabs } from '../workspaces/AnalyticsTabs';
 import settingsEntries from './config/settings.config';
 import LeftBarHeader from './LeftBarHeader';
 import TenantSwitcher from './LeftBarTenantSwitcher';
@@ -44,6 +45,7 @@ const LeftBar = () => {
   // clean and avoids an orphan divider above the first entry (Home).
   const hasTenantSwitcher = (userTenants ?? []).length > 1;
   const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+  const analyticsTabs = useAnalyticsTabs();
 
   const entries: NavMenuEntries[] = [
     {
@@ -56,16 +58,13 @@ const LeftBar = () => {
           userRight: true,
         },
         {
-          path: `/admin/workspaces/custom_dashboards`,
+          // One entry, two tabs (Custom dashboards | Reporting): it lands on the
+          // first tab the user can open and stays current on both routes.
+          path: analyticsEntryPath(analyticsTabs),
+          matchPaths: [DASHBOARD_BASE_URL, REPORTING_BASE_URL],
           icon: () => (<InsertChartOutlined />),
           label: 'Dashboards',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DASHBOARDS),
-        },
-        {
-          path: `/admin/reporting`,
-          icon: () => (<FileChartOutline />),
-          label: 'Reporting',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.REPORTINGS),
+          userRight: analyticsTabs.length > 0,
         },
         {
           path: '/admin/findings',
