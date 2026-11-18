@@ -93,6 +93,12 @@ The response wraps results in a page object:
 
 The `filterGroup` field combines filters with `and` or `or`. For the format and the list of operators, see [Filters](filters.md).
 
+### Dashboard widget analytics
+
+The dashboard widget endpoints (`/api/dashboards/count`, `average`, `series`, `entities`, `entities-runtime`, `attack-paths` and their `/api/dashboards/adhoc/*` variants) select the data with a `base_entity` filter in each series or list perspective. `GET /api/dashboards/base-entities` returns the valid values, for example `asset`, `finding` or `scenario`.
+
+A `base_entity` value outside that list answers `400` with a `message` that names the value and lists the valid ones, instead of a count of `0`. A retired value says what replaced it: `endpoint` became `asset`.
+
 ### Error responses
 
 | Code | Meaning |
