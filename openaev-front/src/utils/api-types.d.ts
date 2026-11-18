@@ -3404,6 +3404,24 @@ export interface ContractOutputElementSimple {
     | "expectation_signature";
 }
 
+export interface CounterpartLookupInput {
+  /**
+   * @maxItems 200
+   * @minItems 0
+   */
+  counterpart_keys: string[];
+}
+
+export interface CounterpartOutput {
+  counterpart_entity_id?: string;
+  counterpart_entity_type?: string;
+  counterpart_key?: string;
+  counterpart_name?: string;
+  counterpart_product?: string;
+  counterpart_status?: string;
+  counterpart_url?: string;
+}
+
 export interface CreateConnectorInstanceInput {
   /** @minLength 1 */
   catalog_connector_id: string;
@@ -14510,6 +14528,12 @@ export interface XtmComposerRegisterInput {
 export interface XtmComposerUpdateStatusInput {
   /** The connector instance current status */
   connector_instance_current_status: "started" | "stopped";
+}
+
+export interface XtmConnectionOutput {
+  xtm_connection_connected?: boolean;
+  xtm_connection_product?: string;
+  xtm_connection_url?: string;
 }
 
 export interface XtmHubContactUsInput {
