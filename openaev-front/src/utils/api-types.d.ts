@@ -8207,6 +8207,14 @@ export interface ListPerspective {
   name?: string;
 }
 
+export interface LocalObjectOutput {
+  object_id?: string;
+  object_key?: string;
+  object_name?: string;
+  object_type?: string;
+  object_url?: string;
+}
+
 export interface Log {
   listened?: boolean;
   /** @minLength 1 */
