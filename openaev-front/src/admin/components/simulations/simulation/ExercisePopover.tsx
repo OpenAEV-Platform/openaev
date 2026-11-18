@@ -1,4 +1,4 @@
-import { Alert } from '@mui/material';
+import { Alert } from '@filigran/design-system';
 import { type FunctionComponent, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -254,13 +254,17 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
         extraContent={(
           <>
             {(exercise.exercise_status === 'RUNNING' || exercise.exercise_status === 'PAUSED') && (
-              <Alert severity="warning" sx={{ mt: 2 }}>
-                {t('Deleting a running simulation will stop its execution.')}
-              </Alert>
+              <Alert
+                severity="warning"
+                title={t('Deleting a running simulation will stop its execution.')}
+                className="mt-4"
+              />
             )}
-            <Alert severity="info" sx={{ mt: 2 }}>
-              {t('Findings about your assets are kept and stay on the findings page, detached from what you delete.')}
-            </Alert>
+            <Alert
+              severity="info"
+              title={t('Findings about your assets are kept and stay on the findings page, detached from what you delete.')}
+              className="mt-4"
+            />
           </>
         )}
       />
