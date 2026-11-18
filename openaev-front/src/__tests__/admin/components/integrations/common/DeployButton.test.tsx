@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import { TooltipProvider } from '@filigran/design-system';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -54,18 +54,20 @@ describe('DeployButton', () => {
     expect(screen.queryByText('2 deployed')).not.toBeInTheDocument();
   });
 
-  it('given_inCardWithoutEnterpriseEdition_should_disableTheButtonButKeepTheEEChipReachable', () => {
+  it('given_inCardWithoutEnterpriseEdition_should_matchTheConnectorPageButton', () => {
     // Arrange
     enterpriseEdition.isValidated = false;
+    const onDeployBtnClick = vi.fn();
 
     // Act
-    renderWithProvider(<DeployButton onDeployBtnClick={vi.fn()} deploymentCount={0} size="sm" inCard />);
+    renderWithProvider(<DeployButton onDeployBtnClick={onDeployBtnClick} deploymentCount={0} size="sm" inCard />);
 
     // Assert
-    const button = screen.getByRole('button', { name: 'Deploy' });
-    expect(button).toBeDisabled();
-    // A disabled button swallows the clicks of its content: the chip is laid over it, not inside it.
-    expect(button).not.toContainElement(screen.getByTestId('ee-chip'));
+    const button = screen.getByRole('button', { name: /Deploy/ });
+    expect(button).toBeEnabled();
+    expect(button).toContainElement(screen.getByTestId('ee-chip'));
+    fireEvent.click(button);
+    expect(onDeployBtnClick).not.toHaveBeenCalled();
   });
 
   it('given_inCardWithEnterpriseEdition_should_enableTheButtonWithoutEEChip', () => {
