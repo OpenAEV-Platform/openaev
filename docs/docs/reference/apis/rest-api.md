@@ -185,6 +185,33 @@ POST /api/tenants/{tenantId}/scenarios/{scenarioId}/xls/{importId}/import
 
 For a Simulation, use the same calls under `/api/tenants/{tenantId}/exercises/{exerciseId}/xls/...`.
 
+Read what uses a custom Dashboard before deleting it:
+
+```http
+GET /api/custom-dashboards/{customDashboardId}/usage
+```
+
+```json
+{
+  "custom_dashboard_id": "<dashboard-uuid>",
+  "scenarios_count": 2,
+  "simulations_count": 1,
+  "default_home_dashboard": false,
+  "default_scenario_dashboard": false,
+  "default_simulation_dashboard": true
+}
+```
+
+`DELETE /api/custom-dashboards/{customDashboardId}` is refused only for the default home Dashboard. Otherwise it succeeds, clears the Dashboard from the Scenarios and Simulations that use it and empties the default settings that name it, so call `usage` first to warn the user.
+
+Re-create the starter pack Dashboards that were deleted:
+
+```http
+POST /api/custom-dashboards/starter-pack/restore
+```
+
+It imports each bundled starter pack Dashboard whose name no longer exists, under its original name, and sets the default scenario and simulation Dashboards back when they are empty. A second call creates nothing. The answer lists `restored_dashboards`, `existing_dashboards` and `defaults_set`.
+
 ## Exploration graph
 
 The exploration graph links Assets, Asset groups, Findings, Injects, Simulations and Scenarios. The API returns lazy slices of it, never the whole graph: one entity and its first ring, a path between two entities, or the risk-first landing view. Each endpoint is available under `/api/graph/...` and under the Tenant prefix `/api/tenants/{tenantId}/graph/...`.

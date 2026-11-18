@@ -3837,6 +3837,27 @@ export interface CustomDashboardParametersInput {
     | "scenario";
 }
 
+/** Scenarios, simulations and tenant defaults that use a custom dashboard */
+export interface CustomDashboardUsageOutput {
+  custom_dashboard_id: string;
+  /** The dashboard is the tenant default home dashboard (delete refused) */
+  default_home_dashboard: boolean;
+  /** The dashboard is the tenant default scenario dashboard */
+  default_scenario_dashboard: boolean;
+  /** The dashboard is the tenant default simulation dashboard */
+  default_simulation_dashboard: boolean;
+  /**
+   * Scenarios that show this dashboard in their Analysis tab
+   * @format int64
+   */
+  scenarios_count: number;
+  /**
+   * Simulations that show this dashboard in their Analysis tab
+   * @format int64
+   */
+  simulations_count: number;
+}
+
 export interface CustomDomain {
   /** @format date-time */
   custom_domain_created_at: string;
@@ -12490,6 +12511,16 @@ export interface SortObject {
   empty?: boolean;
   sorted?: boolean;
   unsorted?: boolean;
+}
+
+/** Starter-pack dashboards restored and tenant defaults set back */
+export interface StarterPackDashboardsRestoreOutput {
+  /** Tenant default dashboard settings that were empty and are set back */
+  defaults_set: string[];
+  /** Names of the starter-pack dashboards that already existed */
+  existing_dashboards: string[];
+  /** Names of the dashboards created by this restore */
+  restored_dashboards: string[];
 }
 
 export interface StatusPayload {
