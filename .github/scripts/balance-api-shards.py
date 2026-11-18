@@ -29,6 +29,12 @@ FIXED_MINUTES = 3.4
 DEFAULT_SECONDS = 0.6
 SPLIT_THRESHOLD = 30  # files; larger packages are split one level deeper
 
+# Packages that never share a Surefire fork: each gets a shard of its own, numbered after
+# the packed ones. architecture: its ArchUnit rules import all of io.openaev after the
+# fork's Spring tests, on top of the contexts they left cached, and ran shard 6 out of
+# heap in run 44228102277.
+ISOLATED = ["architecture"]
+
 
 def load_timings():
     if not TIMINGS.exists():
@@ -81,7 +87,9 @@ def main(n=7):
     def cost(members):
         return sum(timings.get(m, DEFAULT_SECONDS) for m in members)
 
-    u = units(files)
+    isolated = [(name, [f for f in files if f.startswith(f"{PKG}/{name}/")]) for name in ISOLATED]
+    isolated_files = {f for _, members in isolated for f in members}
+    u = units([f for f in files if f not in isolated_files])
     root = f"{PKG}/*Test.java"
     reserved = [x for x in u if x[0] == root]
     packable = [x for x in u if x not in reserved]
@@ -97,10 +105,13 @@ def main(n=7):
         t["files"].extend(members)
         t["cost"] += cost(members)
 
-    print(f"\nrepacked into {n} shards + catch-all:")
+    print(f"\nrepacked into {n} shards + {len(isolated)} isolated + catch-all:")
     for i, b in enumerate(bins, 1):
         print(f"  api-{i:<6}{len(b['files']):>5} files  {b['cost']:>7.1f}s var"
               f"   ~{FIXED_MINUTES + b['cost'] / 60:>4.1f} min")
+    for i, (name, members) in enumerate(isolated, n + 1):
+        print(f"  api-{i:<6}{len(members):>5} files  {cost(members):>7.1f}s var"
+              f"   ~{FIXED_MINUTES + cost(members) / 60:>4.1f} min  ({name}, isolated)")
     print(f"  remaining{sum(len(m) for _, m in reserved):>5} files"
           f"   ~{FIXED_MINUTES:>17.1f} min")
     worst = FIXED_MINUTES + max(b["cost"] for b in bins) / 60
@@ -110,12 +121,16 @@ def main(n=7):
     for i, b in enumerate(bins, 1):
         (SHARD_DIR / f"api-{i}.txt").write_text(
             "\n".join(sorted(b["pat"])) + "\n", encoding="utf-8", newline="\n")
-    for extra in range(n + 1, 20):
+    for i, (name, _) in enumerate(isolated, n + 1):
+        (SHARD_DIR / f"api-{i}.txt").write_text(
+            f"{PKG}/{name}/**/*Test.java\n", encoding="utf-8", newline="\n")
+    written = n + len(isolated)
+    for extra in range(written + 1, 20):
         stale = SHARD_DIR / f"api-{extra}.txt"
         if stale.exists():
             stale.unlink()
             print(f"  removed stale {stale.name}")
-    print(f"\nwrote {n} shard file(s) to .github/shards/")
+    print(f"\nwrote {written} shard file(s) to .github/shards/")
 
 
 if __name__ == "__main__":

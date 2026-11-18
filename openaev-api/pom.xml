@@ -38,6 +38,8 @@
         <google-auth-library.version>1.57.0</google-auth-library.version>
         <!-- AWS STS client for temporary credential handling. Apache-2.0. -->
         <aws-sts.version>2.59.0</aws-sts.version>
+        <!-- Filled by jacoco:prepare-agent; empty so @{argLine} still resolves when it did not run. -->
+        <argLine/>
     </properties>
 
     <profiles>
@@ -512,6 +514,15 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- The JVM default (a quarter of the RAM) ran a CI shard's fork out of heap: it keeps
+                         every Spring context its classes create cached. @{argLine} keeps the JaCoCo agent. -->
+                    <argLine>@{argLine} -XX:MaxRAMPercentage=50</argLine>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.springdoc</groupId>

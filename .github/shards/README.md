@@ -5,7 +5,7 @@ One file per shard, listing Surefire include patterns (relative to
 catch-all: it runs everything **not** listed in any `api-*.txt`, so a newly added
 package starts there and never goes untested.
 
-The current layout is **9 explicit shards + catch-all 10**, shared by Core and
+The current layout is **10 explicit shards + catch-all 11**, shared by Core and
 all four Nightly API modes. The catch-all is kept the smallest and fastest API
 job, so it always has headroom for new packages.
 
@@ -28,6 +28,14 @@ shard 6's Surefire fork out of heap. A shard's heap grows with the Spring
 contexts its classes keep in the test context cache, so the package went to the
 shard with the fewest classes declaring their own context configuration
 (`@MockitoBean`, `@DynamicPropertySource`, `@TestPropertySource`, `@Import`).
+
+`architecture` has shard 10 to itself since
+[run 44228102277](https://github.com/OpenAEV-Platform/openaev/actions/runs/44228102277),
+where it ran shard 6's OpenSearch fork out of heap. Its ArchUnit rules run after
+every JUnit Jupiter class of the fork and import all of `io.openaev` on top of the
+Spring contexts those classes left in the cache. Alone, the import has the heap to
+itself. The balancer's `ISOLATED` list keeps it there: it leaves those packages
+out of the packing and writes each to its own shard file, after the packed ones.
 
 Custom exclusion files must preserve Surefire's default `**/*$*` exclusion.
 Otherwise nested classes can be discovered again in the catch-all even when
@@ -53,7 +61,9 @@ The existing collection and repacking commands are:
 
 The first writes `.timings.json` by parsing Surefire's
 `Time elapsed: ... -- in <class>` lines out of the API job logs; the second
-bin-packs packages into `api-<n>.txt`. If you change the shard count, update the
+bin-packs packages into `api-1.txt` to `api-<n>.txt`, then writes one shard file
+per `ISOLATED` package after them (`9` gives `api-10.txt` for `architecture`).
+If you change the shard count or the `ISOLATED` list, update the
 `api-matrix` in `core-ci.yml` and `nightly-ci.yml` to match — the catch-all must
 stay last.
 
