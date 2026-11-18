@@ -6,7 +6,6 @@ import io.openaev.database.raw.RawFindingIndexing;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -164,6 +163,44 @@ public interface FindingRepository
   int fillValueDisplay(
       @Param("findingId") String findingId, @Param("valueDisplay") String valueDisplay);
 
+  // -- KEEP ON DELETE (opt-in keep_findings on the delete endpoints) --
+  //
+  // By default deleting an inject, simulation or scenario deletes the findings its injects produced
+  // (finding_inject_id_fk is ON DELETE CASCADE). On request, these updates detach the findings
+  // first, so they survive: their occurrences keep the history (finding_occurrence_inject_id is ON
+  // DELETE SET NULL). finding_updated_at is bumped so the search index re-indexes them without the
+  // deleted inject, simulation or scenario in their dependencies. The session is cleared so an
+  // inject already loaded does not cascade-delete a finding it no longer owns.
+
+  /** Detaches the findings of the given injects. */
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query(
+      value =
+          "UPDATE findings SET finding_inject_id = NULL, finding_updated_at = now()"
+              + " WHERE finding_inject_id IN (:injectIds)",
+      nativeQuery = true)
+  int detachFromInjects(@Param("injectIds") List<String> injectIds);
+
+  /** Detaches the findings of the injects of the given simulations. */
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query(
+      value =
+          "UPDATE findings SET finding_inject_id = NULL, finding_updated_at = now()"
+              + " WHERE finding_inject_id IN (SELECT inject_id FROM injects"
+              + " WHERE inject_exercise IN (:simulationIds))",
+      nativeQuery = true)
+  int detachFromSimulations(@Param("simulationIds") List<String> simulationIds);
+
+  /** Detaches the findings of the injects of the given scenarios. */
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query(
+      value =
+          "UPDATE findings SET finding_inject_id = NULL, finding_updated_at = now()"
+              + " WHERE finding_inject_id IN (SELECT inject_id FROM injects"
+              + " WHERE inject_scenario IN (:scenarioIds))",
+      nativeQuery = true)
+  int detachFromScenarios(@Param("scenarioIds") List<String> scenarioIds);
+
   /** Projection for {@link #findWithoutValueDisplayAfter}. */
   interface FindingWithoutValueDisplay {
     String getId();
@@ -192,6 +229,8 @@ public interface FindingRepository
               + " array_agg(DISTINCT se.scenario_id)"
               + " FILTER ( WHERE se.scenario_id IS NOT NULL ) AS scenario_ids,"
               + " array_agg(DISTINCT fa.asset_id) FILTER ( WHERE fa.asset_id IS NOT NULL ) AS asset_ids,"
+              + " array_agg(DISTINCT iag.asset_group_id)"
+              + " FILTER ( WHERE iag.asset_group_id IS NOT NULL ) AS asset_group_ids,"
               // The inject the finding is deleted with (ON DELETE CASCADE), and its context
               + " f.finding_inject_id, li.inject_exercise AS finding_simulation_id,"
               + " MAX(lse.scenario_id) AS finding_scenario_id,"
@@ -203,6 +242,8 @@ public interface FindingRepository
               + "LEFT JOIN injects li ON li.inject_id = f.finding_inject_id "
               + "LEFT JOIN scenarios_exercises lse ON lse.exercise_id = li.inject_exercise "
               + "LEFT JOIN findings_assets fa ON f.finding_id = fa.finding_id "
+              // The asset groups the injects of the occurrences target (findings per asset group)
+              + "LEFT JOIN injects_asset_groups iag ON iag.inject_id = fo.finding_occurrence_inject_id "
               // Keyset resume on (updated_at, id): a batch whose LIMIT falls inside a group of
               // findings sharing one timestamp - an upsert stamps a whole transaction with now() -
               // resumes after its last id instead of skipping the rest of the group. A null id
@@ -294,34 +335,4 @@ public interface FindingRepository
               + " ON CONFLICT DO NOTHING",
       nativeQuery = true)
   void insertFindingTags(@Param("findingId") String findingId, @Param("tagIds") String[] tagIds);
-
-  // -- COUNTERPART FACTS (the key facts another XTM product shows next to its pivot) --
-
-  /** Findings recorded on each of the given assets, one row per asset holding at least one. */
-  @Query(
-      "SELECT a.id AS objectKey, COUNT(DISTINCT f.id) AS findings, 0L AS assets"
-          + " FROM Finding f JOIN f.assets a WHERE a.id IN :assetIds GROUP BY a.id")
-  List<FindingCountRow> countFindingsByAssetIdIn(@Param("assetIds") Collection<String> assetIds);
-
-  /**
-   * Findings of a type whose displayed value is one of the given values (compared upper-case, as
-   * CVE ids are), with the number of distinct assets they were found on; one row per value found.
-   * It reads the displayed value, never the cleartext one (ADR-017): a CVE id is displayed as
-   * stored.
-   */
-  @Query(
-      "SELECT UPPER(f.valueDisplay) AS objectKey, COUNT(DISTINCT f.id) AS findings,"
-          + " COUNT(DISTINCT a.id) AS assets FROM Finding f LEFT JOIN f.assets a"
-          + " WHERE f.type = :type AND UPPER(f.valueDisplay) IN :values"
-          + " GROUP BY UPPER(f.valueDisplay)")
-  List<FindingCountRow> countFindingsByTypeAndValueIn(
-      @Param("type") ContractOutputType type, @Param("values") Collection<String> values);
-
-  interface FindingCountRow {
-    String getObjectKey();
-
-    long getFindings();
-
-    long getAssets();
-  }
 }
