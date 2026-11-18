@@ -14,9 +14,7 @@ interface Props extends Omit<ChipProps, 'variant' | 'label' | 'icon' | 'sx'> {
   maxLabelLength?: number;
 }
 
-// Single rendering of a marking as a chip, shared by read-only displays (ItemMarkings) and pickers
-// (MarkingField), so a marking looks the same whether it is shown on an entity or being assigned.
-// Any other Chip prop (e.g. the `onDelete`/`className`/`tabIndex` an Autocomplete's getTagProps
+// Rendering of a marking inside the MUI Autocomplete of MarkingField. Any other Chip prop (e.g. the `onDelete`/`className`/`tabIndex` an Autocomplete's getTagProps
 // hands out) is passed through untouched.
 const MarkingChip: FunctionComponent<Props> = ({ marking, variant, maxLabelLength, ...chipProps }) => {
   const label = markingLabel(marking);
