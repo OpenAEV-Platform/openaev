@@ -61,7 +61,7 @@ class GraphExplorationApiIsolationTest extends IntegrationTest {
   private record Seed(String endpointId, String assetGroupId) {}
 
   @BeforeEach
-  void seedOneAssetGroupInTenantA() {
+  void seedOneAssetGroupInTenantA() throws Exception {
     endpointComposer.reset();
     assetGroupComposer.reset();
     tenantA = tenantHelper.createTenantWithCurrentUser("graph-iso-a").getId();
