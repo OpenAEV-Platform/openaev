@@ -180,6 +180,30 @@ class GcpCredentialConnectivityCheckTest {
       assertThat(result.status()).isEqualTo(FORMAT_ERROR);
       verifyNoInteractions(googleCredentialsFactory);
     }
+
+    @ParameterizedTest(name = "projectId=\"{0}\"")
+    @ValueSource(
+        strings = {"..", "../other", "a/b", "project?x=1", "project#frag", "a b", "-project"})
+    @DisplayName("A project id that could change the path of the project read is refused")
+    void given_malformedProjectId_should_returnFormatError(String projectId) {
+      // Act
+      SecretConnectionResult serviceAccount =
+          validator.validateServiceAccount(keyBytes(), GCP_SCOPE, projectId, null, null);
+      SecretConnectionResult oauth2 =
+          validator.validateOAuth2(
+              GCP_OAUTH_CLIENT_ID,
+              GCP_OAUTH_CLIENT_SECRET,
+              GCP_OAUTH_REFRESH_TOKEN,
+              GCP_SCOPE,
+              projectId,
+              null,
+              null);
+
+      // Assert
+      assertThat(serviceAccount.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(oauth2.status()).isEqualTo(FORMAT_ERROR);
+      verifyNoInteractions(googleCredentialsFactory);
+    }
   }
 
   @Nested

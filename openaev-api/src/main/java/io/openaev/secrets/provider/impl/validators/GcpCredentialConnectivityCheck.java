@@ -17,6 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,6 +54,14 @@ public class GcpCredentialConnectivityCheck {
    * stored on the credential.
    */
   static final String PROJECT_ENDPOINT = "https://cloudresourcemanager.googleapis.com/v1/projects/";
+
+  /**
+   * What a project id may be made of: letters, digits, and the {@code - . :} of legacy
+   * domain-scoped ids, starting with a letter or a digit. It is appended to a URL path, so a slash,
+   * a dot-only segment ({@code ..}), a query or a fragment must never get through.
+   */
+  private static final Pattern PROJECT_ID_PATTERN =
+      Pattern.compile("[A-Za-z0-9][A-Za-z0-9.:-]{0,99}");
 
   /** Google answers a revoked or expired refresh token with HTTP 400 and this error code. */
   private static final String ERROR_INVALID_GRANT = "invalid_grant";
@@ -104,6 +113,7 @@ public class GcpCredentialConnectivityCheck {
     if (privateKeyJson == null
         || privateKeyJson.length == 0
         || isBlank(scope)
+        || isMalformedProjectId(projectId)
         || EndpointUrls.isMalformedOverride(customProjectsUri)) {
       return SecretConnectionResult.formatError();
     }
@@ -145,6 +155,7 @@ public class GcpCredentialConnectivityCheck {
         || isBlank(clientSecret)
         || isBlank(refreshToken)
         || isBlank(scope)
+        || isMalformedProjectId(projectId)
         || EndpointUrls.isMalformedOverride(customProjectsUri)) {
       return SecretConnectionResult.formatError();
     }
@@ -158,6 +169,11 @@ public class GcpCredentialConnectivityCheck {
       return SecretConnectionResult.formatError();
     }
     return probe(credentials, projectId, projectsEndpoint(customProjectsUri));
+  }
+
+  /** An absent project id is fine, it only skips the project read. */
+  private static boolean isMalformedProjectId(String projectId) {
+    return !isBlank(projectId) && !PROJECT_ID_PATTERN.matcher(projectId).matches();
   }
 
   /**

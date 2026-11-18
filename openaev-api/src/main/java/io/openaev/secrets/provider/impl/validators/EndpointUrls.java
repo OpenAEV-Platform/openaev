@@ -30,8 +30,16 @@ final class EndpointUrls {
     if (scheme == null
         || !SUPPORTED_SCHEMES.contains(scheme.toLowerCase(Locale.ROOT))
         || uri.getHost() == null
-        || uri.getHost().isBlank()) {
-      throw new IllegalArgumentException("Endpoint must be an absolute HTTP(S) URL with a host");
+        || uri.getHost().isBlank()
+        // Credentials, a query or a fragment have no place in a base endpoint: what the probes
+        // append to it would land in them, and the token would travel to another place than the
+        // path suggests.
+        || uri.getRawUserInfo() != null
+        || uri.getRawQuery() != null
+        || uri.getRawFragment() != null) {
+      throw new IllegalArgumentException(
+          "Endpoint must be an absolute HTTP(S) URL with a host, and no credentials, query or"
+              + " fragment");
     }
     return uri;
   }

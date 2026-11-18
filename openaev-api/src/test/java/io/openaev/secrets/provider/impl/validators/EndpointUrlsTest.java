@@ -37,9 +37,13 @@ class EndpointUrlsTest {
         "https://",
         "https:///token",
         "https://login.sovereign.example:abc",
-        "http://not a host/token"
+        "http://not a host/token",
+        "https://user:secret@login.sovereign.example/token",
+        "https://login.sovereign.example/token?tenant=other",
+        "https://login.sovereign.example/token#section"
       })
-  @DisplayName("A relative reference, an unsupported scheme or a missing host is refused")
+  @DisplayName(
+      "A relative reference, an unsupported scheme, a missing host, credentials, a query or a fragment is refused")
   void given_notAnAbsoluteHttpUrl_should_beRefused(String value) {
     // Act & Assert
     assertThatThrownBy(() -> EndpointUrls.requireHttpUri(value))

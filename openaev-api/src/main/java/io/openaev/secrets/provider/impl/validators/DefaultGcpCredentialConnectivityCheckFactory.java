@@ -28,7 +28,8 @@ public class DefaultGcpCredentialConnectivityCheckFactory
     // Only the TLS trust of the library's own transport is swapped for the platform's, extra
     // trusted certs included.
     try {
-      SSLContext context = SSLContext.getInstance("TLS");
+      // TLS 1.3, with the TLS 1.2 the JDK still enables by default for a client: no older protocol.
+      SSLContext context = SSLContext.getInstance("TLSv1.3");
       context.init(null, new TrustManager[] {trustManager}, null);
       this.sslContext = context;
     } catch (GeneralSecurityException e) {
