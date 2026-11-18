@@ -546,7 +546,16 @@ const GraphExplorerInner = ({
     >
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
         {NODE_ICON[selectedNode.node_type]()}
-        <Typography variant="h6" sx={{ flexGrow: 1 }} noWrap>{selectedNode.node_label}</Typography>
+        <Typography
+          variant="h6"
+          sx={{
+            flexGrow: 1,
+            textTransform: 'none',
+          }}
+          noWrap
+        >
+          {selectedNode.node_label}
+        </Typography>
         <IconButton size="small" onClick={() => setSelected(null)} aria-label={t('Close')}>
           <CloseOutlined fontSize="small" />
         </IconButton>
