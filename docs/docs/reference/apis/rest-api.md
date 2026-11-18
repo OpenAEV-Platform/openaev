@@ -201,9 +201,9 @@ GET /api/graph/path?fromType=asset&fromId={assetId}&toType=scenario&toId={scenar
 | `{entityType}/{entityId}/neighbourhood` | The entity and its direct neighbours | `edges`: comma-separated edge types to expand, all when empty; `limit`: neighbours per edge type, default `50`, maximum `200` |
 | `path` | A shortest path between two entities, at most 6 hops; an empty path when none is found | `fromType`, `fromId`, `toType`, `toId` |
 
-- **Entity types** (case-insensitive): `asset`, `asset_group`, `finding`, `inject`, `simulation`, `scenario`. An unknown type returns `400`.
-- **Edge types**: `MEMBER_OF` (Asset group contains Asset), `FOUND_ON` (Finding observed on Asset), `PRODUCED` (Inject produced Finding), `TARGETS` (Inject targeted Asset or Asset group, with its expectation result), `PART_OF` (Inject belongs to Simulation), `RUN_OF` (Simulation is a run of Scenario). An unknown edge type returns `400`.
-- **Access**: the endpoints need the right to read Assets. Simulation, Scenario and Inject nodes are returned only when you can read them in the Tenant of the request; the others are dropped with their edges.
+- **Entity types** (case-insensitive): `asset`, `asset_group`, `finding`, `inject`, `simulation`, `scenario`, `person`, `organization`, `team`. An unknown type returns `400`.
+- **Edge types**: `MEMBER_OF` (Asset group contains Asset, static or through the group's dynamic filter), `FOUND_ON` (Finding observed on Asset), `PRODUCED` (Inject produced Finding), `TARGETS` (Inject targeted Asset or Asset group, with its expectation result), `PART_OF` (Inject belongs to Simulation), `RUN_OF` (Simulation is a run of Scenario), `IDENTITY_OF` (Asset is the identity of a Person), `WORKS_FOR` (Person belongs to Organization), `IN_TEAM` (Person is a member of Team), `TEAM_OF` (Team belongs to Organization), `LINKED_TO` (Asset linked to another Asset, see [Asset links](#asset-links)), `ATTACK_STEP` (an attack path step of a Simulation between two Assets). An unknown edge type returns `400`.
+- **Access**: the endpoints need the right to read Assets. Simulation, Scenario and Inject nodes are returned only when you can read them in the Tenant of the request; Person, Organization and Team nodes only with the right to read players, organizations or teams; the others are dropped with their edges.
 
 The response is one graph slice:
 
@@ -237,6 +237,21 @@ The response is one graph slice:
 ```
 
 A node id is `<TYPE>:<entity id>`. `node_result` and `edge_result` are `SUCCESS`, `PENDING` or `FAILED`, the worst expectation result behind them. `graph_truncated` is `true` when a limit cut neighbours: request the entity again with a higher `limit` to load more. `graph_path` lists the node ids of the path, in order, for a `path` request.
+
+## Asset links
+
+An Asset can be linked to other Assets of the same Tenant: an identity Asset logged on to an endpoint, a service running on a host, a host reaching another. The exploration graph draws each link as a `LINKED_TO` edge. Each endpoint is available under `/api/assets/{assetId}/links` and under the Tenant prefix `/api/tenants/{tenantId}/assets/{assetId}/links`.
+
+```http
+GET /api/assets/{assetId}/links
+POST /api/assets/{assetId}/links
+DELETE /api/assets/{assetId}/links/{linkedAssetId}/{linkType}
+```
+
+- **Link types**: `CONNECTS_TO`, `DEPENDS_ON`, `HOSTS`, `LOGGED_ON`, `RUNS_ON`, `USES`, read from the Asset of the path to the linked Asset.
+- **Body** of `POST`: `{"linked_asset_id": "<asset-uuid>", "asset_link_type": "LOGGED_ON"}`. Adding a link that exists returns it unchanged.
+- **Errors**: `400` for a link to the Asset itself or to an Asset of another Tenant, `404` when either Asset (or, on `DELETE`, the link) is not found.
+- **Access**: `GET` needs the right to read the Asset, `POST` and `DELETE` the right to manage it. `GET` lists the links that start or end on the Asset; deleting an Asset deletes its links.
 
 ## What's next?
 
