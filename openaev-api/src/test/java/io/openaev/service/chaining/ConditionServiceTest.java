@@ -1762,6 +1762,30 @@ public class ConditionServiceTest {
       verify(conditionRepository, never()).findByIdAndTenantId(anyString(), anyString());
       verify(conditionRepository, never()).save(any());
     }
+
+    @Test
+    void shouldReattachAPreservedLinkToTheStep_whenTheStepSideWasCleared() {
+      Step step = new Step();
+      step.setId("step-1");
+      Tenant tenant = new Tenant();
+      tenant.setId("tenant-1");
+      step.setTenant(tenant);
+
+      Condition root = new Condition();
+      root.setId("c-1");
+      conditionService.linkToStep(root, step, true);
+      // A step-template update clears the step-side collection before it re-links the roots it
+      // keeps; the reused link must come back to the step side or the following save fails.
+      step.getConditionSteps().clear();
+      when(conditionRepository.findByIdAndTenantId("c-1", "tenant-1"))
+          .thenReturn(Optional.of(root));
+
+      conditionService.linkExistingConditionsToStep(step, List.of("c-1"));
+
+      assertEquals(1, root.getConditionSteps().size());
+      assertEquals(1, step.getConditionSteps().size());
+      assertSame(root.getConditionSteps().getFirst(), step.getConditionSteps().getFirst());
+    }
   }
 
   /* ============================================================

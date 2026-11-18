@@ -1102,6 +1102,7 @@ public class ConditionService {
       // A link between this condition and step already exists.
       // We update the root flag instead of creating a duplicate link.
       existingLink.setRoot(isRoot);
+      attachToStep(step, existingLink);
       return;
     }
 
@@ -1110,6 +1111,36 @@ public class ConditionService {
     link.setStep(step);
     link.setRoot(isRoot);
     conditionSteps.add(link);
+    attachToStep(step, link);
+  }
+
+  /**
+   * Keeps the step side of a condition-step link in step with the condition side.
+   *
+   * <p>{@link Step#getConditionSteps()} is the inverse of {@link Condition#getConditionSteps()}. A
+   * caller that clears the step-side collection before re-linking the conditions it keeps (see
+   * {@link StepService#updateStepTemplate}) would otherwise reuse a link that is present only on
+   * the condition side. The step merge then sees the cleared collection and fails the save with
+   * {@code ObjectDeletedException} for the reused link.
+   */
+  private static void attachToStep(Step step, ConditionStep link) {
+    List<ConditionStep> stepLinks = step.getConditionSteps();
+    if (stepLinks == null) {
+      stepLinks = new ArrayList<>();
+      step.setConditionSteps(stepLinks);
+    }
+    boolean alreadyLinked =
+        stepLinks.stream()
+            .anyMatch(
+                existing ->
+                    existing == link
+                        || (existing.getCondition() != null
+                            && link.getCondition() != null
+                            && Objects.equals(
+                                existing.getCondition().getId(), link.getCondition().getId())));
+    if (!alreadyLinked) {
+      stepLinks.add(link);
+    }
   }
 
   /**
