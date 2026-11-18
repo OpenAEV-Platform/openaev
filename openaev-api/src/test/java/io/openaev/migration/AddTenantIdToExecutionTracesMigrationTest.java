@@ -5,7 +5,9 @@ import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execut
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.INDEX;
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.RANGE_UPDATE;
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.TABLE;
+import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.UNKNOWN_DENSITY_PAGES_PER_BATCH;
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.pagesPerBatch;
+import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.walLagBytes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -314,12 +316,13 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
   class PagesPerBatch {
 
     @Test
-    @DisplayName("An unknown row or page estimate gives one page per batch")
-    void given_unknownEstimate_should_useOnePagePerBatch() {
-      // Act + Assert
-      assertThat(pagesPerBatch(-1, 100, 10_000)).isEqualTo(1);
-      assertThat(pagesPerBatch(0, 100, 10_000)).isEqualTo(1);
-      assertThat(pagesPerBatch(100_000, 0, 10_000)).isEqualTo(1);
+    @DisplayName("An unknown row or page estimate gives a fixed range of pages per batch")
+    void given_unknownEstimate_should_useTheFixedPageRange() {
+      // Act + Assert: one page per batch would turn a large table never analyzed into millions of
+      // paced batches
+      assertThat(pagesPerBatch(-1, 100, 10_000)).isEqualTo(UNKNOWN_DENSITY_PAGES_PER_BATCH);
+      assertThat(pagesPerBatch(0, 100, 10_000)).isEqualTo(UNKNOWN_DENSITY_PAGES_PER_BATCH);
+      assertThat(pagesPerBatch(100_000, 0, 10_000)).isEqualTo(UNKNOWN_DENSITY_PAGES_PER_BATCH);
     }
 
     @Test
@@ -370,6 +373,56 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
 
       // Assert
       assertThat(plan).contains("Tid Range Scan").doesNotContain("Sort");
+    }
+
+    @Test
+    @DisplayName("Both sides of a range update read the range only, never the whole table")
+    void given_rangeUpdate_should_readOnlyTheRangeOnBothSides() throws SQLException {
+      // Arrange: the real statement, its parameters inlined, planned and never run
+      makePending();
+      String sql =
+          RANGE_UPDATE
+              .replaceFirst("\\?", "'" + DEFAULT_TENANT_UUID + "'")
+              .replaceAll("\\?::tid", "'(0,0)'::tid")
+              .replace("< '(0,0)'::tid", "< '(10,0)'::tid");
+      assertThat(sql).doesNotContain("?");
+
+      // Act: a batch of thousands of rows joins by hash, which reads each side on its own; on a
+      // near-empty table the planner joins row by row, or reads it whole at no cost, so both are
+      // off here to force the shape of a real batch
+      execute("SET enable_nestloop = off");
+      execute("SET enable_seqscan = off");
+      String plan;
+      try {
+        plan =
+            rows("EXPLAIN " + sql).stream()
+                .map(row -> (String) row[0])
+                .reduce("", (left, right) -> left + "\n" + right);
+      } finally {
+        execute("RESET enable_nestloop");
+        execute("RESET enable_seqscan");
+      }
+
+      // Assert: with the ctid join alone, the updated side has no range to scan and reads the
+      // whole table
+      assertThat(plan)
+          .contains("Tid Range Scan on " + TABLE + " t")
+          .doesNotContain("Seq Scan on " + TABLE);
+    }
+  }
+
+  @Nested
+  @DisplayName("WAL lag")
+  class WalLag {
+
+    @Test
+    @DisplayName("The WAL lag query runs on the server and reads zero or more bytes")
+    void given_server_should_readTheWalLag() throws SQLException {
+      // Act: a failure here disables the wait for a whole run, so the query must parse and run
+      long lag = walLagBytes(connection);
+
+      // Assert
+      assertThat(lag).isGreaterThanOrEqualTo(0);
     }
   }
 

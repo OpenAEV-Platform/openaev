@@ -2,6 +2,7 @@ package io.openaev.migration;
 
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 
+import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -39,21 +40,24 @@ import org.springframework.stereotype.Component;
  * <ol>
  *   <li>the column is added, nullable and with no default (a catalog change only);
  *   <li>the backfill walks the table in physical order, one range of pages at a time ({@code ctid
- *       BETWEEN '(p,0)' AND '(p+N,0)'}), each range in its own committed transaction. That is a
- *       {@code Tid Range Scan}: it reads each page once, in the order it already sits on disk,
- *       rather than following the primary key's random order, which touches pages all over the
- *       table. {@code N} is picked once, from the table's average row density ({@code
- *       pg_class.reltuples} and {@code relpages}), so that a range covers about the same number of
- *       rows the old, row-counted batches did;
+ *       >= '(p,0)' AND ctid < '(p+N,0)'}), each range in its own committed transaction. Both sides
+ *       of the update, the rows read and the rows written, are a {@code Tid Range Scan} on that
+ *       range: each page is read once, in the order it sits on disk, not in the primary key's
+ *       random order, which touches pages all over the table. The walk covers the table's size on
+ *       disk when it starts ({@code pg_relation_size}). {@code N} is picked once, from the table's
+ *       average row density ({@code pg_class.reltuples} and {@code relpages}), so that a range
+ *       covers about {@value #TARGET_ROWS_PER_BATCH} rows; with no statistics yet (a table never
+ *       analyzed, for instance right after a restore), a range is {@value
+ *       #UNKNOWN_DENSITY_PAGES_PER_BATCH} pages;
  *   <li>no {@code VACUUM} runs during or after the walk. Autovacuum reclaims the dead row versions
  *       on its own schedule: each page is rewritten once, inside one range's own transaction, so
- *       the space of that range is already reclaimable the moment it commits, and the table never
- *       doubles in the way a backfill with no pacing can;
+ *       the space of that range is reclaimable the moment it commits;
  *   <li>between ranges, the migration pauses a fixed, short duration, and, when the server reports
  *       archiving ({@code pg_stat_archiver}) or a replica ({@code pg_stat_replication}, {@code
- *       pg_replication_slots}), it waits longer while the WAL not yet archived or replayed is above
- *       a bound, so that archiving and any replica stay caught up. A role that cannot read those
- *       views falls back to the fixed pause alone, logged once;
+ *       pg_replication_slots}, active slots only), it waits longer while the WAL not yet archived
+ *       or replayed is above a bound, so that archiving and any replica catch up, and logs every
+ *       minute it waits. A role that cannot read those views falls back to the fixed pause alone,
+ *       logged once;
  *   <li>a running instance can insert rows with no tenant that the walk above does not reach (its
  *       page range is fixed before the insert happens), so a drain builds a temporary partial index
  *       of the rows with no tenant ({@code CONCURRENTLY}, so inserts go on), walks it in primary
@@ -75,16 +79,21 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
   public static final String TABLE = "execution_traces";
 
   static final int TARGET_ROWS_PER_BATCH = 10_000;
+  static final long UNKNOWN_DENSITY_PAGES_PER_BATCH = 1_000;
   static final int DRAIN_BATCH_SIZE = 10_000;
   static final int PAUSE_MILLIS = 200;
   static final long WAL_LAG_BOUND_BYTES = 1_024L * 1_024 * 1_024;
+  private static final long MEGABYTE = 1_024L * 1_024;
+  private static final Duration WAIT_LOG_INTERVAL = Duration.ofMinutes(1);
   static final String FOREIGN_KEY = "fk_" + TABLE + "_tenant_id";
   static final String INDEX = "idx_" + TABLE + "_tenant_id";
   static final String PENDING_INDEX = "idx_" + TABLE + "_tenant_id_pending";
 
   /**
-   * Fills the rows of {@code %s} (a predicate on the alias {@code x}) with the tenant of their
-   * parent. Returns, for the rows it wrote, their count and how many had no parent tenant.
+   * Fills the rows of {@code %1$s} (a predicate on the alias {@code x}) with the tenant of their
+   * parent. Returns, for the rows it wrote, their count and how many had no parent tenant. {@code
+   * %2$s} is the same predicate on the updated alias {@code t}: with the {@code ctid} join alone,
+   * the planner reads the whole table on the {@code t} side of every batch.
    */
   private static final String BACKFILL =
       "WITH written AS ("
@@ -102,17 +111,20 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
           + " ON test_status.status_id = x.execution_inject_test_status_id"
           + " LEFT JOIN injects inject_of_test_status"
           + " ON inject_of_test_status.inject_id = test_status.status_inject"
-          + " WHERE x.tenant_id IS NULL AND %s) b"
-          + " WHERE t.ctid = b.trace_ctid"
+          + " WHERE x.tenant_id IS NULL AND %1$s) b"
+          + " WHERE t.ctid = b.trace_ctid AND %2$s"
           + " RETURNING b.parent_tenant IS NULL AS orphan)"
           + " SELECT count(*) AS written, count(*) FILTER (WHERE orphan) AS orphans"
           + " FROM written";
 
   /** One range of pages, in physical order: a {@code Tid Range Scan}, never a table-wide sort. */
-  static final String RANGE_UPDATE = BACKFILL.formatted("x.ctid >= ?::tid AND x.ctid < ?::tid");
+  static final String RANGE_UPDATE =
+      BACKFILL.formatted(
+          "x.ctid >= ?::tid AND x.ctid < ?::tid", "t.ctid >= ?::tid AND t.ctid < ?::tid");
 
-  private static final String BATCH_UPDATE = BACKFILL.formatted("x.execution_trace_id = ANY(?)");
-  private static final String FINAL_UPDATE = BACKFILL.formatted("true");
+  private static final String BATCH_UPDATE =
+      BACKFILL.formatted("x.execution_trace_id = ANY(?)", "t.execution_trace_id = ANY(?)");
+  private static final String FINAL_UPDATE = BACKFILL.formatted("true", "true");
 
   /** Picks the next rows with no tenant in primary key order, served by the partial index. */
   static final String NEXT_PENDING_IDS =
@@ -123,8 +135,12 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
 
   /**
    * Returns how much WAL is not yet archived or replayed: the largest of the archiver's lag, every
-   * streaming replica's lag and every replication slot's lag, in bytes. {@code NULL} (no archiving,
-   * no replica, no slot) reads as zero.
+   * streaming replica's lag and every active replication slot's lag, in bytes. {@code NULL} (no
+   * archiving, no replica, no active slot) reads as zero. An inactive slot is left out: nothing
+   * consumes it while the migration runs, so a wait on it never ends. The archiver's lag is the
+   * distance between the current WAL segment and the last archived one, both read from their file
+   * names (timeline, log, segment, 8 hex digits each), which every supported server version parses;
+   * a {@code .history} or {@code .partial} file name is skipped.
    */
   private static final String WAL_LAG_QUERY =
       "SELECT MAX(lag) FROM ("
@@ -132,12 +148,17 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
           + " FROM pg_stat_replication"
           + " UNION ALL"
           + " SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) AS lag"
-          + " FROM pg_replication_slots WHERE restart_lsn IS NOT NULL"
+          + " FROM pg_replication_slots WHERE active AND restart_lsn IS NOT NULL"
           + " UNION ALL"
-          + " SELECT ((pg_split_walfile_name(pg_walfile_name(pg_current_wal_lsn()))).segment_number"
-          + " - (pg_split_walfile_name(last_archived_wal)).segment_number)"
-          + " * pg_size_bytes(current_setting('wal_segment_size')) AS lag"
-          + " FROM pg_stat_archiver WHERE last_archived_wal IS NOT NULL) lags";
+          + " SELECT ((('x' || substr(cur, 9, 8))::bit(32)::bigint"
+          + " - ('x' || substr(done, 9, 8))::bit(32)::bigint) * (4294967296 / seg)"
+          + " + ('x' || substr(cur, 17, 8))::bit(32)::bigint"
+          + " - ('x' || substr(done, 17, 8))::bit(32)::bigint) * seg AS lag"
+          + " FROM (SELECT pg_walfile_name(pg_current_wal_lsn()) AS cur,"
+          + " last_archived_wal AS done,"
+          + " pg_size_bytes(current_setting('wal_segment_size')) AS seg"
+          + " FROM pg_stat_archiver) archiver"
+          + " WHERE done ~ '^[0-9A-F]{24}$') lags";
 
   private final int drainBatchSize;
   private final Long pagesPerBatchOverride;
@@ -157,13 +178,13 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
   }
 
   /**
-   * Pages per batch: {@code pagesPerBatchOverride} when set (tests), or, from the table's average
-   * row density, the pages that cover about {@code targetRowsPerBatch} rows. An estimate of 0 or
-   * below (no {@code ANALYZE} yet) gives one page, the safest default.
+   * Pages per batch, from the table's average row density: the pages that cover about {@code
+   * targetRowsPerBatch} rows. An estimate of 0 or below (no {@code ANALYZE} yet) gives {@link
+   * #UNKNOWN_DENSITY_PAGES_PER_BATCH} pages, about 8 MB of table.
    */
   static long pagesPerBatch(long estimatedRows, long estimatedPages, int targetRowsPerBatch) {
     if (estimatedRows <= 0 || estimatedPages <= 0) {
-      return 1;
+      return UNKNOWN_DENSITY_PAGES_PER_BATCH;
     }
     double rowsPerPage = (double) estimatedRows / estimatedPages;
     long pages = Math.round(targetRowsPerBatch / Math.max(rowsPerPage, 1.0));
@@ -188,22 +209,22 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
       statement.execute(
           "ALTER TABLE " + TABLE + " ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255)");
     }
-    long[] rowsAndPages = estimatedRowsAndPages(connection);
+    TableSize size = tableSize(connection);
     long pagesPerBatch =
         Math.max(
             1,
             pagesPerBatchOverride != null
                 ? pagesPerBatchOverride
-                : pagesPerBatch(rowsAndPages[0], rowsAndPages[1], TARGET_ROWS_PER_BATCH));
+                : pagesPerBatch(
+                    size.estimatedRows(), size.estimatedPages(), TARGET_ROWS_PER_BATCH));
     log.info(
-        "{}: about {} row(s) over {} page(s), {} page(s) per batch",
+        "{}: {} page(s) on disk, about {} row(s), {} page(s) per batch",
         TABLE,
-        rowsAndPages[0],
-        rowsAndPages[1],
+        size.pages(),
+        size.estimatedRows(),
         pagesPerBatch);
     AtomicBoolean walGuardAvailable = new AtomicBoolean(true);
-    long orphans =
-        backfillByPageRanges(connection, rowsAndPages[1], pagesPerBatch, walGuardAvailable);
+    long orphans = backfillByPageRanges(connection, size.pages(), pagesPerBatch, walGuardAvailable);
     orphans += drain(connection, walGuardAvailable);
     orphans += finish(connection);
     if (orphans > 0) {
@@ -229,10 +250,12 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     long batches = 0;
     long startedAt = System.nanoTime();
     try (PreparedStatement update = connection.prepareStatement(RANGE_UPDATE)) {
-      for (long page = 0; page <= totalPages; page += pagesPerBatch) {
+      for (long page = 0; page < totalPages; page += pagesPerBatch) {
         update.setString(1, DEFAULT_TENANT_UUID);
         update.setString(2, tid(page));
         update.setString(3, tid(page + pagesPerBatch));
+        update.setString(4, tid(page));
+        update.setString(5, tid(page + pagesPerBatch));
         try (ResultSet result = update.executeQuery()) {
           result.next();
           written += result.getLong("written");
@@ -289,8 +312,10 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
         if (ids.isEmpty()) {
           break;
         }
+        Array idArray = connection.createArrayOf("varchar", ids.toArray());
         update.setString(1, DEFAULT_TENANT_UUID);
-        update.setArray(2, connection.createArrayOf("varchar", ids.toArray()));
+        update.setArray(2, idArray);
+        update.setArray(3, idArray);
         orphans += orphansOf(update);
         lastId = ids.getLast();
         drained += ids.size();
@@ -338,18 +363,23 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
-  /** Returns the table's estimated row count and page count, read once from the catalog. */
-  private static long[] estimatedRowsAndPages(Connection connection) throws SQLException {
+  /**
+   * The table's size: {@code pages}, its exact page count on disk, which bounds the walk, and the
+   * catalog's estimates ({@code reltuples}, {@code relpages}, both as of the last {@code ANALYZE}
+   * or {@code VACUUM}), which give its row density only.
+   */
+  private record TableSize(long pages, long estimatedRows, long estimatedPages) {}
+
+  private static TableSize tableSize(Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement();
         ResultSet result =
             statement.executeQuery(
-                "SELECT reltuples::bigint, relpages::bigint FROM pg_class WHERE oid = '"
+                "SELECT pg_relation_size(oid) / current_setting('block_size')::bigint,"
+                    + " reltuples::bigint, relpages::bigint FROM pg_class WHERE oid = '"
                     + TABLE
                     + "'::regclass")) {
-      if (!result.next()) {
-        return new long[] {0, 0};
-      }
-      return new long[] {result.getLong(1), result.getLong(2)};
+      result.next();
+      return new TableSize(result.getLong(1), result.getLong(2), result.getLong(3));
     }
   }
 
@@ -374,8 +404,17 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
     try {
       long lag = walLagBytes(connection);
+      long nextLogAt = System.nanoTime();
       while (lag > walLagBoundBytes) {
-        sleep(pauseMillis);
+        if (System.nanoTime() - nextLogAt >= 0) {
+          log.info(
+              "{}: waiting for WAL archiving or replicas, {} MB behind (bound {} MB)",
+              TABLE,
+              lag / MEGABYTE,
+              walLagBoundBytes / MEGABYTE);
+          nextLogAt = System.nanoTime() + WAIT_LOG_INTERVAL.toNanos();
+        }
+        sleep(Math.max(pauseMillis, 1_000));
         lag = walLagBytes(connection);
       }
     } catch (SQLException e) {
@@ -388,7 +427,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
-  private static long walLagBytes(Connection connection) throws SQLException {
+  static long walLagBytes(Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement();
         ResultSet result = statement.executeQuery(WAL_LAG_QUERY)) {
       result.next();
@@ -404,7 +443,9 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     try {
       Thread.sleep(millis);
     } catch (InterruptedException e) {
+      // Stop here: the next start resumes from the rows left with no tenant.
       Thread.currentThread().interrupt();
+      throw new IllegalStateException(TABLE + " tenant backfill interrupted", e);
     }
   }
 
