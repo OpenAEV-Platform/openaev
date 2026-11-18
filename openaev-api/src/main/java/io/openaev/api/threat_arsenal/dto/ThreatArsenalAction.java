@@ -27,6 +27,18 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
   @JsonProperty("action_payload")
   private PayloadSimple payload;
 
+  @Schema(description = "Version of the attached payload")
+  @JsonProperty("action_payload_version")
+  private String payloadVersion;
+
+  @Schema(description = "The attached payload comes from the Filigran catalogue")
+  @JsonProperty("action_payload_managed")
+  private Boolean payloadManaged;
+
+  @Schema(description = "The attached payload version is revoked in the tenant")
+  @JsonProperty("action_payload_revoked")
+  private Boolean payloadRevoked;
+
   @Schema(description = "Injector type")
   @JsonProperty("action_injector_type")
   private String injectorType;
@@ -80,6 +92,9 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
       Endpoint.PLATFORM_TYPE[] platforms,
       String[] tags,
       @Nullable PayloadSimple payloadSimple,
+      String payloadVersion,
+      Boolean payloadManaged,
+      Boolean payloadRevoked,
       String[] attackPatterns,
       String authorId,
       String authorName,
@@ -92,6 +107,9 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
     this.setPlatforms(platforms);
     this.setTags(tags != null ? new HashSet<>(Arrays.asList(tags)) : new HashSet<>());
     this.setPayload(payloadSimple);
+    this.setPayloadVersion(payloadVersion);
+    this.setPayloadManaged(payloadManaged);
+    this.setPayloadRevoked(payloadRevoked);
     this.setAttackPatterns(
         attackPatterns != null ? new HashSet<>(Arrays.asList(attackPatterns)) : new HashSet<>());
     this.setAuthorId(authorId);

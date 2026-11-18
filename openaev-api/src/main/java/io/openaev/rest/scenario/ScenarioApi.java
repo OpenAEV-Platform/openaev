@@ -51,11 +51,13 @@ import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.period.RecurrenceService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.servlet.http.HttpServletResponse;
@@ -92,6 +94,7 @@ public class ScenarioApi extends RestBehavior {
   private final ScenarioToExerciseService scenarioToExerciseService;
   private final ImportService importService;
   private final ScenarioService scenarioService;
+  private final RecurrenceService recurrenceService;
   private final TeamService teamService;
   private final AssetGroupService assetGroupService;
   private final EndpointService endpointService;
@@ -372,13 +375,21 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SCENARIO)
-  public void deleteScenario(TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
+  public void deleteScenario(
+      TxCtx ctx,
+      @PathVariable @NotBlank final String scenarioId,
+      @Parameter(
+              description =
+                  "True keeps the findings produced by the scenario's injects, detached from them."
+                      + " False (the default) deletes them with the scenario.")
+          @RequestParam(name = "keep_findings", required = false, defaultValue = "false")
+          final boolean keepFindings) {
     // Tear down the autonomous run's coordination first (409 if it is still active), then delete
     // the scenario. Finished simulations are NOT deleted - they detach and remain as history, like
     // any chained simulation. No-op for manual scenarios.
     this.scenarioService.existsInScope(ctx, scenarioId);
     this.autonomousRunService.deleteForScenario(scenarioId);
-    this.scenarioService.deleteScenario(ctx, scenarioId);
+    this.scenarioService.deleteScenario(ctx, scenarioId, keepFindings);
   }
 
   @Operation(
@@ -614,6 +625,9 @@ public class ScenarioApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioRecurrenceInput input) {
+    // Refuse an expression the scheduler could never fire before any gate or write (a blank one
+    // clears the schedule and stays accepted).
+    this.recurrenceService.validateExpression(input.getRecurrence());
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     // Scheduling itself is a Community Edition feature, but the Enterprise executor gate still
     // applies: without it, scheduling would bypass the licence check enforced on manual launches

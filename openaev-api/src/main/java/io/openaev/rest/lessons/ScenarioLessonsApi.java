@@ -154,10 +154,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       @PathVariable String scenarioId,
       @PathVariable String lessonsCategoryId,
       @Valid @RequestBody LessonsCategoryUpdateInput input) {
-    LessonsCategory lessonsTemplateCategory =
-        lessonsCategoryRepository
-            .findById(lessonsCategoryId)
-            .orElseThrow(ElementNotFoundException::new);
+    LessonsCategory lessonsTemplateCategory = categoryOfScenario(scenarioId, lessonsCategoryId);
     lessonsTemplateCategory.setUpdateAttributes(input);
     lessonsTemplateCategory.setUpdated(now());
     return hydrateForResponse(lessonsCategoryRepository.save(lessonsTemplateCategory));
@@ -174,7 +171,7 @@ public class ScenarioLessonsApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public void deleteScenarioLessonsCategory(
       TxCtx ctx, @PathVariable String scenarioId, @PathVariable String lessonsCategoryId) {
-    lessonsCategoryRepository.deleteById(lessonsCategoryId);
+    lessonsCategoryRepository.delete(categoryOfScenario(scenarioId, lessonsCategoryId));
   }
 
   @PutMapping({
@@ -191,10 +188,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       @PathVariable String scenarioId,
       @PathVariable String lessonsCategoryId,
       @Valid @RequestBody LessonsCategoryTeamsInput input) {
-    LessonsCategory lessonsCategory =
-        lessonsCategoryRepository
-            .findById(lessonsCategoryId)
-            .orElseThrow(ElementNotFoundException::new);
+    LessonsCategory lessonsCategory = categoryOfScenario(scenarioId, lessonsCategoryId);
     Iterable<Team> lessonsCategoryTeams =
         teamRepository.findAllByIdInTenant(input.getTeamIds(), parentTenantId(lessonsCategory));
     lessonsCategory.setTeams(fromIterable(lessonsCategoryTeams));
@@ -241,6 +235,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public Iterable<LessonsQuestion> scenarioLessonsCategoryQuestions(
       TxCtx ctx, @PathVariable String scenarioId, @PathVariable String lessonsCategoryId) {
+    categoryOfScenario(scenarioId, lessonsCategoryId);
     return lessonsQuestionRepository.findAll(
         LessonsQuestionSpecification.fromCategory(lessonsCategoryId));
   }
@@ -259,10 +254,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       @PathVariable String scenarioId,
       @PathVariable String lessonsCategoryId,
       @Valid @RequestBody LessonsQuestionCreateInput input) {
-    LessonsCategory lessonsCategory =
-        lessonsCategoryRepository
-            .findById(lessonsCategoryId)
-            .orElseThrow(ElementNotFoundException::new);
+    LessonsCategory lessonsCategory = categoryOfScenario(scenarioId, lessonsCategoryId);
     LessonsQuestion lessonsQuestion = new LessonsQuestion();
     lessonsQuestion.setUpdateAttributes(input);
     lessonsQuestion.setCategory(lessonsCategory);
@@ -283,12 +275,11 @@ public class ScenarioLessonsApi extends RestBehavior {
   public LessonsQuestion updateScenarioLessonsQuestion(
       TxCtx ctx,
       @PathVariable String scenarioId,
+      @PathVariable String lessonsCategoryId,
       @PathVariable String lessonsQuestionId,
       @Valid @RequestBody LessonsQuestionUpdateInput input) {
     LessonsQuestion lessonsQuestion =
-        lessonsQuestionRepository
-            .findById(lessonsQuestionId)
-            .orElseThrow(ElementNotFoundException::new);
+        questionOfCategory(scenarioId, lessonsCategoryId, lessonsQuestionId);
     lessonsQuestion.setUpdateAttributes(input);
     lessonsQuestion.setUpdated(now());
     return lessonsQuestionRepository.save(lessonsQuestion);
@@ -306,7 +297,35 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public void deleteScenarioLessonsQuestion(
-      TxCtx ctx, @PathVariable String scenarioId, @PathVariable String lessonsQuestionId) {
-    lessonsQuestionRepository.deleteById(lessonsQuestionId);
+      TxCtx ctx,
+      @PathVariable String scenarioId,
+      @PathVariable String lessonsCategoryId,
+      @PathVariable String lessonsQuestionId) {
+    lessonsQuestionRepository.delete(
+        questionOfCategory(scenarioId, lessonsCategoryId, lessonsQuestionId));
+  }
+
+  /** The category, only when it belongs to the given scenario. */
+  private LessonsCategory categoryOfScenario(String scenarioId, String lessonsCategoryId) {
+    return lessonsCategoryRepository
+        .findById(lessonsCategoryId)
+        .filter(
+            category ->
+                category.getScenario() != null && scenarioId.equals(category.getScenario().getId()))
+        .orElseThrow(ElementNotFoundException::new);
+  }
+
+  /** The question, only when it belongs to the category of the path, itself in the scenario. */
+  private LessonsQuestion questionOfCategory(
+      String scenarioId, String lessonsCategoryId, String lessonsQuestionId) {
+    return lessonsQuestionRepository
+        .findById(lessonsQuestionId)
+        .filter(
+            question ->
+                question.getCategory() != null
+                    && lessonsCategoryId.equals(question.getCategory().getId())
+                    && question.getCategory().getScenario() != null
+                    && scenarioId.equals(question.getCategory().getScenario().getId()))
+        .orElseThrow(ElementNotFoundException::new);
   }
 }

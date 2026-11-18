@@ -93,6 +93,16 @@ The response wraps results in a page object:
 
 The `filterGroup` field combines filters with `and` or `or`. For the format and the list of operators, see [Filters](filters.md).
 
+### Dashboard widget analytics
+
+The dashboard widget endpoints (`/api/dashboards/count`, `average`, `series`, `entities`, `entities-runtime`, `attack-paths` and their `/api/dashboards/adhoc/*` variants) select the data with a `base_entity` filter in each series or list perspective. `GET /api/dashboards/base-entities` returns the valid values, for example `asset`, `finding` or `scenario`.
+
+A `base_entity` value outside that list answers `400` with a `message` that names the value and lists the valid ones, instead of a count of `0`. A retired value says what replaced it: `endpoint` became `asset`.
+
+A structural histogram (`widget_configuration_type` `structural-histogram`) groups by a `field` of the search document of its `base_entity`. `GET /api/dashboards/group-by-fields` returns the valid fields, keyed by `base_entity`. A field outside that list answers `400` instead of an empty series, with a `message` that names the field and lists the valid ones. Some filters of the findings list run on the database and are not indexed: the message names their indexed equivalent, `finding_assets` becomes `base_endpoint_side` and `finding_asset_groups` becomes `base_asset_groups_side`.
+
+Findings can be grouped by asset group with `base_asset_groups_side`: the asset groups the injects of the finding's occurrences target. A finding found through several asset groups counts in each of them.
+
 ### Error responses
 
 | Code | Meaning |
@@ -174,6 +184,59 @@ POST /api/tenants/{tenantId}/scenarios/{scenarioId}/xls/{importId}/import
 ```
 
 For a Simulation, use the same calls under `/api/tenants/{tenantId}/exercises/{exerciseId}/xls/...`.
+
+## Exploration graph
+
+The exploration graph links Assets, Asset groups, Findings, Injects, Simulations and Scenarios. The API returns lazy slices of it, never the whole graph: one entity and its first ring, a path between two entities, or the risk-first landing view. Each endpoint is available under `/api/graph/...` and under the Tenant prefix `/api/tenants/{tenantId}/graph/...`.
+
+```http
+GET /api/graph/hot-paths?limit=15
+GET /api/graph/{entityType}/{entityId}/neighbourhood?edges=FOUND_ON,TARGETS&limit=50
+GET /api/graph/path?fromType=asset&fromId={assetId}&toType=scenario&toId={scenarioId}
+```
+
+| Endpoint | Returns | Parameters |
+|---|---|---|
+| `hot-paths` | The exposure hot paths: the entities with the most failed expectations and findings | `limit`, default `15` |
+| `{entityType}/{entityId}/neighbourhood` | The entity and its direct neighbours | `edges`: comma-separated edge types to expand, all when empty; `limit`: neighbours per edge type, default `50`, maximum `200` |
+| `path` | A shortest path between two entities, at most 6 hops; an empty path when none is found | `fromType`, `fromId`, `toType`, `toId` |
+
+- **Entity types** (case-insensitive): `asset`, `asset_group`, `finding`, `inject`, `simulation`, `scenario`. An unknown type returns `400`.
+- **Edge types**: `MEMBER_OF` (Asset group contains Asset), `FOUND_ON` (Finding observed on Asset), `PRODUCED` (Inject produced Finding), `TARGETS` (Inject targeted Asset or Asset group, with its expectation result), `PART_OF` (Inject belongs to Simulation), `RUN_OF` (Simulation is a run of Scenario). An unknown edge type returns `400`.
+- **Access**: the endpoints need the right to read Assets. Simulation, Scenario and Inject nodes are returned only when you can read them in the Tenant of the request; the others are dropped with their edges.
+
+The response is one graph slice:
+
+```json
+{
+  "graph_focus": "ASSET:<asset-uuid>",
+  "graph_nodes": [
+    {
+      "node_id": "ASSET:<asset-uuid>",
+      "node_type": "ASSET",
+      "node_entity_id": "<asset-uuid>",
+      "node_label": "srv-web-01",
+      "node_subtype": "Endpoint",
+      "node_result": "FAILED",
+      "node_failed_count": 2,
+      "node_finding_count": 3
+    }
+  ],
+  "graph_edges": [
+    {
+      "edge_id": "TARGETS|INJECT:<inject-uuid>|ASSET:<asset-uuid>",
+      "edge_type": "TARGETS",
+      "edge_source": "INJECT:<inject-uuid>",
+      "edge_target": "ASSET:<asset-uuid>",
+      "edge_result": "FAILED"
+    }
+  ],
+  "graph_truncated": false,
+  "graph_path": []
+}
+```
+
+A node id is `<TYPE>:<entity id>`. `node_result` and `edge_result` are `SUCCESS`, `PENDING` or `FAILED`, the worst expectation result behind them. `graph_truncated` is `true` when a limit cut neighbours: request the entity again with a higher `limit` to load more. `graph_path` lists the node ids of the path, in order, for a `path` request.
 
 ## What's next?
 

@@ -120,4 +120,6 @@ ARG OPENAEV_COMMIT
 ENV OPENAEV_COMMIT=${OPENAEV_COMMIT}
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["java", "-jar", "openaev-api.jar"]
+# -XX:-UseBASE64Intrinsics mitigates CVE-2026-114938 until the base image ships a fixed JDK
+# (21.0.13.1 or later); remove it with that bump. Not -XX:UseAVX=2: the JVM fails on arm64 with it.
+CMD ["java", "-XX:-UseBASE64Intrinsics", "-jar", "openaev-api.jar"]

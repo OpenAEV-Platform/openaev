@@ -110,8 +110,8 @@ export const duplicateInjectForExercise = (exerciseId: string, injectId: string)
   return postReferential(schema.inject, uri, null)(dispatch);
 };
 
-export const deleteInjectForExercise = (exerciseId: string, injectId: string) => (dispatch: AppDispatch) => {
-  const uri = `/api/exercises/${exerciseId}/injects/${injectId}`;
+export const deleteInjectForExercise = (exerciseId: string, injectId: string, keepFindings = false) => (dispatch: AppDispatch) => {
+  const uri = `/api/exercises/${exerciseId}/injects/${injectId}${keepFindings ? '?keep_findings=true' : ''}`;
   return delReferential(uri, 'injects', injectId)(dispatch);
 };
 
@@ -165,7 +165,7 @@ export const updateInjectActivationForScenario = (scenarioId: string, injectId: 
   return putReferential(schema.inject, uri, data)(dispatch);
 };
 
-export const deleteInjectScenario = (scenarioId: string, injectId: string) => (dispatch: AppDispatch) => {
-  const uri = `/api/scenarios/${scenarioId}/injects/${injectId}`;
+export const deleteInjectScenario = (scenarioId: string, injectId: string, keepFindings = false) => (dispatch: AppDispatch) => {
+  const uri = `/api/scenarios/${scenarioId}/injects/${injectId}${keepFindings ? '?keep_findings=true' : ''}`;
   return delReferential(uri, 'injects', injectId)(dispatch);
 };
