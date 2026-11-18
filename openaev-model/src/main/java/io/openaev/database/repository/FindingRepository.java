@@ -191,6 +191,8 @@ public interface FindingRepository
               + " array_agg(DISTINCT se.scenario_id)"
               + " FILTER ( WHERE se.scenario_id IS NOT NULL ) AS scenario_ids,"
               + " array_agg(DISTINCT fa.asset_id) FILTER ( WHERE fa.asset_id IS NOT NULL ) AS asset_ids,"
+              + " array_agg(DISTINCT iag.asset_group_id)"
+              + " FILTER ( WHERE iag.asset_group_id IS NOT NULL ) AS asset_group_ids,"
               // The inject the finding is deleted with (ON DELETE CASCADE), and its context
               + " f.finding_inject_id, li.inject_exercise AS finding_simulation_id,"
               + " MAX(lse.scenario_id) AS finding_scenario_id,"
@@ -202,6 +204,8 @@ public interface FindingRepository
               + "LEFT JOIN injects li ON li.inject_id = f.finding_inject_id "
               + "LEFT JOIN scenarios_exercises lse ON lse.exercise_id = li.inject_exercise "
               + "LEFT JOIN findings_assets fa ON f.finding_id = fa.finding_id "
+              // The asset groups the injects of the occurrences target (findings per asset group)
+              + "LEFT JOIN injects_asset_groups iag ON iag.inject_id = fo.finding_occurrence_inject_id "
               // Keyset resume on (updated_at, id): a batch whose LIMIT falls inside a group of
               // findings sharing one timestamp - an upsert stamps a whole transaction with now() -
               // resumes after its last id instead of skipping the rest of the group. A null id

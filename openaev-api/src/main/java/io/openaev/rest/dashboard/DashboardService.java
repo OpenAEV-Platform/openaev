@@ -20,6 +20,7 @@ import io.openaev.utils.mapper.RawUserAuthMapper;
 import io.openaev.utils.pagination.Pagination;
 import jakarta.annotation.Nullable;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -54,6 +55,20 @@ public class DashboardService {
    */
   public List<String> baseEntities() {
     return List.copyOf(baseEntityValidator.validBaseEntities());
+  }
+
+  /**
+   * The fields a structural histogram may group by, per {@code base_entity}: the queryable fields
+   * of each engine model's search document.
+   *
+   * @return the valid group-by fields, sorted, keyed by base entity
+   */
+  public Map<String, List<String>> groupByFields() {
+    Map<String, List<String>> fields = new LinkedHashMap<>();
+    baseEntityValidator
+        .validGroupByFields()
+        .forEach((entity, entityFields) -> fields.put(entity, List.copyOf(entityFields)));
+    return fields;
   }
 
   /**
