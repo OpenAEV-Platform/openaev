@@ -4,12 +4,12 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.api.asset.AssetMarkingIds;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.AssetCriticality;
 import io.openaev.database.model.AssetSubCategory;
 import io.openaev.database.model.Endpoint;
-import io.openaev.utils.mapper.EndpointMapper;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Set;
@@ -93,7 +93,7 @@ public class AssetOutput {
         .subcategory(asset.getSubcategory())
         .criticality(asset.getCriticality())
         .tags(asset.getTags().stream().map(tag -> tag.getId()).collect(Collectors.toSet()))
-        .markings(EndpointMapper.toMarkingIds(asset))
+        .markings(AssetMarkingIds.of(asset))
         .hostname(asset.getHostname())
         .platform(unproxied instanceof Endpoint endpoint ? endpoint.getPlatform() : null)
         .aiTargetProvider(asset.getAiTargetProvider())

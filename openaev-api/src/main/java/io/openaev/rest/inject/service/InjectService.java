@@ -28,6 +28,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.asset.AssetMarkingIds;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.MarkingCtx;
@@ -733,8 +734,7 @@ public class InjectService {
    * the clearance covers <b>every</b> marking it carries (STIX AND-of-markings reading, not OR).
    */
   private boolean isVisibleUnderClearance(Asset asset, MarkingCtx clearance) {
-    String[] assetMarkingIds = asset.getMarkingIds();
-    return clearance.allows(assetMarkingIds == null ? List.of() : Arrays.asList(assetMarkingIds));
+    return clearance.allows(AssetMarkingIds.of(asset));
   }
 
   /**

@@ -4,10 +4,10 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.api.asset.AssetMarkingIds;
 import io.openaev.database.model.Asset;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import java.util.Arrays;
 import java.util.Set;
 import lombok.Builder;
 import lombok.Getter;
@@ -43,10 +43,7 @@ public class AssetMarkingsOutput {
     return AssetMarkingsOutput.builder()
         .id(asset.getId())
         .name(asset.getName())
-        .markingIds(
-            asset.getMarkingIds() == null
-                ? Set.of()
-                : Set.copyOf(Arrays.asList(asset.getMarkingIds())))
+        .markingIds(AssetMarkingIds.of(asset))
         .build();
   }
 }

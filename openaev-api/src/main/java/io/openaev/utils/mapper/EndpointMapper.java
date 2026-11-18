@@ -4,6 +4,7 @@ import static io.openaev.database.model.Endpoint.*;
 import static io.openaev.utils.AgentUtils.getPrimaryAgents;
 import static java.util.Collections.emptySet;
 
+import io.openaev.api.asset.AssetMarkingIds;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Tag;
@@ -13,7 +14,6 @@ import io.openaev.rest.asset.endpoint.form.EndpointSimple;
 import io.openaev.rest.asset.endpoint.output.EndpointTargetOutput;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -37,15 +37,6 @@ public class EndpointMapper {
   final AgentMapper agentMapper;
 
   /**
-   * Marking ids are stored as a nullable {@code text[]} (unmarked rows are {@code null} or empty),
-   * so normalise to an empty set rather than propagating {@code null} into the DTO.
-   */
-  public static Set<String> toMarkingIds(Asset asset) {
-    String[] markingIds = asset.getMarkingIds();
-    return markingIds == null ? emptySet() : Arrays.stream(markingIds).collect(Collectors.toSet());
-  }
-
-  /**
    * Converts an endpoint to a standard output DTO.
    *
    * <p>Includes primary agents, platform, architecture, and tag information.
@@ -63,7 +54,7 @@ public class EndpointMapper {
         .platform(endpoint.getPlatform())
         .arch(endpoint.getArch())
         .tags(endpoint.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
-        .markings(toMarkingIds(endpoint))
+        .markings(AssetMarkingIds.of(endpoint))
         .category(endpoint.getCategory())
         .subcategory(endpoint.getSubcategory())
         .criticality(endpoint.getCriticality())
@@ -94,7 +85,7 @@ public class EndpointMapper {
         .externalReference(asset.getExternalReference())
         .agents(emptySet())
         .tags(asset.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
-        .markings(toMarkingIds(asset))
+        .markings(AssetMarkingIds.of(asset))
         .category(asset.getCategory())
         .subcategory(asset.getSubcategory())
         .criticality(asset.getCriticality())
@@ -119,7 +110,7 @@ public class EndpointMapper {
         .hostname(asset.getHostname())
         .agents(emptySet())
         .tags(asset.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
-        .markings(toMarkingIds(asset))
+        .markings(AssetMarkingIds.of(asset))
         .category(asset.getCategory())
         .subcategory(asset.getSubcategory())
         .criticality(asset.getCriticality())
@@ -205,7 +196,7 @@ public class EndpointMapper {
                 : emptySet())
         .agents(agentMapper.toAgentOutputs(getPrimaryAgents(endpoint)))
         .tags(endpoint.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
-        .markings(toMarkingIds(endpoint))
+        .markings(AssetMarkingIds.of(endpoint))
         .category(endpoint.getCategory())
         .subcategory(endpoint.getSubcategory())
         .criticality(endpoint.getCriticality())
