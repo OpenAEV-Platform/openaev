@@ -11,7 +11,7 @@ import {
   searchThreatArsenalActions,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import DialogDelete from '../../../components/common/DialogDelete';
-import { useAuthorFacetOptions } from '../../../components/common/facets/ContractFacets';
+import { useAuthorOptions } from '../../../components/common/facets/ContractFacets';
 import MarketplaceBrowser from '../../../components/common/marketplace/page/MarketplaceBrowser';
 import MarketplaceLoadMore from '../../../components/common/marketplace/results/MarketplaceLoadMore';
 import MarketplaceSections from '../../../components/common/marketplace/results/MarketplaceSections';
@@ -23,7 +23,7 @@ import { buildSearchPagination } from '../../../components/common/queryable/Quer
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
-import { type AttackPattern, type SearchPaginationInput, type ThreatArsenalAction } from '../../../utils/api-types';
+import { type AttackPattern, type InjectorContractAuthorCountOutput, type SearchPaginationInput, type ThreatArsenalAction } from '../../../utils/api-types';
 import { useBulkOperationsFinishedCount } from '../../../utils/bulkOperations';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
@@ -116,7 +116,12 @@ const ThreatArsenal = () => {
     domainFilterKey: 'action_domains',
   });
   const facetCounts = useThreatArsenalFacetCounts(searchPaginationInput);
-  const authorOptions = useAuthorFacetOptions(fetchThreatArsenalAuthorCounts, searchPaginationInput);
+  const authorOptions = useAuthorOptions(() => fetchThreatArsenalAuthorCounts(buildSearchPagination({}))
+    .then(({ data }: { data: InjectorContractAuthorCountOutput[] }) => data.map(row => ({
+      value: row.author ?? '',
+      label: row.author_name ?? row.author ?? '',
+      type: row.author_type,
+    }))));
 
   const hasActiveFilters = (searchPaginationInput.filterGroup?.filters?.length ?? 0) > 0
     || !!searchPaginationInput.textSearch;
