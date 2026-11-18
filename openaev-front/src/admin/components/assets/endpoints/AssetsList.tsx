@@ -7,9 +7,11 @@ import AssetPlatformFragment from '../../../../components/common/list/fragments/
 import AssetTypeFragment from '../../../../components/common/list/fragments/AssetTypeFragment';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { type SortHelpers } from '../../../../components/common/queryable/sort/SortHelpers';
+import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type AssetOutput } from '../../../../utils/api-types';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import { type AssetPopoverProps } from './AssetPopover';
@@ -58,6 +60,7 @@ const AssetsList = <T extends AssetOutput>({
 }: Props<T>) => {
   // Standard hooks
   const { classes } = useStyles();
+  const markingEnabled = isFeatureEnabled('MARKING');
 
   const component = (asset: T) => {
     return renderActions(asset);
@@ -66,7 +69,8 @@ const AssetsList = <T extends AssetOutput>({
   const inlineStyles: Record<string, CSSProperties> = {
     asset_name: { width: compact ? '40%' : '30%' },
     asset_platform: { width: compact ? '10%' : '20%' },
-    asset_tags: { width: '30%' },
+    asset_markings: { width: '15%' },
+    asset_tags: { width: markingEnabled ? '15%' : '30%' },
     asset_type: { width: '20%' },
   };
 
@@ -83,6 +87,14 @@ const AssetsList = <T extends AssetOutput>({
       isSortable: true,
       value: (asset: T) => <AssetPlatformFragment platform={asset.endpoint_platform} />,
     },
+    ...(markingEnabled
+      ? [{
+          field: EndpointListItemFragments.ASSET_MARKINGS,
+          label: 'Markings',
+          isSortable: false,
+          value: (asset: T) => <ItemMarkings markingIds={asset.asset_markings} limit={1} />,
+        }]
+      : []),
     {
       field: EndpointListItemFragments.ASSET_TAGS,
       label: 'Tags',

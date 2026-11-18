@@ -13,6 +13,7 @@ import { buildSearchPagination } from '../../../../components/common/queryable/Q
 import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import SelectListPicker, { type SelectListPickerElements } from '../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../components/i18n';
+import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import * as Constants from '../../../../constants/ActionTypes';
@@ -24,6 +25,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import AssetStatus from '../AssetStatus';
 
@@ -57,6 +59,7 @@ const EndpointsPicker: FunctionComponent<Props> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [endpointValues, setEndpointValues] = useState<(Endpoint | EndpointOutput)[]>([]);
   const { executorsMap } = useHelper((helper: ExecutorHelper) => ({ executorsMap: helper.getExecutorsMap() }));
+  const markingEnabled = isFeatureEnabled('MARKING');
 
   useDataLoader(() => {
     if (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
@@ -126,7 +129,7 @@ const EndpointsPicker: FunctionComponent<Props> = ({
             </Tooltip>
           );
         },
-        width: 15,
+        width: markingEnabled ? 10 : 15,
       },
       {
         field: 'endpoint_platform',
@@ -148,7 +151,7 @@ const EndpointsPicker: FunctionComponent<Props> = ({
         label: 'Architecture',
         isSortable: true,
         value: (endpoint: EndpointOutput) => endpoint.endpoint_arch,
-        width: 15,
+        width: markingEnabled ? 10 : 15,
       },
       {
         field: 'endpoint_agents_executor',
@@ -201,6 +204,14 @@ const EndpointsPicker: FunctionComponent<Props> = ({
         },
         width: 10,
       },
+      ...(markingEnabled
+        ? [{
+            field: 'asset_markings',
+            label: 'Markings',
+            value: (endpoint: EndpointOutput) => <ItemMarkings markingIds={endpoint.asset_markings} limit={1} />,
+            width: 10,
+          }]
+        : []),
       {
         field: 'asset_tags',
         label: 'Tags',
@@ -209,7 +220,7 @@ const EndpointsPicker: FunctionComponent<Props> = ({
         width: 20,
       },
     ],
-  }), [executorsMap]);
+  }), [executorsMap, markingEnabled]);
 
   // Pagination
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);

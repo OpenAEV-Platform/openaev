@@ -40,7 +40,7 @@ public class EndpointMapper {
    * Marking ids are stored as a nullable {@code text[]} (unmarked rows are {@code null} or empty),
    * so normalise to an empty set rather than propagating {@code null} into the DTO.
    */
-  private static Set<String> toMarkingIds(Asset asset) {
+  public static Set<String> toMarkingIds(Asset asset) {
     String[] markingIds = asset.getMarkingIds();
     return markingIds == null ? emptySet() : Arrays.stream(markingIds).collect(Collectors.toSet());
   }
