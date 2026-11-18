@@ -432,6 +432,9 @@ public class GraphExplorationService {
                 slice.edge(GraphEdgeType.IDENTITY_OF, here, p, null);
               });
         }
+        if (want.test(GraphEdgeType.LINKED_TO)) {
+          linkedAssets(slice, tenantIds, id, here, cap);
+        }
         if (want.test(GraphEdgeType.ATTACK_STEP)) {
           steps(slice, tenantIds, "(x.sourceAssetId = :id OR x.targetAssetId = :id)", id, cap);
         }
@@ -877,6 +880,32 @@ public class GraphExplorationService {
       slice.node(GraphNodeType.ASSET, (String) r[4], (String) r[5], (String) r[6]);
       slice.step(source, target, (String) r[0], stepResult(str(r[7]), str(r[8])));
     }
+  }
+
+  /**
+   * The assets linked to an asset in either direction ({@code assets_links}, #9447): an identity
+   * logged on to an endpoint, a service running on a host. The edge keeps the stored direction
+   * (source = the asset the link was added from); several typed links between the same two assets
+   * draw one edge, the types being listed on the asset page.
+   */
+  private void linkedAssets(
+      Slice slice, Collection<String> tenantIds, String assetId, String here, int cap) {
+    rows(
+        slice,
+        "SELECT DISTINCT b.id, b.name, b.type, CASE WHEN l.assetId = :id THEN 1 ELSE 0 END"
+            + " FROM AssetLink l, Asset b"
+            + " WHERE ((l.assetId = :id AND b.id = l.linkedAssetId)"
+            + " OR (l.linkedAssetId = :id AND b.id = l.assetId))"
+            + " AND b.tenant.id IN :tenantIds ORDER BY b.name",
+        tenantIds,
+        assetId,
+        cap,
+        r -> {
+          String other = slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], str(r[2]));
+          boolean outgoing = ((Number) r[3]).intValue() == 1;
+          slice.edge(
+              GraphEdgeType.LINKED_TO, outgoing ? here : other, outgoing ? other : here, null);
+        });
   }
 
   /**

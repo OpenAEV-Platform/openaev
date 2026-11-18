@@ -792,6 +792,36 @@ export interface AssetGroupTarget {
     | "SUCCESS";
 }
 
+export interface AssetLinkInput {
+  asset_link_type:
+    | "CONNECTS_TO"
+    | "DEPENDS_ON"
+    | "HOSTS"
+    | "LOGGED_ON"
+    | "RUNS_ON"
+    | "USES";
+  /** @minLength 1 */
+  linked_asset_id: string;
+}
+
+export interface AssetLinkOutput {
+  /** @format date-time */
+  asset_link_created_at?: string;
+  asset_link_source_id?: string;
+  asset_link_source_name?: string;
+  asset_link_source_type?: string;
+  asset_link_target_id?: string;
+  asset_link_target_name?: string;
+  asset_link_target_type?: string;
+  asset_link_type?:
+    | "CONNECTS_TO"
+    | "DEPENDS_ON"
+    | "HOSTS"
+    | "LOGGED_ON"
+    | "RUNS_ON"
+    | "USES";
+}
+
 export interface AssetMarkingsOutput {
   /**
    * Asset Id
