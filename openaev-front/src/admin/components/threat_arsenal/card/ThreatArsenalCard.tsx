@@ -5,8 +5,8 @@ import { type FunctionComponent, useMemo } from 'react';
 import { type AttackPatternHelper } from '../../../../actions/attack_patterns/attackpattern-helper';
 import type { DomainHelper } from '../../../../actions/domains/domain-helper';
 import MarketplaceCard from '../../../../components/common/marketplace/card/MarketplaceCard';
+import MarketplaceCardMeta from '../../../../components/common/marketplace/card/MarketplaceCardMeta';
 import { useFormatter } from '../../../../components/i18n';
-import PlatformIcon from '../../../../components/PlatformIcon';
 import { useHelper } from '../../../../store';
 import { type AttackPattern, type Domain, type ThreatArsenalAction } from '../../../../utils/api-types';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
@@ -95,16 +95,10 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         },
       ]}
       footerStart={(
-        <Box sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 0.5,
-        }}
-        >
-          {statusLabel && <Chip label={t(statusLabel)} severity={STATUS_CHIP_SEVERITY[status as PayloadStatus]} />}
-          {platforms.slice(0, 3).map(platform => <PlatformIcon key={platform} width={16} platform={platform} tooltip />)}
-          {platforms.length > 3 && <Chip label={`+${platforms.length - 3}`} />}
-        </Box>
+        <MarketplaceCardMeta
+          status={statusLabel && <Chip label={t(statusLabel)} severity={STATUS_CHIP_SEVERITY[status as PayloadStatus]} />}
+          platforms={platforms}
+        />
       )}
       action={(
         <Box sx={{
