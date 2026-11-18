@@ -1,4 +1,5 @@
-import { Badge, Box, Tooltip, Typography } from '@mui/material';
+import { Badge, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
@@ -35,58 +36,63 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
   }
   const Icon = NODE_ICON[node.node_type];
   return (
-    <Tooltip title={`${t(NODE_TYPE_LABEL[node.node_type])}: ${node.node_label}`} placement="top" disableInteractive>
-      <Box
-        data-testid={`graph-node-${node.node_id}`}
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          width: 140,
-          opacity: dimmed ? 0.25 : 1,
-          transition: 'opacity 0.2s',
-        }}
-      >
-        <Handle type="target" position={Position.Top} style={{ visibility: 'hidden' }} />
-        <Badge
-          color="error"
-          badgeContent={node.node_failed_count > 0 ? node.node_failed_count : undefined}
-          overlap="circular"
-        >
-          <Box
-            sx={{
-              width: SIZE,
-              height: SIZE,
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: theme.palette.background.paper,
-              color: theme.palette.text.primary,
-              border: `2px solid ${ring}`,
-              outline: focused || matched || highlighted ? `3px solid ${matched ? theme.palette.secondary.main : theme.palette.primary.main}` : 'none',
-              outlineOffset: 2,
-              boxShadow: highlighted ? `0 0 12px ${theme.palette.error.main}` : 'none',
-            }}
-          >
-            <Icon />
-          </Box>
-        </Badge>
-        <Typography
-          variant="caption"
-          noWrap
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Box
+          data-testid={`graph-node-${node.node_id}`}
           sx={{
-            maxWidth: 140,
-            mt: 0.5,
-            fontWeight: focused ? 700 : 400,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            width: 140,
+            opacity: dimmed ? 0.25 : 1,
+            transition: 'opacity 0.2s',
           }}
         >
-          {pinned ? '\u25CF ' : ''}
-          {node.node_label}
-          {truncated ? ' +' : ''}
-        </Typography>
-        <Handle type="source" position={Position.Bottom} style={{ visibility: 'hidden' }} />
-      </Box>
+          <Handle type="target" position={Position.Top} style={{ visibility: 'hidden' }} />
+          <Badge
+            content={node.node_failed_count}
+            invisible={!(node.node_failed_count > 0)}
+            circularAnchor
+          >
+            <Box
+              sx={{
+                width: SIZE,
+                height: SIZE,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.palette.background.paper,
+                color: theme.palette.text.primary,
+                border: `2px solid ${ring}`,
+                outline: focused || matched || highlighted ? `3px solid ${matched ? theme.palette.secondary.main : theme.palette.primary.main}` : 'none',
+                outlineOffset: 2,
+                boxShadow: highlighted ? `0 0 12px ${theme.palette.error.main}` : 'none',
+              }}
+            >
+              <Icon />
+            </Box>
+          </Badge>
+          <Text
+            variant="content-caption"
+            style={{
+              maxWidth: 140,
+              marginTop: 4,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontWeight: focused ? 700 : 400,
+            }}
+          >
+            {pinned ? '\u25CF ' : ''}
+            {node.node_label}
+            {truncated ? ' +' : ''}
+          </Text>
+          <Handle type="source" position={Position.Bottom} style={{ visibility: 'hidden' }} />
+        </Box>
+      </TooltipTrigger>
+      <TooltipContent>{`${t(NODE_TYPE_LABEL[node.node_type])}: ${node.node_label}`}</TooltipContent>
     </Tooltip>
   );
 };

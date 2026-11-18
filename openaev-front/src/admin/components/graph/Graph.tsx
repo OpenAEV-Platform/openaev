@@ -1,4 +1,5 @@
-import { Alert, Box, Button, Stack, Typography } from '@mui/material';
+import { Button, Text } from '@filigran/design-system';
+import { Alert, Box, Stack } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
@@ -70,19 +71,19 @@ const Graph = () => {
       />
       {isLanding && (
         <Alert severity="info" icon={false}>
-          <Typography variant="body2">
+          <Text variant="content-compact">
             {t('Exposure hot paths: the assets with the most failed expectations, the injects that failed on them, their asset groups and their findings. Double-click a node to expand it, or start from another view.')}
-          </Typography>
+          </Text>
           <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-            <Button size="small" variant="outlined" onClick={() => navigate('/admin/simulations')}>{t('Start from a simulation')}</Button>
-            <Button size="small" variant="outlined" onClick={() => navigate('/admin/asset_groups')}>{t('Start from an asset group')}</Button>
-            <Button size="small" variant="outlined" onClick={() => navigate('/admin/findings')}>{t('Start from a finding')}</Button>
+            <Button type="button" priority="secondary" onClick={() => navigate('/admin/simulations')}>{t('Start from a simulation')}</Button>
+            <Button type="button" priority="secondary" onClick={() => navigate('/admin/asset_groups')}>{t('Start from an asset group')}</Button>
+            <Button type="button" priority="secondary" onClick={() => navigate('/admin/findings')}>{t('Start from a finding')}</Button>
           </Stack>
         </Alert>
       )}
       {!isLanding && (
         <Box>
-          <Button size="small" onClick={() => navigate('/admin/graph')}>{t('Back to exposure hot paths')}</Button>
+          <Button type="button" priority="tertiary" onClick={() => navigate('/admin/graph')}>{t('Back to exposure hot paths')}</Button>
         </Box>
       )}
       {error && <Alert severity="error">{t('The graph could not be loaded')}</Alert>}
