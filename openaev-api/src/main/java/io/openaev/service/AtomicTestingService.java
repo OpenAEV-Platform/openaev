@@ -205,7 +205,9 @@ public class AtomicTestingService {
                 injectDocument.setCompositeId(injectDocumentId);
                 injectDocument.setInject(finalInjectToSave);
                 injectDocument.setDocument(
-                    documentRepository.findById(i.getDocumentId()).orElseThrow());
+                    documentRepository
+                        .findByIdInTenant(i.getDocumentId(), injectTenantId)
+                        .orElseThrow());
               }
               injectDocument.setAttached(i.isAttached());
               finalInjectToSave
