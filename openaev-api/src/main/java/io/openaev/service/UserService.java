@@ -108,6 +108,7 @@ public class UserService {
   private final UserRepository userRepository;
   private final TagRepository tagRepository;
   private final GroupRepository groupRepository;
+  private final UserGroupMembershipService userGroupMembershipService;
   private final TokenRepository tokenRepository;
   private final TenantRepository tenantRepository;
   private final ReferenceResolver referenceResolver;
@@ -239,13 +240,16 @@ public class UserService {
     if (StringUtils.hasLength(password)) {
       user.setPassword(this.encodeUserPassword(password));
     }
+    // Saved first: the auto-assign groups below are granted row by row through the shared
+    // membership service, which needs a persisted user id, not an in-memory association on a
+    // transient user.
+    User savedUser = userRepository.save(user);
     // Creation enters every scope at once: the platform when created from the platform screen,
     // plus each tenant attached in the input.
     assignAutoAssignGroups(
-        user,
-        user.getTenants().stream().map(Tenant::getId).toList(),
+        savedUser,
+        savedUser.getTenants().stream().map(Tenant::getId).toList(),
         scope == UserCreationScope.PLATFORM);
-    User savedUser = userRepository.save(user);
     this.createUserToken(savedUser, token);
     return savedUser;
   }
@@ -1105,6 +1109,10 @@ public class UserService {
    * creation, plus every tenant freshly attached. Scopes the user already belonged to are skipped,
    * so a group deliberately removed from a user is never re-granted by a later update. Never
    * removes an existing group membership.
+   *
+   * <p>Each applicable group is granted through {@link UserGroupMembershipService}, one {@code
+   * users_groups} row at a time: it is already a no-op for a group the user holds, so there is no
+   * need to read the user's current groups here first.
    */
   private void assignAutoAssignGroups(
       User user, Collection<String> tenantIds, boolean includePlatformScope) {
@@ -1118,16 +1126,8 @@ public class UserService {
       spec = spec == null ? tenantSpec : spec.or(tenantSpec);
     }
     List<Group> applicableGroups = groupRepository.findAll(spec);
-    if (applicableGroups.isEmpty()) {
-      return;
-    }
-    List<Group> current = new ArrayList<>(user.getUnscopedGroups());
-    for (Group group : applicableGroups) {
-      if (!current.contains(group)) {
-        current.add(group);
-      }
-    }
-    user.setGroups(current);
+    applicableGroups.forEach(
+        group -> userGroupMembershipService.addMembership(user.getId(), group.getId()));
   }
 
   /**
@@ -1154,13 +1154,19 @@ public class UserService {
    * Drops every group scoped to a tenant the user just left: a group grants capabilities inside its
    * own tenant only, so keeping it would leave access to a tenant the user no longer belongs to.
    * Platform groups and the groups of the remaining tenants are untouched.
+   *
+   * <p>Each revoked group is removed through {@link UserGroupMembershipService}, one {@code
+   * users_groups} row at a time, from the group side: the groups to revoke are only read off the
+   * user here, never mutated on it.
    */
   private void revokeTenantGroups(User user, Collection<String> tenantIds) {
     if (tenantIds.isEmpty()) {
       return;
     }
-    user.getUnscopedGroups()
-        .removeIf(
-            group -> group.getTenant() != null && tenantIds.contains(group.getTenant().getId()));
+    user.getUnscopedGroups().stream()
+        .filter(group -> group.getTenant() != null && tenantIds.contains(group.getTenant().getId()))
+        .map(Group::getId)
+        .toList()
+        .forEach(groupId -> userGroupMembershipService.removeMembership(user.getId(), groupId));
   }
 }
