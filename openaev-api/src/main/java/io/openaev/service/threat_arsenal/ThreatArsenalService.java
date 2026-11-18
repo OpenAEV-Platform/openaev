@@ -309,8 +309,7 @@ public class ThreatArsenalService {
       throw new BadRequestException("action_expectations is required for payload-based actions");
     }
     Payload payload = injectorContract.getPayload();
-    payloadService.assertNameAvailable(
-        payload.getTenant().getId(), actionInput.name(), payload.getId());
+    payloadService.assertRenameAvailable(payload, actionInput.name());
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);
     // update payload using the resolved payload ID

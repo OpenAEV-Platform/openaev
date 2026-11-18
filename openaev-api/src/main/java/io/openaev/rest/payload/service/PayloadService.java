@@ -426,6 +426,17 @@ public class PayloadService {
     }
   }
 
+  /** Keeping its name never fails: a tenant may already hold duplicates, e.g. from a catalogue. */
+  public void assertRenameAvailable(Payload payload, String name) {
+    if (!sameName(payload.getName(), name)) {
+      assertNameAvailable(payload.getTenant().getId(), name, payload.getId());
+    }
+  }
+
+  private static boolean sameName(String current, String name) {
+    return current != null && name != null && current.trim().equalsIgnoreCase(name.trim());
+  }
+
   // -- DUPLICATE --
 
   public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
