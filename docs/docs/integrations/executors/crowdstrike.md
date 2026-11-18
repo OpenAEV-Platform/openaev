@@ -110,7 +110,7 @@ OpenAEV runs implants as custom scripts, so your Assets need a response policy t
 
 !!! warning "CrowdStrike API Key"
 
-    The CrowdStrike API key needs these permissions: API integrations, Hosts, Host groups, Real time response.
+    The CrowdStrike API key needs these scopes: Host groups (Read) and Real time response (Read and Write).
 
 ## Checks
 
