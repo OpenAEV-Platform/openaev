@@ -1,6 +1,7 @@
 package io.openaev.engine;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Indexes of models that no longer exist.
@@ -16,6 +17,12 @@ public final class RetiredIndexes {
 
   /** {@code endpoint} became {@code asset} when the index was widened to the whole inventory. */
   public static final List<String> NAMES = List.of("endpoint");
+
+  /**
+   * The model that replaced a retired one, so a caller still using the old name in a widget filter
+   * is told which value to use instead of reading an empty result.
+   */
+  public static final Map<String, String> SUCCESSORS = Map.of("endpoint", "asset");
 
   private RetiredIndexes() {}
 }

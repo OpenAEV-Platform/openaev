@@ -1626,4 +1626,70 @@ class DashboardApiTest extends IntegrationTest {
       assertThatJson(response).node("es_entities.es_datas").isArray().hasSize(2);
     }
   }
+
+  @Nested
+  @DisplayName("When a widget filter names an unknown base_entity")
+  class WhenBaseEntityIsUnknown {
+
+    private String adHocFlatCount(String baseEntity) {
+      return "{\"widget_config\":{\"widget_configuration_type\":\"flat\",\"series\":[{\"name\":\"S\","
+          + "\"filter\":{\"mode\":\"and\",\"filters\":[{\"id\":\"f\",\"key\":\"base_entity\","
+          + "\"operator\":\"eq\",\"values\":[\""
+          + baseEntity
+          + "\"],\"mode\":\"or\"}]}}]}}";
+    }
+
+    @Test
+    @DisplayName("Given the retired endpoint model, the ad-hoc count answers 400 naming asset")
+    void given_retiredBaseEntity_should_answerBadRequestNamingTheSuccessor() throws Exception {
+      String response =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/adhoc/count")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(adHocFlatCount("endpoint"))
+                      .with(csrf()))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat(response).contains("endpoint").contains("replaced by 'asset'");
+    }
+
+    @Test
+    @DisplayName("Given asset with no time range or date attribute, the ad-hoc count counts assets")
+    void given_assetWithDefaults_should_countAssets() throws Exception {
+      endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
+      entityManager.flush();
+      entityManager.clear();
+      indexEveryTenant();
+      Thread.sleep(1000);
+
+      String response =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/adhoc/count")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(adHocFlatCount("asset"))
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).node("interval_count").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("The valid base_entity values are listed")
+    void given_baseEntitiesEndpoint_should_listTheEngineModels() throws Exception {
+      String response =
+          mvc.perform(get(DASHBOARD_URI + "/base-entities"))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).isArray().contains("asset", "finding").doesNotContain("endpoint");
+    }
+  }
 }
