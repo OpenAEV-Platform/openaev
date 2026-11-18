@@ -1,6 +1,7 @@
 package io.openaev.api.graph;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.api.graph.dto.GraphEdgeType;
 import io.openaev.api.graph.dto.GraphNodeOutput;
@@ -32,6 +33,7 @@ class GraphExplorationSliceTest {
     assertThat(GraphResult.worst(GraphResult.PENDING, GraphResult.SUCCESS))
         .isEqualTo(GraphResult.PENDING);
     assertThat(GraphResult.worst(null, GraphResult.SUCCESS)).isEqualTo(GraphResult.SUCCESS);
+    assertThat(GraphResult.worst(GraphResult.FAILED, null)).isEqualTo(GraphResult.FAILED);
   }
 
   @Test
@@ -88,5 +90,7 @@ class GraphExplorationSliceTest {
   void typeParsing() {
     assertThat(GraphNodeType.fromParam("asset_group")).isEqualTo(GraphNodeType.ASSET_GROUP);
     assertThat(GraphNodeType.fromParam(" Finding ")).isEqualTo(GraphNodeType.FINDING);
+    assertThatThrownBy(() -> GraphNodeType.fromParam(null))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }
