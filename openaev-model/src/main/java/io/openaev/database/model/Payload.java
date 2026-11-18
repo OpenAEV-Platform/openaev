@@ -244,6 +244,11 @@ public class Payload
   @JsonIgnore
   private String version = FIRST_VERSION;
 
+  @NotHashed
+  @Formula("EXISTS (SELECT 1 FROM payload_revocations r WHERE r.payload_id = payload_id)")
+  @JsonIgnore
+  private boolean revoked;
+
   // SHA-256 of the canonical content: same content, same hash, on any platform.
   @NotHashed
   @Column(name = "payload_content_hash")
@@ -278,6 +283,13 @@ public class Payload
   @Override
   public String getCatalogVersion() {
     return version;
+  }
+
+  /** The version the Threat Arsenal shows: a local payload, or the catalogue's latest installed. */
+  @JsonIgnore
+  public boolean isLatest() {
+    Payload latest = getIdentity().getLatestVersion();
+    return !isManaged() || (latest != null && latest.getId().equals(id));
   }
 
   // -- AUTHOR --

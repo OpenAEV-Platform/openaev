@@ -397,6 +397,11 @@ public class PayloadService {
     return payloadRepository.findAllByTenantIdAndIdentityExternalId(tenantId, externalId);
   }
 
+  /** Every version of this payload in the tenant, itself included. */
+  public List<Payload> versionsOf(String tenantId, Payload payload) {
+    return payloadRepository.findAllVersionsByTenantIdAndPayloadId(tenantId, payload.getId());
+  }
+
   public PayloadWithRelatedEntities findPayloadWithRelatedEntities(String payloadId) {
     Payload payload =
         payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
