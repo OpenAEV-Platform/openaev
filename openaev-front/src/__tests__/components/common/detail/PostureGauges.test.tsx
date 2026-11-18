@@ -1,16 +1,19 @@
+import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import PostureGauges from '../../../../components/common/detail/PostureGauges';
 import { type ExpectationResultsByType } from '../../../../utils/api-types';
 
-vi.mock('../../../../components/i18n', () => ({ useFormatter: () => ({ t: (value: string) => value }) }));
+vi.mock('../../../../components/i18n', () => ({ useFormatter: () => ({ t: (value: string, params: Record<string, unknown> = {}) => value.replace(/\{(\w+)\}/g, (_, key) => String(params[key])) }) }));
 vi.mock('../../../../utils/hooks/useCountUp', () => ({ default: (value: number) => value }));
 
 const renderGauges = (expectationResultsByTypes: ExpectationResultsByType[]) => render(
   <ThemeProvider theme={createTheme()}>
-    <PostureGauges expectationResultsByTypes={expectationResultsByTypes} />
+    <TooltipProvider>
+      <PostureGauges expectationResultsByTypes={expectationResultsByTypes} />
+    </TooltipProvider>
   </ThemeProvider>,
 );
 
@@ -94,6 +97,36 @@ describe('PostureGauges', () => {
     ])]);
 
     expect(screen.getByText('0%').getAttribute('fill')).toBe(theme.palette.error.main);
+  });
+
+  it('shows the number of targets behind the percentage', () => {
+    renderGauges([prevention([
+      {
+        id: 'PREVENTED',
+        label: 'Prevented',
+        value: 3,
+      },
+      {
+        id: 'FAILED',
+        label: 'Failed',
+        value: 2,
+      },
+    ])]);
+
+    expect(screen.getByText('60%')).toBeTruthy();
+    expect(screen.getByText('3 of 5 targets')).toBeTruthy();
+  });
+
+  it('explains the count in a tooltip that opens on keyboard focus', async () => {
+    renderGauges([prevention([{
+      id: 'PREVENTED',
+      label: 'Prevented',
+      value: 1,
+    }])]);
+
+    fireEvent.focus(screen.getByText('1 of 1 targets'));
+
+    expect((await screen.findAllByText('Each target (asset, asset group or team) is scored once')).length).toBeGreaterThan(0);
   });
 
   it('keeps the no-data placeholder for an empty distribution', () => {

@@ -1,4 +1,4 @@
-import { Button } from '@filigran/design-system';
+import { Button, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
 import { alpha, type Theme, useTheme } from '@mui/material/styles';
@@ -234,6 +234,19 @@ const Gauge: FunctionComponent<{
           {t('Resilience')}
         </text>
       </svg>
+      {hasData && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Text variant="content-caption" className="text-default-secondary" tabIndex={0}>
+              {t('{count} of {total} targets', {
+                count: buckets.success,
+                total,
+              })}
+            </Text>
+          </TooltipTrigger>
+          <TooltipContent>{t('Each target (asset, asset group or team) is scored once')}</TooltipContent>
+        </Tooltip>
+      )}
       <Box sx={{
         display: 'flex',
         justifyContent: 'center',
