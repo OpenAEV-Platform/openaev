@@ -124,9 +124,9 @@ const FindingCard: FunctionComponent<Props> = ({ finding }) => {
       }}
       >
         {occurrences != null && (
-          <HeroStat icon="list-ordered" value={occurrences} label={t('Occurrences')} />
+          <HeroStat icon="list-ordered" value={occurrences} label={t('Occurrences')} severity="info" />
         )}
-        <HeroStat icon="monitor-smartphone" value={assetsCount} label={t('Impacted assets')} />
+        <HeroStat icon="monitor-smartphone" value={assetsCount} label={t('Impacted assets')} severity="info" />
         {cvss && (
           // The library has no plain `shield` glyph: `shield-check` is its closest one.
           <HeroStat
