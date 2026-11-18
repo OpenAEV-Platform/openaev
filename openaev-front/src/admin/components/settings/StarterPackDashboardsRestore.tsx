@@ -8,9 +8,7 @@ import { useFormatter } from '../../../components/i18n';
 import type { StarterPackDashboardsRestoreOutput } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
 
-interface Props {
-  onRestored?: (result: StarterPackDashboardsRestoreOutput) => void;
-}
+interface Props { onRestored?: (result: StarterPackDashboardsRestoreOutput) => void }
 
 /**
  * Re-creates the starter-pack dashboards that were deleted, from the archives bundled in the
@@ -27,7 +25,7 @@ const StarterPackDashboardsRestore: FunctionComponent<Props> = ({ onRestored }) 
       const restored = data.restored_dashboards.length;
       MESSAGING$.notifySuccess(restored === 0
         ? t('All starter pack dashboards already exist')
-        : t('Starter pack dashboards restored: {count}', { count: restored }));
+        : t('Starter pack dashboards restored: {count}', { count: String(restored) }));
       onRestored?.(data);
     } finally {
       setOpen(false);

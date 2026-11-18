@@ -66,8 +66,8 @@ public interface CustomDashboardRepository
   Optional<CustomDashboard> findByResourceId(String resourceId);
 
   /**
-   * Number of scenarios that show this dashboard in their Analysis tab (the reference is cleared
-   * by the foreign key when the dashboard is deleted).
+   * Number of scenarios that show this dashboard in their Analysis tab (the reference is cleared by
+   * the foreign key when the dashboard is deleted).
    */
   @Query(
       value =

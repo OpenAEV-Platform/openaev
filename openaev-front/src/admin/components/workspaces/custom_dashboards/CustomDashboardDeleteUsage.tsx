@@ -1,26 +1,26 @@
 import { DialogContentText } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
-import { useFormatter } from '../../../../components/i18n';
+import { type Translate, useFormatter } from '../../../../components/i18n';
 import type { CustomDashboardUsageOutput } from '../../../../utils/api-types';
 
 interface Props { usage: CustomDashboardUsageOutput }
 
 /** The usage lines of a custom dashboard, in the order they read in the delete dialog. */
-export const customDashboardUsageLines = (
+const customDashboardUsageLines = (
   usage: CustomDashboardUsageOutput,
-  t: (message: string, values?: Record<string, string | number>) => string,
+  t: Translate,
 ): string[] => {
   const lines: string[] = [];
   if (usage.scenarios_count > 0) {
     lines.push(usage.scenarios_count === 1
       ? t('Used by 1 scenario')
-      : t('Used by {count} scenarios', { count: usage.scenarios_count }));
+      : t('Used by {count} scenarios', { count: String(usage.scenarios_count) }));
   }
   if (usage.simulations_count > 0) {
     lines.push(usage.simulations_count === 1
       ? t('Used by 1 simulation')
-      : t('Used by {count} simulations', { count: usage.simulations_count }));
+      : t('Used by {count} simulations', { count: String(usage.simulations_count) }));
   }
   if (usage.default_scenario_dashboard) {
     lines.push(t('Default scenario dashboard'));
