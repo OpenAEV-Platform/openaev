@@ -10,6 +10,7 @@ import io.openaev.config.EngineConfig;
 import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.IndexResetEpochReassertion;
 import io.openaev.engine.SlowEngineServer;
+import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
@@ -30,13 +31,18 @@ class ElasticDriverConnectionTest {
   private static final Duration HANG = Duration.ofSeconds(15);
 
   private final ExecutorService executor = Executors.newSingleThreadExecutor();
+  private ElasticsearchClient client;
 
   @AfterEach
-  void tearDown() {
+  void tearDown() throws IOException {
     executor.shutdownNow();
+    // Closed even when the test fails: a running client keeps its I/O reactor threads alive.
+    if (client != null) {
+      client._transport().close();
+    }
   }
 
-  private static ElasticsearchClient client(String url) {
+  private static ElasticsearchClient newClient(String url) {
     EngineConfig config = new EngineConfig();
     config.setUrl(url);
     config.setConnectTimeoutMs(TIMEOUT_MS);
@@ -52,7 +58,7 @@ class ElasticDriverConnectionTest {
   void given_engineNeverAnswers_should_failAfterSocketTimeout() throws Exception {
     try (SlowEngineServer server = SlowEngineServer.silent()) {
       // Arrange
-      ElasticsearchClient client = client(server.url());
+      client = newClient(server.url());
 
       // Act
       Exception error =
@@ -61,7 +67,6 @@ class ElasticDriverConnectionTest {
       // Assert
       assertThat(ExceptionUtils.getThrowableList(error))
           .hasAtLeastOneElementOfType(SocketTimeoutException.class);
-      client._transport().close();
     }
   }
 
@@ -70,7 +75,7 @@ class ElasticDriverConnectionTest {
   void given_onlyPooledConnectionBusy_should_failWaitingRequestOnLeaseTimeout() throws Exception {
     try (SlowEngineServer server = SlowEngineServer.busyFor(BUSY_MS)) {
       // Arrange: a first request keeps the only pooled connection busy
-      ElasticsearchClient client = client(server.url());
+      client = newClient(server.url());
       executor.submit(() -> client.info());
       server.awaitFirstRequest();
 
@@ -82,7 +87,6 @@ class ElasticDriverConnectionTest {
       assertThat(server.requestCount()).isEqualTo(1);
       assertThat(ExceptionUtils.getThrowableList(error))
           .hasAtLeastOneElementOfType(TimeoutException.class);
-      client._transport().close();
     }
   }
 }
