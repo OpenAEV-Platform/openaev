@@ -316,7 +316,8 @@ public class GraphExplorationService {
               id,
               cap,
               r -> {
-                String g = slice.node(GraphNodeType.ASSET_GROUP, (String) r[0], (String) r[1], null);
+                String g =
+                    slice.node(GraphNodeType.ASSET_GROUP, (String) r[0], (String) r[1], null);
                 slice.edge(GraphEdgeType.MEMBER_OF, here, g, null);
               });
         }
@@ -329,7 +330,8 @@ public class GraphExplorationService {
               id,
               cap,
               r -> {
-                String f = slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2]));
+                String f =
+                    slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2]));
                 slice.edge(GraphEdgeType.FOUND_ON, f, here, null);
               });
         }
@@ -341,7 +343,8 @@ public class GraphExplorationService {
         focus =
             single(
                 slice,
-                "SELECT g.id, g.name FROM AssetGroup g WHERE g.id = :id AND g.tenant.id IN :tenantIds",
+                "SELECT g.id, g.name FROM AssetGroup g"
+                    + " WHERE g.id = :id AND g.tenant.id IN :tenantIds",
                 tenantIds,
                 id,
                 r -> slice.node(GraphNodeType.ASSET_GROUP, (String) r[0], (String) r[1], null));
@@ -358,7 +361,8 @@ public class GraphExplorationService {
               id,
               cap,
               r -> {
-                String a = slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], (String) r[2]);
+                String a =
+                    slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], (String) r[2]);
                 slice.edge(GraphEdgeType.MEMBER_OF, here, a, null);
               });
         }
@@ -388,7 +392,8 @@ public class GraphExplorationService {
               id,
               cap,
               r -> {
-                String a = slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], (String) r[2]);
+                String a =
+                    slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], (String) r[2]);
                 slice.edge(GraphEdgeType.FOUND_ON, here, a, null);
               });
         }
@@ -424,13 +429,15 @@ public class GraphExplorationService {
         if (want.test(GraphEdgeType.PRODUCED)) {
           rows(
               slice,
-              "SELECT DISTINCT f.id, f.valueDisplay, f.type FROM FindingOccurrence o JOIN o.finding f"
+              "SELECT DISTINCT f.id, f.valueDisplay, f.type"
+                  + " FROM FindingOccurrence o JOIN o.finding f"
                   + " WHERE o.inject.id = :id AND f.tenant.id IN :tenantIds",
               tenantIds,
               id,
               cap,
               r -> {
-                String f = slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2]));
+                String f =
+                    slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2]));
                 slice.edge(GraphEdgeType.PRODUCED, here, f, null);
               });
         }
@@ -452,7 +459,8 @@ public class GraphExplorationService {
         focus =
             single(
                 slice,
-                "SELECT x.id, x.name FROM Exercise x WHERE x.id = :id AND x.tenant.id IN :tenantIds",
+                "SELECT x.id, x.name FROM Exercise x"
+                    + " WHERE x.id = :id AND x.tenant.id IN :tenantIds",
                 tenantIds,
                 id,
                 r -> slice.node(GraphNodeType.SIMULATION, (String) r[0], (String) r[1], null));

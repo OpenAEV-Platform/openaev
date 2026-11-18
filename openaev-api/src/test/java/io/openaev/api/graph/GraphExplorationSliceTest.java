@@ -80,8 +80,7 @@ class GraphExplorationSliceTest {
   @DisplayName("the limit is clamped between 1 and the hard ceiling")
   void limitClamped() {
     assertThat(GraphExplorationService.clamp(0)).isEqualTo(1);
-    assertThat(GraphExplorationService.clamp(10_000))
-        .isEqualTo(GraphExplorationService.MAX_LIMIT);
+    assertThat(GraphExplorationService.clamp(10_000)).isEqualTo(GraphExplorationService.MAX_LIMIT);
   }
 
   @Test
