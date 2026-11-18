@@ -5,7 +5,6 @@ import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.TagLinkJdbc.column;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -24,7 +23,6 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.mockUser.WithMockUser;
-import jakarta.servlet.ServletException;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -48,9 +46,8 @@ import org.springframework.transaction.annotation.Transactional;
  * edit resolves the tenant of the atomic testing already loaded, independently of how wide the
  * request's own scope is. On the non-prefixed route {@code X-Tenant-Ids} can name several tenants,
  * and the edit carries no tenant selector, so the request scope holds all of them. A document id of
- * another tenant is treated like an unknown one: the lookup throws, the same way it already does
- * for a document id that does not exist at all (an existing, tenant-unrelated gap of this endpoint:
- * the throw is a bare, unmapped one, not a 404). The links are read through {@code
+ * another tenant is treated like an unknown one: the lookup refuses with a 404, the same way it
+ * already does for a document id that does not exist at all. The links are read through {@code
  * injects_documents} on the test connection, which the statement inspector does not rewrite. The
  * class arms the production list.
  */
@@ -113,17 +110,14 @@ class AtomicTestingDocumentLinkTenantTest extends IntegrationTest {
       input.setDocuments(List.of(documentInput(documentInOther)));
 
       // -- Act & Assert: the id does not resolve inside the atomic testing's own tenant, so it is
-      // treated like any other unknown document id (an existing, tenant-unrelated behaviour of
-      // this endpoint: the lookup is a bare orElseThrow(), unmapped, not a 404).
-      assertThrows(
-          ServletException.class,
-          () ->
-              mvc.perform(
-                  put(ATOMIC_TESTING_URI + "/{injectId}", injectId)
-                      .header(TENANT_HEADER, Tenant.DEFAULT_TENANT_UUID + "," + otherTenant)
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input))
-                      .with(csrf())));
+      // treated like any other unknown document id, refused with a 404.
+      mvc.perform(
+              put(ATOMIC_TESTING_URI + "/{injectId}", injectId)
+                  .header(TENANT_HEADER, Tenant.DEFAULT_TENANT_UUID + "," + otherTenant)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
       assertThat(column(entityManager, INJECT_DOCUMENTS, injectId)).isEmpty();
     }
   }
@@ -144,17 +138,15 @@ class AtomicTestingDocumentLinkTenantTest extends IntegrationTest {
       input.setDocuments(List.of(documentInput(documentInOther)));
 
       // -- Act & Assert --
-      assertThrows(
-          ServletException.class,
-          () ->
-              mvc.perform(
-                  put(
-                          TENANT_PREFIX + "/atomic-testings/{injectId}",
-                          Tenant.DEFAULT_TENANT_UUID,
-                          injectId)
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input))
-                      .with(csrf())));
+      mvc.perform(
+              put(
+                      TENANT_PREFIX + "/atomic-testings/{injectId}",
+                      Tenant.DEFAULT_TENANT_UUID,
+                      injectId)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
       assertThat(column(entityManager, INJECT_DOCUMENTS, injectId)).isEmpty();
     }
 
