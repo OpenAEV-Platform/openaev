@@ -421,7 +421,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   public List<LessonsCategory> playerLessonsCategories(
       TxCtx ctx, @PathVariable String exerciseId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    requirePlayerOfExercise(ctx, exerciseId, impersonateUser(userRepository, userId));
+    impersonateUser(userRepository, userId); // Protection for ?
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
         .stream()
@@ -446,7 +446,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   public List<LessonsQuestion> playerLessonsQuestions(
       TxCtx ctx, @PathVariable String exerciseId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    requirePlayerOfExercise(ctx, exerciseId, impersonateUser(userRepository, userId));
+    impersonateUser(userRepository, userId); // Protection for ?
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
         .stream()
@@ -468,7 +468,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   public List<LessonsAnswer> playerLessonsAnswers(
       TxCtx ctx, @PathVariable String exerciseId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    requirePlayerOfExercise(ctx, exerciseId, impersonateUser(userRepository, userId));
+    impersonateUser(userRepository, userId); // Protection for ?
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
         .stream()
@@ -501,15 +501,15 @@ public class ExerciseLessonsApi extends RestBehavior {
   public LessonsAnswer createExerciseLessonsQuestion(
       TxCtx ctx,
       @PathVariable String exerciseId,
-      @PathVariable String lessonsCategoryId,
       @PathVariable String lessonsQuestionId,
       @Valid @RequestBody LessonsAnswerCreateInput input,
       @RequestParam Optional<String> userId)
       throws AuthenticationError {
     User user = impersonateUser(userRepository, userId);
-    requirePlayerOfExercise(ctx, exerciseId, user);
     LessonsQuestion lessonsQuestion =
-        questionOfCategory(exerciseId, lessonsCategoryId, lessonsQuestionId);
+        lessonsQuestionRepository
+            .findById(lessonsQuestionId)
+            .orElseThrow(ElementNotFoundException::new);
 
     Optional<LessonsAnswer> optionalAnswer =
         lessonsAnswerRepository.findByUserIdAndQuestionId(user.getId(), lessonsQuestionId);
@@ -526,16 +526,6 @@ public class ExerciseLessonsApi extends RestBehavior {
     lessonsAnswer.setNegative(input.getNegative());
 
     return lessonsAnswerRepository.save(lessonsAnswer);
-  }
-
-  /** Refuses, as not found, a user who neither plays nor observes the simulation. */
-  private void requirePlayerOfExercise(TxCtx ctx, String exerciseId, User user) {
-    Exercise exercise =
-        exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
-    if (!exerciseService.isLessonsPlayer(exerciseId, user.getId())
-        && !exercise.isUserHasAccess(user)) {
-      throw new ElementNotFoundException();
-    }
   }
 
   /** The category, only when it belongs to the given simulation. */

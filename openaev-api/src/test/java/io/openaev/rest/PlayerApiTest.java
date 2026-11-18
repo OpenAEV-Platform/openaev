@@ -56,7 +56,6 @@ class PlayerApiTest extends IntegrationTest {
   @Autowired private LessonsCategoryComposer lessonsCategoryComposer;
   @Autowired private LessonsQuestionsComposer lessonsQuestionsComposer;
   @Autowired private UserComposer userComposer;
-  @Autowired private TeamComposer teamComposer;
   @Autowired private UrlAccessTokenComposer urlAccessTokenComposer;
   @Autowired private LessonsAnswersComposer lessonsAnswersComposer;
 
@@ -71,7 +70,6 @@ class PlayerApiTest extends IntegrationTest {
       lessonsCategoryComposer.reset();
       lessonsQuestionsComposer.reset();
       userComposer.reset();
-      teamComposer.reset();
       urlAccessTokenComposer.reset();
       lessonsAnswersComposer.reset();
     }
@@ -80,7 +78,6 @@ class PlayerApiTest extends IntegrationTest {
         ExerciseComposer.Composer simulationWrapper,
         UserComposer.Composer userWrapper,
         UserComposer.Composer otherUserWrapper,
-        UserComposer.Composer playerWithoutAnswersWrapper,
         LessonsCategoryComposer.Composer categoryWrapper,
         LessonsQuestionsComposer.Composer questionWrapper) {}
 
@@ -88,8 +85,6 @@ class PlayerApiTest extends IntegrationTest {
       UserComposer.Composer userWrapper =
           userComposer.forUser(UserFixture.getUserWithDefaultEmail());
       UserComposer.Composer otherUserWrapper =
-          userComposer.forUser(UserFixture.getUserWithDefaultEmail());
-      UserComposer.Composer playerWithoutAnswersWrapper =
           userComposer.forUser(UserFixture.getUserWithDefaultEmail());
       LessonsCategoryComposer.Composer categoryWrapper =
           lessonsCategoryComposer.forLessonsCategory(
@@ -100,13 +95,6 @@ class PlayerApiTest extends IntegrationTest {
       ExerciseComposer.Composer simulationWrapper =
           exerciseComposer
               .forExercise(ExerciseFixture.createDefaultExercise())
-              .withTeam(
-                  teamComposer
-                      .forTeam(TeamFixture.getDefaultTeam())
-                      .withUser(userWrapper)
-                      .withUser(otherUserWrapper)
-                      .withUser(playerWithoutAnswersWrapper))
-              .withTeamUsers()
               .withLessonCategory(
                   categoryWrapper.withLessonsQuestion(
                       questionWrapper
@@ -120,12 +108,7 @@ class PlayerApiTest extends IntegrationTest {
                                   .withUser(otherUserWrapper))))
               .persist();
       return new PlayerApiObjectWrappers(
-          simulationWrapper,
-          userWrapper,
-          otherUserWrapper,
-          playerWithoutAnswersWrapper,
-          categoryWrapper,
-          questionWrapper);
+          simulationWrapper, userWrapper, otherUserWrapper, categoryWrapper, questionWrapper);
     }
 
     @Nested
@@ -582,7 +565,9 @@ class PlayerApiTest extends IntegrationTest {
         public void given_noSpecificUserIdOnTheQueryString_200OK() throws Exception {
           PlayerApiObjectWrappers wrappers = getExerciseWrapper();
           String url = getAnswersUrl(wrappers.simulationWrapper().get().getId());
-          UserComposer.Composer extraUserWrapper = wrappers.playerWithoutAnswersWrapper();
+          // create extra user
+          UserComposer.Composer extraUserWrapper =
+              userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
           createUrlAccessToken(wrappers.simulationWrapper().get(), extraUserWrapper.get(), url)
               .persist();
           entityManager.flush();
@@ -644,7 +629,9 @@ class PlayerApiTest extends IntegrationTest {
             "Given user A has no answers, pass User A cookie and User A id query string, then empty response")
         public void given_specificOtherUserIdOnTheQueryString_200OK() throws Exception {
           PlayerApiObjectWrappers wrappers = getExerciseWrapper();
-          UserComposer.Composer extraUserWrapper = wrappers.playerWithoutAnswersWrapper();
+          // create extra user
+          UserComposer.Composer extraUserWrapper =
+              userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
           String url =
               getAnswersUrl(
                   wrappers.simulationWrapper().get().getId(), extraUserWrapper.get().getId());
@@ -673,7 +660,9 @@ class PlayerApiTest extends IntegrationTest {
             "Given user A has no answers, user B has answers, pass User A cookie and User B id query string, then empty response")
         public void given_specificSameUserIdOnTheQueryString_200OK() throws Exception {
           PlayerApiObjectWrappers wrappers = getExerciseWrapper();
-          UserComposer.Composer extraUserWrapper = wrappers.playerWithoutAnswersWrapper();
+          // create extra user
+          UserComposer.Composer extraUserWrapper =
+              userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
           String url =
               getAnswersUrl(
                   wrappers.simulationWrapper().get().getId(), wrappers.userWrapper().get().getId());
@@ -741,7 +730,9 @@ class PlayerApiTest extends IntegrationTest {
         public void given_specificOtherUserIdOnTheQueryStringAndDifferentUserCookie_200OK()
             throws Exception {
           PlayerApiObjectWrappers wrappers = getExerciseWrapper();
-          UserComposer.Composer extraUserWrapper = wrappers.playerWithoutAnswersWrapper();
+          // create extra user
+          UserComposer.Composer extraUserWrapper =
+              userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
           String url =
               getAnswersUrl(
                   wrappers.simulationWrapper().get().getId(), extraUserWrapper.get().getId());
