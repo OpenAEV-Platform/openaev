@@ -4681,5 +4681,6 @@
   "YYYY": "YYYY",
   "ZIP must contain a json file": "ZIP 文件必须包含一个 JSON 文件",
   "Zoom in": "放大",
-  "Zoom out": "缩小"
+  "Zoom out": "缩小",
+  "Always on": "始终运行"
 }

@@ -79,7 +79,8 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     const meta = new Map<string, DeployedMeta>();
     const lastSeenLabel = (connector: ConnectorOutput) => {
       const { lastSeen, builtIn } = computeConnectorLiveliness(connector);
-      if (builtIn) return t('Runs inside the platform');
+      // Short enough for the card: the detail page keeps the full "Runs inside the platform".
+      if (builtIn) return t('Always on');
       return lastSeen ? nsdt(lastSeen) : t('Never updated');
     };
 

@@ -4681,5 +4681,6 @@
   "YYYY": "ГГГГ",
   "ZIP must contain a json file": "Архив ZIP должен содержать файл JSON",
   "Zoom in": "Приблизить",
-  "Zoom out": "Отдалить"
+  "Zoom out": "Отдалить",
+  "Always on": "Всегда работает"
 }

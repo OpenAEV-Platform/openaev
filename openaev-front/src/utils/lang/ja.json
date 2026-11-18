@@ -4681,5 +4681,6 @@
   "YYYY": "YYYY",
   "ZIP must contain a json file": "ZIPファイルにはjsonファイルが含まれている必要があります",
   "Zoom in": "ズームイン",
-  "Zoom out": "ズームアウト"
+  "Zoom out": "ズームアウト",
+  "Always on": "常時稼働"
 }

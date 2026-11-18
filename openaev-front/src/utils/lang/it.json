@@ -4681,5 +4681,6 @@
   "YYYY": "AAAA",
   "ZIP must contain a json file": "Il file ZIP deve contenere un file JSON",
   "Zoom in": "Ingrandisci",
-  "Zoom out": "Riduci"
+  "Zoom out": "Riduci",
+  "Always on": "Sempre attivo"
 }
