@@ -83,8 +83,10 @@ import {
   visibleGraph,
 } from './graph-state';
 import GraphEntityNode, { type GraphEntityNodeType } from './GraphEntityNode';
+import GraphFloatingEdge from './GraphFloatingEdge';
 
 const nodeTypes = { entity: GraphEntityNode };
+const edgeTypes = { floating: GraphFloatingEdge };
 
 const proOptions = {
   account: 'paid-pro',
@@ -221,6 +223,7 @@ const GraphExplorerInner = ({
     }
     return {
       id: e.edge_id,
+      type: 'floating',
       source: e.edge_source,
       target: e.edge_target,
       label: interactive && (isPath || isFailed) ? t(EDGE_TYPE_LABEL[e.edge_type]) : undefined,
@@ -642,6 +645,7 @@ const GraphExplorerInner = ({
             nodes={flowNodes}
             edges={flowEdges}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             proOptions={proOptions}
             colorMode={theme.palette.mode}
             nodesDraggable={interactive}

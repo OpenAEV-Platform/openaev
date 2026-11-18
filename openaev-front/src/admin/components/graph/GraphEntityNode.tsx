@@ -5,6 +5,7 @@ import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
+import { LABEL_MARGIN, NODE_CIRCLE_SIZE, NODE_WIDTH } from './graph-edge-geometry';
 import NODE_ICON from './graph-icons';
 import { type GraphNodeOutput, NODE_TYPE_LABEL } from './graph-model';
 
@@ -20,7 +21,7 @@ export interface GraphEntityNodeData extends Record<string, unknown> {
 
 export type GraphEntityNodeType = Node<GraphEntityNodeData, 'entity'>;
 
-const SIZE = 44;
+const SIZE = NODE_CIRCLE_SIZE;
 
 const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
   const theme = useTheme();
@@ -44,7 +45,7 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            width: 140,
+            width: NODE_WIDTH,
             opacity: dimmed ? 0.25 : 1,
             transition: 'opacity 0.2s',
           }}
@@ -77,8 +78,8 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
           <Text
             variant="content-caption"
             style={{
-              maxWidth: 140,
-              marginTop: 4,
+              maxWidth: NODE_WIDTH,
+              marginTop: LABEL_MARGIN,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
