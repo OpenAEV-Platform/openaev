@@ -58,8 +58,38 @@ public class Executor {
   public static final String CMD = "cmd";
   public static final String PSH = "psh";
 
-  private InjectStatus executeExternal(ExecutableInject executableInject, Injector injector)
-      throws Exception {
+  /**
+   * What phase 1 (DB prep) of an execution produced. An internal injector finishes synchronously,
+   * so {@link #completedStatus()} already carries its final status. An external injector stops
+   * right after {@code computeAndSaveExpectations}: {@link #pending()} carries what the publish
+   * (phase 2, no transaction) and the outcome trace (phase 3, a transaction of its own) need, so a
+   * caller that owns its transaction boundary can commit phase 1 and release the connection before
+   * the network call. See #6968.
+   */
+  public record ExecutionPhase1Result(InjectStatus completedStatus, ExternalPublish pending) {
+    public static ExecutionPhase1Result completed(InjectStatus status) {
+      return new ExecutionPhase1Result(status, null);
+    }
+
+    public static ExecutionPhase1Result pendingPublish(ExternalPublish pending) {
+      return new ExecutionPhase1Result(null, pending);
+    }
+
+    public boolean isPendingPublish() {
+      return pending != null;
+    }
+  }
+
+  /** What a confirmed or failed publish needs, carried across the no-transaction publish step. */
+  public record ExternalPublish(
+      String injectId, String injectStatusId, String injectorId, String jsonInject) {}
+
+  /**
+   * Phase 1 of the external path: DB prep up to {@code computeAndSaveExpectations}, ending before
+   * the publish. Runs inside the caller's current transaction; opens none itself.
+   */
+  private ExternalPublish prepareExternalPublish(
+      ExecutableInject executableInject, Injector injector) throws Exception {
     Inject inject = executableInject.getInjection().getInject();
     String authorisationCode = injectService.getAuthorisationCodeIfNeeded(executableInject);
     String jsonInject =
@@ -70,26 +100,37 @@ public class Executor {
 
     injectExpectationService.computeAndSaveExpectations(executableInject, injector.getType());
 
-    if (TransactionSynchronizationManager.isSynchronizationActive()) {
-      TransactionSynchronizationManager.registerSynchronization(
-          new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-              try {
-                rabbitmqService.publish(injector.getId(), jsonInject);
-              } catch (IOException | TimeoutException e) {
-                throw new IllegalStateException("Failed to publish inject after commit", e);
-              }
-            }
-          });
-    } else {
-      rabbitmqService.publish(injector.getId(), jsonInject);
-    }
+    return new ExternalPublish(inject.getId(), injectStatus.getId(), injector.getId(), jsonInject);
+  }
 
+  /**
+   * Phase 2 of the external path: the network publish. Deliberately opens no transaction and
+   * expects none to be active; see {@link ExecutionPhase1Result}.
+   */
+  public void publish(ExternalPublish pending) throws IOException, TimeoutException {
+    rabbitmqService.publish(pending.injectorId(), pending.jsonInject());
+  }
+
+  /**
+   * Phase 3 of the external path, confirmed publish: writes the "published and waiting" trace.
+   * Needs an active transaction, the caller's own or a fresh one it opened for this alone.
+   */
+  public InjectStatus recordPublishSuccess(ExternalPublish pending) {
+    InjectStatus injectStatus =
+        this.injectStatusRepository.findById(pending.injectStatusId()).orElseThrow();
     injectStatus.addInfoTrace(
         "The inject has been published and is now waiting to be consumed.",
         ExecutionTraceAction.EXECUTION);
     return this.injectStatusRepository.save(injectStatus);
+  }
+
+  /**
+   * Phase 3 of the external path, failed publish: records the real failure instead of a trace that
+   * claims a publish which never happened. Needs an active transaction.
+   */
+  public InjectStatus recordPublishFailure(ExternalPublish pending, Exception cause) {
+    return this.injectStatusService.persistErrorStatusInTransaction(
+        pending.injectId(), cause.getMessage());
   }
 
   private InjectStatus executeInternal(ExecutableInject executableInject, Injector injector) {
@@ -111,7 +152,12 @@ public class Executor {
     return injectStatusService.saveAndStreamInject(completeStatus);
   }
 
-  public InjectStatus execute(ExecutableInject executableInject) throws Exception {
+  /**
+   * All DB prep for one execution, ending at {@code computeAndSaveExpectations} for an external
+   * injector (see {@link ExecutionPhase1Result}) or at the final status for an internal one. Runs
+   * inside whatever transaction the caller already has open; opens none itself.
+   */
+  public ExecutionPhase1Result executePhase1(ExecutableInject executableInject) throws Exception {
     Inject inject = executableInject.getInjection().getInject();
     InjectorContract injectorContract =
         inject
@@ -164,10 +210,70 @@ public class Executor {
           resolvedAssets.withoutClearance(), updatedStatus);
     }
     if (injector.isExternal()) {
-      return executeExternal(executableInject, injector);
+      return ExecutionPhase1Result.pendingPublish(
+          prepareExternalPublish(executableInject, injector));
     } else {
-      return executeInternal(executableInject, injector);
+      return ExecutionPhase1Result.completed(executeInternal(executableInject, injector));
     }
+  }
+
+  /**
+   * All three phases in one call, for a caller that does not own its transaction boundary (the
+   * manual API launch, the chaining engine step): phase 1 runs in the caller's active transaction.
+   *
+   * <p>With no transaction active, the publish runs inline and the trace follows its real outcome,
+   * exactly like {@link io.openaev.scheduler.jobs.InjectsExecutionJob}'s own phase 2/3.
+   *
+   * <p>With the caller's transaction still open (the normal case for both callers above), the
+   * publish is deferred to {@code afterCommit()}, exactly as {@code main} did before #6968's split:
+   * the network call never runs while a rollback could still undo the inject it targets, so a
+   * chaining-engine retry (on {@link io.openaev.rest.exception.ChainingException}) can never
+   * re-publish a message the first attempt already sent. The trade-off, also carried over unchanged
+   * from {@code main} and out of scope here, is that the "published and waiting" trace is written
+   * before the publish is attempted, not after: recording the real outcome needs a transaction, and
+   * {@link io.openaev.context.TenantScopedTransaction} refuses to open one while this caller's is
+   * still active, including from inside {@code afterCommit()} itself (Spring does not clear {@code
+   * isActualTransactionActive()} until every synchronization has run). Giving these two callers the
+   * same after-the-fact trace the job path has would mean restructuring their own
+   * {@code @Transactional} boundary, a materially larger and riskier change than this task asks
+   * for; #6968 targets the job path only (see {@link
+   * io.openaev.scheduler.jobs.InjectsExecutionJob#completeExternalPublish}). A deferred publish
+   * that fails is logged, never rethrown: by the time it runs, the caller's transaction has already
+   * committed and its method has already returned, so nothing is left to catch it (this is also why
+   * the caller can never see the same failure twice, unlike a synchronous one).
+   */
+  public InjectStatus execute(ExecutableInject executableInject) throws Exception {
+    ExecutionPhase1Result phase1 = executePhase1(executableInject);
+    if (!phase1.isPendingPublish()) {
+      return phase1.completedStatus();
+    }
+    ExternalPublish pending = phase1.pending();
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              try {
+                publish(pending);
+              } catch (Exception e) {
+                log.error(
+                    "Failed to publish inject {} after its caller's transaction committed; its"
+                        + " trace already claims it was published and waiting (#6968 targets the"
+                        + " job path only)",
+                    pending.injectId(),
+                    e);
+              }
+            }
+          });
+      return recordPublishSuccess(pending);
+    }
+    try {
+      publish(pending);
+    } catch (IOException | TimeoutException e) {
+      recordPublishFailure(pending, e);
+      throw e;
+    }
+    return recordPublishSuccess(pending);
   }
 
   /**
