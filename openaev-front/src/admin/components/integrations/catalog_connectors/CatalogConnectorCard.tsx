@@ -18,8 +18,8 @@ import { Link } from 'react-router';
 
 import CardThumbnail from '../../../../components/common/card/CardThumbnail';
 import { useFormatter } from '../../../../components/i18n';
+import useChipOverflow from '../../../../utils/hooks/useChipOverflow';
 import { type ConnectorItem, type ConnectorItemType, prettifyUseCase } from './catalog-facets';
-import useChipOverflow from './useChipOverflow';
 
 interface Props {
   connector: ConnectorItem;

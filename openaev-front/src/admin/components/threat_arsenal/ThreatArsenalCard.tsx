@@ -20,6 +20,7 @@ import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
 import { type Domain, type ThreatArsenalAction } from '../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
+import useChipOverflow from '../../../utils/hooks/useChipOverflow';
 import { buildTenantApiPath } from '../../../utils/url-helper';
 import InjectIcon from '../common/injects/InjectIcon';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
@@ -42,7 +43,6 @@ interface Props {
 }
 
 const MAX_PLATFORMS = 4;
-const MAX_DOMAINS = 2;
 
 const ThreatArsenalCard: FunctionComponent<Props> = ({
   action,
@@ -73,8 +73,11 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
     );
   }, [action.action_domains_ids, allDomains]);
 
-  const visibleDomains = domains.slice(0, MAX_DOMAINS);
-  const hiddenDomainsLabel = domains.slice(MAX_DOMAINS).map(d => t(d.domain_name)).join(', ');
+  // As many domain chips as the card width allows; only the rest collapse into "+N".
+  const domainLabels = useMemo(() => domains.map(d => t(d.domain_name)), [domains, t]);
+  const { containerRef, chipRefs, overflowRef, visibleCount } = useChipOverflow(domainLabels);
+  const hiddenDomainsCount = domains.length - visibleCount;
+  const hiddenDomainsLabel = domainLabels.slice(visibleCount).join(', ');
   const payload = action.action_payload;
   const status = payload?.payload_status;
   const statusLabel = getStatusLabel(status);
@@ -134,24 +137,59 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         <CardTitle>{name}</CardTitle>
       </CardHeader>
       {domains.length > 0 && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          minWidth: 0,
-        }}
+        <div
+          ref={containerRef}
+          data-chip-row=""
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            minWidth: 0,
+            overflow: 'hidden',
+            position: 'relative',
+          }}
         >
-          {visibleDomains.map(domain => (
-            <Chip key={domain.domain_id} label={t(domain.domain_name)} color={domain.domain_color} style={{ maxWidth: '100%' }} />
-          ))}
-          {domains.length > MAX_DOMAINS && (
+          {domains.map((domain, index) => {
+            const isVisible = index < visibleCount;
+            return (
+              <div
+                key={domain.domain_id}
+                data-chip=""
+                ref={(el) => {
+                  chipRefs.current[index] = el;
+                }}
+                // Every chip stays mounted at its full width, so the overflow count is measurable.
+                style={{
+                  flexShrink: 0,
+                  maxWidth: '100%',
+                  visibility: isVisible ? 'visible' : 'hidden',
+                  position: isVisible ? 'relative' : 'absolute',
+                }}
+              >
+                <Chip label={domainLabels[index]} color={domain.domain_color} style={{ maxWidth: '100%' }} />
+              </div>
+            );
+          })}
+          {/* Always mounted, so its width is known before anything is hidden; it is
+              only taken out of the flow while there is nothing to count. */}
+          <div
+            data-chip-overflow=""
+            ref={(el) => {
+              overflowRef.current = el;
+            }}
+            style={{
+              flexShrink: 0,
+              visibility: hiddenDomainsCount > 0 ? 'visible' : 'hidden',
+              position: hiddenDomainsCount > 0 ? 'relative' : 'absolute',
+            }}
+          >
             <Tooltip>
               <TooltipTrigger asChild>
-                <Chip label={`+${domains.length - MAX_DOMAINS}`} />
+                <Chip label={`+${Math.max(hiddenDomainsCount, 1)}`} />
               </TooltipTrigger>
               {hiddenDomainsLabel && <TooltipContent>{hiddenDomainsLabel}</TooltipContent>}
             </Tooltip>
-          )}
+          </div>
         </div>
       )}
       <CardInfoGroup>
