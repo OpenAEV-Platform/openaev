@@ -11,6 +11,7 @@ import java.sql.Statement;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
@@ -175,14 +176,22 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
             statement.execute(
                 "ALTER TABLE " + TABLE + " ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255)");
           }
-          return null;
+          return true;
         });
     logInactiveSlots(connection);
     WalGuard walGuard = new WalGuard(currentWalFile(connection));
     long orphans = walk(connection, walGuard).orphans();
     buildTenantIndex(connection);
+    createPendingIndex(connection);
     orphans += drain(connection, walGuard);
-    orphans += withLockRetry(connection, "locking the table", () -> finish(connection));
+    Optional<Long> locked;
+    while ((locked = underLockTimeout(connection, "locking the table", () -> finish(connection)))
+        .isEmpty()) {
+      // Rows written while the lock waits go to the paced drain, not to the locked step.
+      orphans += drain(connection, walGuard);
+      sleep(LOCK_RETRY_MILLIS);
+    }
+    orphans += locked.get();
     withLockRetry(
         connection,
         "validating the foreign key",
@@ -190,7 +199,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
           try (Statement statement = connection.createStatement()) {
             statement.execute("ALTER TABLE " + TABLE + " VALIDATE CONSTRAINT " + FOREIGN_KEY);
           }
-          return null;
+          return true;
         });
     if (orphans > 0) {
       log.warn(
@@ -277,7 +286,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
    * Passes repeat until one finds less than a batch: ids are random, so a row written during a pass
    * can land behind its cursor. Returns the orphans.
    */
-  private long drain(Connection connection, WalGuard walGuard) throws SQLException {
+  private static void createPendingIndex(Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement()) {
       // A leftover of an interrupted run can be invalid: rebuild it.
       statement.execute("DROP INDEX CONCURRENTLY IF EXISTS " + PENDING_INDEX);
@@ -288,6 +297,9 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
               + TABLE
               + " (execution_trace_id) WHERE tenant_id IS NULL");
     }
+  }
+
+  private long drain(Connection connection, WalGuard walGuard) throws SQLException {
     long drained = 0;
     long orphans = 0;
     try (PreparedStatement pick = connection.prepareStatement(NEXT_PENDING_IDS);
@@ -355,7 +367,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
   private long finish(Connection connection) throws SQLException {
     connection.setAutoCommit(false);
     try (Statement statement = connection.createStatement()) {
-      statement.execute("LOCK TABLE " + TABLE + " IN ACCESS EXCLUSIVE MODE");
+      lockTable(statement);
       long orphans;
       try (PreparedStatement remaining = connection.prepareStatement(FINAL_UPDATE)) {
         remaining.setString(1, DEFAULT_TENANT_UUID);
@@ -410,26 +422,36 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
    * Retries {@code step} each time it times out on a lock: a waiting lock request makes every later
    * query on the table wait behind it.
    */
-  private static <T> T withLockRetry(Connection connection, String what, SqlStep<T> step)
+  private static void withLockRetry(Connection connection, String what, SqlStep<Boolean> step)
       throws SQLException {
-    while (true) {
-      try (Statement statement = connection.createStatement()) {
-        statement.execute("SET lock_timeout = '" + LOCK_TIMEOUT + "'");
-      }
-      try {
-        return step.run();
-      } catch (SQLException e) {
-        if (!LOCK_NOT_AVAILABLE.equals(e.getSQLState())) {
-          throw e;
-        }
-        log.info("{}: {} waits for a lock another transaction holds, retrying", TABLE, what);
-      } finally {
-        try (Statement statement = connection.createStatement()) {
-          statement.execute("RESET lock_timeout");
-        }
-      }
+    while (underLockTimeout(connection, what, step).isEmpty()) {
       sleep(LOCK_RETRY_MILLIS);
     }
+  }
+
+  /** Empty when {@code step} times out on a lock another transaction holds. */
+  private static <T> Optional<T> underLockTimeout(
+      Connection connection, String what, SqlStep<T> step) throws SQLException {
+    try (Statement statement = connection.createStatement()) {
+      statement.execute("SET lock_timeout = '" + LOCK_TIMEOUT + "'");
+    }
+    try {
+      return Optional.of(step.run());
+    } catch (SQLException e) {
+      if (!LOCK_NOT_AVAILABLE.equals(e.getSQLState())) {
+        throw e;
+      }
+      log.info("{}: {} waits for a lock another transaction holds, retrying", TABLE, what);
+      return Optional.empty();
+    } finally {
+      try (Statement statement = connection.createStatement()) {
+        statement.execute("RESET lock_timeout");
+      }
+    }
+  }
+
+  void lockTable(Statement statement) throws SQLException {
+    statement.execute("LOCK TABLE " + TABLE + " IN ACCESS EXCLUSIVE MODE");
   }
 
   private static void logInactiveSlots(Connection connection) {

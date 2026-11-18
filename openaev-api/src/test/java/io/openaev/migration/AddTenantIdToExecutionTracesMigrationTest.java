@@ -612,6 +612,24 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
       assertFullSchema();
     }
 
+    @Test
+    @DisplayName("Rows written while the final lock times out are drained before the next attempt")
+    void given_finalLockTimingOut_should_drainBeforeTheNextAttempt() throws SQLException {
+      // Arrange: the first lock attempt times out right after another session writes m-late
+      makePending();
+      seedTrace("m-2", statusOfB, null, null);
+      createInsertingTrigger("m-none", "PERFORM 1", null, null);
+      V6_20261112060000000__Scripted_lock migration = new V6_20261112060000000__Scripted_lock();
+
+      // Act
+      migration.migrate(connection);
+
+      // Assert: the trigger raises if the locked step writes m-late
+      assertThat(migration.timedOut).isTrue();
+      assertThat(tenantOf("m-late")).isEqualTo(DEFAULT_TENANT_UUID);
+      assertFullSchema();
+    }
+
     private void createInsertingTrigger(String insertSql) throws SQLException {
       createInsertingTrigger("m-3", insertSql, null, null);
     }
@@ -803,6 +821,39 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
 
   private interface LagReadings {
     long next() throws SQLException;
+  }
+
+  /** The first final lock times out after another session writes a row with no tenant. */
+  private final class V6_20261112060000000__Scripted_lock
+      extends V6_20261112060000000__Add_tenant_id_to_execution_traces {
+
+    private boolean timedOut;
+
+    V6_20261112060000000__Scripted_lock() {
+      super(1, 1L, 0, Long.MAX_VALUE);
+    }
+
+    @Override
+    void lockTable(Statement statement) throws SQLException {
+      if (!timedOut) {
+        timedOut = true;
+        try (Connection other = dataSource.getConnection();
+            Statement insert = other.createStatement()) {
+          other.setAutoCommit(true);
+          insert.execute(
+              "INSERT INTO "
+                  + TABLE
+                  + " (execution_trace_id, execution_inject_status_id, execution_message,"
+                  + " execution_status) VALUES ('m-late', '"
+                  + statusWithoutInject
+                  + "', '"
+                  + SEED_MESSAGE
+                  + "', 'INFO')");
+        }
+        throw new SQLException("canceling statement due to lock timeout", "55P03");
+      }
+      super.lockTable(statement);
+    }
   }
 
   /** One range, no pause, a 100-byte bound, scripted lag; Flyway needs the versioned name. */
