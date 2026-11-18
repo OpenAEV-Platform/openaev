@@ -84,6 +84,16 @@ public class CounterpartApi extends RestBehavior {
     return lookup(tenantId, CounterpartKind.THREAT, input);
   }
 
+  @LogExecutionTime
+  @PostMapping("/counterparts/alerts")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @Operation(summary = "Find collected alerts in the connected XTM products, by alert link")
+  public List<CounterpartOutput> alerts(
+      TxCtx ctx, @PathVariable String tenantId, @Valid @RequestBody CounterpartLookupInput input) {
+    return lookup(tenantId, CounterpartKind.ALERT, input);
+  }
+
   private List<CounterpartOutput> lookup(
       String tenantId, CounterpartKind kind, CounterpartLookupInput input) {
     return counterpartService.resolve(tenantId, kind, input.keys()).stream()

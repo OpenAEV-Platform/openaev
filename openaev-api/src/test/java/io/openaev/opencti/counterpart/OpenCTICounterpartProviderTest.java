@@ -88,4 +88,46 @@ class OpenCTICounterpartProviderTest {
     assertThat(found.get("CVE-2024-1").url()).isEqualTo("https://octi/dashboard/id/v1");
     assertThat(found.get("CVE-2024-1").entityType()).isEqualTo("Vulnerability");
   }
+
+  @Test
+  @DisplayName("an alert is looked up on external references by url")
+  void alertFilter() {
+    ObjectNode vars =
+        provider(Map.of()).variables(CounterpartKind.ALERT, List.of("https://edr/alert/1"));
+
+    JsonNode filters = vars.path("filters").path("filters");
+    assertThat(filters).hasSize(1);
+    assertThat(filters.get(0).path("key").get(0).asText()).isEqualTo("url");
+    assertThat(filters.get(0).path("values").get(0).asText()).isEqualTo("https://edr/alert/1");
+  }
+
+  @Test
+  @DisplayName("an alert link resolves to the incident referencing it before a sighting or report")
+  void matchAlerts() throws Exception {
+    JsonNode data =
+        mapper.readTree(
+            """
+            {"externalReferences":{"edges":[
+              {"node":{"url":"https://edr/alert/1","references":{"edges":[
+                {"node":{"id":"r1","entity_type":"Report","representative":{"main":"Weekly"}}},
+                {"node":{"id":"s1","entity_type":"stix-sighting-relationship",
+                         "representative":{"main":"seen"}}},
+                {"node":{"id":"i1","entity_type":"Incident","representative":{"main":"EDR alert"}}}
+              ]}}},
+              {"node":{"url":"https://edr/alert/2","references":{"edges":[]}}},
+              {"node":{"url":"https://other","references":{"edges":[
+                {"node":{"id":"x","entity_type":"Incident","representative":{"main":"x"}}}
+              ]}}}
+            ]}}
+            """);
+
+    Map<String, Counterpart> found =
+        provider(Map.of())
+            .matchAlerts(
+                List.of("https://edr/alert/1", "https://edr/alert/2"), data, "https://octi/");
+
+    assertThat(found).containsOnlyKeys("https://edr/alert/1");
+    assertThat(found.get("https://edr/alert/1").entityType()).isEqualTo("Incident");
+    assertThat(found.get("https://edr/alert/1").url()).isEqualTo("https://octi/dashboard/id/i1");
+  }
 }

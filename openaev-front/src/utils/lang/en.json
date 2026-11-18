@@ -2088,6 +2088,7 @@
   "In autonomous mode an AI orchestrator drives the run live and adapts in real time - reacting to findings, adding steps and consulting specialist agents to pursue the objective. Set an objective, pick the specialist agents it may consult, and optionally scope the perimeter with the allow / deny lists - or skip scoping and the AI will ask you which targets are in scope.": "In autonomous mode an AI orchestrator drives the run live and adapts in real time - reacting to findings, adding steps and consulting specialist agents to pursue the objective. Set an objective, pick the specialist agents it may consult, and optionally scope the perimeter with the allow / deny lists - or skip scoping and the AI will ask you which targets are in scope.",
   "In flight": "In flight",
   "In OpenCTI": "In OpenCTI",
+  "Investigate in OpenCTI": "Investigate in OpenCTI",
   "In preview mode, attempts are not counted and results are not recorded.": "In preview mode, attempts are not counted and results are not recorded.",
   "In scope": "In scope",
   "in the documentation": "in the documentation",

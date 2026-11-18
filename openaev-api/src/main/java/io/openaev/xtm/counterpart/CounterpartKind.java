@@ -16,7 +16,12 @@ public enum CounterpartKind {
   /** A vulnerability, keyed by its CVE id. */
   VULNERABILITY,
   /** The threat knowledge a scenario was generated from, keyed by its STIX id. */
-  THREAT;
+  THREAT,
+  /**
+   * An alert a collector brought back from a security platform, keyed by its link in that platform:
+   * the other product holds it when one of its objects carries that link as an external reference.
+   */
+  ALERT;
 
   /** Returns the key as it is matched and cached, or null when it is blank. */
   public String normalise(String key) {
@@ -30,7 +35,7 @@ public enum CounterpartKind {
     return switch (this) {
       case ATTACK_PATTERN, VULNERABILITY -> trimmed.toUpperCase(Locale.ROOT);
       case ASSET -> trimmed.toLowerCase(Locale.ROOT);
-      case THREAT -> trimmed;
+      case THREAT, ALERT -> trimmed;
     };
   }
 }

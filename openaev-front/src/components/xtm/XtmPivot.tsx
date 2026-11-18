@@ -166,13 +166,17 @@ const OpenCtiPivot: FunctionComponent<PivotProps> = ({ kind, objectKey }) => {
   return <OpenCtiPivotView answer={answer} />;
 };
 
-/** List-row chip: the product mark linking to the counterpart, nothing otherwise. */
-export const OpenCtiRowMark: FunctionComponent<PivotProps> = ({ kind, objectKey }) => {
+/**
+ * List-row chip: the product mark linking to the counterpart, nothing otherwise. The label names
+ * the action ("Investigate in OpenCTI" on a collected alert), "Open in OpenCTI" by default.
+ */
+export const OpenCtiRowMark: FunctionComponent<PivotProps & { label?: string }> = ({ kind, objectKey, label = 'Open in OpenCTI' }) => {
   const { t } = useFormatter();
   const answer = useCounterpart(kind, objectKey, OPENCTI_PRODUCT);
   if (answer.state !== 'match') {
     return null;
   }
+  const text = answer.counterpart?.counterpart_name ? `${t(label)}: ${answer.counterpart.counterpart_name}` : t(label);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -180,7 +184,7 @@ export const OpenCtiRowMark: FunctionComponent<PivotProps> = ({ kind, objectKey 
           href={answer.counterpart?.counterpart_url}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={t('Open in OpenCTI')}
+          aria-label={t(label)}
           onClick={e => e.stopPropagation()}
           data-testid="xtm-row-mark"
           style={{ display: 'inline-flex' }}
@@ -188,7 +192,7 @@ export const OpenCtiRowMark: FunctionComponent<PivotProps> = ({ kind, objectKey 
           <ProductMark size={16} />
         </a>
       </TooltipTrigger>
-      <TooltipContent>{t('Open in OpenCTI')}</TooltipContent>
+      <TooltipContent>{text}</TooltipContent>
     </Tooltip>
   );
 };

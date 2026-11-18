@@ -52,6 +52,34 @@ public class OpenCTICounterpartProvider implements CounterpartProvider {
       }
       """;
 
+  /**
+   * An alert is known in OpenCTI through the external reference its link became: the object that
+   * carries it (an incident, a sighting, a report) is the counterpart.
+   */
+  static final String ALERT_QUERY =
+      """
+      query XtmAlertCounterparts($first: Int, $filters: FilterGroup) {
+        externalReferences(first: $first, filters: $filters) {
+          edges {
+            node {
+              url
+              references {
+                edges {
+                  node {
+                    ... on StixObject { id entity_type representative { main } }
+                    ... on StixRelationship { id entity_type representative { main } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      """;
+
+  /** Which referencing object stands for an alert first: an incident, then a sighting. */
+  static final List<String> ALERT_PREFERENCE = List.of("Incident", "stix-sighting-relationship");
+
   static final List<String> ASSET_OBSERVABLE_TYPES =
       List.of("Hostname", "IPv4-Addr", "IPv6-Addr", "Mac-Addr");
 
@@ -88,7 +116,10 @@ public class OpenCTICounterpartProvider implements CounterpartProvider {
     try {
       response =
           openCTIClient.execute(
-              config.getApiUrl(), config.getToken(), QUERY, variables(kind, keys));
+              config.getApiUrl(),
+              config.getToken(),
+              kind == CounterpartKind.ALERT ? ALERT_QUERY : QUERY,
+              variables(kind, keys));
     } catch (IOException e) {
       throw new CounterpartUnavailableException("OpenCTI cannot be reached", e);
     }
@@ -96,7 +127,49 @@ public class OpenCTICounterpartProvider implements CounterpartProvider {
       throw new CounterpartUnavailableException(
           "OpenCTI refused the counterpart lookup (status %d)".formatted(response.getStatus()));
     }
+    if (kind == CounterpartKind.ALERT) {
+      return matchAlerts(keys, response.getData(), config.getFormattedUrl());
+    }
     return match(kind, keys, response.getData(), config.getFormattedUrl());
+  }
+
+  /** Keeps, per alert link, the object referencing it that best stands for an alert. */
+  Map<String, Counterpart> matchAlerts(Collection<String> keys, JsonNode data, String baseUrl) {
+    Map<String, Counterpart> found = new HashMap<>();
+    for (JsonNode edge : data.path("externalReferences").path("edges")) {
+      JsonNode reference = edge.path("node");
+      String key = CounterpartKind.ALERT.normalise(reference.path("url").asText(null));
+      if (key == null || !keys.contains(key)) {
+        continue;
+      }
+      JsonNode best = null;
+      int bestRank = Integer.MAX_VALUE;
+      for (JsonNode ref : reference.path("references").path("edges")) {
+        JsonNode node = ref.path("node");
+        if (node.path("id").asText(null) == null) {
+          continue;
+        }
+        int rank = ALERT_PREFERENCE.indexOf(node.path("entity_type").asText());
+        rank = rank < 0 ? ALERT_PREFERENCE.size() : rank;
+        if (rank < bestRank) {
+          best = node;
+          bestRank = rank;
+        }
+      }
+      if (best != null && !found.containsKey(key)) {
+        String id = best.path("id").asText();
+        found.put(
+            key,
+            new Counterpart(
+                key,
+                PRODUCT,
+                id,
+                best.path("entity_type").asText(),
+                best.path("representative").path("main").asText(id),
+                baseUrl + "dashboard/id/" + id));
+      }
+    }
+    return found;
   }
 
   /** The filters of the lookup: one exact match on the identifier the kind is keyed by. */
@@ -112,6 +185,12 @@ public class OpenCTICounterpartProvider implements CounterpartProvider {
         root.put("mode", "and");
         ArrayNode filters = root.putArray("filters");
         filter(filters, "ids", keys);
+        root.putArray("filterGroups");
+      }
+      case ALERT -> {
+        root.put("mode", "and");
+        ArrayNode filters = root.putArray("filters");
+        filter(filters, "url", keys);
         root.putArray("filterGroups");
       }
       case ASSET -> {
@@ -160,6 +239,7 @@ public class OpenCTICounterpartProvider implements CounterpartProvider {
       case VULNERABILITY -> List.of(node.path("name").asText(""));
       case ASSET -> List.of(node.path("name").asText(""), node.path("observable_value").asText(""));
       case THREAT -> List.of(node.path("id").asText(""), node.path("standard_id").asText(""));
+      case ALERT -> List.of();
     };
   }
 

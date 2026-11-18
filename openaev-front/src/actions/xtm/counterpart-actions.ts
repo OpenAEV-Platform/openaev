@@ -6,7 +6,7 @@ import { type CounterpartLookupInput, type CounterpartOutput, type XtmConnection
 // the caller degrades to "unavailable" (the backend already answers per key, never a 5xx for a
 // product that is down).
 
-export type CounterpartKindPath = 'assets' | 'attack-patterns' | 'vulnerabilities' | 'threats';
+export type CounterpartKindPath = 'assets' | 'attack-patterns' | 'vulnerabilities' | 'threats' | 'alerts';
 
 const XTM_URI = '/api/xtm';
 
