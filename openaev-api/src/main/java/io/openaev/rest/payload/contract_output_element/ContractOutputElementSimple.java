@@ -21,8 +21,6 @@ public class ContractOutputElementSimple {
   @NotBlank
   private String id;
 
-  // Same mapping as the entity: without the explicit getter name, Jackson would write the
-  // Lombok getter isFinding() as "finding" instead of "contract_output_element_is_finding".
   @Getter(onMethod_ = @JsonProperty("contract_output_element_is_finding"))
   @JsonProperty("contract_output_element_is_finding")
   @Schema(description = "True when the values extracted by this element are saved as findings.")
