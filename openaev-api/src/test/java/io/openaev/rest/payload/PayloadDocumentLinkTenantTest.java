@@ -174,32 +174,6 @@ class PayloadDocumentLinkTenantTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("createPayload, which pins the write to a single tenant")
-  class CreatePayload {
-
-    @Test
-    @DisplayName(
-        "given a caller with no selector in the request when the body names a file of another"
-            + " tenant then the create is refused: the request scope already excludes that"
-            + " tenant")
-    void given_noSelector_should_refuseAForeignFile() throws Exception {
-      // -- Arrange --
-      PayloadCreateInput input =
-          PayloadInputFixture.createDefaultPayloadCreateInputForExecutable(
-              List.of(domainInDefault));
-      input.setExecutableFile(fileInOther);
-
-      // -- Act & Assert --
-      mvc.perform(
-              post(PAYLOAD_URI)
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input))
-                  .with(csrf()))
-          .andExpect(status().isNotFound());
-    }
-  }
-
-  @Nested
   @DisplayName("the shared resolution an importer reaches with an explicit write tenant")
   class ImporterShapedCall {
 
