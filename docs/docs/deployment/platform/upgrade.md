@@ -77,10 +77,8 @@ docker service update --force service_name
 Replace all the files with the new release, then restart the platform:
 
 ```bash
-java -XX:-UseBASE64Intrinsics -jar openaev-api.jar
+java -jar openaev-api.jar
 ```
-
-Keep `-XX:-UseBASE64Intrinsics` while your JDK is older than 21.0.13.1, as in the [installation](installation.md).
 
 ## What's next?
 
