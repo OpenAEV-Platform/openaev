@@ -126,6 +126,7 @@ public class AzureManagedIdentityHandler implements SecretHandler {
         azureSecret.getAzureEnvironment(),
         azureSecret.getAzureClientId(),
         azureSecret.getAzureSubscriptionId(),
+        azureSecret.getAzureAuthorityHostUri(),
         azureSecret.getAzureScope());
   }
 }

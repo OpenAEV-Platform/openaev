@@ -3439,6 +3439,7 @@
   "Resolve IP from hostname": "호스트 이름에서 IP 주소 확인",
   "RESOLVE_INJECT_SECRET": "비밀값 주입 문제 해결",
   "Resource ID / ARN": "리소스 ID / ARN",
+  "Resource manager the token is requested for. When empty, the authority host URI is used if set, otherwise the one of the selected Azure environment.": "토큰을 요청하는 리소스 관리자입니다. 비어 있으면 인증 기관 호스트 URI가 설정된 경우 해당 URI를 사용하고, 그렇지 않으면 선택한 Azure 환경의 리소스 관리자를 사용합니다.",
   "Resource type": "리소스 유형",
   "Response choices": "응답 선택",
   "Response ready": "응답 준비 완료",

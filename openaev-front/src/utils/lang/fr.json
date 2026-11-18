@@ -3439,6 +3439,7 @@
   "Resolve IP from hostname": "Résoudre l’adresse IP à partir du nom d’hôte",
   "RESOLVE_INJECT_SECRET": "Résoudre le secret de l'inject",
   "Resource ID / ARN": "ID de ressource / ARN",
+  "Resource manager the token is requested for. When empty, the authority host URI is used if set, otherwise the one of the selected Azure environment.": "Gestionnaire de ressources pour lequel le token est demandé. Lorsque vide, l'URI de l'hôte d'autorité est utilisée si elle est renseignée, sinon celle de l'environnement Azure sélectionné.",
   "Resource type": "Type de ressource",
   "Response choices": "Choix de réponse",
   "Response ready": "Réponse prête",

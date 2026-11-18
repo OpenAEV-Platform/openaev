@@ -68,8 +68,9 @@ public class AzureCredentialConnectivityCheck {
    * @param authorityHostUri optional login endpoint of a sovereign or mocked cloud, used instead of
    *     the one of the stored cloud
    * @param scope optional scope of a sovereign or mocked cloud, naming the resource manager the
-   *     token is requested for and the subscription is read on, instead of the one of the stored
-   *     cloud; the {@code .default} suffix is added when missing
+   *     token is requested for and the subscription is read on; the authority host is used when it
+   *     is blank, and the one of the stored cloud when both are; the {@code .default} suffix is
+   *     added when missing
    * @return the outcome, never null
    */
   public SecretConnectionResult validateServicePrincipal(
@@ -87,7 +88,7 @@ public class AzureCredentialConnectivityCheck {
       // Stored configuration is wrong, not the credential: it cannot be checked at all.
       return SecretConnectionResult.formatError();
     }
-    String resourceManagerEndpoint = resourceManagerEndpoint(environment, scope);
+    String resourceManagerEndpoint = resourceManagerEndpoint(environment, authorityHostUri, scope);
     if (isBlank(tenantId)
         || isBlank(clientId)
         || isBlank(clientSecret)
@@ -117,15 +118,22 @@ public class AzureCredentialConnectivityCheck {
    * @param environmentName the stored Azure cloud name
    * @param clientId the user-assigned identity's client id, or null for the system-assigned one
    * @param subscriptionId optional subscription to additionally probe with an ARM read
+   * @param authorityHostUri optional authority host of a sovereign or mocked cloud; it does not
+   *     serve to log in (the identity endpoint stays the one of the platform, see {@link
+   *     AzureCredentialConnectivityCheckFactory#forManagedIdentity}), it is only the scope when no
+   *     scope is given
    * @param scope optional scope of a sovereign or mocked cloud, naming the resource manager the
-   *     token is requested for and the subscription is read on, instead of the one of the stored
-   *     cloud (the identity endpoint stays the one of the platform, see {@link
-   *     AzureCredentialConnectivityCheckFactory#forManagedIdentity}); the {@code .default} suffix
-   *     is added when missing
+   *     token is requested for and the subscription is read on; the authority host is used when it
+   *     is blank, and the one of the stored cloud when both are; the {@code .default} suffix is
+   *     added when missing
    * @return the outcome, never null
    */
   public SecretConnectionResult validateManagedIdentity(
-      String environmentName, String clientId, String subscriptionId, String scope) {
+      String environmentName,
+      String clientId,
+      String subscriptionId,
+      String authorityHostUri,
+      String scope) {
     AzureEnvironment environment;
     try {
       environment = requireEnvironment(environmentName);
@@ -133,7 +141,7 @@ public class AzureCredentialConnectivityCheck {
       return SecretConnectionResult.formatError();
     }
 
-    String resourceManagerEndpoint = resourceManagerEndpoint(environment, scope);
+    String resourceManagerEndpoint = resourceManagerEndpoint(environment, authorityHostUri, scope);
     if (EndpointUrls.isMalformedOverride(resourceManagerEndpoint)) {
       return SecretConnectionResult.formatError();
     }
@@ -143,15 +151,18 @@ public class AzureCredentialConnectivityCheck {
   }
 
   /**
-   * The resource manager the probe talks to: the one a scope names, otherwise the one of the stored
-   * cloud. Both the token scope and the subscription URL derive from it, so a scope typed with or
-   * without its {@code .default} suffix behaves the same.
+   * The resource manager the probe talks to: the one a scope names, otherwise the authority host
+   * when there is one, otherwise the one of the stored cloud. Both the token scope and the
+   * subscription URL derive from it, so a scope typed with or without its {@code .default} suffix
+   * behaves the same.
    */
-  private static String resourceManagerEndpoint(AzureEnvironment environment, String scope) {
-    if (isBlank(scope)) {
+  private static String resourceManagerEndpoint(
+      AzureEnvironment environment, String authorityHostUri, String scope) {
+    String named = isBlank(scope) ? authorityHostUri : scope;
+    if (isBlank(named)) {
       return withTrailingSlash(environment.getResourceManagerEndpoint());
     }
-    String resource = scope.trim();
+    String resource = named.trim();
     if (resource.endsWith("/" + DEFAULT_SCOPE_SUFFIX)) {
       resource = resource.substring(0, resource.length() - DEFAULT_SCOPE_SUFFIX.length());
     }

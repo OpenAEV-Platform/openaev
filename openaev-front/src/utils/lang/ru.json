@@ -3439,6 +3439,7 @@
   "Resolve IP from hostname": "Определить IP-адрес по имени хоста",
   "RESOLVE_INJECT_SECRET": "Устранить проблему с вводом секретного ключа",
   "Resource ID / ARN": "Идентификатор ресурса / ARN",
+  "Resource manager the token is requested for. When empty, the authority host URI is used if set, otherwise the one of the selected Azure environment.": "Менеджер ресурсов, для которого запрашивается токен. Если поле пустое, используется URI хоста центра авторизации, если он задан, иначе менеджер выбранной среды Azure.",
   "Resource type": "Тип ресурса",
   "Response choices": "Варианты ответа",
   "Response ready": "Ответ готов",

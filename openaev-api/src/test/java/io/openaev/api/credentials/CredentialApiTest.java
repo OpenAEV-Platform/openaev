@@ -5,6 +5,7 @@ import static io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.*;
 import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
 import static io.openaev.service.credential.CredentialService.AWS_ACCOUNT_ID_DESCRIPTION;
+import static io.openaev.service.credential.CredentialService.AZURE_SCOPE_DESCRIPTION;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
@@ -230,6 +231,29 @@ class CredentialApiTest extends IntegrationTest {
               response, "$[*].fields[?(@.field_name == 'aws_account_id')].field_description");
       assertThat(descriptions)
           .containsExactly(AWS_ACCOUNT_ID_DESCRIPTION, AWS_ACCOUNT_ID_DESCRIPTION);
+    }
+
+    @Test
+    @DisplayName("given_azureContracts_should_describeScopeField")
+    void given_azureContracts_should_describeScopeField() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-desc");
+      String uri = tenantCredentialsUri(tenant.getId()) + "/contracts";
+
+      // Act
+      String response =
+          mvc.perform(get(uri).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> descriptions =
+          JsonPath.read(
+              response, "$[*].fields[?(@.field_name == 'azure_scope')].field_description");
+      assertThat(descriptions).containsExactly(AZURE_SCOPE_DESCRIPTION, AZURE_SCOPE_DESCRIPTION);
     }
   }
 

@@ -3439,6 +3439,7 @@
   "Resolve IP from hostname": "根据主机名解析 IP",
   "RESOLVE_INJECT_SECRET": "解析注入密钥",
   "Resource ID / ARN": "资源 ID / ARN",
+  "Resource manager the token is requested for. When empty, the authority host URI is used if set, otherwise the one of the selected Azure environment.": "请求令牌所针对的资源管理器。为空时，如果设置了授权主机 URI 则使用该 URI，否则使用所选 Azure 环境的资源管理器。",
   "Resource type": "资源类型",
   "Response choices": "回答选项",
   "Response ready": "响应已准备就绪",

@@ -3439,6 +3439,7 @@
   "Resolve IP from hostname": "ホスト名から IP を解決",
   "RESOLVE_INJECT_SECRET": "インジェクトシークレットの解決",
   "Resource ID / ARN": "リソース ID / ARN",
+  "Resource manager the token is requested for. When empty, the authority host URI is used if set, otherwise the one of the selected Azure environment.": "トークンの要求先となるリソースマネージャー。空の場合は、設定されていれば認証機関ホスト URI が使用され、設定されていなければ選択した Azure 環境のものが使用されます。",
   "Resource type": "リソースタイプ",
   "Response choices": "回答の選択肢",
   "Response ready": "応答の準備ができました",

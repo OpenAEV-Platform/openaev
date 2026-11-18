@@ -226,7 +226,7 @@ class AzureCredentialConnectivityCheckTest {
 
       // Act
       SecretConnectionResult result =
-          validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null, null);
+          validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null, null, null);
 
       // Assert
       assertThat(result.status()).isEqualTo(ACTIVE);
@@ -244,7 +244,7 @@ class AzureCredentialConnectivityCheckTest {
 
       // Act
       SecretConnectionResult result =
-          validator.validateManagedIdentity(AZURE_ENVIRONMENT, AZURE_CLIENT_ID, null, null);
+          validator.validateManagedIdentity(AZURE_ENVIRONMENT, AZURE_CLIENT_ID, null, null, null);
 
       // Assert
       assertThat(result.status()).isEqualTo(ACTIVE);
@@ -262,7 +262,7 @@ class AzureCredentialConnectivityCheckTest {
 
       // Act
       SecretConnectionResult result =
-          validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null, null);
+          validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null, null, null);
 
       // Assert
       assertThat(result.status()).isEqualTo(UNKNOWN);
@@ -275,7 +275,7 @@ class AzureCredentialConnectivityCheckTest {
     void given_unsupportedEnvironment_should_returnUnknownInvalidConfiguration() {
       // Arrange / Act
       SecretConnectionResult result =
-          validator.validateManagedIdentity(UNSUPPORTED_ENVIRONMENT, null, null, null);
+          validator.validateManagedIdentity(UNSUPPORTED_ENVIRONMENT, null, null, null, null);
 
       // Assert
       assertThat(result.status()).isEqualTo(FORMAT_ERROR);
@@ -326,8 +326,47 @@ class AzureCredentialConnectivityCheckTest {
               eq(AZURE_CLIENT_ID),
               eq(AZURE_CLIENT_SECRET),
               eq(AZURE_AUTHORITY_HOST_URI));
-      // The authority host is a login endpoint: it never names the resource a token is asked for.
-      assertThat(requestedScope()).isEqualTo("https://management.azure.com/.default");
+      // No scope of its own: the token is asked for the authority host.
+      assertThat(requestedScope()).isEqualTo(AZURE_AUTHORITY_HOST_URI + "/.default");
+    }
+
+    @Test
+    @DisplayName("A scope wins over the authority host for the resource the token is asked for")
+    void given_scopeAndAuthorityHost_should_requestTokenForTheScope() {
+      // Arrange
+      when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any(), any()))
+          .thenReturn(tokenCredential);
+      givenTokenIsGranted();
+
+      // Act
+      validator.validateServicePrincipal(
+          AZURE_ENVIRONMENT,
+          AZURE_TENANT_ID,
+          AZURE_CLIENT_ID,
+          AZURE_CLIENT_SECRET,
+          null,
+          AZURE_AUTHORITY_HOST_URI,
+          "https://management.sovereign.example/.default");
+
+      // Assert
+      assertThat(requestedScope()).isEqualTo("https://management.sovereign.example/.default");
+    }
+
+    @Test
+    @DisplayName("A managed identity without scope asks its token for the authority host")
+    void given_managedIdentityWithAuthorityHost_should_requestTokenForIt() {
+      // Arrange
+      when(tokenCredentialFactory.forManagedIdentity(isNull())).thenReturn(tokenCredential);
+      givenTokenIsGranted();
+
+      // Act
+      SecretConnectionResult result =
+          validator.validateManagedIdentity(
+              AZURE_ENVIRONMENT, null, null, AZURE_AUTHORITY_HOST_URI, null);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(ACTIVE);
+      assertThat(requestedScope()).isEqualTo(AZURE_AUTHORITY_HOST_URI + "/.default");
     }
 
     @Test
@@ -525,7 +564,7 @@ class AzureCredentialConnectivityCheckTest {
               null,
               scope);
       SecretConnectionResult managedIdentity =
-          validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null, scope);
+          validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null, null, scope);
 
       // Assert
       assertThat(servicePrincipal.status()).isEqualTo(FORMAT_ERROR);
@@ -586,7 +625,7 @@ class AzureCredentialConnectivityCheckTest {
         // Act
         SecretConnectionResult result =
             validator.validateManagedIdentity(
-                AZURE_ENVIRONMENT, null, AZURE_SUBSCRIPTION_ID, cloud.url("/.default"));
+                AZURE_ENVIRONMENT, null, AZURE_SUBSCRIPTION_ID, null, cloud.url("/.default"));
 
         // Assert
         assertThat(result.status()).isEqualTo(ACTIVE);

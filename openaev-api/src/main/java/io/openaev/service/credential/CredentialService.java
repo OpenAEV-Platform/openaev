@@ -45,6 +45,11 @@ public class CredentialService {
   public static final String AWS_ACCOUNT_ID_DESCRIPTION =
       "This value is mandatory for some injectors";
 
+  /** i18n key of the hint under the scope input, shared by both Azure contracts. */
+  public static final String AZURE_SCOPE_DESCRIPTION =
+      "Resource manager the token is requested for. When empty, the authority host URI is used if"
+          + " set, otherwise the one of the selected Azure environment.";
+
   private static final List<String> GCP_PRIVATE_KEY_FORMATS = List.of("application/json");
   private static final List<String> AZURE_CERTIFICATE_FORMATS =
       List.of(".pem", ".crt", ".cer", "application/x-x509-ca-cert", "application/x-pem-file");
@@ -257,6 +262,7 @@ public class CredentialService {
                     .endpoint(true)
                     .fieldType(CredentialContractFieldType.text)
                     .required(false)
+                    .fieldDescription(AZURE_SCOPE_DESCRIPTION)
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("azure_requests_certificate")
@@ -295,6 +301,7 @@ public class CredentialService {
                     .endpoint(true)
                     .fieldType(CredentialContractFieldType.text)
                     .required(false)
+                    .fieldDescription(AZURE_SCOPE_DESCRIPTION)
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("azure_requests_certificate")
