@@ -1024,30 +1024,32 @@ public class UserService {
           if (user.isEmpty()) {
             return user;
           }
-          List<Group> differing =
-              GroupRolesInScope.withDifferingRoles(entityManager, user.get().getUnscopedGroups());
-          return differing.isEmpty()
-              ? user
-              : loadRolesFromTheDatabase(user.get(), differing, scope);
+          return GroupRolesInScope.needsReload(entityManager, user.get())
+              ? loadRolesFromTheDatabase(user.get(), scope)
+              : user;
         });
   }
 
   /**
-   * Reads the roles of the groups of {@code user} the load has to hand out. A load by id of a user
-   * or a group the session already holds, read with no scope or in another tenant's scope, hands
-   * out that instance with the roles of its first read: the eager associations are not read again.
+   * Reads again the groups of {@code held} the load has to hand out, and their roles. A load by id
+   * of a user or a group the session already holds, read with no scope or in another tenant's
+   * scope, hands out that instance with the groups and roles of its first read: the eager
+   * associations are not read again.
    *
-   * <p>When the session holds no pending change, the {@code differing} groups, the ones whose roles
-   * are not the roles of the scope, are refreshed and the others are left as they are. When it
-   * holds one, a refresh would replace the pending state of a group, so the user is loaded in a
-   * persistence context of its own, which the caller's entities never join: the result is detached
-   * and the caller's session keeps what it holds.
+   * <p>When the session holds no pending change, {@code held} is refreshed first, so a group the
+   * earlier load missed is added; the groups already resident before that, whose roles are not the
+   * roles of the scope, are then refreshed in turn ({@link GroupRolesInScope#withDifferingRoles}).
+   * When the session holds one, a refresh would replace the pending state of a group, so the user
+   * is loaded in a persistence context of its own, which the caller's entities never join: the
+   * result is detached, and the caller's session holds its own state unchanged.
    */
-  private Optional<User> loadRolesFromTheDatabase(User held, List<Group> differing, TxCtx scope) {
+  private Optional<User> loadRolesFromTheDatabase(User held, TxCtx scope) {
     if (entityManager.unwrap(Session.class).isDirty()) {
       return tenantTx.executeNew(scope, () -> userRepository.findById(held.getId()));
     }
-    differing.forEach(entityManager::refresh);
+    entityManager.refresh(held);
+    GroupRolesInScope.withDifferingRoles(entityManager, held.getUnscopedGroups())
+        .forEach(entityManager::refresh);
     return Optional.of(held);
   }
 
