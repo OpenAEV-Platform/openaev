@@ -5307,6 +5307,8 @@ export interface EsEntities {
 }
 
 export interface EsFinding {
+  /** @uniqueItems true */
+  base_asset_groups_side?: string[];
   /** @format date-time */
   base_created_at?: string;
   base_dependencies?: string[];
@@ -5965,6 +5967,7 @@ export interface Exercise {
 export interface ExerciseBulkProcessingInput {
   exercise_ids_to_ignore?: string[];
   exercise_ids_to_process?: string[];
+  keep_findings?: boolean;
   search_pagination_input?: SearchPaginationInput;
 }
 
@@ -6450,6 +6453,47 @@ export interface Grant {
   listened?: boolean;
 }
 
+export interface GraphEdgeOutput {
+  edge_id: string;
+  edge_result?: "SUCCESS" | "PENDING" | "FAILED";
+  edge_source: string;
+  edge_target: string;
+  edge_type:
+    | "MEMBER_OF"
+    | "FOUND_ON"
+    | "PRODUCED"
+    | "TARGETS"
+    | "PART_OF"
+    | "RUN_OF";
+}
+
+export interface GraphNodeOutput {
+  node_entity_id: string;
+  /** @format int64 */
+  node_failed_count?: number;
+  /** @format int64 */
+  node_finding_count?: number;
+  node_id: string;
+  node_label: string;
+  node_result?: "SUCCESS" | "PENDING" | "FAILED";
+  node_subtype?: string;
+  node_type:
+    | "ASSET"
+    | "ASSET_GROUP"
+    | "FINDING"
+    | "INJECT"
+    | "SIMULATION"
+    | "SCENARIO";
+}
+
+export interface GraphOutput {
+  graph_edges: GraphEdgeOutput[];
+  graph_focus?: string;
+  graph_nodes: GraphNodeOutput[];
+  graph_path: string[];
+  graph_truncated?: boolean;
+}
+
 export interface Group {
   group_auto_new_marking?: boolean;
   group_default_user_assign?: boolean;
@@ -6732,6 +6776,14 @@ export interface InjectAuthorisation {
   /** @format date-time */
   inject_authorisation_issued_at?: string;
   inject_id?: string;
+}
+
+export interface InjectBulkDeleteInput {
+  inject_ids_to_ignore?: string[];
+  inject_ids_to_process?: string[];
+  keep_findings?: boolean;
+  search_pagination_input?: SearchPaginationInput;
+  simulation_or_scenario_id?: string;
 }
 
 export interface InjectBulkProcessingInput {
@@ -11536,6 +11588,7 @@ export interface ScenarioAndInjectorContractsInputs {
 }
 
 export interface ScenarioBulkProcessingInput {
+  keep_findings?: boolean;
   scenario_ids_to_ignore?: string[];
   scenario_ids_to_process?: string[];
   search_pagination_input?: SearchPaginationInput;

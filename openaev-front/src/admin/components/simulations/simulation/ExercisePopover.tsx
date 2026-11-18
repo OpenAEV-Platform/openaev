@@ -1,4 +1,4 @@
-import { Alert } from '@mui/material';
+import { Alert, Checkbox } from '@filigran/design-system';
 import { type FunctionComponent, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -78,11 +78,15 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
 
   // Delete
   const [openDelete, setOpenDelete] = useState(false);
-  const handleOpenDelete = () => setOpenDelete(true);
+  const [keepFindings, setKeepFindings] = useState(false);
+  const handleOpenDelete = () => {
+    setKeepFindings(false);
+    setOpenDelete(true);
+  };
   const handleCloseDelete = () => setOpenDelete(false);
 
   const submitDelete = () => {
-    dispatch(deleteExercise(exercise.exercise_id)).then(() => {
+    dispatch(deleteExercise(exercise.exercise_id, keepFindings)).then(() => {
       handleCloseDelete();
       if (onDelete) onDelete(exercise.exercise_id);
     });
@@ -251,15 +255,24 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
         handleClose={handleCloseDelete}
         handleSubmit={submitDelete}
         text={`${t('Do you want to delete this simulation:')} ${exercise.exercise_name} ?`}
-        extraContent={
-          (exercise.exercise_status === 'RUNNING' || exercise.exercise_status === 'PAUSED')
-            ? (
-                <Alert severity="warning" sx={{ mt: 2 }}>
-                  {t('Deleting a running simulation will stop its execution.')}
-                </Alert>
-              )
-            : undefined
-        }
+        extraContent={(
+          <>
+            {(exercise.exercise_status === 'RUNNING' || exercise.exercise_status === 'PAUSED') && (
+              <Alert
+                severity="warning"
+                title={t('Deleting a running simulation will stop its execution.')}
+                className="mt-4"
+              />
+            )}
+            <div className="mt-4">
+              <Checkbox
+                checked={keepFindings}
+                label={t('Keep the findings it produced, detached from it')}
+                onCheckedChange={checked => setKeepFindings(checked === true)}
+              />
+            </div>
+          </>
+        )}
       />
     </>
   );
