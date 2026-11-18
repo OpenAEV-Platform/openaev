@@ -1,6 +1,7 @@
 package io.openaev.executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
@@ -24,9 +25,11 @@ import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -39,6 +42,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Regression coverage for the legacy-inject injector-resolution fallback in {@link
@@ -142,8 +147,10 @@ class ExecutorTest {
           .thenReturn(true);
       when(injectStatusService.initializeInjectStatus(INJECT_ID, ExecutionStatus.EXECUTING))
           .thenReturn(mock(InjectStatus.class));
-      when(injectStatusRepository.findByInjectId(INJECT_ID))
-          .thenReturn(Optional.of(mock(InjectStatus.class)));
+      InjectStatus injectStatus = mock(InjectStatus.class);
+      when(injectStatus.getId()).thenReturn("status-001");
+      when(injectStatusRepository.findByInjectId(INJECT_ID)).thenReturn(Optional.of(injectStatus));
+      when(injectStatusRepository.findById("status-001")).thenReturn(Optional.of(injectStatus));
       when(injectService.resolveAllAssetsToExecute(inject)).thenReturn(List.of());
 
       // -------- Act --------
@@ -185,8 +192,10 @@ class ExecutorTest {
           .thenReturn(true);
       when(injectStatusService.initializeInjectStatus(INJECT_ID, ExecutionStatus.EXECUTING))
           .thenReturn(mock(InjectStatus.class));
-      when(injectStatusRepository.findByInjectId(INJECT_ID))
-          .thenReturn(Optional.of(mock(InjectStatus.class)));
+      InjectStatus injectStatus = mock(InjectStatus.class);
+      when(injectStatus.getId()).thenReturn("status-002b");
+      when(injectStatusRepository.findByInjectId(INJECT_ID)).thenReturn(Optional.of(injectStatus));
+      when(injectStatusRepository.findById("status-002b")).thenReturn(Optional.of(injectStatus));
       when(injectService.resolveAllAssetsToExecute(inject)).thenReturn(List.of());
 
       // -------- Act --------
@@ -277,8 +286,10 @@ class ExecutorTest {
           .thenReturn(true);
       when(injectStatusService.initializeInjectStatus(INJECT_ID, ExecutionStatus.EXECUTING))
           .thenReturn(mock(InjectStatus.class));
-      when(injectStatusRepository.findByInjectId(INJECT_ID))
-          .thenReturn(Optional.of(mock(InjectStatus.class)));
+      InjectStatus injectStatus = mock(InjectStatus.class);
+      when(injectStatus.getId()).thenReturn("status-002");
+      when(injectStatusRepository.findByInjectId(INJECT_ID)).thenReturn(Optional.of(injectStatus));
+      when(injectStatusRepository.findById("status-002")).thenReturn(Optional.of(injectStatus));
       when(injectService.resolveAllAssetsToExecute(inject)).thenReturn(List.of());
       when(injectService.getAuthorisationCodeIfNeeded(executableInject)).thenReturn("auth-code");
       when(executableInjectDTOMapper.toExecutableInjectDTO(executableInject, "auth-code"))
@@ -312,8 +323,10 @@ class ExecutorTest {
       when(inject.getInjector()).thenReturn(injector);
       when(connectorInstanceService.hasStartedConnectorInstanceForInjector("injector-003"))
           .thenReturn(true);
-      when(injectStatusRepository.findByInjectId(INJECT_ID))
-          .thenReturn(Optional.of(mock(InjectStatus.class)));
+      InjectStatus injectStatus = mock(InjectStatus.class);
+      when(injectStatus.getId()).thenReturn("status-003");
+      when(injectStatusRepository.findByInjectId(INJECT_ID)).thenReturn(Optional.of(injectStatus));
+      when(injectStatusRepository.findById("status-003")).thenReturn(Optional.of(injectStatus));
     }
 
     @Test
@@ -413,6 +426,109 @@ class ExecutorTest {
       verify(injectService, times(1)).resolveAssetsToExecuteByClearance(inject);
       verify(executableInject).cacheAssetsToExecute(resolved);
       verify(executionExecutorService).launchExecutorContext(inject, resolved);
+    }
+  }
+
+  @Nested
+  @DisplayName("execute - publish timing relative to the caller's transaction")
+  class PublishTiming {
+
+    /** An external injector with everything execute() needs to reach the publish step. */
+    private void givenExternalInjectorReadyToPublish() {
+      Injector injector = new Injector();
+      injector.setId("injector-timing");
+      injector.setTenantId(TENANT_ID);
+      injector.setType("openaev_test_injector");
+      injector.setExternal(true);
+      when(inject.getInjector()).thenReturn(injector);
+      when(connectorInstanceService.hasStartedConnectorInstanceForInjector("injector-timing"))
+          .thenReturn(true);
+      when(injectStatusService.initializeInjectStatus(INJECT_ID, ExecutionStatus.EXECUTING))
+          .thenReturn(mock(InjectStatus.class));
+      InjectStatus injectStatus = mock(InjectStatus.class);
+      when(injectStatus.getId()).thenReturn("status-timing");
+      when(injectStatusRepository.findByInjectId(INJECT_ID)).thenReturn(Optional.of(injectStatus));
+      when(injectStatusRepository.findById("status-timing")).thenReturn(Optional.of(injectStatus));
+      when(injectService.resolveAllAssetsToExecute(inject)).thenReturn(List.of());
+      ExecutableInjectDTO dto =
+          ExecutableInjectDTO.builder()
+              .injection(null)
+              .assets(Set.of())
+              .assetGroups(Set.of())
+              .build();
+      when(executableInjectDTOMapper.toExecutableInjectDTO(eq(executableInject), any()))
+          .thenReturn(dto);
+    }
+
+    @AfterEach
+    void clearSynchronization() {
+      if (TransactionSynchronizationManager.isSynchronizationActive()) {
+        TransactionSynchronizationManager.clearSynchronization();
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "with the caller's transaction synchronization active, the publish is deferred to"
+            + " afterCommit and never runs before it")
+    void given_transactionSynchronizationActive_should_deferPublishPastCommit() throws Exception {
+      // -------- Arrange --------
+      givenExternalInjectorReadyToPublish();
+      TransactionSynchronizationManager.initSynchronization();
+
+      // -------- Act --------
+      executor.execute(executableInject);
+
+      // -------- Assert: the publish has not run yet, the trace already has --------
+      verifyNoInteractions(rabbitmqService);
+      verify(injectStatusRepository, atLeastOnce()).save(any(InjectStatus.class));
+      List<TransactionSynchronization> registered =
+          TransactionSynchronizationManager.getSynchronizations();
+      assertThat(registered).hasSize(1);
+
+      // -------- Act: simulate the caller's transaction committing --------
+      registered.get(0).afterCommit();
+
+      // -------- Assert: only now does the publish actually run --------
+      verify(rabbitmqService).publish(any(), any());
+    }
+
+    @Test
+    @DisplayName(
+        "a publish deferred past commit that then fails is logged, never thrown back into the"
+            + " (already finished) caller")
+    void given_deferredPublishFails_should_notThrow() throws Exception {
+      // -------- Arrange --------
+      givenExternalInjectorReadyToPublish();
+      doThrow(new IOException("broker unreachable")).when(rabbitmqService).publish(any(), any());
+      TransactionSynchronizationManager.initSynchronization();
+
+      // -------- Act --------
+      executor.execute(executableInject);
+      TransactionSynchronization registered =
+          TransactionSynchronizationManager.getSynchronizations().get(0);
+
+      // -------- Act & Assert: the deferred failure must not propagate --------
+      assertThatCode(registered::afterCommit).doesNotThrowAnyException();
+      // Recording the outcome needs a transaction this callback does not have: #6968 targets the
+      // job path (InjectsExecutionJob#completeExternalPublish) for the after-the-fact trace, not
+      // this one. See Executor#execute's javadoc.
+      verify(injectStatusService, never()).persistErrorStatusInTransaction(any(), any());
+      verify(injectStatusService, never()).failInjectStatus(any(), any());
+    }
+
+    @Test
+    @DisplayName("with no transaction synchronization active, the publish runs inline")
+    void given_noTransactionSynchronizationActive_should_publishInline() throws Exception {
+      // -------- Arrange --------
+      givenExternalInjectorReadyToPublish();
+      assertThat(TransactionSynchronizationManager.isSynchronizationActive()).isFalse();
+
+      // -------- Act --------
+      executor.execute(executableInject);
+
+      // -------- Assert: no deferral, the publish already ran --------
+      verify(rabbitmqService).publish(any(), any());
     }
   }
 }
