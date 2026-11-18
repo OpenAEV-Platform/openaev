@@ -25,7 +25,7 @@ interface Props {
   writeOnly?: boolean;
   /** Unit or suffix drawn inside the field (library `endText`; dropped by the library on a number field). */
   endAdornmentLabel?: string;
-  /** Content of the info bubble next to the label. */
+  /** Slot of the label row (library `infoTooltip`): the caller draws the info icon and its bubble. */
   infoTooltip?: ReactNode;
 }
 

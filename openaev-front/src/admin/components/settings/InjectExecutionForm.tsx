@@ -1,4 +1,4 @@
-import { Button } from '@filigran/design-system';
+import { Button, Icon, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type SyntheticEvent, useEffect } from 'react';
@@ -64,6 +64,20 @@ const InjectExecutionForm: FunctionComponent<InjectExecutionFormProps> = ({
     ? `${sideEffects} ${t('Configured value: {minutes} minutes', { minutes: String(configuredThresholdMinutes) })}`
     : sideEffects;
 
+  // The library's infoTooltip is a slot of the label row: the caller draws the info icon and its bubble.
+  const infoTooltip = (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span tabIndex={0} aria-label={t('Information')} className="text-icon-highlight"><Icon name="info" size={16} aria-hidden /></span>
+        </TooltipTrigger>
+        <TooltipContent>
+          {t('Time a pending inject waits for its result before it ends in error, in minutes (1 to 1440). Example: 60 for an Nmap scan of more than 100 hosts. Used by inject finalization and, at the next injector registration, by the implant timeout. While it is not set, the configured value applies.')}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+
   return (
     <FormProvider {...methods}>
       <form
@@ -84,7 +98,7 @@ const InjectExecutionForm: FunctionComponent<InjectExecutionFormProps> = ({
           step={1}
           name="inject_execution_threshold_minutes"
           label={t('Inject execution threshold (minutes)')}
-          infoTooltip={t('Time a pending inject waits for its result before it ends in error, in minutes (1 to 1440). Example: 60 for an Nmap scan of more than 100 hosts. Used by inject finalization and, at the next injector registration, by the implant timeout. While it is not set, the configured value applies.')}
+          infoTooltip={infoTooltip}
           helperText={helperText}
           disabled={canNotManage}
         />
