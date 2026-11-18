@@ -29,4 +29,11 @@ public class InjectBulkProcessingInput {
   /** The simulation or scenario ID to which the injects belong. */
   @JsonProperty("simulation_or_scenario_id")
   private String simulationOrScenarioId;
+
+  /**
+   * Delete only: true keeps the findings the injects produced, detached from them. False (the
+   * default) deletes them with the injects.
+   */
+  @JsonProperty("keep_findings")
+  private boolean keepFindings = false;
 }

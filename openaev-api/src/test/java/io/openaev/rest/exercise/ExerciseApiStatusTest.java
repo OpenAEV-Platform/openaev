@@ -578,10 +578,10 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     assertThat(resetInjects).allSatisfy(inject -> assertThat(inject.getStatus()).isEmpty());
   }
 
-  @DisplayName("Reset of a finished exercise keeps the findings its injects wrote, detached")
+  @DisplayName("Reset of a finished exercise deletes the findings its injects wrote")
   @Test
   @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
-  void given_finishedExerciseWithFindings_should_keepThemDetachedOnReset() throws Exception {
+  void given_finishedExerciseWithFindings_should_deleteThemOnReset() throws Exception {
     // Arrange
     findingComposer.reset();
     FindingComposer.Composer findingWrapper =
@@ -613,14 +613,12 @@ public class ExerciseApiStatusTest extends IntegrationTest {
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
-    // Assert: the finding describes a real asset and outlives the run; the occurrence keeps the
-    // history of the inject
+    // Assert
     entityManager.flush();
     entityManager.clear();
-    assertThat(findingRepository.findById(findingId))
-        .hasValueSatisfying(finding -> assertThat(finding.getInject()).isNull());
+    assertThat(findingRepository.findById(findingId)).isEmpty();
     assertThat(findingOccurrenceRepository.findByFindingIdAndInjectId(findingId, injectId))
-        .isPresent();
+        .isEmpty();
   }
 
   @DisplayName("Check an exercise from finished to scheduled")

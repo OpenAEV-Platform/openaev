@@ -53,7 +53,7 @@ public class BulkInjectService {
       List<String> injectIds = injectsToDelete.stream().map(Inject::getId).toList();
       BulkOperationContext.runSuppressed(
           () -> {
-            injectService.deleteAllByIds(ctx, injectIds);
+            injectService.deleteAllByIds(ctx, injectIds, input.isKeepFindings());
             return null;
           });
       bulkOperationMonitor.complete(operationId);

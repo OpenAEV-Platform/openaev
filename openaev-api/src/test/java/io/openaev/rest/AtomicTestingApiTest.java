@@ -312,8 +312,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
   class LaunchInPlaceWithFindings {
 
     @Test
-    @DisplayName("Should keep the findings the inject wrote, detached, with their occurrences")
-    void given_injectWithFindings_should_keepThemDetachedOnLaunch() throws Exception {
+    @DisplayName("Should delete the findings the inject wrote, and their occurrences")
+    void given_injectWithFindings_should_deleteThemOnLaunch() throws Exception {
       // Arrange
       findingComposer.reset();
       FindingComposer.Composer findingWrapper =
@@ -334,16 +334,14 @@ public class AtomicTestingApiTest extends IntegrationTest {
       mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/launch").with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
-      // Assert: the finding describes a real asset and outlives the run; the occurrence keeps the
-      // history of this inject
+      // Assert
       entityManager.flush();
       entityManager.clear();
-      assertThat(findingRepository.findById(findingId))
-          .hasValueSatisfying(finding -> assertThat(finding.getInject()).isNull());
+      assertThat(findingRepository.findById(findingId)).isEmpty();
       assertThat(
               findingOccurrenceRepository.findByFindingIdAndInjectId(
                   findingId, atomicTesting.getId()))
-          .isPresent();
+          .isEmpty();
     }
   }
 
@@ -353,8 +351,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
   class DeleteWithFindings {
 
     @Test
-    @DisplayName("Should keep the findings of the deleted inject, detached from it")
-    void given_injectWithFindings_should_keepThemWhenTheInjectIsDeleted() throws Exception {
+    @DisplayName("Should delete the findings of the inject, and their occurrences")
+    void given_injectWithFindings_should_deleteThemWithTheInject() throws Exception {
       // Arrange
       findingComposer.reset();
       FindingComposer.Composer findingWrapper =
@@ -369,12 +367,10 @@ public class AtomicTestingApiTest extends IntegrationTest {
       mvc.perform(delete(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId()).with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
-      // Assert: the finding stays, finding_inject_id_fk set it to NULL; no occurrence still points
-      // to the deleted inject
+      // Assert
       entityManager.flush();
       entityManager.clear();
-      assertThat(findingRepository.findById(findingId))
-          .hasValueSatisfying(finding -> assertThat(finding.getInject()).isNull());
+      assertThat(findingRepository.findById(findingId)).isEmpty();
       assertThat(
               findingOccurrenceRepository.findByFindingIdAndInjectId(
                   findingId, atomicTesting.getId()))

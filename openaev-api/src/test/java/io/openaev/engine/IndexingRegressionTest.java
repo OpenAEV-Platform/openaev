@@ -1076,9 +1076,9 @@ class IndexingRegressionTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "No inject, simulation or scenario is a deletion dependency: the finding outlives them,"
-            + " every occurrence is a side")
-    void given_occurrenceOnAnotherInject_should_keepEveryInjectOutOfTheDependencies() {
+        "Only the inject the finding is deleted with is a deletion dependency, every occurrence is"
+            + " a side")
+    void given_occurrenceOnAnotherInject_should_keepItOutOfTheDependencies() {
       // Arrange
       FindingComposer.Composer findingWrapper =
           findingComposer.forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle());
@@ -1111,14 +1111,10 @@ class IndexingRegressionTest extends IntegrationTest {
       // Act
       EsFinding indexed = fetchIndexedFinding(findingWrapper.get().getId());
 
-      // Assert: deleting any inject or simulation leaves the finding in place, so it must not
-      // cascade to the document
+      // Assert: deleting the other inject leaves the finding in place, so it must not cascade
       assertThat(indexed.getBase_dependencies())
-          .doesNotContain(
-              ownInject.get().getId(),
-              ownSimulation.getId(),
-              otherInject.get().getId(),
-              otherSimulation.getId());
+          .contains(ownInject.get().getId(), ownSimulation.getId())
+          .doesNotContain(otherInject.get().getId(), otherSimulation.getId());
       assertThat(indexed.getBase_inject_side())
           .containsExactlyInAnyOrder(ownInject.get().getId(), otherInject.get().getId());
       assertThat(indexed.getBase_simulation_side())

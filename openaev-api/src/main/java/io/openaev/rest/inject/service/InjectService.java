@@ -134,6 +134,7 @@ public class InjectService {
   private final InjectRepository injectRepository;
   private final InjectAuthorisationRepository injectAuthorisationRepository;
   private final InjectDocumentRepository injectDocumentRepository;
+  private final io.openaev.database.repository.FindingRepository findingRepository;
   private final GrantRepository grantRepository;
   private final InjectorService injectorService;
   private final InjectStatusRepository injectStatusRepository;
@@ -543,7 +544,21 @@ public class InjectService {
 
   @Transactional(rollbackFor = Exception.class)
   public void deleteAllByIds(TxCtx ctx, List<String> injectIds) {
+    deleteAllByIds(ctx, injectIds, false);
+  }
+
+  /**
+   * Deletes the given injects.
+   *
+   * @param keepFindings true keeps the findings they produced, detached from them; false (the
+   *     default) deletes them with the injects
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteAllByIds(TxCtx ctx, List<String> injectIds, boolean keepFindings) {
     if (!CollectionUtils.isEmpty(injectIds)) {
+      if (keepFindings) {
+        findingRepository.detachFromInjects(injectIds);
+      }
       injectRepository.deleteByAllIdsNative(injectIds);
       // Native delete: no JPA lifecycle event fires, notify the search engine explicitly so the
       // inject docs (and their expectation/finding docs via dependency cascade) are removed.
@@ -855,6 +870,22 @@ public class InjectService {
 
   @Transactional
   public void delete(String id) {
+    delete(id, false);
+  }
+
+  /**
+   * Deletes an inject.
+   *
+   * @param keepFindings true keeps the findings it produced, detached from it; false (the default)
+   *     deletes them with the inject
+   */
+  @Transactional
+  public void delete(String id, boolean keepFindings) {
+    if (keepFindings) {
+      // Clears the session: the inject is loaded again without the detached findings, so its
+      // cascade (Inject.findings) no longer removes them.
+      findingRepository.detachFromInjects(List.of(id));
+    }
     injectRepository.deleteById(id);
   }
 

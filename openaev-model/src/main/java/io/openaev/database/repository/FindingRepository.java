@@ -163,6 +163,44 @@ public interface FindingRepository
   int fillValueDisplay(
       @Param("findingId") String findingId, @Param("valueDisplay") String valueDisplay);
 
+  // -- KEEP ON DELETE (opt-in keep_findings on the delete endpoints) --
+  //
+  // By default deleting an inject, simulation or scenario deletes the findings its injects produced
+  // (finding_inject_id_fk is ON DELETE CASCADE). On request, these updates detach the findings
+  // first, so they survive: their occurrences keep the history (finding_occurrence_inject_id is ON
+  // DELETE SET NULL). finding_updated_at is bumped so the search index re-indexes them without the
+  // deleted inject, simulation or scenario in their dependencies. The session is cleared so an
+  // inject already loaded does not cascade-delete a finding it no longer owns.
+
+  /** Detaches the findings of the given injects. */
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query(
+      value =
+          "UPDATE findings SET finding_inject_id = NULL, finding_updated_at = now()"
+              + " WHERE finding_inject_id IN (:injectIds)",
+      nativeQuery = true)
+  int detachFromInjects(@Param("injectIds") List<String> injectIds);
+
+  /** Detaches the findings of the injects of the given simulations. */
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query(
+      value =
+          "UPDATE findings SET finding_inject_id = NULL, finding_updated_at = now()"
+              + " WHERE finding_inject_id IN (SELECT inject_id FROM injects"
+              + " WHERE inject_exercise IN (:simulationIds))",
+      nativeQuery = true)
+  int detachFromSimulations(@Param("simulationIds") List<String> simulationIds);
+
+  /** Detaches the findings of the injects of the given scenarios. */
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query(
+      value =
+          "UPDATE findings SET finding_inject_id = NULL, finding_updated_at = now()"
+              + " WHERE finding_inject_id IN (SELECT inject_id FROM injects"
+              + " WHERE inject_scenario IN (:scenarioIds))",
+      nativeQuery = true)
+  int detachFromScenarios(@Param("scenarioIds") List<String> scenarioIds);
+
   /** Projection for {@link #findWithoutValueDisplayAfter}. */
   interface FindingWithoutValueDisplay {
     String getId();
@@ -191,7 +229,7 @@ public interface FindingRepository
               + " array_agg(DISTINCT se.scenario_id)"
               + " FILTER ( WHERE se.scenario_id IS NOT NULL ) AS scenario_ids,"
               + " array_agg(DISTINCT fa.asset_id) FILTER ( WHERE fa.asset_id IS NOT NULL ) AS asset_ids,"
-              // The inject that created the finding (ON DELETE SET NULL), and its context
+              // The inject the finding is deleted with (ON DELETE CASCADE), and its context
               + " f.finding_inject_id, li.inject_exercise AS finding_simulation_id,"
               + " MAX(lse.scenario_id) AS finding_scenario_id,"
               + " f.finding_created_at, f.finding_updated_at, f.tenant_id "

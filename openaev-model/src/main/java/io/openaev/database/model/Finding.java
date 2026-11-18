@@ -143,9 +143,8 @@ public class Finding implements TenantBase {
   @JsonIgnore
   private Inject inject;
 
-  // REMOVE for an explicit delete of the finding: the delete event loads the occurrences into the
-  // session, which must drop them along with the finding. Deleting an inject no longer deletes its
-  // findings (finding_inject_id_fk is ON DELETE SET NULL): their occurrences keep the history.
+  // REMOVE while deleting an inject still deletes its findings: the delete event loads the
+  // occurrences into the session, which must drop them along with the finding
   @OneToMany(mappedBy = "finding", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
   @Fetch(FetchMode.SUBSELECT)
   @JsonIgnore

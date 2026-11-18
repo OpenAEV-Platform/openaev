@@ -25,6 +25,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.persistence.criteria.Join;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -341,9 +342,15 @@ public class ScenarioInjectApi extends RestBehavior {
   public void deleteInjectForScenario(
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
-      @PathVariable @NotBlank final String injectId) {
+      @PathVariable @NotBlank final String injectId,
+      @Parameter(
+              description =
+                  "True keeps the findings produced by the inject, detached from it. False (the"
+                      + " default) deletes them with the inject.")
+          @RequestParam(name = "keep_findings", required = false, defaultValue = "false")
+          final boolean keepFindings) {
     this.scenarioInjectService.requireInjectInScenario(ctx, scenarioId, injectId);
-    this.scenarioInjectService.deleteInject(ctx, scenarioId, injectId);
+    this.scenarioInjectService.deleteInject(ctx, scenarioId, injectId, keepFindings);
   }
 
   /**

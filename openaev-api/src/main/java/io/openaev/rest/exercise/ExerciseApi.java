@@ -59,6 +59,7 @@ import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -746,8 +747,16 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION)
   @Transactional
-  public void deleteExercise(TxCtx ctx, @PathVariable String exerciseId) {
-    exerciseService.deleteById(ctx, exerciseId);
+  public void deleteExercise(
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @Parameter(
+              description =
+                  "True keeps the findings produced by the simulation's injects, detached from"
+                      + " them. False (the default) deletes them with the simulation.")
+          @RequestParam(name = "keep_findings", required = false, defaultValue = "false")
+          boolean keepFindings) {
+    exerciseService.deleteById(ctx, exerciseId, keepFindings);
   }
 
   @Operation(

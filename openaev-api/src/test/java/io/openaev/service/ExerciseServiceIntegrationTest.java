@@ -128,6 +128,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private AttackPathExecutionIngestionService attackPathExecutionService;
   @Autowired private AutonomousRunRepository autonomousRunRepository;
+  @Autowired private io.openaev.database.repository.FindingRepository findingRepository;
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
 
   private static String USER_ID;
@@ -188,7 +189,8 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
         eventPublisher,
         attackPathExecutionService,
         autonomousRunRepository,
-        permissionServiceProvider);
+        permissionServiceProvider,
+        findingRepository);
   }
 
   @AfterAll
