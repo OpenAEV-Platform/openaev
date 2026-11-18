@@ -4,6 +4,7 @@ import static io.openaev.database.model.Role.capabilitiesOf;
 import static io.openaev.database.specification.GroupSpecification.tenantScope;
 import static io.openaev.service.account.PrivilegeEscalationValidator.assertCanAssignCapabilities;
 import static io.openaev.service.account.PrivilegeEscalationValidator.assertCanAssignGrant;
+import static io.openaev.service.account.PrivilegeEscalationValidator.capabilitiesOfAllRoles;
 import static io.openaev.service.marking.MarkingEscalationValidator.assertCanAssignMarkings;
 
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
@@ -210,7 +211,7 @@ public class TenantGroupService {
       TenantGroupCreateInput input) {
     Group group = this.findByIdAndTenantForWrite(groupId, tenantId);
     if (input.isDefaultUserAssignation() && !group.isDefaultUserAssignation()) {
-      assertCanAssignInTenant(tenantId, capabilitiesOf(group.getRoles()));
+      assertCanAssignInTenant(tenantId, capabilitiesOfRolesOf(group));
       assertHoldsGroupMarkings(tenantId, group);
     }
     group.setUpdateAttributes(input);
@@ -247,7 +248,7 @@ public class TenantGroupService {
       @NotBlank final String groupId,
       GroupUpdateUsersInput input) {
     Group group = this.findByIdAndTenantForWrite(groupId, tenantId);
-    assertCanAssignInTenant(tenantId, capabilitiesOf(group.getRoles()));
+    assertCanAssignInTenant(tenantId, capabilitiesOfRolesOf(group));
     Set<String> uniqueUserIds = new LinkedHashSet<>(input.getUserIds());
     Set<String> currentIds = group.getUsers().stream().map(User::getId).collect(Collectors.toSet());
     if (!currentIds.containsAll(uniqueUserIds)) {
@@ -387,6 +388,10 @@ public class TenantGroupService {
       markingClearanceCacheManager.evictForUsers(
           group.getUsers().stream().map(User::getId).toList());
     }
+  }
+
+  private Set<Capability> capabilitiesOfRolesOf(Group group) {
+    return capabilitiesOfAllRoles(group, groupRepository.findRoleIdsByGroupId(group.getId()));
   }
 
   /** Reads the caller's rights in the group's tenant, not in the tenant of the route. */

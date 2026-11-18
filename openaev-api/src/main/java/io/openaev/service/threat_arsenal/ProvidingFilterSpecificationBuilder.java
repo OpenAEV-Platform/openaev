@@ -74,6 +74,30 @@ public class ProvidingFilterSpecificationBuilder {
     return new ProvidingFilterContext(searchInput, merged, mode, true, !remainingFilters.isEmpty());
   }
 
+  /**
+   * Combines the specification built from the remaining filters with the providing clause extracted
+   * by {@link #extractProvidingFilter(SearchPaginationInput)}, honouring the filter group mode: AND
+   * by default; with mode {@code or} and remaining filters, {@code base OR (providing AND text
+   * search)}, so the text search still applies to the providing branch.
+   *
+   * @param baseSpecification the specification of the remaining filters (text search included)
+   * @param context the providing filter context
+   * @param searchSpecification the free-text search specification
+   * @return the combined specification, or {@code baseSpecification} when no providing filter
+   */
+  public Specification<InjectorContract> combine(
+      Specification<InjectorContract> baseSpecification,
+      ProvidingFilterContext context,
+      Specification<InjectorContract> searchSpecification) {
+    if (!context.hasProvidingFilters()) {
+      return baseSpecification;
+    }
+    if (context.mode() == Filters.FilterMode.or && context.hasRemainingFilters()) {
+      return baseSpecification.or(context.specification().and(searchSpecification));
+    }
+    return baseSpecification.and(context.specification());
+  }
+
   private Specification<InjectorContract> toProvidingSpecification(Filters.Filter filter) {
     Filters.FilterOperator operator =
         filter.getOperator() == null ? Filters.FilterOperator.eq : filter.getOperator();

@@ -46,6 +46,8 @@ accepting existing OpenAEV licenses unchanged:
 - **Installed in OpenAEV**: paste the Filigran license PEM where you install an OpenAEV license (or set it in the
   license configuration). OpenAEV verifies it with the rules below (Filigran signature, the OpenAEV module listing
   `global` or this platform's id, validity dates) and the card shows **Filigran license** as the license source.
+  A Filigran license issued for one instance works only on that platform: elsewhere, OpenAEV refuses it with
+  "this Filigran license is issued for another instance".
 - **Through XTM One**, described below.
 
 OpenAEV is also in Enterprise Edition when it is registered with an XTM One instance whose Filigran license
@@ -76,6 +78,8 @@ with an older XTM One, only the OpenAEV license applies and a warning is logged.
 The Enterprise Edition card in **Settings > Filigran Experience** shows the license source: **Filigran license (through
 XTM One)** (with the customer, type and expiration date of the license), **Filigran license** (installed in OpenAEV) or
 **OpenAEV license**.
+
+While the license comes from XTM One, you cannot remove it from OpenAEV. You can still install a license of your own.
 
 ## Available features
 

@@ -7,12 +7,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.rest.mapper.form.ImportMapperUpdateInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.List;
 import java.util.UUID;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,7 +44,7 @@ class ImportMapperHttpInertWhenInactiveTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantHelper;
 
   @Value("${openaev.tenant.active-tables:}")
-  private List<String> activeTables;
+  private String activeTables;
 
   private String tenantA;
   private String mapperB;
@@ -60,7 +60,7 @@ class ImportMapperHttpInertWhenInactiveTest extends IntegrationTest {
   @DisplayName(
       "A's path reaches B's mapper only while the table is inactive, and never once it is active")
   void updateUnderTenantAReachesBMapperOnlyWhenInactive() throws Exception {
-    boolean active = activeTables.contains("import_mappers");
+    boolean active = ProductionActiveTables.armedBy(activeTables).contains("import_mappers");
     ImportMapperUpdateInput input = new ImportMapperUpdateInput();
     input.setName("changed-by-a");
     input.setInjectTypeColumn("A");

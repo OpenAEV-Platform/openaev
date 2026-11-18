@@ -259,7 +259,9 @@ public class ChannelApi extends RestBehavior {
         exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     String ownerTenantId = exercise.getTenant().getId();
     Article article =
-        articleRepository.findById(articleId).orElseThrow(ElementNotFoundException::new);
+        articleRepository
+            .findByIdAndExerciseId(articleId, exerciseId)
+            .orElseThrow(ElementNotFoundException::new);
     List<String> newDocumentsIds = input.getDocuments();
     List<String> currentDocumentIds = article.getDocuments().stream().map(Document::getId).toList();
     article.setChannel(
@@ -306,7 +308,10 @@ public class ChannelApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public void deleteArticleForExercise(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String articleId) {
-    articleRepository.deleteById(articleId);
+    articleRepository.delete(
+        articleRepository
+            .findByIdAndExerciseId(articleId, exerciseId)
+            .orElseThrow(ElementNotFoundException::new));
   }
 
   // -- SCENARIOS --
@@ -371,7 +376,9 @@ public class ChannelApi extends RestBehavior {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     String ownerTenantId = scenario.getTenant().getId();
     Article article =
-        articleRepository.findById(articleId).orElseThrow(ElementNotFoundException::new);
+        articleRepository
+            .findByIdAndScenarioId(articleId, scenarioId)
+            .orElseThrow(ElementNotFoundException::new);
     List<String> newDocumentsIds = input.getDocuments();
     List<String> currentDocumentIds = article.getDocuments().stream().map(Document::getId).toList();
     article.setChannel(
@@ -420,7 +427,10 @@ public class ChannelApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String articleId) {
-    articleRepository.deleteById(articleId);
+    articleRepository.delete(
+        articleRepository
+            .findByIdAndScenarioId(articleId, scenarioId)
+            .orElseThrow(ElementNotFoundException::new));
   }
 
   @GetMapping({

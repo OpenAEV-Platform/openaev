@@ -54,6 +54,7 @@ import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.threat_arsenal.ProvidingFilterSpecificationBuilder;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TriVoid;
 import io.openaev.utils.TxCtxScopeUtils;
@@ -119,6 +120,7 @@ public class InjectorContractService implements DependenciesManager {
   private final StepRepository stepRepository;
   private final ChainingStepCleanupService chainingStepCleanupService;
   private final WorkflowOwnerScope workflowOwnerScope;
+  private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
 
   /**
    * Built-in contracts whose injectors start with the platform through an autostart instance, so
@@ -165,6 +167,13 @@ public class InjectorContractService implements DependenciesManager {
         .findByIdOrExternalId(id, id)
         // User-facing wording: the entity is exposed as "threat arsenal item" everywhere.
         .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
+  }
+
+  /** The contracts running these payload versions in the tenant, by payload id. */
+  public Map<String, InjectorContract> injectorContractsOfPayloads(
+      @NotBlank final String tenantId, final Collection<String> payloadIds) {
+    return injectorContractRepository.findAllByTenantIdAndPayloadIdIn(tenantId, payloadIds).stream()
+        .collect(Collectors.toMap(contract -> contract.getPayload().getId(), Function.identity()));
   }
 
   /**
@@ -795,6 +804,7 @@ public class InjectorContractService implements DependenciesManager {
 
   private record InjectorContractQueryContext(
       Join<InjectorContract, Payload> payloadJoin,
+      Join<Payload, ?> payloadIdentityJoin,
       Join<?, CollectorType> payloadCollectorTypeJoin,
       Join<?, Injector> injectorJoin,
       Expression<String[]> injectorIdsExpression,
@@ -806,8 +816,9 @@ public class InjectorContractService implements DependenciesManager {
   private InjectorContractQueryContext buildCommonInjectorContractContext(
       CriteriaBuilder cb, Root<InjectorContract> injectorContractRoot) {
     Join<InjectorContract, Payload> payloadJoin = createLeftJoin(injectorContractRoot, "payload");
+    Join<Payload, ?> payloadIdentityJoin = payloadJoin.join("identity", JoinType.LEFT);
     Join<?, CollectorType> payloadCollectorTypeJoin =
-        payloadJoin.join("identity", JoinType.LEFT).join("collectorType", JoinType.LEFT);
+        payloadIdentityJoin.join("collectorType", JoinType.LEFT);
     Join<?, Injector> injectorContractInjectorJoin =
         injectorContractRoot.join("injectorLinks", JoinType.LEFT).join("injector", JoinType.LEFT);
 
@@ -834,6 +845,7 @@ public class InjectorContractService implements DependenciesManager {
 
     return new InjectorContractQueryContext(
         payloadJoin,
+        payloadIdentityJoin,
         payloadCollectorTypeJoin,
         injectorContractInjectorJoin,
         injectorIdsExpression,
@@ -1038,6 +1050,9 @@ public class InjectorContractService implements DependenciesManager {
         ctx.injectorContractDomainsIdsExpression().alias("injector_contract_domains"),
         ctx.payloadJoin().get("status").alias("payload_status"),
         ctx.payloadJoin().get("id").alias("payload_id"),
+        ctx.payloadJoin().get("version").alias("payload_version"),
+        ctx.payloadIdentityJoin().get("repository").alias("payload_repository"),
+        ctx.payloadJoin().get("revoked").alias("payload_revoked"),
         ctx.attackPatternIdsExpression().alias("injector_contract_attack_patterns"),
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
         authorId.alias("injector_contract_payload_author"),
@@ -1048,6 +1063,8 @@ public class InjectorContractService implements DependenciesManager {
 
     List<Expression<?>> groupBy = new ArrayList<>(getCommonGroupBy(injectorContractRoot, ctx));
     groupBy.add(payloadIdentityId);
+    groupBy.add(ctx.payloadJoin().get("version"));
+    groupBy.add(ctx.payloadIdentityJoin().get("repository"));
     groupBy.add(cAuthorUserJoin.get("id"));
     groupBy.add(cAuthorUserJoin.get("email"));
     groupBy.add(cAuthorUserJoin.get("firstname"));
@@ -1108,6 +1125,9 @@ public class InjectorContractService implements DependenciesManager {
         tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
         dedupePreservingOrder(tuple.get("injector_contract_tags", String[].class)),
         payload,
+        tuple.get("payload_version", String.class),
+        payloadId != null ? tuple.get("payload_repository", String.class) != null : null,
+        payloadId != null ? tuple.get("payload_revoked", Boolean.class) : null,
         dedupePreservingOrder(tuple.get("injector_contract_attack_patterns", String[].class)),
         tuple.get("injector_contract_payload_author", String.class),
         tuple.get("injector_contract_payload_author_name", String.class),
@@ -1186,8 +1206,26 @@ public class InjectorContractService implements DependenciesManager {
    * access control, exactly like the search route.
    */
   private Specification<InjectorContract> facetBaseSpec(SearchPaginationInput input) {
-    Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
+    // The providing filter is matched by its dedicated builder, as on the search route. The
+    // builder strips it from the filter group it reads, so it reads a copy: the facet endpoints
+    // call this method several times on the same input.
+    SearchPaginationInput copy = new SearchPaginationInput();
+    copy.setTextSearch(input.getTextSearch());
+    if (input.getFilterGroup() != null) {
+      Filters.FilterGroup group = new Filters.FilterGroup();
+      group.setMode(input.getFilterGroup().getMode());
+      group.setFilters(
+          input.getFilterGroup().getFilters() == null
+              ? null
+              : new ArrayList<>(input.getFilterGroup().getFilters()));
+      copy.setFilterGroup(group);
+    }
+    ProvidingFilterSpecificationBuilder.ProvidingFilterContext providing =
+        providingFilterSpecificationBuilder.extractProvidingFilter(copy);
     Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
+    Specification<InjectorContract> filterSpec =
+        providingFilterSpecificationBuilder.combine(
+            computeFilterGroupJpa(providing.searchInput().getFilterGroup()), providing, searchSpec);
     Specification<InjectorContract> visible =
         InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
     Specification<InjectorContract> accessSpec =

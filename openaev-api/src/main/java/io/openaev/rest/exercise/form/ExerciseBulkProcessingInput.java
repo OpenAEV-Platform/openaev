@@ -27,4 +27,11 @@ public class ExerciseBulkProcessingInput {
   /** The list of simulations to ignore from the search input */
   @JsonProperty("exercise_ids_to_ignore")
   private List<String> exerciseIdsToIgnore;
+
+  /**
+   * Delete only: true keeps the findings the simulations' injects produced, detached from them.
+   * False (the default) deletes them with the simulations.
+   */
+  @JsonProperty("keep_findings")
+  private boolean keepFindings = false;
 }
