@@ -30,8 +30,8 @@ import org.springframework.stereotype.Service;
  * inspector), and the caller's {@code TxCtx} scope bounds the tenant set. Every read is capped at
  * {@code limit + 1} rows: the extra row only tells the UI there is more ("load more").
  *
- * <p>Resource RBAC on simulations and scenarios is applied by the caller through {@code
- * visible}: a node the caller may not read is dropped with its edges.
+ * <p>Resource RBAC on simulations and scenarios is applied by the caller through {@code visible}: a
+ * node the caller may not read is dropped with its edges.
  */
 @Service
 public class GraphExplorationService {
@@ -111,8 +111,8 @@ public class GraphExplorationService {
   // -- Public reads --
 
   /**
-   * The first ring of an entity: every relation of the focus node, each capped at {@code limit}.
-   * An empty slice (not an error) when the entity is outside the scope.
+   * The first ring of an entity: every relation of the focus node, each capped at {@code limit}. An
+   * empty slice (not an error) when the entity is outside the scope.
    */
   public GraphOutput neighbourhood(
       Collection<String> tenantIds,
@@ -135,8 +135,7 @@ public class GraphExplorationService {
    * The landing view, "exposure hot paths": the assets carrying the most failed expectations, the
    * injects that failed on them, their asset groups and their findings. Risk first, and small.
    */
-  public GraphOutput hotPaths(
-      Collection<String> tenantIds, int limit, GraphVisibility visibility) {
+  public GraphOutput hotPaths(Collection<String> tenantIds, int limit, GraphVisibility visibility) {
     int cap = Math.min(clamp(limit), 25);
     Slice slice = new Slice();
     TypedQuery<Object[]> q =
@@ -183,8 +182,7 @@ public class GraphExplorationService {
     Map<String, GraphNodeOutput> seen = new HashMap<>();
     Map<String, Integer> depth = new HashMap<>();
     Deque<GraphNodeOutput> queue = new ArrayDeque<>();
-    GraphNodeOutput first =
-        new GraphNodeOutput(start, fromType, fromId, fromId, null, null, 0, 0);
+    GraphNodeOutput first = new GraphNodeOutput(start, fromType, fromId, fromId, null, null, 0, 0);
     seen.put(start, first);
     depth.put(start, 0);
     queue.add(first);
@@ -299,7 +297,8 @@ public class GraphExplorationService {
       String id,
       Set<GraphEdgeType> edgeTypes,
       int cap) {
-    Predicate<GraphEdgeType> want = t -> edgeTypes == null || edgeTypes.isEmpty() || edgeTypes.contains(t);
+    Predicate<GraphEdgeType> want =
+        t -> edgeTypes == null || edgeTypes.isEmpty() || edgeTypes.contains(t);
     String focus;
     switch (type) {
       case ASSET -> {
@@ -307,6 +306,7 @@ public class GraphExplorationService {
         if (focus == null) {
           return null;
         }
+        final String here = focus;
         if (want.test(GraphEdgeType.MEMBER_OF)) {
           rows(
               slice,
@@ -317,7 +317,7 @@ public class GraphExplorationService {
               cap,
               r -> {
                 String g = slice.node(GraphNodeType.ASSET_GROUP, (String) r[0], (String) r[1], null);
-                slice.edge(GraphEdgeType.MEMBER_OF, focus, g, null);
+                slice.edge(GraphEdgeType.MEMBER_OF, here, g, null);
               });
         }
         if (want.test(GraphEdgeType.FOUND_ON)) {
@@ -330,7 +330,7 @@ public class GraphExplorationService {
               cap,
               r -> {
                 String f = slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2]));
-                slice.edge(GraphEdgeType.FOUND_ON, f, focus, null);
+                slice.edge(GraphEdgeType.FOUND_ON, f, here, null);
               });
         }
         if (want.test(GraphEdgeType.TARGETS)) {
@@ -348,6 +348,7 @@ public class GraphExplorationService {
         if (focus == null) {
           return null;
         }
+        final String here = focus;
         if (want.test(GraphEdgeType.MEMBER_OF)) {
           rows(
               slice,
@@ -358,7 +359,7 @@ public class GraphExplorationService {
               cap,
               r -> {
                 String a = slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], (String) r[2]);
-                slice.edge(GraphEdgeType.MEMBER_OF, focus, a, null);
+                slice.edge(GraphEdgeType.MEMBER_OF, here, a, null);
               });
         }
         if (want.test(GraphEdgeType.TARGETS)) {
@@ -377,6 +378,7 @@ public class GraphExplorationService {
         if (focus == null) {
           return null;
         }
+        final String here = focus;
         if (want.test(GraphEdgeType.FOUND_ON)) {
           rows(
               slice,
@@ -387,7 +389,7 @@ public class GraphExplorationService {
               cap,
               r -> {
                 String a = slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], (String) r[2]);
-                slice.edge(GraphEdgeType.FOUND_ON, focus, a, null);
+                slice.edge(GraphEdgeType.FOUND_ON, here, a, null);
               });
         }
         if (want.test(GraphEdgeType.PRODUCED)) {
@@ -400,7 +402,7 @@ public class GraphExplorationService {
               cap,
               r -> {
                 String i = slice.node(GraphNodeType.INJECT, (String) r[0], (String) r[1], null);
-                slice.edge(GraphEdgeType.PRODUCED, i, focus, null);
+                slice.edge(GraphEdgeType.PRODUCED, i, here, null);
               });
         }
       }
@@ -415,6 +417,7 @@ public class GraphExplorationService {
         if (focus == null) {
           return null;
         }
+        final String here = focus;
         if (want.test(GraphEdgeType.TARGETS)) {
           targets(slice, tenantIds, "i.id = :id", id, cap);
         }
@@ -428,7 +431,7 @@ public class GraphExplorationService {
               cap,
               r -> {
                 String f = slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2]));
-                slice.edge(GraphEdgeType.PRODUCED, focus, f, null);
+                slice.edge(GraphEdgeType.PRODUCED, here, f, null);
               });
         }
         if (want.test(GraphEdgeType.PART_OF)) {
@@ -441,7 +444,7 @@ public class GraphExplorationService {
               1,
               r -> {
                 String s = slice.node(GraphNodeType.SIMULATION, (String) r[0], (String) r[1], null);
-                slice.edge(GraphEdgeType.PART_OF, focus, s, null);
+                slice.edge(GraphEdgeType.PART_OF, here, s, null);
               });
         }
       }
@@ -456,6 +459,7 @@ public class GraphExplorationService {
         if (focus == null) {
           return null;
         }
+        final String here = focus;
         if (want.test(GraphEdgeType.PART_OF)) {
           rows(
               slice,
@@ -466,7 +470,7 @@ public class GraphExplorationService {
               cap,
               r -> {
                 String i = slice.node(GraphNodeType.INJECT, (String) r[0], (String) r[1], null);
-                slice.edge(GraphEdgeType.PART_OF, i, focus, null);
+                slice.edge(GraphEdgeType.PART_OF, i, here, null);
               });
         }
         if (want.test(GraphEdgeType.RUN_OF)) {
@@ -479,7 +483,7 @@ public class GraphExplorationService {
               1,
               r -> {
                 String s = slice.node(GraphNodeType.SCENARIO, (String) r[0], (String) r[1], null);
-                slice.edge(GraphEdgeType.RUN_OF, focus, s, null);
+                slice.edge(GraphEdgeType.RUN_OF, here, s, null);
               });
         }
       }

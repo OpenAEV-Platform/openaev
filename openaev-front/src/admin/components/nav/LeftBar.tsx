@@ -5,6 +5,7 @@ import {
   DomainOutlined,
   ExtensionOutlined,
   GroupsOutlined,
+  HubOutlined,
   InsertChartOutlined,
   KeyOutlined,
   LayersOutlined,
@@ -56,6 +57,12 @@ const LeftBar = () => {
           icon: () => (<DashboardOutlined />),
           label: 'Home',
           userRight: true,
+        },
+        {
+          path: '/admin/graph',
+          icon: () => (<HubOutlined />),
+          label: 'Graph',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
         },
         {
           // One entry, two tabs (Custom dashboards | Reporting): it lands on the
