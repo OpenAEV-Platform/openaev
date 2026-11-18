@@ -114,6 +114,31 @@ describe('EntityCard', () => {
       expect(screen.getByRole('link')).not.toContainElement(menu);
     });
 
+    it('given_aLoneMenu_should_putItInTheHeaderAndDropTheFooter', () => {
+      // Arrange / Act
+      renderCard({
+        to: '/admin/workspaces/custom_dashboards/1',
+        menu: <button type="button" aria-label="More actions" />,
+      });
+
+      // Assert
+      const card = screen.getByTestId('entity-card');
+      expect(screen.getByRole('button', { name: 'More actions' })).toBeInTheDocument();
+      expect(card.querySelector('.border-t')).toBeNull();
+    });
+
+    it('given_aMenuAndFooterContent_should_keepTheMenuInTheFooter', () => {
+      // Arrange / Act
+      renderCard({
+        menu: <button type="button" aria-label="More actions" />,
+        footerStart: <span data-testid="footer-start" />,
+      });
+
+      // Assert
+      const footer = screen.getByTestId('footer-start').closest('.border-t');
+      expect(footer).toContainElement(screen.getByRole('button', { name: 'More actions' }));
+    });
+
     it('given_footerEnd_should_renderItInTheFooter', () => {
       // Arrange / Act
       renderCard({ footerEnd: <button type="button" aria-label="Deploy" /> });

@@ -46,7 +46,7 @@ interface Props {
   description?: string;
   /** Extra content of the body, under the description. */
   children?: ReactNode;
-  /** The ⋮ menu, at the end of the footer. */
+  /** The ⋮ menu: the header's single action when the card has no selection nor other footer content, else at the end of the footer. */
   menu?: ReactNode;
   /** Bulk selection checkbox, the header's single action. */
   selection?: EntityCardSelection;
@@ -94,6 +94,10 @@ const EntityCard = ({
 }: Props) => {
   const [hovered, setHovered] = useState(false);
   const showSelection = selection != null && (hovered || selection.alwaysVisible || selection.checked);
+  // A lone ⋮ menu is the header's single action, and the footer, left
+  // empty, goes away (Card v2: one action in the header, several in the footer).
+  const menuInHeader = menu != null && selection == null && footerStart == null && footerEnd == null;
+  const showFooter = footer && (footerStart != null || footerEnd != null || (menu != null && !menuInHeader));
 
   const thumbnail = image
     ? (
@@ -125,7 +129,7 @@ const EntityCard = ({
     >
       <CardHeader
         icon={thumbnail || undefined}
-        action={selection && (
+        action={menuInHeader ? menu : selection && (
           // Shown on hover, and kept once a selection has started. Faded, not
           // hidden, so it stays reachable from the keyboard.
           <div
@@ -153,7 +157,7 @@ const EntityCard = ({
           <CardInfo label={meta.label} value={meta.value} />
         </CardInfoGroup>
       )}
-      {footer && (
+      {showFooter && (
         <CardFooter
           start={footerStart}
           end={(footerEnd || menu) && (
