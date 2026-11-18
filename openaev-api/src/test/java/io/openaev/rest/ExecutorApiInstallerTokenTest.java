@@ -3,12 +3,14 @@ package io.openaev.rest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
+import io.openaev.rest.exception.TenantSingleScopeRequiredException;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.service.account.ReservedServiceAccount;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -124,6 +126,24 @@ class ExecutorApiInstallerTokenTest extends IntegrationTest {
     // Assert
     assertEquals(selectedToken, body);
     assertNotEquals(defaultToken, body);
+  }
+
+  @Test
+  @DisplayName("given_headerSelectingTwoTenants_should_return400SingleScopeRequired")
+  void given_headerSelectingTwoTenants_should_return400SingleScopeRequired() throws Exception {
+    // Arrange: a second tenant the caller also belongs to
+    String otherTenantId = tenantHelper.createTenantWithCurrentUser("installer-token-2").getId();
+    try {
+      // Act & Assert: a read refusal, not the write-scope one
+      mvc.perform(
+              get(TOKEN_URI)
+                  .header(TENANT_HEADER, tenantId + "," + otherTenantId)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(TenantSingleScopeRequiredException.CODE));
+    } finally {
+      tenantHelper.deleteCommittedTenants(otherTenantId);
+    }
   }
 
   private String provisionServiceAccount(String tenant) {

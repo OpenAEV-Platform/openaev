@@ -26,6 +26,7 @@ import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.service.connectors.PlatformConnectors;
 import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.AgentUtils;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.headers.Header;
@@ -513,7 +514,7 @@ public class ExecutorApi extends RestBehavior {
       @RequireTenantSelector TxCtx ctx) {
     // The tenant of the request scope, not the ambient one: on the non-prefixed route the ambient
     // tenant is the default one whatever tenant the caller selected.
-    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    String tenantId = TxCtxScopeUtils.requireOneTenantOfScope(ctx);
     // The non-throwing lookup: a missing token caught after the throwing one would leave this
     // transaction rollback-only, and the 404 would become a 500 at commit.
     return agentServiceAccountPrivilegeService
