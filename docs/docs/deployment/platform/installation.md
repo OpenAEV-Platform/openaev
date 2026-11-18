@@ -160,8 +160,12 @@ Before you can start the application, ensure your dependencies are up and runnin
 Then start the application itself:
 
 ```bash
-java -jar openaev-api.jar
+java -XX:-UseBASE64Intrinsics -jar openaev-api.jar
 ```
+
+!!! note
+
+    Keep `-XX:-UseBASE64Intrinsics` while your JDK is older than 21.0.13.1. The Docker images set it already.
 
 !!! success "Installation done"
 
