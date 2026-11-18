@@ -25,6 +25,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Filters;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
@@ -224,6 +225,77 @@ class GraphExplorationServiceTest extends IntegrationTest {
             GraphVisibility.ALL);
 
     assertThat(edgeTypes(out)).containsOnly(GraphEdgeType.FOUND_ON);
+    assertThat(out.edges()).hasSize(1);
+    assertThat(out.truncated()).isTrue();
+  }
+
+  // -- Dynamic asset groups of #9447: membership resolved through the filter, both ways --
+
+  private AssetGroup dynamicGroupOnPlatformOf(Endpoint endpoint) {
+    Filters.Filter filter = new Filters.Filter();
+    filter.setKey("endpoint_platform");
+    filter.setMode(Filters.FilterMode.and);
+    filter.setOperator(Filters.FilterOperator.eq);
+    filter.setValues(List.of(endpoint.getPlatform().name()));
+    Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+    filterGroup.setMode(Filters.FilterMode.and);
+    filterGroup.setFilters(List.of(filter));
+    AssetGroupComposer.Composer dynamic =
+        assetGroupComposer.forAssetGroup(
+            AssetGroupFixture.createAssetGroupWithDynamicFilter("graph-dyn-group", filterGroup));
+    dynamic.persist();
+    AssetGroup persisted = dynamic.get();
+    entityManager.flush();
+    entityManager.clear();
+    return persisted;
+  }
+
+  @Test
+  @DisplayName("an asset matched by a dynamic group filter expands to that group")
+  void assetRingResolvesDynamicGroups() {
+    AssetGroup dyn = dynamicGroupOnPlatformOf(e2);
+    scopeToAmbientTenant();
+
+    GraphOutput out = ring(GraphNodeType.ASSET, e2.getId());
+
+    String groupNode = id(GraphNodeType.ASSET_GROUP, dyn.getId());
+    assertThat(nodeIds(out)).contains(groupNode);
+    assertThat(out.edges())
+        .anySatisfy(
+            e -> {
+              assertThat(e.edgeType()).isEqualTo(GraphEdgeType.MEMBER_OF);
+              assertThat(List.of(e.source(), e.target())).contains(groupNode);
+            });
+    assertThat(nodeIds(out)).doesNotContain(id(GraphNodeType.ASSET_GROUP, g.getId()));
+  }
+
+  @Test
+  @DisplayName("a dynamic group expands to the assets its filter matches, static ones kept")
+  void dynamicGroupRingListsMatchedAssets() {
+    AssetGroup dyn = dynamicGroupOnPlatformOf(e2);
+    scopeToAmbientTenant();
+
+    GraphOutput out = ring(GraphNodeType.ASSET_GROUP, dyn.getId());
+
+    assertThat(nodeIds(out)).contains(id(GraphNodeType.ASSET, e2.getId()));
+    assertThat(edgeTypes(out)).contains(GraphEdgeType.MEMBER_OF);
+  }
+
+  @Test
+  @DisplayName("a dynamic group ring is capped and says it was truncated")
+  void dynamicGroupRingCapped() {
+    AssetGroup dyn = dynamicGroupOnPlatformOf(e2);
+    scopeToAmbientTenant();
+
+    GraphOutput out =
+        service.neighbourhood(
+            scope,
+            GraphNodeType.ASSET_GROUP,
+            dyn.getId(),
+            Set.of(GraphEdgeType.MEMBER_OF),
+            1,
+            GraphVisibility.ALL);
+
     assertThat(out.edges()).hasSize(1);
     assertThat(out.truncated()).isTrue();
   }
