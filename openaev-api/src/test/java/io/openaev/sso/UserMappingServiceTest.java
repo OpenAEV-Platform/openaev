@@ -14,6 +14,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.service.UserMappingService;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -22,7 +23,6 @@ import io.openaev.utils.fixtures.composers.UserComposer;
 import jakarta.persistence.EntityManager;
 import java.util.*;
 import org.apache.commons.lang3.NotImplementedException;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -34,6 +34,7 @@ import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
+import org.springframework.test.context.transaction.AfterTransaction;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,12 +46,21 @@ public class UserMappingServiceTest extends IntegrationTest {
   @Autowired private UserMappingService userMappingService;
   @Autowired protected EntityManager entityManager;
   @Autowired private GroupRepository groupRepository;
+  @Autowired private UserRepository userRepository;
   @Autowired private TenantScopedTransaction tenantScopedTransaction;
 
   /**
    * The platform groups the auto-create tests below name: findOrCreateGroup commits them in a
    * nested platform-write transaction (executeNewAsPlatformWrite), independently of this class's
    * own rollback, so they are deleted the same way, in their own platform-write transaction.
+   *
+   * <p>{@code @AfterTransaction}, not {@code @AfterEach}: a test that grants the group a membership
+   * flushes a {@code users_groups} row referencing it inside the class's own, not-yet-ended
+   * transaction, which holds a key-share lock on the group row for the duration of that
+   * transaction. An {@code @AfterEach} runs before that transaction ends, so its delete, in a
+   * separate platform-write transaction, waits on a lock that only releases once the method it is
+   * waiting on finishes. {@code @AfterTransaction} runs once the class's transaction has already
+   * rolled back, so the lock is gone and the membership row never existed on disk to begin with.
    */
   private static final List<String> AUTO_CREATED_PLATFORM_GROUP_NAMES =
       List.of("admin", "admin2", "SOC");
@@ -60,10 +70,10 @@ public class UserMappingServiceTest extends IntegrationTest {
     tenantGroupComposer.reset();
   }
 
-  @AfterEach
+  @AfterTransaction
   void cleanupAutoCreatedPlatformGroups() {
     for (String name : AUTO_CREATED_PLATFORM_GROUP_NAMES) {
-      tenantScopedTransaction.executeNewAsPlatformWrite(
+      tenantScopedTransaction.executeAsPlatformWrite(
           TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
           () -> {
             groupRepository.findByNameAndTenantIsNull(name).ifPresent(groupRepository::delete);
@@ -135,9 +145,13 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // ---- ACT ----
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
 
     // -- ASSERT --
-    assertTrue(user.getUnscopedGroups().contains(specificGroup));
+    assertTrue(
+        user.getUnscopedGroups().stream().anyMatch(g -> g.getId().equals(specificGroup.getId())));
   }
 
   @Test
@@ -156,6 +170,9 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // ---- ACT ----
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
 
     // -- ASSERT --
     Group userGroup = user.getUnscopedGroups().get(0);
@@ -231,6 +248,9 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // ---- ACT ----
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
 
     // -- ASSERT --
     assertThat(user.getUnscopedGroups().size()).isEqualTo(1);
@@ -266,6 +286,9 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // ---- ACT ----
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
 
     // -- ASSERT --
     assertThat(user.getUnscopedGroups().size()).isEqualTo(1);
@@ -285,9 +308,13 @@ public class UserMappingServiceTest extends IntegrationTest {
     userComposer.forUser(user).persist();
     entityManager.flush();
     entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
 
     // ---- ACT ----
     userMappingService.mapCurrentUserWithGroup(object, user, List.of("observer"));
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
 
     // -- ASSERT --
     List<Group> groups = user.getUnscopedGroups();

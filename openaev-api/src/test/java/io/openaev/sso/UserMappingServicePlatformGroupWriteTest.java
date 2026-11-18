@@ -95,8 +95,9 @@ class UserMappingServicePlatformGroupWriteTest extends IntegrationTest {
         });
 
     // Assert
-    assertThat(user.getUnscopedGroups()).hasSize(1);
-    Group created = user.getUnscopedGroups().getFirst();
+    User reloaded = userRepository.findById(user.getId()).orElseThrow();
+    assertThat(reloaded.getUnscopedGroups()).hasSize(1);
+    Group created = reloaded.getUnscopedGroups().getFirst();
     groupId = created.getId();
     assertThat(created.getTenant()).isNull();
     assertThat(created.getName()).isEqualTo(mappingName);
