@@ -4,7 +4,7 @@
 
 **Parent doc**: [tech-design.md](./tech-design.md) — Option C
 
-**Decision of record**: [ADR-009](../../../adr/ADR-009-Marking-based-access-control.md)
+**Decision of record**: [ADR-009](../../../adr/ADR-009-marking-based-access-control.md)
 
 **Task 2 scope channel**: [`../task2/implementation-plan.md`](../task2/implementation-plan.md) — steps
 2.1–2.4, relocated (see below)

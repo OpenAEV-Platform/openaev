@@ -8,7 +8,7 @@ permissions:
   pull-requests: write
 jobs:
   auto-label:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: "Auto Label"
         uses: FiligranHQ/filigran-ci-tools/actions/auto-label@main

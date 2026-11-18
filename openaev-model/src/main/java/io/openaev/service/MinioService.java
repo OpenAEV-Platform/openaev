@@ -183,6 +183,15 @@ public class MinioService implements DependenciesManager {
     }
   }
 
+  public boolean existsInPlatform(String name) {
+    try {
+      objectExists(getPlatformPath(name));
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
   public Optional<FileContainer> getFileContainerInTenant(String fileTarget) {
     try {
       StatObjectResponse response = objectExists(getTenantPath(fileTarget));

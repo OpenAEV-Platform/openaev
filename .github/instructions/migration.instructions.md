@@ -53,7 +53,11 @@ public class V4_57__AddTenantToAlerts extends BaseJavaMigration {
 3. **Never drop columns or tables** without a deprecation migration first
 4. **Always add default values** for new `NOT NULL` columns on existing tables
 5. **Large data migrations** should be batched (1000 rows at a time) to avoid lock contention
-6. **ES reindex**: if modifying an entity indexed in Elasticsearch, add `DELETE FROM indexing_status`
+6. **Search index rebuild**: if the migration changes data an indexed model reads, or how its documents are built, request a rebuild of that model (its `indexing_status_type` is the `index` of its `@Indexable` class) — never with `DELETE FROM indexing_status`. A pod still running during a rolling deploy re-creates the deleted row before the new pod's boot check, so the wipe silently never happens. Pick one of the two patterns of `EsIndexingUtils`:
+   - **Re-feed in place** — the documents only need rewriting: move the cursor back to epoch (`UPDATE indexing_status SET indexing_status_indexing_date = Instant.EPOCH, indexing_status_last_id = NULL WHERE indexing_status_type = '<model>' AND indexing_status_indexing_date < EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD`) and call `EsIndexingUtils.requestRefeedAtStartup("<model>")`. The index stays complete throughout. Example: `V6_20261022140626000__Request_finding_refeed_after_sensitive_value_masking`.
+   - **Reset** — stale documents must disappear (rows deleted by raw SQL, changed ids): upsert the `EsIndexingUtils.REINDEX_REQUESTED_CURSOR` sentinel and call `EsIndexingUtils.requestReindexAtStartup("<model>")`. The index is wiped and rebuilt, so its dashboards are incomplete until the rebuild ends. Example: `V6_20260924120000000__Request_expectation_inject_reindex_after_group_parent_dedup`.
+
+   A new field on an indexed model needs no migration: the engine drivers add it to the existing index at boot. Re-feed only if the existing documents must carry its value.
 
 ## Anti-Patterns
 
@@ -63,6 +67,7 @@ public class V4_57__AddTenantToAlerts extends BaseJavaMigration {
 - ❌ Single unique constraint on tenant-scoped entity (must include `tenant_id`)
 - ❌ Missing `ON DELETE CASCADE` on tenant FK — orphan rows after tenant deletion
 - ❌ Modifying an existing migration file — Flyway checksums will break
+- ❌ `DELETE FROM indexing_status` to rebuild a search index — lost on a rolling deploy; re-feed in place or reset with the sentinel instead (rule 6)
 
 ## Verification
 

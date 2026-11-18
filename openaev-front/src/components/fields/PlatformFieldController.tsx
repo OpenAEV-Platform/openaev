@@ -25,7 +25,6 @@ const useStyles = makeStyles()(theme => ({
     display: 'inline-block',
     marginLeft: theme.spacing(2),
   },
-  autoCompleteIndicator: { display: 'none' },
 }));
 
 interface Props {

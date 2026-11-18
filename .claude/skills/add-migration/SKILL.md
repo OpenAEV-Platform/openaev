@@ -69,11 +69,42 @@ CREATE INDEX idx_my_entities_tenant ON my_entities(tenant_id);
 
 Default tenant: `2cffad3a-0001-4078-b0e2-ef74274022c3`
 
-### Step 4 — Handle ES reindex (if needed)
+### Step 4 — Rebuild the search index (if needed)
 
-If modifying an entity indexed in Elasticsearch, add a reindex trigger:
-```sql
-DELETE FROM indexing_status;
+Needed when the migration changes data an indexed model reads, or how its documents are built. The
+model name is the `index` of its `@Indexable` class (`grep -rn "@Indexable(index" openaev-model/src/main/java`),
+and it is also its `indexing_status_type`. A new field on an indexed model needs no migration: the
+engine drivers add it to the existing index at boot.
+
+**Never `DELETE FROM indexing_status`.** During a rolling deploy, a pod still running re-creates the
+deleted row before the new pod's boot check, which then finds a row and never wipes the index.
+
+**Re-feed in place** — the documents only need rewriting. The index stays complete throughout. Example:
+`V6_20261022140626000__Request_finding_refeed_after_sensitive_value_masking`.
+```java
+try (Statement statement = context.getConnection().createStatement()) {
+  statement.executeUpdate(
+      "UPDATE indexing_status SET indexing_status_indexing_date = '" + Instant.EPOCH
+          + "', indexing_status_last_id = NULL WHERE indexing_status_type = '" + MODEL
+          + "' AND indexing_status_indexing_date < '" + EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD + "'");
+}
+// Re-feeds once more after engine.indexing-refeed-reassert-delay-seconds, over what pods
+// still running the previous version wrote meanwhile
+EsIndexingUtils.requestRefeedAtStartup(MODEL);
+```
+
+**Reset** — stale documents must disappear (rows deleted by raw SQL, changed ids). The index is wiped
+and rebuilt, so its dashboards are incomplete until the rebuild ends. Example:
+`V6_20260924120000000__Request_expectation_inject_reindex_after_group_parent_dedup`.
+```java
+try (Statement statement = context.getConnection().createStatement()) {
+  statement.execute(
+      "INSERT INTO indexing_status (indexing_status_type, indexing_status_indexing_date) VALUES ('"
+          + MODEL + "', '" + EsIndexingUtils.REINDEX_REQUESTED_CURSOR + "')"
+          + " ON CONFLICT (indexing_status_type)"
+          + " DO UPDATE SET indexing_status_indexing_date = EXCLUDED.indexing_status_indexing_date");
+}
+EsIndexingUtils.requestReindexAtStartup(MODEL);
 ```
 
 ### Step 5 — Verify

@@ -15,15 +15,16 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CredentialForm from './CredentialForm';
 import { type CredentialFormInitialValues } from './credentialUtils';
 
-interface CredentialPopoverProps {
+export interface CredentialPopoverProps {
   /** Placement, forwarded to the kebab: `icon` in a list row, `toggle` in a
       detail header, where the controls are 36px. */
   variant?: VariantButtonPopover;
   credentialId: string;
   credentialName: string;
   resolveInitialValues?: () => Promise<CredentialFormInitialValues>;
-  onUpdate: (result: CredentialOutput) => void;
-  onDelete: (credentialId: string) => void;
+  onUpdate?: (result: CredentialOutput) => void;
+  onDelete?: (credentialId: string) => void;
+  onRemove?: (credentialId: string) => void;
   disabled?: boolean;
 }
 
@@ -34,6 +35,7 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
   resolveInitialValues,
   onUpdate,
   onDelete,
+  onRemove,
   disabled = false,
 }) => {
   const { t } = useFormatter();
@@ -81,16 +83,27 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
   };
 
   const entries: PopoverEntry[] = [
-    {
-      label: 'Update',
-      action: handleOpenEdit,
-      userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.CREDENTIALS),
-    },
-    {
-      label: 'Delete',
-      action: handleOpenDelete,
-      userRight: ability.can(ACTIONS.DELETE, SUBJECTS.CREDENTIALS),
-    },
+    ...(onUpdate
+      ? [{
+          label: 'Update',
+          action: handleOpenEdit,
+          userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.CREDENTIALS),
+        }]
+      : []),
+    ...(onRemove
+      ? [{
+          label: 'Remove from the inject',
+          action: () => onRemove(credentialId),
+          userRight: true,
+        }]
+      : []),
+    ...(onDelete
+      ? [{
+          label: 'Delete',
+          action: handleOpenDelete,
+          userRight: ability.can(ACTIONS.DELETE, SUBJECTS.CREDENTIALS),
+        }]
+      : []),
   ];
 
   return (

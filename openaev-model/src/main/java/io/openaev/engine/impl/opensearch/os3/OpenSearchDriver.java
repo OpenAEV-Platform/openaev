@@ -263,10 +263,12 @@ public class OpenSearchDriver {
    * @param name the name of the index
    * @param version the version
    * @param mappings the mappings of the data
+   * @return true when the index is up to date with the model's mapping, false when the existing
+   *     index cannot take that mapping in place and has to be reset
    * @throws IOException in case of error during the call to opensearch
    */
   @SuppressWarnings("SameParameterValue")
-  private void setupIndex(
+  private boolean setupIndex(
       OpenSearchClient client, String name, String version, Map<String, Property> mappings)
       throws IOException {
     // Create template
@@ -319,7 +321,7 @@ public class OpenSearchDriver {
     } catch (Exception e) {
       throw new IOException(e);
     }
-    // Create index
+    // Create the index, or bring the existing one up to date
     try {
       client.indices().get(new GetIndexRequest.Builder().index(indexName).build());
     } catch (OpenSearchException e) {
@@ -337,6 +339,49 @@ public class OpenSearchDriver {
       // here kept models with no data yet in a wipe/recreate loop at every single boot,
       // because the indexing job only persists the row once a first document is indexed.
       resetIndexingCursor(name);
+      return true;
+    }
+    // Outside the try: a refused mapping update must not be taken for a missing index
+    return addNewFieldsToExistingIndex(client, indexName, mappings);
+  }
+
+  /**
+   * Adds to an existing index the fields its model gained since the index was created.
+   *
+   * <p>The template re-put at every boot only shapes the indices created after it, and the mapping
+   * is strict: without this, every document carrying a new field is rejected until the index is
+   * wiped and rebuilt, and dashboards stay incomplete for the whole rebuild. Adding a field to a
+   * live index keeps its documents in place, and a re-put of an unchanged mapping is a no-op.
+   *
+   * <p>When the engine answers that the index cannot take the current mapping - a field whose type
+   * changed - the index must be reset: every document carrying a new field would otherwise be
+   * rejected by the strict mapping, a rejection the indexer treats as a poison document and skips
+   * for good, so the documents in place would never be rewritten. Any other failure (timeout, lost
+   * response, refused authorization, unavailable engine) says nothing about the mapping: it is
+   * propagated and fails the boot, which retries the update, without deleting anything. This runs
+   * for every model at every boot, so a transient error must never cost a populated index.
+   *
+   * @return true when the index now carries the model's mapping, false when it must be reset
+   * @throws IOException when the engine could not be reached
+   */
+  private boolean addNewFieldsToExistingIndex(
+      OpenSearchClient client, String indexName, Map<String, Property> mappings)
+      throws IOException {
+    try {
+      client.indices().putMapping(p -> p.index(indexName).properties(mappings));
+      return true;
+    } catch (OpenSearchException e) {
+      if (!EsIndexingUtils.isIncompatibleMappingError(
+          e.status(), e.error() != null ? e.error().type() : null)) {
+        // Says nothing about the mapping: fail the boot, which retries it, and delete nothing
+        throw e;
+      }
+      log.error(
+          "Index {} cannot take the current mapping in place: resetting it to rebuild it with the"
+              + " current mapping",
+          indexName,
+          e);
+      return false;
     }
   }
 
@@ -485,7 +530,11 @@ public class OpenSearchDriver {
               EsIndexingUtils.isRollingDeployReset(modelName, status));
         } else {
           log.debug("Ensuring index {}", modelName);
-          setupIndex(openClient, modelName, ES_MODEL_VERSION, mappings);
+          if (!setupIndex(openClient, modelName, ES_MODEL_VERSION, mappings)) {
+            // Other instances may still run, as during any deploy: the epoch re-assertion of the
+            // reset repairs a stale cursor one of them writes meanwhile.
+            resetIndex(openClient, modelName, mappings, true);
+          }
         }
       } catch (IOException e) {
         throw new AnalyticsEngineException(

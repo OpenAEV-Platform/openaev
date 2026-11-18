@@ -2,16 +2,22 @@ package io.openaev.aop;
 
 import io.openaev.config.SessionHelper;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.AmbientTenantBridge;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.User;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.exception.TenantScopeForbiddenException;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
@@ -45,6 +51,7 @@ public class AccessControlAspect {
   private final UserService userService;
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
+  private final AmbientTenantBridge ambientTenantBridge;
 
   private final ExpressionParser parser = new SpelExpressionParser();
 
@@ -114,28 +121,90 @@ public class AccessControlAspect {
           "Access denied for user " + SessionHelper.currentUser().getId()) {};
     }
 
-    // Perform your RBAC check with the extracted value
-    boolean allowed =
-        accessControl.requireAdmin()
-            ? permissionService.hasUserAdminPrivileges(principal)
-            : permissionService.hasPermission(
-                principal,
-                httpMappingInfo,
-                resourceId,
-                accessControl.resourceType(),
-                accessControl.actionPerformed());
+    // The method may work in any tenant of its TxCtx scope, not only in the ambient one. The
+    // ambient tenant is set by the /api/tenants/{tenantId}/ route and, for an XTM One callback, by
+    // OrchestratorRunTenantInterceptor to the run's tenant; elsewhere it falls back to the default
+    // tenant. On the non-prefixed route the scope holds the tenants the X-Tenant-Ids header names
+    // and, with no selector, every tenant the caller belongs to, except that a
+    // @RequireTenantSelector parameter then narrows a multi-tenant caller to the default tenant.
+    // So the caller must be authorized in the ambient tenant and in each other tenant of the
+    // scope. In each tenant, the check reads the capabilities, the tenant bypass and the grants the
+    // caller holds there: a grant counts in the tenant of the group that holds it, and a platform
+    // group's grant in every tenant. The resource's parent is resolved once, in the ambient tenant,
+    // and never again per tenant.
+    final User user = principal;
+    String ambientTenant = TenantContext.getCurrentTenant();
+    PermissionService.CheckedResource resource =
+        permissionService.checkedResource(
+            requestTxCtx(args),
+            ambientTenant,
+            resourceId,
+            accessControl.resourceType(),
+            accessControl.actionPerformed());
+    BooleanSupplier permitted =
+        () ->
+            accessControl.requireAdmin()
+                ? permissionService.hasUserAdminPrivileges(user)
+                : permissionService.hasPermission(user, httpMappingInfo, resource);
 
-    if (!allowed) {
-      log.warn(
-          "Access denied for user: {} on resource: {} of type: {} and action: {}",
-          principal.getId(),
-          resourceId,
-          accessControl.resourceType(),
-          accessControl.actionPerformed());
-
+    if (!permitted.getAsBoolean()) {
+      logDenied(principal, resourceId, accessControl);
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN, "Access denied for user: " + principal.getEmail()) {};
     }
+    boolean permittedInEveryScopeTenant =
+        otherScopeTenants(args, ambientTenant).stream()
+            .allMatch(
+                tenantId -> ambientTenantBridge.callInTenant(tenantId, permitted::getAsBoolean));
+    if (!permittedInEveryScopeTenant) {
+      logDenied(principal, resourceId, accessControl);
+      throw new TenantScopeForbiddenException();
+    }
+  }
+
+  private static void logDenied(User principal, String resourceId, AccessControl accessControl) {
+    log.warn(
+        "Access denied for user: {} on resource: {} of type: {} and action: {}",
+        principal.getId(),
+        resourceId,
+        accessControl.resourceType(),
+        accessControl.actionPerformed());
+  }
+
+  /**
+   * The tenants of a {@link TxCtx.Restricted} argument other than the ambient one. Empty when there
+   * is no such argument: a missing scope reads nothing and an all-tenants scope never comes from a
+   * request, so neither adds a tenant to authorize in.
+   */
+  private static List<String> otherScopeTenants(Object[] args, String ambientTenant) {
+    for (Object arg : args) {
+      if (arg instanceof TxCtx.Restricted restricted) {
+        return restricted.tenantIds().stream()
+            .filter(tenantId -> !tenantId.equals(ambientTenant))
+            .toList();
+      }
+    }
+    return List.of();
+  }
+
+  /**
+   * The controller method's own {@link TxCtx} argument, resolved by {@code TxCtxArgumentResolver}
+   * before this advice runs. {@link PermissionService#checkedResource} needs it to load a parent
+   * that is not yet v2-active (an inject) in the request's own scope rather than the ambient tenant
+   * alone. {@link TxCtx#missing()} when the method declares none: {@code
+   * TxCtxScopeUtils#requestReadScope} resolves that to the ambient tenant alone (never an empty,
+   * fail-closed scope), narrower than the fully unscoped by-id load the inject parent used before
+   * {@code InjectService#findInScope} existed. Every {@code @AccessControl(resourceType = INJECT)}
+   * endpoint today declares a {@code TxCtx} parameter, so this fallback is not exercised in
+   * production; it only guards a future endpoint that omits the parameter.
+   */
+  private static TxCtx requestTxCtx(Object[] args) {
+    for (Object arg : args) {
+      if (arg instanceof TxCtx ctx) {
+        return ctx;
+      }
+    }
+    return TxCtx.missing();
   }
 
   public record HttpMappingInfo(

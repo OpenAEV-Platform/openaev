@@ -37,15 +37,24 @@ As a reminder:
 - OpenAEV Enterprise Edition licenses are automatically provided to all Filigran SaaS customers.
 - **For all other usages including on-premise deployments, OpenAEV Enterprise Edition is reserved to organizations that have signed a Filigran Enterprise agreement.**
 
-### EE through an XTM license
+### EE through the Filigran license
 
-OpenAEV is also in Enterprise Edition when it is registered with an XTM One instance whose XTM license
+The Filigran license is the single license of the XTM Platform: one certificate for XTM One and its OpenCTI,
+OpenAEV and OpenCRQ modules, each module in Enterprise Edition by default. OpenAEV accepts it in two ways and keeps
+accepting existing OpenAEV licenses unchanged:
+
+- **Installed in OpenAEV**: paste the Filigran license PEM where you install an OpenAEV license (or set it in the
+  license configuration). OpenAEV verifies it with the rules below (Filigran signature, the OpenAEV module listing
+  `global` or this platform's id, validity dates) and the card shows **Filigran license** as the license source.
+- **Through XTM One**, described below.
+
+OpenAEV is also in Enterprise Edition when it is registered with an XTM One instance whose Filigran license
 sub-licenses this platform (the license lists this platform's id, or `global`, for OpenAEV). Every Enterprise
 Edition feature is then available, exactly as with an OpenAEV license. When both are valid, the OpenAEV license
 takes precedence.
 
 OpenAEV does not take XTM One's word for it: at every registration heartbeat (every 5 minutes), it verifies the
-Filigran-signed XTM license certificate returned by XTM One against the Filigran certificate authority built into
+Filigran-signed license certificate returned by XTM One against the Filigran certificate authority built into
 OpenAEV, then applies the license validity dates (90 days of grace for standard, LTS and NFR licenses, none for trial
 and CI licenses). A CI license ends at the earliest of three dates: 45 minutes after this OpenAEV instance was
 created, 365 days after the start date of its certificate, and the expiration date of its certificate. The
@@ -64,8 +73,9 @@ CI license, until the earliest of its three end dates. A `global` certificate co
 Point the XTM One URL at a host you trust, over HTTPS. This requires XTM One 1.261001.0 or later, which returns the license certificate;
 with an older XTM One, only the OpenAEV license applies and a warning is logged.
 
-The Enterprise Edition card in **Settings > Filigran Experience** shows the license source: **XTM One license** (with the
-customer, type and expiration date of the XTM license) or **OpenAEV license**.
+The Enterprise Edition card in **Settings > Filigran Experience** shows the license source: **Filigran license (through
+XTM One)** (with the customer, type and expiration date of the license), **Filigran license** (installed in OpenAEV) or
+**OpenAEV license**.
 
 ## Available features
 

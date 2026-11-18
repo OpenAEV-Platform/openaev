@@ -83,22 +83,16 @@ public class ImapService extends ExternalServiceBase {
   private void init() {
     this.saveServiceState(IMAP_SETTINGS_KEY, false);
     try {
-      initStore(env);
+      initStore();
     } catch (Exception e) {
       log.error(e.getMessage(), e);
     }
   }
 
-  private void initStore(Environment env) throws Exception {
-    Session session = Session.getDefaultInstance(buildProperties(env), null);
+  private void initStore() throws Exception {
+    Session session = Session.getDefaultInstance(buildProperties(), null);
     imapStore = session.getStore(PROVIDER);
-    String host = env.getProperty("openaev.mail.imap.host");
-    int port = env.getProperty("openaev.mail.imap.port", Integer.class, 995);
-    String username = env.getProperty("openaev.mail.imap.username");
-    String password = env.getProperty("openaev.mail.imap.password");
-    String sentFolder = env.getProperty("openaev.mail.imap.sent");
-    boolean isEnabled = env.getProperty("openaev.mail.imap.enabled", Boolean.class, false);
-    if (isEnabled) {
+    if (enabled) {
       log.info("IMAP sync started");
       imapStore.connect(host, port, username, password);
       try {
@@ -173,7 +167,7 @@ public class ImapService extends ExternalServiceBase {
     return result;
   }
 
-  private Properties buildProperties(Environment env) {
+  private Properties buildProperties() {
     String sslEnable = env.getProperty("openaev.mail.imap.ssl.enable");
     String sslTrust = env.getProperty("openaev.mail.imap.ssl.trust");
     String sslAuth = env.getProperty("openaev.mail.imap.auth");
@@ -316,14 +310,25 @@ public class ImapService extends ExternalServiceBase {
     }
   }
 
+  /**
+   * The per-inbox read cursor is a platform row of the dual-scope {@code parameters} table ({@code
+   * tenant_id IS NULL}): it tracks how far this IMAP account has read, not any tenant's data. Each
+   * DB-only step runs in its own short, platform-write transaction; the IMAP network calls (message
+   * count, fetch, and {@link #parseMessages}, which opens its own per-tenant transactions) run
+   * outside any transaction, in between.
+   */
   private void synchronizeBox(Folder inbox, Boolean isSent) throws Exception {
     String inboxKey = username + "-imap-" + inbox.getName();
-    Optional<Setting> state = this.getSettingRepository().findByKeyAndTenantIsNull(inboxKey);
-    Setting currentState = state.orElse(null);
-    if (currentState == null) {
-      currentState = this.getSettingRepository().save(new Setting(inboxKey, "0"));
-    }
-    int startMessageNumber = parseInt(currentState.getValue());
+    int startMessageNumber =
+        tenantScopedTransaction.executeAsPlatformWrite(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> {
+              Setting current =
+                  settingRepository
+                      .findByKeyAndTenantIsNull(inboxKey)
+                      .orElseGet(() -> settingRepository.save(new Setting(inboxKey, "0")));
+              return parseInt(current.getValue());
+            });
     int messageCount = inbox.getMessageCount();
     if (startMessageNumber < messageCount) {
       log.info(
@@ -334,8 +339,14 @@ public class ImapService extends ExternalServiceBase {
         parseMessages(messages, isSent);
       }
     }
-    currentState.setValue(String.valueOf(messageCount));
-    this.getSettingRepository().save(currentState);
+    int finalMessageCount = messageCount;
+    tenantScopedTransaction.executeAsPlatformWrite(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> {
+          Setting current = settingRepository.findByKeyAndTenantIsNull(inboxKey).orElseThrow();
+          current.setValue(String.valueOf(finalMessageCount));
+          settingRepository.save(current);
+        });
   }
 
   private void tryToSynchronizeFolderFromBox(String folderName, Boolean isSent) throws Exception {
@@ -354,7 +365,7 @@ public class ImapService extends ExternalServiceBase {
         tryToSynchronizeFolderFromBox(listeningFolder, false);
       }
     } catch (MessagingException e) {
-      log.warn(String.format("Connection failure: %s", e.getMessage()), e);
+      log.warn("Connection failure: {}", e.getMessage(), e);
       // Retry logic or rethrow the exception
       retrySyncFolders();
     }
@@ -366,7 +377,7 @@ public class ImapService extends ExternalServiceBase {
         syncFolders();
         break;
       } catch (MessagingException e) {
-        log.warn(String.format("Retrying connection... %s", e.getMessage()), e);
+        log.warn("Retrying connection... {}", e.getMessage(), e);
         Thread.sleep(2000);
         if (i == 2 && imapStore != null && imapStore.isConnected()) {
           imapStore.close();
@@ -406,5 +417,10 @@ public class ImapService extends ExternalServiceBase {
   @Override
   public SettingRepository getSettingRepository() {
     return settingRepository;
+  }
+
+  @Override
+  public TenantScopedTransaction getTenantScopedTransaction() {
+    return tenantScopedTransaction;
   }
 }

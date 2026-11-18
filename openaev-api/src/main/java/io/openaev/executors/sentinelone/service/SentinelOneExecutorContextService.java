@@ -35,6 +35,11 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
 
   ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
+  @Override
+  public void shutdown() {
+    scheduledExecutorService.shutdown();
+  }
+
   private final SentinelOneExecutorConfig config;
   private final SentinelOneExecutorClient client;
   private final EnterpriseEditionService enterpriseEditionService;

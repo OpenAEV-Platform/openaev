@@ -26,20 +26,20 @@ public class FullTextSearchApi extends RestBehavior {
   public static final String GLOBAL_SEARCH_URI = "/api/fulltextsearch";
   private static final String TENANT_GLOBAL_SEARCH_URI = TENANT_PREFIX + "/fulltextsearch";
 
-  private final FullTextSearchService<? extends Base> fullTextSearchService;
+  private final FullTextSearchService fullTextSearchService;
 
   @PostMapping({GLOBAL_SEARCH_URI, TENANT_GLOBAL_SEARCH_URI})
   @Transactional
   @AccessControl(skipRBAC = true)
-  public Map<? extends Class<? extends Base>, FullTextSearchService.FullTextSearchCountResult>
-      fullTextSearch(TxCtx ctx, @Valid @RequestBody final SearchTerm searchTerm) {
+  public Map<? extends Class<? extends Base>, FullTextSearchCountResult> fullTextSearch(
+      TxCtx ctx, @Valid @RequestBody final SearchTerm searchTerm) {
     return this.fullTextSearchService.fullTextSearch(searchTerm.getSearchTerm());
   }
 
   @PostMapping({GLOBAL_SEARCH_URI + "/{clazz}", TENANT_GLOBAL_SEARCH_URI + "/{clazz}"})
   @Transactional
   @AccessControl(skipRBAC = true)
-  public Page<FullTextSearchService.FullTextSearchResult> fullTextSearch(
+  public Page<FullTextSearchResult> fullTextSearch(
       TxCtx ctx,
       @PathVariable @NotBlank final String clazz,
       @RequestBody @Valid SearchPaginationInput searchPaginationInput)

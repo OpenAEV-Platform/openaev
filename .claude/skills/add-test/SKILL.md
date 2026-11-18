@@ -123,7 +123,8 @@ class {Feature}ServiceUnitTest {
 
 ```bash
 mvn test -pl openaev-api -Dtest="{Feature}ApiTest"
-mvn jacoco:check
+# Coverage of the lines this branch changes, the rule CI checks (80%, partial lines not covered)
+python3 .github/scripts/check-patch-coverage.py --report openaev-api/target/site/jacoco/jacoco.xml --base origin/main --fail-under 80
 ```
 
 ## Sub-Skills

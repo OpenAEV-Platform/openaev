@@ -322,6 +322,9 @@ const GroupDetail = () => {
             <InformationGrid title={t('Information')}>
               <Field label={t('Description')}>{description || '-'}</Field>
               <Field label={t('Default user assignment')}>{defaultUserAssign ? t('Yes') : t('No')}</Field>
+              {!isPlatform && markingEnabled && (
+                <Field label={t('Auto assign new markings')}>{group!.group_auto_new_marking ? t('Yes') : t('No')}</Field>
+              )}
             </InformationGrid>
             <Section title={t('Roles')}>
               {!platformRolesReady && (

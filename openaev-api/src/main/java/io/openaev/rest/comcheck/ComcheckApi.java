@@ -5,15 +5,14 @@ import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.ComcheckStatusRepository;
-import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.rest.comcheck.form.ComcheckInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -26,7 +25,7 @@ public class ComcheckApi extends RestBehavior {
 
   private ComcheckRepository comcheckRepository;
   private TeamRepository teamRepository;
-  private ExerciseRepository exerciseRepository;
+  private ExerciseService exerciseService;
   private ComcheckStatusRepository comcheckStatusRepository;
 
   @Autowired
@@ -45,8 +44,8 @@ public class ComcheckApi extends RestBehavior {
   }
 
   @Autowired
-  public void setExerciseRepository(ExerciseRepository exerciseRepository) {
-    this.exerciseRepository = exerciseRepository;
+  public void setExerciseService(ExerciseService exerciseService) {
+    this.exerciseService = exerciseService;
   }
 
   @GetMapping("/api/comcheck/{comcheckStatusId}")
@@ -104,9 +103,7 @@ public class ComcheckApi extends RestBehavior {
     check.setName(comCheck.getName());
     check.setStart(now());
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     check.setExercise(exercise);
     // 02. Get users
     List<String> teamIds = comCheck.getTeamIds();

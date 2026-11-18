@@ -265,6 +265,8 @@ class InjectTagsSerializationTenantScopeTest extends IntegrationTest {
       InjectInput input = new InjectInput();
       input.setTitle(inject.getTitle());
       input.setTagIds(tagIds);
+      // The form re-sends the secret references it was filled with: the update replaces them.
+      input.setSecretReferences(secretReferenceIds(inject));
       return input;
     }
   }

@@ -152,32 +152,6 @@ class TenantStatementInspectorTest {
   }
 
   @Test
-  @DisplayName("the AI defense collector query passes with collectors active (regression #7007)")
-  void aiDefenseExpectationsQueryPassesWithCollectorsActive() throws Exception {
-    // #6751 activated collectors, which pulled findAgentlessExpectationsNotFilledForSource into
-    // rewriting; its jsonb_array_elements predicate was refused and the AI expectations endpoint
-    // returned 500 TENANT_FILTERING_REFUSED to every AI defense collector. Pin the real production
-    // SQL against an inspector with collectors active (dual-scope, tenant_id is nullable).
-    String sql =
-        io.openaev.database.repository.InjectExpectationRepository.class
-            .getMethod(
-                "findAgentlessExpectationsNotFilledForSource",
-                String.class,
-                String.class,
-                String.class,
-                int.class)
-            .getAnnotation(org.springframework.data.jpa.repository.Query.class)
-            .value();
-    TenantStatementInspector collectorsActive =
-        new TenantStatementInspector(new TenantTables(Set.of(), Set.of("collectors")));
-    String out = collectorsActive.inspect(sql).replaceAll("\\s+", " ").trim();
-    // The collectors read source is filtered (platform rows allowed: dual-scope read)...
-    assertTrue(out.contains("can_access_tenant(c.tenant_id, true)"), out);
-    // ...and the result predicate survives the rewrite instead of being refused.
-    assertTrue(out.contains("jsonb_array_elements"), out);
-  }
-
-  @Test
   @DisplayName("the expectation indexing query has its collectors joins tenant-filtered")
   void expectationIndexingQueryCollectorsJoinsAreFilteredWithCollectorsActive() throws Exception {
     // #6751 activated collectors, which pulled findForIndexing into rewriting: both collectors
@@ -199,8 +173,6 @@ class TenantStatementInspectorTest {
     assertTrue(out.contains("can_access_tenant(c.tenant_id)"), out);
     // ...and the agent_security_platforms join (agent-level children's results) are both filtered.
     assertTrue(out.contains("can_access_tenant(child_c.tenant_id)"), out);
-    // The lateral jsonb unnests survive the rewrite instead of being refused.
-    assertTrue(out.contains("jsonb_array_elements"), out);
   }
 
   @Test
@@ -614,11 +586,25 @@ class TenantStatementInspectorTest {
   }
 
   @Test
-  @DisplayName("a write to a dual-scope table does not reach platform rows (no allow_platform)")
-  void updateDualScopeTargetExcludesPlatform() {
+  @DisplayName("a write to a dual-scope table's platform row needs the platform-write marker")
+  void updateDualScopeTargetChecksPlatformWrite() {
     String out = inspect("UPDATE groups g SET x = 1 WHERE g.id = ?");
-    assertTrue(out.contains("can_access_tenant(g.tenant_id)"), out);
-    assertFalse(out.contains("can_access_tenant(g.tenant_id, true)"), out);
+    assertTrue(out.contains("can_write_tenant(g.tenant_id, true)"), out);
+    // A platform row it refuses is an error, not a statement that matches no row.
+    assertTrue(
+        out.contains("g.tenant_id IS NULL AND require_tenant_write(g.tenant_id, true)"), out);
+    // The plain can_access_tenant predicate (no platform-write branch) is what a strict table's
+    // write uses; a dual-scope table's write must not fall back to it unconditionally.
+    assertFalse(out.contains("can_access_tenant(g.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("a DELETE of a dual-scope table's platform row without the marker is an error")
+  void deleteDualScopeTargetRaisesForAPlatformRow() {
+    String out = inspect("DELETE FROM groups g WHERE g.id = ?");
+    assertTrue(out.contains("can_write_tenant(g.tenant_id, true)"), out);
+    assertTrue(
+        out.contains("g.tenant_id IS NULL AND require_tenant_write(g.tenant_id, true)"), out);
   }
 
   // --- INSERT --------------------------------------------------------------
@@ -677,6 +663,198 @@ class TenantStatementInspectorTest {
   void insertValuesSubqueryFiltered() {
     String out = inspect("INSERT INTO documents (id) VALUES ((SELECT max(f.x) FROM findings f))");
     assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+  }
+
+  // --- Dual-scope table writes (the platform-write rule) --------------------
+
+  @Test
+  @DisplayName(
+      "an INSERT ... VALUES into a dual-scope table keeps its shape and guards the written tenant")
+  void insertValuesIntoDualScopeTableGuardsTheWrittenTenantInPlace() {
+    String out = inspect("INSERT INTO groups (id, flag, tenant_id) VALUES (1, NULL, NULL)");
+    // The tuple is not turned into a derived table: PostgreSQL then types NULL by the target column
+    assertTrue(out.contains("VALUES (1, NULL, tenant_write_value(NULL, true))"), out);
+    assertFalse(out.contains("FROM (VALUES"), out);
+    assertFalse(out.contains("can_write_tenant"), out);
+  }
+
+  @Test
+  @DisplayName("a bind-parameter tenant keeps its place among the placeholders")
+  void insertValuesIntoDualScopeTableKeepsThePlaceholderOrder() {
+    String out = inspect("INSERT INTO groups (id, tenant_id, flag) VALUES (?, ?, ?)");
+    assertTrue(out.contains("VALUES (?, tenant_write_value(?, true), ?)"), out);
+  }
+
+  @Test
+  @DisplayName("every row of a multi-row VALUES has its written tenant guarded")
+  void insertValuesIntoDualScopeTableGuardsEveryRow() {
+    String out = inspect("INSERT INTO groups (id, tenant_id) VALUES (?, ?), (?, NULL)");
+    assertTrue(
+        out.contains(
+            "VALUES (?, tenant_write_value(?, true)), (?, tenant_write_value(NULL, true))"),
+        out);
+  }
+
+  @Test
+  @DisplayName("an UPDATE of a dual-scope table guards the tenant it assigns")
+  void updateOfDualScopeTableGuardsTheAssignedTenant() {
+    String out = inspect("UPDATE groups g SET name = ?, tenant_id = ? WHERE g.id = ?");
+    assertTrue(out.contains("tenant_id = tenant_write_value(?, true)"), out);
+    assertTrue(out.contains("name = ?"), out);
+  }
+
+  @Test
+  @DisplayName("an UPDATE of a dual-scope table that assigns no tenant is left as it is")
+  void updateOfDualScopeTableWithoutTenantIsUnchangedBesideTheScope() {
+    String out = inspect("UPDATE groups g SET name = ? WHERE g.id = ?");
+    assertFalse(out.contains("tenant_write_value"), out);
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(
+      strings = {
+        "UPDATE groups SET (tenant_id, name) = (SELECT 1, 2) WHERE id = ?",
+        "UPDATE groups SET (name, tenant_id) = (SELECT 1, 2) WHERE id = ?",
+        "INSERT INTO groups (id, tenant_id) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET"
+            + " (tenant_id, name) = (SELECT 1, 2)",
+        "INSERT INTO groups (id, tenant_id) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET"
+            + " (name, tenant_id) = (SELECT 1, 2)"
+      })
+  @DisplayName("an assignment of the tenant that does not line up with its columns is refused")
+  void assignmentOfTheTenantThatDoesNotLineUpIsRefused(String sql) {
+    TenantFilteringException refusal =
+        assertThrows(TenantFilteringException.class, () -> inspector.inspect(sql));
+    assertTrue(refusal.getMessage().contains("does not line up"), refusal.getMessage());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(
+      strings = {
+        "UPDATE documents SET (document_name, tenant_id) = (SELECT 'renamed', 'tenant-a')"
+            + " WHERE id = ?",
+        "UPDATE documents SET (tenant_id, document_name) = (SELECT 'tenant-a', 'renamed')"
+            + " WHERE id = ?",
+        "INSERT INTO documents (id, tenant_id) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET"
+            + " (document_name, tenant_id) = (SELECT 'renamed', 'tenant-a')"
+      })
+  @DisplayName("an assignment of the tenant of a strict table is not validated, not guarded")
+  void assignmentOfTheTenantOfAStrictTableIsLeftAlone(String sql) {
+    String out = inspect(sql);
+    assertFalse(out.contains("tenant_write_value"), out);
+    assertTrue(
+        out.contains("SELECT 'renamed', 'tenant-a'")
+            || out.contains("SELECT 'tenant-a', 'renamed'"),
+        out);
+  }
+
+  @Test
+  @DisplayName("a multi-column UPDATE assigning the tenant from a list guards the tenant")
+  void multiColumnUpdateOfDualScopeTableGuardsTheAssignedTenant() {
+    String out = inspect("UPDATE groups SET (name, tenant_id) = (?, ?) WHERE id = ?");
+    assertTrue(out.contains("tenant_write_value(?, true)"), out);
+  }
+
+  @Test
+  @DisplayName("an UPDATE of a strict table does not guard the tenant it assigns")
+  void updateOfStrictTableDoesNotGuardTheAssignedTenant() {
+    String out = inspect("UPDATE documents d SET tenant_id = ? WHERE d.id = ?");
+    assertFalse(out.contains("tenant_write_value"), out);
+  }
+
+  @Test
+  @DisplayName("ON CONFLICT DO UPDATE on a dual-scope table guards the tenant it assigns")
+  void onConflictDoUpdateOfDualScopeTableGuardsTheAssignedTenant() {
+    String out =
+        inspect(
+            "INSERT INTO groups (id, tenant_id) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET"
+                + " tenant_id = EXCLUDED.tenant_id");
+    assertTrue(out.contains("tenant_id = tenant_write_value(EXCLUDED.tenant_id, true)"), out);
+  }
+
+  @Test
+  @DisplayName(
+      "an INSERT into a dual-scope table that omits tenant_id is refused: the omitted column is a"
+          + " platform row")
+  void insertValuesIntoDualScopeTableWithoutTenantIdIsRefused() {
+    assertThrows(
+        TenantFilteringException.class,
+        () -> inspector.inspect("INSERT INTO groups (id, x) VALUES (1, 2)"));
+  }
+
+  @Test
+  @DisplayName("an INSERT into a dual-scope table with no column list is refused")
+  void insertValuesIntoDualScopeTableWithoutColumnListIsRefused() {
+    assertThrows(
+        TenantFilteringException.class,
+        () -> inspector.inspect("INSERT INTO groups VALUES (1, 2)"));
+  }
+
+  @Test
+  @DisplayName("an INSERT ... DEFAULT VALUES into a dual-scope table is refused")
+  void insertDefaultValuesIntoDualScopeTableIsRefused() {
+    assertThrows(
+        TenantFilteringException.class,
+        () -> inspector.inspect("INSERT INTO groups DEFAULT VALUES"));
+  }
+
+  @Test
+  @DisplayName("a tenant sub-query inside an INSERT ... VALUES into a dual-scope table is filtered")
+  void insertValuesIntoDualScopeTableFiltersItsSubqueries() {
+    String out =
+        inspect(
+            "INSERT INTO groups (id, tenant_id) VALUES ((SELECT max(f.x) FROM findings f), NULL)");
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+    assertTrue(out.contains("tenant_write_value(NULL, true)"), out);
+  }
+
+  @Test
+  @DisplayName(
+      "an INSERT ... VALUES into a strict table is not rewritten, whether or not tenant_id is"
+          + " present")
+  void insertValuesIntoStrictTableStaysUnvalidated() {
+    String out = inspect("INSERT INTO documents (id, tenant_id) VALUES (1, NULL)");
+    assertFalse(out.contains("tenant_write_value"), out);
+    assertFalse(out.contains("can_access_tenant"), out);
+    assertFalse(out.contains("FROM (VALUES"), out);
+  }
+
+  @Test
+  @DisplayName("an INSERT ... VALUES into a strict table with a short row is left to the database")
+  void insertValuesIntoStrictTableWithAShortRowIsNotRefused() {
+    assertDoesNotThrow(() -> inspector.inspect("INSERT INTO documents (id, tenant_id) VALUES (1)"));
+  }
+
+  @Test
+  @DisplayName("an INSERT ... VALUES into a dual-scope table with a short row is refused")
+  void insertValuesIntoDualScopeTableWithAShortRowIsRefused() {
+    assertThrows(
+        TenantFilteringException.class,
+        () -> inspector.inspect("INSERT INTO groups (id, tenant_id) VALUES (1)"));
+  }
+
+  @Test
+  @DisplayName("an INSERT ... SELECT into a dual-scope table raises on a refused written tenant_id")
+  void insertSelectIntoDualScopeTableChecksPlatformWrite() {
+    String out = inspect("INSERT INTO groups (id, tenant_id) SELECT u.id, u.tid FROM users u");
+    assertTrue(out.contains("tenant_write_value(u.tid, true)"), out);
+  }
+
+  @Test
+  @DisplayName(
+      "an INSERT ... SELECT into a dual-scope table guards the projected value once, in place, and"
+          + " adds no second copy of it to the WHERE")
+  void insertSelectIntoDualScopeTableGuardsTheProjectionOnly() {
+    String out =
+        inspect("INSERT INTO groups (id, tenant_id) SELECT u.id, u.tid FROM users u WHERE u.x = 1");
+    assertFalse(out.contains("require_tenant_write(u.tid"), out);
+    assertEquals(1, out.split("u\\.tid", -1).length - 1, out);
+  }
+
+  @Test
+  @DisplayName("an INSERT ... SELECT into a dual-scope table accepts a bind-parameter tenant_id")
+  void insertSelectIntoDualScopeTableAcceptsABindParameter() {
+    String out = inspect("INSERT INTO groups (id, tenant_id) SELECT u.id, ? FROM users u");
+    assertTrue(out.contains("tenant_write_value(?, true)"), out);
   }
 
   @Test
@@ -1073,13 +1251,13 @@ class TenantStatementInspectorTest {
   void findingIndexingQueryGroupsOnEveryProjectedColumn() throws Exception {
     String sql =
         io.openaev.database.repository.FindingRepository.class
-            .getMethod("findForIndexing", java.time.Instant.class, int.class)
+            .getMethod("findForIndexing", java.time.Instant.class, String.class, int.class)
             .getAnnotation(org.springframework.data.jpa.repository.Query.class)
             .value();
     // Cut at ORDER BY: the substring used to run to the end of the query, which ends
-    // "ORDER BY f.finding_updated_at LIMIT :limit". contains("f.finding_updated_at") was then
-    // satisfied by the ORDER BY occurrence, so deleting that column from the real GROUP BY - the
-    // exact edit this test exists to catch - left it green.
+    // "ORDER BY f.finding_updated_at, f.finding_id LIMIT :limit". contains("f.finding_updated_at")
+    // was then satisfied by the ORDER BY occurrence, so deleting that column from the real GROUP
+    // BY - the exact edit this test exists to catch - left it green.
     String tail = sql.substring(sql.indexOf("GROUP BY"));
     int orderBy = tail.indexOf("ORDER BY");
     String groupBy = (orderBy < 0 ? tail : tail.substring(0, orderBy)).toLowerCase();

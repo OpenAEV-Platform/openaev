@@ -11,6 +11,7 @@ import { searchExerciseByIdAsOption } from '../../../../actions/exercises/exerci
 import { searchInjectorByIdAsOptions } from '../../../../actions/injectors/injector-action';
 import { searchInjectByIdAsOption, searchTargetOptionsById } from '../../../../actions/injects/inject-action';
 import { searchKillChainPhasesByIdAsOption } from '../../../../actions/kill_chain_phases/killChainPhase-action';
+import { searchMarkingDefinitionByIdAsOption } from '../../../../actions/marking_definitions/marking-definition-actions';
 import { searchOrganizationByIdAsOptions } from '../../../../actions/organizations/organization-actions';
 import { searchScenarioByIdAsOption } from '../../../../actions/scenarios/scenario-actions';
 import { searchSimulationByIdAsOptions } from '../../../../actions/simulations/simulation-action';
@@ -178,8 +179,8 @@ const useRetrieveOptions = () => {
           setOptions(response.data);
         });
         break;
-      case 'payload_author_team':
-        searchTeamByIdAsOption(ids).then((response) => {
+      case 'asset_markings':
+        searchMarkingDefinitionByIdAsOption(ids).then((response) => {
           setOptions(response.data);
         });
         break;
@@ -237,15 +238,14 @@ const useRetrieveOptions = () => {
           setOptions([...teams.data, ...assetGroups.data]);
         });
         break;
-      // Author filter: an id may belong to a person, a team or an organization -
-      // resolve across all three and merge (each id only matches its own type).
+      // Author filter: an id may belong to a person or an organization -
+      // resolve across both and merge (each id only matches its own type).
       case 'action_author':
         Promise.all([
           searchPlayerByIdAsOption(ids),
-          searchTeamByIdAsOption(ids),
           searchOrganizationByIdAsOptions(ids),
-        ]).then(([players, teams, organizations]) => {
-          setOptions([...players.data, ...teams.data, ...organizations.data]);
+        ]).then(([players, organizations]) => {
+          setOptions([...players.data, ...organizations.data]);
         });
         break;
       case CUSTOM_DASHBOARD:

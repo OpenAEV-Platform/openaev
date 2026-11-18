@@ -12,6 +12,7 @@ import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.User;
+import io.openaev.database.model.author.Authored;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
@@ -22,6 +23,7 @@ import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.service.AuthorService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
 import io.openaev.service.organization.OrganizationService;
@@ -60,6 +62,7 @@ class InjectorContractAuthorshipTest {
   @Mock private DomainService domainService;
   @Mock private InjectorRepository injectorRepository;
   @Mock private UserService userService;
+  @Mock private AuthorService authorService;
   @Mock private AttackPatternRepository attackPatternRepository;
   @Mock private TagRepository tagRepository;
   @Mock private InjectorService injectorService;
@@ -96,7 +99,13 @@ class InjectorContractAuthorshipTest {
     lenient()
         .when(organizationService.findOrCreateByName(PUBLISHER, TENANT_ID))
         .thenReturn(publisherOrganization);
-    lenient().when(userService.currentUser()).thenReturn(sessionUser);
+    lenient()
+        .when(authorService.authorByCurrentUser(any()))
+        .thenAnswer(
+            invocation -> {
+              invocation.<Authored>getArgument(0).setAuthorUser(sessionUser);
+              return true;
+            });
   }
 
   @AfterEach

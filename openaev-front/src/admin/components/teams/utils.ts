@@ -4,7 +4,6 @@ import * as R from 'ramda';
 import { type Team } from '../../../utils/api-types';
 import { colors } from '../../../utils/Charts';
 
-// eslint-disable-next-line import/prefer-default-export
 export const getTeamsColors: (teams: Team[]) => Record<string, string> = (teams: Team[]) => {
   const theme = useTheme();
 

@@ -54,6 +54,23 @@ public class InjectExpectationTrace implements Base {
   @Column(name = "inject_expectation_trace_date")
   private Instant alertDate;
 
+  /** How a Logging trace matched the attack. Null for Detection and Prevention traces. */
+  @Column(name = "inject_expectation_trace_match_type")
+  @JsonProperty("inject_expectation_trace_match_type")
+  @Enumerated(EnumType.STRING)
+  private LOGGING_MATCH_TYPE matchType;
+
+  public enum LOGGING_MATCH_TYPE {
+    /** The event carries the implant marker of the execution: strong evidence. */
+    MARKER,
+    /**
+     * The event only carries an IP of the source host within the execution window: weak evidence.
+     */
+    SOURCE_IP,
+    /** The event only carries the target IP within the execution window: weak evidence. */
+    TARGET_IP
+  }
+
   @Column(name = "inject_expectation_trace_created_at")
   @JsonProperty("inject_expectation_trace_created_at")
   @NotNull

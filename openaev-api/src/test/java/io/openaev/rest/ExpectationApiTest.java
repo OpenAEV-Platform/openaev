@@ -22,25 +22,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.model.inject.form.Expectation;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
+import io.openaev.rest.exercise.form.InjectExpectationUpdateFromUIInput;
 import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.rest.inject.service.AssetToExecute;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -66,6 +68,8 @@ class ExpectationApiTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private InjectExpectationService injectExpectationService;
+  @Autowired private OpenAEVConfig openAEVConfig;
+  @Autowired private CacheManager cacheManager;
 
   // Saved entities for test setup
   private Injector savedInjector;
@@ -191,7 +195,7 @@ class ExpectationApiTest extends IntegrationTest {
               savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent expectation
-      ExpectationUpdateInput expectationUpdateInput =
+      InjectExpectationUpdateFromUIInput expectationUpdateInput =
           getExpectationUpdateInput(savedEDRCollector.getId(), 100.0);
       callUpdateInjectExpectationFromUI(injectExpectations.getFirst(), expectationUpdateInput);
 
@@ -272,7 +276,7 @@ class ExpectationApiTest extends IntegrationTest {
               savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent 1 expectation
-      ExpectationUpdateInput expectationUpdateInput =
+      InjectExpectationUpdateFromUIInput expectationUpdateInput =
           getExpectationUpdateInput(savedEDRCollector.getId(), 100.0);
       callUpdateInjectExpectationFromUI(injectExpectations.getFirst(), expectationUpdateInput);
 
@@ -402,7 +406,7 @@ class ExpectationApiTest extends IntegrationTest {
       em.clear();
 
       // Fill the same source's result on both agents, like a security platform collector does
-      ExpectationUpdateInput expectationUpdateInput =
+      InjectExpectationUpdateFromUIInput expectationUpdateInput =
           getExpectationUpdateInput(savedEDRCollector.getId(), 100.0);
       callUpdateInjectExpectationFromUI(
           injectExpectationRepository
@@ -491,15 +495,17 @@ class ExpectationApiTest extends IntegrationTest {
       injectExpectations
           .getFirst()
           .setResults(
-              List.of(
-                  InjectExpectationResult.builder()
-                      .sourceId(savedEDRCollector.getId())
-                      .sourceName(savedEDRCollector.getName())
-                      .sourceType(savedEDRCollector.getType())
-                      .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                      .sourceAssetId(UUID.randomUUID().toString())
-                      .score(50.0)
-                      .build()));
+              new ArrayList<>(
+                  List.of(
+                      InjectExpectationResult.builder()
+                          .sourceId(savedEDRCollector.getId())
+                          .sourceName(savedEDRCollector.getName())
+                          .sourceType(savedEDRCollector.getType())
+                          .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                          .sourceAssetId(UUID.randomUUID().toString())
+                          .score(50.0)
+                          .date(Instant.now())
+                          .build())));
 
       injectExpectationRepository.save(injectExpectations.getFirst());
 
@@ -653,16 +659,18 @@ class ExpectationApiTest extends IntegrationTest {
       injectExpectations
           .get(0)
           .setResults(
-              List.of(
-                  InjectExpectationResult.builder()
-                      .sourceId(savedEDRCollector.getId())
-                      .sourceName(savedEDRCollector.getName())
-                      .sourceType(savedEDRCollector.getType())
-                      .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                      .sourceAssetId(UUID.randomUUID().toString())
-                      .result("result")
-                      .score(80.0)
-                      .build()));
+              new ArrayList<>(
+                  List.of(
+                      InjectExpectationResult.builder()
+                          .sourceId(savedEDRCollector.getId())
+                          .sourceName(savedEDRCollector.getName())
+                          .sourceType(savedEDRCollector.getType())
+                          .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                          .sourceAssetId(UUID.randomUUID().toString())
+                          .result("result")
+                          .score(80.0)
+                          .date(Instant.now())
+                          .build())));
 
       injectExpectationRepository.save(injectExpectations.get(0));
 
@@ -741,16 +749,18 @@ class ExpectationApiTest extends IntegrationTest {
       injectExpectations
           .get(0)
           .setResults(
-              List.of(
-                  InjectExpectationResult.builder()
-                      .sourceId(savedEDRCollector.getId())
-                      .sourceName(savedEDRCollector.getName())
-                      .sourceType(savedEDRCollector.getType())
-                      .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
-                      .sourceAssetId(UUID.randomUUID().toString())
-                      .result("result")
-                      .score(90.0)
-                      .build()));
+              new ArrayList<>(
+                  List.of(
+                      InjectExpectationResult.builder()
+                          .sourceId(savedEDRCollector.getId())
+                          .sourceName(savedEDRCollector.getName())
+                          .sourceType(savedEDRCollector.getType())
+                          .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                          .sourceAssetId(UUID.randomUUID().toString())
+                          .result("result")
+                          .score(90.0)
+                          .date(Instant.now())
+                          .build())));
 
       injectExpectationRepository.save(injectExpectations.get(0));
 
@@ -802,7 +812,7 @@ class ExpectationApiTest extends IntegrationTest {
               savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent expectation
-      InjectExpectationUpdateInput expectationUpdateInput =
+      InjectExpectationUpdateFromCollectorInput expectationUpdateInput =
           getInjectExpectationUpdateInput(savedEDRCollector.getId(), DETECTION.successLabel, true);
       callUpdateInjectExpectation(injectExpectationsAgent.getFirst(), expectationUpdateInput);
 
@@ -884,12 +894,12 @@ class ExpectationApiTest extends IntegrationTest {
               savedInject.getId(), savedAgent1.getId());
 
       // Add Success result to Agent expectation
-      InjectExpectationUpdateInput expectationUpdateInput =
+      InjectExpectationUpdateFromCollectorInput expectationUpdateInput =
           getInjectExpectationUpdateInput(savedEDRCollector.getId(), DETECTION.successLabel, true);
       callUpdateInjectExpectation(injectExpectations.getFirst(), expectationUpdateInput);
 
       // Add Failure result to Agent expectation
-      InjectExpectationUpdateInput expectationUpdateInput2 =
+      InjectExpectationUpdateFromCollectorInput expectationUpdateInput2 =
           getInjectExpectationUpdateInput(
               savedSIEMCollector.getId(), DETECTION.failureLabel, false);
       callUpdateInjectExpectation(injectExpectations.getFirst(), expectationUpdateInput2);
@@ -941,13 +951,13 @@ class ExpectationApiTest extends IntegrationTest {
       List<BaseInjectExpectation> injectExpectationsAgent1 =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
-      InjectExpectationUpdateInput expectationUpdateInputAgent1 =
+      InjectExpectationUpdateFromCollectorInput expectationUpdateInputAgent1 =
           getInjectExpectationUpdateInput(savedEDRCollector.getId(), "Detected", true);
       // Fetch BaseInjectExpectation created for agent 2
       List<BaseInjectExpectation> injectExpectationsAgent2 =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent2.getId());
-      InjectExpectationUpdateInput expectationUpdateInputAgent2 =
+      InjectExpectationUpdateFromCollectorInput expectationUpdateInputAgent2 =
           getInjectExpectationUpdateInput(savedEDRCollector.getId(), "Not detected", false);
 
       InjectExpectationBulkUpdateInput inputs =
@@ -1088,9 +1098,9 @@ class ExpectationApiTest extends IntegrationTest {
     }
 
     /**
-     * Regression test: a collector writing a failed result DIRECTLY on an asset-level parent
-     * expectation (asset with agent children) must not clobber the score derived from the agents.
-     * The green verdict rolled up from the agents stays, the direct result is only recorded.
+     * Regression test: a collector answering an asset-level parent expectation (asset with agent
+     * children) with a failure must not clobber the score derived from the agents. The result is
+     * written on the agents, where the green verdict of another source still settles them.
      */
     @Test
     @DisplayName("Direct collector failure cannot clobber a parent whose agents are green")
@@ -1128,12 +1138,15 @@ class ExpectationApiTest extends IntegrationTest {
               savedSIEMCollector.getId(), DETECTION.failureLabel, false));
 
       // -- ASSERT --
-      // The direct result is recorded on the parent row...
+      // The result is written on the agents (the leaves), never on the parent row...
+      agentExpectations =
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
+      assertEquals(0.0, getResultScoreForCollector(agentExpectations, savedSIEMCollector).get());
+      // ...where the green EDR result still settles the agent, hence the parent
       assetExpectations =
           injectExpectationRepository.findAllByInjectAndAsset(
               savedInject.getId(), savedEndpoint.getId());
-      assertEquals(0.0, getResultScoreForCollector(assetExpectations, savedSIEMCollector).get());
-      // ...but the children-derived verdict is untouched
       assertEquals(detectionExpectation.getScore(), getScore(assetExpectations));
       List<BaseInjectExpectation> assetGroupExpectations =
           injectExpectationRepository.findAllByInjectAndAssetGroup(
@@ -1213,6 +1226,239 @@ class ExpectationApiTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @Transactional
+  @WithMockUser(isAdmin = true)
+  @DisplayName("Logging expectations for collectors")
+  class LoggingExpectationsForCollectors {
+
+    private static final String LOGGING_URI = INJECTS_EXPECTATIONS_URI + "/logging/";
+
+    private String originalDevFeatures;
+
+    @BeforeEach
+    void declareLoggingOnSiemCollector() {
+      originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
+      // Only the SIEM collector declares Logging: the EDR one keeps the legacy behaviour.
+      Collector siem =
+          collectorRepository
+              .findByIdAndTenantId(savedSIEMCollector.getId(), Tenant.DEFAULT_TENANT_UUID)
+              .orElseThrow();
+      siem.setSupportedExpectationTypes(
+          new BaseInjectExpectation.EXPECTATION_TYPE[] {
+            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+            BaseInjectExpectation.EXPECTATION_TYPE.LOGGING
+          });
+      collectorRepository.save(siem);
+      em.flush();
+      em.clear();
+    }
+
+    @AfterEach
+    void restoreDevFeatures() {
+      // The config bean is shared by the Spring context: restore the flags of the test profile
+      openAEVConfig.setEnabledDevFeatures(originalDevFeatures);
+      Optional.ofNullable(cacheManager.getCache("global")).ifPresent(Cache::clear);
+    }
+
+    @Test
+    @DisplayName("given_flag_off_should_return_an_empty_list")
+    void given_flag_off_should_return_an_empty_list() throws Exception {
+      // Arrange
+      setLoggingFlag(false);
+      computeDetectionAndLoggingExpectations();
+
+      // Act & Assert
+      mvc.perform(
+              get(LOGGING_URI + savedSIEMCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    @DisplayName("given_flag_on_should_return_only_unanswered_logging_leaves")
+    void given_flag_on_should_return_only_unanswered_logging_leaves() throws Exception {
+      // Arrange
+      setLoggingFlag(true);
+      computeDetectionAndLoggingExpectations();
+
+      // Act & Assert
+      mvc.perform(
+              get(LOGGING_URI + savedSIEMCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(2)))
+          .andExpect(
+              jsonPath(
+                  "$[*].inject_expectation_type",
+                  everyItem(is(BaseInjectExpectation.EXPECTATION_TYPE.LOGGING_VALUE))))
+          .andExpect(
+              jsonPath(
+                  "$[*].inject_expectation_agent",
+                  containsInAnyOrder(savedAgent1.getId(), savedAgent2.getId())));
+    }
+
+    @Test
+    @DisplayName("given_logging_expectations_should_not_be_returned_by_the_assets_route")
+    void given_logging_expectations_should_not_be_returned_by_the_assets_route() throws Exception {
+      // Arrange
+      setLoggingFlag(true);
+      computeDetectionAndLoggingExpectations();
+
+      // Act & Assert
+      mvc.perform(
+              get(INJECTS_EXPECTATIONS_URI + "/assets/" + savedSIEMCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(2)))
+          .andExpect(
+              jsonPath(
+                  "$[*].inject_expectation_type",
+                  everyItem(is(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION_VALUE))));
+    }
+
+    @Test
+    @DisplayName("given_collector_without_declaration_should_not_be_awaited_on_logging")
+    void given_collector_without_declaration_should_not_be_awaited_on_logging() {
+      // Arrange
+      setLoggingFlag(true);
+      computeDetectionAndLoggingExpectations();
+
+      // Act
+      List<BaseInjectExpectation> agentExpectations =
+          injectExpectationRepository.findAllByInjectAndAgent(
+              savedInject.getId(), savedAgent1.getId());
+
+      // Assert
+      BaseInjectExpectation logging =
+          agentExpectations.stream()
+              .filter(e -> e.getType() == BaseInjectExpectation.EXPECTATION_TYPE.LOGGING)
+              .findFirst()
+              .orElseThrow();
+      BaseInjectExpectation detection =
+          agentExpectations.stream()
+              .filter(e -> e.getType() == BaseInjectExpectation.EXPECTATION_TYPE.DETECTION)
+              .findFirst()
+              .orElseThrow();
+      assertEquals(
+          List.of(savedSIEMCollector.getId()),
+          logging.getResults().stream().map(InjectExpectationResult::getSourceId).toList());
+      assertEquals(
+          Set.of(savedEDRCollector.getId(), savedSIEMCollector.getId()),
+          new HashSet<>(
+              detection.getResults().stream().map(InjectExpectationResult::getSourceId).toList()));
+    }
+
+    @Test
+    @DisplayName("given_collector_not_awaited_should_not_receive_logging_leaves")
+    void given_collector_not_awaited_should_not_receive_logging_leaves() throws Exception {
+      // Arrange
+      setLoggingFlag(true);
+      computeDetectionAndLoggingExpectations();
+
+      // Act & Assert
+      mvc.perform(
+              get(LOGGING_URI + savedEDRCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    @DisplayName("given_expired_logging_leaves_should_not_be_returned")
+    void given_expired_logging_leaves_should_not_be_returned() throws Exception {
+      // Arrange
+      setLoggingFlag(true);
+      computeDetectionAndLoggingExpectations();
+      backdateExpectationsOfInject();
+
+      // Act & Assert
+      mvc.perform(
+              get(LOGGING_URI + savedSIEMCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    @DisplayName("given_agentless_leaf_should_be_returned_only_while_not_expired")
+    void given_agentless_leaf_should_be_returned_only_while_not_expired() throws Exception {
+      // Arrange
+      setLoggingFlag(true);
+      Endpoint agentlessEndpoint =
+          endpointRepository.save(EndpointFixture.createEndpoint("agentless-endpoint"));
+      ExecutableInject executableInject = newExecutableInjectWithTargets(false);
+      executableInject.cacheAssetsToExecute(List.of(new AssetToExecute(agentlessEndpoint)));
+      Expectation logging =
+          createExpectation(BaseInjectExpectation.EXPECTATION_TYPE.LOGGING, "Logging");
+      logging.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(logging), "implantType");
+      em.flush();
+      em.clear();
+
+      // Act & Assert: awaited from the collector declaring Logging only
+      mvc.perform(
+              get(LOGGING_URI + savedSIEMCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(1)))
+          .andExpect(jsonPath("$[0].inject_expectation_asset", is(agentlessEndpoint.getId())));
+      mvc.perform(
+              get(LOGGING_URI + savedEDRCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(0)));
+
+      // Act & Assert: no longer handed out once expired
+      backdateExpectationsOfInject();
+      mvc.perform(
+              get(LOGGING_URI + savedSIEMCollector.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    /** Moves the creation of the inject's expectations far enough back for them to be expired. */
+    private void backdateExpectationsOfInject() {
+      em.createNativeQuery(
+              "UPDATE injects_expectations SET inject_expectation_created_at = now() - interval '30 days'"
+                  + " WHERE inject_id = :injectId")
+          .setParameter("injectId", savedInject.getId())
+          .executeUpdate();
+      em.flush();
+      em.clear();
+    }
+
+    private void computeDetectionAndLoggingExpectations() {
+      Expectation detection =
+          createExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection");
+      detection.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      Expectation logging =
+          createExpectation(BaseInjectExpectation.EXPECTATION_TYPE.LOGGING, "Logging");
+      logging.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          newExecutableInjectWithTargets(false), List.of(detection, logging), "implantType");
+      em.flush();
+      em.clear();
+    }
+
+    private void setLoggingFlag(boolean enabled) {
+      openAEVConfig.setEnabledDevFeatures(
+          enabled ? PreviewFeature.LOGGING_EXPECTATION.getValue() : "");
+      Optional.ofNullable(cacheManager.getCache("global")).ifPresent(Cache::clear);
+    }
+  }
+
   // -- PRIVATE HELPERS --
 
   private ExecutableInject newExecutableInjectWithTargets(boolean includeAssetGroup) {
@@ -1244,7 +1490,7 @@ class ExpectationApiTest extends IntegrationTest {
 
   private void callUpdateInjectExpectation(
       @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @NotNull final InjectExpectationUpdateInput expectationUpdateInput)
+      @NotNull final InjectExpectationUpdateFromCollectorInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
             put(INJECTS_EXPECTATIONS_URI + "/" + baseInjectExpectation.getId())
@@ -1257,7 +1503,7 @@ class ExpectationApiTest extends IntegrationTest {
 
   private void callUpdateInjectExpectationFromUI(
       @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @NotNull final ExpectationUpdateInput expectationUpdateInput)
+      @NotNull final InjectExpectationUpdateFromUIInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
             put(EXPECTATIONS_URI + "/" + baseInjectExpectation.getId())
@@ -1270,7 +1516,7 @@ class ExpectationApiTest extends IntegrationTest {
 
   private void callDeleteInjectExpectationFromUI(
       @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @NotNull final ExpectationUpdateInput expectationUpdateInput)
+      @NotNull final InjectExpectationUpdateFromUIInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
             put(EXPECTATIONS_URI

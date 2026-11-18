@@ -49,6 +49,13 @@ export const exerciseInjectsResultOutput = (exerciseId: Exercise['exercise_id'])
 
 // -- IMPORT --
 
+export const storeXlsForExercise = (exerciseId: Exercise['exercise_id'], file: File) => {
+  const uri = `${EXERCISE_URI}/${exerciseId}/xls/store`;
+  const formData = new FormData();
+  formData.append('file', file);
+  return simplePostCall(uri, formData);
+};
+
 export const importXlsForExercise = (exerciseId: Exercise['exercise_id'], importId: string, input: InjectsImportInput) => {
   const uri = `${EXERCISE_URI}/${exerciseId}/xls/${importId}/import`;
   return simplePostCall(uri, input)

@@ -21,6 +21,12 @@ export const fetchAssignableMarkingDefinitions = () => {
   return simpleCall(`${MARKING_DEFINITIONS_URI}/assignable`);
 };
 
+// Whether any entity currently carries this marking definition - checked before a delete, which
+// silently removes the definition from every entity that holds it.
+export const fetchMarkingDefinitionAssigned = (markingDefinitionId: string) => {
+  return simpleCall(`${MARKING_DEFINITIONS_URI}/${markingDefinitionId}/assigned`);
+};
+
 export const createMarkingDefinition = (input: MarkingDefinitionInput) => (dispatch: Dispatch) => {
   return postReferential(schema.markingDefinition, MARKING_DEFINITIONS_URI, input)(dispatch);
 };
@@ -34,4 +40,15 @@ export const updateMarkingDefinition = (
 
 export const deleteMarkingDefinition = (markingDefinitionId: string) => (dispatch: Dispatch) => {
   return delReferential(`${MARKING_DEFINITIONS_URI}/${markingDefinitionId}`, 'marking_definitions', markingDefinitionId)(dispatch);
+};
+
+// -- OPTIONS --
+
+export const searchMarkingDefinitionAsOption = (searchText: string = '') => {
+  const params = { searchText };
+  return simpleCall(`${MARKING_DEFINITIONS_URI}/options`, { params });
+};
+
+export const searchMarkingDefinitionByIdAsOption = (ids: string[]) => {
+  return simplePostCall(`${MARKING_DEFINITIONS_URI}/options`, ids);
 };

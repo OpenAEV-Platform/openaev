@@ -69,6 +69,8 @@ interface Props<T> {
   /** Drawer width when not `inline`. */
   variant?: 'half' | 'full';
   containerTestId?: string;
+  /** Show the "{count} selected" chip in the header (hidden for single-selection pickers). */
+  showSelectedCount?: boolean;
 }
 
 /**
@@ -101,6 +103,7 @@ const SelectListPicker = <T extends object>({
   submitDisabled = false,
   variant = 'half',
   containerTestId,
+  showSelectedCount = true,
 }: Props<T>) => {
   const { t } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
@@ -121,10 +124,12 @@ const SelectListPicker = <T extends object>({
         flexShrink: 0,
       }}
     >
-      <Chip
-        severity={selectedCount > 0 ? 'info' : 'neutral'}
-        label={String(t('{count} selected', { count: selectedCount }))}
-      />
+      {showSelectedCount && (
+        <Chip
+          severity={selectedCount > 0 ? 'info' : 'neutral'}
+          label={String(t('{count} selected', { count: selectedCount }))}
+        />
+      )}
       {headerActions}
       {buttonComponent}
     </Box>

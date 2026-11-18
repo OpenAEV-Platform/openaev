@@ -3,6 +3,8 @@ package io.openaev.service.chaining;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStateEntries;
 import io.openaev.database.model.WorkflowStatus;
@@ -12,6 +14,7 @@ import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +35,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * locks the unique-index keys it inserts in row order: two transactions inserting the same keys in
  * opposite orders would deadlock, and PostgreSQL would abort one of them — losing that sync's
  * values. The store must insert rows in a deterministic order.
+ *
+ * <p>Every store call runs in the run's tenant scope, as the chaining event consumers call it.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("WorkflowStateStore under concurrency")
@@ -44,9 +49,11 @@ class WorkflowStateStoreConcurrencyTest extends IntegrationTest {
   @Autowired private WorkflowComposer workflowComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   private TransactionTemplate transactionTemplate;
   private Workflow workflowRun;
+  private TxCtx runScope;
 
   @BeforeEach
   void setUp() {
@@ -60,6 +67,7 @@ class WorkflowStateStoreConcurrencyTest extends IntegrationTest {
                         exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
                     .persist()
                     .get());
+    runScope = TxCtx.forTenant(workflowRun.getTenant().getId());
   }
 
   @AfterEach
@@ -97,8 +105,14 @@ class WorkflowStateStoreConcurrencyTest extends IntegrationTest {
     return delta;
   }
 
+  /** Runs {@code work} in its own transaction, in the run's tenant scope. */
+  private <T> T inRunScope(Supplier<T> work) {
+    return tenantTx.execute(runScope, work);
+  }
+
   /**
-   * Runs both writers at the same moment, each in its own transaction, and rethrows any failure.
+   * Runs both writers at the same moment, each in its own transaction in the run's tenant scope,
+   * and rethrows any failure.
    */
   private void runConcurrently(Runnable first, Runnable second) throws Exception {
     ExecutorService pool = Executors.newFixedThreadPool(2);
@@ -109,13 +123,13 @@ class WorkflowStateStoreConcurrencyTest extends IntegrationTest {
               pool.submit(
                   () -> {
                     start.await();
-                    transactionTemplate.executeWithoutResult(status -> first.run());
+                    tenantTx.execute(runScope, first);
                     return null;
                   }),
               pool.submit(
                   () -> {
                     start.await();
-                    transactionTemplate.executeWithoutResult(status -> second.run());
+                    tenantTx.execute(runScope, second);
                     return null;
                   }));
       start.countDown();
@@ -141,7 +155,7 @@ class WorkflowStateStoreConcurrencyTest extends IntegrationTest {
     @DisplayName("overlapping inputs appended in opposite orders never deadlock nor lose values")
     void given_overlappingInputsInOppositeOrders_should_storeEveryValue() throws Exception {
       // Arrange
-      String stateId = workflowStateStore.getOrCreateGlobalStateId(workflowRun);
+      String stateId = inRunScope(() -> workflowStateStore.getOrCreateGlobalStateId(workflowRun));
 
       // Act
       for (int round = 0; round < ROUNDS; round++) {
@@ -154,7 +168,7 @@ class WorkflowStateStoreConcurrencyTest extends IntegrationTest {
       }
 
       // Assert
-      assertThat(workflowStateStore.loadInputValues(stateId, Set.of("IPv4")))
+      assertThat(inRunScope(() -> workflowStateStore.loadInputValues(stateId, Set.of("IPv4"))))
           .hasSize(ROUNDS * VALUES_PER_ROUND);
     }
 
@@ -162,7 +176,7 @@ class WorkflowStateStoreConcurrencyTest extends IntegrationTest {
     @DisplayName("overlapping tuples appended in opposite orders never deadlock nor lose tuples")
     void given_overlappingTuplesInOppositeOrders_should_storeEveryTuple() throws Exception {
       // Arrange
-      String stateId = workflowStateStore.getOrCreateGlobalStateId(workflowRun);
+      String stateId = inRunScope(() -> workflowStateStore.getOrCreateGlobalStateId(workflowRun));
 
       // Act
       for (int round = 0; round < ROUNDS; round++) {
@@ -175,7 +189,9 @@ class WorkflowStateStoreConcurrencyTest extends IntegrationTest {
       }
 
       // Assert
-      assertThat(workflowStateStore.load(stateId, Set.of("Port"), true, false).getCorrelated())
+      assertThat(
+              inRunScope(() -> workflowStateStore.load(stateId, Set.of("Port"), true, false))
+                  .getCorrelated())
           .hasSize(ROUNDS * VALUES_PER_ROUND);
     }
 
@@ -183,7 +199,7 @@ class WorkflowStateStoreConcurrencyTest extends IntegrationTest {
     @DisplayName("overlapping hashes committed in opposite orders are committed exactly once")
     void given_overlappingHashesInOppositeOrders_should_commitEachHashOnce() throws Exception {
       // Arrange
-      String stateId = workflowStateStore.getOrCreateGlobalStateId(workflowRun);
+      String stateId = inRunScope(() -> workflowStateStore.getOrCreateGlobalStateId(workflowRun));
       Map<String, Integer> commits = new ConcurrentHashMap<>();
 
       // Act

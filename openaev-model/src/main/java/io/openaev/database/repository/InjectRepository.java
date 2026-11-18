@@ -61,6 +61,18 @@ public interface InjectRepository
   @Query("select i.id as id, i.tenant.id as tenantId from Inject i where i.id = :id")
   Optional<InjectTenantRef> findTenantRefById(@Param("id") @NotNull String id);
 
+  /**
+   * The id of the user whose launch gates this inject's dispatch: the simulation's launcher for a
+   * simulation inject, the inject's own launcher otherwise (atomic testing). Read from the database
+   * by ids, so a caller holding an inject loaded by an earlier transaction never has to initialise
+   * its lazy simulation or launcher. Empty when there is no launcher.
+   */
+  @Query(
+      "select case when e.id is not null then el.id else il.id end from Inject i"
+          + " left join i.exercise e left join e.launchedBy el left join i.launchedBy il"
+          + " where i.id = :injectId")
+  Optional<String> findLauncherId(@Param("injectId") @NotNull String injectId);
+
   /** Projection of {@link #findTenantRefById(String)}. */
   interface InjectTenantRef {
     String getId();
@@ -231,11 +243,20 @@ public interface InjectRepository
       nativeQuery = true)
   List<RawInjectIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
+  /**
+   * Contract id of the challenge publication inject (ChallengeContract.CHALLENGE_PUBLISH in
+   * openaev-api). inject_injector_contract holds a contract id, never an injector id: filtering on
+   * the challenge injector id matched no inject at all (#8060).
+   */
+  String CHALLENGE_PUBLISH_CONTRACT_ID = "f8e70b27-a69c-4b9f-a2df-e217c36b3981";
+
   // Ids only: Hibernate 7 cannot map Inject from a native result set, its tenant-scoped
   // @JoinFormula associations need generated column aliases a plain select i.* does not carry.
   @Query(
       value =
-          "select i.inject_id from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
+          "select i.inject_id from injects i where i.inject_injector_contract = '"
+              + CHALLENGE_PUBLISH_CONTRACT_ID
+              + "'"
               + " and i.inject_content like :challengeId"
               + " and i.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
@@ -265,7 +286,7 @@ public interface InjectRepository
           "insert into injects (inject_id, inject_title, inject_description, inject_country, inject_city,"
               + "inject_injector_contract, inject_all_teams, inject_enabled, inject_exercise, "
               + "inject_depends_duration, inject_content, tenant_id) "
-              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :exercise, :dependsDuration, :content, :#{#tenantContext.currentTenant})",
+              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :exercise, :dependsDuration, :content, :tenantId)",
       nativeQuery = true)
   void importSaveForExercise(
       @Param("id") String id,
@@ -278,7 +299,8 @@ public interface InjectRepository
       @Param("enabled") boolean enabled,
       @Param("exercise") String exerciseId,
       @Param("dependsDuration") Long dependsDuration,
-      @Param("content") String content);
+      @Param("content") String content,
+      @Param("tenantId") String tenantId);
 
   @Modifying
   @Query(
@@ -286,7 +308,7 @@ public interface InjectRepository
           "insert into injects (inject_id, inject_title, inject_description, inject_country, inject_city,"
               + "inject_injector_contract, inject_all_teams, inject_enabled, inject_scenario, "
               + "inject_depends_duration, inject_content, tenant_id) "
-              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :scenario, :dependsDuration, :content, :#{#tenantContext.currentTenant})",
+              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :scenario, :dependsDuration, :content, :tenantId)",
       nativeQuery = true)
   void importSaveForScenario(
       @Param("id") String id,
@@ -299,7 +321,8 @@ public interface InjectRepository
       @Param("enabled") boolean enabled,
       @Param("scenario") String scenarioId,
       @Param("dependsDuration") Long dependsDuration,
-      @Param("content") String content);
+      @Param("content") String content,
+      @Param("tenantId") String tenantId);
 
   @Modifying
   @Query(
@@ -307,7 +330,7 @@ public interface InjectRepository
           "insert into injects (inject_id, inject_title, inject_description, inject_country, inject_city,"
               + "inject_injector_contract, inject_all_teams, inject_enabled, "
               + "inject_depends_duration, inject_content, tenant_id) "
-              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :dependsDuration, :content, :#{#tenantContext.currentTenant})",
+              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :dependsDuration, :content, :tenantId)",
       nativeQuery = true)
   void importSaveStandAlone(
       @Param("id") String id,
@@ -319,7 +342,8 @@ public interface InjectRepository
       @Param("allTeams") boolean allTeams,
       @Param("enabled") boolean enabled,
       @Param("dependsDuration") Long dependsDuration,
-      @Param("content") String content);
+      @Param("content") String content,
+      @Param("tenantId") String tenantId);
 
   @Modifying
   @Query(

@@ -14,9 +14,12 @@ import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.config.cache.LicenseRefreshedEvent;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.engine.facade.EngineService;
@@ -27,14 +30,19 @@ import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import io.openaev.utils.object.ObjectNormalizationUtils;
 import io.openaev.utils.object.ObjectRedactionUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.core.Authentication;
@@ -60,6 +68,29 @@ public class LogService {
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final PlatformSettingsService platformSettingsService;
+  private final TenantScopedTransaction tenantScopedTransaction;
+
+  /**
+   * Runs the banner write off the thread that asks whether audit is enabled: that thread is usually
+   * a request thread, which holds a connection and must not wait for a second one.
+   */
+  private final @Qualifier("taskLoggerExecutor") Executor taskLoggerExecutor;
+
+  /** How long the banner row is trusted before it is written again, whatever the state. */
+  private static final long BANNER_RECHECK_MILLIS = Duration.ofMinutes(5).toMillis();
+
+  /**
+   * The state of the last committed audit banner write ({@code true}: cleared) and its time. A flip
+   * writes it at once; an unchanged state writes it again once {@link #BANNER_RECHECK_MILLIS} has
+   * passed, so a row another node or an operator removed comes back. Empty until the first write
+   * commits: each instance writes its own first state, and the write is idempotent.
+   */
+  private final AtomicReference<Boolean> bannerRequested = new AtomicReference<>();
+
+  private final AtomicLong bannerRequestedAt = new AtomicLong();
+
+  /** At most one banner write is in flight; a request that finds one running moves on. */
+  private final AtomicBoolean bannerWriting = new AtomicBoolean(false);
 
   /** Ensures the EE audit-disabled warning is logged only once. */
   private final AtomicBoolean auditEeDisabledWarningLogged = new AtomicBoolean(false);
@@ -110,17 +141,53 @@ public class LogService {
   }
 
   /**
-   * Updates the {@link BannerMessage.BANNER_KEYS#AUDIT_LOG_NO_ENTERPRISE_LICENSE} platform banner.
+   * Updates the {@link BannerMessage.BANNER_KEYS#AUDIT_LOG_NO_ENTERPRISE_LICENSE} platform banner,
+   * a platform-wide operational status stored as a platform row of the dual-scope {@code
+   * parameters} table ({@code tenant_id IS NULL}). The write is handed to the task logger executor
+   * and runs in its own platform-write transaction there, so the caller, a request thread holding a
+   * connection included, neither waits for a second connection nor sees a failure of the write: the
+   * banner is a status, and audit stays on or off as the licence decides. It is requested when the
+   * state flips and again once {@link #BANNER_RECHECK_MILLIS} has passed. The state is remembered
+   * once the write has committed, so a write that fails is attempted again at the next call.
    *
    * @param shouldClean {@code true} → clear the banner; {@code false} → show the banner.
    */
   private void updateBanner(boolean shouldClean) {
-    if (shouldClean) {
-      platformSettingsService.cleanMessage(
-          BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
-    } else {
-      platformSettingsService.errorMessage(
-          BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
+    long now = System.currentTimeMillis();
+    boolean flipped = !Boolean.valueOf(shouldClean).equals(bannerRequested.get());
+    if (!flipped && now - bannerRequestedAt.get() < BANNER_RECHECK_MILLIS) {
+      return;
+    }
+    if (!bannerWriting.compareAndSet(false, true)) {
+      return;
+    }
+    try {
+      taskLoggerExecutor.execute(() -> writeBanner(shouldClean, now));
+    } catch (RuntimeException e) {
+      bannerWriting.set(false);
+      log.warn("[AUDIT] Could not schedule the audit banner write: {}", e.getMessage(), e);
+    }
+  }
+
+  private void writeBanner(boolean shouldClean, long requestedAt) {
+    try {
+      Runnable write =
+          shouldClean
+              ? () ->
+                  platformSettingsService.cleanMessage(
+                      BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE)
+              : () ->
+                  platformSettingsService.errorMessage(
+                      BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
+      tenantScopedTransaction.executeAsPlatformWrite(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), write);
+      bannerRequested.set(shouldClean);
+      bannerRequestedAt.set(requestedAt);
+    } catch (Exception e) {
+      // Nothing is remembered: the next call writes the banner again.
+      log.warn("[AUDIT] Failed to write the audit banner: {}", e.getMessage(), e);
+    } finally {
+      bannerWriting.set(false);
     }
   }
 
@@ -176,7 +243,6 @@ public class LogService {
       String resourceId,
       JsonNode input,
       JsonNode output,
-      JsonNode signatureNode,
       JsonNode entityDiffsNode,
       Object logLevel,
       String logUUID) {
@@ -221,12 +287,6 @@ public class LogService {
       if (entityDiffsNode != null && !entityDiffsNode.isEmpty()) {
         entityDiffsNode = ObjectRedactionUtils.redact(entityDiffsNode, resourceType);
         ctx.put("entity_diffs", toContextValue(entityDiffsNode));
-      }
-
-      if (signatureNode != null) {
-        signatureNode = ObjectRedactionUtils.redact(signatureNode, resourceType);
-        signatureNode = objectNormalizationUtils.normalize(signatureNode);
-        doc.getRequestMetadata().setSignature(signatureNode);
       }
 
       ctx.put("message", message);
@@ -359,16 +419,6 @@ public class LogService {
       outputNode = objectNormalizationUtils.normalize(outputNode);
       ctx.put("output", toContextValue(outputNode));
     }
-
-    // Extract signature into request metadata. Normalization is what enforces the max event size:
-    // without it a large payload reaching the signature node (e.g. a @RequestPart DTO) is logged
-    // uncapped and can exhaust the heap.
-    Object signatureObj = ctx.remove("signature");
-    if (signatureObj instanceof JsonNode signatureNode && !signatureNode.isNull()) {
-      JsonNode redactedSignature = ObjectRedactionUtils.redact(signatureNode, resourceType);
-      JsonNode normalizedSignature = objectNormalizationUtils.normalize(redactedSignature);
-      doc.getRequestMetadata().setSignature(normalizedSignature);
-    }
   }
 
   /** Resolves the event access level based on the event type. */
@@ -466,10 +516,8 @@ public class LogService {
     ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
         ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
     String url = requestContextData != null ? requestContextData.url() : null;
-    String method = requestContextData != null ? requestContextData.method() : null;
 
     meta.setUrl(url);
-    meta.setMethod(method);
     doc.setRequestMetadata(meta);
 
     // Tenant context

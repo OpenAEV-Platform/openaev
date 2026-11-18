@@ -99,7 +99,7 @@ public class AttackPathApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public AttackPathDTO graph(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam(required = false) String mode) {
-    attackPathAccessControl.assertCanReadSimulation(simulationId);
+    attackPathAccessControl.assertCanReadSimulation(ctx, simulationId);
     long graphVersion =
         versionService.current(simulationId, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx)).orElse(0L);
     return graphService.buildGraph(simulationId, mode, graphVersion);
@@ -124,7 +124,7 @@ public class AttackPathApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public AttackPathDeltaDTO graphDelta(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam @Min(0) long since) {
-    attackPathAccessControl.assertCanReadSimulation(simulationId);
+    attackPathAccessControl.assertCanReadSimulation(ctx, simulationId);
     return deltaService.buildDelta(simulationId, since, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx));
   }
 
@@ -132,8 +132,9 @@ public class AttackPathApi extends RestBehavior {
    * Simulations that have attack-path data (id, endpoint count, execution count), for the front's
    * picker. Tenant-scoped through the {@link TxCtx}. When {@code scenarioId} is given (scenario
    * context, #6647 B0), the query is restricted to that scenario's simulations server-side. The
-   * rows are then grant-filtered to the ones the caller can READ (seed rows kept), so the picker
-   * never leaks a simulation the user is not granted on.
+   * rows are then grant-filtered to the ones the caller can READ (seed rows kept), each row in the
+   * tenant it comes from, so the picker never leaks a simulation the user is not granted on and
+   * never hides one it is granted on in another tenant of the scope.
    */
   @GetMapping("/simulations")
   @Transactional(readOnly = true)
@@ -152,7 +153,7 @@ public class AttackPathApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public AttackPathExpandDTO expandEndpointFindings(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam String ref) {
-    attackPathAccessControl.assertCanReadSimulation(simulationId);
+    attackPathAccessControl.assertCanReadSimulation(ctx, simulationId);
     return graphService.expandEndpoint(simulationId, ref);
   }
 
@@ -171,7 +172,7 @@ public class AttackPathApi extends RestBehavior {
       @RequestParam String ref,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "50") int size) {
-    attackPathAccessControl.assertCanReadSimulation(simulationId);
+    attackPathAccessControl.assertCanReadSimulation(ctx, simulationId);
     int safePage = Math.max(page, 0);
     int safeSize = Math.min(Math.max(size, 1), MAX_FINDINGS_PAGE_SIZE);
     return graphService.endpointRelations(simulationId, ref, PageRequest.of(safePage, safeSize));
@@ -193,7 +194,7 @@ public class AttackPathApi extends RestBehavior {
       @RequestParam String category,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "50") int size) {
-    attackPathAccessControl.assertCanReadSimulation(simulationId);
+    attackPathAccessControl.assertCanReadSimulation(ctx, simulationId);
     int safePage = Math.max(page, 0);
     int safeSize = Math.min(Math.max(size, 1), MAX_FINDINGS_PAGE_SIZE);
     return graphService.listFindings(simulationId, category, PageRequest.of(safePage, safeSize));
@@ -215,7 +216,7 @@ public class AttackPathApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public AttackPathExecutionDetailDTO executionDetail(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam("ref") String executionId) {
-    attackPathAccessControl.assertCanReadSimulation(simulationId);
+    attackPathAccessControl.assertCanReadSimulation(ctx, simulationId);
     AttackPathExecutionDetailDTO detail = graphService.executionDetail(simulationId, executionId);
     if (detail == null) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND);

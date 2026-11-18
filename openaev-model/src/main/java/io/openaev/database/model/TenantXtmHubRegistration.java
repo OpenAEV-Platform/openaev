@@ -3,6 +3,7 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.xtmhub.XtmHubCommercialModel;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -55,6 +56,11 @@ public class TenantXtmHubRegistration implements TenantBase {
   @Column(name = "registration_connectivity_email_eligible")
   @JsonProperty("registration_connectivity_email_eligible")
   private boolean connectivityEmailEligible = true;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "registration_commercial_model")
+  @JsonProperty("registration_commercial_model")
+  private XtmHubCommercialModel commercialModel;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)

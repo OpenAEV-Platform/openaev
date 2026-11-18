@@ -51,7 +51,8 @@ A request can name the tenants it wants to work with in two ways:
 - the `X-Tenant-Ids` header on the regular path
 
 If the request names no tenant, the scope defaults to every tenant the caller is a member of.
-Naming a tenant outside the caller's memberships is rejected.
+Naming a tenant outside the caller's memberships is rejected. Every tenant of the scope also counts
+for authorization (see [Authorization covers every tenant of the scope](#authorization-covers-every-tenant-of-the-scope)).
 
 The resolved scope becomes a `TxCtx` parameter on the controller handler. A dedicated argument
 resolver (`TxCtxArgumentResolver`) builds it from the request; you never construct it yourself in
@@ -94,6 +95,76 @@ Two details matter here:
   annotation is ignored, and the endpoint stays fail-closed.
 - Once a transaction carries a scope, a nested `@Transactional` call must not redefine it. The
   aspect refuses a different `TxCtx` inside the same transaction.
+
+### Authorization covers every tenant of the scope
+
+The `@AccessControl` annotation decides, before the handler runs, whether the caller holds the
+right the endpoint needs. The access-control aspect (`AccessControlAspect`) makes that decision. A
+caller can hold a right in one tenant and not in another, so when a scope names several tenants,
+checking one of them is not enough.
+
+The rule: when the handler takes a `TxCtx` that lists tenants, the aspect evaluates the
+`@AccessControl` decision in the tenant of the request context, then in every other tenant of the
+scope. The request is authorized only if the caller holds the right in each of them. In each
+tenant, the decision reads the capabilities and the tenant bypass the caller holds in that tenant.
+A grant on a resource applies in the tenant of the group that holds it, so in each tenant the
+decision reads the grants of the caller's groups in that tenant. A grant held by a platform group
+applies in every tenant.
+
+The tenant of the request context is the tenant in the path on the tenant route. On the regular
+path, it is the default tenant, except for the XTM One orchestrator callbacks: when the verified
+XTM One service identity calls an autonomous run route that names a run
+(`/api/autonomous-runs/{runId}/...`), it is the tenant of that run when the run exists. So, for
+every other caller:
+
+| Request | Tenants in which the decision is evaluated |
+|---|---|
+| tenant path `/api/tenants/{tenantId}/...` | that tenant only: it is both the request context and the whole scope |
+| regular path with `X-Tenant-Ids` | the default tenant, and every tenant the header names |
+| regular path with no selector | the default tenant, and every tenant the caller is a member of |
+
+To work in one tenant, use the tenant path, `/api/tenants/{tenantId}/...`: the request is checked
+in and runs in the tenant it names. `X-Tenant-Ids` narrows the scope but does not set the ambient
+tenant (`TenantContext`), so on the regular path an endpoint that still reads its data through
+`TenantContext.getCurrentTenant()` reads the default tenant, whatever the header names
+([#7967](https://github.com/OpenAEV-Platform/openaev/issues/7967)).
+
+On an endpoint whose `TxCtx` parameter is annotated `@RequireTenantSelector`, a caller with
+several memberships and no selector gets the default tenant as its scope when it belongs to it, so
+the last row checks the default tenant only. A caller that does not belong to the default tenant
+is refused with an HTTP 400 (`TENANT_SELECTOR_REQUIRED`) before any check.
+
+A refusal in the tenant of the request context returns the usual HTTP 403. A refusal in another
+tenant of the scope returns an HTTP 403 whose message starts with `TENANT_SCOPE_FORBIDDEN`. That
+message states the rule and the remedy, and never names the tenant that refused, so the response
+discloses no membership beyond what the caller sent.
+
+!!! warning "API clients on the regular path"
+    A client that belongs to several tenants and calls the regular path with no selector is
+    refused as soon as one of its tenants lacks the right, even for rows of a tenant where it
+    holds the right. Use the tenant path, which checks that tenant only. Sending `X-Tenant-Ids`
+    naming only tenants where the right is held works only when the right is also held in the
+    default tenant, which the regular path always checks. A client that does not hold the right in
+    the default tenant, even with a single membership, is refused on the regular path with or
+    without `X-Tenant-Ids`; it must use the tenant path. The web interface sends every call whose
+    decision depends on the tenant to the tenant path of the tenant it is working in, except the
+    mail attachment download. That call stays on the regular path until mail attachments are
+    stored under their simulation's tenant
+    ([#8796](https://github.com/OpenAEV-Platform/openaev/issues/8796)). The other calls it leaves
+    on the regular path go to platform endpoints, whose rights are platform rights, or to
+    endpoints that make no `@AccessControl` decision.
+
+Where the rule does not apply:
+
+- Endpoints with `skipRBAC = true` make no `@AccessControl` decision.
+- A handler with no `TxCtx` parameter that lists tenants has its decision evaluated in the
+  tenant of the request context only.
+- Permission checks made inside a handler, through `PermissionService`, after the aspect has run,
+  are evaluated in the tenant of the rows they decide on (`PermissionService#holdsInTenant`), or
+  refuse the request when it is not granted in every tenant of the scope, for a capability check
+  or a list decision made before the rows are known (`holdsInScope`). No check of this kind is
+  left reading the tenant of the request context only. Do not add a new one that assumes a single
+  tenant.
 
 ## How the SQL is rewritten
 
@@ -407,6 +478,16 @@ never work around the inspector with raw JDBC.
 row under an ambiguous multi-tenant scope. Use the tenant path (`/api/tenants/{tenantId}/...`) or
 a single-tenant selector so the platform knows which tenant owns the new row.
 
+**An HTTP 403 "Access denied" on the regular path while the right is held in the tenant you work
+in.** The regular path also checks the default tenant, where the caller does not hold the right.
+Use the tenant path (`/api/tenants/{tenantId}/...`).
+
+**An HTTP 403 with `TENANT_SCOPE_FORBIDDEN`.** The caller holds the right the endpoint needs in
+the tenant of the request context, but not in another tenant of its scope. Use the tenant path.
+Narrowing `X-Tenant-Ids` to tenants where the right is held only helps callers who also hold the
+right in the default tenant, which the regular path always checks too. See
+[Authorization covers every tenant of the scope](#authorization-covers-every-tenant-of-the-scope).
+
 **A `UnexpectedRollbackException` at commit in a background job.** Something inside the
 transaction threw and was caught. See the poisoning rule above: recover around an `executeNew()`
 or a `forEachTenant` iteration, not inside the transaction.
@@ -419,4 +500,5 @@ or a `forEachTenant` iteration, not inside the transaction.
 | `io.openaev.context.TenantScopedTransaction` | the background primitive: `execute`, `executeNew`, `forEachTenant` |
 | `io.openaev.config.TenantStatementInspector` | rewrites SQL, adds `can_access_tenant`, fail-closed on unknown shapes |
 | `io.openaev.config.TenantWriteScopeResolver` | resolves the single tenant a new row belongs to |
+| `io.openaev.aop.AccessControlAspect` | evaluates the `@AccessControl` decision in every tenant of the request scope |
 | `openaev.tenant.active-tables` (property) | the list of isolated tables |

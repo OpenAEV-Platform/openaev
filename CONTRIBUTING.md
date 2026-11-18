@@ -48,12 +48,13 @@ For general suggestions or questions about the project or the documentation, you
 
 * If you are interested in contributing to developing OpenAEV, please refer to the [detailed documentation](https://docs.openaev.io). It can be either to fix an issue which is meaningful to you, or to develop a feature requested by others.
 
-* All commit and Pull Request titles must follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format: `type(scope?)!?: description (#issue)`
+* All commit and Pull Request titles must follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format: `type(scope?)!?: description`, with `(#issue)` appended when the related issue is public.
 
   - `type` must be one of: `feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `revert`
   - `scope` is optional, a lowercase noun describing the affected part of the code. The old `[backend]` / `[frontend]` bracket prefixes are **discontinued** — use a scope instead.
   - the description starts with a lowercase letter and has no trailing period
-  - Pull request titles **must** end with the related issue reference, e.g. `(#1234)`, and every Pull Request must be linked to an issue. **Renovate** pull requests are exempt.
+  - Pull request titles **must** end with the related issue reference, e.g. `(#1234)`, and every Pull Request must be linked to an issue. **Renovate** pull requests and pull requests tracked by an issue in a private repository are exempt.
+  - Do not reference or link an issue from a private repository in a public Pull Request. Link the public Pull Request from the private issue instead.
 
   **Example:** `feat(auth): add JWT authentication (#123)`
 

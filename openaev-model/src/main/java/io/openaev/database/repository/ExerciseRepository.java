@@ -4,6 +4,7 @@ import io.openaev.database.model.Exercise;
 import io.openaev.database.raw.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -28,6 +29,15 @@ public interface ExerciseRepository
   Optional<Exercise> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  /**
+   * By-id read keyed on a request's resolved tenant scope rather than on the v1 ambient tenant,
+   * which is set only on the tenant-prefixed route.
+   */
+  Optional<Exercise> findByIdAndTenantIdIn(
+      @NotNull String id, @NotNull Collection<String> tenantIds);
+
+  boolean existsByIdAndTenantIdIn(@NotNull String id, @NotNull Collection<String> tenantIds);
 
   @Modifying
   @Query(value = "DELETE FROM exercises WHERE exercise_id = :simulationId", nativeQuery = true)
@@ -78,7 +88,7 @@ public interface ExerciseRepository
    */
   @Query(
       value =
-          " SELECT ex.exercise_id, "
+          " SELECT ex.exercise_id, ex.tenant_id, "
               + "ex.exercise_status, "
               + "ex.exercise_start_date, "
               + "ex.exercise_updated_at, "
@@ -104,7 +114,7 @@ public interface ExerciseRepository
    */
   @Query(
       value =
-          " SELECT ex.exercise_id, "
+          " SELECT ex.exercise_id, ex.tenant_id, "
               + "ex.exercise_status, "
               + "ex.exercise_start_date, "
               + "ex.exercise_updated_at, "
@@ -198,7 +208,7 @@ public interface ExerciseRepository
       value =
           " SELECT ex.exercise_id, ex.exercise_name, ex.exercise_description, ex.exercise_status, ex.exercise_subtitle, "
               + "ex.exercise_category, ex.exercise_main_focus, ex.exercise_severity, ex.exercise_default_kill_chain, ex.exercise_start_date, "
-              + "ex.exercise_end_date, ex.exercise_message_header, ex.exercise_message_footer, ex.exercise_mail_from, ex.exercise_mail_from_name, "
+              + "ex.exercise_end_date, ex.exercise_message_header, ex.exercise_message_footer, ex.exercise_mail_from_name, "
               + "ex.exercise_lessons_anonymized, ex.exercise_lessons_enabled, ex.exercise_autonomous, ex.exercise_custom_dashboard, ex.exercise_created_at, ex.exercise_updated_at, "
               + "MAX(se.scenario_id) as scenario_id, MAX(inj.inject_scenario) as inject_scenario, "
               + " coalesce(array_agg(emrt.exercise_reply_to) FILTER ( WHERE emrt.exercise_reply_to IS NOT NULL ), '{}') as exercise_reply_to, "

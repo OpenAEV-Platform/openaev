@@ -7,6 +7,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManagerException;
+import io.openaev.service.tenants.TenantQueueService;
 import io.openaev.service.tenants.TenantService;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
@@ -55,6 +56,7 @@ public class TenantIsolationTestHelper {
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private EntityManager entityManager;
   @Autowired private TenantComposer tenantComposer;
+  @Autowired private TenantQueueService tenantQueueService;
 
   /**
    * Creates a tenant and attaches the current mock user to it.
@@ -94,8 +96,39 @@ public class TenantIsolationTestHelper {
    */
   @Transactional
   public void attachCurrentUserToTenant(String tenantId) {
-    String userId = testUserHolder.get().getId();
+    attachUserToTenant(testUserHolder.get().getId(), tenantId);
+  }
+
+  /**
+   * Same as {@link #attachCurrentUserToTenant} for a user the test composed itself rather than the
+   * current mock user.
+   *
+   * @param userId the persisted user to attach
+   * @param tenantId the existing tenant to attach it to
+   */
+  @Transactional
+  public void attachUserToTenant(String userId, String tenantId) {
     tenantRepository.addUserToTenant(userId, tenantId);
+    tenantMembershipCacheManager.evict(userId, tenantId);
+    entityManager.flush();
+    entityManager.clear();
+  }
+
+  /**
+   * Detaches the current mock user from an EXISTING tenant, membership only.
+   *
+   * <p>{@link #createTenant} runs the production dependency managers, and one of them attaches the
+   * CREATING user to the tenant it just made ({@code TenantUserService#createDependencyForTenant}).
+   * A class whose premise is a caller outside that tenant therefore has to undo that membership:
+   * otherwise whichever test method happens to create the tenant runs as one of its members, and
+   * the case passes for a reason it does not state.
+   *
+   * @param tenantId the existing tenant to detach the current mock user from
+   */
+  @Transactional
+  public void detachCurrentUserFromTenant(String tenantId) {
+    String userId = testUserHolder.get().getId();
+    tenantRepository.removeUserFromTenant(userId, tenantId);
     tenantMembershipCacheManager.evict(userId, tenantId);
     entityManager.flush();
     entityManager.clear();
@@ -169,6 +202,14 @@ public class TenantIsolationTestHelper {
    *
    * <p>Note: uses service layer directly because {@code POST /api/tenants} requires Enterprise
    * Edition license.
+   *
+   * <p><strong>This ENROLS the current mock user in the new tenant.</strong> Creation runs the
+   * production dependency managers and one of them attaches the creating user ({@code
+   * TenantUserService#createDependencyForTenant}), so the caller is a member of every tenant this
+   * method makes. A test whose premise is a caller outside the tenant must call {@link
+   * #detachCurrentUserFromTenant} on it, and assert the refusal it means to exercise rather than
+   * the status alone: a member who merely lacks the capability is refused with the same 403, with
+   * an empty body instead of {@code TENANT_ACCESS_DENIED}.
    *
    * <p>Onboarding self-scopes the ambient transaction to this tenant ({@code
    * ManagerFactory#createDependencyForTenant} -> {@code ManagerCreator#createManager}, see its
@@ -283,14 +324,21 @@ public class TenantIsolationTestHelper {
    * collectors} row is gone first. Every other tenant-scoped row cascades with the tenant. Null ids
    * are skipped so a partially failed setup still cleans what it managed to create. Table-specific
    * rows the caller created (and any join table without a cascading FK) must be removed by the
-   * caller BEFORE this call. External residue (per-tenant broker queues) cannot be removed here;
-   * that is the suite-wide pre-existing pattern for service-created tenants.
+   * caller BEFORE this call. The tenant's broker queues and exchanges are deleted through the
+   * production teardown, {@link TenantQueueService#deleteDependencyForTenant}, which is idempotent.
+   * A tenant that never committed needs none of this: its onboarding removes them on rollback.
    */
   @Transactional
   public void deleteCommittedTenants(String... tenantIds) {
     for (String tenantId : tenantIds) {
       if (tenantId == null) {
         continue;
+      }
+      try {
+        tenantQueueService.deleteDependencyForTenant(tenantId);
+      } catch (DependenciesManagerException e) {
+        throw new IllegalStateException(
+            "Could not delete the broker objects of test tenant " + tenantId, e);
       }
       entityManager
           .createNativeQuery("DELETE FROM collectors WHERE tenant_id = :id")

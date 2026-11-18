@@ -157,6 +157,7 @@ const InjectCreationConfig: FunctionComponent<Props> = ({
           inject_teams: [],
           inject_assets: [],
           inject_asset_groups: [],
+          inject_secret_references: [],
           inject_documents: [],
           inject_content: { expectations: parsedContent?.fields?.find(f => f.type === 'expectation')?.availableExpectations?.filter(e => e.expectation_is_predefined) },
         }}

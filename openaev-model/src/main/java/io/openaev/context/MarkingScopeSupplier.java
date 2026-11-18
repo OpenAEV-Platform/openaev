@@ -23,7 +23,6 @@ package io.openaev.context;
  * MarkingCtx#all()}: it is an unresolved intention reserved for the background primitive and throws
  * on serialization.
  */
-@FunctionalInterface
 public interface MarkingScopeSupplier {
 
   /**
@@ -35,4 +34,18 @@ public interface MarkingScopeSupplier {
    *     clearance <i>computation</i>, not of the SQL rewrite.
    */
   MarkingCtx clearanceFor(TxCtx tenantScope);
+
+  /**
+   * The system clearance: every marking defined in the tenants of {@code tenantScope}, the resolved
+   * form of {@link MarkingCtx#all()}. What {@code TenantScopedTransaction} runs background work at,
+   * and the same set a bypassing caller gets from {@link #clearanceFor}, so both come from one
+   * resolution.
+   *
+   * <p>Must be read fresh, never cached: it is shared by every job of the tenant, and a stale
+   * answer would leave a just-created definition out of it.
+   *
+   * @param tenantScope the explicit tenants of the transaction; the answer never reaches beyond
+   *     them
+   */
+  MarkingCtx systemClearanceFor(TxCtx.Restricted tenantScope);
 }

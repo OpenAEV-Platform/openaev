@@ -56,6 +56,7 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
         <ThreatArsenalActionPopover
           actionId={action.injector_contract_id}
           payloadId={action.action_payload?.payload_id ?? ''}
+          grantResourceId={action.action_grant_resource_id}
           name={name}
           onUpdate={onUpdate}
           onDuplicate={onDuplicate}

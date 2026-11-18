@@ -21,6 +21,7 @@ import static org.mockito.Mockito.when;
 import io.openaev.api.autonomous.dto.AutonomousRunCreateInput;
 import io.openaev.api.autonomous.dto.ConvertToManualMode;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
+import io.openaev.config.DefaultOpenAEVPrincipal;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantScopedTransaction;
@@ -31,6 +32,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSource;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.database.model.autonomous.AutonomousDirective;
 import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.model.autonomous.AutonomousRun;
@@ -38,6 +40,7 @@ import io.openaev.database.model.autonomous.AutonomousRunStatus;
 import io.openaev.database.model.autonomous.AutonomousScopeTarget;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.exception.ChainingException;
@@ -50,6 +53,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -63,6 +67,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
@@ -91,6 +97,9 @@ class AutonomousRunServiceTest {
   @Mock private OpenAEVConfig openAEVConfig;
   @Mock private TenantWriteScopeResolver writeScopeResolver;
   @Mock private TenantScopedTransaction tenantTx;
+  // Only exercised by resolveLaunchedBy(), reached from the restart() tests below.
+  @Mock private UserRepository userRepository;
+
   @InjectMocks private AutonomousRunService service;
 
   private static final TxCtx TX = TxCtx.forTenant("tenant-1");
@@ -98,6 +107,18 @@ class AutonomousRunServiceTest {
   @BeforeEach
   void stubTenantWriteScope() {
     lenient().when(writeScopeResolver.tenantForWrite(any(), any())).thenReturn("tenant-1");
+    // resolveLaunchedBy() reads the live caller via SessionHelper.currentUser() - not every test
+    // reaches it (only restart(), via stubRestartCollaborators()), so both stubs are lenient.
+    DefaultOpenAEVPrincipal principal =
+        new DefaultOpenAEVPrincipal("operator-1", List.of(), false, "en");
+    SecurityContextHolder.getContext()
+        .setAuthentication(new TestingAuthenticationToken(principal, null));
+    lenient().when(userRepository.findById("operator-1")).thenReturn(Optional.of(new User()));
+  }
+
+  @AfterEach
+  void clearSecurityContext() {
+    SecurityContextHolder.clearContext();
   }
 
   @Test
@@ -761,7 +782,8 @@ class AutonomousRunServiceTest {
     when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
     Exercise freshSimulation = new Exercise();
     freshSimulation.setId("sim-new");
-    when(scenarioToExerciseService.toExercise(eq(scenario), any(Instant.class), eq(true)))
+    when(scenarioToExerciseService.toExercise(
+            eq(scenario), any(Instant.class), eq(true), any(User.class)))
         .thenReturn(freshSimulation);
     when(runRepository.save(any(AutonomousRun.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
@@ -881,7 +903,7 @@ class AutonomousRunServiceTest {
     assertThat(result).isSameAs(duplicate);
     // The copy's chaining workflow is cloned with keep-alive forced off.
     verify(workflowService).copyScenarioChainingWorkflowAsManual("scenario-1", duplicate);
-    // ADR-007: exactly ONE workflow copy. getDuplicateScenario stays metadata-only, so this caller
+    // ADR-015: exactly ONE workflow copy. getDuplicateScenario stays metadata-only, so this caller
     // - which copies the workflow itself - can never end up with two TEMPLATE workflows on the
     // duplicate.
     verify(workflowService, never()).duplicateScenarioWorkflow(anyString(), any(Scenario.class));
@@ -1018,7 +1040,7 @@ class AutonomousRunServiceTest {
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
     scenario.setTenant(new Tenant("tenant-1"));
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
 
     // save() assigns the generated id and the follow-up start() reloads it by that id.
     final AutonomousRun[] savedHolder = new AutonomousRun[1];
@@ -1107,7 +1129,7 @@ class AutonomousRunServiceTest {
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
     scenario.setTenant(new Tenant("tenant-1"));
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
 
     // A settled dry-run (PLANNED, no simulation) already exists: it must be torn down so the fresh
     // plan run can bind, but its (absent) simulation is never touched.
@@ -1157,7 +1179,7 @@ class AutonomousRunServiceTest {
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
     scenario.setTenant(new Tenant("tenant-1"));
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
 
     // The scenario was previously built by the AI: a settled PLAN-mode run (PLANNED, no simulation)
     // owns it. Refine must reuse THIS row so its timeline survives, never a fresh one.
@@ -1233,7 +1255,7 @@ class AutonomousRunServiceTest {
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
     scenario.setTenant(new Tenant("tenant-1"));
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
     // A manually authored chained scenario: it has steps but no autonomous run.
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
 
@@ -1275,7 +1297,7 @@ class AutonomousRunServiceTest {
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
     scenario.setTenant(new Tenant("tenant-1"));
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
     AutonomousRun prior = new AutonomousRun();
     prior.setId("prior-run");
     prior.setPlanMode(true);
@@ -1305,7 +1327,7 @@ class AutonomousRunServiceTest {
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
     scenario.setTenant(new Tenant("tenant-1"));
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
 
     final AutonomousRun[] savedHolder = new AutonomousRun[1];
@@ -1347,7 +1369,7 @@ class AutonomousRunServiceTest {
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
     scenario.setTenant(new Tenant("tenant-1"));
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.empty());
 
     final AutonomousRun[] savedHolder = new AutonomousRun[1];

@@ -1,5 +1,4 @@
-import { createElement } from 'react';
-import { type CSSProperties } from 'react';
+import { createElement, type CSSProperties } from 'react';
 
 import { initSorting } from '../../../../components/common/queryable/Page';
 import type { Header } from '../../../../components/common/SortHeadersList';

@@ -29,7 +29,8 @@ public final class CapabilityTreeBuilder {
           Map.entry(Capability.MANAGE_MARKING_DEFINITION, PreviewFeature.MARKING),
           Map.entry(Capability.DELETE_MARKING_DEFINITION, PreviewFeature.MARKING),
           Map.entry(Capability.ASSIGN_MARKING, PreviewFeature.MARKING),
-          Map.entry(Capability.DELETE_MARKING_ASSIGNMENT, PreviewFeature.MARKING));
+          Map.entry(Capability.DELETE_MARKING_ASSIGNMENT, PreviewFeature.MARKING),
+          Map.entry(Capability.SYNC_CATALOG, PreviewFeature.CATALOG));
 
   private static final Set<PreviewFeature> ALL_GATES =
       Collections.unmodifiableSet(EnumSet.copyOf(FEATURE_GATES.values()));

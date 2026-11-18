@@ -50,6 +50,10 @@ const CHAT_API_ENDPOINTS = {
   // Base of the per-message rating route: the chatbot appends
   // '/{conversationId}/messages/{messageId}/feedback' (POST rates, DELETE retracts).
   feedback: '/conversations',
+  // Base of the deck, report and video routes: a card downloads one through
+  // POST '/{kind}/{id}/download' and follows a video still rendering through
+  // GET '/{kind}/{id}'. Unset, the cards only link to XTM One.
+  artifacts: '/artifacts',
 } satisfies ApiEndpoints;
 
 const AskArianePanel: React.FC<AskArianePanelProps> = ({

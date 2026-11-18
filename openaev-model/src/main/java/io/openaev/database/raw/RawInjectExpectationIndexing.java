@@ -50,13 +50,6 @@ public interface RawInjectExpectationIndexing extends RawTenant {
   String getInject_expectation_type();
 
   /**
-   * Returns the evaluation results as a serialized string.
-   *
-   * @return the results data
-   */
-  String getInject_expectation_results();
-
-  /**
    * Returns the actual score achieved for this expectation.
    *
    * @return the achieved score, or {@code null} if not yet evaluated

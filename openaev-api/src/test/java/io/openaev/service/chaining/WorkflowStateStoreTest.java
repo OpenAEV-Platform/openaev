@@ -12,7 +12,8 @@ import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import java.util.*;
 import java.util.stream.IntStream;
-import org.hibernate.SessionFactory;
+import org.hibernate.Session;
+import org.hibernate.SessionEventListener;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
  * Integration tests (ADR-011) of {@link WorkflowStateStore} against the real {@code
  * workflow_state_entries} table: state creation, append-only writes with database-level
  * deduplication, key-restricted reads, anti-replay hash commits, cascade deletion, and the number
- * of SQL statements each operation costs (read from Hibernate {@link Statistics}).
+ * of SQL statements each operation costs (counted on the test's own Hibernate session).
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
@@ -94,23 +95,32 @@ class WorkflowStateStoreTest extends IntegrationTest {
         > 0;
   }
 
-  private record SqlCost(long statements, long entityLoads) {}
+  private record SqlCost(long statements, long managedEntities) {}
 
-  /** Runs {@code action} on a flushed, empty persistence context and returns what it cost. */
+  /** Counts the JDBC statements one session prepares. */
+  private static final class PreparedStatementCounter implements SessionEventListener {
+    private long prepared;
+
+    @Override
+    public void jdbcPrepareStatementStart() {
+      prepared++;
+    }
+  }
+
+  /**
+   * Runs {@code action} on a flushed, empty persistence context and returns what it cost to the
+   * test's own session: the statements it prepared and the entities it left managed. The session
+   * factory's {@link Statistics} are not used because they also count the statements of every other
+   * thread, such as the scheduler workers, that runs while the action does.
+   */
   private SqlCost sqlCostOf(Runnable action) {
     entityManager.flush();
     entityManager.clear();
-    Statistics stats =
-        entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
-    boolean wasEnabled = stats.isStatisticsEnabled();
-    stats.setStatisticsEnabled(true);
-    try {
-      stats.clear();
-      action.run();
-      return new SqlCost(stats.getPrepareStatementCount(), stats.getEntityLoadCount());
-    } finally {
-      stats.setStatisticsEnabled(wasEnabled);
-    }
+    Session session = entityManager.unwrap(Session.class);
+    PreparedStatementCounter counter = new PreparedStatementCounter();
+    session.addEventListeners(counter);
+    action.run();
+    return new SqlCost(counter.prepared, session.getStatistics().getEntityCount());
   }
 
   @Nested

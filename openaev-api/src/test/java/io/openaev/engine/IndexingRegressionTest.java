@@ -18,16 +18,22 @@ import io.openaev.engine.model.simulation.EsSimulation;
 import io.openaev.engine.model.simulation.SimulationHandler;
 import io.openaev.engine.model.vulnerableendpoint.EsVulnerableEndpoint;
 import io.openaev.engine.model.vulnerableendpoint.VulnerableEndpointHandler;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
@@ -711,6 +717,7 @@ class IndexingRegressionTest extends IntegrationTest {
                   .sourceName(collector.getName())
                   .result("detected")
                   .score(100.0)
+                  .date(Instant.now())
                   .build()));
       InjectExpectationComposer.Composer agentExpectationWrapper =
           injectExpectationComposer.forExpectation(agentExpectation).withEndpoint(endpointWrapper);
@@ -831,6 +838,7 @@ class IndexingRegressionTest extends IntegrationTest {
                   .sourceName(collector.getName())
                   .result("prevented")
                   .score(100.0)
+                  .date(Instant.now())
                   .build()));
       InjectExpectationComposer.Composer agentPreventionWrapper =
           injectExpectationComposer.forExpectation(agentPrevention).withEndpoint(endpointWrapper);
@@ -962,6 +970,48 @@ class IndexingRegressionTest extends IntegrationTest {
   class FindingIndexing {
 
     @Test
+    @DisplayName("Findings sharing one timestamp beyond a full batch are all served, none skipped")
+    void given_timestampGroupLargerThanBatch_should_serveEveryFindingOfTheGroup() {
+      // Arrange: three findings stamped with one timestamp, as one upsert transaction does
+      List<String> findingIds = new ArrayList<>();
+      for (int i = 0; i < 3; i++) {
+        FindingComposer.Composer findingWrapper =
+            findingComposer.forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle());
+        injectComposer
+            .forInject(InjectFixture.getDefaultInject())
+            .withFinding(findingWrapper)
+            .persist();
+        findingIds.add(findingWrapper.get().getId());
+      }
+      entityManager.flush();
+      Instant sharedTimestamp = PAST.truncatedTo(ChronoUnit.MILLIS);
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_updated_at = :ts WHERE finding_id IN (:ids)")
+          .setParameter("ts", sharedTimestamp)
+          .setParameter("ids", findingIds)
+          .executeUpdate();
+      entityManager.clear();
+
+      // Act: a batch of 2 ends inside the group, the next one resumes after its last id
+      List<EsFinding> firstBatch = findingHandler.fetch(sharedTimestamp, null, 2);
+      List<EsFinding> secondBatch =
+          findingHandler.fetch(sharedTimestamp, firstBatch.getLast().getBase_id(), 2);
+
+      // Assert
+      assertThat(findingHandler.isKeysetPaged()).isTrue();
+      assertThat(firstBatch)
+          .extracting(EsFinding::getBase_updated_at)
+          .as("the group sits at the cursor: the first batch is entirely inside it")
+          .containsOnly(sharedTimestamp);
+      assertThat(Stream.concat(firstBatch.stream(), secondBatch.stream()))
+          .extracting(EsFinding::getBase_id)
+          .as("every finding of the group, each once")
+          .containsAll(findingIds)
+          .doesNotHaveDuplicates();
+    }
+
+    @Test
     @DisplayName("Multi-asset finding is indexed as ONE doc aggregating ALL asset ids")
     void given_findingOnSeveralAssets_should_indexSingleDocWithAllAssets() {
       // The previous per-(finding, asset) rows shared the same base_id: each bulk upsert
@@ -1020,6 +1070,152 @@ class IndexingRegressionTest extends IntegrationTest {
           .filteredOn(es -> es.getBase_id().equals(findingId))
           .singleElement()
           .satisfies(es -> assertThat(es.getBase_endpoint_side()).isEmpty());
+    }
+
+    private String persistFindingInSimulation(Finding finding) {
+      FindingComposer.Composer findingWrapper = findingComposer.forFinding(finding);
+      exerciseComposer
+          .forExercise(ExerciseFixture.createDefaultExercise())
+          .withInject(
+              injectComposer
+                  .forInject(InjectFixture.getDefaultInject())
+                  .withFinding(findingWrapper))
+          .persist();
+      entityManager.flush();
+      return findingWrapper.get().getId();
+    }
+
+    private EsFinding fetchIndexedFinding(String findingId) {
+      entityManager.clear();
+      return findingHandler.fetch(FROM, 5000).stream()
+          .filter(es -> es.getBase_id().equals(findingId))
+          .findFirst()
+          .orElseThrow();
+    }
+
+    @Test
+    @DisplayName("Credentials are indexed masked, in the value and in the representative")
+    void given_credentialsFinding_should_indexMaskedValueAndCurrentMaskingVersion() {
+      // Arrange
+      String findingId =
+          persistFindingInSimulation(FindingFixture.createFindingCredentialsWithDistinctPassword());
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getFinding_value()).isEqualTo("admin:mo******");
+      assertThat(indexed.getBase_representative()).isEqualTo("admin:mo******");
+      assertThat(indexed.getFinding_masking_version())
+          .isEqualTo(SensitiveValueMaskingUtils.MASKING_VERSION);
+    }
+
+    static Stream<Arguments> nonSensitiveFindings() {
+      return Stream.of(
+          Arguments.of("Text", FindingFixture.createDefaultTextFinding()),
+          Arguments.of("CVE", FindingFixture.createDefaultCveFindingWithRandomTitle()),
+          // Its recipe names a "key", but that key is a policy setting name, not a secret
+          Arguments.of("PasswordPolicy", FindingFixture.createDefaultPasswordPolicyFinding()),
+          // The value is the account name alone: nothing secret to mask
+          Arguments.of(
+              "KerberoastableAccount", FindingFixture.createDefaultKerberoastableAccountFinding()),
+          Arguments.of(
+              "AsreproastableAccount", FindingFixture.createDefaultAsreproastableAccountFinding()));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("nonSensitiveFindings")
+    @DisplayName("Non-sensitive findings are indexed unchanged")
+    void given_nonSensitiveFinding_should_indexValueUnchanged(String type, Finding finding) {
+      // Arrange
+      String cleartext = finding.getValue();
+      String findingId = persistFindingInSimulation(finding);
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getFinding_value()).isEqualTo(cleartext);
+      assertThat(indexed.getBase_representative()).isEqualTo(cleartext);
+      assertThat(indexed.getFinding_masking_version())
+          .isEqualTo(SensitiveValueMaskingUtils.MASKING_VERSION);
+    }
+
+    @Test
+    @DisplayName("The indexed value is the stored displayed value, not a mask computed again")
+    void given_storedDisplayedValue_should_indexItAsIs() {
+      // Arrange
+      String findingId = persistFindingInSimulation(FindingFixture.createDefaultTextFinding());
+      String storedDisplay = "value as stored in finding_value_display";
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_value_display = :display WHERE finding_id = :id")
+          .setParameter("display", storedDisplay)
+          .setParameter("id", findingId)
+          .executeUpdate();
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getFinding_value()).isEqualTo(storedDisplay);
+      assertThat(indexed.getBase_representative()).isEqualTo(storedDisplay);
+    }
+
+    @Test
+    @DisplayName(
+        "A row without a displayed value is masked from the cleartext, never indexed as is")
+    void given_credentialsWithoutDisplayedValue_should_indexMaskedValue() {
+      // Arrange
+      String findingId =
+          persistFindingInSimulation(FindingFixture.createFindingCredentialsWithDistinctPassword());
+      // What a pod of the previous version writes during a rolling deploy
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_value_display = NULL WHERE finding_id = :id")
+          .setParameter("id", findingId)
+          .executeUpdate();
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getFinding_value()).isEqualTo("admin:mo******");
+      assertThat(indexed.getBase_representative()).isEqualTo("admin:mo******");
+    }
+
+    @Test
+    @DisplayName(
+        "A row without a displayed value and with a type this version does not know is masked"
+            + " whole, without failing the batch")
+    void given_unknownFindingTypeWithoutDisplayedValue_should_indexFullyMaskedValue() {
+      // Arrange
+      Finding finding = FindingFixture.createDefaultTextFinding();
+      String findingId = persistFindingInSimulation(finding);
+      String knownFindingId =
+          persistFindingInSimulation(FindingFixture.createDefaultCveFindingWithRandomTitle());
+      // The enum cannot carry an unknown type through JPA, and the column is left empty
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_type = :type, finding_value_display = NULL"
+                  + " WHERE finding_id = :id")
+          .setParameter("type", "SomeFutureSecretType")
+          .setParameter("id", findingId)
+          .executeUpdate();
+
+      // Act
+      List<EsFinding> results = findingHandler.fetch(FROM, 5000);
+
+      // Assert
+      assertThat(results)
+          .filteredOn(es -> es.getBase_id().equals(findingId))
+          .singleElement()
+          .satisfies(
+              es -> {
+                assertThat(es.getFinding_value()).isEqualTo("te******");
+                assertThat(es.getBase_representative()).isEqualTo("te******");
+              });
+      assertThat(results).extracting(EsFinding::getBase_id).contains(knownFindingId);
     }
   }
 

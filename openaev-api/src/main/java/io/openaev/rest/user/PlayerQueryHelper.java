@@ -1,8 +1,8 @@
 package io.openaev.rest.user;
 
 import static io.openaev.utils.JpaUtils.createJoinArrayAggOnId;
-import static io.openaev.utils.JpaUtils.createLeftJoin;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.User;
 import io.openaev.rest.user.form.player.PlayerOutput;
@@ -22,7 +22,11 @@ public class PlayerQueryHelper {
   public static void select(CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<User> userRoot) {
     // Array aggregations
     Expression<String[]> tagIdsExpression = createJoinArrayAggOnId(cb, userRoot, "tags");
-    Join<User, Organization> organizationJoin = createLeftJoin(userRoot, "organization");
+    // A user holds one organization per tenant: restricted to the current tenant, or a user of
+    // several tenants would be listed once per organization.
+    Join<User, Organization> organizationJoin = userRoot.join("organizations", JoinType.LEFT);
+    organizationJoin.on(
+        cb.equal(organizationJoin.get("tenant").get("id"), TenantContext.getCurrentTenant()));
 
     // Multiselect
     cq.multiselect(

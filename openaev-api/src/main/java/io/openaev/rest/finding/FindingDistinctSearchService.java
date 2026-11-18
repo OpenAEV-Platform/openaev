@@ -116,36 +116,39 @@ public class FindingDistinctSearchService {
   public Page<AggregatedFindingOutput> searchDistinctBySpecification(
       Specification<Finding> baseFilterSpec, Page<Finding> page) {
 
-    // Step 1: Extract distinct (type, value) keys
-    List<TypeValueKey> typeValueKeys =
+    // Step 1: Extract distinct (type, displayed value) keys. Grouping on the displayed value, never
+    // on the cleartext, keeps two secrets that look the same in one row (ADR-017).
+    List<TypeValueKey> displayValueKeys =
         page.getContent().stream()
-            .map(f -> new TypeValueKey(f.getType(), f.getValue()))
+            .map(f -> new TypeValueKey(f.getType(), f.getValueDisplay()))
             .distinct()
             .toList();
 
-    if (typeValueKeys.isEmpty()) {
+    if (displayValueKeys.isEmpty()) {
       return Page.empty(page.getPageable());
     }
 
     // Step 2: Fetch all findings with assets for those values/types
-    List<ContractOutputType> types = typeValueKeys.stream().map(TypeValueKey::getType).toList();
-    List<String> values = typeValueKeys.stream().map(TypeValueKey::getValue).toList();
+    List<ContractOutputType> types = displayValueKeys.stream().map(TypeValueKey::getType).toList();
+    List<String> displayValues = displayValueKeys.stream().map(TypeValueKey::getValue).toList();
 
     List<Finding> findingsWithAssets =
         findingRepository.findAll(
-            FindingSpecification.findAllWithAssetsByTypeValueIn(types, values, baseFilterSpec));
+            FindingSpecification.findAllWithAssetsByTypeDisplayValueIn(
+                types, displayValues, baseFilterSpec));
 
     // Step 3: Group assets by (type, value)
     Map<TypeValueKey, List<Asset>> groupedAssets =
         findingsWithAssets.stream()
-            .filter(f -> typeValueKeys.contains(new TypeValueKey(f.getType(), f.getValue())))
+            .filter(
+                f -> displayValueKeys.contains(new TypeValueKey(f.getType(), f.getValueDisplay())))
             .flatMap(
                 finding ->
                     finding.getAssets().stream()
                         .map(
                             asset ->
                                 Map.entry(
-                                    new TypeValueKey(finding.getType(), finding.getValue()),
+                                    new TypeValueKey(finding.getType(), finding.getValueDisplay()),
                                     asset)))
             .collect(
                 Collectors.groupingBy(
@@ -161,8 +164,8 @@ public class FindingDistinctSearchService {
     Map<TypeValueKey, Instant> firstSeenByKey = new HashMap<>();
     Map<TypeValueKey, Instant> lastSeenByKey = new HashMap<>();
     for (Finding occurrence : findingsWithAssets) {
-      TypeValueKey key = new TypeValueKey(occurrence.getType(), occurrence.getValue());
-      if (!typeValueKeys.contains(key)) {
+      TypeValueKey key = new TypeValueKey(occurrence.getType(), occurrence.getValueDisplay());
+      if (!displayValueKeys.contains(key)) {
         continue;
       }
       firstSeenByKey.merge(key, occurrence.getCreationDate(), (a, b) -> a.isBefore(b) ? a : b);
@@ -172,7 +175,7 @@ public class FindingDistinctSearchService {
     // Step 4: Map page findings + grouped assets to AggregatedFindingOutput
     return page.map(
         finding -> {
-          TypeValueKey key = new TypeValueKey(finding.getType(), finding.getValue());
+          TypeValueKey key = new TypeValueKey(finding.getType(), finding.getValueDisplay());
           List<Asset> relatedAssets = groupedAssets.getOrDefault(key, List.of());
           return findingMapper.toAggregatedFindingOutput(
               finding,

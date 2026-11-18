@@ -1,0 +1,32 @@
+[
+  {
+    "type": "cycle",
+    "from": "src/admin/components/common/form/TextFieldAskAI.tsx",
+    "to": "src/components/fields/SimpleRichTextField.jsx",
+    "unresolvedTo": "../../../../components/fields/SimpleRichTextField",
+    "dependencyTypes": [
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "no-circular"
+    },
+    "cycle": [
+      {
+        "name": "src/components/fields/SimpleRichTextField.jsx",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/admin/components/common/form/TextFieldAskAI.tsx",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      }
+    ]
+  }
+]

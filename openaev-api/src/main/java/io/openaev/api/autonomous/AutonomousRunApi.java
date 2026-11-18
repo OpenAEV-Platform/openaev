@@ -29,6 +29,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.User;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.autonomous.AutonomousDirective;
 import io.openaev.database.model.autonomous.AutonomousEvent;
@@ -139,10 +140,10 @@ public class AutonomousRunApi extends RestBehavior {
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.SEARCH,
       isEnterpriseEdition = true)
-  public AutonomousDefaultAgentsOutput defaultAgents(TxCtx ctx) {
+  public AutonomousDefaultAgentsOutput defaultAgents(@RequireTenantSelector TxCtx ctx) {
     return new AutonomousDefaultAgentsOutput(
-        autonomousRunService.defaultAdditionalAgentIds(),
-        autonomousRunService.defaultAdditionalAgentModes());
+        autonomousRunService.defaultAdditionalAgentIds(ctx),
+        autonomousRunService.defaultAdditionalAgentModes(ctx));
   }
 
   @Operation(
@@ -152,13 +153,13 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(requireAdmin = true, isEnterpriseEdition = true)
   public AutonomousDefaultAgentsOutput setDefaultAgents(
-      TxCtx ctx, @RequestBody AutonomousDefaultAgentsInput input) {
+      @RequireTenantSelector TxCtx ctx, @RequestBody AutonomousDefaultAgentsInput input) {
     List<String> ids =
         autonomousRunService.updateDefaultAdditionalAgentIds(
-            input != null ? input.getAgentIds() : null);
+            ctx, input != null ? input.getAgentIds() : null);
     Map<String, String> modes =
         autonomousRunService.updateDefaultAdditionalAgentModes(
-            input != null ? input.getAgentModes() : null);
+            ctx, input != null ? input.getAgentModes() : null);
     return new AutonomousDefaultAgentsOutput(ids, modes);
   }
 
@@ -252,15 +253,20 @@ public class AutonomousRunApi extends RestBehavior {
       isEnterpriseEdition = true)
   public List<AutonomousRun> list(TxCtx ctx) {
     List<AutonomousRun> runs = autonomousRunService.list();
+    User user = userService.currentUser();
+    // The runs come from every tenant of the scope: each one is checked in its own tenant.
     return runs.stream()
         .filter(
             run ->
-                permissionService.hasPermission(
-                    userService.currentUser(),
-                    Optional.empty(),
-                    run.getId(),
-                    ResourceType.AUTONOMOUS_RUN,
-                    Action.READ))
+                permissionService.holdsInTenant(
+                    run.getTenant().getId(),
+                    () ->
+                        permissionService.hasPermission(
+                            user,
+                            Optional.empty(),
+                            run.getId(),
+                            ResourceType.AUTONOMOUS_RUN,
+                            Action.READ)))
         .toList();
   }
 
@@ -324,7 +330,7 @@ public class AutonomousRunApi extends RestBehavior {
       resourceId = "#scenarioId",
       isEnterpriseEdition = true)
   public AutonomousRunCreateInput getScenarioConfig(TxCtx ctx, @PathVariable String scenarioId) {
-    return autonomousRunService.getScenarioAutonomousConfig(scenarioId);
+    return autonomousRunService.getScenarioAutonomousConfig(ctx, scenarioId);
   }
 
   @Operation(
@@ -344,7 +350,7 @@ public class AutonomousRunApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String scenarioId,
       @RequestBody(required = false) AutonomousRunCreateInput input) {
-    return autonomousRunService.saveScenarioAutonomousConfig(scenarioId, input);
+    return autonomousRunService.saveScenarioAutonomousConfig(ctx, scenarioId, input);
   }
 
   @Operation(summary = "Engage the orchestrator for a created run")

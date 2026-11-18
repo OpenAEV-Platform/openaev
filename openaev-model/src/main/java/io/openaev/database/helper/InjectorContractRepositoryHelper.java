@@ -48,6 +48,7 @@ public class InjectorContractRepositoryHelper {
             "SELECT ic.* FROM injectors_contracts ic "
                 + "JOIN payloads p ON ic.injector_contract_payload = p.payload_id "
                 + "JOIN injectors_contracts_attack_patterns injectorAttack ON ic.injector_contract_id = injectorAttack.injector_contract_id "
+                + "AND injectorAttack.tenant_id = ic.tenant_id "
                 + "JOIN attack_patterns a ON injectorAttack.attack_pattern_id = a.attack_pattern_id "
                 + "WHERE ic.tenant_id = :tenantId "
                 + "AND a.attack_pattern_external_id LIKE :attackPatternExternalId");

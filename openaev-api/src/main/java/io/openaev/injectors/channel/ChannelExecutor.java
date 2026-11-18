@@ -92,7 +92,7 @@ public class ChannelExecutor extends Injector {
         Exercise exercise = injection.getInjection().getExercise();
         // Send the publication message.
         if (content.isEmailing()) {
-          String from = exercise.getFrom();
+          String from = this.context.getPlatformMailSender().getEmail();
           String fromName = exercise.getFromName();
           List<String> replyTos = exercise.getReplyTos();
           List<ExecutionContext> users = injection.getUsers();

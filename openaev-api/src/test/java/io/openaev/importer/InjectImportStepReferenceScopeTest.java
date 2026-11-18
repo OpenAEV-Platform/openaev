@@ -27,6 +27,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.constants.Constants;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
@@ -82,6 +83,7 @@ class InjectImportStepReferenceScopeTest extends IntegrationTest {
   private static final String MISSING_CONTRACT_WITH_PAYLOAD_FIXTURE =
       "src/test/resources/importer-v1/import-scenario-workflow-step-missing-contract-with-payload.json";
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private ExerciseRepository exerciseRepository;
@@ -166,7 +168,7 @@ class InjectImportStepReferenceScopeTest extends IntegrationTest {
     void registerPayloadCapableInjector() throws Exception {
       // The step's contract is absent and its embedded payload is recreated on import, which the
       // importer only attempts when an injector of the contract's type exists in the write tenant.
-      openaevInjectorIntegrationFactory.registerConnectorForTenant(tenantA);
+      builtinConnectorRegistration.register(openaevInjectorIntegrationFactory, tenantA);
     }
 
     @Test

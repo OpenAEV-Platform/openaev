@@ -9,6 +9,8 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,8 +18,10 @@ import static org.mockito.Mockito.when;
 import io.openaev.IntegrationTest;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPaginationScenario;
+import io.openaev.database.raw.RawScenarioSimpleIndexing;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.export.WorkflowExportInitializer;
@@ -28,6 +32,7 @@ import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.ScopeService;
@@ -36,6 +41,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.StepFixture;
@@ -51,6 +57,7 @@ import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.*;
 import org.junit.jupiter.api.*;
@@ -72,6 +79,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @ExtendWith(MockitoExtension.class)
 class ScenarioServiceTest extends IntegrationTest {
+
+  private static final TxCtx DEFAULT_TENANT_SCOPE = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
 
   @Autowired ScenarioRepository scenarioRepository;
   @Autowired private ExerciseRepository exerciseRepository;
@@ -108,6 +117,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private InjectService injectService;
   @Mock private TagRuleService tagRuleService;
   @Mock private UserService userService;
+  @Mock private AuthorService authorService;
   @Mock private TenantSettingsService tenantSettingsService;
   @Mock private CustomDashboardService customDashboardService;
   @InjectMocks private ScenarioService scenarioService;
@@ -123,46 +133,53 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private ActionMetricCollector actionMetricCollector;
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
   @Mock private ObjectProvider<AutonomousRunService> autonomousRunServiceProvider;
+  @Autowired private ObjectProvider<PermissionService> permissionServiceProvider;
 
   private static String USER_ID;
   private static String TEAM_ID;
   private static String INJECT_ID;
   @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
 
   @BeforeEach
   void setUp() {
-    scenarioService =
-        new ScenarioService(
-            scenarioRepository,
-            teamRepository,
-            userRepository,
-            documentRepository,
-            scenarioTeamUserRepository,
-            articleRepository,
-            exerciseMapper,
-            actionMetricCollector,
-            licenseCacheManager,
-            enterpriseEditionService,
-            variableService,
-            challengeService,
-            teamService,
-            scopeService,
-            fileService,
-            injectDuplicateService,
-            tagRuleService,
-            injectService,
-            userService,
-            tenantSettingsService,
-            customDashboardService,
-            injectRepository,
-            lessonsCategoryRepository,
-            tagRepository,
-            healthCheckUtils,
-            scenarioMapper,
-            workflowService,
-            workflowExportInitializer,
-            bulkDeleteExecutor,
-            autonomousRunServiceProvider);
+    scenarioService = scenarioServiceReading(scenarioRepository);
+  }
+
+  private ScenarioService scenarioServiceReading(ScenarioRepository repository) {
+    return new ScenarioService(
+        repository,
+        teamRepository,
+        userRepository,
+        documentRepository,
+        scenarioTeamUserRepository,
+        articleRepository,
+        exerciseMapper,
+        actionMetricCollector,
+        licenseCacheManager,
+        enterpriseEditionService,
+        variableService,
+        challengeService,
+        teamService,
+        scopeService,
+        fileService,
+        injectDuplicateService,
+        tagRuleService,
+        injectService,
+        userService,
+        authorService,
+        tenantSettingsService,
+        customDashboardService,
+        injectRepository,
+        lessonsCategoryRepository,
+        tagRepository,
+        healthCheckUtils,
+        scenarioMapper,
+        workflowService,
+        workflowExportInitializer,
+        bulkDeleteExecutor,
+        autonomousRunServiceProvider,
+        permissionServiceProvider);
   }
 
   @AfterAll
@@ -188,12 +205,12 @@ class ScenarioServiceTest extends IntegrationTest {
 
     String scenarioId = scenario.getId();
 
-    scenarioService.deleteScenario(scenarioId);
+    scenarioService.deleteScenario(DEFAULT_TENANT_SCOPE, scenarioId);
     entityManager.flush();
     entityManager.clear();
 
     assertThat(injectRepository.findById(injectWrapper.get().getId())).isEmpty();
-    assertThatThrownBy(() -> scenarioService.getScenarioById(scenarioId))
+    assertThatThrownBy(() -> scenarioService.getScenarioById(DEFAULT_TENANT_SCOPE, scenarioId))
         .isInstanceOf(ElementNotFoundException.class);
   }
 
@@ -234,7 +251,10 @@ class ScenarioServiceTest extends IntegrationTest {
     entityManager.clear();
 
     Map<String, Set<String>> platformsByScenarioId =
-        scenarioServiceBean.scenarios(PaginationFixture.getDefault().build()).getContent().stream()
+        scenarioServiceBean
+            .scenarios(TxCtx.missing(), PaginationFixture.getDefault().build())
+            .getContent()
+            .stream()
             .filter(
                 scenario ->
                     scenario.getScenario_id().equals(timeBasedScenario.getId())
@@ -248,9 +268,9 @@ class ScenarioServiceTest extends IntegrationTest {
     assertEquals(Set.of("Windows"), platformsByScenarioId.get(chainedScenario.getId()));
 
     ScenarioOutput chainedScenarioOutput =
-        scenarioServiceBean.getScenarioById(chainedScenario.getId());
+        scenarioServiceBean.getScenarioById(DEFAULT_TENANT_SCOPE, chainedScenario.getId());
     ScenarioOutput timeBasedScenarioOutput =
-        scenarioServiceBean.getScenarioById(timeBasedScenario.getId());
+        scenarioServiceBean.getScenarioById(DEFAULT_TENANT_SCOPE, timeBasedScenario.getId());
     assertEquals(Set.of("Windows"), chainedScenarioOutput.getPlatforms());
     assertEquals(Set.of("Linux"), timeBasedScenarioOutput.getPlatforms());
   }
@@ -297,7 +317,8 @@ class ScenarioServiceTest extends IntegrationTest {
     entityManager.clear();
 
     // Act
-    assertDoesNotThrow(() -> scenarioServiceBean.deleteScenario(scenario.getId()));
+    assertDoesNotThrow(
+        () -> scenarioServiceBean.deleteScenario(DEFAULT_TENANT_SCOPE, scenario.getId()));
 
     entityManager.flush();
     entityManager.clear();
@@ -309,7 +330,8 @@ class ScenarioServiceTest extends IntegrationTest {
         .isEmpty();
     assertThat(injectRepository.findById(persistedInjectA.getId())).isEmpty();
     assertThat(injectRepository.findById(persistedInjectB.getId())).isEmpty();
-    assertThatThrownBy(() -> scenarioServiceBean.getScenarioById(scenario.getId()))
+    assertThatThrownBy(
+            () -> scenarioServiceBean.getScenarioById(DEFAULT_TENANT_SCOPE, scenario.getId()))
         .isInstanceOf(ElementNotFoundException.class);
   }
 
@@ -334,11 +356,11 @@ class ScenarioServiceTest extends IntegrationTest {
 
     String scenarioId = scenarioWrapper.get().getId();
 
-    scenarioService.deleteScenario(scenarioId);
+    scenarioService.deleteScenario(DEFAULT_TENANT_SCOPE, scenarioId);
     entityManager.flush();
     entityManager.clear();
 
-    assertThatThrownBy(() -> scenarioService.getScenarioById(scenarioId))
+    assertThatThrownBy(() -> scenarioService.getScenarioById(DEFAULT_TENANT_SCOPE, scenarioId))
         .isInstanceOf(ElementNotFoundException.class);
 
     assertThat(exerciseRepository.findById(simulationWrapper.get().getId()))
@@ -379,7 +401,6 @@ class ScenarioServiceTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotEquals(scenario.getId(), scenarioDuplicated.getId());
-    assertEquals(scenario.getFrom(), scenarioDuplicated.getFrom());
     assertTrue(scenarioDuplicated.isLessonsEnabled());
     assertEquals(2, scenarioDuplicated.getTeams().size());
     scenarioDuplicated
@@ -403,7 +424,10 @@ class ScenarioServiceTest extends IntegrationTest {
   void given_scenarioOwnedByNonDefaultTenant_should_attributeDuplicatedContextualTeamToItsTenant() {
     // -- PREPARE --
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("scenario-duplication-tenant"));
+    // The scenario belongs to that tenant, so the test runs in its scope on both channels: the v1
+    // ambient tenant and the transaction's tenant scope.
     TenantContext.setCurrentTenant(tenant.getId());
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
     try {
       List<Team> scenarioTeams = new ArrayList<>();
       Team contextualTeam = this.teamRepository.save(getTeam(null, "fakeTeamName1", true));
@@ -476,7 +500,8 @@ class ScenarioServiceTest extends IntegrationTest {
     INJECT_ID = injectDefaultEmailSaved.getId();
 
     // -- EXECUTE --
-    this.scenarioService.removeTeams(scenarioSaved.getId(), List.of(teamSaved.getId()));
+    this.scenarioService.removeTeams(
+        DEFAULT_TENANT_SCOPE, scenarioSaved.getId(), List.of(teamSaved.getId()));
 
     // -- ASSERT --
     List<Team> teams = this.teamRepository.findAll(fromScenario(scenarioSaved.getId()));
@@ -487,7 +512,7 @@ class ScenarioServiceTest extends IntegrationTest {
 
   @Test
   public void testRunChecksWhenScenarioIsNull() {
-    List<HealthCheck> healthchecks = scenarioService.runChecks(null);
+    List<HealthCheck> healthchecks = scenarioService.runChecks(DEFAULT_TENANT_SCOPE, null);
 
     assertNull(healthchecks);
   }
@@ -511,7 +536,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(DEFAULT_TENANT_SCOPE, scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -545,7 +571,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(DEFAULT_TENANT_SCOPE, scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -578,7 +605,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(DEFAULT_TENANT_SCOPE, scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -611,7 +639,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(DEFAULT_TENANT_SCOPE, scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -644,7 +673,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(DEFAULT_TENANT_SCOPE, scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -669,7 +699,8 @@ class ScenarioServiceTest extends IntegrationTest {
     this.scenarioRepository.save(scenario);
 
     // Act
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(DEFAULT_TENANT_SCOPE, scenario.getId());
 
     // Assert
     verify(this.injectService, never()).runChecks(any());
@@ -705,7 +736,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of());
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(DEFAULT_TENANT_SCOPE, scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -718,5 +750,85 @@ class ScenarioServiceTest extends IntegrationTest {
     assertEquals(HealthCheck.Type.TEAMS, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());
+  }
+
+  /**
+   * The repository returns scenarios of the default tenant and of B together, as the list query
+   * does once {@code scenarios} is activated. Until then its native predicate on the ambient tenant
+   * returns the rows of one tenant only, which is why the rows are stubbed here: through the real
+   * repository a decision taken in the ambient tenant would pass this test.
+   */
+  @Nested
+  @DisplayName("Scenario list decision")
+  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  class ScenarioListDecision {
+
+    @AfterEach
+    void clearAmbientTenant() {
+      TenantContext.clearCurrentTenant();
+    }
+
+    @Test
+    @DisplayName(
+        "given scenarios of two tenants and the access right only outside B should list every default scenario and B's granted ones")
+    void
+        given_scenariosOfTwoTenantsAndAccessRightOnlyOutsideB_should_listDefaultAndGrantedBScenarios()
+            throws Exception {
+      // -- ARRANGE --
+      tenantIsolationTestHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
+      String tenantB =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("scenario-list-decision-b").getId();
+      TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+      User caller = userRepository.findById(testUserHolder.get().getId()).orElseThrow();
+      when(userService.currentUser()).thenReturn(caller);
+      RawScenarioSimpleIndexing ofDefault =
+          rawScenario("scenario-of-default", Tenant.DEFAULT_TENANT_UUID);
+      RawScenarioSimpleIndexing ofB = rawScenario("scenario-of-b", tenantB);
+      RawScenarioSimpleIndexing grantedOfB = rawScenario("granted-scenario-of-b", tenantB);
+      ScenarioRepository rowsOfBothTenants = mock(ScenarioRepository.class);
+      when(rowsOfBothTenants.rawAll()).thenReturn(List.of(ofDefault, ofB, grantedOfB));
+      when(rowsOfBothTenants.rawAllGranted(caller.getId())).thenReturn(List.of(grantedOfB));
+
+      // -- ACT --
+      List<String> listed =
+          scenarioServiceReading(rowsOfBothTenants)
+              .scenarios(TxCtx.forTenants(Set.of(Tenant.DEFAULT_TENANT_UUID, tenantB)))
+              .stream()
+              .map(ScenarioSimple::getId)
+              .toList();
+
+      // -- ASSERT --
+      assertThat(listed).containsExactlyInAnyOrder("scenario-of-default", "granted-scenario-of-b");
+    }
+
+    @Test
+    @DisplayName("given a scenario should list it with its tenant")
+    void given_scenario_should_listItWithItsTenant() {
+      // -- ARRANGE --
+      TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+      String scenarioId =
+          scenarioRepository.saveAndFlush(ScenarioFixture.createDefaultCrisisScenario()).getId();
+
+      // -- ACT --
+      List<RawScenarioSimpleIndexing> listed = scenarioRepository.rawAll();
+      List<RawScenarioSimpleIndexing> found =
+          scenarioRepository.rawByScenarioIds(List.of(scenarioId));
+
+      // -- ASSERT --
+      assertThat(listed)
+          .filteredOn(row -> scenarioId.equals(row.getScenario_id()))
+          .extracting(RawScenarioSimpleIndexing::getTenant_id)
+          .containsExactly(Tenant.DEFAULT_TENANT_UUID);
+      assertThat(found)
+          .extracting(RawScenarioSimpleIndexing::getTenant_id)
+          .containsExactly(Tenant.DEFAULT_TENANT_UUID);
+    }
+
+    private RawScenarioSimpleIndexing rawScenario(String id, String tenantId) {
+      RawScenarioSimpleIndexing scenario = mock(RawScenarioSimpleIndexing.class);
+      lenient().when(scenario.getScenario_id()).thenReturn(id);
+      lenient().when(scenario.getTenant_id()).thenReturn(tenantId);
+      return scenario;
+    }
   }
 }

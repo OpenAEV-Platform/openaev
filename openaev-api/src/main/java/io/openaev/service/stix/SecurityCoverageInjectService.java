@@ -22,6 +22,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.InjectUtils;
 import io.openaev.utils.SecurityCoverageUtils;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -221,7 +222,7 @@ public class SecurityCoverageInjectService {
                               null,
                               null,
                               FileDrop.FILE_DROP_TYPE);
-                      inject.setScenario(scenario);
+                      InjectUtils.attachToScenario(inject, scenario);
                       this.injectRepository.save(inject);
                       return;
                     }
@@ -299,7 +300,7 @@ public class SecurityCoverageInjectService {
     Inject inject =
         injectService.buildInject(injectorContract, injectName, injectDescription, true);
     inject.setTags(tags);
-    inject.setScenario(scenario);
+    InjectUtils.attachToScenario(inject, scenario);
     inject.setAssetGroups(assetGroups);
     return inject;
   }
@@ -439,7 +440,7 @@ public class SecurityCoverageInjectService {
                     Stream.of(
                         injectAssistantService.buildManualInject(
                             contractForPlaceholder, vulnerabilityId, null, null, null)))
-            .peek(inject -> inject.setScenario(scenario))
+            .peek(inject -> InjectUtils.attachToScenario(inject, scenario))
             .toList();
     injectService.saveAll(placeholdersInject);
 
@@ -560,7 +561,7 @@ public class SecurityCoverageInjectService {
                     Stream.of(
                         injectAssistantService.buildManualInject(
                             contractForPlaceholder, attackPatternId, null, null, null)))
-            .peek(inject -> inject.setScenario(scenario))
+            .peek(inject -> InjectUtils.attachToScenario(inject, scenario))
             .toList();
     injectService.saveAll(placeholdersInject);
 
@@ -950,7 +951,7 @@ public class SecurityCoverageInjectService {
         injectService.buildInject(
             injectorContract, "Resolve DNS " + hostname, "Resolve Domain Name " + hostname, true);
     inject.setTags(tags);
-    inject.setScenario(scenario);
+    InjectUtils.attachToScenario(inject, scenario);
     inject.setAssetGroups(assetGroups);
     // Add hostname in arguments of the inject to be set and used at execution on payload
     inject.setContent(inject.getContent().put(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY, hostname));

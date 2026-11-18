@@ -10,7 +10,7 @@ Recreating a timeline of [Injects](../../run-and-evaluate/injects/inject-overvie
 
 ## How to create a mapper?
 
-First of all, to import [Injects](../../run-and-evaluate/injects/inject-overview.md) into a [Scenario](scenario.md), you need to create a mapper. To do that, using an admin account, navigate to **Settings > Data ingestion**. You will then be able to see a list of all the mappers but also to create new ones by clicking on the "+" button on the bottom right of the screen.
+First of all, to import [Injects](../../run-and-evaluate/injects/inject-overview.md) into a [Scenario](scenario.md), you need to create a mapper. To do that, with the `Manage tenant settings` capability, navigate to **Settings > Data ingestion**. You will then be able to see a list of all the mappers but also to create new ones by clicking on the "+" button on the bottom right of the screen.
 
 ![List of Mappers](assets/mapper_screen.png)
 
@@ -67,7 +67,7 @@ If you click on the test button, you'll then be asked to choose a file. Once tha
 
 ## How to import Injects into a Scenario using a mapper?
 
-Once your mapper has been created, navigate to your [Scenario](scenario.md) and then to the [Injects](../../run-and-evaluate/injects/inject-overview.md) tab. There, you will be able to click on an import button on the top right.
+Once your mapper has been created, navigate to your [Scenario](scenario.md) and then to the [Injects](../../run-and-evaluate/injects/inject-overview.md) tab. There, you will be able to click on an import button on the top right. You only need the right to edit the Scenario: using a mapper does not require the tenant settings capabilities.
 A modal will be opening, inviting you to select an .xls/.xlsx file. Once it has been selected, you can click on next. You will then be asked to choose the sheet to import out of the spreadsheet and to select the mapper to use. You will also be able to select the timezone to use for the import. Once everything is set, click on the launch import button and your injects will be imported into the current scenario !
 Please do note that if all the dates in the xls file are absolute time of the day (e.g. 9:30, 12:45, ...), it is required for the scenario to have a launch date set.
 ## Example

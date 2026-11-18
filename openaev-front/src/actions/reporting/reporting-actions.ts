@@ -6,6 +6,7 @@ import {
   type ReportingScheduleInput,
   type SearchPaginationInput,
 } from '../../utils/api-types';
+import { buildTenantApiPath } from '../../utils/url-helper';
 
 export const REPORTING_URI = '/api/reportings';
 
@@ -63,7 +64,7 @@ export const deleteReportingGeneration = (generationId: string) => {
 };
 
 export const downloadReportingGenerationUrl = (generationId: string) => {
-  return `${REPORTING_URI}/generations/${generationId}/file`;
+  return buildTenantApiPath(`${REPORTING_URI}/generations/${generationId}/file`);
 };
 
 // -- SCHEDULES --

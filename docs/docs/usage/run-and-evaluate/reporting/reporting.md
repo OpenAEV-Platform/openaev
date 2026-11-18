@@ -57,9 +57,15 @@ Select and order the sections that make up the report. Available modules:
 | Security domains | Success rate per security domain (endpoint, network, email, etc.) |
 | Score trends | Evolution of results over time |
 | Failed expectations | Most recent failed Expectations |
-| Findings | Findings collected, grouped by type |
+| Findings | Number of Findings per type, then the 15 most recent Findings. Sensitive values, such as passwords, are masked as on the Findings page |
 | Attack paths | Kill chain phase progression of executed Injects |
 | Custom markdown | Free-form markdown content with optional custom title |
+
+!!! note "The Findings module does not list every Finding"
+
+    The Findings module is a summary. It counts every Finding of the report scope per type, but its table lists only the 15 most recent Findings, with their type and date. A report on a platform with 1,000 Findings therefore shows the 1,000 in the counts and 15 rows in the table.
+
+    The table shows one row per Inject that found a value, so the same value can appear more than once. To see every Finding, use the [Findings](../findings/findings.md) page or a list Widget in a [custom Dashboard](../dashboards/custom-dashboards.md).
 
 Drag modules to reorder them. Each module can have a custom title override.
 
@@ -101,6 +107,10 @@ Generate a report on demand from the report detail page:
 The **Generations** tab on the report detail page lists all past generations with their status, format, trigger type (manual or scheduled), and timestamps. Download any past generation directly from this list.
 
 ![Report generations](assets/reporting-generations.png)
+
+!!! note
+
+    Each generation is a snapshot. Reports generated before your platform masked sensitive Findings in Dashboards keep the values they were generated with: generate the report again to get the masked values.
 
 ## Schedules
 

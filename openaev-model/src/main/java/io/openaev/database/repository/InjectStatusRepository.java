@@ -22,20 +22,6 @@ public interface InjectStatusRepository
 
   Optional<InjectStatus> findByInjectId(@NotNull String injectId);
 
-  @Query(
-      value =
-          "SELECT ins.*, t.*"
-              + " FROM injects_statuses ins"
-              + " INNER JOIN injects i ON ins.status_inject = i.inject_id"
-              + " LEFT JOIN execution_traces t"
-              + "  ON t.execution_inject_status_id = ins.status_id"
-              + "  AND t.execution_agent_id IS NULL"
-              + "  AND cardinality(t.execution_context_identifiers) = 0"
-              + " WHERE i.inject_id = :injectId"
-              + " ORDER BY t.execution_time ASC, t.execution_trace_id ASC",
-      nativeQuery = true)
-  Optional<InjectStatus> findInjectStatusWithGlobalExecutionTraces(String injectId);
-
   /**
    * The execution status name of many injects at once, as {@code (injectId, statusName)} pairs. The
    * attack-path graph read ships every execution's "did it actually run" status, so resolving it

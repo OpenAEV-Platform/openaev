@@ -45,7 +45,6 @@ const FailedExpectationsModule: FunctionComponent<Props> = ({ failedExpectations
     >
       {rows.map((row, index) => (
         // Rows have no natural id in the flattened ES payload.
-        // eslint-disable-next-line react/no-array-index-key
         <ReportRow key={index}>
           <ReportCell>
             <Typography sx={{

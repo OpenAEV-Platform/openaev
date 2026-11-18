@@ -32,7 +32,7 @@ import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.EndpointMapper;
@@ -100,7 +100,7 @@ public class EndpointService implements AuditLoggedService {
   /** Cache of raw install/upgrade script templates keyed by platform/script name. */
   private final Map<String, String> agentScriptTemplateCache = new ConcurrentHashMap<>();
 
-  private final ServiceAccountPrivilegeService privilegeService;
+  private final AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
 
   @Value("${info.app.version:unknown}")
   String version;
@@ -770,6 +770,7 @@ public class EndpointService implements AuditLoggedService {
     Agent agent = new Agent();
     setNewAgentAttributes(input, agent);
     setUpdatedAgentAttributes(agent, input, endpoint);
+    agent = agentService.createOrUpdateAgent(agent);
     endpoint.getAgents().add(agent);
     updateEndpoint(endpoint);
     return agent;
@@ -796,6 +797,7 @@ public class EndpointService implements AuditLoggedService {
     }
     setUpdatedAgentAttributes(agent, input, endpoint);
     if (!endpoint.getAgents().contains(agent)) {
+      agent = agentService.createOrUpdateAgent(agent);
       endpoint.getAgents().add(agent);
     }
     return agent;
@@ -1037,7 +1039,7 @@ public class EndpointService implements AuditLoggedService {
       String tenantId)
       throws IOException {
     // FIND TOKEN BY TENANT
-    String token = privilegeService.getTokenUserServiceAccountByTenant(tenantId);
+    String token = agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(tenantId);
     String upgradeName = OPENAEV_AGENT_UPGRADE;
     if (installationMode != null && !installationMode.equals(SERVICE)) {
       upgradeName = upgradeName.concat("-").concat(installationMode);

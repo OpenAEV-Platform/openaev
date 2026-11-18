@@ -28,7 +28,7 @@ public interface PayloadRepository
   Optional<Payload> findByIdAndTenantId(
       @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
 
-  Optional<Payload> findByExternalId(@NotNull String externalId);
+  Optional<Payload> findByIdentityExternalId(@NotNull String externalId);
 
   /**
    * Icon metadata for a batch of payloads in one read: {@code [id, payloadType,
@@ -37,13 +37,14 @@ public interface PayloadRepository
    * icon (the collector logo, e.g. netexec / atomic-red-team) instead of the generic agent icon.
    */
   @Query(
-      "SELECT p.id, p.type, ct.name FROM Payload p LEFT JOIN p.collectorType ct WHERE p.id IN :ids")
+      "SELECT p.id, p.type, ct.name FROM Payload p JOIN p.identity pi"
+          + " LEFT JOIN pi.collectorType ct WHERE p.id IN :ids")
   List<Object[]> findIconMetadataByIds(@Param("ids") Set<String> ids);
 
   @Query(
       value =
-          "SELECT p.payload_external_id FROM payloads p"
-              + " JOIN collectors c ON c.collector_type_id = p.payload_collector_type"
+          "SELECT pi.payload_external_id FROM payload_identities pi"
+              + " JOIN collectors c ON c.collector_type_id = pi.payload_collector_type"
               + " WHERE c.collector_id = :collectorId",
       nativeQuery = true)
   List<String> findAllExternalIdsByCollectorId(@NotNull @Param("collectorId") String collectorId);
@@ -51,7 +52,9 @@ public interface PayloadRepository
   @Modifying
   @Query(
       value =
-          "UPDATE payloads SET payload_status = :payloadStatus WHERE payload_external_id IN :payloadExternalIds AND tenant_id = :#{#tenantContext.currentTenant}",
+          "UPDATE payloads p SET payload_status = :payloadStatus FROM payload_identities pi"
+              + " WHERE pi.payload_identity_id = p.payload_identity AND pi.payload_external_id IN :payloadExternalIds"
+              + " AND p.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
   void setPayloadStatusByExternalIds(
       @Param("payloadStatus") String payloadStatus,

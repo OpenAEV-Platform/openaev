@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 
 /**
  * Installs the write-attribution detection trigger. A BEFORE INSERT OR UPDATE trigger on every base
- * table carrying a {@code tenant_id} column (except the self-isolated tables) raises a {@code
+ * table carrying a {@code tenant_id} column (except {@link #UNWATCHED_TABLES}) raises a {@code
  * [WRITEATTR]} warning when a v2 scope is set on the transaction ({@code app.current_tenants}
  * non-empty) and the row's {@code tenant_id} is either outside that scope or null.
  *
@@ -70,6 +70,17 @@ final class WriteAttrDetectorTrigger {
    */
   static final String VERSION = "5";
 
+  /**
+   * The tables the trigger is not attached to. Only {@code tenants}: its {@code tenant_id} column
+   * is the row's own primary key ({@code Tenant#id}), not an attribution stamp, so creating a
+   * tenant inside its creator's scope always reads as out of scope and the signal cannot tell a
+   * correct write from a wrong one. Every other table with a {@code tenant_id} column is watched,
+   * whether or not the statement inspector gates it: a table the inspector leaves alone ({@code
+   * TenantTables#selfIsolatedTables}) is exactly where this trigger is the only check on the tenant
+   * a write is stamped with.
+   */
+  static final Set<String> UNWATCHED_TABLES = Set.of("tenants");
+
   private static final String FUNCTION = "_writeattr_detect";
   private static final String TRIGGER = "_writeattr_trg";
 
@@ -123,11 +134,11 @@ final class WriteAttrDetectorTrigger {
   private WriteAttrDetectorTrigger() {}
 
   /**
-   * Creates the function and attaches the trigger to every tenant table except {@code
-   * excludedTables}. Idempotent: it drops any prior trigger and function first, so a re-run and a
-   * newly onboarded table both converge without error and a stale version cannot survive.
+   * Creates the function and attaches the trigger to every tenant table except {@link
+   * #UNWATCHED_TABLES}. Idempotent: it drops any prior trigger and function first, so a re-run and
+   * a newly onboarded table both converge without error and a stale version cannot survive.
    */
-  static void install(Connection connection, Set<String> excludedTables) throws SQLException {
+  static void install(Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement()) {
       String stale = installedVersion(statement);
       if (stale != null && !("writeattr-v" + VERSION).equals(stale)) {
@@ -138,7 +149,7 @@ final class WriteAttrDetectorTrigger {
       uninstall(statement);
       statement.execute(CREATE_FUNCTION);
       statement.execute(COMMENT_VERSION);
-      statement.execute(attachTriggers(excludedTables));
+      statement.execute(attachTriggers(UNWATCHED_TABLES));
     }
   }
 

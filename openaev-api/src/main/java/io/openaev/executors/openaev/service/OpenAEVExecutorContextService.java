@@ -8,7 +8,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.executors.ExecutorContextService;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service;
 public class OpenAEVExecutorContextService extends ExecutorContextService {
 
   private final AssetAgentJobRepository assetAgentJobRepository;
-  private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  private final AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   private final OpenAEVConfig openAEVConfig;
 
   private String computeCommand(

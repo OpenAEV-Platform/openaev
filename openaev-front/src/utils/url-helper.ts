@@ -152,9 +152,10 @@ export const getCurrentTenantId = (): string => {
 // ---------------------------------------------------------------------------
 
 /**
- * API path prefixes that are NEVER tenant-scoped (platform-global endpoints).
+ * API path prefixes that are NEVER tenant-scoped (platform-global endpoints). Each one matches a
+ * whole path segment: '/api/ai' exempts '/api/ai/...' but not '/api/ai_targets'.
  */
-const TENANT_EXEMPT_PREFIXES = [
+export const TENANT_EXEMPT_PREFIXES = [
   '/api/me',
   '/api/ai',
   '/api/login',
@@ -174,6 +175,10 @@ const TENANT_EXEMPT_PREFIXES = [
   '/api/engine',
 ];
 
+const isUnderPrefix = (uri: string, prefix: string): boolean => uri === prefix
+  || uri.startsWith(`${prefix}/`)
+  || uri.startsWith(`${prefix}?`);
+
 /**
  * Rewrites an API path to include the tenant prefix.
  *
@@ -184,7 +189,7 @@ export const buildTenantApiPath = (uri: string): string => {
   if (!uri.startsWith('/api/')) {
     return uri;
   }
-  if (TENANT_EXEMPT_PREFIXES.some(prefix => uri.startsWith(prefix))) {
+  if (TENANT_EXEMPT_PREFIXES.some(prefix => isUnderPrefix(uri, prefix))) {
     return uri;
   }
 

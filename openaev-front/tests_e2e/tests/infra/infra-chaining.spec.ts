@@ -1,4 +1,4 @@
-import { type APIRequestContext, expect, type Page } from '@playwright/test';
+import { type APIRequestContext, expect, type Page, type Response } from '@playwright/test';
 
 import { type AttackPathDTO } from '../../../src/utils/api-types';
 import ScenarioApiHelpers from '../../api-helpers/ScenarioApiHelpers';
@@ -87,6 +87,28 @@ const addEndpointToScope = async (page: Page, hostname: string): Promise<void> =
   await expect(page.getByText(hostname, { exact: true }).first()).toBeVisible();
 };
 
+// Saving an action posts the step, then closes the drawer. The drawer is modal, so
+// the canvas behind it (and its "Add component" button) stays out of the
+// accessibility tree until the save has settled. Waiting on the contract load,
+// the step response and the drawer title makes the helper fail on the save
+// itself instead of on a button that is merely hidden behind the drawer.
+const saveActionStep = async (page: Page): Promise<void> => {
+  await expect(page.getByText('Loading contract fields...', { exact: true })).toBeHidden();
+  const isStepCreation = (response: Response): boolean => response.request().method() === 'POST' && new URL(response.url()).pathname.endsWith('/steps');
+  const saveResponse = page.waitForResponse(isStepCreation);
+  await page.getByRole('button', {
+    name: 'Save',
+    exact: true,
+  }).click();
+  const response = await saveResponse;
+  expect(response.ok(), `Saving the action step answered ${response.status()}`).toBeTruthy();
+  await expect(page.getByText('Configure action', { exact: true })).toBeHidden();
+  await expect(page.getByRole('button', {
+    name: 'Add component',
+    exact: true,
+  })).toBeVisible();
+};
+
 const addPayloadAction = async (page: Page, payloadName: string): Promise<void> => {
   await page.getByRole('button', {
     name: 'Add component',
@@ -94,14 +116,7 @@ const addPayloadAction = async (page: Page, payloadName: string): Promise<void> 
   }).click();
   await page.getByRole('button', { name: /^Action\s/ }).click();
   await page.getByText(payloadName, { exact: true }).click();
-  await page.getByRole('button', {
-    name: 'Save',
-    exact: true,
-  }).click();
-  await expect(page.getByRole('button', {
-    name: 'Add component',
-    exact: true,
-  })).toBeVisible();
+  await saveActionStep(page);
 };
 
 const addTextTrigger = async (page: Page, name: string, value: string): Promise<void> => {
@@ -116,7 +131,7 @@ const addTextTrigger = async (page: Page, name: string, value: string): Promise<
   await selectOption(page, 'Operator', 'Equals');
   await page.getByLabel('Expected Value', { exact: true }).fill(value);
   await page.getByRole('button', {
-    name: 'Add trigger',
+    name: 'Add event',
     exact: true,
   }).click();
   await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
@@ -128,14 +143,7 @@ const addPayloadActionGatedByTrigger = async (page: Page, payloadName: string): 
     exact: true,
   }).click();
   await page.getByText(payloadName, { exact: true }).click();
-  await page.getByRole('button', {
-    name: 'Save',
-    exact: true,
-  }).click();
-  await expect(page.getByRole('button', {
-    name: 'Add component',
-    exact: true,
-  })).toBeVisible();
+  await saveActionStep(page);
 };
 
 const addNmapAction = async (page: Page, hostname: string): Promise<void> => {
@@ -147,14 +155,7 @@ const addNmapAction = async (page: Page, hostname: string): Promise<void> => {
   await page.getByText(NMAP_TCP_CONNECT_SCAN, { exact: true }).click();
   await expect(page.getByText('Initial Target', { exact: true })).toBeVisible();
   await expect(page.getByText(hostname, { exact: true }).first()).toBeVisible();
-  await page.getByRole('button', {
-    name: 'Save',
-    exact: true,
-  }).click();
-  await expect(page.getByRole('button', {
-    name: 'Add component',
-    exact: true,
-  })).toBeVisible();
+  await saveActionStep(page);
 };
 
 const launchScenario = async (page: Page): Promise<string> => {

@@ -53,4 +53,20 @@ class PreviewFeatureServiceTest extends IntegrationTest {
     // ACT & ASSERT
     assertFalse(previewFeatureService.isFeatureEnabled(_RESERVED));
   }
+
+  @Test
+  void should_enable_logging_expectation_only_when_configured() {
+    // ARRANGE
+    openAEVConfig.setEnabledDevFeatures(MARKING.getValue());
+
+    // ACT & ASSERT
+    assertFalse(previewFeatureService.isFeatureEnabled(LOGGING_EXPECTATION));
+
+    // ARRANGE
+    cacheManager.getCache("global").clear();
+    openAEVConfig.setEnabledDevFeatures(LOGGING_EXPECTATION.getValue());
+
+    // ACT & ASSERT
+    assertTrue(previewFeatureService.isFeatureEnabled(LOGGING_EXPECTATION));
+  }
 }

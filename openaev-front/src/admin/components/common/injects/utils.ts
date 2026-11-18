@@ -31,7 +31,7 @@ export const countDistinctInjectTargets = (injects: Inject[]): {
   };
 };
 
-export const isInjectContentType = (type: ContractElement['type']) => type !== 'asset' && type !== 'team' && type !== 'asset-group' && type !== 'article' && type !== 'challenge' && type !== 'attachment';
+export const isInjectContentType = (type: ContractElement['type']) => type !== 'asset' && type !== 'team' && type !== 'asset-group' && type !== 'article' && type !== 'challenge' && type !== 'attachment' && type !== 'credential-reference';
 
 export const isRequiredField = (field: ContractElement, fields: ContractElement[], values: FieldValues) => {
   if (field.mandatory) {

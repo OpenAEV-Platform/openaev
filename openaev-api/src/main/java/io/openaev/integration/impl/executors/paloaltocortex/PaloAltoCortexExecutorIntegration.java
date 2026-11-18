@@ -179,5 +179,9 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
   @Override
   protected void innerStop() {
     timers.forEach(timer -> timer.cancel(true));
+    timers.clear();
+    if (paloAltoCortexExecutorContextService != null) {
+      paloAltoCortexExecutorContextService.shutdown();
+    }
   }
 }

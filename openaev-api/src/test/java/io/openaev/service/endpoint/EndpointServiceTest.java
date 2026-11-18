@@ -20,7 +20,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetService;
 import io.openaev.service.EndpointService;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetAgentJobFixture;
 import io.openaev.utils.mapper.EndpointMapper;
@@ -54,7 +54,7 @@ class EndpointServiceTest {
   @Mock private AgentService agentService;
   @Mock private AssetService assetService;
   @Mock private EndpointMapper endpointMapper;
-  @Mock private ServiceAccountPrivilegeService privilegeService;
+  @Mock private AgentServiceAccountPrivilegeService privilegeService;
   @Mock private ApplicationEventPublisher eventPublisher;
 
   @InjectMocks private EndpointService endpointService;

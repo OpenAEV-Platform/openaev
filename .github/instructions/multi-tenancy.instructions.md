@@ -69,6 +69,9 @@ under-scopes an unrelated read.
    `shared-tenant-keys.txt` and the reasoned exceptions in `shared-tenant-key-join-waivers.txt`,
    whose `reaches-active-table:` and `until-active:` reasons are checked against the production
    activation list, so they expire with it
+9. A new endpoint on tenant-scoped data is mapped under `TENANT_PREFIX` only, never also under a
+   short `/api/...` route: without the tenant in the URI, a write is ambiguous for a user in
+   several tenants
 
 ## Background Threads Carry Both Scopes
 
@@ -123,3 +126,4 @@ remaining code path is still v1 — otherwise its absence silently attributes in
 | Relying on the `TenantContext` default fallback | Pass the owning row's tenant explicitly |
 | Entrypoint reaching a v2-active table with no `TxCtx` param | Add `TxCtx ctx` and register it in `TenantScopedEntrypointsTxCtxArchTest` |
 | `@Filter("tenantFilter")` left in place after adding a table to `active-tables` | Remove it in the same commit — v1 and v2 never coexist |
+| New tenant-scoped endpoint also mapped on `/api/{entities}` | Map it on `TENANT_PREFIX + "/{entities}"` only |

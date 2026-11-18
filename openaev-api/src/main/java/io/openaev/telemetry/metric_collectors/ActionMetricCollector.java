@@ -1,11 +1,11 @@
 package io.openaev.telemetry.metric_collectors;
 
+import static io.openaev.telemetry.metric_collectors.MetricRegistry.collectAndReset;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import io.opentelemetry.api.common.Attributes;
 import jakarta.annotation.PostConstruct;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -76,35 +76,11 @@ public class ActionMetricCollector {
     metricRegistry.registerMultiGauge(
         "injects_played_count",
         "Number of injects played, broken down by injector type",
-        this::collectInjectsPlayedByType);
+        () -> collectAndReset(injectsPlayedByType));
     metricRegistry.registerMultiGauge(
         "executors_used_count",
         "Number of times each executor type was used",
-        this::collectExecutorsUsedByType);
-  }
-
-  private Map<Attributes, Long> collectInjectsPlayedByType() {
-    Map<Attributes, Long> snapshot = new HashMap<>();
-    injectsPlayedByType.forEach(
-        (attributes, value) -> {
-          long collected = value.getAndSet(0);
-          if (collected > 0) {
-            snapshot.put(attributes, collected);
-          }
-        });
-    return snapshot;
-  }
-
-  private Map<Attributes, Long> collectExecutorsUsedByType() {
-    Map<Attributes, Long> snapshot = new HashMap<>();
-    executorsUsedByType.forEach(
-        (attributes, value) -> {
-          long collected = value.getAndSet(0);
-          if (collected > 0) {
-            snapshot.put(attributes, collected);
-          }
-        });
-    return snapshot;
+        () -> collectAndReset(executorsUsedByType));
   }
 
   public void addScenarioCreatedCount() {

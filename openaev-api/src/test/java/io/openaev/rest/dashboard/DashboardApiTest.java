@@ -915,6 +915,172 @@ class DashboardApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("When reading sensitive findings")
+  class WhenReadingSensitiveFindings {
+
+    private static final String MASKED_CREDENTIALS = "admin:mo******";
+
+    private Finding persistCredentialsFindingOnEndpoint() {
+      FindingComposer.Composer findingWrapper =
+          findingComposer
+              .forFinding(FindingFixture.createFindingCredentialsWithDistinctPassword())
+              .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()));
+      exerciseComposer
+          .forExercise(ExerciseFixture.createDefaultExercise())
+          .withInject(
+              injectComposer
+                  .forInject(InjectFixture.getDefaultInject())
+                  .withFinding(findingWrapper))
+          .persist();
+      return findingWrapper.get();
+    }
+
+    private Widget persistWidget(Widget widget) {
+      return widgetComposer
+          .forWidget(widget)
+          .withCustomDashboard(
+              customDashboardComposer.forCustomDashboard(
+                  CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
+          .persist()
+          .get();
+    }
+
+    private void flushAndIndex() throws InterruptedException {
+      entityManager.flush();
+      entityManager.clear();
+      indexEveryTenant();
+      // elastic needs to process the data; it does so async, so the method above
+      // completes before the data is available in the system
+      Thread.sleep(1000);
+    }
+
+    private String performWithLastQuarter(String route, Widget widget) throws Exception {
+      String timeRangeParameterId =
+          widget.getCustomDashboard().getParameters().stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
+      return mvc.perform(
+              post(DASHBOARD_URI + route + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(Map.of(timeRangeParameterId, String.valueOf(LAST_QUARTER))))
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @DisplayName("List widget returns the credentials masked, with no cleartext in the payload")
+    void given_credentialsFinding_should_listMaskedValue() throws Exception {
+      // Arrange
+      persistCredentialsFindingOnEndpoint();
+      Widget widget = persistWidget(WidgetFixture.createListWidgetWithEntity("finding"));
+      flushAndIndex();
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/entities/" + widget.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThatJson(response).node("total").isEqualTo(1);
+      assertThatJson(response).node("es_datas[0].finding_value").isEqualTo(MASKED_CREDENTIALS);
+      assertThatJson(response)
+          .node("es_datas[0].base_representative")
+          .isEqualTo(MASKED_CREDENTIALS);
+      assertThat(response).doesNotContain(FindingFixture.CREDENTIALS_PASSWORD);
+    }
+
+    @Test
+    @DisplayName("Filters only match the displayed characters, never the hidden secret")
+    void given_containsFilterOnFindingValue_should_matchOnlyDisplayedCharacters() throws Exception {
+      // Arrange
+      persistCredentialsFindingOnEndpoint();
+      Widget onPassword =
+          persistWidget(
+              WidgetFixture.createNumberWidgetWithEntityAndFilter(
+                  "finding",
+                  "finding_value",
+                  Filters.FilterOperator.contains,
+                  FindingFixture.CREDENTIALS_PASSWORD));
+      // One character past the visible fragment: the mask must not answer it either
+      Widget onPasswordPrefix =
+          persistWidget(
+              WidgetFixture.createNumberWidgetWithEntityAndFilter(
+                  "finding", "finding_value", Filters.FilterOperator.contains, "mot"));
+      Widget onUsername =
+          persistWidget(
+              WidgetFixture.createNumberWidgetWithEntityAndFilter(
+                  "finding",
+                  "finding_value",
+                  Filters.FilterOperator.contains,
+                  FindingFixture.CREDENTIALS_USERNAME));
+      flushAndIndex();
+
+      // Act
+      String passwordCount = performWithLastQuarter("/count/", onPassword);
+      String passwordPrefixCount = performWithLastQuarter("/count/", onPasswordPrefix);
+      String usernameCount = performWithLastQuarter("/count/", onUsername);
+
+      // Assert
+      assertThatJson(passwordCount).node("interval_count").isEqualTo(0);
+      assertThatJson(passwordPrefixCount).node("interval_count").isEqualTo(0);
+      assertThatJson(usernameCount).node("interval_count").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Histogram on the finding value labels its bucket with the masked value")
+    void given_histogramOnFindingValue_should_returnMaskedBucket() throws Exception {
+      // Arrange
+      persistCredentialsFindingOnEndpoint();
+      Widget widget =
+          persistWidget(
+              WidgetFixture.createStructuralWidgetWithTimeRange(
+                  LAST_QUARTER, "base_created_at", "finding_value", "finding"));
+      flushAndIndex();
+
+      // Act
+      String response = performWithLastQuarter("/series/", widget);
+
+      // Assert
+      assertThatJson(response).node("[0].data").isArray().size().isEqualTo(1);
+      assertThatJson(response).node("[0].data[0].key").isEqualTo(MASKED_CREDENTIALS);
+      assertThatJson(response).node("[0].data[0].label").isEqualTo(MASKED_CREDENTIALS);
+      assertThat(response).doesNotContain(FindingFixture.CREDENTIALS_PASSWORD);
+    }
+
+    @Test
+    @DisplayName("Asset histogram by finding resolves its bucket label to the masked value")
+    void given_assetHistogramByFindings_should_resolveMaskedLabel() throws Exception {
+      // Arrange
+      Finding finding = persistCredentialsFindingOnEndpoint();
+      Widget widget =
+          persistWidget(
+              WidgetFixture.createStructuralWidgetWithTimeRange(
+                  LAST_QUARTER, "base_created_at", "base_findings_side", "asset"));
+      flushAndIndex();
+
+      // Act
+      String response = performWithLastQuarter("/series/", widget);
+
+      // Assert
+      assertThatJson(response).node("[0].data").isArray().size().isEqualTo(1);
+      assertThatJson(response).node("[0].data[0].key").isEqualTo(finding.getId());
+      assertThatJson(response).node("[0].data[0].label").isEqualTo(MASKED_CREDENTIALS);
+      assertThat(response).doesNotContain(FindingFixture.CREDENTIALS_PASSWORD);
+    }
+  }
+
+  @Nested
   @DisplayName("Create List widget in runtime")
   class CreateListWidgetInRuntime {
     // ==================== Common Helper Methods ====================

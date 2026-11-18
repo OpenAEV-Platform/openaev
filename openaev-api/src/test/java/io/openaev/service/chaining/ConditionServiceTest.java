@@ -1109,6 +1109,76 @@ public class ConditionServiceTest {
     }
 
     @Test
+    void given_dependOnParentStillRunning_should_returnEmptyList() throws ChainingException {
+      // -------- Arrange --------
+      // The parent step has a run step that is READY or RUN: it was launched, it has not ended.
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+      String dependentStepTemplateId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition dependOnCondition = new Condition();
+      dependOnCondition.setType(ConditionType.DEPEND_ON);
+      dependOnCondition.setValue(dependentStepTemplateId);
+
+      doReturn(List.of(dependOnCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+      when(stepRepository.existsByStepTemplateIdAndWorkflowId(dependentStepTemplateId, workflowId))
+          .thenReturn(true);
+      when(stepRepository.existsUnfinishedByStepTemplateIdAndWorkflowRunId(
+              dependentStepTemplateId, workflowId))
+          .thenReturn(true);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void given_dependOnParentTargetStillDelayed_should_returnEmptyList() throws ChainingException {
+      // -------- Arrange --------
+      // Every run step of the parent has ended, but a target held back by the rate limit waits in
+      // the delay queue: the parent has not ended on every target. The query reads both in one
+      // statement (see StepUnfinishedQueryIntegrationTest).
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+      String dependentStepTemplateId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition dependOnCondition = new Condition();
+      dependOnCondition.setType(ConditionType.DEPEND_ON);
+      dependOnCondition.setValue(dependentStepTemplateId);
+
+      doReturn(List.of(dependOnCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+      when(stepRepository.existsByStepTemplateIdAndWorkflowId(dependentStepTemplateId, workflowId))
+          .thenReturn(true);
+      when(stepRepository.existsUnfinishedByStepTemplateIdAndWorkflowRunId(
+              dependentStepTemplateId, workflowId))
+          .thenReturn(true);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertTrue(result.isEmpty());
+    }
+
+    @Test
     void given_multipleDependOnConditions_allSatisfied_should_returnDirectBatch()
         throws ChainingException {
       // -------- Arrange --------

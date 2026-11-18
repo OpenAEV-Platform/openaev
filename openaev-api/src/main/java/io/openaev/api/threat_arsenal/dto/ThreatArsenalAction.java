@@ -5,6 +5,7 @@ import io.openaev.database.model.Endpoint;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.payload.output.PayloadSimple;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import java.time.Instant;
 import java.util.Arrays;
@@ -64,6 +65,11 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
   @JsonProperty("action_author_type")
   private String authorType;
 
+  @NotBlank
+  @Schema(description = "Id the action's grants target: its payload identity, else the contract")
+  @JsonProperty("action_grant_resource_id")
+  private String grantResourceId;
+
   public ThreatArsenalAction(
       String id,
       String externalId,
@@ -77,7 +83,8 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
       String[] attackPatterns,
       String authorId,
       String authorName,
-      String authorType) {
+      String authorType,
+      String grantResourceId) {
     super(id, externalId, updatedAt);
     this.setLabels(labels);
     this.setInjectorType(injectorType);
@@ -90,5 +97,6 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
     this.setAuthorId(authorId);
     this.setAuthorName(authorName);
     this.setAuthorType(authorType);
+    this.setGrantResourceId(grantResourceId);
   }
 }

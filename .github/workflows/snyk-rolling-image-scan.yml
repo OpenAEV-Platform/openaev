@@ -24,7 +24,7 @@ concurrency:
 jobs:
   scan:
     name: "🔍 Scan openaev/platform:${{ matrix.tag }}"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -63,4 +63,3 @@ jobs:
           name: snyk-platform-${{ matrix.tag }}
           path: snyk-platform-${{ matrix.tag }}.*
           if-no-files-found: ignore
-          retention-days: 30

@@ -39,6 +39,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 @SpringBootTest
 @TestExecutionListeners(
@@ -126,6 +127,35 @@ public class NotificationTriggerApiTest extends IntegrationTest {
     mvc.perform(delete(NOTIFICATION_TRIGGER_URI + "/" + triggerId).with(csrf()))
         .andExpect(status().is2xxSuccessful());
     assertFalse(notificationTriggerRepository.findById(triggerId).isPresent());
+  }
+
+  private ResultActions createLive(
+      ResourceType resourceType, NotificationTriggerEventType eventType) throws Exception {
+    NotificationTriggerInput input =
+        NotificationTriggerInput.builder()
+            .name("Event watcher")
+            .type(NotificationTriggerType.LIVE)
+            .resourceType(resourceType)
+            .eventTypes(List.of(eventType))
+            .notifierIds(List.of(uiNotifierId()))
+            .build();
+    return mvc.perform(
+        post(NOTIFICATION_TRIGGER_URI)
+            .content(asJsonString(input))
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON)
+            .with(csrf()));
+  }
+
+  @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  @DisplayName("An event limited to a resource is accepted on it only")
+  void given_eventLimitedToResource_should_beAcceptedOnItOnly() throws Exception {
+    // Act & Assert
+    createLive(ResourceType.CATALOG_SYNC, NotificationTriggerEventType.SYNC_BLOCKED)
+        .andExpect(status().is2xxSuccessful());
+    createLive(ResourceType.SCENARIO, NotificationTriggerEventType.SYNC_BLOCKED)
+        .andExpect(status().is4xxClientError());
   }
 
   @Test

@@ -155,7 +155,9 @@ public class SimulationInjectTestApi extends RestBehavior {
 
     // Specification building
     Specification<Inject> filterSpecifications =
-        this.injectService.getInjectSpecification(input, Grant.GRANT_TYPE.PLANNER).and(testable());
+        this.injectService
+            .getInjectSpecification(ctx, input, Grant.GRANT_TYPE.PLANNER)
+            .and(testable());
 
     // Services calls
     // Bulk test

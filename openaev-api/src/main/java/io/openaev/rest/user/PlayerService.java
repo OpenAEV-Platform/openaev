@@ -2,7 +2,8 @@ package io.openaev.rest.user;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.specification.UserSpecification.inTenant;
-import static io.openaev.helper.DatabaseHelper.updateRelation;
+import static io.openaev.database.specification.UserSpecification.organizationsInTenant;
+import static io.openaev.helper.DatabaseHelper.resolveTenantOrganization;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.user.PlayerQueryHelper.execution;
@@ -12,6 +13,7 @@ import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 import static java.time.Instant.now;
 
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tag;
@@ -40,7 +42,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.function.TriFunction;
 import org.springframework.data.domain.Page;
@@ -60,6 +61,7 @@ public class PlayerService {
   private final TeamRepository teamRepository;
   private final OrganizationRepository organizationRepository;
   private final TenantUserService tenantUserService;
+  private final TenantWriteScopeResolver writeScopeResolver;
   @PersistenceContext private EntityManager entityManager;
 
   private final UserRepository userRepository;
@@ -105,7 +107,10 @@ public class PlayerService {
               }
               // Users are a platform-level (dual-scope) entity: scope explicitly to the current
               // tenant, like the players list search does.
-              specification = specification.and(inTenant(TenantContext.getCurrentTenant()));
+              specification =
+                  specification
+                      .and(inTenant(TenantContext.getCurrentTenant()))
+                      .and(organizationsInTenant(TenantContext.getCurrentTenant()));
               if (!CollectionUtils.isEmpty(input.getUserIdsToIgnore())) {
                 List<String> idsToIgnore = input.getUserIdsToIgnore();
                 specification =
@@ -136,10 +141,15 @@ public class PlayerService {
         inTenant(TenantContext.getCurrentTenant()).and(excludeReservedAccounts);
     TriFunction<Specification<User>, Specification<User>, Pageable, Page<PlayerOutput>>
         playersFunction;
+    // After the filters, which may join the organizations of the user (see organizationsInTenant).
+    Specification<User> organizationsOfTenant =
+        organizationsInTenant(TenantContext.getCurrentTenant());
     playersFunction =
         (specification, specificationCount, pageable) ->
             this.paginate(
-                tenantSpec.and(specification), tenantSpec.and(specificationCount), pageable);
+                tenantSpec.and(specification).and(organizationsOfTenant),
+                tenantSpec.and(specificationCount).and(organizationsOfTenant),
+                pageable);
     return buildPaginationCriteriaBuilder(playersFunction, searchPaginationInput, User.class);
   }
 
@@ -183,70 +193,86 @@ public class PlayerService {
     return new PageImpl<>(players, pageable, total);
   }
 
-  public User createPlayer(@Valid @RequestBody PlayerInput input) {
+  public User createPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     var existingUser = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (existingUser.isPresent()) {
       String userId = existingUser.get().getId();
-      tenantUserService.attachToTenant(userId, TenantContext.getCurrentTenant());
+      tenantUserService.attachToTenant(userId, tenantId);
       // Reload user after @Modifying queries cleared the persistence context
-      return userRepository.findById(userId).orElseThrow();
+      return forTenant(userRepository.findById(userId).orElseThrow(), tenantId);
     }
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    user.setOrganization(
-        updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
     User savedUser = userRepository.save(user);
+    assignOrganization(savedUser, input.getOrganizationId(), tenantId);
     userService.createUserToken(savedUser);
-    tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
-    return savedUser;
+    tenantUserService.attachToTenant(savedUser.getId(), tenantId);
+    return forTenant(savedUser, tenantId);
   }
 
-  public User upsertPlayer(@Valid @RequestBody PlayerInput input) {
+  public User upsertPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Optional<User> user = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (user.isPresent()) {
       if (!requireUpdate(user.get(), input)) {
-        return user.get();
+        return forTenant(user.get(), tenantId);
       }
       User existingUser = user.get();
       existingUser.setUpdateAttributes(input);
       existingUser.setUpdatedAt(now());
-      Iterable<String> tags =
-          Stream.concat(
-                  existingUser.getTags().stream().map(Tag::getId).toList().stream(),
-                  input.getTagIds().stream())
-              .distinct()
-              .toList();
-      existingUser.setTags(iterableToSet(tagRepository.findAllById(tags)));
-      Iterable<String> teams =
-          Stream.concat(
-                  existingUser.getTeams().stream().map(Team::getId).toList().stream(),
-                  input.getTeamIds().stream())
-              .distinct()
-              .toList();
-      existingUser.setTeams(fromIterable(teamRepository.findAllById(teams)));
       if (StringUtils.hasText(input.getOrganizationId())) {
-        existingUser.setOrganization(
-            updateRelation(
-                input.getOrganizationId(), existingUser.getOrganization(), organizationRepository));
+        assignOrganization(existingUser, input.getOrganizationId(), tenantId);
       }
-      tenantUserService.attachToTenant(existingUser.getId(), TenantContext.getCurrentTenant());
-      return userRepository.save(existingUser);
+      userRepository.save(existingUser);
+      // The player is platform-level, so it may hold tags and teams of tenants this request does
+      // not see. They are added one link at a time: replacing the collections would delete the
+      // links the request cannot see.
+      tagRepository
+          .findAllById(input.getTagIds())
+          .forEach(tag -> userRepository.addTag(existingUser.getId(), tag.getId()));
+      teamRepository
+          .findAllById(input.getTeamIds())
+          .forEach(team -> userRepository.addTeam(existingUser.getId(), team.getId()));
+      tenantUserService.attachToTenant(existingUser.getId(), tenantId);
+      // Reload user after @Modifying queries cleared the persistence context
+      return forTenant(userRepository.findById(existingUser.getId()).orElseThrow(), tenantId);
     } else {
       User newUser = new User();
       newUser.setUpdateAttributes(input);
       newUser.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-      newUser.setOrganization(
-          updateRelation(
-              input.getOrganizationId(), newUser.getOrganization(), organizationRepository));
       newUser.setTeams(fromIterable(teamRepository.findAllById(input.getTeamIds())));
       User savedUser = userRepository.save(newUser);
+      assignOrganization(savedUser, input.getOrganizationId(), tenantId);
       userService.createUserToken(savedUser);
-      tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
-      return savedUser;
+      tenantUserService.attachToTenant(savedUser.getId(), tenantId);
+      return forTenant(savedUser, tenantId);
     }
+  }
+
+  /**
+   * The user as the response shows it: its organization is the one of the tenant the write went to,
+   * not of the ambient tenant, which is the default one when the request names another in {@code
+   * X-Tenant-Ids}.
+   */
+  private User forTenant(User user, String tenantId) {
+    user.answerOrganizationOfTenant(tenantId);
+    return user;
+  }
+
+  /**
+   * Sets the organization of the user in the given tenant, an empty id clearing it. The ones the
+   * user holds in other tenants are left untouched.
+   */
+  private void assignOrganization(
+      @NotNull final User user, final String organizationId, final String tenantId) {
+    userRepository.assignOrganization(
+        user,
+        tenantId,
+        resolveTenantOrganization(organizationId, tenantId, organizationRepository));
   }
 
   private boolean requireUpdate(

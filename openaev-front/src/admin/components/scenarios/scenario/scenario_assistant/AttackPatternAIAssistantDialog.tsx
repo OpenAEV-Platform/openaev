@@ -18,7 +18,6 @@ const useStyles = makeStyles()(theme => ({
     gridTemplateColumns: '1fr 1fr',
     gap: theme.spacing(1, 2),
   },
-  textLabel: { alignSelf: 'end' },
   filesLabel: {
     display: 'flex',
     justifyContent: 'space-between',

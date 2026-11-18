@@ -17,11 +17,15 @@ import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.Context;
 import org.hibernate.Session;
+import org.hibernate.jdbc.ReturningWork;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -40,6 +44,11 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>{@code @Transactional} so the DDL the backfill tests apply (dropping {@code NOT NULL} to seed
  * unattributed rows) rolls back with the test transaction.
+ *
+ * <p>The test's own SQL runs on the transaction's raw JDBC connection, as Flyway runs the migration
+ * itself: the seeding DDL, the unattributed rows and the backfill checks are schema-level work that
+ * belongs to no tenant scope, and the tenant statement inspector applied to the persistence
+ * context's queries refuses DDL and narrows reads to the test's scope.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
@@ -428,27 +437,48 @@ class AddTenantIdToChainingTablesMigrationTest extends IntegrationTest {
   }
 
   private void execute(String sql) {
-    entityManager.createNativeQuery(sql).executeUpdate();
+    onRawConnection(
+        connection -> {
+          try (Statement statement = connection.createStatement()) {
+            return statement.executeUpdate(sql);
+          }
+        });
   }
 
   private String tenantOf(String table, String idColumn, String id) {
-    return (String)
-        entityManager
-            .createNativeQuery(
-                "SELECT tenant_id FROM " + table + " WHERE " + idColumn + " = '" + id + "'")
-            .getSingleResult();
+    List<Object[]> rows =
+        nativeRows("SELECT tenant_id FROM " + table + " WHERE " + idColumn + " = '" + id + "'");
+    assertThat(rows).as("%s row %s", table, id).hasSize(1);
+    return (String) rows.getFirst()[0];
   }
 
   private long nativeCount(String sql) {
-    return ((Number) entityManager.createNativeQuery(sql).getSingleResult()).longValue();
+    return ((Number) nativeRows(sql).getFirst()[0]).longValue();
   }
 
-  @SuppressWarnings("unchecked")
   private List<Object[]> nativeRows(String sql) {
-    List<?> rows = entityManager.createNativeQuery(sql).getResultList();
-    return rows.stream()
-        .map(row -> row instanceof Object[] array ? array : new Object[] {row})
-        .toList();
+    return onRawConnection(
+        connection -> {
+          List<Object[]> rows = new ArrayList<>();
+          try (Statement statement = connection.createStatement();
+              ResultSet resultSet = statement.executeQuery(sql)) {
+            int columns = resultSet.getMetaData().getColumnCount();
+            while (resultSet.next()) {
+              Object[] row = new Object[columns];
+              for (int column = 0; column < columns; column++) {
+                row[column] = resultSet.getObject(column + 1);
+              }
+              rows.add(row);
+            }
+          }
+          return rows;
+        });
+  }
+
+  /** Flushes the persistence context, then runs {@code work} on the transaction's connection. */
+  private <T> T onRawConnection(ReturningWork<T> work) {
+    entityManager.flush();
+    return entityManager.unwrap(Session.class).doReturningWork(work);
   }
 
   private static Context contextOn(Connection connection) {

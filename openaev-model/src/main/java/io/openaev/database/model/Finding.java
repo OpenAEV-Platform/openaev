@@ -12,6 +12,7 @@ import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.persistence.Table;
@@ -68,11 +69,21 @@ public class Finding implements TenantBase {
   @NotNull
   protected ContractOutputType type;
 
-  @Queryable(searchable = true, filterable = true, sortable = true)
+  // The cleartext value. Deduplication, correlation and the attack path compare real values, so the
+  // database keeps it. Users can never search, filter or sort on it, and it is never serialized: a
+  // query on it would let a user confirm a secret the platform does not display (see ADR-017).
   @Column(name = "finding_value", nullable = false)
-  @JsonProperty("finding_value")
+  @JsonIgnore
   @NotBlank
   protected String value;
+
+  // The value as the platform displays it, masked by SensitiveValueMaskingUtils. Search, filters,
+  // sorts, distinct grouping and notification triggers read this column instead of the cleartext,
+  // under the same "finding_value" key the front end and saved filters already use.
+  @Queryable(searchable = true, filterable = true, sortable = true)
+  @Column(name = "finding_value_display")
+  @JsonProperty("finding_value")
+  private String valueDisplay;
 
   @Deprecated
   @Type(StringArrayType.class)
@@ -173,6 +184,34 @@ public class Finding implements TenantBase {
   @Transient
   private final ResourceType resourceType = ResourceType.SIMULATION;
 
+  // -- DISPLAYED VALUE --
+  // finding_value_display is computed by SensitiveValueMaskingUtils.maskIfNeededFailClosed, like on
+  // every other write path (the native upsert of FindingWriter, the backfill migration and its
+  // delayed pass), so they all store exactly the same masked form.
+
+  public void setType(final ContractOutputType type) {
+    if (this.id != null && this.type != null && this.type != type) {
+      throw new IllegalArgumentException("Finding type cannot be changed.");
+    }
+    this.type = type;
+  }
+
+  /**
+   * The value as the platform displays it, always computed from the current type and value, so it
+   * is right even before the finding is saved. The stored column only serves the SQL queries.
+   */
+  public String getValueDisplay() {
+    return SensitiveValueMaskingUtils.maskIfNeededFailClosed(type, value);
+  }
+
+  // Stores the displayed value on every write, so search, filters, sorts and grouping, which run in
+  // SQL, always match what getValueDisplay() returns.
+  @PrePersist
+  @PreUpdate
+  void refreshValueDisplay() {
+    this.valueDisplay = getValueDisplay();
+  }
+
   @JsonProperty("finding_simulation")
   @Queryable(filterable = true, dynamicValues = true, path = "inject.exercise.id")
   public Exercise getSimulation() {
@@ -198,5 +237,32 @@ public class Finding implements TenantBase {
       return Collections.emptySet();
     }
     return getInject().getAssetGroups().stream().collect(Collectors.toSet());
+  }
+
+  // -- TEXT SEARCH ON THE CONTEXT --
+  // The occurrences of one finding all share its type, field, value and name, so a text search on
+  // the finding detail page could only match everything or nothing (#8176). These search-only
+  // properties let the search box also match the inject, simulation and scenario an occurrence
+  // comes from. They are private, never serialized, never filterable nor sortable: they only add
+  // ILIKE predicates on many-to-one paths, which never multiply the rows.
+
+  @JsonIgnore
+  @Queryable(searchable = true, path = "inject.title")
+  private String getSearchInjectTitle() {
+    return getInject() == null ? null : getInject().getTitle();
+  }
+
+  @JsonIgnore
+  @Queryable(searchable = true, path = "inject.exercise.name")
+  private String getSearchSimulationName() {
+    return Optional.ofNullable(getSimulation()).map(Exercise::getName).orElse(null);
+  }
+
+  @JsonIgnore
+  @Queryable(searchable = true, path = "inject.scenario.name")
+  private String getSearchScenarioName() {
+    return getInject() == null
+        ? null
+        : Optional.ofNullable(getInject().getScenario()).map(Scenario::getName).orElse(null);
   }
 }

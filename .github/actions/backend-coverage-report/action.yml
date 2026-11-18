@@ -1,0 +1,66 @@
+name: Backend Coverage Report
+description: >
+  Merge the JaCoCo exec files of every API test shard and build the backend coverage report at
+  openaev-api/target/site/jacoco/jacoco.xml. Reuses the jars and build output from Backend Compile
+  rather than building again. Used by both the Codecov upload and the backend coverage check, so
+  that each starts as soon as the API tests are green instead of waiting for a shared report job.
+  Expects a checkout of the repository.
+
+inputs:
+  no-cache:
+    description: "true bypasses the shared Maven dependency cache"
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Java 21
+      uses: actions/setup-java@v6
+      with:
+        java-version: "21"
+        distribution: temurin
+
+    # Read-only: backend-compile is the sole writer of maven-v2.
+    - name: Restore Maven dependencies
+      if: ${{ inputs.no-cache != 'true' }}
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          maven-v2-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Download compiled Maven artifacts
+      uses: actions/download-artifact@v8
+      with:
+        name: backend-compiled
+        path: ~/.m2/repository/io/openaev/
+
+    - name: Download API build output
+      uses: actions/download-artifact@v8
+      with:
+        name: api-build-output
+        path: openaev-api/target
+
+    - name: Download all JaCoCo exec shards
+      uses: actions/download-artifact@v8
+      with:
+        pattern: jacoco-exec-shard-*
+        path: jacoco-exec
+
+    # Callers only run after green API tests, so every shard has uploaded its exec file.
+    - name: Merge JaCoCo exec files
+      shell: bash
+      run: |
+        SHARD_COUNT=$(find jacoco-exec -name 'jacoco.exec' | wc -l)
+        if [ "$SHARD_COUNT" -eq 0 ]; then
+          echo "❌ No JaCoCo exec file found, although the API tests passed"
+          exit 1
+        fi
+        cat jacoco-exec/jacoco-exec-shard-*/jacoco.exec > openaev-api/target/jacoco.exec
+        echo "✅ Merged $SHARD_COUNT shard(s)"
+
+    - name: Coverage report
+      shell: bash
+      run: mvn -B -ntp -pl openaev-api jacoco:report

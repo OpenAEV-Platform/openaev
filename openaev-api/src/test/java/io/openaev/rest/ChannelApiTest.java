@@ -23,6 +23,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
+import io.openaev.utilstest.RowTenantScope;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +43,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class ChannelApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
+  @Autowired private RowTenantScope rowTenantScope;
 
   @Autowired private ScenarioService scenarioService;
   @Autowired private ScenarioRepository scenarioRepository;
@@ -56,9 +58,14 @@ class ChannelApiTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    this.scenarioRepository.deleteById(SCENARIO_ID);
-    this.channelRepository.deleteById(CHANNEL_ID);
-    this.articleRepository.deleteById(ARTICLE_ID);
+    // The class's rows were committed in the default tenant: delete them in its scope.
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          this.scenarioRepository.deleteById(SCENARIO_ID);
+          this.channelRepository.deleteById(CHANNEL_ID);
+          this.articleRepository.deleteById(ARTICLE_ID);
+        });
   }
 
   // -- SCENARIOS --
@@ -71,6 +78,7 @@ class ChannelApiTest extends IntegrationTest {
     // -- PREPARE --
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
+    scenario.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     Scenario scenarioCreated = this.scenarioService.createScenario(scenario);
     SCENARIO_ID = scenarioCreated.getId();
 

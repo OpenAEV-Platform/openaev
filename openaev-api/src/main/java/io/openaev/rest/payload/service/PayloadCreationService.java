@@ -5,8 +5,6 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
 import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
-import io.openaev.config.OpenAEVAnonymous;
-import io.openaev.config.SessionHelper;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TxCtx;
@@ -19,7 +17,7 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadCreateInput;
-import io.openaev.service.UserService;
+import io.openaev.service.AuthorService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +41,7 @@ public class PayloadCreationService {
   private final DomainService domainService;
   private final DocumentService documentService;
   private final ResultsMetricCollector resultsMetricCollector;
-  private final UserService userService;
+  private final AuthorService authorService;
   private final TenantWriteScopeResolver writeScopeResolver;
 
   public record PayloadInjectorContractCreationResult(
@@ -96,12 +94,7 @@ public class PayloadCreationService {
     payloadUtils.copyProperties(input, payload);
     payload.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, explicitTenant)));
 
-    // Manually created payloads are authored by the current user. System-driven
-    // creations (startup datapacks, schedulers) have no authenticated user and
-    // stay authorless.
-    if (!(SessionHelper.currentUser() instanceof OpenAEVAnonymous)) {
-      payload.setAuthorUser(userService.currentUser());
-    }
+    authorService.authorByCurrentUser(payload);
 
     if (payload instanceof Executable executable) {
       executable.setExecutableFile(documentService.document(input.getExecutableFile()));

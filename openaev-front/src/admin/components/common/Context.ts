@@ -11,6 +11,7 @@ import {
   type Channel,
   type Evaluation,
   type EvaluationInput,
+  type ImportPostSummary,
   type ImportTestSummary,
   type Inject,
   type InjectBulkProcessingInput,
@@ -167,6 +168,7 @@ export type InjectContextType = {
   }>;
   onDeleteInject: (injectId: Inject['inject_id']) => Promise<void>;
   onImportInjectFromJson?: (file: File) => Promise<void>;
+  onStoreXlsFile?: (file: File) => Promise<ImportPostSummary>;
   onImportInjectFromXls?: (importId: string, input: InjectsImportInput) => Promise<ImportTestSummary>;
   onDryImportInjectFromXls?: (importId: string, input: InjectsImportInput) => Promise<ImportTestSummary>;
   onBulkDeleteInjects: (param: InjectBulkProcessingInput) => Promise<Inject[]>;
@@ -391,6 +393,10 @@ export const InjectContext = createContext<InjectContextType>({
   },
   onDeleteInject(_injectId: Inject['inject_id']): Promise<void> {
     return Promise.resolve();
+  },
+  onStoreXlsFile(_file: File): Promise<ImportPostSummary> {
+    return new Promise<ImportPostSummary>(() => {
+    });
   },
   onImportInjectFromXls(_importId: string, _input: InjectsImportInput): Promise<ImportTestSummary> {
     return new Promise<ImportTestSummary>(() => {

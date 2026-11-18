@@ -12,7 +12,10 @@ how to stop it.
     - Security Platform names, as entered by users;
     - AI agent identifiers (lowercased, at most 64 characters);
     - the deployment tags;
-    - the workflow safety policy values.
+    - the workflow safety policy values;
+    - one-way hashes (SHA-256) of the identifiers of the users who attach a credential to an
+      Inject and of the attached credentials, to count distinct users and credentials without
+      sending which ones they are.
 
     No end-user or client IP address is sent, and no content of your Scenarios, Findings,
     vulnerabilities or Payloads.
@@ -48,6 +51,7 @@ Metrics are counts and flags, grouped by area:
 - **Usage**: Enterprise Edition status, users and logins, Tenants, Assets, deployed integrations, Scenarios, Simulations and Injects played.
 - **AI and ecosystem**: AI feature usage (no content), AI and XTM One configuration, XTM Hub registration, enabled authentication methods.
 - **Content inventory**: number of Payloads, Teams, Assets, Findings, vulnerabilities, Dashboards and other objects.
+- **Credentials**: number of credentials, credentials attached to Injects, by hashed user, hashed credential, credential type and Injector type, and credential resolutions that succeeded or were refused, by error code. Both are counted since the last export. No credential name, credential or user identifier, or secret is sent.
 - **Results and automation**: expectation traces, security coverage processing, workflow runs, Payload creation and emails sent.
 
 ## What's next?

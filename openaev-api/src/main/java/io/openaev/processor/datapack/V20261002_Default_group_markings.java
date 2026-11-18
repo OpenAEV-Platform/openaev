@@ -8,10 +8,10 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.service.DataPackService;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -120,11 +120,7 @@ public class V20261002_Default_group_markings extends DataPack {
       return false;
     }
 
-    // Must be a mutable list: Hibernate needs to write into this @ManyToMany collection's backing
-    // list at flush time, which an immutable List.of(...) rejects with
-    // UnsupportedOperationException
-    // (same reason V20260330_Default_tenant_data wraps its CWE list the same way).
-    group.setMarkings(new ArrayList<>(List.of(maybeMarking.get())));
+    group.setMarkings(new HashSet<>(Set.of(maybeMarking.get())));
     groupRepository.save(group);
     markingClearanceCacheManager.evictForUsers(group.getUsers().stream().map(User::getId).toList());
     return true;

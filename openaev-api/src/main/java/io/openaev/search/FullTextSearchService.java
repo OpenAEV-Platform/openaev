@@ -1,7 +1,13 @@
 package io.openaev.search;
 
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
+import static io.openaev.search.SearchableClass.DESCRIPTION;
+import static io.openaev.search.SearchableClass.EMAIL;
+import static io.openaev.search.SearchableClass.NAME;
+import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
+import static io.openaev.utils.pagination.PaginationUtils.buildPageable;
 import static io.openaev.utils.pagination.SortUtilsRuntime.toSortRuntime;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toMap;
 import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.context.TenantContext;
@@ -16,21 +22,19 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class FullTextSearchService<T extends Base> {
+public class FullTextSearchService {
 
   private final AssetRepository assetRepository;
   private final AssetGroupRepository assetGroupRepository;
@@ -40,72 +44,61 @@ public class FullTextSearchService<T extends Base> {
   private final ScenarioRepository scenarioRepository;
   private final ExerciseRepository exerciseRepository;
   private final UserService userService;
+  private final FullTextSearchQuery fullTextSearchQuery;
 
-  private Map<Class<T>, JpaSpecificationExecutor<T>> repositoryMap;
-
-  private Map<Class<T>, List<String>> searchListByClassMap;
-  private Map<Class<T>, Optional<Capability>> capaByClassMap;
+  private Map<Class<? extends Base>, SearchableClass<? extends Base>> searchableClasses;
 
   @PostConstruct
-  @SuppressWarnings("unchecked")
   public void init() {
-    this.repositoryMap =
-        Map.of(
-            (Class<T>) Asset.class, (JpaSpecificationExecutor<T>) this.assetRepository,
-            (Class<T>) AssetGroup.class, (JpaSpecificationExecutor<T>) this.assetGroupRepository,
-            (Class<T>) User.class, (JpaSpecificationExecutor<T>) this.userRepository,
-            (Class<T>) Team.class, (JpaSpecificationExecutor<T>) this.teamRepository,
-            (Class<T>) Organization.class,
-                (JpaSpecificationExecutor<T>) this.organizationRepository,
-            (Class<T>) Scenario.class, (JpaSpecificationExecutor<T>) this.scenarioRepository,
-            (Class<T>) Exercise.class, (JpaSpecificationExecutor<T>) this.exerciseRepository);
+    this.searchableClasses =
+        Stream.of(
+                new SearchableClass<>(
+                    Asset.class,
+                    assetRepository,
+                    searchCapability(ResourceType.ASSET),
+                    NAME,
+                    DESCRIPTION,
+                    // Security platforms share the assets table but have their own page
+                    Set.of(SecurityPlatform.class)),
+                new SearchableClass<>(
+                    AssetGroup.class,
+                    assetGroupRepository,
+                    searchCapability(ResourceType.ASSET_GROUP),
+                    NAME,
+                    DESCRIPTION),
+                new SearchableClass<>(
+                    User.class, userRepository, searchCapability(ResourceType.USER), EMAIL, null),
+                new SearchableClass<>(
+                    Team.class,
+                    teamRepository,
+                    searchCapability(ResourceType.TEAM),
+                    NAME,
+                    DESCRIPTION),
+                new SearchableClass<>(
+                    Organization.class,
+                    organizationRepository,
+                    searchCapability(ResourceType.ORGANIZATION),
+                    NAME,
+                    DESCRIPTION),
+                new SearchableClass<>(
+                    Scenario.class,
+                    scenarioRepository,
+                    searchCapability(ResourceType.SCENARIO),
+                    NAME,
+                    DESCRIPTION),
+                new SearchableClass<>(
+                    Exercise.class,
+                    exerciseRepository,
+                    searchCapability(ResourceType.SIMULATION),
+                    NAME,
+                    DESCRIPTION))
+            .collect(toMap(SearchableClass::clazz, identity()));
 
-    this.searchListByClassMap =
-        Map.of(
-            (Class<T>) Asset.class,
-            List.of("name", "id"),
-            (Class<T>) AssetGroup.class,
-            List.of("name", "id"),
-            (Class<T>) User.class,
-            List.of("email", "id"),
-            (Class<T>) Team.class,
-            List.of("name", "id"),
-            (Class<T>) Organization.class,
-            List.of("name", "id"),
-            (Class<T>) Scenario.class,
-            List.of("name", "id"),
-            (Class<T>) Exercise.class,
-            List.of("name", "id"));
-
-    this.capaByClassMap =
-        Map.of(
-            (Class<T>) Asset.class,
-            Capability.of(ResourceType.ASSET, Action.SEARCH),
-            (Class<T>) AssetGroup.class,
-            Capability.of(ResourceType.ASSET_GROUP, Action.SEARCH),
-            (Class<T>) User.class,
-            Capability.of(ResourceType.USER, Action.SEARCH),
-            (Class<T>) Team.class,
-            Capability.of(ResourceType.TEAM, Action.SEARCH),
-            (Class<T>) Organization.class,
-            Capability.of(ResourceType.ORGANIZATION, Action.SEARCH),
-            (Class<T>) Scenario.class,
-            Capability.of(ResourceType.SCENARIO, Action.SEARCH),
-            (Class<T>) Exercise.class,
-            Capability.of(ResourceType.SIMULATION, Action.SEARCH));
-
-    validateMapKeys();
+    searchableClasses.values().forEach(fullTextSearchQuery::validateAttributes);
   }
 
-  /** Ensure that the map have all the same classes, in case we forget when adding a new class. */
-  private void validateMapKeys() {
-    Set<Class<T>> keys1 = repositoryMap.keySet();
-    Set<Class<T>> keys2 = searchListByClassMap.keySet();
-    Set<Class<T>> keys3 = capaByClassMap.keySet();
-
-    if (!keys1.equals(keys2) || !keys1.equals(keys3)) {
-      throw new IllegalStateException("All maps must have the same keys");
-    }
+  private static Capability searchCapability(ResourceType resourceType) {
+    return Capability.of(resourceType, Action.SEARCH).orElse(Capability.BYPASS);
   }
 
   private PageImpl<FullTextSearchResult> generateEmptyResult(
@@ -124,17 +117,22 @@ public class FullTextSearchService<T extends Base> {
       return generateEmptyResult(searchPaginationInput);
     }
 
-    Class<T> clazzT =
-        this.repositoryMap.keySet().stream()
-            .filter(k -> k.isAssignableFrom(clazz))
+    SearchableClass<? extends Base> searchable =
+        this.searchableClasses.values().stream()
+            .filter(s -> s.clazz().isAssignableFrom(clazz))
             .findFirst()
             .orElseThrow(
                 () -> new IllegalArgumentException(clazz + " is not handle by full text search"));
 
+    return search(searchable, searchPaginationInput);
+  }
+
+  private <T extends Base> Page<FullTextSearchResult> search(
+      SearchableClass<T> searchable, SearchPaginationInput searchPaginationInput) {
     User currentUser = userService.currentUser();
     // Check if the principal has the right to search this class
-    Capability capaForClass = capaByClassMap.get(clazzT).orElse(Capability.BYPASS);
-    boolean isGrantable = clazzT.getAnnotation(Grantable.class) != null;
+    Capability capaForClass = searchable.capability();
+    boolean isGrantable = searchable.clazz().getAnnotation(Grantable.class) != null;
 
     if (!currentUser.isAdminOrBypass() && capaForClass != Capability.BYPASS && !isGrantable) {
       // We can't really use the PermissionService.hasPermission method here because it would
@@ -145,104 +143,13 @@ public class FullTextSearchService<T extends Base> {
       }
     }
 
-    JpaSpecificationExecutor<T> repository = repositoryMap.get(clazzT);
-
     String finalSearchTerm = getFinalSearchTerm(searchPaginationInput.getTextSearch());
-
-    // Specification building
     Specification<T> specs =
-        SpecificationUtils.<T>fullTextSearch(finalSearchTerm, searchListByClassMap.get(clazzT))
-            .and(
-                SpecificationUtils.hasGrantAccess(
-                    currentUser.getId(),
-                    currentUser.isAdminOrBypass(),
-                    currentUser.getCapabilities().contains(capaForClass),
-                    Grant.GRANT_TYPE.OBSERVER))
-            .and(TenantSpecification.fromTenant(TenantContext.getCurrentTenant()));
+        searchSpecification(searchable, finalSearchTerm, currentUser)
+            .and(computeFilterGroupJpa(searchPaginationInput.getFilterGroup()));
 
-    return buildPaginationJPA(repository::findAll, searchPaginationInput, clazzT, specs)
-        .map(this::transform);
-  }
-
-  private FullTextSearchResult transform(T element) {
-    switch (element) {
-      // Security platforms live in the assets table (single-table inheritance) so the
-      // Asset repository returns them too: expose the precise class so the frontend can
-      // route to the security platform overview and show the right icon.
-      case SecurityPlatform securityPlatform -> {
-        FullTextSearchResult result = new FullTextSearchResult();
-        result.setId(securityPlatform.getId());
-        result.setName(securityPlatform.getName());
-        result.setDescription(securityPlatform.getDescription());
-        result.setTags(securityPlatform.getTags());
-        result.setClazz(SecurityPlatform.class.getSimpleName());
-        return result;
-      }
-      case Asset asset -> {
-        FullTextSearchResult result = new FullTextSearchResult();
-        result.setId(asset.getId());
-        result.setName(asset.getName());
-        result.setDescription(asset.getDescription());
-        result.setTags(asset.getTags());
-        result.setClazz(Asset.class.getSimpleName());
-        return result;
-      }
-      case AssetGroup assetGroup -> {
-        FullTextSearchResult result = new FullTextSearchResult();
-        result.setId(assetGroup.getId());
-        result.setName(assetGroup.getName());
-        result.setDescription(assetGroup.getDescription());
-        result.setTags(assetGroup.getTags());
-        result.setClazz(AssetGroup.class.getSimpleName());
-        return result;
-      }
-      case User user -> {
-        FullTextSearchResult result = new FullTextSearchResult();
-        result.setId(user.getId());
-        result.setName(user.getEmail());
-        result.setTags(user.getTags());
-        result.setClazz(User.class.getSimpleName());
-        return result;
-      }
-      case Team team -> {
-        FullTextSearchResult result = new FullTextSearchResult();
-        result.setId(team.getId());
-        result.setName(team.getName());
-        result.setDescription(team.getDescription());
-        result.setTags(team.getTags());
-        result.setClazz(Team.class.getSimpleName());
-        return result;
-      }
-      case Organization organization -> {
-        FullTextSearchResult result = new FullTextSearchResult();
-        result.setId(organization.getId());
-        result.setName(organization.getName());
-        result.setDescription(organization.getDescription());
-        result.setTags(organization.getTags());
-        result.setClazz(Organization.class.getSimpleName());
-        return result;
-      }
-      case Scenario scenario -> {
-        FullTextSearchResult result = new FullTextSearchResult();
-        result.setId(scenario.getId());
-        result.setName(scenario.getName());
-        result.setDescription(scenario.getDescription());
-        result.setTags(scenario.getTags());
-        result.setClazz(Scenario.class.getSimpleName());
-        return result;
-      }
-      case Exercise exercise -> {
-        FullTextSearchResult result = new FullTextSearchResult();
-        result.setId(exercise.getId());
-        result.setName(exercise.getName());
-        result.setDescription(exercise.getDescription());
-        result.setTags(exercise.getTags());
-        result.setClazz(Exercise.class.getSimpleName());
-        return result;
-      }
-      default -> {}
-    }
-    return null;
+    return fullTextSearchQuery.findResults(
+        searchable, specs, buildPageable(searchPaginationInput, searchable.clazz()));
   }
 
   /**
@@ -252,65 +159,45 @@ public class FullTextSearchService<T extends Base> {
    * @param searchTerm the search term to use
    * @return a map of class type to the count of results for that class
    */
-  @SuppressWarnings("unchecked")
-  public Map<Class<T>, FullTextSearchCountResult> fullTextSearch(
+  public Map<Class<? extends Base>, FullTextSearchCountResult> fullTextSearch(
       @Nullable final String searchTerm) {
     if (!hasText(searchTerm)) {
-      return Map.of(
-          (Class<T>) Asset.class, new FullTextSearchCountResult(Asset.class.getSimpleName(), 0L),
-          (Class<T>) AssetGroup.class,
-              new FullTextSearchCountResult(AssetGroup.class.getSimpleName(), 0L),
-          (Class<T>) User.class, new FullTextSearchCountResult(User.class.getSimpleName(), 0L),
-          (Class<T>) Team.class, new FullTextSearchCountResult(Team.class.getSimpleName(), 0L),
-          (Class<T>) Organization.class,
-              new FullTextSearchCountResult(Organization.class.getSimpleName(), 0L),
-          (Class<T>) Scenario.class,
-              new FullTextSearchCountResult(Scenario.class.getSimpleName(), 0L),
-          (Class<T>) Exercise.class,
-              new FullTextSearchCountResult(Exercise.class.getSimpleName(), 0L));
+      return searchableClasses.keySet().stream()
+          .collect(toMap(identity(), c -> new FullTextSearchCountResult(c.getSimpleName(), 0L)));
     }
 
-    Map<Class<T>, FullTextSearchCountResult> results = new HashMap<>();
     String finalSearchTerm = getFinalSearchTerm(searchTerm);
-
     User currentUser = userService.currentUser();
+
     // Only search classes that the user has access to
-    Set<Class<T>> classesToSearch;
-    if (currentUser.isAdminOrBypass()) {
-      classesToSearch = new HashSet<>(repositoryMap.keySet());
-    } else {
+    return searchableClasses.values().stream()
+        .filter(
+            s ->
+                currentUser.isAdminOrBypass()
+                    || currentUser.getCapabilities().contains(s.capability())
+                    || Capability.BYPASS.equals(s.capability()))
+        .collect(toMap(SearchableClass::clazz, s -> count(s, finalSearchTerm, currentUser)));
+  }
 
-      classesToSearch = new HashSet<>();
-      for (Map.Entry<Class<T>, Optional<Capability>> entry : capaByClassMap.entrySet()) {
-        Capability capaForClass = entry.getValue().orElse(Capability.BYPASS);
-        if (currentUser.getCapabilities().contains(capaForClass)
-            || Capability.BYPASS.equals(capaForClass)) {
-          classesToSearch.add(entry.getKey());
-        }
-      }
-    }
+  private <T extends Base> FullTextSearchCountResult count(
+      SearchableClass<T> searchable, String finalSearchTerm, User currentUser) {
+    long count =
+        searchable
+            .repository()
+            .count(searchSpecification(searchable, finalSearchTerm, currentUser));
+    return new FullTextSearchCountResult(searchable.clazz().getSimpleName(), count);
+  }
 
-    classesToSearch.forEach(
-        tClass -> {
-          JpaSpecificationExecutor<T> repository = repositoryMap.get(tClass);
-          // Specification building
-          Specification<T> specs =
-              SpecificationUtils.<T>fullTextSearch(
-                      finalSearchTerm, searchListByClassMap.get(tClass))
-                  .and(
-                      SpecificationUtils.hasGrantAccess(
-                          currentUser.getId(),
-                          currentUser.isAdminOrBypass(),
-                          currentUser
-                              .getCapabilities()
-                              .contains(capaByClassMap.get(tClass).orElse(Capability.BYPASS)),
-                          Grant.GRANT_TYPE.OBSERVER))
-                  .and(TenantSpecification.fromTenant(TenantContext.getCurrentTenant()));
-          long count = repository.count(specs);
-          results.put(tClass, new FullTextSearchCountResult(tClass.getSimpleName(), count));
-        });
-
-    return results;
+  private static <T extends Base> Specification<T> searchSpecification(
+      SearchableClass<T> searchable, String finalSearchTerm, User currentUser) {
+    return SpecificationUtils.<T>fullTextSearch(finalSearchTerm, searchable.searchAttributes())
+        .and(
+            SpecificationUtils.hasGrantAccess(
+                currentUser.getId(),
+                currentUser.isAdminOrBypass(),
+                currentUser.getCapabilities().contains(searchable.capability()),
+                Grant.GRANT_TYPE.OBSERVER))
+        .and(TenantSpecification.fromTenant(TenantContext.getCurrentTenant()));
   }
 
   private static String getFinalSearchTerm(String searchTerm) {
@@ -320,24 +207,6 @@ public class FullTextSearchService<T extends Base> {
   }
 
   public List<String> getAllowedClass() {
-    return this.repositoryMap.keySet().stream().map(Class::getName).toList();
-  }
-
-  @AllArgsConstructor
-  @Data
-  public static class FullTextSearchCountResult {
-
-    @NotBlank private String clazz;
-    @NotBlank private long count;
-  }
-
-  @Data
-  public static class FullTextSearchResult {
-
-    @NotBlank private String id;
-    @NotBlank private String name;
-    private String description;
-    private Set<Tag> tags;
-    @NotBlank private String clazz;
+    return this.searchableClasses.keySet().stream().map(Class::getName).toList();
   }
 }

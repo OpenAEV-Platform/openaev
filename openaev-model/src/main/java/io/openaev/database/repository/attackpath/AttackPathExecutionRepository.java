@@ -257,11 +257,15 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   /**
    * One summary row per simulation (id, distinct endpoints, executions) for the front's picker.
    * {@code GROUP BY} on the tenant-filtered rows, ordered by size so the biggest sims come first.
+   *
+   * <p>The tenant of the rows is grouped on and projected: the caller's right on each simulation is
+   * decided in that tenant, and a scope naming several tenants returns rows from all of them.
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow("
-          + "e.simulationId, count(distinct e.targetKey), count(e)) "
-          + "FROM AttackPathExecution e GROUP BY e.simulationId ORDER BY count(e) DESC")
+          + "e.simulationId, count(distinct e.targetKey), count(e), e.tenant.id) "
+          + "FROM AttackPathExecution e GROUP BY e.simulationId, e.tenant.id "
+          + "ORDER BY count(e) DESC")
   List<AttackPathSimSummaryRow> findSimulationSummaries();
 
   /**
@@ -272,11 +276,11 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow("
-          + "e.simulationId, count(distinct e.targetKey), count(e)) "
+          + "e.simulationId, count(distinct e.targetKey), count(e), e.tenant.id) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId IN "
           + "(SELECT ex.id FROM Exercise ex WHERE ex.scenario.id = :scenarioId) "
-          + "GROUP BY e.simulationId ORDER BY count(e) DESC")
+          + "GROUP BY e.simulationId, e.tenant.id ORDER BY count(e) DESC")
   List<AttackPathSimSummaryRow> findSimulationSummariesByScenario(
       @Param("scenarioId") String scenarioId);
 

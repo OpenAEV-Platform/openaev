@@ -5,12 +5,16 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.ObservableDoubleGauge;
 import jakarta.annotation.PreDestroy;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +31,46 @@ public class MetricRegistry {
    */
   public static String normalizeLabel(String value) {
     return value == null || value.isBlank() ? "unknown" : value.trim();
+  }
+
+  /**
+   * Runs a counter increment once the caller's transaction commits, or right away outside a
+   * transaction. A rolled-back action must not inflate an exported count, and Spring calls {@code
+   * afterCommit} only on a commit.
+   *
+   * @param increment the counter increment to run
+   */
+  public static void runAfterCommit(Runnable increment) {
+    if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+      increment.run();
+      return;
+    }
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            increment.run();
+          }
+        });
+  }
+
+  /**
+   * Returns the non-zero counts accumulated since the last call, and resets every counter to zero.
+   * Backs the multi-gauges that report a delta per export.
+   *
+   * @param counters the counters, by attributes
+   * @return the collected count per attributes, without the counters that stayed at zero
+   */
+  public static Map<Attributes, Long> collectAndReset(Map<Attributes, AtomicLong> counters) {
+    Map<Attributes, Long> snapshot = new HashMap<>();
+    counters.forEach(
+        (attributes, value) -> {
+          long collected = value.getAndSet(0);
+          if (collected > 0) {
+            snapshot.put(attributes, collected);
+          }
+        });
+    return snapshot;
   }
 
   @PreDestroy

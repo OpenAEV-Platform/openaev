@@ -16,6 +16,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.injectors.email.service.EmailService;
+import io.openaev.injectors.email.service.PlatformMailSender;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.reporting.ReportingService;
 import io.openaev.scheduler.TenantScopedJobRunner;
@@ -63,6 +64,7 @@ public class ReportingScheduleService {
   private final ReportingGenerationRepository reportingGenerationRepository;
   private final UserService userService;
   private final EmailService emailService;
+  private final PlatformMailSender platformMailSender;
   private final FileService fileService;
   private final OpenAEVConfig openAEVConfig;
   private final TenantScopedJobRunner tenantScopedJobRunner;
@@ -307,8 +309,8 @@ public class ReportingScheduleService {
     emailService.sendEmail(
         new Execution(false),
         recipients,
-        openAEVConfig.getDefaultMailer(),
-        openAEVConfig.getDefaultMailerName(),
+        platformMailSender.getEmail(),
+        platformMailSender.getName(),
         resolveReplyTos(),
         null,
         subject,
@@ -318,9 +320,9 @@ public class ReportingScheduleService {
 
   private List<String> resolveReplyTos() {
     String replyTo =
-        hasText(openAEVConfig.getDefaultReplyTo())
-            ? openAEVConfig.getDefaultReplyTo()
-            : openAEVConfig.getDefaultMailer();
+        hasText(platformMailSender.getReplyTo())
+            ? platformMailSender.getReplyTo()
+            : platformMailSender.getEmail();
     return replyTo != null ? List.of(replyTo) : List.of();
   }
 

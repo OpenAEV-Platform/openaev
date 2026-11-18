@@ -14,6 +14,7 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.telemetry.metric_collectors.AiMetricCollector;
+import io.openaev.utils.InjectUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -85,7 +86,7 @@ public class InjectAssistantService {
             });
 
     for (Inject inject : injects) {
-      inject.setScenario(scenario);
+      InjectUtils.attachToScenario(inject, scenario);
     }
 
     return injects;
@@ -151,7 +152,7 @@ public class InjectAssistantService {
                 buildInjectsForAnyPlatformAndArchitecture(
                     injectsPerAttackPattern, attackPattern, contractForPlaceholder)
                     .stream())
-        .peek(inject -> inject.setScenario(scenario))
+        .peek(inject -> InjectUtils.attachToScenario(inject, scenario))
         .toList();
   }
 
@@ -179,7 +180,7 @@ public class InjectAssistantService {
         Set<Inject> injectsToAdd =
             this.generateInjectsForSingleAttackPatternWithAssetGroups(
                 attackPattern, assetsFromGroupMap, injectsPerAttackPattern, contractForPlaceholder);
-        injectsToAdd.forEach(inject -> inject.setScenario(scenario));
+        injectsToAdd.forEach(inject -> InjectUtils.attachToScenario(inject, scenario));
         injects.addAll(injectsToAdd);
       } catch (UnprocessableContentException e) {
         throw new UnsupportedOperationException(e);
@@ -288,7 +289,7 @@ public class InjectAssistantService {
                     assetGroupListMap,
                     contractForPlaceholder)
                     .stream())
-        .peek(inject -> inject.setScenario(scenario))
+        .peek(inject -> InjectUtils.attachToScenario(inject, scenario))
         .toList();
   }
 

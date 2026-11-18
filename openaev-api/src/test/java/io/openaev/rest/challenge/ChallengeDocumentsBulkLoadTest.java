@@ -33,6 +33,7 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
@@ -73,6 +74,7 @@ class ChallengeDocumentsBulkLoadTest extends IntegrationTest {
   private static final String OBSERVER_SCENARIO_CHALLENGES_URI =
       TENANT_PREFIX + "/observer/scenarios/{scenarioId}/challenges";
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private ScenarioService scenarioService;
   @Autowired private InjectRepository injectRepository;
@@ -97,7 +99,7 @@ class ChallengeDocumentsBulkLoadTest extends IntegrationTest {
     tenant = scenario.getTenant();
     tenantHelper.grantCapabilitiesInTenant(
         tenant.getId(), Set.of(Capability.ACCESS_ASSESSMENT, Capability.ACCESS_CHALLENGES));
-    challengeInjectorIntegrationFactory.registerConnectorForTenant(tenant.getId());
+    builtinConnectorRegistration.register(challengeInjectorIntegrationFactory, tenant.getId());
 
     sqlLogger = (Logger) LoggerFactory.getLogger("org.hibernate.SQL");
     previousLevel = sqlLogger.getLevel();

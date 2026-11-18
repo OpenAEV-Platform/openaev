@@ -7,7 +7,7 @@ package io.openaev.utils.command;
  * must not depend on the REST exception hierarchy (layer inversion). Callers in the API layer are
  * free to translate it into whatever HTTP semantics they need.
  */
-public class CommandBindingException extends RuntimeException {
+public class CommandBindingException extends IllegalArgumentException {
 
   public CommandBindingException(String message) {
     super(message);

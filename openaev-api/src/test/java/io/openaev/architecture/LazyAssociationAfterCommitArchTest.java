@@ -51,7 +51,7 @@ class LazyAssociationAfterCommitArchTest {
   private static final String[] VERDICTS = {"CONFIRMED", "ATTENUATED", "NOT ESTABLISHED"};
 
   /** The baseline's exact size. Lower it with every entry removed, never raise it. */
-  static final int BASELINE_SIZE = 1300;
+  static final int BASELINE_SIZE = 1278;
 
   @Nested
   @DisplayName("The inventory it is built on")

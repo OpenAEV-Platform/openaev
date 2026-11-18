@@ -8,6 +8,7 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.ManualInjectExpectation;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectExpectationResultRepository;
 import io.openaev.injectors.phishing.PhishingContract;
 import io.openaev.model.inject.form.Expectation;
 import org.springframework.core.annotation.Order;
@@ -22,8 +23,10 @@ import org.springframework.stereotype.Component;
 @Order(0)
 public class PhishingBehavior extends ManualBehavior {
 
-  public PhishingBehavior(InjectExpectationRepository injectExpectationRepository) {
-    super(injectExpectationRepository);
+  public PhishingBehavior(
+      InjectExpectationRepository injectExpectationRepository,
+      InjectExpectationResultRepository injectExpectationResultRepository) {
+    super(injectExpectationRepository, injectExpectationResultRepository);
   }
 
   @Override

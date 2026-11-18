@@ -251,7 +251,7 @@ public class OrganizationService {
       Collection<User> users, Collection<Team> teams, @NotBlank String tenantId) {
     Set<String> organizationIds =
         Stream.concat(
-                users.stream().map(User::getOrganization),
+                users.stream().map(user -> user.organizationOfTenant(tenantId)),
                 teams.stream().map(Team::getOrganization))
             .filter(Objects::nonNull)
             .map(Organization::getId)
@@ -273,29 +273,6 @@ public class OrganizationService {
   public Map<String, Organization> usersOrganizationsInTenant(
       Collection<User> users, @NotBlank String tenantId) {
     return organizationsInTenant(users, List.of(), tenantId).stream()
-        .collect(Collectors.toMap(Organization::getId, Function.identity()));
-  }
-
-  /**
-   * Resolves, by id, the organizations of the given users visible in the transaction's scope, for
-   * platform-level outputs. Ids are read from the lazy references, which does not initialize them.
-   *
-   * @param users the users to map
-   * @return the organizations visible in the current scope referenced by the users, keyed by id
-   */
-  public Map<String, Organization> usersOrganizationsInScope(Collection<User> users) {
-    Set<String> organizationIds =
-        users.stream()
-            .map(User::getOrganization)
-            .filter(Objects::nonNull)
-            .map(Organization::getId)
-            .collect(Collectors.toSet());
-    if (organizationIds.isEmpty()) {
-      return Map.of();
-    }
-    return organizationRepository
-        .findAll(SpecificationUtils.hasIdIn(List.copyOf(organizationIds)))
-        .stream()
         .collect(Collectors.toMap(Organization::getId, Function.identity()));
   }
 

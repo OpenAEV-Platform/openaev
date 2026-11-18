@@ -34,6 +34,7 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.InjectDependencyInput;
 import io.openaev.rest.kill_chain_phase.service.KillChainPhaseService;
 import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
@@ -44,7 +45,6 @@ import io.openaev.rest.payload.regex_group.RegexGroupInput;
 import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.service.*;
 import io.openaev.service.scenario.ScenarioService;
-import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.CollectorTypeHumanizer;
 import io.openaev.utils.ConditionKeyTypesUtils;
 import io.openaev.utils.WorkflowScopeRuleUtils;
@@ -79,12 +79,11 @@ public class V1_DataImporter implements Importer {
   // region variables
   @Resource protected ObjectMapper mapper;
   private final FileService documentService;
-  private final ActionMetricCollector actionMetricCollector;
   private final DocumentRepository documentRepository;
   private final TagRepository tagRepository;
   private final AttackPatternRepository attackPatternRepository;
   private final KillChainPhaseService killChainPhaseService;
-  private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final ScenarioService scenarioService;
   private final TeamRepository teamRepository;
   private final TenantRepository tenantRepository;
@@ -233,11 +232,12 @@ public class V1_DataImporter implements Importer {
       String suffix) {
     // Resolve the write tenant once. A bundle imported into an existing simulation or scenario is
     // written in the tenant of that parent, which must lie inside the request scope; a bundle with
-    // no parent takes the single tenant of the scope. Documents, tags, challenges and channels are
-    // attributed to it explicitly; the roots that are not tenant-active yet (exercise, scenario,
-    // injects, teams, payloads) are still stamped from the ambient tenant and matched against
-    // existing rows through it. Running the whole import with the ambient tenant aligned on the
-    // write tenant keeps the bundle in one tenant on every route.
+    // no parent takes the single tenant of the scope. Documents, tags, teams, challenges, channels
+    // and the imported exercise or scenario are attributed to it explicitly. Injects and injector
+    // contracts, whose tables are not tenant-active yet, are still stamped from the ambient tenant
+    // and matched against existing rows through it, and a few rows (domains among them) are
+    // attributed from the ambient tenant by the importer itself. Running the whole import with the
+    // ambient tenant aligned on the write tenant keeps the bundle in one tenant on every route.
     String writeTenant =
         tenantWriteScopeResolver.tenantForWrite(ctx, parentTenantId(exercise, scenario));
     // The nested importers resolve the tenant of the rows they create (tags, challenges, channels,
@@ -273,6 +273,30 @@ public class V1_DataImporter implements Importer {
       return scenario.getTenant().getId();
     }
     return null;
+  }
+
+  /**
+   * The tenant an imported inject is written in: its simulation's or scenario's, or the bundle's
+   * write tenant for an atomic testing, which has no parent. Never the ambient one. Same rule as
+   * the chaining rows' parent attribution, applied here because the native insert skips the entity
+   * listeners.
+   *
+   * @throws IllegalStateException when there is neither, or when they differ
+   */
+  static String injectTenant(Exercise exercise, Scenario scenario, String writeTenant) {
+    String parentTenant = parentTenantId(exercise, scenario);
+    if (parentTenant == null) {
+      if (writeTenant == null) {
+        throw new IllegalStateException(
+            "unattributed tenant write: Inject has no parent to take a tenant from");
+      }
+      return writeTenant;
+    }
+    if (writeTenant != null && !writeTenant.equals(parentTenant)) {
+      throw new IllegalStateException(
+          "cross-tenant write: Inject carries a tenant other than its parent's");
+    }
+    return parentTenant;
   }
 
   /**
@@ -330,9 +354,11 @@ public class V1_DataImporter implements Importer {
     // TenantBaseListener never has to stamp them, and the create/update decision is scoped to the
     // write tenant rather than the ambient filter.
     Exercise savedExercise =
-        Optional.ofNullable(importExercise(importNode, baseIds, suffix)).orElse(exercise);
+        Optional.ofNullable(importExercise(importNode, baseIds, suffix, writeTenant))
+            .orElse(exercise);
     Scenario savedScenario =
-        Optional.ofNullable(importScenario(importNode, baseIds, suffix)).orElse(scenario);
+        Optional.ofNullable(importScenario(importNode, baseIds, suffix, writeTenant))
+            .orElse(scenario);
     importDocuments(
         importNode, prefix, docReferences, writeTenant, savedExercise, savedScenario, baseIds);
     importDocument(
@@ -786,13 +812,15 @@ public class V1_DataImporter implements Importer {
 
   // -- EXERCISE --
 
-  private Exercise importExercise(JsonNode importNode, Map<String, Base> baseIds, String suffix) {
+  private Exercise importExercise(
+      JsonNode importNode, Map<String, Base> baseIds, String suffix, String writeTenant) {
     JsonNode exerciseNode = importNode.get("exercise_information");
     if (exerciseNode == null) {
       return null;
     }
 
     Exercise exercise = new Exercise();
+    exercise.setTenant(new Tenant(writeTenant));
     exercise.setName(exerciseNode.get("exercise_name").textValue() + suffix);
     exercise.setDescription(exerciseNode.get("exercise_description").textValue());
     exercise.setSubtitle(exerciseNode.get("exercise_subtitle").textValue());
@@ -810,7 +838,6 @@ public class V1_DataImporter implements Importer {
         .ifPresent(exercise::setDefaultKillChain);
     exercise.setHeader(exerciseNode.get("exercise_message_header").textValue());
     exercise.setFooter(exerciseNode.get("exercise_message_footer").textValue());
-    exercise.setFrom(exerciseNode.get("exercise_mail_from").textValue());
     exercise.setLessonsAnonymized(
         ofNullable(exerciseNode.get("exercise_lessons_anonymized"))
             .map(node -> node.asBoolean(false))
@@ -824,19 +851,20 @@ public class V1_DataImporter implements Importer {
             .map(baseIds::get)
             .map(Tag.class::cast)
             .collect(Collectors.toSet()));
-    actionMetricCollector.addSimulationCreatedCount();
-    return exerciseRepository.save(exercise);
+    return exerciseService.createExercise(exercise);
   }
 
   // -- SCENARIO --
 
-  private Scenario importScenario(JsonNode importNode, Map<String, Base> baseIds, String suffix) {
+  private Scenario importScenario(
+      JsonNode importNode, Map<String, Base> baseIds, String suffix, String writeTenant) {
     JsonNode scenarioNode = importNode.get("scenario_information");
     if (scenarioNode == null) {
       return null;
     }
 
     Scenario scenario = new Scenario();
+    scenario.setTenant(new Tenant(writeTenant));
     scenario.setName(scenarioNode.get("scenario_name").textValue() + suffix);
     scenario.setDescription(scenarioNode.get("scenario_description").textValue());
     scenario.setSubtitle(scenarioNode.get("scenario_subtitle").textValue());
@@ -859,7 +887,6 @@ public class V1_DataImporter implements Importer {
         .ifPresent(recurrenceEnd -> scenario.setRecurrenceEnd(Instant.parse(recurrenceEnd)));
     scenario.setHeader(scenarioNode.get("scenario_message_header").textValue());
     scenario.setFooter(scenarioNode.get("scenario_message_footer").textValue());
-    scenario.setFrom(scenarioNode.get("scenario_mail_from").textValue());
     scenario.setLessonsAnonymized(
         ofNullable(scenarioNode.get("scenario_lessons_anonymized"))
             .map(node -> node.asBoolean(false))
@@ -1091,7 +1118,18 @@ public class V1_DataImporter implements Importer {
               baseIds.put(
                   id,
                   Objects.requireNonNullElseGet(
-                      existingUser, () -> this.userRepository.save(createUser(nodeUser, baseIds))));
+                      existingUser,
+                      () -> {
+                        User savedUser = this.userRepository.save(createUser(nodeUser, baseIds));
+                        Base userOrganization =
+                            baseIds.get(nodeUser.get("user_organization").textValue());
+                        if (userOrganization != null) {
+                          Organization organization = (Organization) userOrganization;
+                          this.userRepository.assignOrganization(
+                              savedUser, organization.getTenant().getId(), organization);
+                        }
+                        return savedUser;
+                      }));
             });
   }
 
@@ -1105,10 +1143,6 @@ public class V1_DataImporter implements Importer {
     user.setPgpKey(getNodeValue(jsonNode.get("user_pgp_key")));
     user.setCountry(getNodeValue(jsonNode.get("user_country")));
     user.setCity(getNodeValue(jsonNode.get("user_city")));
-    Base userOrganization = baseIds.get(jsonNode.get("user_organization").textValue());
-    if (userOrganization != null) {
-      user.setOrganization((Organization) userOrganization);
-    }
     user.setTags(
         resolveJsonIds(jsonNode, "user_tags").stream()
             .map(baseIds::get)
@@ -1541,6 +1575,8 @@ public class V1_DataImporter implements Importer {
       List<JsonNode> injectsToAdd,
       List<JsonNode> allInjects,
       Map<String, String> resolvedContracts) {
+    String injectTenant =
+        injectTenant(exercise, scenario, tenantWriteScopeResolver.tenantForWrite(ctx, null));
     List<String> originalIds = new ArrayList<>();
     injectsToAdd.forEach(
         injectNode -> {
@@ -1628,7 +1664,8 @@ public class V1_DataImporter implements Importer {
                 enabled,
                 exercise.getId(),
                 dependsDuration,
-                content);
+                content,
+                injectTenant);
           } else if (scenario != null) {
             injectRepository.importSaveForScenario(
                 injectId,
@@ -1641,7 +1678,8 @@ public class V1_DataImporter implements Importer {
                 enabled,
                 scenario.getId(),
                 dependsDuration,
-                content);
+                content,
+                injectTenant);
           } else {
             injectRepository.importSaveStandAlone(
                 injectId,
@@ -1653,7 +1691,8 @@ public class V1_DataImporter implements Importer {
                 allTeams,
                 enabled,
                 dependsDuration,
-                content);
+                content,
+                injectTenant);
           }
           baseIds.put(id, new BaseHolder(injectId));
           originalIds.add(id);
@@ -2023,7 +2062,7 @@ public class V1_DataImporter implements Importer {
         return contractFromPayload.get();
       }
 
-      Optional<Payload> existingPayload = payloadRepository.findByExternalId(externalId);
+      Optional<Payload> existingPayload = payloadRepository.findByIdentityExternalId(externalId);
       if (existingPayload.isPresent()) {
         Optional<InjectorContract> contractFromExternalId =
             injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
@@ -2068,7 +2107,7 @@ public class V1_DataImporter implements Importer {
     if (contractFromPayload.isPresent()) {
       return contractFromPayload;
     }
-    Optional<Payload> existingPayload = payloadRepository.findByExternalId(externalId);
+    Optional<Payload> existingPayload = payloadRepository.findByIdentityExternalId(externalId);
     if (existingPayload.isPresent()) {
       return injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
     }
@@ -2795,10 +2834,18 @@ public class V1_DataImporter implements Importer {
 
       // Import steps and conditions
       List<SkippedWorkflowStep> skippedSteps = new ArrayList<>();
+      // Original step id -> created step, also read by the standalone conditions below: a
+      // DEPEND_ON value or a step_from among them names an imported step too.
+      Map<String, Step> stepIdMap = new LinkedHashMap<>();
       if (workflowNode.has("workflow_steps")) {
         skippedSteps =
             importWorkflowSteps(
-                ctx, workflowNode.get("workflow_steps"), workflow, resolvedContracts, baseIds);
+                ctx,
+                workflowNode.get("workflow_steps"),
+                workflow,
+                resolvedContracts,
+                baseIds,
+                stepIdMap);
       }
       if (!skippedSteps.isEmpty()) {
         // Unresolvable steps are surfaced to the caller (importData -> ImportResult) so the API can
@@ -2814,7 +2861,7 @@ public class V1_DataImporter implements Importer {
             workflowNode.get("workflow_standalone_conditions"),
             workflow,
             null,
-            Map.of(),
+            stepIdMap,
             new LinkedHashMap<>());
       }
       return skippedSteps;
@@ -3190,9 +3237,9 @@ public class V1_DataImporter implements Importer {
       JsonNode stepsNode,
       Workflow workflow,
       Map<String, String> resolvedContracts,
-      Map<String, Base> baseIds) {
-    // Map from original step ID to new Step
-    Map<String, Step> stepIdMap = new LinkedHashMap<>();
+      Map<String, Base> baseIds,
+      Map<String, Step> stepIdMap) {
+    // stepIdMap: original step ID -> new Step, filled here and read by the caller afterwards
     // resolvedContracts is shared with importInjects to avoid creating duplicate payloads
     // when exercise_injects and workflow_steps reference the same missing injector contract
 
@@ -3441,6 +3488,38 @@ public class V1_DataImporter implements Importer {
   }
 
   /**
+   * The value an imported condition must carry.
+   *
+   * <p>A {@code DEPEND_ON} condition stores its prerequisite as a <b>step template id in {@code
+   * condition_value}</b>, not as a foreign key, and {@code
+   * ConditionService.evaluateDependOnConditions} resolves it against the steps of the run. The
+   * export holds the id the step had on the source instance, so copying it verbatim leaves an id
+   * that never matches: the dependent step is never promoted to READY. The value is translated to
+   * the id of the step created by this import, as {@code condition_step_from_id} is, and as {@code
+   * StepService.remapConditionValue} does for a copy.
+   *
+   * <p>When the awaited step is not part of the import (skipped as unresolvable, or absent from the
+   * file), the value is left unset and a warning logged: the dependent step stays blocked, which is
+   * the accepted outcome of a skipped step, and no id of the source instance is kept, since it may
+   * name a step of another workflow here. Every other condition type stores a plain comparison
+   * value and is copied unchanged.
+   */
+  private static String importedConditionValue(
+      ConditionType conditionType, String value, Map<String, Step> stepIdMap) {
+    if (conditionType != ConditionType.DEPEND_ON || value == null || value.isBlank()) {
+      return value;
+    }
+    Step awaited = stepIdMap.get(value);
+    if (awaited == null) {
+      log.warn(
+          "DEPEND_ON condition references step {} which is not part of the import: left unset",
+          value);
+      return null;
+    }
+    return awaited.getId();
+  }
+
+  /**
    * Imports a list of condition nodes, optionally linking them to a step.
    *
    * <p>Pass {@code step = null} for standalone conditions (not linked to any step).
@@ -3556,9 +3635,12 @@ public class V1_DataImporter implements Importer {
                 .type(conditionType)
                 .mappingType(conditionMappingType)
                 .value(
-                    condNode.has("condition_value") && !condNode.get("condition_value").isNull()
-                        ? condNode.get("condition_value").asText()
-                        : null)
+                    importedConditionValue(
+                        conditionType,
+                        condNode.has("condition_value") && !condNode.get("condition_value").isNull()
+                            ? condNode.get("condition_value").asText()
+                            : null,
+                        stepIdMap))
                 .name(
                     condNode.has("condition_name") && !condNode.get("condition_name").isNull()
                         ? condNode.get("condition_name").asText()

@@ -14,11 +14,14 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.TenantGroupService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -50,6 +53,7 @@ public class MarkingDefinitionService {
   private final AllTablesWithMarkingIds allTablesWithMarkingIds;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final JdbcTemplate jdbcTemplate;
+  private final TenantGroupService tenantGroupService;
 
   // -- SEARCH --
 
@@ -107,14 +111,13 @@ public class MarkingDefinitionService {
    * @param ctx transaction context containing tenant scope
    * @param tenantId the single tenant whose definitions and clearance are being read
    * @param userId the caller, whose clearance narrows the result
-   * @param bypass whether the caller is an admin/bypass identity - resolves to every tenant id
    * @return marking definitions the caller may assign, ascending by order
    */
   @Transactional(readOnly = true)
   public List<MarkingDefinition> listAssignable(
-      @NotNull TxCtx ctx, @NotBlank String tenantId, @NotBlank String userId, boolean bypass) {
+      @NotNull TxCtx ctx, @NotBlank String tenantId, @NotBlank String userId) {
     List<MarkingDefinition> all = listInternal(ctx);
-    MarkingCtx clearance = markingClearanceCacheManager.findClearance(userId, tenantId, bypass);
+    MarkingCtx clearance = markingClearanceCacheManager.findClearance(userId, tenantId);
     return switch (clearance) {
       case MarkingCtx.None ignored -> List.of();
       case MarkingCtx.Restricted restricted -> {
@@ -122,11 +125,43 @@ public class MarkingDefinitionService {
         yield all.stream().filter(definition -> held.contains(definition.getId())).toList();
       }
       // All is an unresolved, background-only intention (see MarkingCtx's javadoc) that
-      // findClearance never actually returns on the HTTP path - bypass resolves to a Restricted
-      // set of every tenant id instead. Handled defensively as "sees everything" to keep this
-      // switch exhaustive without assuming that invariant holds forever.
+      // findClearance never actually returns on the HTTP path - the first admin resolves to a
+      // Restricted set of every tenant id instead. Handled defensively as "sees everything" to
+      // keep this switch exhaustive without assuming that invariant holds forever.
       case MarkingCtx.All ignored -> all;
     };
+  }
+
+  /**
+   * Tells whether a marking definition is currently assigned, i.e. whether its id appears in the
+   * {@code marking_ids} array of any row of any marked table, or granted to a group through {@code
+   * groups_markings}.
+   *
+   * @param ctx transaction context containing tenant scope
+   * @param markingDefinitionId identifier of the marking definition
+   * @return {@code true} if at least one marked entity carries the definition or at least one group
+   *     is granted it
+   */
+  @Transactional(readOnly = true)
+  public boolean isAssigned(@NotNull TxCtx ctx, @NotBlank String markingDefinitionId) {
+    findByIdOrThrow(ctx, markingDefinitionId);
+    for (String table : allTablesWithMarkingIds.tableNames()) {
+      Boolean assigned =
+          jdbcTemplate.queryForObject(
+              "SELECT EXISTS (SELECT 1 FROM "
+                  + table
+                  + " WHERE COALESCE(marking_ids, '{}'::text[]) @> ARRAY[?]::text[])",
+              Boolean.class,
+              markingDefinitionId);
+      if (Boolean.TRUE.equals(assigned)) {
+        return true;
+      }
+    }
+    return Boolean.TRUE.equals(
+        jdbcTemplate.queryForObject(
+            "SELECT EXISTS (SELECT 1 FROM groups_markings WHERE marking_id = ?)",
+            Boolean.class,
+            markingDefinitionId));
   }
 
   private MarkingDefinition findByIdOrThrow(
@@ -149,10 +184,9 @@ public class MarkingDefinitionService {
    *
    * <p>🔴 Evicts every cached clearance, for the same reason as an order change (see {@link
    * #update}): {@link MarkingClearanceCacheManager#findClearance} caches the <i>whole resolved
-   * set</i>, bypass included. A cached bypass entry was resolved against the tenant's definitions
-   * as they stood before this call, so it does not contain the new id — without the evict, a bypass
-   * caller who warmed their cache before creating this definition stays unable to assign or read it
-   * until the TTL expires, even though bypass should see everything unconditionally.
+   * set</i>. The first admin's cached entry was resolved against the tenant's definitions as they
+   * stood before this call, so it does not contain the new id — without the evict, they stay unable
+   * to assign or read it until the TTL expires, even though they should see everything.
    *
    * @param input create payload
    * @param tenantId tenant that owns the new row
@@ -169,6 +203,7 @@ public class MarkingDefinitionService {
     entity.setProtectedDefinition(false);
     entity.setTenant(new Tenant(tenantId));
     MarkingDefinition saved = repository.save(entity);
+    tenantGroupService.grantToAutoNewMarkingGroups(saved);
     markingClearanceCacheManager.evictAll();
     runAfterCommit(actionMetricCollector::addMarkingDefinitionCreatedCount);
     return saved;
@@ -260,10 +295,73 @@ public class MarkingDefinitionService {
       jdbcTemplate.update(
           "UPDATE "
               + table
-              + " SET marking_ids = array_remove(marking_ids, ?) WHERE marking_ids @> ARRAY[?]::text[]",
+              + " SET marking_ids = array_remove(marking_ids, ?) WHERE COALESCE(marking_ids, '{}'::text[]) @> ARRAY[?]::text[]",
           markingDefinitionId,
           markingDefinitionId);
     }
+  }
+
+  // -- OPTIONS --
+
+  /**
+   * Resolves marking definitions in the current tenant scope by id, for labeling filter values
+   * already selected elsewhere (e.g. an asset's {@code marking_ids} array).
+   *
+   * @param ctx transaction context containing tenant scope
+   * @param ids marking definition ids to resolve
+   * @return one option per id found, label formatted as {@code "{type}:{definition}"}
+   */
+  @Transactional(readOnly = true)
+  public List<FilterUtilsJpa.Option> optionsById(@NotNull TxCtx ctx, @NotNull List<String> ids) {
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (tenantIds.isEmpty() || ids.isEmpty()) {
+      return List.of();
+    }
+    return repository.findAll(tenantSpecification(tenantIds).and(idsSpecification(ids))).stream()
+        .map(MarkingDefinitionService::toOption)
+        .toList();
+  }
+
+  /**
+   * Searches marking definitions in the current tenant scope by a free-text match on type or
+   * definition, for populating a filter's dynamic value picker.
+   *
+   * @param ctx transaction context containing tenant scope
+   * @param searchText optional substring to match (case-insensitive) against type or definition
+   * @return matching options, ascending by {@code order}
+   */
+  @Transactional(readOnly = true)
+  public List<FilterUtilsJpa.Option> optionsByName(@NotNull TxCtx ctx, String searchText) {
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (tenantIds.isEmpty()) {
+      return List.of();
+    }
+    Specification<MarkingDefinition> specification = tenantSpecification(tenantIds);
+    if (searchText != null && !searchText.isBlank()) {
+      specification = specification.and(byNameSpecification(searchText));
+    }
+    return repository.findAll(specification, Sort.by("order").ascending()).stream()
+        .map(MarkingDefinitionService::toOption)
+        .toList();
+  }
+
+  private static Specification<MarkingDefinition> idsSpecification(Collection<String> ids) {
+    return (root, query, criteriaBuilder) -> root.get("id").in(ids);
+  }
+
+  private static Specification<MarkingDefinition> byNameSpecification(String searchText) {
+    String pattern = "%" + searchText.trim().toLowerCase(Locale.ROOT) + "%";
+    return (root, query, criteriaBuilder) ->
+        criteriaBuilder.or(
+            criteriaBuilder.like(criteriaBuilder.lower(root.get("type")), pattern),
+            criteriaBuilder.like(criteriaBuilder.lower(root.get("definition")), pattern));
+  }
+
+  private static FilterUtilsJpa.Option toOption(MarkingDefinition definition) {
+    String type = definition.getType();
+    String value = definition.getDefinition();
+    String label = value.startsWith(type + ":") ? value : type + ":" + value;
+    return new FilterUtilsJpa.Option(definition.getId(), label);
   }
 
   /**

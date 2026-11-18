@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.BulkOperationContext;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.ResourceType;
 import jakarta.persistence.EmbeddedId;
@@ -56,6 +57,13 @@ public class BaseEvent implements Cloneable {
 
   @JsonIgnore private final ResourceType permissionResourceType;
 
+  /**
+   * The tenant the change was made in ({@link TenantContext#getCurrentTenant()} when the event was
+   * built). A value that depends on the tenant, such as the organization of a user, is only valid
+   * for the consumers of this tenant.
+   */
+  @JsonIgnore private final String tenantId;
+
   /** The type of event (e.g., DATA_PERSIST, DATA_UPDATE, DATA_DELETE). */
   @JsonProperty("event_type")
   private String type;
@@ -102,6 +110,7 @@ public class BaseEvent implements Cloneable {
       // Falls back to the entity itself, which consumers resolve through its own resource type.
       log.debug("Cannot resolve permission resource of {}", data.getClass().getSimpleName(), e);
     }
+    this.tenantId = TenantContext.getCurrentTenant();
     this.permissionResourceId = resolvedPermissionResourceId;
     this.permissionResourceType = resolvedPermissionResourceType;
     Class<?> baseClass = data.getClass();

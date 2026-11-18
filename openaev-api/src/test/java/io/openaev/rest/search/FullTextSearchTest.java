@@ -25,6 +25,7 @@ import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
@@ -46,6 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class FullTextSearchTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
+  @Autowired private RowTenantScope rowTenantScope;
 
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private AssetRepository assetRepository;
@@ -89,9 +91,14 @@ public class FullTextSearchTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    this.scenarioRepository.deleteAllById(SCENARIO_IDS);
-    this.assetRepository.delete(assetForTest);
-    this.assetRepository.delete(securityPlatformForTest);
+    // The class's rows were committed in the default tenant: delete them in its scope.
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          this.scenarioRepository.deleteAllById(SCENARIO_IDS);
+          this.assetRepository.delete(assetForTest);
+          this.assetRepository.delete(securityPlatformForTest);
+        });
   }
 
   @AfterEach
@@ -112,7 +119,7 @@ public class FullTextSearchTest extends IntegrationTest {
 
   @ParameterizedTest(name = "{2}")
   @MethodSource("countScenarioTestCases")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_user_is_admin_search_input_should_return_count_for_all_scenarios(
       String searchTerm, int expectedCount, String testDisplayName) throws Exception {
     // -- PREPARE --
@@ -150,7 +157,7 @@ public class FullTextSearchTest extends IntegrationTest {
 
   @ParameterizedTest(name = "{3}")
   @MethodSource("searchScenarioTestCases")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_user_is_admin_search_input_should_return_all_scenarios(
       String searchTerm, int expectedCount, List<String> expectedIds, String testDisplayName)
       throws Exception {
@@ -217,7 +224,7 @@ public class FullTextSearchTest extends IntegrationTest {
 
   @ParameterizedTest(name = "{4}")
   @MethodSource("searchScenarioGrantsTestCases")
-  @WithMockUser
+  @WithMockUser(autoJoinDefaultTenant = true)
   void given_user_with_grants_search_input_should_match_grants(
       String searchTerm,
       int expectedCount,

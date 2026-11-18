@@ -7,7 +7,6 @@ import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.rest.finding.form.FindingOutput;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
-import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.openaev.utils.TargetType;
 import java.time.Instant;
 import java.util.List;
@@ -50,7 +49,7 @@ public class FindingMapper {
     return FindingSummaryOutput.builder()
         .id(finding.getId())
         .type(finding.getType())
-        .value(SensitiveValueMaskingUtils.maskIfNeeded(finding.getType(), finding.getValue()))
+        .value(finding.getValueDisplay())
         .firstSeen(seen != null ? seen.getFirstSeen() : finding.getCreationDate())
         .lastSeen(seen != null ? seen.getLastSeen() : finding.getUpdateDate())
         .occurrences(seen != null ? seen.getOccurrences() : 1)
@@ -63,15 +62,15 @@ public class FindingMapper {
 
   /**
    * Single finding output for the CRUD endpoints. This is the only representation of a finding the
-   * API returns, so the masking applied here is what guarantees a secret value never leaves the
-   * platform in cleartext.
+   * API returns. Its value is the displayed value ({@link Finding#getValueDisplay()}), never the
+   * cleartext, so a secret value never leaves the platform.
    */
   public FindingOutput toFindingOutput(Finding finding) {
     return FindingOutput.builder()
         .id(finding.getId())
         .field(finding.getField())
         .type(finding.getType())
-        .value(SensitiveValueMaskingUtils.maskIfNeeded(finding.getType(), finding.getValue()))
+        .value(finding.getValueDisplay())
         .labels(finding.getLabels())
         .name(finding.getName())
         .tags(finding.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
@@ -113,7 +112,7 @@ public class FindingMapper {
       Finding finding, List<Asset> relatedAssets, Instant firstSeen, Instant lastSeen) {
     return AggregatedFindingOutput.builder()
         .id(finding.getId())
-        .value(SensitiveValueMaskingUtils.maskIfNeeded(finding.getType(), finding.getValue()))
+        .value(finding.getValueDisplay())
         .type(finding.getType())
         .creationDate(firstSeen)
         .updateDate(lastSeen)
@@ -129,7 +128,7 @@ public class FindingMapper {
   public RelatedFindingOutput toRelatedFindingOutput(Finding finding) {
     return RelatedFindingOutput.builder()
         .id(finding.getId())
-        .value(SensitiveValueMaskingUtils.maskIfNeeded(finding.getType(), finding.getValue()))
+        .value(finding.getValueDisplay())
         .type(finding.getType())
         .updateDate(finding.getUpdateDate())
         .assets(

@@ -4,6 +4,7 @@ import static io.openaev.database.specification.CommunicationSpecification.fromI
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.time.Instant.now;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CommunicationRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -14,6 +15,7 @@ import io.openaev.rest.inject.form.InjectTeamsInput;
 import io.openaev.rest.inject.form.InjectUpdateActivationInput;
 import io.openaev.rest.inject.form.InjectUpdateStatusInput;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +47,24 @@ public class SimulationInjectService {
             () ->
                 new ElementNotFoundException(
                     "Inject not found with id: " + injectId + " in simulation: " + simulationId));
+  }
+
+  /**
+   * Resolves the inject inside the request's tenant scope and checks that it belongs to the given
+   * simulation, or answers not found. Loads by primary key, as {@link InjectService#inject(TxCtx,
+   * String)} does, rather than through {@code findByIdAndExerciseId}, which runs under Inject's
+   * still-active v1 filter keyed on the ambient tenant.
+   */
+  @Transactional(readOnly = true)
+  public void requireInjectInSimulation(
+      @NotNull final TxCtx ctx,
+      @NotBlank final String simulationId,
+      @NotBlank final String injectId) {
+    Inject inject = injectService.inject(ctx, injectId);
+    if (inject.getExercise() == null || !simulationId.equals(inject.getExercise().getId())) {
+      throw new ElementNotFoundException(
+          "Inject not found with id: " + injectId + " in simulation: " + simulationId);
+    }
   }
 
   /** Returns the teams assigned to an inject that belongs to the given simulation. */
@@ -110,9 +130,12 @@ public class SimulationInjectService {
   // -- DELETE --
 
   /** Deletes an inject that belongs to the given simulation. */
-  public void deleteInject(@NotBlank final String simulationId, @NotBlank final String injectId) {
+  public void deleteInject(
+      @NotNull final TxCtx ctx,
+      @NotBlank final String simulationId,
+      @NotBlank final String injectId) {
     checkInjectForSimulation(simulationId, injectId);
-    Exercise exercise = this.exerciseService.exercise(simulationId);
+    Exercise exercise = this.exerciseService.exercise(ctx, simulationId);
     injectService.delete(injectId);
     this.exerciseService.updateExercise(exercise);
   }

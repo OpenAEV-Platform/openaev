@@ -32,6 +32,7 @@ import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationF
 import io.openaev.rest.collector.form.CollectorCreateInput;
 import io.openaev.rest.payload.form.*;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
@@ -62,6 +63,7 @@ class PayloadApiTest extends IntegrationTest {
   private static final String PAYLOAD_URI = "/api/payloads";
   private static Document EXECUTABLE_FILE;
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private DocumentRepository documentRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
@@ -84,7 +86,8 @@ class PayloadApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
   }
 
@@ -1279,8 +1282,15 @@ class PayloadApiTest extends IntegrationTest {
       String payloadId = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO payloads (payload_id, payload_type, payload_name, payload_status, payload_source, tenant_id, payload_created_at, payload_updated_at) "
-                  + "VALUES (:id, 'Command', :name, 'VERIFIED', 'MANUAL', :tenantId, now(), now())")
+              "INSERT INTO payload_identities (payload_identity_id, tenant_id, payload_source)"
+                  + " VALUES (:id, :tenantId, 'MANUAL')")
+          .setParameter("id", payloadId)
+          .setParameter("tenantId", tenant.getId())
+          .executeUpdate();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO payloads (payload_id, payload_type, payload_name, payload_status, tenant_id, payload_identity, payload_version, payload_created_at, payload_updated_at) "
+                  + "VALUES (:id, 'Command', :name, 'VERIFIED', :tenantId, :id, '1.0.0', now(), now())")
           .setParameter("id", payloadId)
           .setParameter("name", name)
           .setParameter("tenantId", tenant.getId())

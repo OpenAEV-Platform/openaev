@@ -51,6 +51,13 @@ Both types share the same two remaining settings:
 7. Select one or more **Notifiers**.
 8. Confirm.
 
+!!! note "Filters on sensitive Finding values"
+
+    On the Finding Resource type, a filter on the value of a sensitive Finding, such as a credential,
+    matches its masked form only: `admin` matches `admin:mo******`, while the hidden part of the
+    password matches nothing. See
+    [Searching sensitive Findings](../findings/findings.md#searching-sensitive-findings).
+
 ![Create a live trigger drawer: Name set to Scenario Score Degradation, Resource type set to Scenario, Create, Update, and Score degradation checked (Delete unchecked), empty Filters, and the Notifiers dropdown open with Soc slack channel (#soc-alerts) selected alongside User interface and Default mailer](assets/create-live-trigger-form.png)
 
 ### Create a Digest Trigger

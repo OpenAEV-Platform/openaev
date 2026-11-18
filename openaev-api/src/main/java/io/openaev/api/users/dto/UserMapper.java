@@ -17,21 +17,24 @@ public class UserMapper {
    * Maps a User entity to output without tenant information (tenant-scoped APIs).
    *
    * @param user the user to map
+   * @param tenantId the tenant of the request, whose organization of the user is exposed
    * @param visibleOrganizations the organizations the caller may see, keyed by id
    */
-  public static UserOutput toOutput(User user, Map<String, Organization> visibleOrganizations) {
-    return toOutput(user, visibleOrganizations, false);
+  public static UserOutput toOutput(
+      User user, String tenantId, Map<String, Organization> visibleOrganizations) {
+    return toOutput(user, tenantId, visibleOrganizations, false);
   }
 
   /**
    * Maps a User entity to output with tenant information (platform-scoped APIs only).
    *
+   * <p>Organizations are not handled at platform level: a user holds one organization per tenant,
+   * so none is exposed here.
+   *
    * @param user the user to map
-   * @param visibleOrganizations the organizations the caller may see, keyed by id
    */
-  public static UserOutput toPlatformOutput(
-      User user, Map<String, Organization> visibleOrganizations) {
-    return toOutput(user, visibleOrganizations, true);
+  public static UserOutput toPlatformOutput(User user) {
+    return toOutput(user, null, Map.of(), true);
   }
 
   /**
@@ -53,13 +56,17 @@ public class UserMapper {
   }
 
   private static UserOutput toOutput(
-      User user, Map<String, Organization> visibleOrganizations, boolean includeTenants) {
-    // A user is platform-level but its organization belongs to one tenant: never initialize the
-    // lazy reference (fail-closed, it throws when out of scope), only expose a resolved one.
-    Organization org =
-        user.getOrganization() != null
-            ? visibleOrganizations.get(user.getOrganization().getId())
-            : null;
+      User user,
+      String tenantId,
+      Map<String, Organization> visibleOrganizations,
+      boolean includeTenants) {
+    // A user is platform-level but holds one organization per tenant: only the request's tenant's
+    // one is exposed, and only when the caller may see it. The platform output exposes none.
+    Organization org = null;
+    Organization ofTenant = includeTenants ? null : user.organizationOfTenant(tenantId);
+    if (ofTenant != null) {
+      org = visibleOrganizations.get(ofTenant.getId());
+    }
     Set<String> tagIds =
         user.getTags() != null
             ? user.getTags().stream().map(Tag::getId).collect(Collectors.toSet())

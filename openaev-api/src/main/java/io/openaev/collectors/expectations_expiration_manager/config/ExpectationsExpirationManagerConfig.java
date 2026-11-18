@@ -18,6 +18,7 @@ public class ExpectationsExpirationManagerConfig {
   private int interval = 60;
   private int expirationTimeForAsset = 3600; // 1 hour
   private int expirationTime = 21600; // 6 hours
+  private int batchSize = 1000; // expectations expired per run and tenant
 
   public int getAssetExpirationTimeInMinute() {
     return this.expirationTimeForAsset / 60;

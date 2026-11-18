@@ -85,7 +85,7 @@ Repositories that are used with `ReferenceResolver` must expose a `countByIdIn(S
   transactions, disabled by default via configuration)
 - Scheduler hot loops must not load entities per item: precompute lookup `Set`s/`Map`s, batch with
   `saveAll`, and deduplicate downstream propagation per parent (see
-  `InjectExpectationService.bulkComputeTechnicalExpectations`)
+  `InjectExpectationService.expireExpectations` and `ExpectationBehavior.recomputeParentScores`)
 
 ## Collections & Streams
 

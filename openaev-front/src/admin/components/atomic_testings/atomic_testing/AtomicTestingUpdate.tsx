@@ -34,6 +34,7 @@ const AtomicTestingUpdate: FunctionComponent<Props> = ({
         'inject_documents',
         'inject_assets',
         'inject_asset_groups',
+        'inject_secret_references',
         'inject_teams',
         'inject_tags',
       ]),

@@ -178,5 +178,8 @@ public class TaniumExecutorIntegration extends Integration {
   protected void innerStop() {
     timers.forEach(timer -> timer.cancel(true));
     timers.clear();
+    if (taniumExecutorContextService != null) {
+      taniumExecutorContextService.shutdown();
+    }
   }
 }

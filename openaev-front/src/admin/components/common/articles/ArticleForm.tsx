@@ -43,10 +43,6 @@ const useStyles = makeStyles()(() => ({
     textTransform: 'uppercase',
     cursor: 'pointer',
   },
-  item: {
-    paddingLeft: 10,
-    height: 50,
-  },
   bodyItem: {
     height: '100%',
     fontSize: 13,

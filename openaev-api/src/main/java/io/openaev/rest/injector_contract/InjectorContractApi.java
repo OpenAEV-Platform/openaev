@@ -40,7 +40,7 @@ import org.springframework.web.bind.annotation.*;
 public class InjectorContractApi extends RestBehavior {
 
   public static final String INJECTOR_CONTRACT_URL = "/api/injector_contracts";
-  private static final String TENANT_INJECTOR_CONTRACT_URL = TENANT_PREFIX + "/injector_contracts";
+  static final String TENANT_INJECTOR_CONTRACT_URL = TENANT_PREFIX + "/injector_contracts";
 
   private final InjectorContractService injectorContractService;
   private final TenantWriteScopeResolver writeScopeResolver;

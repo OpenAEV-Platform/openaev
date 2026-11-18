@@ -68,7 +68,9 @@ export type ContractType
     | 'asset-group'
     | 'ai-target'
     | 'payload'
-    | 'targeted-asset' | 'password';
+    | 'targeted-asset'
+    | 'password'
+    | 'credential-reference';
 
 export interface ChoiceItem {
   label: string;
@@ -95,6 +97,7 @@ export interface ContractElement {
     type: string;
   }[];
   cardinality: '1' | 'n';
+  credential_reference_type?: ApiTypes.CredentialOutput['credential_type'];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   defaultValue: any;
   richText?: boolean;

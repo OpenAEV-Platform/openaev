@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Objects;
 import lombok.Data;
@@ -85,7 +86,7 @@ public class ExecutionTrace implements Base {
   @Column(name = "execution_created_at")
   @JsonProperty("execution_created_at")
   @NotNull
-  private Instant creationDate = now();
+  private Instant creationDate = now().truncatedTo(ChronoUnit.MICROS);
 
   @UpdateTimestamp
   @Column(name = "execution_updated_at")
@@ -95,6 +96,12 @@ public class ExecutionTrace implements Base {
 
   public List<String> getIdentifiers() {
     return identifiers == null ? List.of() : List.of(identifiers);
+  }
+
+  /** A global trace is about the whole inject: no agent, no context identifier. */
+  @JsonIgnore
+  public boolean isGlobal() {
+    return agent == null && getIdentifiers().isEmpty();
   }
 
   @Override

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
@@ -25,6 +26,7 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.IndexingStatusRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -46,6 +48,7 @@ import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -86,6 +89,8 @@ class SnapshotObservationApiTest extends IntegrationTest {
   @Autowired private FindingComposer findingComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private TenantComposer tenantComposer;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private TestUserHolder testUserHolder;
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
@@ -282,8 +287,20 @@ class SnapshotObservationApiTest extends IntegrationTest {
     /** One request per test: the mock user security context does not survive a request. */
     private void assertForbiddenForNonMember(boolean attackStream) throws Exception {
       // -- ARRANGE: a tenant the mock user does not belong to --
+      // Creating a tenant enrols its creator, so the membership that creation granted is undone
+      // and its absence asserted; without that, the 403 below would be the capability refusal
+      // (empty body) and the case would never reach the membership check it is named after. The
+      // premise is asserted through the uncached repository method, not
+      // TenantMembershipCacheManager.existsByUserIdAndTenantId: that method is @Cacheable and would
+      // populate the exact cache entry TenantInterceptor reads next, so the request below would
+      // read an entry this assertion wrote, not one it only observed.
       Tenant foreignTenant =
           tenantIsolationTestHelper.createTenant("snapshot-non-member-" + UUID.randomUUID());
+      tenantIsolationTestHelper.detachCurrentUserFromTenant(foreignTenant.getId());
+      assertThat(
+              tenantRepository.existsByUserIdAndTenantId(
+                  testUserHolder.get().getId(), foreignTenant.getId()))
+          .isFalse();
       String uri =
           attackStream
               ? attackSearchUri(foreignTenant.getId())
@@ -296,7 +313,8 @@ class SnapshotObservationApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(new SnapshotSearchInput(null, null, null, null)))
                   .accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isForbidden());
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value("TENANT_ACCESS_DENIED"));
     }
 
     @Test

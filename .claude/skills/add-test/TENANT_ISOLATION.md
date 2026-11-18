@@ -106,8 +106,8 @@ would test a path that cannot work.
 | Ground-truth reads in raw JDBC on the test's own connection | the inspector only rewrites Hibernate-emitted SQL; raw JDBC sees the table unfiltered. This is how the test proves a cross-tenant write really did not happen, and that a hidden row really exists. `entityManager.flush()` first, so pending scoped writes reach the database. |
 | Cross-tenant DELETE asserts 2xx and a surviving row, not 404 | the inspector adds `can_access_tenant` to the DELETE's WHERE; the statement matches no row and succeeds. Expecting 404 is v1 reasoning and fails on correct v2 code. |
 | Cross-tenant UPDATE asserts 404 | the handler looks the row up first inside the scope; the lookup finds nothing. |
-| `@TestPropertySource(properties = "openaev.tenant.active-tables={table}")` on the class | activates the table for this test only, before the production go-live. The test classpath keeps the allowlist empty on purpose; never add the table to test-wide properties. |
-| Dedicated test file, not a nested class in `*ApiTest` | `@TestPropertySource` is class-level and forks the Spring context. On `*ApiTest` it would impose the activated context on every unrelated test in the class. This diverges from the old nested-class convention deliberately. |
+| A `@DynamicPropertySource` registering `ProductionActiveTables.names()` plus `{table}` | activates the table for this test only, before the production go-live, on top of every table production already isolates, so the flow under test reads its other tables the way production does. The test classpath keeps the allowlist empty on purpose; never add the table to test-wide properties. A narrower list is a pin: `PinnedActiveTablesArchTest` fails until it is declared, with its reason, in `pinned-active-tables-baseline.txt`. |
+| Dedicated test file, not a nested class in `*ApiTest` | the property source is class-level and forks the Spring context. On `*ApiTest` it would impose the activated context on every unrelated test in the class. This diverges from the old nested-class convention deliberately. |
 | Admin user is fine for the isolation cases | the scope comes from tenant membership, never from the isAdmin flag. The non-admin proof exists once at plumbing level (`ImportMapperNonAdminIsolationTest`, `TenantSelectorMembershipTest` for the 403); per-table tests do not re-prove it. |
 
 On boilerplate: the seed stays a native insert (see the rule above), but the
@@ -152,13 +152,15 @@ Keep the raw red output: the activation workflow requires it as evidence.
 
 ## Context cost
 
-`@TestPropertySource` forks one Spring context per distinct property value.
-Every pre-go-live table therefore adds one context to the CI run; that is the
-price of proving activation before it is live, keep it. After the table's
-go-live, align the class's property value with the other activated tables'
-test classes: an identical value means a shared, cached context. Once several
-tables are live, hold that value in one shared test constant so it cannot
-drift between files.
+Spring keys a cached context on, among other things, the set of
+`@DynamicPropertySource` methods that apply to the class, not on the values
+they register. A class that declares its own registration method therefore
+gets its own context, even when it registers exactly what another class does;
+that is the price of following the production list per class, keep it. Copying
+the same value, or a shared constant, into several classes shares nothing, and
+a hard-coded value is a pin `PinnedActiveTablesArchTest` reports. Classes that
+must share a context inherit one registration method from a common superclass,
+so their method sets are equal.
 
 ## Run
 

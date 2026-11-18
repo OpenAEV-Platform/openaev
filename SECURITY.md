@@ -25,6 +25,18 @@ Please note that we follow a very strict internal and public disclosure policy, 
 
 Before doing any public disclosure we do ask that you speak to us first to ensure we are not releasing too much information before a patch is available and time has been given to users to upgrade their projects.
 
+## Confidentiality During Remediation
+
+Until a security fix has been released and the vulnerability is ready for disclosure, all public development metadata must remain neutral.
+
+- Pull request titles, descriptions, branch names, and commit messages must not describe or identify the vulnerability.
+- Do not use the `security` label or include `security` in the title of a public pull request.
+- Do not reference or link issues hosted in private repositories from a public pull request.
+- When a fix is tracked privately, omit the issue reference from the public pull request and link the public pull request from the private issue instead.
+- Technical details must remain in the private advisory or internal issue until the coordinated disclosure date.
+
+A neutral title such as `fix(api): improve input validation` should be used for the public pull request.
+
 ## Security Process Summary
 
 Below is a breakdown of our security process in order to set expectations:

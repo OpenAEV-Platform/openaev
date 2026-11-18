@@ -20,6 +20,7 @@ import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectStatusFixture;
 import java.util.*;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -251,6 +252,20 @@ class PaloAltoCortexExecutorContextServiceTest {
     inject.setTenant(new Tenant(TENANT_ID));
     inject.setInjector(buildInjectorWithCommands());
     return inject;
+  }
+
+  @Test
+  @DisplayName("shutdown should stop the dispatch worker so a connector restart leaks no thread")
+  void given_runningDispatchWorker_should_shutItDownOnShutdown() {
+    // Arrange
+    ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor();
+    service.scheduledExecutorService = worker;
+
+    // Act
+    service.shutdown();
+
+    // Assert
+    assertTrue(worker.isShutdown());
   }
 
   private Injector buildInjectorWithCommands() {

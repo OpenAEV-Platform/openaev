@@ -1,5 +1,6 @@
 package io.openaev.telemetry.metric_collectors;
 
+import static io.openaev.telemetry.metric_collectors.MetricRegistry.collectAndReset;
 import static io.openaev.telemetry.metric_collectors.MetricRegistry.normalizeLabel;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
@@ -9,7 +10,6 @@ import io.openaev.rest.stream.ai.AiConfig;
 import io.openaev.xtmone.XtmOneConfig;
 import io.opentelemetry.api.common.Attributes;
 import jakarta.annotation.PostConstruct;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -209,17 +209,5 @@ public class AiMetricCollector {
       log.error("Telemetry - Failed to read chatbot CGU status", e);
       return 0L;
     }
-  }
-
-  private Map<Attributes, Long> collectAndReset(Map<Attributes, AtomicLong> stats) {
-    Map<Attributes, Long> snapshot = new HashMap<>();
-    stats.forEach(
-        (attributes, value) -> {
-          long collected = value.getAndSet(0);
-          if (collected > 0) {
-            snapshot.put(attributes, collected);
-          }
-        });
-    return snapshot;
   }
 }

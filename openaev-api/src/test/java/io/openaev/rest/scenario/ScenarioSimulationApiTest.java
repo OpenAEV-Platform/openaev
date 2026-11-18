@@ -16,6 +16,7 @@ import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.TagRepository;
@@ -26,6 +27,7 @@ import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
+import io.openaev.utilstest.RowTenantScope;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -45,6 +47,7 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private ScenarioRepository scenarioRepository;
+  @Autowired private RowTenantScope rowTenantScope;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private TagRepository tagRepository;
 
@@ -55,22 +58,27 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() {
-    // Create scenarios
-    Scenario defaultScenario = ScenarioFixture.createDefaultCrisisScenario();
-    scenario = this.scenarioRepository.save(defaultScenario);
+    // Every fixture lives in the default tenant and is written in its scope.
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          // Create scenarios
+          Scenario defaultScenario = ScenarioFixture.createDefaultCrisisScenario();
+          scenario = this.scenarioRepository.save(defaultScenario);
 
-    // Create exercises linked to the scenario
-    this.exerciseRepository.deleteAll();
-    Exercise exercise1 = ExerciseFixture.createDefaultCrisisExercise();
-    exercise1.setScenario(scenario);
-    exercise1FromScenario = this.exerciseRepository.save(exercise1);
-    Exercise exercise2 = ExerciseFixture.createDefaultIncidentResponseExercise();
-    exercise2.setScenario(scenario);
-    exercise2FromScenario = this.exerciseRepository.save(exercise2);
+          // Create exercises linked to the scenario
+          this.exerciseRepository.deleteAll();
+          Exercise exercise1 = ExerciseFixture.createDefaultCrisisExercise();
+          exercise1.setScenario(scenario);
+          exercise1FromScenario = this.exerciseRepository.save(exercise1);
+          Exercise exercise2 = ExerciseFixture.createDefaultIncidentResponseExercise();
+          exercise2.setScenario(scenario);
+          exercise2FromScenario = this.exerciseRepository.save(exercise2);
 
-    // Create an exercise not linked to the scenario
-    Exercise exercise3 = ExerciseFixture.createDefaultCrisisExercise();
-    exercise3NotFromScenario = this.exerciseRepository.save(exercise3);
+          // Create an exercise not linked to the scenario
+          Exercise exercise3 = ExerciseFixture.createDefaultCrisisExercise();
+          exercise3NotFromScenario = this.exerciseRepository.save(exercise3);
+        });
   }
 
   @Nested
@@ -83,6 +91,7 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
     class FilteringPageOfExercises {
       @Test
       @DisplayName("Retrieve all exercises of a scenario")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_scenarioId_should_return_all_exercises_of_scenario() throws Exception {
         SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
         List<String> expectedIds =
@@ -107,6 +116,7 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
 
       @Test
       @DisplayName("Filtering page of exercises by tag")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_scenarioId_and_tag_should_return_filtered_exercises_of_scenario()
           throws Exception {
         Tag tagToAdd = TagFixture.getTagWithText("ScenarioSimulationApiTestTag");
@@ -114,7 +124,8 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
         Set<Tag> tags = new HashSet<>();
         tags.add(tag);
         exercise2FromScenario.setTags(tags);
-        exerciseRepository.save(exercise2FromScenario);
+        rowTenantScope.write(
+            Tenant.DEFAULT_TENANT_UUID, () -> exerciseRepository.save(exercise2FromScenario));
         SearchPaginationInput searchPaginationInput =
             PaginationFixture.simpleSearchWithAndOperator(
                 "exercise_tags", tag.getId(), Filters.FilterOperator.eq);
@@ -127,7 +138,8 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
             .andExpect(jsonPath("$.numberOfElements").value(1))
             .andExpect(jsonPath("$.content[0].exercise_id").value(exercise2FromScenario.getId()));
         exercise2FromScenario.setTags(null);
-        exerciseRepository.save(exercise2FromScenario);
+        rowTenantScope.write(
+            Tenant.DEFAULT_TENANT_UUID, () -> exerciseRepository.save(exercise2FromScenario));
         mvc.perform(
                 post(SCENARIO_URI + "/" + scenario.getId() + "/exercises/search")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -143,11 +155,16 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
     class SortingPageOfExercises {
       @Test
       @DisplayName("Sorting page of exercises by updated at date")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_sorting_input_by_updateDate_should_return_a_page_of_exercises_sort_by_updateDate()
           throws Exception {
         exercise2FromScenario.setUpdatedAt(Instant.now());
         exercise1FromScenario.setUpdatedAt(Instant.now().minusSeconds(60));
-        exerciseRepository.saveAll(Arrays.asList(exercise1FromScenario, exercise2FromScenario));
+        rowTenantScope.write(
+            Tenant.DEFAULT_TENANT_UUID,
+            () ->
+                exerciseRepository.saveAll(
+                    Arrays.asList(exercise1FromScenario, exercise2FromScenario)));
         SearchPaginationInput searchPaginationInput =
             PaginationFixture.getDefault()
                 .sorts(
@@ -183,6 +200,7 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
 
       @Test
       @DisplayName("Sorting page of exercises by last end date otherwise by update date")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void
           given_sorting_input_by_lastEndDate_should_return_a_page_of_exercises_sort_by_lastEndDate()
               throws Exception {
@@ -198,8 +216,12 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
         exercise1FromScenario.setEnd(null);
         exercise1FromScenario.setUpdatedAt(now);
 
-        exerciseRepository.saveAll(
-            Arrays.asList(exercise1FromScenario, exercise2FromScenario, exercise3NotFromScenario));
+        rowTenantScope.write(
+            Tenant.DEFAULT_TENANT_UUID,
+            () ->
+                exerciseRepository.saveAll(
+                    Arrays.asList(
+                        exercise1FromScenario, exercise2FromScenario, exercise3NotFromScenario)));
         SearchPaginationInput searchPaginationInput =
             PaginationFixture.getDefault()
                 .sorts(
@@ -232,6 +254,7 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
     class SearchingPageOfExercises {
       @Test
       @DisplayName("Retrieving first page of exercises by text search")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_working_search_input_should_return_a_page_of_exercises() throws Exception {
         SearchPaginationInput searchPaginationInput =
             PaginationFixture.getDefault().textSearch("Crisis").build();
@@ -247,9 +270,11 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
 
       @Test
       @DisplayName("Not retrieving first page of exercises by text search")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_notworking_search_input_should_notreturn_a_page_of_exercises() throws Exception {
         String searchText = "wrong";
-        exercise3NotFromScenario.setName(searchText);
+        rowTenantScope.write(
+            Tenant.DEFAULT_TENANT_UUID, () -> exercise3NotFromScenario.setName(searchText));
         SearchPaginationInput searchPaginationInput =
             PaginationFixture.getDefault().textSearch(searchText).build();
         mvc.perform(

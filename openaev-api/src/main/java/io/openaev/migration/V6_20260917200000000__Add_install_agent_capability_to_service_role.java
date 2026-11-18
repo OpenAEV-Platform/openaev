@@ -7,8 +7,9 @@ import org.springframework.stereotype.Component;
 
 /**
  * Backfills the {@code INSTALL_AGENT} capability on the per-tenant "Service integration" role
- * created by {@code ServiceAccountPrivilegeService}, so that the service-account token it already
- * holds can also call the (now capability-gated) installer command/token/download endpoints.
+ * created by {@code AgentServiceAccountPrivilegeService}, so that the service-account token it
+ * already holds can also call the (now capability-gated) installer command/token/download
+ * endpoints.
  *
  * <p>Idempotent by construction: the insert is guarded with a NOT EXISTS check on {@code
  * roles_capabilities(role_id, capability)}.

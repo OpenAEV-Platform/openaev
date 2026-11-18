@@ -1,4 +1,4 @@
-import { Button, Chip, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@filigran/design-system';
+import { Button, Chip, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Grid, Slider, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -30,13 +30,6 @@ const useStyles = makeStyles()(theme => ({
     display: 'flex',
     placeContent: 'end',
     gap: theme.spacing(2),
-  },
-  chipInList: {
-    height: 30,
-    borderRadius: 4,
-    textTransform: 'uppercase',
-    width: 150,
-    float: 'right',
   },
 }));
 
@@ -144,12 +137,17 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
             />
           </Grid>
           <Grid size={{ xs: 6 }}>
-            <div style={{ marginTop: 16 }}>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+            >
               <Select
                 value={watch('expectation_score') < expectation.inject_expectation_expected_score ? 'Failed' : 'Success'}
                 onValueChange={next => setValue('expectation_score', next === 'Success' ? 100 : 0)}
                 disabled={isDisabled}
               >
+                <SelectLabel>{t('Status')}</SelectLabel>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>

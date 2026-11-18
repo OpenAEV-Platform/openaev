@@ -24,6 +24,12 @@ If the Dashboard has dynamic parameters (e.g., Simulation), you can select them 
 
 ![Widget dimensions](assets/widget-dimensions.png)
 
+!!! note "Sensitive Findings"
+
+    Widgets display sensitive Finding values masked, such as credentials shown as `admin:mo******`.
+    Filters on the Finding value match the masked form only, never the hidden part of the secret.
+    See [Sensitive Findings](../findings/findings.md#sensitive-findings).
+
 ## 3. Parameters
 
 Parameters control what the Widget displays and how. Based on the selected visualization, you can:

@@ -1,12 +1,9 @@
 package io.openaev.aop;
 
-import io.openaev.service.chaining.QueueChainingService;
-import io.openaev.service.chaining.StepService;
-import java.io.IOException;
+import io.openaev.service.chaining.WorkflowUpdateEventPublisher;
 import java.util.*;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
@@ -24,22 +21,15 @@ import org.springframework.stereotype.Component;
  * updates in the chaining engine.
  *
  * <p>This aspect uses SpEL expressions defined in the annotation to extract inject or expectation
- * IDs from method parameters, then sends update events to the workflow external update queue.
+ * IDs from method parameters, then hands them to the {@link WorkflowUpdateEventPublisher}, which
+ * looks the steps up in the annotated method's transaction and sends the update events.
  */
 @Aspect
 @Component
 @RequiredArgsConstructor
-@Slf4j
 public class WorkflowUpdateEventAspect {
 
-  /**
-   * This list will contain IDs of any event that couldn't be sent due to a problem with the queue
-   * (most likely a network error, or the queue system being down)
-   */
-  private Set<String> unsentEventsCache = new HashSet<>();
-
-  private final QueueChainingService queueChainingService;
-  private final StepService stepService;
+  private final WorkflowUpdateEventPublisher workflowUpdateEventPublisher;
 
   private final ExpressionParser parser = new SpelExpressionParser();
 
@@ -92,38 +82,18 @@ public class WorkflowUpdateEventAspect {
     } else {
       this.handleExpectationTracesParam(context, expectationIdsSPEL);
     }
-    // Retry events that are stored in the unsent cache due to previous errors
-    sendEvents(unsentEventsCache);
   }
 
   /**
-   * Send a workflow update event related to the given inject to the queue, and update the unsent
-   * events cache if an error occurs
+   * Send a workflow update event related to the given inject
    *
    * @param context the SpEL evaluation context
    * @param injectIdSPEL the SpEL expression to fetch the injectId from the request
    */
   private void handleInjectIdParam(EvaluationContext context, String injectIdSPEL) {
     Expression exp = parser.parseExpression(injectIdSPEL);
-    String injectId =
-        exp.getValue(context) != null
-            ? Objects.requireNonNull(exp.getValue(context)).toString()
-            : "";
-
-    if (!injectId.isEmpty()) {
-      Optional<String> stepId = stepService.findStepIdActiveByInjectId(injectId);
-      if (stepId.isEmpty()) {
-        log.info("Step active not found for inject {}", injectId);
-        return;
-      }
-      try {
-        queueChainingService.updateStep(stepId.get());
-      } catch (IOException e) {
-        // In case an error occurs, we store the inject in the unsent event cache to be retried
-        // later, when other events will be sent
-        unsentEventsCache.add(stepId.get());
-      }
-    }
+    Object injectId = exp.getValue(context);
+    workflowUpdateEventPublisher.publishForInject(injectId != null ? injectId.toString() : null);
   }
 
   /**
@@ -147,8 +117,7 @@ public class WorkflowUpdateEventAspect {
           "@WorkflowUpdateEvent.injectIds SpEL must return a Collection or a String");
     }
 
-    Set<String> stepIds = stepService.findStepIdsActiveByInjectIds(injectIds);
-    sendEvents(stepIds);
+    workflowUpdateEventPublisher.publishForInjects(injectIds);
   }
 
   /**
@@ -173,30 +142,6 @@ public class WorkflowUpdateEventAspect {
           "@WorkflowUpdateEvent.expectationIDsdSpEL must return a Collection or a String");
     }
 
-    Set<String> stepIds = stepService.findStepIdsActiveByExpectationIds(expectationIds);
-    sendEvents(stepIds);
-  }
-
-  /**
-   * Send a list of events in the queue, and update the unsent events cache if an error occurs
-   *
-   * @param stepIds step IDs to notify with an event
-   */
-  private void sendEvents(Set<String> stepIds) {
-    if (stepIds.isEmpty()) {
-      return;
-    }
-    Set<String> remainingUnsetEvents = new HashSet<>(stepIds);
-    try {
-      for (String stepId : stepIds) {
-        queueChainingService.updateStep(stepId);
-        remainingUnsetEvents.remove(stepId);
-      }
-      unsentEventsCache.clear();
-    } catch (IOException e) {
-      // If a fail occurs, no need to continue the loop, just keep the remaining events in the
-      // unsent events cache to be retried later, when other events will be sent
-      unsentEventsCache = remainingUnsetEvents;
-    }
+    workflowUpdateEventPublisher.publishForExpectations(expectationIds);
   }
 }

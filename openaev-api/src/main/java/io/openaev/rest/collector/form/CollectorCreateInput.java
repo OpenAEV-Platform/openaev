@@ -4,6 +4,7 @@ import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -35,4 +36,12 @@ public class CollectorCreateInput {
 
   @JsonProperty("collector_security_platform")
   private String securityPlatform;
+
+  /**
+   * Expectation types the collector answers, e.g. {@code ["DETECTION", "PREVENTION", "LOGGING"]}.
+   * Absent for collectors that predate it, which keep answering Detection and Prevention. Read as
+   * strings so that a value unknown to this platform version does not reject the registration.
+   */
+  @JsonProperty("collector_supported_expectation_types")
+  private List<String> supportedExpectationTypes;
 }

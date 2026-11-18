@@ -36,5 +36,16 @@ public enum TargetType {
   ENDPOINTS,
 
   /** A raw manual target (IP address, subnet, or hostname) set via inject content. */
-  MANUAL,
+  MANUAL;
+
+  /**
+   * Whether the execution traces of an inject are looked up for a target of this type. The one rule
+   * the trace endpoints and the trace lookup share.
+   */
+  public boolean hasExecutionTraces() {
+    return switch (this) {
+      case AGENT, ASSETS, AI_TARGETS, TEAMS, PLAYERS, MANUAL -> true;
+      default -> false;
+    };
+  }
 }

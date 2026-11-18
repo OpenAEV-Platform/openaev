@@ -110,20 +110,32 @@ grep -n "UPDATE\|INSERT INTO\|DELETE FROM" openaev-api/src/main/java/io/openaev/
 
 Large data migrations must be batched in chunks of 1000 rows.
 
-## Step 7 — Verify Elasticsearch reindex
+## Step 7 — Verify the search index rebuild
 
 ```bash
-# Check if the migrated entity is indexed
-grep -rn "indexing_status" openaev-api/src/main/java/io/openaev/migration/V{major}_{yyyyMMddHHmmssSSS}__*.java
+# How the migration requests a rebuild, if it does
+grep -n "indexing_status\|requestRefeedAtStartup\|requestReindexAtStartup" openaev-api/src/main/java/io/openaev/migration/V{major}_{yyyyMMddHHmmssSSS}__*.java
 ```
 
-If the migration modifies a table that has a corresponding Elasticsearch index:
-- ☐ `DELETE FROM indexing_status WHERE indexing_status_type = '...'` is present to trigger reindex
-
-To determine if an entity is indexed:
+To determine if an entity is indexed, and under which model name (the `indexing_status_type`):
 ```bash
-grep -rn "@Document\|@Indexed" openaev-model/src/main/java/ --include="*.java" | grep -i "{EntityName}"
+grep -rn "@Indexable(index" openaev-model/src/main/java/ | grep -i "{EntityName}"
 ```
+
+If the migration changes data an indexed model reads, or how its documents are built:
+- ☐ A rebuild is requested through one of the two patterns of `EsIndexingUtils`:
+  - **re-feed in place** (documents only need rewriting): cursor moved back to epoch, keyset id
+    cleared, guarded by `indexing_status_indexing_date < REINDEX_REQUESTED_THRESHOLD`, plus
+    `EsIndexingUtils.requestRefeedAtStartup`;
+  - **reset** (stale documents must disappear): `REINDEX_REQUESTED_CURSOR` sentinel upserted, plus
+    `EsIndexingUtils.requestReindexAtStartup`.
+- ☐ The pattern matches the need: a reset leaves dashboards incomplete until the rebuild ends, so it
+  is only justified when documents must be dropped.
+- ☐ No `DELETE FROM indexing_status`: during a rolling deploy, a pod still running re-creates the
+  row before the new pod's boot check, so the wipe silently never happens.
+
+A new field on an indexed model needs no rebuild: the engine drivers add it to the existing index at
+boot. A re-feed is only needed if the existing documents must carry its value.
 
 ## Step 8 — Compile findings
 

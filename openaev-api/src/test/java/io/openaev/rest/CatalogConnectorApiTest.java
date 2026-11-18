@@ -1,26 +1,40 @@
 package io.openaev.rest;
 
 import static io.openaev.rest.catalog_connector.CatalogConnectorApi.CATALOG_CONNECTOR_URI;
+import static io.openaev.service.catalog_connectors.CatalogConnectorIngestionService.OPENAEV_KEY_TOKEN;
 import static io.openaev.utils.fixtures.CatalogConnectorFixture.createCatalogConfiguration;
 import static io.openaev.utils.fixtures.CatalogConnectorFixture.createDefaultCatalogConnectorManagedByXtmComposer;
+import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createConnectorInstanceConfiguration;
+import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultConnectorInstance;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
+import io.openaev.database.model.ConnectorInstanceConfiguration;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.service.FileService;
+import io.openaev.service.account.CatalogConnectorPrivilegeService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ConnectorInstanceFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.CatalogConnectorConfigurationComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
+import io.openaev.utils.fixtures.composers.ConnectorInstanceConfigurationComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
 import java.io.ByteArrayInputStream;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +53,11 @@ public class CatalogConnectorApiTest extends IntegrationTest {
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private CatalogConnectorConfigurationComposer catalogConfigurationComposer;
   @Autowired private FileService fileService;
+  @Autowired private EntityManager entityManager;
+  @Autowired private CatalogConnectorPrivilegeService catalogConnectorPrivilegeService;
+  @Autowired private ConnectorInstanceConfigurationRepository configurationRepository;
+  @Autowired private ConnectorInstanceConfigurationComposer configurationComposer;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
   @Test
   @DisplayName(
@@ -144,5 +163,94 @@ public class CatalogConnectorApiTest extends IntegrationTest {
 
     // Act / Assert
     mvc.perform(get("/api/images/catalog/connectors/logos/" + fileName)).andExpect(status().isOk());
+  }
+
+  @Nested
+  @DisplayName("Rotate the catalog connector token")
+  class RotateCatalogConnectorToken {
+
+    private static final String ROTATE_URI = CATALOG_CONNECTOR_URI + "/token/rotate";
+
+    /** Persists a connector instance in the current tenant, holding {@code token}. */
+    private ConnectorInstanceConfiguration givenInstanceHoldingToken(String token)
+        throws Exception {
+      ConnectorInstanceConfiguration tokenConfiguration =
+          createConnectorInstanceConfiguration(OPENAEV_KEY_TOKEN, token);
+      connectorInstanceComposer
+          .forConnectorInstance(createDefaultConnectorInstance())
+          .withCatalogConnector(
+              catalogConnectorComposer.forCatalogConnector(
+                  createDefaultCatalogConnectorManagedByXtmComposer("Rotated collector")))
+          .withConnectorInstanceConfiguration(
+              configurationComposer.forConnectorInstanceConfiguration(tokenConfiguration))
+          .persist();
+      return tokenConfiguration;
+    }
+
+    private String storedToken(ConnectorInstanceConfiguration configuration) {
+      return configurationRepository
+          .findById(configuration.getId())
+          .orElseThrow()
+          .getValue()
+          .asText();
+    }
+
+    @Test
+    @DisplayName("Issues a new token and pushes it to the tenant's connector instances")
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES},
+        autoJoinDefaultTenant = true)
+    void given_manageUsersCapability_should_rotateTokenAndUpdateInstances() throws Exception {
+      // Arrange
+      String previousToken =
+          catalogConnectorPrivilegeService.getOrCreateToken(Tenant.DEFAULT_TENANT_UUID);
+      ConnectorInstanceConfiguration tokenConfiguration = givenInstanceHoldingToken(previousToken);
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      mvc.perform(post(ROTATE_URI).with(csrf())).andExpect(status().isNoContent());
+
+      // Assert
+      entityManager.flush();
+      entityManager.clear();
+      String rotatedToken =
+          catalogConnectorPrivilegeService.getOrCreateToken(Tenant.DEFAULT_TENANT_UUID);
+      assertThat(rotatedToken).isNotEqualTo(previousToken);
+      assertThat(storedToken(tokenConfiguration)).isEqualTo(rotatedToken);
+    }
+
+    @Test
+    @DisplayName("Leaves the connector instances of another tenant untouched")
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES},
+        autoJoinDefaultTenant = true)
+    void given_instanceInAnotherTenant_should_keepItsToken() throws Exception {
+      // Arrange
+      catalogConnectorPrivilegeService.getOrCreateToken(Tenant.DEFAULT_TENANT_UUID);
+      Tenant otherTenant = tenantIsolationHelper.createTenant("Other tenant");
+      tenantIsolationHelper.switchToTenant(otherTenant.getId(), entityManager);
+      ConnectorInstanceConfiguration otherTenantConfiguration =
+          givenInstanceHoldingToken("other-tenant-token");
+      tenantIsolationHelper.switchToTenant(Tenant.DEFAULT_TENANT_UUID, entityManager);
+
+      // Act
+      mvc.perform(post(ROTATE_URI).with(csrf())).andExpect(status().isNoContent());
+
+      // Assert
+      entityManager.flush();
+      entityManager.clear();
+      assertThat(storedToken(otherTenantConfiguration)).isEqualTo("other-tenant-token");
+    }
+
+    @Test
+    @DisplayName("Rejects a user who can deploy connectors but not manage users")
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_TENANT_SETTINGS},
+        autoJoinDefaultTenant = true)
+    void given_onlyManageTenantSettings_should_beForbidden() throws Exception {
+      // Act & Assert
+      mvc.perform(post(ROTATE_URI).with(csrf())).andExpect(status().isForbidden());
+    }
   }
 }

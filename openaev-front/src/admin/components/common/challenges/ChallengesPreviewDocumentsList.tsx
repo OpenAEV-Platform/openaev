@@ -26,10 +26,6 @@ const useStyles = makeStyles()(theme => ({
     paddingLeft: theme.spacing(1),
     height: 50,
   },
-  bodyItem: {
-    height: '100%',
-    fontSize: 13,
-  },
   documentIcon: {
     paddingTop: theme.spacing(1),
     paddingBottom: theme.spacing(1),

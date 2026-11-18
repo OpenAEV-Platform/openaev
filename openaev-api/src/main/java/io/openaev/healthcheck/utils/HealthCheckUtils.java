@@ -16,6 +16,8 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
 import jakarta.validation.constraints.NotNull;
@@ -29,6 +31,9 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class HealthCheckUtils {
+  // Caps how long health checks and expectations drift may hold a pooled DB connection.
+  public static final int READINESS_CHECK_TIMEOUT_SECONDS = 30;
+
   private static final ObjectMapper mapper = new ObjectMapper();
 
   /** Scope allowlist entry types consumed by asset/IP-centric (technical) steps. */
@@ -47,6 +52,7 @@ public class HealthCheckUtils {
   private final ExecutorUtils executorUtils;
   private final StepTargetingService stepTargetingService;
   private final ConditionService conditionService;
+  private final PreviewFeatureService previewFeatureService;
 
   /**
    * Run all mail service checks for one inject
@@ -285,6 +291,21 @@ public class HealthCheckUtils {
   }
 
   /**
+   * Credential reference fields are only rendered while the {@code CREDENTIAL_ASSET} preview
+   * feature is enabled: checking them when it is disabled would report a mandatory field the user
+   * has no way to fill, and block the inject at execution time.
+   *
+   * @param jsonField the contract field to check
+   * @return {@code false} only for a credential reference field while the preview feature is
+   *     disabled; any other field is always checked
+   */
+  private boolean isContractCredentialFieldEnabled(JsonNode jsonField) {
+    return !CONTRACT_ELEMENT_CONTENT_CREDENTIAL_REFERENCE.equals(
+            jsonField.path(CONTRACT_ELEMENT_CONTENT_TYPE).asText())
+        || previewFeatureService.isFeatureEnabled(PreviewFeature.CREDENTIAL_ASSET);
+  }
+
+  /**
    * Run content checks by inject
    *
    * @param inject to verify
@@ -303,6 +324,9 @@ public class HealthCheckUtils {
             .orElse(new ArrayList<>()),
         ofNullable(inject.getAssetGroups())
             .map(assetGroups -> assetGroups.stream().map(AssetGroup::getId).toList())
+            .orElse(new ArrayList<>()),
+        ofNullable(inject.getSecretReferences())
+            .map(secretReferences -> secretReferences.stream().map(SecretReference::getId).toList())
             .orElse(new ArrayList<>()));
   }
 
@@ -323,7 +347,8 @@ public class HealthCheckUtils {
       boolean allTeams,
       @NotNull final List<String> teams,
       @NotNull final List<String> assets,
-      @NotNull final List<String> assetGroups) {
+      @NotNull final List<String> assetGroups,
+      @NotNull final List<String> secretReferences) {
     List<HealthCheck> result = new ArrayList<>();
 
     if (injectorContract == null) {
@@ -359,14 +384,23 @@ public class HealthCheckUtils {
       return result;
     }
     List<JsonNode> contractFields =
-        stream(contractContent.get(CONTRACT_CONTENT_FIELDS).spliterator(), false).toList();
+        stream(contractContent.get(CONTRACT_CONTENT_FIELDS).spliterator(), false)
+            .filter(this::isContractCredentialFieldEnabled)
+            .toList();
 
     for (JsonNode jsonField : contractFields) {
 
       // If field is mandatory
       if (jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY).asBoolean()
           && !InjectModelHelper.isFieldSet(
-              allTeams, teams, assets, assetGroups, jsonField, content, injectContractFields)) {
+              allTeams,
+              teams,
+              assets,
+              assetGroups,
+              secretReferences,
+              jsonField,
+              content,
+              injectContractFields)) {
         result.add(
             new HealthCheck(
                 HealthCheck.Type.fromValue(jsonField.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()),
@@ -396,6 +430,7 @@ public class HealthCheckUtils {
                     teams,
                     assets,
                     assetGroups,
+                    secretReferences,
                     groupField.get(),
                     content,
                     injectContractFields)) {
@@ -478,6 +513,7 @@ public class HealthCheckUtils {
                   teams,
                   assets,
                   assetGroups,
+                  secretReferences,
                   fieldOpt.get(),
                   content,
                   injectContractFields)) {
@@ -514,16 +550,17 @@ public class HealthCheckUtils {
    *       scope (no explicit assets/targets in its drawer, no target-feeding mapper) but the
    *       allowlist holds no technical entry;
    *   <li>{@code MISSING_AUDIENCE_TARGETS} (error) when at least one tabletop step relies on the
-   *       scope (no explicit audience in its drawer, no target-feeding mapper) but the allowlist
+   *       scope (no explicit audience in its drawer and no target-feeding mapper, or all-teams
+   *       mode, which targets the whole scope audience in a chained workflow) but the allowlist
    *       holds no team/player entry;
    *   <li>{@code INEFFECTIVE_TECHNICAL_TARGETS} (warning) when the allowlist holds technical
    *       entries but the workflow has no technical step: the scope fan-out never consumes them;
    *   <li>{@code INEFFECTIVE_AUDIENCE_TARGETS} (warning) when the allowlist holds team/player
-   *       entries but no tabletop step actually falls back to them (every audience step either
-   *       carries an explicit drawer audience or is mapper-fed) - the entries would be silently
-   *       ignored at run time. Technical entries differ: the per-asset fan-out consumes them for
-   *       every technical step, explicit drawer targets or not, so only a fully technical-step-less
-   *       workflow makes them ineffective.
+   *       entries that no tabletop step uses. Team and player entries are used by a step relying on
+   *       the scope (see above); team entries also by a step whose drawer audience picks one of
+   *       them: the drawer of a chained scenario only offers its scope teams. Technical entries
+   *       differ: the per-asset fan-out consumes them for every technical step, explicit drawer
+   *       targets or not, so only a fully technical-step-less workflow makes them ineffective.
    * </ul>
    *
    * <p>Only MAPPER conditions that feed actual execution targets (assets, manual targets, raw
@@ -561,6 +598,14 @@ public class HealthCheckUtils {
                 rule ->
                     rule.getValueType() != null
                         && AUDIENCE_SCOPE_TYPES.contains(rule.getValueType()));
+    Set<String> scopeTeamIds =
+        allowlistRules.stream()
+            .filter(rule -> ScopeRuleValueType.TEAM_ID.equals(rule.getValueType()))
+            .map(WorkflowScopeRule::getRuleValue)
+            .collect(Collectors.toSet());
+    boolean hasPlayerEntries =
+        allowlistRules.stream()
+            .anyMatch(rule -> ScopeRuleValueType.PLAYER_ID.equals(rule.getValueType()));
 
     List<Step> steps = ofNullable(workflow.getSteps()).orElse(List.of());
     // A step "relies on the scope" when nothing else can provide its targets: no explicit
@@ -573,6 +618,9 @@ public class HealthCheckUtils {
     boolean hasTechnicalStep = false;
     boolean technicalStepNeedsScope = false;
     boolean audienceStepNeedsScope = false;
+    // The teams a chained scenario offers in the Configure-action drawer are its scope teams, so an
+    // explicit drawer audience picking one of them consumes the scope too.
+    boolean audienceStepUsesScopeTeams = false;
     for (Step step : steps) {
       List<Condition> stepConditions =
           step.getId() == null ? List.of() : conditionsByStep.getOrDefault(step.getId(), List.of());
@@ -584,11 +632,18 @@ public class HealthCheckUtils {
                     && !stepTargetingService.hasTargetFeedingMapperConditions(
                         step, stepConditions, true));
       } else {
+        // All-teams mode targets the whole scope audience (teams and players) at execution.
         audienceStepNeedsScope =
             audienceStepNeedsScope
+                || stepTargetingService.targetsAllTeams(step)
                 || (!stepTargetingService.hasExplicitAudience(step)
                     && !stepTargetingService.hasTargetFeedingMapperConditions(
                         step, stepConditions, false));
+        audienceStepUsesScopeTeams =
+            audienceStepUsesScopeTeams
+                || (!scopeTeamIds.isEmpty()
+                    && stepTargetingService.getExplicitAudienceTeamIds(step).stream()
+                        .anyMatch(scopeTeamIds::contains));
       }
     }
 
@@ -628,9 +683,12 @@ public class HealthCheckUtils {
                 HealthCheck.Status.WARNING,
                 now()));
       }
-      // Audience entries are only consumed by the scope fallback, which explicit-drawer and
-      // mapper-fed audience steps skip: warn whenever no step actually needs them.
-      if (hasAudienceEntries && !audienceStepNeedsScope) {
+      // Scope teams are consumed by a step relying on the scope (fallback or all-teams mode) or by
+      // an explicit drawer audience picking them; scope players only by a step relying on it.
+      boolean scopeTeamsIgnored =
+          !scopeTeamIds.isEmpty() && !audienceStepNeedsScope && !audienceStepUsesScopeTeams;
+      boolean scopePlayersIgnored = hasPlayerEntries && !audienceStepNeedsScope;
+      if (scopeTeamsIgnored || scopePlayersIgnored) {
         result.add(
             new HealthCheck(
                 HealthCheck.Type.SCOPE_DEFINITION,

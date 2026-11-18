@@ -41,8 +41,8 @@ class InjectStatusRepositoryTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("findInjectStatusWithGlobalExecutionTraces should return traces ordered by time")
-  void given_globalExecutionTracesWithUnorderedInsert_should_returnTracesOrderedByTime() {
+  @DisplayName("findByInjectId should return traces ordered by time")
+  void given_executionTracesWithUnorderedInsert_should_returnTracesOrderedByTime() {
     // Arrange
     Inject inject =
         injectComposer
@@ -87,10 +87,7 @@ class InjectStatusRepositoryTest extends IntegrationTest {
     entityManager.clear();
 
     // Act
-    InjectStatus foundStatus =
-        injectStatusRepository
-            .findInjectStatusWithGlobalExecutionTraces(inject.getId())
-            .orElseThrow();
+    InjectStatus foundStatus = injectStatusRepository.findByInjectId(inject.getId()).orElseThrow();
 
     // Assert
     assertThat(foundStatus.getTraces())

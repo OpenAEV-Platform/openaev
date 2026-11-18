@@ -299,8 +299,10 @@ lade.password=<password>
 engine.index-prefix=openaev
 engine.index-suffix=-000001
 engine.url=http://localhost:9200
-engine.engine-selector=elk
-#engine.engine-selector=opensearch
+# For OpenSearch, point engine.url at it: the engine is detected automatically.
+#engine.url=http://localhost:9202
+# To skip the detection and force a client: elasticsearch8, elasticsearch9 or opensearch.
+#engine.client=auto
 
 #############
 # COLLECTORS #

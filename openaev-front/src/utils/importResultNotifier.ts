@@ -19,7 +19,6 @@ type Translate = (message: string) => string;
  *     missing {@code missingActions}). Callers can use this to skip a full page reload that would
  *     otherwise discard the toast.
  */
-// eslint-disable-next-line import/prefer-default-export
 export const notifyPartialImport = (
   result: ImportResult | null | undefined,
   t: Translate,

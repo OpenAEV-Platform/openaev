@@ -420,7 +420,6 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
       // Arrange — create a real inject in DB
       Exercise exercise = ExerciseFixture.getExercise();
       exercise.setTeams(new ArrayList<>());
-      exercise.setFrom("test@email.com");
       Exercise exerciseSaved = exerciseRepository.saveAndFlush(exercise);
 
       Inject inject = InjectFixture.getDefaultInject();

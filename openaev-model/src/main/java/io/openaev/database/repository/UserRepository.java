@@ -1,6 +1,8 @@
 package io.openaev.database.repository;
 
+import io.openaev.database.model.Organization;
 import io.openaev.database.model.User;
+import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.raw.RawUser;
 import io.openaev.database.raw.RawUserAuthFlat;
@@ -75,7 +77,13 @@ public interface UserRepository
 
   @Query(
       value =
-          "select us.*, "
+          "select us.user_id, us.user_firstname, us.user_lastname, us.user_email, us.user_phone, "
+              // The organization of the tenant, read from the join table: the legacy column of "us"
+              // is no longer maintained.
+              + "       (select uo.organization_id from users_organizations uo "
+              + "         join organizations org on org.organization_id = uo.organization_id "
+              + "         where uo.user_id = us.user_id and org.tenant_id = :tenantId "
+              + "         order by uo.organization_id limit 1) as user_organization, "
               + "       array_remove(array_agg(tg.tag_id), null) as user_tags,"
               + "       array_remove(array_agg(grp.group_id), null) as user_groups,"
               + "       array_remove(array_agg(tm.team_id), null) as user_teams from users us"
@@ -113,6 +121,22 @@ public interface UserRepository
       nativeQuery = true)
   List<RawUserIdentity> rawAllIdentities();
 
+  /**
+   * Users who receive the XTM Hub news feed: the platform users of at least one of the given
+   * tenants, that is admins and members of a group of these tenants or of the platform. Players
+   * (users only known through their teams, who never log in) and reserved service/connector
+   * accounts are left out. A projection rather than {@code User} entities (see {@link
+   * #rawIdentities}).
+   */
+  @Query(
+      "select u.id as id, u.unsubscribedNewsFeedTypes as unsubscribedTypes from User u"
+          + " where exists (select t.id from u.tenants t where t.id in :tenantIds)"
+          + " and lower(u.email) not like '%@openaev.invalid'"
+          + " and (u.admin = true or exists (select g.id from u.groups g"
+          + " where g.tenant is null or g.tenant.id in :tenantIds))")
+  List<RawNewsFeedRecipient> rawNewsFeedRecipients(
+      @Param("tenantIds") Collection<String> tenantIds);
+
   @Query(
       value = "select ut.tenant_id from users_tenants ut where ut.user_id = :userId",
       nativeQuery = true)
@@ -138,7 +162,14 @@ public interface UserRepository
       value =
           "select us.user_id, us.user_email, "
               + "us.user_firstname, us.user_lastname, "
-              + "us.user_country, us.user_phone, us.user_admin, us.user_organization,"
+              + "us.user_country, us.user_phone, us.user_admin, "
+              // A user holds one organization per tenant: a correlated sub-query keeps the current
+              // tenant's one only, without a join that would split a multi-tenant user in groups.
+              + "(select uo.organization_id from users_organizations uo "
+              + "  join organizations org on org.organization_id = uo.organization_id "
+              + "  where uo.user_id = us.user_id "
+              + "  and org.tenant_id = :#{#tenantContext.currentTenant} "
+              + "  order by uo.organization_id limit 1) as user_organization, "
               + "array_remove(array_agg(tg.tag_id), null) as user_tags "
               + "from users us "
               + "left join users_tags usr_tg on us.user_id = usr_tg.user_id "
@@ -154,7 +185,7 @@ public interface UserRepository
   @Query(
       value =
           "SELECT us.user_id, us.user_email, "
-              + "us.user_firstname, us.user_lastname "
+              + "us.user_firstname, us.user_lastname, us.user_admin "
               + "FROM users us "
               + "JOIN users_teams ON us.user_id = users_teams.user_id "
               + "JOIN teams ON users_teams.team_id = teams.team_id "
@@ -162,7 +193,7 @@ public interface UserRepository
               + "WHERE exercises_teams.exercise_id = :exerciseId "
               + "UNION "
               + "SELECT us.user_id, us.user_email, "
-              + "us.user_firstname, us.user_lastname "
+              + "us.user_firstname, us.user_lastname, us.user_admin "
               + "FROM users us "
               + "JOIN evaluations ev ON us.user_id = ev.evaluation_user "
               + "JOIN objectives ob ON ob.objective_id = ev.evaluation_objective "
@@ -173,7 +204,7 @@ public interface UserRepository
   @Query(
       value =
           "SELECT us.user_id, us.user_email, "
-              + "us.user_firstname, us.user_lastname "
+              + "us.user_firstname, us.user_lastname, us.user_admin "
               + "FROM users us "
               + "JOIN users_teams ON us.user_id = users_teams.user_id "
               + "JOIN teams ON users_teams.team_id = teams.team_id "
@@ -181,7 +212,7 @@ public interface UserRepository
               + "WHERE scenarios_teams.scenario_id = :scenarioId "
               + "UNION "
               + "SELECT us.user_id, us.user_email, "
-              + "us.user_firstname, us.user_lastname "
+              + "us.user_firstname, us.user_lastname, us.user_admin "
               + "FROM users us "
               + "JOIN evaluations ev ON us.user_id = ev.evaluation_user "
               + "JOIN objectives ob ON ob.objective_id = ev.evaluation_objective "
@@ -226,6 +257,93 @@ public interface UserRepository
 
   @Query("SELECT u FROM User u JOIN Token t ON u.id = t.user.id WHERE t.value = :token")
   Optional<User> findByToken(@Param("token") String token);
+
+  // -- ORGANIZATIONS --
+
+  /**
+   * Sets the organization of a user in a tenant, leaving the ones it holds in other tenants
+   * untouched, and keeps the in-memory view of {@code user} in sync. Must run in the caller's
+   * transaction, and the user must already be saved.
+   *
+   * <p>It is a SQL write rather than a change of {@code User#organizations}: Hibernate only knows
+   * the organizations in the scope of the transaction, so clearing the last one would delete every
+   * row of the user, the ones of the tenants out of scope included. The row of the user is locked
+   * first, so two concurrent assignments in a tenant cannot both insert a different organization.
+   *
+   * @param user the saved user
+   * @param tenantId the tenant whose organization is replaced
+   * @param organization the new organization of that tenant, or {@code null} to clear it
+   */
+  default void assignOrganization(User user, String tenantId, Organization organization) {
+    Organization previous = user.organizationOfTenant(tenantId);
+    boolean changed =
+        !Objects.equals(
+            previous == null ? null : previous.getId(),
+            organization == null ? null : organization.getId());
+    // In-memory view first: the queries below flush the pending profile changes of the user, and
+    // the update event published by that flush serializes the user as it is at that moment.
+    user.setOrganizationForTenant(tenantId, organization);
+    if (changed) {
+      // The join table is written in SQL, so the user row would stay untouched and no update event
+      // would reach the connected clients: marking the user updated makes Hibernate publish it.
+      user.setUpdatedAt(Instant.now());
+    }
+    lockRow(user.getId());
+    removeOrganizationsOfTenant(user.getId(), tenantId);
+    if (organization != null) {
+      addOrganization(user.getId(), organization.getId());
+    }
+  }
+
+  // Native: JPA only exposes FOR UPDATE (PESSIMISTIC_WRITE), which would block the inserts of rows
+  // referencing the user (tags, tokens...); FOR NO KEY UPDATE does not. Unlike a no-op UPDATE it
+  // writes no tuple and fires no UPDATE trigger. No entity is read or changed, so no listener,
+  // index or audit side effect is lost.
+  @Query(
+      value = "SELECT us.user_id FROM users us WHERE us.user_id = :userId FOR NO KEY UPDATE",
+      nativeQuery = true)
+  List<String> lockRow(@Param("userId") String userId);
+
+  // Native: a set-based delete scoped by tenant through a sub-query. It touches a join table that
+  // is not indexed, audited nor streamed, so no session side effect is lost.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM users_organizations WHERE user_id = :userId AND organization_id IN ("
+              + "SELECT organization_id FROM organizations WHERE tenant_id = :tenantId)",
+      nativeQuery = true)
+  void removeOrganizationsOfTenant(
+      @Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  // Native: atomic upsert (ON CONFLICT) on a join table that is not indexed, audited nor streamed.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "INSERT INTO users_organizations (user_id, organization_id)"
+              + " VALUES (:userId, :organizationId) ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void addOrganization(
+      @Param("userId") String userId, @Param("organizationId") String organizationId);
+
+  // Native: atomic upsert (ON CONFLICT) on a join table that is not indexed, audited nor streamed.
+  // It adds one link without rewriting the association: Hibernate only knows the tags in the scope
+  // of the transaction, so replacing the collection would delete the links to the ones out of it.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "INSERT INTO users_tags (user_id, tag_id) VALUES (:userId, :tagId)"
+              + " ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void addTag(@Param("userId") String userId, @Param("tagId") String tagId);
+
+  // Native: same rationale as addTag, for the teams of the user.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "INSERT INTO users_teams (user_id, team_id) VALUES (:userId, :teamId)"
+              + " ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void addTeam(@Param("userId") String userId, @Param("teamId") String teamId);
 
   // -- DELETE --
 

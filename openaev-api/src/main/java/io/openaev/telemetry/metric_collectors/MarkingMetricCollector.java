@@ -1,5 +1,7 @@
 package io.openaev.telemetry.metric_collectors;
 
+import static io.openaev.telemetry.metric_collectors.MetricRegistry.collectAndReset;
+import static io.openaev.telemetry.metric_collectors.MetricRegistry.runAfterCommit;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import io.openaev.context.TenantScopedTransaction;
@@ -17,8 +19,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Telemetry on the number of marking definitions available in the current tenant scope. Unlike
@@ -92,32 +92,9 @@ public class MarkingMetricCollector {
             markingAssignmentStats
                 .computeIfAbsent(attributes, key -> new AtomicLong(0))
                 .addAndGet(count);
-    // Deferred to afterCommit (same pattern as CommitAwareCacheManager): the caller's
-    // transaction can still roll back after this call (e.g. the repository save below it),
-    // and a rolled-back assignment must not inflate the exported count.
-    if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-      increment.run();
-      return;
-    }
-    TransactionSynchronizationManager.registerSynchronization(
-        new TransactionSynchronization() {
-          @Override
-          public void afterCommit() {
-            increment.run();
-          }
-        });
-  }
-
-  private Map<Attributes, Long> collectAndReset(Map<Attributes, AtomicLong> stats) {
-    Map<Attributes, Long> snapshot = new HashMap<>();
-    stats.forEach(
-        (attributes, value) -> {
-          long collected = value.getAndSet(0);
-          if (collected > 0) {
-            snapshot.put(attributes, collected);
-          }
-        });
-    return snapshot;
+    // The caller's transaction can still roll back after this call (e.g. the repository save
+    // below it)
+    runAfterCommit(increment);
   }
 
   private Map<Attributes, Long> collectMarkings() {

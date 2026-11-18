@@ -16,6 +16,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.*;
 import io.openaev.service.FileService;
 import io.openaev.service.LessonsService;
+import io.openaev.service.PermissionService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowEndService;
@@ -43,6 +44,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
@@ -100,6 +102,7 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private AttackPathExecutionIngestionService attackPathExecutionService;
   @Mock private AutonomousRunRepository autonomousRunRepository;
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
+  @Autowired private ObjectProvider<PermissionService> permissionServiceProvider;
   @Autowired private WorkflowEndService workflowEndService;
 
   @BeforeEach
@@ -145,7 +148,8 @@ class ExerciseServiceTest extends IntegrationTest {
         healthCheckUtils,
         eventPublisher,
         attackPathExecutionService,
-        autonomousRunRepository);
+        autonomousRunRepository,
+        permissionServiceProvider);
 
     scenarioComposer.reset();
     exerciseComposer.reset();

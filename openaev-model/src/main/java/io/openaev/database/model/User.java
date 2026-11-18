@@ -7,6 +7,7 @@ import static lombok.AccessLevel.NONE;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.ModelBaseListener;
@@ -21,8 +22,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.Hibernate;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
+import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
@@ -32,7 +35,7 @@ import org.hibernate.annotations.UuidGenerator;
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "Player.tags-organization",
-      attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("organization")})
+      attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("organizations")})
 })
 public class User implements Base {
 
@@ -106,6 +109,12 @@ public class User implements Base {
         ofNullable(homeDashboard).map(String::trim).filter(v -> !v.isEmpty()).orElse(null);
   }
 
+  @Setter
+  @Type(StringArrayType.class)
+  @Column(name = "user_unsubscribed_news_feed_types", columnDefinition = "text[]")
+  @JsonIgnore
+  private String[] unsubscribedNewsFeedTypes = new String[0];
+
   @Getter(NONE)
   @Setter(NONE)
   @Column(name = "user_email")
@@ -170,14 +179,97 @@ public class User implements Base {
   @Schema(description = "Update date of the user", accessMode = Schema.AccessMode.READ_ONLY)
   private Instant updatedAt = now();
 
-  @Setter
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "user_organization")
-  @JsonSerialize(using = MonoIdSerializer.class)
+  /**
+   * A user is platform-level while an organization belongs to one tenant, so a user holds at most
+   * one organization per tenant.
+   *
+   * <p>Inverse side of {@code users_organizations}: Hibernate never writes it, this set is only a
+   * read view. A flush of the owning collection would delete every row of the user as soon as the
+   * organizations in scope are all removed, wiping the ones of the tenants out of scope. The table
+   * is written by {@link io.openaev.database.repository.UserRepository#assignOrganization}.
+   */
+  @ManyToMany(mappedBy = "users", fetch = FetchType.LAZY)
+  @Fetch(FetchMode.SUBSELECT)
+  @JsonIgnore
+  @Getter(NONE)
+  private Set<Organization> organizations = new HashSet<>();
+
+  /**
+   * Serialized as {@code user_organization}: the single organization of the user in the current
+   * tenant, or {@code null} when the user has none there (or when the organization is out of the
+   * caller's tenant scope).
+   */
   @JsonProperty("user_organization")
-  @Queryable(dynamicValues = true, filterable = true, sortable = true, path = "organization.id")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @Queryable(dynamicValues = true, filterable = true, path = "organizations.id")
   @Schema(description = "Organization ID of the user", type = "string")
-  private Organization organization;
+  public Organization getOrganization() {
+    return organizationOfTenant(
+        organizationTenantId != null ? organizationTenantId : TenantContext.getCurrentTenant());
+  }
+
+  /**
+   * The tenant whose organization {@link #getOrganization()} answers for, when it is not the
+   * ambient one: a request that works on a tenant named by {@code X-Tenant-Ids} still has the
+   * default tenant as its ambient tenant. Never persisted, never serialized.
+   */
+  @Transient
+  @JsonIgnore
+  @Getter(NONE)
+  private String organizationTenantId;
+
+  /**
+   * Makes {@link #getOrganization()}, so the {@code user_organization} of the response, answer for
+   * the given tenant instead of the ambient one.
+   *
+   * @param tenantId the tenant the request works on
+   */
+  public void answerOrganizationOfTenant(final String tenantId) {
+    this.organizationTenantId = tenantId;
+  }
+
+  /**
+   * Loads the organizations of the user. Call it inside the scoped transaction of an endpoint that
+   * returns the raw user: {@code user_organization} is otherwise read after the commit, where the
+   * tenant scope is gone and a lazy load of the v2-active {@code organizations} fails closed to
+   * nothing.
+   */
+  public void loadOrganizations() {
+    Hibernate.initialize(organizations);
+  }
+
+  /**
+   * Returns the organization the user holds in the given tenant, or {@code null}.
+   *
+   * @param tenantId the tenant the organization must belong to
+   */
+  public Organization organizationOfTenant(final String tenantId) {
+    if (tenantId == null) {
+      return null;
+    }
+    return organizations.stream()
+        .filter(org -> org.getTenant() != null && tenantId.equals(org.getTenant().getId()))
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
+   * Updates the in-memory view of the organization of the user in the given tenant, so the entity
+   * answers {@link #getOrganization()} correctly for the rest of the request. It does not persist
+   * anything: use {@link io.openaev.database.repository.UserRepository#assignOrganization}, which
+   * calls it. Organizations of the other tenants are left untouched.
+   *
+   * @param tenantId the tenant whose organization is replaced
+   * @param organization the new organization of that tenant, or {@code null} to clear it
+   */
+  public void setOrganizationForTenant(final String tenantId, final Organization organization) {
+    Objects.requireNonNull(tenantId, "tenantId must not be null");
+    organizations.removeIf(
+        org -> org.getTenant() != null && tenantId.equals(org.getTenant().getId()));
+    if (organization != null) {
+      organizations.add(organization);
+    }
+  }
 
   @Setter
   @Column(name = "user_admin")
@@ -423,13 +515,23 @@ public class User implements Base {
    * them with 403 (issues #6331 / #6332).
    */
   private List<Group> scopedGroups() {
-    String currentTenant = TenantContext.getCurrentTenant();
+    String currentTenant = scopedTenantId();
     return getUnscopedGroups().stream()
         .filter(
             group ->
                 group.getTenant() == null
                     || (currentTenant != null && currentTenant.equals(group.getTenant().getId())))
         .toList();
+  }
+
+  /**
+   * The tenant whose groups count for this user in the current request, next to platform groups.
+   * Capabilities, {@code user_grants} and the grant checks of the backend all resolve against it,
+   * so a grant applies in the tenant of the group that holds it, and everywhere for a platform
+   * group. Falls back to the default tenant, see {@link #scopedGroups()}.
+   */
+  public String scopedTenantId() {
+    return TenantContext.getCurrentTenant();
   }
 
   @JsonProperty("user_capabilities")

@@ -84,6 +84,7 @@ const STATUS_COLOR_STYLE: Record<string, keyof typeof colorStyles> = {
   'MAYBE_PARTIAL_PREVENTED': 'red',
   'ASSET_AGENTLESS': 'blueGrey',
   'AGENT_INACTIVE': 'blueGrey',
+  'ASSET_CLEARANCE_RESTRICTED': 'blueGrey',
   'INFO': 'blue',
   // -- ExecutionStatus --
   'PARTIAL': 'orange',
@@ -145,6 +146,7 @@ export const computeStatusStyle = (status: string | undefined | null) => {
     // Not counted statuses (from ExecutionTraceStatus)
     'ASSET_AGENTLESS': colorStyles.blueGrey,
     'AGENT_INACTIVE': colorStyles.blueGrey,
+    'ASSET_CLEARANCE_RESTRICTED': colorStyles.blueGrey,
     'INFO': colorStyles.blue,
 
     // -- ExecutionStatus --
@@ -206,6 +208,7 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
     // Not counted statuses
     'asset_agentless': theme.palette.grey['500'],
     'agent_inactive': theme.palette.grey['500'],
+    'asset_clearance_restricted': theme.palette.grey['500'],
     'info': colorStyles.blue.color,
 
     // -- ExecutionStatus --

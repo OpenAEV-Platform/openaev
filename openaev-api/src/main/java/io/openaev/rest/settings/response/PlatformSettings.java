@@ -129,6 +129,11 @@ public class PlatformSettings extends PublicPlatformSettings {
   private long preventionExpirationTime;
 
   @NotNull
+  @JsonProperty("expectation_logging_expiration_time")
+  @Schema(description = "Time to wait before logging time has expired")
+  private long loggingExpirationTime;
+
+  @NotNull
   @JsonProperty("expectation_vulnerability_expiration_time")
   @Schema(description = "Time to wait before vulnerability time has expired")
   private long vulnerabilityExpirationTime;

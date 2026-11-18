@@ -14,9 +14,10 @@ const ExecutionTime = ({ startDate, endDate, style = {} }: Props) => {
   const { t, fldt, du } = useFormatter();
   const theme = useTheme();
 
-  const duration = startDate && endDate
-    ? du(new Date(endDate).getTime() - new Date(startDate).getTime())
-    : null;
+  const elapsed = startDate && endDate
+    ? new Date(endDate).getTime() - new Date(startDate).getTime()
+    : 0;
+  const duration = elapsed > 0 ? du(elapsed) : null;
 
   const items: {
     label: string;

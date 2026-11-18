@@ -445,6 +445,18 @@ public class WidgetFixture {
     return widget;
   }
 
+  /** A number widget counting the entities whose {@code key} matches the value under operator. */
+  public static Widget createNumberWidgetWithEntityAndFilter(
+      String entityName, String key, Filters.FilterOperator operator, String value) {
+    Widget widget = createNumberWidgetWithEntity(entityName);
+    Filters.FilterGroup filterGroup =
+        ((FlatConfiguration) widget.getWidgetConfiguration()).getSeries().getFirst().getFilter();
+    List<Filters.Filter> filters = new ArrayList<>(filterGroup.getFilters());
+    filters.add(createFilter(key, Filters.FilterMode.and, operator, List.of(value)));
+    filterGroup.setFilters(filters);
+    return widget;
+  }
+
   public static Widget createNumberWidgetWithEntityAndTimeRange(
       String entityName, CustomDashboardTimeRange timeRange, String dateAttribute) {
     Widget widget = createWidgetWithDefaultTenant();

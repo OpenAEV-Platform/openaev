@@ -809,7 +809,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player input, should create a player successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validPlayerInput_should_createPlayerSuccessfully() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
@@ -877,7 +877,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player input, should upsert player successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validPlayerInput_should_upsertPlayerSuccessfully() throws Exception {
     // --PREPARE--
     PlayerInput playerInput = buildPlayerInput();
@@ -906,7 +906,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given non-existing player input, should upsert successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_nonExistingPlayerInput_should_upsertSuccessfully() throws Exception {
     // --PREPARE--
     PlayerInput playerInput = buildPlayerInput();

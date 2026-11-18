@@ -161,7 +161,6 @@ const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerEleme
         {visibleEntries.map((items, index) => (
         // Groups are positional, they carry no identity of their own; the rows
         // inside them are keyed by label.
-        // eslint-disable-next-line react/no-array-index-key
           <Fragment key={index}>
             {index !== 0 && <NavbarSeparator />}
             {items.map(renderItem)}

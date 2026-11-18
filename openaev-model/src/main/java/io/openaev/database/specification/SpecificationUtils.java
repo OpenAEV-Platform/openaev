@@ -146,6 +146,8 @@ public class SpecificationUtils {
    * @param query The parent criteria query used to create the subquery
    * @param cb The criteria builder for constructing query predicates
    * @param userId The ID of the user whose accessible resources are being queried
+   * @param tenantId The tenant the grants must count in: only grants held through a group of that
+   *     tenant or through a platform group are considered
    * @param resourceType The type of resource to filter by (e.g., "SCENARIO", "EXERCISE")
    * @param allowedGrantTypes List of grant types that provide access (e.g., OBSERVER and higher)
    * @return A subquery that selects resource IDs the user can access
@@ -154,6 +156,7 @@ public class SpecificationUtils {
       CriteriaQuery<?> query,
       CriteriaBuilder cb,
       String userId,
+      String tenantId,
       Grant.GRANT_RESOURCE_TYPE resourceType,
       List<Grant.GRANT_TYPE> allowedGrantTypes) {
 
@@ -165,14 +168,27 @@ public class SpecificationUtils {
     // Select resourceId directly since we're not joining to the resource table
     accessibleResources.select(grantTable.get("resourceId"));
 
-    // WHERE user matches AND resourceType matches AND grant type is allowed
+    // WHERE user matches AND the group counts in the tenant AND resourceType matches AND grant
+    // type is allowed
     accessibleResources.where(
         cb.and(
             cb.equal(userTable.get("id"), userId),
+            groupCountsInTenant(cb, groupTable, tenantId),
             cb.equal(grantTable.get("grantResourceType"), resourceType),
             grantTable.get("name").in(allowedGrantTypes)));
 
     return accessibleResources;
+  }
+
+  /**
+   * A grant applies in the tenant of the group that holds it, and in every tenant when that group
+   * is a platform group.
+   */
+  private static Predicate groupCountsInTenant(
+      CriteriaBuilder cb, Join<Grant, Group> groupTable, String tenantId) {
+    return cb.or(
+        cb.isNull(groupTable.get("tenant")),
+        cb.equal(groupTable.get("tenant").get("id"), tenantId));
   }
 
   public static <T extends GrantableBase>

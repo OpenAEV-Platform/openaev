@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -188,6 +189,12 @@ public class InjectComposer extends ComposerBase<Inject> {
   }
 
   public Composer forInject(Inject inject) {
+    generatedItems.add(inject);
+    return new Composer(inject);
+  }
+
+  public Composer forInject(Supplier<Inject> supplier) {
+    Inject inject = supplier.get();
     generatedItems.add(inject);
     return new Composer(inject);
   }

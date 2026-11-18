@@ -5,6 +5,7 @@ import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
 import io.openaev.service.targets.search.AiTargetSearchAdaptor;
 import io.openaev.service.targets.search.AssetGroupTargetSearchAdaptor;
 import io.openaev.service.targets.search.EndpointTargetSearchAdaptor;
+import io.openaev.service.targets.search.ManualTargetSearchAdaptor;
 import io.openaev.service.targets.search.PlayerTargetSearchAdaptor;
 import io.openaev.service.targets.search.TeamTargetSearchAdaptor;
 import io.openaev.utils.FilterUtilsJpa;
@@ -24,6 +25,7 @@ public class TargetService {
   private final AgentTargetSearchAdaptor agentTargetSearchAdaptor;
   private final PlayerTargetSearchAdaptor playerTargetSearchAdaptor;
   private final AiTargetSearchAdaptor aiTargetSearchAdaptor;
+  private final ManualTargetSearchAdaptor manualTargetSearchAdaptor;
 
   public Page<InjectTarget> searchTargets(
       TargetType injectTargetType, Inject inject, SearchPaginationInput input) {
@@ -42,6 +44,7 @@ public class TargetService {
       case PLAYERS -> playerTargetSearchAdaptor.search(input, inject);
       case AGENT -> agentTargetSearchAdaptor.search(input, inject);
       case AI_TARGETS -> aiTargetSearchAdaptor.search(input, inject);
+      case MANUAL -> manualTargetSearchAdaptor.search(input, inject);
       default -> throw new IllegalArgumentException("Unsupported target type: " + injectTargetType);
     };
   }
@@ -55,6 +58,7 @@ public class TargetService {
       case PLAYERS -> playerTargetSearchAdaptor.getOptionsForInject(inject, textSearch);
       case AGENT -> agentTargetSearchAdaptor.getOptionsForInject(inject, textSearch);
       case AI_TARGETS -> aiTargetSearchAdaptor.getOptionsForInject(inject, textSearch);
+      case MANUAL -> manualTargetSearchAdaptor.getOptionsForInject(inject, textSearch);
       default -> throw new IllegalArgumentException("Unsupported target type: " + targetType);
     };
   }
@@ -68,6 +72,7 @@ public class TargetService {
       case AGENT -> agentTargetSearchAdaptor.getOptionsByIds(ids);
       case PLAYERS -> playerTargetSearchAdaptor.getOptionsByIds(ids);
       case AI_TARGETS -> aiTargetSearchAdaptor.getOptionsByIds(ids);
+      case MANUAL -> manualTargetSearchAdaptor.getOptionsByIds(ids);
       default -> throw new IllegalArgumentException("Unsupported target type: " + targetType);
     };
   }

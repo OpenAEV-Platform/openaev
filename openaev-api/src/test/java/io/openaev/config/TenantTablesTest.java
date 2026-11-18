@@ -13,8 +13,12 @@ import io.openaev.database.model.Token;
 import io.openaev.database.model.attackpath.AttackPathGraphVersion;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("TenantTables.fromEntities")
 class TenantTablesTest {
@@ -119,8 +123,11 @@ class TenantTablesTest {
   void restrictToAllStrictSkipsSelfIsolatedTables() {
     String graphVersion = tableOf(AttackPathGraphVersion.class);
     String tenants = tableOf(Tenant.class);
+    // A join table with no entity class, so its name cannot be read from a mapping.
+    String usersTenants = "users_tenants";
     TenantTables model =
-        new TenantTables(Set.of("documents", graphVersion, tenants), Set.of("groups"));
+        new TenantTables(
+            Set.of("documents", graphVersion, tenants, usersTenants), Set.of("groups"));
 
     TenantTables active = model.restrictTo(Set.of(TenantTables.ALL_STRICT));
 
@@ -133,14 +140,50 @@ class TenantTablesTest {
         TenantTables.Family.NONE,
         active.family(tenants),
         "the tenant registry is not tenant-scoped data; gating it stops the platform from bootstrapping");
+    assertEquals(
+        TenantTables.Family.NONE,
+        active.family(usersTenants),
+        "the membership check that computes the scope reads it before any scope exists");
   }
 
   @Test
-  @DisplayName("the self-isolated set is the tenant registry and the self-predicated graph version")
+  @DisplayName(
+      "the self-isolated set is the tenant registry, the membership mapping and the"
+          + " self-predicated graph version")
   void selfIsolatedTablesAreExposedForDerivation() {
     assertEquals(
-        Set.of(tableOf(AttackPathGraphVersion.class), tableOf(Tenant.class)),
+        Set.of(tableOf(AttackPathGraphVersion.class), tableOf(Tenant.class), "users_tenants"),
         TenantTables.selfIsolatedTables());
+  }
+
+  static Stream<String> selfIsolatedTables() {
+    return TenantTables.selfIsolatedTables().stream().sorted();
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("selfIsolatedTables")
+  @DisplayName("a self-isolated table named in an explicit allowlist fails fast")
+  void restrictToRejectsASelfIsolatedTable(String table) {
+    // The model knows the table as strict, as the schema derivation does, so the refusal cannot be
+    // the "not a tenant table" one.
+    TenantTables model =
+        new TenantTables(
+            Stream.concat(Stream.of("documents"), TenantTables.selfIsolatedTables().stream())
+                .collect(Collectors.toSet()),
+            Set.of());
+
+    IllegalArgumentException alone =
+        assertThrows(IllegalArgumentException.class, () -> model.restrictTo(Set.of(table)));
+    IllegalArgumentException amongOthers =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> model.restrictTo(Set.of("documents", table.toUpperCase())));
+
+    assertTrue(alone.getMessage().contains(table), alone.getMessage());
+    assertTrue(amongOthers.getMessage().contains(table), amongOthers.getMessage());
+    assertTrue(
+        alone.getMessage().contains("self-isolated"),
+        "the error must say why the table is refused: " + alone.getMessage());
   }
 
   @Test

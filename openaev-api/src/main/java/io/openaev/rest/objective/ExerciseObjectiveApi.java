@@ -6,7 +6,6 @@ import static io.openaev.helper.DatabaseHelper.resolveRelation;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
@@ -16,6 +15,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.EvaluationSpecification;
 import io.openaev.database.specification.ObjectiveSpecification;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.objective.form.EvaluationInput;
 import io.openaev.rest.objective.form.ObjectiveInput;
@@ -32,6 +32,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
   private static final String TENANT_EXERCISE_URI = TENANT_PREFIX + "/exercises/";
 
   private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final ObjectiveRepository objectiveRepository;
   private final EvaluationRepository evaluationRepository;
   private final UserRepository userRepository;
@@ -62,9 +63,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
   public Objective createObjective(
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody ObjectiveInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     Objective objective = new Objective();
     objective.setUpdateAttributes(input);
     objective.setExercise(exercise);
@@ -162,9 +161,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     objective.setUpdatedAt(now());
     objectiveRepository.save(objective);
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     exercise.setUpdatedAt(now());
     exerciseRepository.save(exercise);
     return result;
@@ -194,9 +191,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     objective.setUpdatedAt(now());
     objectiveRepository.save(objective);
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     exercise.setUpdatedAt(now());
     exerciseRepository.save(exercise);
     return result;

@@ -2,7 +2,7 @@ package io.openaev.rest;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -14,9 +14,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
 import io.openaev.rest.atomic_testing.form.InjectRecurrenceInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
@@ -28,12 +30,15 @@ import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultMatcher;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -154,7 +159,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Create and upadte an atomic testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void createAndUpdateAnAtomicTesting() throws Exception {
     String response =
         mvc.perform(
@@ -286,6 +291,10 @@ public class AtomicTestingApiTest extends IntegrationTest {
             .getContentAsString();
 
     String relaunchedInjectId = JsonPath.read(relaunchedInject, "$.inject_id");
+    // The relaunch deletes the original row with a native query, which leaves it in the
+    // persistence context: clear it so the next by-id read goes back to the database.
+    entityManager.flush();
+    entityManager.clear();
     mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId()).with(csrf()))
         .andExpect(status().is4xxClientError());
     mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + relaunchedInjectId).with(csrf()))
@@ -369,6 +378,109 @@ public class AtomicTestingApiTest extends IntegrationTest {
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.inject_recurrence").doesNotExist());
+  }
+
+  @Nested
+  @DisplayName("Credential references")
+  class CredentialReferences {
+
+    @Autowired private CredentialSecretReferenceRepository credentialSecretReferenceRepository;
+
+    private CredentialSecretReference persistDefaultTenantCredential() {
+      CredentialSecretReference credential =
+          credentialSecretReferenceRepository.save(
+              CredentialFixture.createDefaultUsernameCredentialReference(
+                  new Tenant(Tenant.DEFAULT_TENANT_UUID)));
+      entityManager.flush();
+      return credential;
+    }
+
+    private AtomicTestingInput atomicTestingWithCredentials(List<String> credentialIds) {
+      AtomicTestingInput input = InjectFixture.createAtomicTesting("credentials", null);
+      input.setSecretReferences(credentialIds);
+      return input;
+    }
+
+    private String saveAtomicTesting(
+        MockHttpServletRequestBuilder request, AtomicTestingInput input, ResultMatcher expected)
+        throws Exception {
+      return mvc.perform(
+              request
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .with(csrf()))
+          .andExpect(expected)
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    private List<String> persistedCredentialIds(String injectId) {
+      entityManager.flush();
+      entityManager.clear();
+      return injectRepository.findById(injectId).orElseThrow().getSecretReferences().stream()
+          .map(SecretReference::getId)
+          .toList();
+    }
+
+    @Test
+    @DisplayName("given_credentialOfTheInjectTenant_should_persistIt")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_credentialOfTheInjectTenant_should_persistIt() throws Exception {
+      // Arrange
+      CredentialSecretReference credential = persistDefaultTenantCredential();
+
+      // Act
+      String response =
+          saveAtomicTesting(
+              post(ATOMIC_TESTINGS_URI),
+              atomicTestingWithCredentials(List.of(credential.getId())),
+              status().is2xxSuccessful());
+
+      // Assert
+      String injectId = JsonPath.read(response, "$.inject_id");
+      assertThat(persistedCredentialIds(injectId)).containsExactly(credential.getId());
+    }
+
+    @Test
+    @DisplayName("given_credentialsRemovedOnUpdate_should_detachThem")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_credentialsRemovedOnUpdate_should_detachThem() throws Exception {
+      // Arrange
+      CredentialSecretReference credential = persistDefaultTenantCredential();
+      String created =
+          saveAtomicTesting(
+              post(ATOMIC_TESTINGS_URI),
+              atomicTestingWithCredentials(List.of(credential.getId())),
+              status().is2xxSuccessful());
+      String injectId = JsonPath.read(created, "$.inject_id");
+
+      // Act
+      saveAtomicTesting(
+          put(ATOMIC_TESTINGS_URI + "/" + injectId),
+          atomicTestingWithCredentials(List.of()),
+          status().is2xxSuccessful());
+
+      // Assert
+      assertThat(persistedCredentialIds(injectId)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("given_unknownCredential_should_beIgnored")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_unknownCredential_should_beIgnored() throws Exception {
+      // Act
+      String response =
+          saveAtomicTesting(
+              post(ATOMIC_TESTINGS_URI),
+              atomicTestingWithCredentials(List.of(UUID.randomUUID().toString())),
+              status().is2xxSuccessful());
+
+      // Assert
+      String injectId = JsonPath.read(response, "$.inject_id");
+      assertThat(persistedCredentialIds(injectId)).isEmpty();
+    }
   }
 
   @Nested
@@ -462,6 +574,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test collector")
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -471,6 +584,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceAssetId("security platform asset id")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Meh...")
+                    .date(Instant.now())
                     .build());
 
         List<InjectExpectationResult> resultSet2 =
@@ -483,6 +597,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -492,6 +607,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh better...")
+                    .date(Instant.now())
                     .build());
 
         EndpointComposer.Composer endpointWrapper =
@@ -549,6 +665,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -558,6 +675,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -567,10 +685,16 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh better...")
+                    .date(Instant.now())
                     .build());
 
         assertThatJson(response)
             .when(Option.IGNORING_ARRAY_ORDER)
+            .whenIgnoringPaths(
+                "[*].inject_expectation_results[*].date",
+                "[*].inject_expectation_results[*].inject_expectation_result_created_at",
+                "[*].inject_expectation_results[*].inject_expectation_result_updated_at",
+                "[*].inject_expectation_results[*].inject_expectation_id")
             .node("[0].inject_expectation_results")
             .isEqualTo(mapper.writeValueAsString(expectedSuperset));
         assertThatJson(response).node("[0].inject_expectation_score").isEqualTo("100.0");
@@ -591,6 +715,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -600,6 +725,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build());
 
         List<InjectExpectationResult> detectionResultSet2 =
@@ -612,6 +738,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -621,6 +748,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh better...")
+                    .date(Instant.now())
                     .build());
 
         BaseInjectExpectation detection1 =
@@ -648,6 +776,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -657,6 +786,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build());
 
         List<InjectExpectationResult> preventionResultSet2 =
@@ -669,6 +799,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -678,6 +809,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh better...")
+                    .date(Instant.now())
                     .build());
 
         BaseInjectExpectation prevention1 =
@@ -746,6 +878,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -755,6 +888,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -764,6 +898,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh better...")
+                    .date(Instant.now())
                     .build());
 
         List<InjectExpectationResult> expectedPreventionSuperset =
@@ -776,6 +911,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -785,6 +921,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -794,6 +931,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .sourceAssetId("security platform asset id")
                     .result("Meh better...")
+                    .date(Instant.now())
                     .build());
 
         List<List<Object>> detectionResultsByType =
@@ -803,6 +941,11 @@ public class AtomicTestingApiTest extends IntegrationTest {
         assertFalse(detectionResultsByType.isEmpty());
         assertThatJson(mapper.writeValueAsString(detectionResultsByType.getFirst()))
             .when(Option.IGNORING_ARRAY_ORDER)
+            .whenIgnoringPaths(
+                "[*].date",
+                "[*].inject_expectation_result_created_at",
+                "[*].inject_expectation_result_updated_at",
+                "[*].inject_expectation_id")
             .isEqualTo(mapper.writeValueAsString(expectedDetectionSuperset));
 
         List<Double> detectionScoresByType =
@@ -819,6 +962,11 @@ public class AtomicTestingApiTest extends IntegrationTest {
         assertFalse(preventionResultsByType.isEmpty());
         assertThatJson(mapper.writeValueAsString(preventionResultsByType.getFirst()))
             .when(Option.IGNORING_ARRAY_ORDER)
+            .whenIgnoringPaths(
+                "[*].date",
+                "[*].inject_expectation_result_created_at",
+                "[*].inject_expectation_result_updated_at",
+                "[*].inject_expectation_id")
             .isEqualTo(mapper.writeValueAsString(expectedPreventionSuperset));
       }
 
@@ -836,6 +984,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test collector")
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -844,6 +993,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test SIEM")
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build());
 
         BaseInjectExpectation detection1 =
@@ -863,6 +1013,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test collector")
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -871,6 +1022,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test SIEM")
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build());
 
         BaseInjectExpectation prevention1 =
@@ -932,6 +1084,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test collector")
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -940,10 +1093,16 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test SIEM")
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build());
 
         assertThatJson(responseDetection)
             .when(Option.IGNORING_ARRAY_ORDER)
+            .whenIgnoringPaths(
+                "[*].inject_expectation_results[*].date",
+                "[*].inject_expectation_results[*].inject_expectation_result_created_at",
+                "[*].inject_expectation_results[*].inject_expectation_result_updated_at",
+                "[*].inject_expectation_results[*].inject_expectation_id")
             .node("[0].inject_expectation_results")
             .isEqualTo(mapper.writeValueAsString(expectedDetectionSuperset));
         assertThatJson(responseDetection)
@@ -976,6 +1135,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test collector")
                     .sourceAssetId("security platform asset id")
                     .result("Success")
+                    .date(Instant.now())
                     .build(),
                 InjectExpectationResult.builder()
                     .sourceId("siem id")
@@ -984,10 +1144,16 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceName("test SIEM")
                     .sourceAssetId("security platform asset id")
                     .result("Meh...")
+                    .date(Instant.now())
                     .build());
 
         assertThatJson(responsePrevention)
             .when(Option.IGNORING_ARRAY_ORDER)
+            .whenIgnoringPaths(
+                "[*].inject_expectation_results[*].date",
+                "[*].inject_expectation_results[*].inject_expectation_result_created_at",
+                "[*].inject_expectation_results[*].inject_expectation_result_updated_at",
+                "[*].inject_expectation_results[*].inject_expectation_id")
             .node("[0].inject_expectation_results")
             .isEqualTo(mapper.writeValueAsString(expectedPreventionSuperset));
         assertThatJson(responsePrevention)
