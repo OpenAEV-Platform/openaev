@@ -1,0 +1,13 @@
+io/openaev/api/catalog/**/*Test.java
+io/openaev/api/groups/**/*Test.java
+io/openaev/config/cache/**/*Test.java
+io/openaev/debug/**/*Test.java
+io/openaev/jsonapi/**/*Test.java
+io/openaev/logging/**/*Test.java
+io/openaev/processor/**/*Test.java
+io/openaev/rest/inject/ByIdRequestScopeNonAdminTest.java
+io/openaev/rest/lessons/**/*Test.java
+io/openaev/service/account/**/*Test.java
+io/openaev/service/chaining/**/*Test.java
+io/openaev/service/settings/**/*Test.java
+io/openaev/xtmone/**/*Test.java

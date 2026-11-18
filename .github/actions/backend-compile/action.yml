@@ -27,20 +27,42 @@ runs:
         restore-keys: |
           maven-v2-${{ runner.os }}-${{ runner.arch }}-
 
-    - name: Compile and install all modules (skip tests)
+    # The API shards wait for the two uploads below, so openaev-ocsf, which no other job uses, is
+    # compiled after them, and the cache is saved last. The dependencies come from the cache: -U
+    # would check every remote repository again for nothing.
+    - name: Compile and install all modules but the OCSF tooling (skip tests)
       run: |
-        mvn -U -B -ntp -T 1 install -DskipTests \
+        mvn -B -ntp -T 1 install -DskipTests -pl '!openaev-ocsf' \
           -Dspring-boot.repackage.skip=true \
           -Djacoco.skip=true
       shell: bash
 
+    # The installed openaev-api jar is left out: openaev-api's pom forces the Spring Boot repackage,
+    # so it is the 480 MB fat jar, and every consumer builds openaev-api from source with -pl
+    # openaev-api and only resolves the other modules from the repository.
     - name: Upload compiled Maven artifacts
       uses: actions/upload-artifact@v7
       with:
         name: backend-compiled
-        path: ~/.m2/repository/io/openaev/
+        path: |
+          ~/.m2/repository/io/openaev/
+          !~/.m2/repository/io/openaev/openaev-api/
         # JARs are already compressed.
         compression-level: 0
+
+    - name: Upload API build output
+      uses: actions/upload-artifact@v7
+      with:
+        name: api-build-output
+        path: |
+          openaev-api/target/classes/
+          openaev-api/target/test-classes/
+
+    - name: Compile the OCSF tooling (skip tests)
+      run: |
+        mvn -B -ntp package -DskipTests -pl openaev-ocsf \
+          -Djacoco.skip=true
+      shell: bash
 
     - name: Remove rebuilt OpenAEV artifacts before caching
       if: ${{ inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && steps.maven-cache.outputs.cache-hit != 'true' }}
@@ -54,10 +76,3 @@ runs:
       with:
         path: ~/.m2/repository
         key: maven-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
-    - name: Upload API build output
-      uses: actions/upload-artifact@v7
-      with:
-        name: api-build-output
-        path: |
-          openaev-api/target/classes/
-          openaev-api/target/test-classes/

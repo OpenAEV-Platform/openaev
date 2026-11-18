@@ -28,6 +28,12 @@ inputs:
     description: "Upper bound of the randomised interval between polls"
     required: false
     default: "20"
+  require-producer-success:
+    description: >
+      "true" also waits until every producer has succeeded. Artifacts of an earlier attempt of the
+      run are listed too, so on a re-run only the producers tell whether this attempt's are done.
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -41,6 +47,7 @@ runs:
         INITIAL_DELAY_SECONDS: ${{ inputs.initial-delay-seconds }}
         POLL_MIN_SECONDS: ${{ inputs.poll-min-seconds }}
         POLL_MAX_SECONDS: ${{ inputs.poll-max-seconds }}
+        REQUIRE_PRODUCER_SUCCESS: ${{ inputs.require-producer-success }}
       run: |
         set -euo pipefail
 
@@ -95,6 +102,20 @@ runs:
           return 1
         }
 
+        # Every producer matches at least one job, and every job it matches has succeeded.
+        producers_succeeded() {
+          local conclusion expected job_name matched rows="$1"
+          for expected in "${PRODUCERS[@]}"; do
+            matched=0
+            while IFS=$'\t' read -r job_name conclusion; do
+              [[ "$job_name" == *"$expected"* ]] || continue
+              [ "$conclusion" = success ] || return 1
+              matched=1
+            done <<< "$rows"
+            [ "$matched" -eq 1 ] || return 1
+          done
+        }
+
         START_TIME=$SECONDS
         DEADLINE=$((SECONDS + WAIT_SECONDS))
         echo "Waiting for workflow artifacts: ${ARTIFACTS[*]}"
@@ -130,7 +151,8 @@ runs:
             exit 1
           fi
 
-          if required_artifacts_ready "$ARTIFACT_ROWS"; then
+          if required_artifacts_ready "$ARTIFACT_ROWS" \
+            && { [ "$REQUIRE_PRODUCER_SUCCESS" != true ] || producers_succeeded "$JOB_ROWS"; }; then
             echo "Artifacts ready after $((SECONDS - START_TIME))s"
             exit 0
           fi

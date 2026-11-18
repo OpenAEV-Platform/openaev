@@ -1,0 +1,9 @@
+io/openaev/aop/**/*Test.java
+io/openaev/api/url_access_token/**/*Test.java
+io/openaev/executors/**/*Test.java
+io/openaev/injectors/**/*Test.java
+io/openaev/rest/NonPrefixedCreateTenantPostureTest.java
+io/openaev/rest/inject/ByIdRequestScopeGuardCoverageTest.java
+io/openaev/rest/inject/ByIdRequestScopeInjectLookupTest.java
+io/openaev/rest/inject/ByIdRequestScopeTest.java
+io/openaev/rest/inject/SimulationInjectApiTest.java

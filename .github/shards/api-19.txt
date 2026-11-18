@@ -1,0 +1,10 @@
+io/openaev/api/attackpath/**/*Test.java
+io/openaev/api/custom_domain/**/*Test.java
+io/openaev/execution/**/*Test.java
+io/openaev/migration/**/*Test.java
+io/openaev/rest/CollectorApiTest.java
+io/openaev/rest/CrawlerProtectionApiTest.java
+io/openaev/rest/comcheck/**/*Test.java
+io/openaev/rest/dashboard/**/*Test.java
+io/openaev/rest/inject/service/**/*Test.java
+io/openaev/rest/settings/**/*Test.java
