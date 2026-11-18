@@ -17,43 +17,23 @@ import org.springframework.stereotype.Component;
  * Creates {@code inject_expectation_results} and fills it from the JSON array {@code
  * injects_expectations.inject_expectation_results}, then drops that column.
  *
- * <p>The first version of this migration ran the whole table in one {@code INSERT ... SELECT},
- * inside Flyway's wrapping transaction: on 27 Oct it filled a platform's WAL disk (ADR-023). This
- * version applies the same shape as {@code
- * V6_20261112060000000__Add_tenant_id_to_execution_traces}:
- *
  * <ol>
- *   <li>create the table, without its lookup index;
+ *   <li>create the table and its lookup index, while both are still empty;
  *   <li>walk {@code injects_expectations} in physical order, one committed transaction per range of
  *       pages, so each page is read once; no {@code VACUUM};
  *   <li>after each batch, pause, and wait while WAL archiving or a replica is too far behind;
- *   <li>a final unbounded pass mops up any row the page walk could not have covered because the
- *       table grew after its size was measured; harmless and cheap, since such a row can only be
- *       one created after this migration started, and the application has not written the JSON
- *       column in a long time;
- *   <li>build the lookup index {@code CONCURRENTLY};
+ *   <li>a catch-up pass fills any row the page walk could not have covered: added after the size
+ *       was measured, or moved behind the cursor by a concurrent non-HOT update;
  *   <li>drop the JSON column, with a bounded lock wait and retry.
  * </ol>
  *
- * <p>Changed in place rather than released as a new migration: it is a Java migration (no Flyway
- * checksum), and it reaches the same final state the first version reached, whatever state a
- * platform is in. The first version ran inside one transaction, so a platform that has not applied
- * it yet is the only state there is to handle: a failed run leaves nothing behind (table absent,
- * column present). A platform that already applied the first version in full is never replayed:
- * Flyway does not re-run an already-recorded version.
+ * <p>Idempotent per expectation result row: {@code inject_expectation_result_id} is derived from
+ * the expectation id and the result's position in the array, with {@code ON CONFLICT DO NOTHING} on
+ * that primary key. A batch is retried on a concurrent delete of its expectation ({@code 23503}) or
+ * a deadlock ({@code 40P01}), bounded; a run that still fails leaves a failed Flyway row, and the
+ * next start needs {@code flyway repair} (a hard kill resumes by itself).
  *
- * <p>Idempotent per expectation result row, not per expectation: {@code
- * inject_expectation_result_id} is derived from the expectation id and the result's position in the
- * array, so a retried range, or the final catch-up pass re-reading an already-filled row, writes
- * nothing new ({@code ON CONFLICT DO NOTHING} on the primary key, which is already maintained
- * whether this migration runs or not, so this costs nothing beyond the write itself).
- *
- * <p>Replaces the first version's {@code DELETE FROM indexing_status}: rule 6 of {@code
- * migration.instructions.md} forbids it (a pod still up during a rolling deploy recreates the row
- * before the new pod's boot check, so the wipe silently never happens). The first version's intent
- * was a full reset of the {@code expectation-inject} index at the next boot, requested here the
- * same way as {@code
- * V6_20260924120000000__Request_expectation_inject_reindex_after_group_parent_dedup}.
+ * <p>Changed in place rather than released as a new migration: see ADR-023.
  */
 @Slf4j
 @Component
@@ -63,12 +43,15 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
   static final String JSON_COLUMN = "inject_expectation_results";
   static final String RESULTS_TABLE = "inject_expectation_results";
   static final String INDEX = "idx_inject_expectation_results_expectation";
-  private static final String EXPECTATION_INJECT_MODEL = "expectation-inject";
+  static final String EXPECTATION_INJECT_MODEL = "expectation-inject";
 
   static final int TARGET_ROWS_PER_BATCH = 10_000;
   static final long UNKNOWN_DENSITY_PAGES_PER_BATCH = 1_000;
   static final int PAUSE_MILLIS = 200;
   static final long WAL_LAG_BOUND_BYTES = 1_024L * 1_024 * 1_024;
+  static final int MAX_RETRY_ATTEMPTS = 5;
+  static final String FOREIGN_KEY_VIOLATION = "23503";
+  static final String DEADLOCK_DETECTED = "40P01";
   private static final long MEGABYTE = 1_024L * 1_024;
   private static final Duration LOG_INTERVAL = Duration.ofMinutes(1);
   private static final String LOCK_TIMEOUT = "5s";
@@ -85,14 +68,27 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
           inject_expectation_result_source_asset_id VARCHAR(255) NULL,
           inject_expectation_result_source_platform VARCHAR(255) NULL,
           inject_expectation_result_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()::timestamptz,
-          inject_expectation_result_result TEXT NULL,
-          inject_expectation_result_score NUMERIC NULL,
+          inject_expectation_result_result TEXT NULL, -- support provisional results
+          inject_expectation_result_score NUMERIC NULL, -- support provisional results
           inject_expectation_result_metadata JSONB,
           inject_expectation_result_created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()::timestamptz,
           inject_expectation_result_updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()::timestamptz,
           inject_expectation_result_inject_expectation_id VARCHAR(255) NOT NULL REFERENCES injects_expectations(inject_expectation_id) ON DELETE CASCADE
       );
       """;
+
+  /**
+   * Built right after {@link #CREATE_TABLE}, while the table is still empty: a plain, instant
+   * build, maintained incrementally as the walk inserts, rather than a bulk {@code CONCURRENTLY}
+   * build once the table has grown. The foreign key's {@code ON DELETE CASCADE} needs it from the
+   * start, or a delete of an expectation on a live old pod seq-scans this table.
+   */
+  static final String CREATE_INDEX =
+      "CREATE INDEX IF NOT EXISTS "
+          + INDEX
+          + " ON "
+          + RESULTS_TABLE
+          + " (inject_expectation_result_inject_expectation_id)";
 
   /**
    * Fills {@code inject_expectation_results} from the rows {@code %1$s} selects; returns how many
@@ -163,12 +159,23 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
           + " SELECT count(*) AS written FROM written";
 
   static final String RANGE_INSERT = BACKFILL.formatted("ie.ctid >= ?::tid AND ie.ctid < ?::tid");
-  private static final String FINAL_INSERT = BACKFILL.formatted("true");
+
+  /**
+   * A full read of the source table that writes only the rows the walk missed, through the lookup
+   * index: an expectation with any row already present is skipped before its JSON is even unnested.
+   */
+  private static final String CATCH_UP_INSERT =
+      BACKFILL.formatted(
+          "NOT EXISTS (SELECT 1 FROM "
+              + RESULTS_TABLE
+              + " r WHERE r.inject_expectation_result_inject_expectation_id ="
+              + " ie.inject_expectation_id)");
 
   /**
    * The WAL not yet archived or replayed, in bytes. Copied from {@code
-   * V6_20261112060000000__Add_tenant_id_to_execution_traces}; a shared helper is due once a third
-   * migration needs this (ADR-023).
+   * V6_20261112060000000__Add_tenant_id_to_execution_traces}, the pacing/lock-retry helper's first
+   * use; this migration is ADR-023's second use, when a shared helper is due. Extracting it is a
+   * follow-up after this release ships.
    */
   private static final String WAL_LAG_QUERY =
       "SELECT MAX(lag) FROM ("
@@ -233,10 +240,11 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
     // Table and column names below are constants of this class, never input.
     withLockRetry(
         connection,
-        "creating the results table",
+        "creating the results table and its lookup index",
         () -> {
           try (Statement statement = connection.createStatement()) {
             statement.execute(CREATE_TABLE);
+            statement.execute(CREATE_INDEX);
           }
           return true;
         });
@@ -249,20 +257,13 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
       logInactiveSlots(connection);
       WalGuard walGuard = new WalGuard(currentWalFile(connection));
       written = walk(connection, walGuard);
-      written += finalCatchUp(connection);
-    }
-    buildResultsIndex(connection);
-    if (hasJsonColumn) {
+      written += catchUp(connection);
       withLockRetry(
           connection,
           "dropping the JSON column",
           () -> {
             try (Statement statement = connection.createStatement()) {
-              statement.execute(
-                  "ALTER TABLE IF EXISTS "
-                      + SOURCE_TABLE
-                      + " DROP COLUMN IF EXISTS "
-                      + JSON_COLUMN);
+              dropJsonColumn(statement);
             }
             return true;
           });
@@ -272,8 +273,8 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
   }
 
   /**
-   * Rows the page ranges miss (the table grew after its size was measured) go to {@link
-   * #finalCatchUp}.
+   * Rows the page ranges miss (the table grew after its size was measured, or a row moved behind
+   * the cursor) go to {@link #catchUp}.
    */
   long walk(Connection connection, WalGuard walGuard) throws SQLException {
     TableSize size = tableSize(connection);
@@ -304,10 +305,7 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
       for (long page = 0; page < totalPages; page += pagesPerBatch) {
         insert.setString(1, tid(page));
         insert.setString(2, tid(page + pagesPerBatch));
-        try (ResultSet result = insert.executeQuery()) {
-          result.next();
-          written += result.getLong("written");
-        }
+        written += runRetrying(insert, "range " + tid(page) + " to " + tid(page + pagesPerBatch));
         batches++;
         if (System.nanoTime() - nextLogAt >= 0) {
           log.info(
@@ -331,19 +329,52 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
     return written;
   }
 
-  /**
-   * One unpaced pass over the whole source table, with no {@code ctid} bound: mops up a row the
-   * page walk could not have reached because the table grew past the size measured at its start.
-   * Cheap, because every row the walk already filled is skipped by the primary-key conflict.
-   */
-  private long finalCatchUp(Connection connection) throws SQLException {
-    try (PreparedStatement insert = connection.prepareStatement(FINAL_INSERT);
-        ResultSet result = insert.executeQuery()) {
-      result.next();
-      long written = result.getLong("written");
-      log.info("{}: {} row(s) filled by the final catch-up pass", RESULTS_TABLE, written);
+  /** A full read of the source table that writes only the rows the walk missed. */
+  private long catchUp(Connection connection) throws SQLException {
+    try (PreparedStatement insert = connection.prepareStatement(CATCH_UP_INSERT)) {
+      long written = runRetrying(insert, "the catch-up pass");
+      log.info("{}: {} row(s) filled by the catch-up pass", RESULTS_TABLE, written);
       return written;
     }
+  }
+
+  /**
+   * Retries {@code statement} on a concurrent delete of its expectation ({@link
+   * #FOREIGN_KEY_VIOLATION}) or a deadlock ({@link #DEADLOCK_DETECTED}), bounded by {@link
+   * #MAX_RETRY_ATTEMPTS}: the cause is gone by the next attempt (the conflicting transaction has
+   * already committed or rolled back), so no further wait is needed.
+   */
+  private long runRetrying(PreparedStatement statement, String what) throws SQLException {
+    SQLException last = null;
+    for (int attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+      try {
+        return runOnce(statement);
+      } catch (SQLException e) {
+        if (!isRetryable(e.getSQLState())) {
+          throw e;
+        }
+        last = e;
+        log.info(
+            "{}: {} retried after {} (attempt {} of {})",
+            RESULTS_TABLE,
+            what,
+            e.getSQLState(),
+            attempt,
+            MAX_RETRY_ATTEMPTS);
+      }
+    }
+    throw last;
+  }
+
+  long runOnce(PreparedStatement statement) throws SQLException {
+    try (ResultSet result = statement.executeQuery()) {
+      result.next();
+      return result.getLong("written");
+    }
+  }
+
+  private static boolean isRetryable(String sqlState) {
+    return FOREIGN_KEY_VIOLATION.equals(sqlState) || DEADLOCK_DETECTED.equals(sqlState);
   }
 
   private static String tid(long page) {
@@ -354,7 +385,8 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
     try (Statement statement = connection.createStatement();
         ResultSet result =
             statement.executeQuery(
-                "SELECT 1 FROM information_schema.columns WHERE table_name = '"
+                "SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema()"
+                    + " AND table_name = '"
                     + SOURCE_TABLE
                     + "' AND column_name = '"
                     + JSON_COLUMN
@@ -363,27 +395,9 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
     }
   }
 
-  /** An invalid index left by an interrupted build is dropped first. */
-  private static void buildResultsIndex(Connection connection) throws SQLException {
-    try (Statement statement = connection.createStatement()) {
-      boolean invalid;
-      try (ResultSet result =
-          statement.executeQuery(
-              "SELECT NOT indisvalid FROM pg_index WHERE indexrelid = to_regclass('"
-                  + INDEX
-                  + "')")) {
-        invalid = result.next() && result.getBoolean(1);
-      }
-      if (invalid) {
-        statement.execute("DROP INDEX CONCURRENTLY IF EXISTS " + INDEX);
-      }
-      statement.execute(
-          "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
-              + INDEX
-              + " ON "
-              + RESULTS_TABLE
-              + " (inject_expectation_result_inject_expectation_id)");
-    }
+  void dropJsonColumn(Statement statement) throws SQLException {
+    statement.execute(
+        "ALTER TABLE IF EXISTS " + SOURCE_TABLE + " DROP COLUMN IF EXISTS " + JSON_COLUMN);
   }
 
   private static void requestReindex(Connection connection) throws SQLException {
@@ -405,9 +419,9 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
   /**
    * {@code pages} is the size on disk and bounds the walk; the estimates only give the row density.
    */
-  private record TableSize(long pages, long estimatedRows, long estimatedPages) {}
+  record TableSize(long pages, long estimatedRows, long estimatedPages) {}
 
-  private static TableSize tableSize(Connection connection) throws SQLException {
+  TableSize tableSize(Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement();
         ResultSet result =
             statement.executeQuery(
