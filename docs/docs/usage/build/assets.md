@@ -108,8 +108,10 @@ filters that define the criteria for inclusion, allowing administrators to segme
 common characteristics or attributes.
 
 When creating a new asset group, administrators have the flexibility to specify the filters that will delineate the
-group's membership. Currently, the platform offers a range of filters such as platform type, hostname, and IP addresses.
-We plan to extend the possibilities by including additional filters in future updates.
+group's membership. A rule can filter on tags, name, description, external reference, category, subcategory,
+criticality, status, internet-facing, cloud provider, cloud region, cloud native type, hostname, IP addresses, seen IP,
+MAC addresses, URL, platform and architecture. For example, a rule on the tag `Workplace` gathers every endpoint
+tagged `Workplace`.
 
 ![Example of a Group configuration](assets/assetsgroup_creation.png)
 
