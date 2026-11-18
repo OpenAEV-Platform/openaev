@@ -973,6 +973,20 @@ public class ExerciseService {
               } catch (Exception e) {
                 log.error("Failed to delete directory for exercise {}", exerciseId, e);
               }
+              // Attachments uploaded under the earlier storage layout (#7961) sit under the
+              // default tenant's prefix, regardless of the exercise's own tenant. During the
+              // compatibility period, clear that prefix too, unless it is the one already cleared
+              // above.
+              if (!Tenant.DEFAULT_TENANT_UUID.equals(exerciseTenantId)) {
+                try {
+                  fileService.deleteDirectory(Tenant.DEFAULT_TENANT_UUID, exerciseId);
+                } catch (Exception e) {
+                  log.error(
+                      "Failed to delete default-tenant-prefixed directory for exercise {}",
+                      exerciseId,
+                      e);
+                }
+              }
             }
           });
       if (chained) {

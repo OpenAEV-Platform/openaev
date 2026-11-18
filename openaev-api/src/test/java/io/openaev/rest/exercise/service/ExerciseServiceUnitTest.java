@@ -118,11 +118,12 @@ class ExerciseServiceUnitTest {
 
     @Test
     @DisplayName(
-        "given_closedSimulationOfAnotherTenant_when_resetWithAmbientDefault_should_deleteDirectoryUnderItsOwnTenant")
+        "given_closedSimulationOfAnotherTenant_when_resetWithAmbientDefault_should_deleteDirectoryUnderBothStorageLayouts")
     void
-        given_closedSimulationOfAnotherTenant_when_resetWithAmbientDefault_should_deleteDirectoryUnderItsOwnTenant()
+        given_closedSimulationOfAnotherTenant_when_resetWithAmbientDefault_should_deleteDirectoryUnderBothStorageLayouts()
             throws ChainingException {
-      // Arrange - the simulation lives in a tenant of its own, not the default one
+      // Arrange - the simulation lives in a tenant of its own, not the default one, and may carry
+      // attachments under the earlier storage layout (the default tenant's prefix)
       String exerciseId = "9b1c2d3e-4f50-4617-8829-aabbccddeeff";
       String owningTenantId = "4e5f6071-8293-4a5b-9c0d-1e2f30415263";
       Exercise exercise = new Exercise();
@@ -157,9 +158,51 @@ class ExerciseServiceUnitTest {
       TransactionSynchronizationManager.getSynchronizations()
           .forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit);
 
-      // Assert - the directory is removed from the simulation's own tenant path, never the
-      // ambient (default) one.
+      // Assert - the directory is removed from both the simulation's own tenant path and the
+      // default tenant's prefix, never the ambient (1-arg) method.
       verify(fileService).deleteDirectory(eq(owningTenantId), eq(exerciseId));
+      verify(fileService).deleteDirectory(eq(Tenant.DEFAULT_TENANT_UUID), eq(exerciseId));
+      verify(fileService, never()).deleteDirectory(anyString());
+    }
+
+    @Test
+    @DisplayName(
+        "given_closedSimulationOfTheDefaultTenant_when_reset_should_deleteItsDirectoryOnlyOnce")
+    void given_closedSimulationOfTheDefaultTenant_when_reset_should_deleteItsDirectoryOnlyOnce()
+        throws ChainingException {
+      // Arrange - the simulation already lives in the default tenant, so its own prefix and the
+      // earlier layout's prefix are the same path
+      String exerciseId = "1a2b3c4d-5e6f-4789-90ab-cdef01234567";
+      Exercise exercise = new Exercise();
+      exercise.setId(exerciseId);
+      exercise.setStatus(ExerciseStatus.CANCELED);
+      exercise.setStart(Instant.now());
+      exercise.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+
+      when(exerciseRepository.findByIdAndTenantIdIn(eq(exerciseId), any()))
+          .thenReturn(Optional.of(exercise));
+      when(exerciseRepository.save(any(Exercise.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+      when(workflowOwnerScope.call(any(Exercise.class), any()))
+          .thenAnswer(
+              invocation ->
+                  invocation
+                      .<io.openaev.context.TenantScopedTransaction.ScopedWork<?, ?>>getArgument(1)
+                      .get());
+      org.springframework.test.util.ReflectionTestUtils.setField(
+          mockedExerciseService, "entityManager", entityManager);
+
+      TenantContext.clearCurrentTenant();
+      TransactionSynchronizationManager.initSynchronization();
+
+      // Act
+      mockedExerciseService.changeExerciseStatus(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), ExerciseStatus.SCHEDULED, exerciseId);
+      TransactionSynchronizationManager.getSynchronizations()
+          .forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit);
+
+      // Assert - a single delete, not a second one for the same path
+      verify(fileService, times(1)).deleteDirectory(eq(Tenant.DEFAULT_TENANT_UUID), eq(exerciseId));
       verify(fileService, never()).deleteDirectory(anyString());
     }
   }
