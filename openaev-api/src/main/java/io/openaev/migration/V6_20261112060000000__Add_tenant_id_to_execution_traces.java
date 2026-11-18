@@ -282,10 +282,6 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     return "(" + page + ",0)";
   }
 
-  /**
-   * Passes repeat until one finds less than a batch: ids are random, so a row written during a pass
-   * can land behind its cursor. Returns the orphans.
-   */
   private static void createPendingIndex(Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement()) {
       // A leftover of an interrupted run can be invalid: rebuild it.
@@ -299,6 +295,10 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
+  /**
+   * Passes repeat until one finds less than a batch: ids are random, so a row written during a pass
+   * can land behind its cursor. Returns the orphans.
+   */
   private long drain(Connection connection, WalGuard walGuard) throws SQLException {
     long drained = 0;
     long orphans = 0;
