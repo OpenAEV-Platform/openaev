@@ -4683,7 +4683,7 @@
   "Copy a link to this view": "Копировать ссылку на это представление",
   "Entities": "Сущности",
   "Expand by relation": "Развернуть по связи",
-  "Exposure hot paths: the assets with the most failed expectations, the injects that failed on them, their asset groups and their findings. Double-click a node to expand it, or start from another view.": "Критические пути воздействия: активы с наибольшим числом невыполненных ожиданий, инжекты, которые на них не сработали, их группы активов и их находки. Дважды щелкните узел, чтобы развернуть его, или начните с другого представления.",
+  "The assets with the most failed expectations, the injects that failed on them, their asset groups and their findings. Double-click a node to expand it, or start from another view.": "Активы с наибольшим числом невыполненных ожиданий, инжекты, которые на них не сработали, их группы активов и их находки. Дважды щелкните узел, чтобы развернуть его, или начните с другого представления.",
   "Explore in graph": "Исследовать в графе",
   "Find a path from here": "Найти путь отсюда",
   "Focus mode": "Режим фокуса",
@@ -4716,5 +4716,6 @@
   "Start from an asset group": "Начать с группы активов",
   "The graph could not be loaded": "Не удалось загрузить граф",
   "Undo": "Отменить",
-  "Unpin": "Открепить"
+  "Unpin": "Открепить",
+  "Exposure hot paths": "Критические пути воздействия"
 }

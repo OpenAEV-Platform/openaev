@@ -4683,7 +4683,7 @@
   "Copy a link to this view": "Copia un link a questa vista",
   "Entities": "Entità",
   "Expand by relation": "Espandi per relazione",
-  "Exposure hot paths: the assets with the most failed expectations, the injects that failed on them, their asset groups and their findings. Double-click a node to expand it, or start from another view.": "Percorsi critici di esposizione: gli asset con più aspettative fallite, gli inject falliti su di essi, i loro gruppi di asset e i loro rilevamenti. Fai doppio clic su un nodo per espanderlo, oppure parti da un'altra vista.",
+  "The assets with the most failed expectations, the injects that failed on them, their asset groups and their findings. Double-click a node to expand it, or start from another view.": "Gli asset con più aspettative fallite, gli inject falliti su di essi, i loro gruppi di asset e i loro rilevamenti. Fai doppio clic su un nodo per espanderlo, oppure parti da un'altra vista.",
   "Explore in graph": "Esplora nel grafo",
   "Find a path from here": "Trova un percorso da qui",
   "Focus mode": "Modalità focus",
@@ -4716,5 +4716,6 @@
   "Start from an asset group": "Parti da un gruppo di asset",
   "The graph could not be loaded": "Impossibile caricare il grafo",
   "Undo": "Annulla",
-  "Unpin": "Sblocca"
+  "Unpin": "Sblocca",
+  "Exposure hot paths": "Percorsi critici di esposizione"
 }

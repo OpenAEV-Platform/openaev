@@ -4683,7 +4683,7 @@
   "Copy a link to this view": "Copy a link to this view",
   "Entities": "Entities",
   "Expand by relation": "Expand by relation",
-  "Exposure hot paths: the assets with the most failed expectations, the injects that failed on them, their asset groups and their findings. Double-click a node to expand it, or start from another view.": "Exposure hot paths: the assets with the most failed expectations, the injects that failed on them, their asset groups and their findings. Double-click a node to expand it, or start from another view.",
+  "The assets with the most failed expectations, the injects that failed on them, their asset groups and their findings. Double-click a node to expand it, or start from another view.": "The assets with the most failed expectations, the injects that failed on them, their asset groups and their findings. Double-click a node to expand it, or start from another view.",
   "Explore in graph": "Explore in graph",
   "Find a path from here": "Find a path from here",
   "Focus mode": "Focus mode",
@@ -4716,5 +4716,6 @@
   "Start from an asset group": "Start from an asset group",
   "The graph could not be loaded": "The graph could not be loaded",
   "Undo": "Undo",
-  "Unpin": "Unpin"
+  "Unpin": "Unpin",
+  "Exposure hot paths": "Exposure hot paths"
 }

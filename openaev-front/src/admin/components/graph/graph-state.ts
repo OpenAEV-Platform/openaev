@@ -161,6 +161,26 @@ export const failedHighlights = (edges: GraphEdgeOutput[]) => {
   };
 };
 
+/**
+ * The first ring of a node: the node, its neighbours and the edges between it and them. The
+ * hover dimming keeps these at full opacity and fades the rest of the graph.
+ */
+export const firstRing = (nodeId: string, edges: GraphEdgeOutput[]) => {
+  const nodeIds = new Set<string>([nodeId]);
+  const edgeIds = new Set<string>();
+  edges.forEach((e) => {
+    if (e.edge_source === nodeId || e.edge_target === nodeId) {
+      edgeIds.add(e.edge_id);
+      nodeIds.add(e.edge_source);
+      nodeIds.add(e.edge_target);
+    }
+  });
+  return {
+    nodeIds,
+    edgeIds,
+  };
+};
+
 /** The edges between consecutive nodes of a path, either direction. */
 export const pathEdges = (path: string[], edges: GraphEdgeOutput[]) => {
   const pairs = new Set<string>();

@@ -1,6 +1,30 @@
 import {
+  Alert,
+  Button,
+  ButtonGroup,
+  ButtonGroupItem,
+  Chip,
+  IconButton,
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuTrigger,
+  Paper,
+  SearchField,
+  Spinner,
+  Switch,
+  Text,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@filigran/design-system';
+import {
+  AccountTreeOutlined,
+  ArrowDropDownOutlined,
+  BubbleChartOutlined,
   CenterFocusStrongOutlined,
   CloseOutlined,
+  DonutLargeOutlined,
   DownloadOutlined,
   LinkOutlined,
   OpenInFullOutlined,
@@ -10,30 +34,7 @@ import {
   UndoOutlined,
   VisibilityOffOutlined,
 } from '@mui/icons-material';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Divider,
-  Drawer,
-  FormControlLabel,
-  IconButton,
-  List,
-  ListItemButton,
-  ListItemText,
-  MenuItem,
-  Paper,
-  Select,
-  Stack,
-  Switch,
-  TextField,
-  ToggleButton,
-  ToggleButtonGroup,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Box, Drawer, List, ListItemButton, ListItemText, Stack } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
   Background,
@@ -55,7 +56,7 @@ import { fetchGraphNeighbourhood, fetchGraphPath } from '../../../actions/graph/
 import { useFormatter } from '../../../components/i18n';
 import { NODE_LABEL_OFFSET, NODE_WIDTH } from './graph-edge-geometry';
 import NODE_ICON from './graph-icons';
-import { type GraphLayout, layoutGraph } from './graph-layout';
+import { entering, type GraphLayout, interpolate, layoutFrames, type Point } from './graph-layout';
 import {
   ALL_EDGE_TYPES,
   ALL_NODE_TYPES,
@@ -64,7 +65,6 @@ import {
   type GraphEdgeType,
   graphHref,
   type GraphNodeOutput,
-  type GraphNodeType,
   type GraphOutput,
   type GraphResult,
   NODE_TYPE_LABEL,
@@ -74,6 +74,7 @@ import {
 import {
   DEFAULT_FILTERS,
   failedHighlights,
+  firstRing,
   fromSlice,
   type GraphFilters,
   type GraphState,
@@ -87,6 +88,10 @@ import GraphEntityNode, { type GraphEntityNodeType } from './GraphEntityNode';
 import GraphFloatingEdge from './GraphFloatingEdge';
 
 const NODE_BOX_HEIGHT = NODE_LABEL_OFFSET + 20;
+const PANEL_WIDTH = 340;
+/** A static layout glides to its place in this time; the force layout plays its frames in about twice it. */
+const MOVE_MS = 400;
+const FRAME_MS = 24;
 
 const nodeTypes = { entity: GraphEntityNode };
 const edgeTypes = { floating: GraphFloatingEdge };
@@ -125,11 +130,28 @@ export interface GraphExplorerProps {
 
 interface History { past: GraphState[] }
 
-const RESULT_CHIP_COLOUR: Record<GraphResult, 'error' | 'success' | 'warning'> = {
-  FAILED: 'error',
-  SUCCESS: 'success',
-  PENDING: 'warning',
+/** FDS chip severities of a selected result filter: their contrast pairs pass in both themes. */
+const RESULT_CHIP_SEVERITY: Record<GraphResult, 'critical' | 'low' | 'medium'> = {
+  FAILED: 'critical',
+  SUCCESS: 'low',
+  PENDING: 'medium',
 };
+
+const LAYOUT_ICON: Record<GraphLayout, ReactNode> = {
+  force: <BubbleChartOutlined fontSize="small" />,
+  hierarchical: <AccountTreeOutlined fontSize="small" />,
+  radial: <DonutLargeOutlined fontSize="small" />,
+};
+
+const LAYOUT_LABEL: Record<GraphLayout, string> = {
+  force: 'Force',
+  hierarchical: 'Hierarchical',
+  radial: 'Radial',
+};
+
+const prefersReducedMotion = () => typeof window !== 'undefined'
+  && typeof window.matchMedia === 'function'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const NO_HIGHLIGHT = {
   nodeIds: new Set<string>(),
@@ -159,6 +181,7 @@ const GraphExplorerInner = ({
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [showFailed, setShowFailed] = useState(true);
+  const [hovered, setHovered] = useState<string | null>(null);
   const interactive = variant !== 'mini';
 
   useEffect(() => {
@@ -193,7 +216,45 @@ const GraphExplorerInner = ({
   }, [shownEdges, showFailed]);
   const onPath = useMemo(() => pathEdges(state.path, shownEdges), [state.path, shownEdges]);
   const pathNodes = useMemo(() => new Set(state.path), [state.path]);
-  const positions = useMemo(() => layoutGraph(layout, shownNodes, shownEdges, state.focus), [layout, shownNodes, shownEdges, state.focus]);
+  // The frames toward the current layout: the force simulation's steps, or one static placement.
+  const frames = useMemo(() => layoutFrames(layout, shownNodes, shownEdges, state.focus), [layout, shownNodes, shownEdges, state.focus]);
+  const target = frames[frames.length - 1];
+  // What is on screen. A layout switch, an expand or a hide moves the nodes from where they are to
+  // where they go: the force layout plays its simulation frames (the forces settle visibly), a static
+  // layout glides; a node entering the graph grows out of its neighbour already on screen.
+  const [positions, setPositions] = useState<Map<string, Point>>(target);
+  const shown = useRef<Map<string, Point>>(target);
+  useEffect(() => {
+    const from = entering(shown.current, target, shownEdges);
+    const steps = layout === 'force' && frames.length > 1 ? frames : [target];
+    const duration = layout === 'force' ? Math.max(MOVE_MS, steps.length * FRAME_MS) : MOVE_MS;
+    if (prefersReducedMotion() || variant === 'mini') {
+      shown.current = target;
+      setPositions(target);
+      return undefined;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = 1 - (1 - progress) ** 3;
+      // The first leg glides from the screen to the first frame, then the frames play in order.
+      const legs = steps.length;
+      const at = eased * legs;
+      const leg = Math.min(legs - 1, Math.floor(at));
+      const legFrom = leg === 0 ? from : steps[leg - 1];
+      const next = interpolate(legFrom, steps[leg], at - leg);
+      shown.current = next;
+      setPositions(next);
+      if (progress < 1) {
+        raf = window.requestAnimationFrame(tick);
+      }
+    };
+    raf = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(raf);
+  }, [frames, target, shownEdges, layout, variant]);
+  // Hover dimming: the hovered node's first ring stays, the rest fades.
+  const ring = useMemo(() => (hovered ? firstRing(hovered, shownEdges) : null), [hovered, shownEdges]);
 
   const flowNodes: GraphEntityNodeType[] = shownNodes.map(n => ({
     id: n.node_id,
@@ -211,7 +272,9 @@ const GraphExplorerInner = ({
       focused: n.node_id === state.focus || n.node_id === selected,
       pinned: state.pinned.includes(n.node_id),
       matched: matches.has(n.node_id),
-      dimmed: (matches.size > 0 && !matches.has(n.node_id)) || (state.path.length > 0 && !pathNodes.has(n.node_id)),
+      dimmed: (matches.size > 0 && !matches.has(n.node_id))
+        || (state.path.length > 0 && !pathNodes.has(n.node_id))
+        || (ring !== null && !ring.nodeIds.has(n.node_id)),
       highlighted: failed.nodeIds.has(n.node_id) && n.node_type !== 'INJECT',
       truncated: state.truncatedAt.includes(n.node_id),
     },
@@ -246,18 +309,20 @@ const GraphExplorerInner = ({
       style: {
         stroke,
         strokeWidth: isPath || isFailed ? 2 : 1,
-        opacity: state.path.length > 0 && !isPath ? 0.2 : 1,
+        opacity: (state.path.length > 0 && !isPath) || (ring !== null && !ring.edgeIds.has(e.edge_id)) ? 0.15 : 1,
+        transition: 'opacity 0.2s',
       },
     };
   });
 
   useEffect(() => {
+    // Fit once the move has landed, so the view frames the settled layout.
     const id = window.setTimeout(() => fitView({
       padding: 0.15,
       duration: 300,
-    }), 50);
+    }), layout === 'force' ? Math.max(MOVE_MS, frames.length * FRAME_MS) + 50 : MOVE_MS + 50);
     return () => window.clearTimeout(id);
-  }, [layout, shownNodes.length, fitView]);
+  }, [layout, shownNodes.length, fitView, frames.length]);
 
   const expand = async (node: GraphNodeOutput, edges: GraphEdgeType[] = [], limit = 50) => {
     setLoading(true);
@@ -358,181 +423,164 @@ const GraphExplorerInner = ({
 
   const toggle = <T, >(list: T[], value: T) => (list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
 
+  const resultColour: Record<GraphResult, string> = {
+    FAILED: theme.palette.error.main,
+    PENDING: theme.palette.warning.main,
+    SUCCESS: theme.palette.success.main,
+  };
+
   const legend = (
-    <Stack
-      direction="row"
-      spacing={1.5}
-      useFlexGap
-      sx={{
-        alignItems: 'center',
-        flexWrap: 'wrap',
-      }}
-    >
+    <div className="flex flex-wrap items-center gap-3">
       {ALL_NODE_TYPES.map((type) => {
         const Icon = NODE_ICON[type];
         return (
-          <Stack key={type} direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+          <span key={type} className="inline-flex items-center gap-1">
             <Icon />
-            <Typography variant="caption">{t(NODE_TYPE_LABEL[type])}</Typography>
-          </Stack>
+            <Text variant="content-caption">{t(NODE_TYPE_LABEL[type])}</Text>
+          </span>
         );
       })}
-      <Divider orientation="vertical" flexItem />
-      {ALL_RESULTS.map((result) => {
-        const colours: Record<GraphResult, string> = {
-          FAILED: theme.palette.error.main,
-          PENDING: theme.palette.warning.main,
-          SUCCESS: theme.palette.success.main,
-        };
-        return (
-          <Stack key={result} direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-            <Box sx={{
+      <span aria-hidden className="h-4 w-px bg-[var(--border-default-primary)]" />
+      {ALL_RESULTS.map(result => (
+        <span key={result} className="inline-flex items-center gap-1">
+          <span
+            aria-hidden
+            style={{
               width: 10,
               height: 10,
               borderRadius: '50%',
-              border: `2px solid ${colours[result]}`,
+              border: `2px solid ${resultColour[result]}`,
             }}
-            />
-            <Typography variant="caption">{t(RESULT_LABEL[result])}</Typography>
-          </Stack>
-        );
-      })}
-    </Stack>
+          />
+          <Text variant="content-caption">{t(RESULT_LABEL[result])}</Text>
+        </span>
+      ))}
+    </div>
+  );
+
+  /** A multi-select of the FDS menu: a trigger that names the count, a checked item per value. */
+  const multiFilter = <T extends string>(label: string, all: T[], values: T[], names: Record<T, string>, onChange: (next: T[]) => void) => (
+    <Menu>
+      <MenuTrigger asChild>
+        <Button type="button" priority="secondary" endIcon={<ArrowDropDownOutlined fontSize="small" />} aria-label={label}>
+          {`${label} (${values.length}/${all.length})`}
+        </Button>
+      </MenuTrigger>
+      <MenuContent align="start">
+        {all.map(value => (
+          <MenuItem
+            key={value}
+            selected={values.includes(value)}
+            onSelect={(event) => {
+              // Keep the menu open: several values are picked in a row.
+              event.preventDefault();
+              onChange(toggle(values, value));
+            }}
+          >
+            {t(names[value])}
+          </MenuItem>
+        ))}
+      </MenuContent>
+    </Menu>
+  );
+
+  const iconAction = (label: string, icon: ReactNode, onClick: () => void, disabled = false) => (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span>
+          <IconButton priority="tertiary" icon={icon} aria-label={label} onClick={onClick} disabled={disabled} />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 
   const toolbar = (
-    <Paper variant="outlined" sx={{ p: 1.5 }}>
-      <Stack
-        direction="row"
-        spacing={1.5}
-        useFlexGap
-        sx={{
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
-        <TextField
-          size="small"
+    <Paper elevation={1} padding={16}>
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchField
+          aria-label={t('Search in the graph')}
           placeholder={t('Search in the graph')}
           value={filters.search}
           onChange={e => setFilters({
             ...filters,
             search: e.target.value,
           })}
-          sx={{ width: 220 }}
-          slotProps={{ htmlInput: { 'aria-label': t('Search in the graph') } }}
+          onClear={() => setFilters({
+            ...filters,
+            search: '',
+          })}
+          clearLabel={t('Clear')}
         />
-        <Select
-          size="small"
-          multiple
-          value={filters.nodeTypes}
-          onChange={e => setFilters({
-            ...filters,
-            nodeTypes: e.target.value as GraphNodeType[],
-          })}
-          renderValue={v => `${t('Entities')} (${(v as GraphNodeType[]).length}/${ALL_NODE_TYPES.length})`}
-          inputProps={{ 'aria-label': t('Entities') }}
-        >
-          {ALL_NODE_TYPES.map(type => (
-            <MenuItem key={type} value={type}>{t(NODE_TYPE_LABEL[type])}</MenuItem>
-          ))}
-        </Select>
-        <Select
-          size="small"
-          multiple
-          value={filters.edgeTypes}
-          onChange={e => setFilters({
-            ...filters,
-            edgeTypes: e.target.value as GraphEdgeType[],
-          })}
-          renderValue={v => `${t('Relations')} (${(v as GraphEdgeType[]).length}/${ALL_EDGE_TYPES.length})`}
-          inputProps={{ 'aria-label': t('Relations') }}
-        >
-          {ALL_EDGE_TYPES.map(type => (
-            <MenuItem key={type} value={type}>{t(EDGE_TYPE_LABEL[type])}</MenuItem>
-          ))}
-        </Select>
-        <Stack direction="row" spacing={0.5}>
+        {multiFilter(t('Entities'), ALL_NODE_TYPES, filters.nodeTypes, NODE_TYPE_LABEL, nodeTypes => setFilters({
+          ...filters,
+          nodeTypes,
+        }))}
+        {multiFilter(t('Relations'), ALL_EDGE_TYPES, filters.edgeTypes, EDGE_TYPE_LABEL, edgeTypes => setFilters({
+          ...filters,
+          edgeTypes,
+        }))}
+        <div className="flex items-center gap-1" role="group" aria-label={t('Result')}>
           {ALL_RESULTS.map(result => (
             <Chip
               key={result}
-              size="small"
               label={t(RESULT_LABEL[result])}
-              color={filters.results.includes(result) ? RESULT_CHIP_COLOUR[result] : 'default'}
-              variant={filters.results.includes(result) ? 'filled' : 'outlined'}
+              severity={filters.results.includes(result) ? RESULT_CHIP_SEVERITY[result] : 'neutral'}
+              aria-pressed={filters.results.includes(result)}
               onClick={() => setFilters({
                 ...filters,
                 results: toggle(filters.results, result),
               })}
             />
           ))}
-        </Stack>
-        <FormControlLabel
-          control={(
-            <Switch
-              size="small"
-              checked={filters.focusMode}
-              onChange={e => setFilters({
-                ...filters,
-                focusMode: e.target.checked,
-              })}
-            />
-          )}
+        </div>
+        <Switch
           label={t('Focus mode')}
+          checked={filters.focusMode}
+          onCheckedChange={checked => setFilters({
+            ...filters,
+            focusMode: checked === true,
+          })}
         />
-        <FormControlLabel
-          control={<Switch size="small" checked={showFailed} onChange={e => setShowFailed(e.target.checked)} />}
+        <Switch
           label={t('Highlight failed paths')}
+          checked={showFailed}
+          onCheckedChange={checked => setShowFailed(checked === true)}
         />
-        <Box sx={{ flexGrow: 1 }} />
-        <ToggleButtonGroup
-          size="small"
-          exclusive
+        <div className="flex-grow" />
+        <ButtonGroup
           value={layout}
-          onChange={(_, value: GraphLayout | null) => {
-            if (value) {
-              setLayout(value);
-              onLayoutChange?.(value);
-            }
+          onValueChange={(value) => {
+            const next = value as GraphLayout;
+            setLayout(next);
+            onLayoutChange?.(next);
           }}
           aria-label={t('Graph layout')}
         >
-          <ToggleButton value="force">{t('Force')}</ToggleButton>
-          <ToggleButton value="hierarchical">{t('Hierarchical')}</ToggleButton>
-          <ToggleButton value="radial">{t('Radial')}</ToggleButton>
-        </ToggleButtonGroup>
-        <Tooltip title={t('Undo')}>
-          <span>
-            <IconButton size="small" onClick={undo} disabled={history.past.length === 0} aria-label={t('Undo')}>
-              <UndoOutlined fontSize="small" />
-            </IconButton>
-          </span>
-        </Tooltip>
-        <Tooltip title={t('Export as PNG')}>
-          <IconButton size="small" onClick={exportPng} aria-label={t('Export as PNG')}>
-            <DownloadOutlined fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title={t('Copy a link to this view')}>
-          <IconButton size="small" onClick={copyLink} aria-label={t('Copy a link to this view')}>
-            <LinkOutlined fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Stack>
-      <Box sx={{ mt: 1 }}>{legend}</Box>
+          {(['force', 'hierarchical', 'radial'] as GraphLayout[]).map(value => (
+            <ButtonGroupItem key={value} value={value} icon={LAYOUT_ICON[value]} aria-label={t(LAYOUT_LABEL[value])} />
+          ))}
+        </ButtonGroup>
+        {iconAction(t('Undo'), <UndoOutlined fontSize="small" />, undo, history.past.length === 0)}
+        {iconAction(t('Export as PNG'), <DownloadOutlined fontSize="small" />, exportPng)}
+        {iconAction(t('Copy a link to this view'), <LinkOutlined fontSize="small" />, copyLink)}
+      </div>
+      <div className="mt-2">{legend}</div>
     </Paper>
   );
+
+  const panelOpen = Boolean(selectedNode && interactive);
 
   const panel = selectedNode && interactive && (
     <Drawer
       anchor="right"
       variant="persistent"
-      open={Boolean(selectedNode)}
+      open={panelOpen}
       slotProps={{
         paper: {
           sx: {
             position: 'absolute',
-            width: 340,
+            width: PANEL_WIDTH,
             p: 2,
           },
         },
@@ -544,50 +592,50 @@ const GraphExplorerInner = ({
         },
       }}
     >
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+      <div className="flex items-center gap-2">
         {NODE_ICON[selectedNode.node_type]()}
-        <Typography
-          variant="h6"
-          sx={{
-            'flexGrow': 1,
-            'textTransform': 'none',
-            '&::first-letter': { textTransform: 'none' },
-          }}
-          noWrap
-        >
+        <Text variant="title-sm" as="div" className="min-w-0 flex-grow truncate">
           {selectedNode.node_label}
-        </Typography>
-        <IconButton size="small" onClick={() => setSelected(null)} aria-label={t('Close')}>
-          <CloseOutlined fontSize="small" />
-        </IconButton>
-      </Stack>
-      <Typography variant="body2" color="text.secondary">
+        </Text>
+        <IconButton priority="tertiary" icon={<CloseOutlined fontSize="small" />} onClick={() => setSelected(null)} aria-label={t('Close')} />
+      </div>
+      <Text variant="content-compact" as="div" className="text-default-secondary">
         {t(NODE_TYPE_LABEL[selectedNode.node_type])}
         {selectedNode.node_subtype ? ` · ${selectedNode.node_subtype}` : ''}
-      </Typography>
-      <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
-        <Chip size="small" color={selectedNode.node_failed_count > 0 ? 'error' : 'default'} label={`${t('Failed expectations')}: ${selectedNode.node_failed_count}`} />
-        <Chip size="small" label={`${t('Findings')}: ${selectedNode.node_finding_count}`} />
-      </Stack>
-      <Stack spacing={1} sx={{ mt: 2 }}>
+      </Text>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Chip severity={selectedNode.node_failed_count > 0 ? 'critical' : 'neutral'} label={`${t('Failed expectations')}: ${selectedNode.node_failed_count}`} />
+        <Chip label={`${t('Findings')}: ${selectedNode.node_finding_count}`} />
+      </div>
+      <div className="mt-4 flex flex-col gap-2">
         {nodeHref(selectedNode) && (
-          <Button component={Link} to={nodeHref(selectedNode) as string} variant="outlined" size="small" startIcon={<OpenInNewOutlined />}>
-            {t('Open')}
+          <Button asChild priority="secondary">
+            <Link to={nodeHref(selectedNode) as string}>
+              <OpenInNewOutlined fontSize="small" />
+              {t('Open')}
+            </Link>
           </Button>
         )}
-        <Button variant="outlined" size="small" startIcon={<CenterFocusStrongOutlined />} onClick={() => refocus(selectedNode)}>
+        <Button type="button" priority="secondary" startIcon={<CenterFocusStrongOutlined fontSize="small" />} onClick={() => refocus(selectedNode)}>
           {t('Pivot on this node')}
         </Button>
-        <Button variant="outlined" size="small" startIcon={<RouteOutlined />} onClick={() => setPathFrom(selectedNode.node_id)} disabled={pathFrom === selectedNode.node_id}>
+        <Button
+          type="button"
+          priority="secondary"
+          startIcon={<RouteOutlined fontSize="small" />}
+          onClick={() => setPathFrom(selectedNode.node_id)}
+          disabled={pathFrom === selectedNode.node_id}
+        >
           {pathFrom === selectedNode.node_id ? t('Select the destination node') : t('Find a path from here')}
         </Button>
-        <Stack direction="row" spacing={1}>
-          <Button size="small" startIcon={<PushPinOutlined />} onClick={() => commit(s => togglePin(s, selectedNode.node_id))}>
+        <div className="flex gap-2">
+          <Button type="button" priority="tertiary" startIcon={<PushPinOutlined fontSize="small" />} onClick={() => commit(s => togglePin(s, selectedNode.node_id))}>
             {state.pinned.includes(selectedNode.node_id) ? t('Unpin') : t('Pin')}
           </Button>
           <Button
-            size="small"
-            startIcon={<VisibilityOffOutlined />}
+            type="button"
+            priority="tertiary"
+            startIcon={<VisibilityOffOutlined fontSize="small" />}
             onClick={() => {
               commit(s => hideNode(s, selectedNode.node_id));
               setSelected(null);
@@ -595,34 +643,33 @@ const GraphExplorerInner = ({
           >
             {t('Hide')}
           </Button>
-        </Stack>
+        </div>
         {nodeActions.filter(a => a.appliesTo(selectedNode)).map(action => (
-          <Button key={action.key} variant="outlined" size="small" startIcon={action.icon} onClick={() => action.onClick(selectedNode)}>
+          <Button key={action.key} type="button" priority="secondary" startIcon={action.icon} onClick={() => action.onClick(selectedNode)}>
             {action.label}
           </Button>
         ))}
-      </Stack>
-      <Typography variant="subtitle2" sx={{ mt: 2 }}>{t('Expand by relation')}</Typography>
-      <Stack
-        direction="row"
-        spacing={0.5}
-        useFlexGap
-        sx={{
-          mt: 0.5,
-          flexWrap: 'wrap',
-        }}
-      >
+      </div>
+      <Text variant="content-compact-bold" as="div" className="mt-4">{t('Expand by relation')}</Text>
+      <div className="mt-1 flex flex-wrap gap-1">
         {ALL_EDGE_TYPES.map(type => (
-          <Chip key={type} size="small" variant="outlined" label={t(EDGE_TYPE_LABEL[type])} onClick={() => expand(selectedNode, [type])} />
+          <Chip key={type} label={t(EDGE_TYPE_LABEL[type])} onClick={() => expand(selectedNode, [type])} />
         ))}
-      </Stack>
+      </div>
       {state.truncatedAt.includes(selectedNode.node_id) && (
-        <Button size="small" sx={{ mt: 1 }} onClick={() => expand(selectedNode, [], 200)}>{t('Load more')}</Button>
+        <div className="mt-2">
+          <Button type="button" priority="tertiary" onClick={() => expand(selectedNode, [], 200)}>{t('Load more')}</Button>
+        </div>
       )}
-      <Typography variant="subtitle2" sx={{ mt: 2 }}>{t('Neighbours')}</Typography>
+      <Text variant="content-compact-bold" as="div" className="mt-4">{t('Neighbours')}</Text>
       <List dense sx={{ overflowY: 'auto' }}>
         {neighbours.map(({ node, type, result }) => (
-          <ListItemButton key={`${type}-${node.node_id}`} onClick={() => setSelected(node.node_id)}>
+          <ListItemButton
+            key={`${type}-${node.node_id}`}
+            onClick={() => setSelected(node.node_id)}
+            onMouseEnter={() => setHovered(node.node_id)}
+            onMouseLeave={() => setHovered(null)}
+          >
             <ListItemText
               primary={node.node_label}
               secondary={`${t(EDGE_TYPE_LABEL[type])} · ${t(NODE_TYPE_LABEL[node.node_type])}${result ? ` · ${t(RESULT_LABEL[result])}` : ''}`}
@@ -634,104 +681,152 @@ const GraphExplorerInner = ({
   );
 
   const empty = shownNodes.length === 0;
+  // The controls and the mini-map move left of the open side panel instead of sitting under it.
+  const sideOffset = panelOpen ? PANEL_WIDTH + 8 : 0;
+
+  const canvas = empty
+    ? (
+        <div className="flex h-full items-center justify-center">
+          <Text variant="content-compact" className="text-default-secondary">{t('Nothing to show in the graph yet')}</Text>
+        </div>
+      )
+    : (
+        <ReactFlow
+          nodes={flowNodes}
+          edges={flowEdges}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          proOptions={proOptions}
+          colorMode={theme.palette.mode}
+          nodesDraggable={interactive}
+          nodesConnectable={false}
+          nodesFocusable={interactive}
+          edgesFocusable={false}
+          elementsSelectable={interactive}
+          panOnDrag={interactive}
+          zoomOnScroll={interactive}
+          zoomOnPinch={interactive}
+          zoomOnDoubleClick={false}
+          preventScrolling={interactive}
+          minZoom={0.1}
+          onNodeMouseEnter={interactive ? (_, n) => setHovered(n.id) : undefined}
+          onNodeMouseLeave={interactive ? () => setHovered(null) : undefined}
+          onNodeClick={interactive
+            ? (_, n) => {
+                const node = state.nodes[n.id];
+                if (pathFrom && pathFrom !== n.id) {
+                  findPath(state.nodes[pathFrom], node);
+                  return;
+                }
+                setSelected(n.id);
+              }
+            : undefined}
+          onNodeDoubleClick={interactive ? (_, n) => expand(state.nodes[n.id]) : undefined}
+          fitView
+        >
+          <Background />
+          {interactive && <Controls showInteractive={false} style={{ marginLeft: 8 }} />}
+          {variant === 'page' && (
+            <MiniMap
+              pannable
+              zoomable
+              style={{ marginRight: 8 + sideOffset }}
+              bgColor={theme.palette.background.paper}
+              maskColor={alpha(theme.palette.background.default, 0.6)}
+              nodeColor={n => ((n.data as GraphEntityNodeType['data']).node.node_failed_count > 0 ? theme.palette.error.main : theme.palette.primary.main)}
+              nodeStrokeWidth={0}
+              nodeBorderRadius={12}
+            />
+          )}
+        </ReactFlow>
+      );
+
+  // The mini graph of an Overview is a read-only preview whose only action is to open the graph: a
+  // link with a name, in the tab order, opened by Enter as any link (pointer-events stay off the
+  // canvas so nothing inside it takes the click or the scroll).
+  if (variant === 'mini') {
+    const focusNode = state.focus ? state.nodes[state.focus] : undefined;
+    const href = focusNode ? graphHref(focusNode.node_type, focusNode.node_entity_id) : '/admin/graph';
+    return (
+      <Link
+        to={href}
+        onClick={onOpen ? (event) => {
+          event.preventDefault();
+          onOpen();
+        } : undefined}
+        aria-label={focusNode ? `${t('Explore in graph')}: ${focusNode.node_label}` : t('Explore in graph')}
+        className="block rounded-[var(--radius-md,4px)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--border-focus,currentColor)]"
+        style={{
+          height,
+          color: 'inherit',
+          textDecoration: 'none',
+        }}
+      >
+        <Box
+          sx={{
+            'position': 'relative',
+            'height': '100%',
+            'minHeight': 200,
+            'overflow': 'hidden',
+            'borderRadius': 1,
+            'border': `1px solid ${theme.palette.divider}`,
+            'cursor': 'pointer',
+            '& .react-flow': { pointerEvents: 'none' },
+          }}
+        >
+          {canvas}
+        </Box>
+      </Link>
+    );
+  }
 
   return (
     <Stack spacing={1.5} sx={{ height }}>
       {variant === 'page' && toolbar}
-      {notice && <Alert severity="info" onClose={() => setNotice(null)}>{notice}</Alert>}
-      {pathFrom && <Alert severity="info">{t('Select the destination node to find the shortest path')}</Alert>}
-      <Paper
-        variant="outlined"
+      {notice && (
+        <Alert
+          severity="info"
+          title={notice}
+          action={<Button type="button" priority="secondary" size="sm" onClick={() => setNotice(null)}>{t('Dismiss')}</Button>}
+        />
+      )}
+      {pathFrom && <Alert severity="info" title={t('Select the destination node to find the shortest path')} />}
+      <Box
         ref={wrapper}
         sx={{
           position: 'relative',
           flexGrow: 1,
-          minHeight: variant === 'mini' ? 200 : 420,
+          minHeight: 420,
           overflow: 'hidden',
-          cursor: variant === 'mini' ? 'pointer' : 'default',
+          borderRadius: 1,
+          border: `1px solid ${theme.palette.divider}`,
         }}
-        onClick={variant === 'mini' ? onOpen : undefined}
       >
-        {empty ? (
-          <Stack sx={{
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-          }}
-          >
-            <Typography color="text.secondary">{t('Nothing to show in the graph yet')}</Typography>
-          </Stack>
-        ) : (
-          <ReactFlow
-            nodes={flowNodes}
-            edges={flowEdges}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            proOptions={proOptions}
-            colorMode={theme.palette.mode}
-            nodesDraggable={interactive}
-            nodesConnectable={false}
-            elementsSelectable={interactive}
-            panOnDrag={interactive}
-            zoomOnScroll={interactive}
-            zoomOnDoubleClick={false}
-            minZoom={0.1}
-            onNodeClick={interactive
-              ? (_, n) => {
-                  const node = state.nodes[n.id];
-                  if (pathFrom && pathFrom !== n.id) {
-                    findPath(state.nodes[pathFrom], node);
-                    return;
-                  }
-                  setSelected(n.id);
-                }
-              : undefined}
-            onNodeDoubleClick={interactive ? (_, n) => expand(state.nodes[n.id]) : undefined}
-            fitView
-          >
-            <Background />
-            {interactive && <Controls showInteractive={false} />}
-            {variant === 'page' && (
-              <MiniMap
-                pannable
-                zoomable
-                bgColor={theme.palette.background.paper}
-                maskColor={alpha(theme.palette.background.default, 0.6)}
-                nodeColor={n => ((n.data as GraphEntityNodeType['data']).node.node_failed_count > 0 ? theme.palette.error.main : theme.palette.primary.main)}
-                nodeStrokeWidth={0}
-                nodeBorderRadius={12}
-              />
-            )}
-          </ReactFlow>
-        )}
+        {canvas}
         {loading && (
-          <Box sx={{
-            position: 'absolute',
-            top: 12,
-            left: 12,
-          }}
-          >
-            <CircularProgress size={20} />
-          </Box>
+          <div className="absolute left-3 top-3" role="status" aria-label={t('Loading')}>
+            <Spinner size="sm" />
+          </div>
         )}
         {variant === 'embedded' && state.focus && state.nodes[state.focus] && (
-          <Tooltip title={t('Open in full screen')}>
-            <IconButton
-              component={Link}
-              to={graphHref(state.nodes[state.focus].node_type, state.nodes[state.focus].node_entity_id)}
-              sx={{
-                position: 'absolute',
-                top: 8,
-                right: 8,
-              }}
-              aria-label={t('Open in full screen')}
-            >
-              <OpenInFullOutlined fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <div className="absolute right-2 top-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <IconButton
+                  asChild
+                  priority="secondary"
+                  icon={<OpenInFullOutlined fontSize="small" />}
+                  aria-label={t('Open in full screen')}
+                >
+                  <Link to={graphHref(state.nodes[state.focus].node_type, state.nodes[state.focus].node_entity_id)} />
+                </IconButton>
+              </TooltipTrigger>
+              <TooltipContent>{t('Open in full screen')}</TooltipContent>
+            </Tooltip>
+          </div>
         )}
         {panel}
-      </Paper>
+      </Box>
       {variant === 'embedded' && legend}
     </Stack>
   );

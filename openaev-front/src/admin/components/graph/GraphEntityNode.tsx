@@ -80,6 +80,10 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
             style={{
               maxWidth: NODE_WIDTH,
               marginTop: LABEL_MARGIN,
+              // Opaque, so an edge passing under the label (edges are drawn under nodes) stays hidden.
+              padding: '0 4px',
+              borderRadius: 4,
+              backgroundColor: theme.palette.background.paper,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',

@@ -153,17 +153,28 @@ export const separate = (positions: Map<string, Point>, ids: string[], focus?: s
   }
 };
 
+const snapshot = (positions: Map<string, Point>) => new Map([...positions].map(([id, p]) => [id, {
+  x: Math.round(p.x),
+  y: Math.round(p.y),
+}]));
+
+/** One frame of the force simulation every this many iterations: what the screen plays live. */
+export const FORCE_FRAME_EVERY = 5;
+
 /**
  * A deterministic force-directed layout (Fruchterman-Reingold), seeded by the radial layout so the
  * same graph always lands the same way: repulsion between every pair, attraction along edges, a
  * cooling step. Bounded to a fixed number of iterations: the API caps a slice at a few hundred nodes.
+ * Answers the frames of the simulation, from the seed to the settled, separated placement, so the
+ * explorer plays the forces settling on screen instead of jumping to the result.
  */
-const force = (nodes: GraphNodeOutput[], edges: GraphEdgeOutput[], focus?: string | null): Map<string, Point> => {
+const forceFrames = (nodes: GraphNodeOutput[], edges: GraphEdgeOutput[], focus?: string | null): Map<string, Point>[] => {
   const positions = radial(nodes, edges, focus);
   const ids = nodes.map(n => n.node_id);
   if (ids.length < 3) {
-    return positions;
+    return [positions];
   }
+  const frames = [snapshot(positions)];
   const k = NODE_GAP;
   let temperature = RING_GAP;
   const iterations = Math.min(150, 20 + ids.length * 2);
@@ -216,13 +227,33 @@ const force = (nodes: GraphNodeOutput[], edges: GraphEdgeOutput[], focus?: strin
       p.y += (s.y / length) * Math.min(length, temperature);
     });
     temperature *= 0.95;
+    if ((step + 1) % FORCE_FRAME_EVERY === 0) {
+      frames.push(snapshot(positions));
+    }
   }
   separate(positions, ids, focus);
-  positions.forEach((p) => {
-    p.x = Math.round(p.x);
-    p.y = Math.round(p.y);
-  });
-  return positions;
+  frames.push(snapshot(positions));
+  return frames;
+};
+
+/**
+ * The frames that lead to a layout: the force layout's simulation steps, or the single placement of
+ * a static layout. The last frame is the layout itself.
+ */
+export const layoutFrames = (
+  layout: GraphLayout,
+  nodes: GraphNodeOutput[],
+  edges: GraphEdgeOutput[],
+  focus?: string | null,
+): Map<string, Point>[] => {
+  switch (layout) {
+    case 'hierarchical':
+      return [hierarchical(nodes)];
+    case 'radial':
+      return [radial(nodes, edges, focus)];
+    default:
+      return forceFrames(nodes, edges, focus);
+  }
 };
 
 export const layoutGraph = (
@@ -231,12 +262,36 @@ export const layoutGraph = (
   edges: GraphEdgeOutput[],
   focus?: string | null,
 ): Map<string, Point> => {
-  switch (layout) {
-    case 'hierarchical':
-      return hierarchical(nodes);
-    case 'radial':
-      return radial(nodes, edges, focus);
-    default:
-      return force(nodes, edges, focus);
-  }
+  const frames = layoutFrames(layout, nodes, edges, focus);
+  return frames[frames.length - 1];
+};
+
+/**
+ * Where a node that enters the graph starts its move: at the current place of a neighbour already
+ * on screen (an expanded node's ring grows out of it), else at its own target.
+ */
+export const entering = (from: Map<string, Point>, target: Map<string, Point>, edges: GraphEdgeOutput[]): Map<string, Point> => {
+  const start = new Map(from);
+  target.forEach((p, id) => {
+    if (start.has(id)) {
+      return;
+    }
+    const edge = edges.find(e => (e.edge_source === id && from.has(e.edge_target)) || (e.edge_target === id && from.has(e.edge_source)));
+    const anchor = edge ? from.get(edge.edge_source === id ? edge.edge_target : edge.edge_source) : undefined;
+    start.set(id, anchor ?? p);
+  });
+  return start;
+};
+
+/** The positions between two frames at t in [0, 1], for the nodes of the second frame. */
+export const interpolate = (a: Map<string, Point>, b: Map<string, Point>, t: number): Map<string, Point> => {
+  const result = new Map<string, Point>();
+  b.forEach((to, id) => {
+    const from = a.get(id) ?? to;
+    result.set(id, {
+      x: from.x + (to.x - from.x) * t,
+      y: from.y + (to.y - from.y) * t,
+    });
+  });
+  return result;
 };

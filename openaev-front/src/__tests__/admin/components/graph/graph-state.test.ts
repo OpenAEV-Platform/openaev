@@ -1,11 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import { distances, layoutGraph, MIN_NODE_DX, MIN_NODE_DY, type Point, separate } from '../../../../admin/components/graph/graph-layout';
+import {
+  distances,
+  entering,
+  interpolate,
+  layoutFrames,
+  layoutGraph,
+  MIN_NODE_DX,
+  MIN_NODE_DY,
+  type Point,
+  separate,
+} from '../../../../admin/components/graph/graph-layout';
 import { type GraphEdgeOutput, graphHref, type GraphNodeOutput, type GraphOutput, parseNodeType } from '../../../../admin/components/graph/graph-model';
 import {
   DEFAULT_FILTERS,
   encodeFocus,
   failedHighlights,
+  firstRing,
   fromSlice,
   hideNode,
   mergeSlice,
@@ -165,6 +176,66 @@ describe('graph-layout', () => {
       expect(Number.isFinite(p.x)).toBe(true);
       expect(Number.isFinite(p.y)).toBe(true);
     });
+  });
+
+  it('plays the force layout as frames ending on the settled layout', () => {
+    const frames = layoutFrames('force', nodes, edges, 'ASSET:a1');
+    expect(frames.length).toBeGreaterThan(2);
+    expect(frames[frames.length - 1]).toEqual(layoutGraph('force', nodes, edges, 'ASSET:a1'));
+    expect(frames[0]).not.toEqual(frames[frames.length - 1]);
+  });
+
+  it('answers one frame for a static layout', () => {
+    expect(layoutFrames('hierarchical', nodes, edges, 'ASSET:a1')).toHaveLength(1);
+    expect(layoutFrames('radial', nodes, edges, 'ASSET:a1')).toHaveLength(1);
+  });
+
+  it('interpolates between two frames and grows an entering node out of its neighbour', () => {
+    const a = new Map<string, Point>([['x', {
+      x: 0,
+      y: 0,
+    }]]);
+    const b = new Map<string, Point>([['x', {
+      x: 100,
+      y: 50,
+    }], ['ASSET:a1', {
+      x: 300,
+      y: 300,
+    }]]);
+    expect(interpolate(a, b, 0.5).get('x')).toEqual({
+      x: 50,
+      y: 25,
+    });
+    const from = new Map<string, Point>([['INJECT:i1', {
+      x: 7,
+      y: 9,
+    }]]);
+    const target = new Map<string, Point>([['INJECT:i1', {
+      x: 0,
+      y: 0,
+    }], ['ASSET:a1', {
+      x: 200,
+      y: 200,
+    }], ['FINDING:f1', {
+      x: 400,
+      y: 400,
+    }]]);
+    const start = entering(from, target, edges);
+    expect(start.get('ASSET:a1')).toEqual({
+      x: 7,
+      y: 9,
+    });
+    expect(start.get('FINDING:f1')).toEqual({
+      x: 400,
+      y: 400,
+    });
+  });
+
+  it('answers the first ring of a node for the hover dimming', () => {
+    const ring = firstRing('ASSET:a1', edges);
+    expect([...ring.nodeIds].sort()).toEqual(['ASSET:a1', 'ASSET_GROUP:g1', 'INJECT:i1']);
+    expect([...ring.edgeIds].sort()).toEqual(['e1', 'e2']);
+    expect(firstRing('FINDING:f1', edges).edgeIds.size).toBe(0);
   });
 
   it('separates node boxes that overlap and keeps the focus in place', () => {

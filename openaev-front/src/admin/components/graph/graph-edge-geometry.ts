@@ -20,36 +20,21 @@ export const NODE_LABEL_OFFSET = NODE_CIRCLE_SIZE + LABEL_MARGIN;
 export const EDGE_GAP = 4;
 
 /**
- * Where an edge drawn from `center` toward `toward` leaves the node: on the circle of `radius`
- * plus a gap, or past the node's label when the edge would otherwise cross it (an edge going down
- * from a node runs through the label drawn under its circle).
+ * Where an edge drawn from `center` toward `toward` meets the node: on the circle of `radius`
+ * plus a small gap, whatever the direction. The arrowhead lands on the circle it points to; an edge
+ * that passes under the label is hidden by the label's own opaque background (edges are drawn under
+ * the nodes), so it never needs to stop short of the circle.
  */
-export const edgeEndpoint = (center: Point, toward: Point, radius: number, label: Rect | null): Point => {
+export const edgeEndpoint = (center: Point, toward: Point, radius: number): Point => {
   const dx = toward.x - center.x;
   const dy = toward.y - center.y;
   const length = Math.hypot(dx, dy);
   if (length === 0) {
     return center;
   }
-  const ux = dx / length;
-  const uy = dy / length;
-  let t = radius + EDGE_GAP;
-  if (label && uy > 0) {
-    const enterY = (label.top - center.y) / uy;
-    let exitX = Number.POSITIVE_INFINITY;
-    if (ux > 0) {
-      exitX = (label.right - center.x) / ux;
-    } else if (ux < 0) {
-      exitX = (label.left - center.x) / ux;
-    }
-    const exitY = (label.bottom - center.y) / uy;
-    const exit = Math.min(exitX, exitY);
-    if (enterY <= exit) {
-      t = Math.max(t, exit + EDGE_GAP);
-    }
-  }
+  const t = radius + EDGE_GAP;
   return {
-    x: center.x + ux * t,
-    y: center.y + uy * t,
+    x: center.x + (dx / length) * t,
+    y: center.y + (dy / length) * t,
   };
 };

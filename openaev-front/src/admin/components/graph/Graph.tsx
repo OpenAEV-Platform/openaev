@@ -1,5 +1,5 @@
-import { Button, Text } from '@filigran/design-system';
-import { Alert, Box, Stack } from '@mui/material';
+import { Alert, Button } from '@filigran/design-system';
+import { Box, Stack } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
@@ -70,23 +70,27 @@ const Graph = () => {
         }]}
       />
       {isLanding && (
-        <Alert severity="info" icon={false}>
-          <Text variant="content-compact">
-            {t('Exposure hot paths: the assets with the most failed expectations, the injects that failed on them, their asset groups and their findings. Double-click a node to expand it, or start from another view.')}
-          </Text>
-          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-            <Button type="button" priority="secondary" onClick={() => navigate('/admin/simulations')}>{t('Start from a simulation')}</Button>
-            <Button type="button" priority="secondary" onClick={() => navigate('/admin/asset_groups')}>{t('Start from an asset group')}</Button>
-            <Button type="button" priority="secondary" onClick={() => navigate('/admin/findings')}>{t('Start from a finding')}</Button>
-          </Stack>
-        </Alert>
+        <Alert
+          severity="info"
+          title={t('Exposure hot paths')}
+          description={(
+            <>
+              {t('The assets with the most failed expectations, the injects that failed on them, their asset groups and their findings. Double-click a node to expand it, or start from another view.')}
+              <span className="mt-2 flex flex-wrap gap-2">
+                <Button type="button" priority="secondary" size="sm" onClick={() => navigate('/admin/simulations')}>{t('Start from a simulation')}</Button>
+                <Button type="button" priority="secondary" size="sm" onClick={() => navigate('/admin/asset_groups')}>{t('Start from an asset group')}</Button>
+                <Button type="button" priority="secondary" size="sm" onClick={() => navigate('/admin/findings')}>{t('Start from a finding')}</Button>
+              </span>
+            </>
+          )}
+        />
       )}
       {!isLanding && (
         <Box>
           <Button type="button" priority="tertiary" onClick={() => navigate('/admin/graph')}>{t('Back to exposure hot paths')}</Button>
         </Box>
       )}
-      {error && <Alert severity="error">{t('The graph could not be loaded')}</Alert>}
+      {error && <Alert severity="error" title={t('The graph could not be loaded')} />}
       {!error && !slice && <Loader variant="inElement" />}
       {slice && (
         <Box sx={{

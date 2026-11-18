@@ -4683,7 +4683,7 @@
   "Copy a link to this view": "复制此视图的链接",
   "Entities": "实体",
   "Expand by relation": "按关系展开",
-  "Exposure hot paths: the assets with the most failed expectations, the injects that failed on them, their asset groups and their findings. Double-click a node to expand it, or start from another view.": "暴露热点路径：失败预期最多的资产、在其上失败的注入、其资产组及其发现。双击节点将其展开，或从其他视图开始。",
+  "The assets with the most failed expectations, the injects that failed on them, their asset groups and their findings. Double-click a node to expand it, or start from another view.": "失败预期最多的资产、在其上失败的注入、其资产组及其发现。双击节点将其展开，或从其他视图开始。",
   "Explore in graph": "在图中探索",
   "Find a path from here": "从此处查找路径",
   "Focus mode": "聚焦模式",
@@ -4716,5 +4716,6 @@
   "Start from an asset group": "从资产组开始",
   "The graph could not be loaded": "无法加载图",
   "Undo": "撤销",
-  "Unpin": "取消固定"
+  "Unpin": "取消固定",
+  "Exposure hot paths": "暴露热点路径"
 }

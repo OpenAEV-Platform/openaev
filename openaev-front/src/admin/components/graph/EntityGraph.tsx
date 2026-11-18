@@ -1,4 +1,5 @@
-import { Alert, Box } from '@mui/material';
+import { Alert } from '@filigran/design-system';
+import { Box } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -61,7 +62,7 @@ const EntityGraph = ({ type, entityId, variant, height }: Props) => {
 
   return (
     <Box ref={anchor} sx={{ height: resolvedHeight }}>
-      {error && <Alert severity="error">{t('The graph could not be loaded')}</Alert>}
+      {error && <Alert severity="error" title={t('The graph could not be loaded')} />}
       {!error && !slice && <Loader variant="inElement" />}
       {slice && (
         <GraphExplorer
