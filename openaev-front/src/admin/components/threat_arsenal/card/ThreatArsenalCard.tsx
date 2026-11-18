@@ -61,7 +61,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
               : action.action_injector_type
           }
           isPayload={action.action_payload != null}
-          variant="list"
+          variant="thumbnail"
         />
       )}
       title={name}
