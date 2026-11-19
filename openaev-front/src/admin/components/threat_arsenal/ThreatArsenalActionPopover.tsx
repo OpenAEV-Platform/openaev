@@ -29,17 +29,10 @@ import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 
 interface PayloadPopoverNewProps {
-  actionId: string;
-  payloadId?: string;
-  grantResourceId?: string;
-  name: string;
+  action: ThreatArsenalAction;
   onUpdate?: (action: ThreatArsenalAction) => void;
   onDelete?: () => void;
   onDuplicate?: (action: ThreatArsenalAction) => void;
-  disableUpdate?: boolean;
-  disableDuplicate?: boolean;
-  disableJsonExport?: boolean;
-  disableDelete?: boolean;
 }
 
 const buildInitialValues
@@ -98,17 +91,10 @@ const handleCleanupExecutorValue = (executor: string, command: string): string |
 };
 
 const ThreatArsenalActionPopover = ({
-  actionId,
-  payloadId,
-  grantResourceId,
-  name,
+  action,
   onUpdate,
   onDuplicate,
   onDelete,
-  disableUpdate,
-  disableDuplicate,
-  disableJsonExport,
-  disableDelete,
 }: PayloadPopoverNewProps) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [openEdit, setOpenEdit] = useState(false);
@@ -118,6 +104,20 @@ const ThreatArsenalActionPopover = ({
 
   const { t, tPick } = useFormatter();
   const ability = useAbility();
+
+  const actionId = action.injector_contract_id;
+  const payloadId = action.action_payload?.payload_id ?? '';
+  const grantResourceId = action.action_grant_resource_id;
+  const name = tPick(action.action_labels);
+  // Dummy injectors were removed (#6779): an action whose injector is not registered has no injector type.
+  const isUnregistered = action.action_injector_type == null;
+  const isFromCollector = action.action_payload?.payload_collector_type != null;
+  const disableUpdate = isFromCollector || isUnregistered;
+  const disableDuplicate = action.action_payload == null || isUnregistered;
+  const disableJsonExport = action.action_payload == null || isUnregistered;
+  // Orphaned actions can always be purged; collector actions only once deprecated.
+  const disableDelete = !isUnregistered
+    && (action.action_payload == null || (isFromCollector && action.action_payload.payload_status !== 'DEPRECATED'));
 
   // -- Popover --
   const handlePopoverOpen = (event: MouseEvent<HTMLButtonElement>) => {

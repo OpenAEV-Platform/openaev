@@ -4,11 +4,13 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TxCtx;
+import io.openaev.xtmhub.config.XtmHubConfig;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -22,7 +24,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequiredArgsConstructor
 public class HomeApi {
+
+  private final XtmHubConfig xtmHubConfig;
 
   private static String readResourceAsString(Resource resource) {
     try (Reader reader = new InputStreamReader(resource.getInputStream(), UTF_8)) {
@@ -69,7 +74,12 @@ public class HomeApi {
       // instead. In production the bundle exists, so this branch is never taken.
       return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(devFrontendUrl)).build();
     }
-    String index = readResourceAsString(classPathResource);
+    return shell(readResourceAsString(classPathResource));
+  }
+
+  /** Fills the placeholders of the built {@code index.html} and attaches its CSP. */
+  ResponseEntity<String> shell(String index) {
+    String nonce = SpaContentSecurityPolicy.newNonce();
     String basePath =
         this.contextPath.endsWith("/")
             ? this.contextPath.substring(0, this.contextPath.length() - 1)
@@ -82,7 +92,13 @@ public class HomeApi {
                 "OpenAEV is an open source platform allowing organizations to plan, schedule and conduct adversary simulation campaigns and cyber crisis exercises.")
             .replaceAll("%APP_FAVICON%", basePath + "/static/favicon.png")
             .replaceAll("%APP_MANIFEST%", basePath + "/static/manifest.json")
-            .replaceAll("%BASE_PATH%", basePath);
-    return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-cache").body(newIndex);
+            .replaceAll("%BASE_PATH%", basePath)
+            .replace(SpaContentSecurityPolicy.NONCE_PLACEHOLDER, nonce);
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CACHE_CONTROL, "no-cache")
+        .header(
+            SpaContentSecurityPolicy.HEADER,
+            SpaContentSecurityPolicy.policy(nonce, xtmHubConfig.getUrl()))
+        .body(newIndex);
   }
 }

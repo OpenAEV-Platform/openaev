@@ -7686,6 +7686,8 @@ export interface InjectorContractInput {
 export interface InjectorContractSearchPaginationInput {
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
+  /** Sort by primary domain first, so the results come in domain sections */
+  group_by_primary_domain?: boolean;
   /** Include the injector contract content on the returned object if set to true */
   include_content_details?: boolean;
   /** Allow the return of a full object if true, partial object if false */
@@ -10916,9 +10918,14 @@ export interface RawPaginationImportMapper {
 }
 
 export interface RawPaginationScenario {
+  scenario_author_name?: string;
   scenario_category?: string;
   scenario_description?: string;
+  /** @uniqueItems true */
+  scenario_domains?: string[];
   scenario_id?: string;
+  /** @format date-time */
+  scenario_last_run_at?: string;
   scenario_name?: string;
   /** @uniqueItems true */
   scenario_platforms?: string[];
@@ -10928,6 +10935,7 @@ export interface RawPaginationScenario {
   scenario_tags?: string[];
   /** @format date-time */
   scenario_updated_at?: string;
+  scenario_version?: string;
   scenario_workflow_id?: string;
 }
 

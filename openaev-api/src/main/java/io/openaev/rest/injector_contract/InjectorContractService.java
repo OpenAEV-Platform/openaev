@@ -58,6 +58,7 @@ import io.openaev.service.threat_arsenal.ProvidingFilterSpecificationBuilder;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TriVoid;
 import io.openaev.utils.TxCtxScopeUtils;
+import io.openaev.utils.author.AuthorJoins;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -252,7 +253,8 @@ public class InjectorContractService implements DependenciesManager {
       @Nullable final Specification<InjectorContract> specification,
       @Nullable final Specification<InjectorContract> specificationCount,
       @NotNull final Pageable pageable,
-      @NotNull TriVoid<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector) {
+      @NotNull TriVoid<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector,
+      boolean byPrimaryDomain) {
     CriteriaBuilder cb = this.entityManager.getCriteriaBuilder();
 
     CriteriaQuery<Tuple> cq = cb.createTupleQuery();
@@ -281,7 +283,11 @@ public class InjectorContractService implements DependenciesManager {
     }
 
     // -- Sorting --
-    List<Order> orders = toSortCriteriaBuilder(cb, injectorContractRoot, pageable.getSort());
+    List<Order> orders = new ArrayList<>();
+    if (byPrimaryDomain) {
+      orders.add(cb.asc(primaryDomainName(cb, cq, injectorContractRoot)));
+    }
+    orders.addAll(toSortCriteriaBuilder(cb, injectorContractRoot, pageable.getSort()));
     cq.orderBy(orders);
 
     // Type Query
@@ -300,6 +306,17 @@ public class InjectorContractService implements DependenciesManager {
     qs.setQuery(query);
     qs.setTotal(total);
     return qs;
+  }
+
+  /** First domain name in alphabetical order, "To classify" left out: the section of the action. */
+  private static Expression<String> primaryDomainName(
+      CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<InjectorContract> root) {
+    Subquery<String> subquery = cq.subquery(String.class);
+    Root<InjectorContract> correlated = subquery.correlate(root);
+    Join<InjectorContract, Domain> domain = correlated.join("domains");
+    return subquery
+        .select(cb.least(domain.<String>get("name")))
+        .where(cb.notEqual(domain.get("name"), DomainService.TO_CLASSIFY));
   }
 
   public Iterable<RawInjectorsContracts> getAllRawInjectContracts() {
@@ -770,7 +787,8 @@ public class InjectorContractService implements DependenciesManager {
       Pageable pageable,
       OutputMode mode,
       List<String> idsToIgnore,
-      List<String> idsToProcess) {
+      List<String> idsToProcess,
+      boolean byPrimaryDomain) {
     OutputMode safeMode = (mode == null) ? OutputMode.FULL : mode;
     OutputModeConfig config = CONFIGS.get(safeMode);
     specification = specification.and(withLatestInstalledPayload());
@@ -794,7 +812,8 @@ public class InjectorContractService implements DependenciesManager {
                       .in(idsToProcess));
     }
 
-    QuerySetup qs = setupQuery(specification, specificationCount, pageable, config.selector());
+    QuerySetup qs =
+        setupQuery(specification, specificationCount, pageable, config.selector(), byPrimaryDomain);
 
     List<? extends InjectorContractBaseOutput> results =
         qs.query.getResultList().stream().map(config.mapper()).toList();
@@ -981,22 +1000,6 @@ public class InjectorContractService implements DependenciesManager {
    * when both are set and non-blank, the email otherwise. Evaluates to NULL when the (left-joined)
    * user is absent, so outer coalesces fall through to the next author kind.
    */
-  private Expression<String> userAuthorDisplayName(
-      @NotNull final CriteriaBuilder cb, @NotNull final Join<?, User> userJoin) {
-    Expression<String> firstname = userJoin.get("firstname");
-    Expression<String> lastname = userJoin.get("lastname");
-    Predicate hasFullName =
-        cb.and(
-            cb.isNotNull(firstname),
-            cb.notEqual(cb.trim(firstname), ""),
-            cb.isNotNull(lastname),
-            cb.notEqual(cb.trim(lastname), ""));
-    Expression<String> fullName = cb.concat(cb.concat(firstname, " "), lastname);
-    return cb.<String>selectCase()
-        .when(hasFullName, fullName)
-        .otherwise(userJoin.<String>get("email"));
-  }
-
   private void selectForInjectorContractThreatArsenal(
       @NotNull final CriteriaBuilder cb,
       @NotNull final CriteriaQuery<Tuple> cq,
@@ -1025,9 +1028,9 @@ public class InjectorContractService implements DependenciesManager {
             .value(authorOrgJoin.get("id"));
     Expression<String> authorName =
         cb.<String>coalesce()
-            .value(userAuthorDisplayName(cb, cAuthorUserJoin))
+            .value(AuthorJoins.userName(cb, cAuthorUserJoin))
             .value(cAuthorOrgJoin.get("name"))
-            .value(userAuthorDisplayName(cb, authorUserJoin))
+            .value(AuthorJoins.userName(cb, authorUserJoin))
             .value(authorOrgJoin.get("name"));
     Expression<String> authorType =
         cb.<String>selectCase()
@@ -1295,9 +1298,9 @@ public class InjectorContractService implements DependenciesManager {
             .value(pAuthorOrgJoin.get("id"));
     Expression<String> authorName =
         cb.<String>coalesce()
-            .value(userAuthorDisplayName(cb, cAuthorUserJoin))
+            .value(AuthorJoins.userName(cb, cAuthorUserJoin))
             .value(cAuthorOrgJoin.get("name"))
-            .value(userAuthorDisplayName(cb, pAuthorUserJoin))
+            .value(AuthorJoins.userName(cb, pAuthorUserJoin))
             .value(pAuthorOrgJoin.get("name"));
     Expression<String> authorType =
         cb.<String>selectCase()
