@@ -135,6 +135,9 @@ const MOVE_MS = 400;
 const FRAME_MS = 24;
 // Lowest zoom of the mini graph's fit: node labels are 10 px at zoom 1, so they never shrink below it.
 const MINI_MIN_ZOOM = 1;
+// Highest zoom of a fit on the page and the embedded graph, like OpenCTI's framing: a focus with one or
+// two nodes stays at a readable size instead of filling the canvas.
+const FIT_MAX_ZOOM = 1.25;
 
 const nodeTypes = { entity: GraphEntityNode };
 const edgeTypes = { floating: GraphFloatingEdge };
@@ -303,6 +306,7 @@ const GraphExplorerInner = ({
               right: `${PANEL_WIDTH + 48}px` as const,
             }
           : 0.15,
+        maxZoom: FIT_MAX_ZOOM,
         ...(fitMinZoom ? { minZoom: fitMinZoom } : {}),
       }), [variant, fitMinZoom, fitBesidePanel]);
 

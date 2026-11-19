@@ -146,6 +146,22 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
             {label}
             {truncated ? ' +' : ''}
           </Text>
+          {!groupCount && (
+            // The entity type under the name, as OpenCTI paints its nodes.
+            <Text
+              variant="content-caption"
+              style={{
+                maxWidth: NODE_WIDTH,
+                fontSize: 10,
+                opacity: 0.7,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {t(NODE_TYPE_LABEL[node.node_type])}
+            </Text>
+          )}
           <Handle type="source" position={Position.Bottom} style={{ visibility: 'hidden' }} />
         </Box>
       </TooltipTrigger>
