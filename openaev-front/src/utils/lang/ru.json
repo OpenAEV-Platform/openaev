@@ -4689,5 +4689,8 @@
   "YYYY": "ГГГГ",
   "ZIP must contain a json file": "Архив ZIP должен содержать файл JSON",
   "Zoom in": "Приблизить",
-  "Zoom out": "Отдалить"
+  "Zoom out": "Отдалить",
+  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "Агенты не получат его ожидающие задания, и тест завершится с ошибкой. Команды, уже запущенные агентом, не прерываются.",
+  "Do you want to stop this atomic testing: {title}?": "Остановить этот атомарный тест: {title}?",
+  "Stop execution": "Остановить выполнение"
 }
