@@ -153,9 +153,6 @@
         "openaev-front/src/admin/components/simulations/SimulationList.tsx",
         "openaev-front/src/admin/components/teams/OrganizationsList.tsx",
         "openaev-front/src/admin/components/teams/Players.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenal.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalCard.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalListRow.tsx",
         "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/configuration/list/WidgetColumnsCustomizationInput.tsx",
         "openaev-front/src/components/CheckboxField.jsx",
         "openaev-front/src/components/PaginatedListLoader.tsx",
@@ -163,7 +160,9 @@
         "openaev-front/src/components/common/SelectListPicker.tsx",
         "openaev-front/src/components/common/export/ExportOptionsDialog.tsx",
         "openaev-front/src/components/fields/CheckboxFieldController.tsx",
-        "openaev-front/src/public/components/login/Login.tsx"
+        "openaev-front/src/public/components/login/Login.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectAll.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx"
       ]
     },
     {
@@ -293,12 +292,8 @@
         "openaev-front/src/admin/components/simulations/simulation/validation/expectations/ManualExpectations.tsx",
         "openaev-front/src/admin/components/teams/players/PlayerForm.tsx",
         "openaev-front/src/admin/components/threat_arsenal/ImportUploaderThreatArsenal.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenal.tsx",
         "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalActionOverview.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalExecutionModeCardComponent.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalListRow.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalSelectionBar.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/DetectionRemediationInfo.tsx",
         "openaev-front/src/admin/components/workspaces/custom_dashboards/CustomDashboardEditHeader.tsx",
         "openaev-front/src/admin/components/workspaces/custom_dashboards/CustomDashboards.tsx",
@@ -356,7 +351,11 @@
         "openaev-front/src/admin/components/nav/NewsFeedToastManager.tsx",
         "openaev-front/src/admin/components/nav/NewsFeedToastItem.tsx",
         "openaev-front/src/admin/components/integrations/catalog_connectors/ConnectorParts.tsx",
-        "openaev-front/src/components/common/marketplace/toolbar/MarketplaceSortSelect.tsx"
+        "openaev-front/src/components/common/marketplace/toolbar/MarketplaceSortSelect.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectAll.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectionBar.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx"
       ]
     },
     {
@@ -450,9 +449,7 @@
         "openaev-front/src/admin/components/simulations/simulation/logs/LogPopover.jsx",
         "openaev-front/src/admin/components/simulations/simulation/mails/Communication.jsx",
         "openaev-front/src/admin/components/teams/organizations/OrganizationPopover.jsx",
-        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenal.tsx",
         "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalActionPopover.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalSelectionBar.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/CommandsFormTab.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/ContractOutputElementCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/PayloadArgumentsField.tsx",
@@ -478,7 +475,10 @@
         "openaev-front/src/utils/ai/ResponseDialog.tsx",
         "openaev-front/src/admin/components/nav/NewsFeedToastManager.tsx",
         "openaev-front/src/admin/components/nav/NewsFeedToastItem.tsx",
-        "openaev-front/src/components/common/marketplace/toolbar/MarketplaceSortSelect.tsx"
+        "openaev-front/src/components/common/marketplace/toolbar/MarketplaceSortSelect.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ImportUploaderThreatArsenal.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectAll.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectionBar.tsx"
       ]
     },
     {
@@ -560,7 +560,6 @@
         "openaev-front/src/admin/components/simulations/simulation/validation/expectations/ResultChip.tsx",
         "openaev-front/src/admin/components/teams/persons/PersonDetail.tsx",
         "openaev-front/src/admin/components/teams/teams/TeamDetail.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalRunTestDrawer.tsx",
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalScenarioUpdateComponent.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/DetectionRemediationInfo.tsx",
@@ -593,7 +592,9 @@
         "openaev-front/src/components/items/ItemTenants.tsx",
         "openaev-front/src/admin/components/integrations/catalog_connectors/ConnectorParts.tsx",
         "openaev-front/src/components/common/marketplace/toolbar/MarketplaceResultsCount.tsx",
-        "openaev-front/src/components/common/marketplace/results/MarketplaceSectionHeader.tsx"
+        "openaev-front/src/components/common/marketplace/results/MarketplaceSectionHeader.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx"
       ]
     },
     {
@@ -802,7 +803,6 @@
         "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalActionForm.tsx",
         "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalActionPopover.tsx",
         "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalEmptyState.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalSelectionBar.tsx",
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalScenarioUpdateComponent.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/CommandsFormTab.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/DetectionRemediationUseAriane.tsx",
@@ -854,7 +854,9 @@
         "openaev-front/src/public/components/login/Reset.jsx",
         "openaev-front/src/public/components/trialbanners/LicenseBanner.tsx",
         "openaev-front/src/public/components/trialbanners/TopBanner.tsx",
-        "openaev-front/src/utils/ai/ResponseDialog.tsx"
+        "openaev-front/src/utils/ai/ResponseDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectionBar.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx"
       ]
     },
     {

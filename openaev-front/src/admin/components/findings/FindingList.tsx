@@ -6,6 +6,7 @@ import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
 
 import CardGrid from '../../../components/common/card/CardGrid';
+import MarketplaceHero from '../../../components/common/marketplace/page/MarketplaceHero';
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -19,7 +20,6 @@ import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
-import ThreatArsenalHero from '../threat_arsenal/ThreatArsenalHero';
 import ContractOutputElementType from './ContractOutputElementType';
 import FindingCard from './FindingCard';
 import FindingSidebar from './FindingSidebar';
@@ -339,12 +339,16 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       gap: 16,
     }}
     >
-      <ThreatArsenalHero
+      <MarketplaceHero
         title={t('Findings')}
-        totalLabel={t('Findings').toLowerCase()}
-        totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
-        stats={[]}
-        rightSlot={(
+        stats={[{
+          id: 'total',
+          label: t('Findings'),
+          value: queryableHelpers.paginationHelpers.getTotalElements(),
+          icon: 'radar',
+          to: '/admin/findings',
+        }]}
+        action={(
           <ButtonGroup
             value={viewMode}
             size="md"

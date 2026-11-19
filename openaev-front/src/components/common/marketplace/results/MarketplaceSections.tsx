@@ -1,6 +1,8 @@
+import { Card, CardFooter, CardHeader, CardTitle, SkeletonGroup, Thumbnail } from '@filigran/design-system';
 import { Box } from '@mui/material';
 import { type ReactNode } from 'react';
 
+import { useFormatter } from '../../../i18n';
 import groupSections from './groupSections';
 import MarketplaceGrid from './MarketplaceGrid';
 import MarketplaceSectionHeader from './MarketplaceSectionHeader';
@@ -12,6 +14,7 @@ interface Props<T> {
   sectionIcon: (key: string | undefined) => ReactNode;
   renderItem: (item: T) => ReactNode;
   emptyState: ReactNode;
+  loading?: boolean;
 }
 
 const MarketplaceSections = <T, >({
@@ -21,7 +24,25 @@ const MarketplaceSections = <T, >({
   sectionIcon,
   renderItem,
   emptyState,
+  loading = false,
 }: Props<T>) => {
+  const { t } = useFormatter();
+  if (loading) {
+    return (
+      <SkeletonGroup loading label={t('Loading')}>
+        <MarketplaceGrid>
+          {Array.from({ length: 12 }).map((_, idx) => (
+            <Card key={idx} loading>
+              <CardHeader icon={<Thumbnail>{null}</Thumbnail>}>
+                <CardTitle>{t('Loading')}</CardTitle>
+              </CardHeader>
+              <CardFooter />
+            </Card>
+          ))}
+        </MarketplaceGrid>
+      </SkeletonGroup>
+    );
+  }
   if (items.length === 0) {
     return <>{emptyState}</>;
   }

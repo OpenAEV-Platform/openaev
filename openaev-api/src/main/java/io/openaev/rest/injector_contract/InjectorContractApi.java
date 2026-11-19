@@ -109,7 +109,8 @@ public class InjectorContractApi extends RestBehavior {
                     ? InjectorContractService.OutputMode.FULL
                     : InjectorContractService.OutputMode.BASE,
                 input.getInjectorContractIdsToIgnore(),
-                input.getInjectorContractIdsToProcess()),
+                input.getInjectorContractIdsToProcess(),
+                input.isGroupByPrimaryDomain()),
         providing.searchInput(),
         InjectorContract.class);
   }
