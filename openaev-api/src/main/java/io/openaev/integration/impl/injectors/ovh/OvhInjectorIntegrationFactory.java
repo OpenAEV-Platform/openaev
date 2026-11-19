@@ -112,7 +112,7 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance)
+  public Integration spawn(ConnectorInstance instance, String tenantId)
       throws JsonProcessingException,
           InvocationTargetException,
           NoSuchMethodException,
@@ -122,6 +122,7 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
         componentRequestEngine,
         instance,
         connectorInstanceService,
+        tenantId,
         ovhSmsContract,
         injectorContext,
         injectorService,

@@ -116,7 +116,7 @@ public class OpenCTIInjectorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance)
+  public Integration spawn(ConnectorInstance instance, String tenantId)
       throws JsonProcessingException,
           InvocationTargetException,
           NoSuchMethodException,
@@ -126,6 +126,7 @@ public class OpenCTIInjectorIntegrationFactory extends IntegrationFactory {
         componentRequestEngine,
         instance,
         connectorInstanceService,
+        tenantId,
         injectorService,
         openCTIContract,
         injectorContext,

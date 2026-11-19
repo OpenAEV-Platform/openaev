@@ -133,10 +133,11 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance) {
+  public Integration spawn(ConnectorInstance instance, String tenantId) {
     return new TaniumExecutorIntegration(
         instance,
         connectorInstanceService,
+        tenantId,
         endpointService,
         agentService,
         assetGroupService,

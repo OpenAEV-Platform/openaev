@@ -83,7 +83,7 @@ public class ChannelInjectorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance)
+  public Integration spawn(ConnectorInstance instance, String tenantId)
       throws JsonProcessingException,
           InvocationTargetException,
           NoSuchMethodException,
@@ -93,6 +93,7 @@ public class ChannelInjectorIntegrationFactory extends BuiltinIntegrationFactory
         componentRequestEngine,
         instance,
         connectorInstanceService,
+        tenantId,
         channelContract,
         injectorContext,
         emailService,

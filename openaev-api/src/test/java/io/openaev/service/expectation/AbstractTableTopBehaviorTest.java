@@ -11,13 +11,13 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
-import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob;
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
+import io.openaev.integration.impl.collectors.expiration_manager.ExpirationManagerIntegrationFactory;
 import io.openaev.rest.exercise.form.InjectExpectationUpdateFromUIInput;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.InjectUtils;
@@ -50,7 +50,7 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
   @Autowired private InjectUtils injectUtils;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private ExpectationsExpirationManagerService expectationsExpirationManagerService;
-  @Autowired private ExpectationsExpirationManagerJob expectationsExpirationManagerJob;
+  @Autowired private ExpirationManagerIntegrationFactory expirationManagerIntegrationFactory;
   @Autowired private ExpectationsExpirationManagerConfig expectationsExpirationManagerConfig;
 
   @Autowired private ArticleComposer articleComposer;
@@ -1459,7 +1459,7 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
       String tenantId = inject.getTenant().getId();
-      expectationsExpirationManagerJob.registerForTenant(tenantId);
+      expirationManagerIntegrationFactory.registerForTenant(tenantId);
 
       // Act
       expectationsExpirationManagerService.computeExpectations(tenantId);
@@ -1761,7 +1761,7 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
 
     private void expireExpectations(Inject inject) throws Exception {
       String tenantId = inject.getTenant().getId();
-      expectationsExpirationManagerJob.registerForTenant(tenantId);
+      expirationManagerIntegrationFactory.registerForTenant(tenantId);
       expectationsExpirationManagerService.computeExpectations(tenantId);
       entityManager.flush();
       entityManager.clear();

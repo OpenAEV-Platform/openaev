@@ -28,11 +28,12 @@ public class ManualInjectorIntegration extends IntegrationInMemory {
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
+      String tenantId,
       ManualContract manualContract,
       InjectorContext injectorContext,
       InjectorService injectorService,
       InjectExpectationService injectExpectationService) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
     this.manualContract = manualContract;
     this.injectorContext = injectorContext;
     this.injectorService = injectorService;

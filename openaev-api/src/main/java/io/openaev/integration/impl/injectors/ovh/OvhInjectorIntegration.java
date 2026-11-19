@@ -40,12 +40,13 @@ public class OvhInjectorIntegration extends Integration {
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
+      String tenantId,
       OvhSmsContract ovhSmsContract,
       InjectorContext injectorContext,
       InjectorService injectorService,
       InjectExpectationService injectExpectationService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
     this.ovhSmsContract = ovhSmsContract;
     this.injectorContext = injectorContext;
     this.connectorInstanceService = connectorInstanceService;

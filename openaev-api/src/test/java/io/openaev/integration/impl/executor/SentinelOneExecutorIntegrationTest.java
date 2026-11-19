@@ -146,7 +146,8 @@ public class SentinelOneExecutorIntegrationTest {
     // so the sync exercises the stopped path instead of attempting a real start.
     instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstanceService.save(instances.getFirst());
-    List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
+    List<Integration> syncedIntegrations =
+        integrationFactory.sync(new ArrayList<>(instances), Tenant.DEFAULT_TENANT_UUID);
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(SentinelOneExecutorIntegration.class);
@@ -173,7 +174,8 @@ public class SentinelOneExecutorIntegrationTest {
     // so the sync exercises the stopped path instead of attempting a real start.
     instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstanceService.save(instances.getFirst());
-    List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
+    List<Integration> syncedIntegrations =
+        integrationFactory.sync(new ArrayList<>(instances), Tenant.DEFAULT_TENANT_UUID);
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(SentinelOneExecutorIntegration.class);
@@ -233,7 +235,7 @@ public class SentinelOneExecutorIntegrationTest {
                 c.getKey().equals("EXECUTOR_SENTINELONE_API_REGISTER_INTERVAL")
                     || c.getKey().equals("EXECUTOR_SENTINELONE_CLEAN_IMPLANT_CRON"));
 
-    Integration integration = integrationFactory.spawn(instance);
+    Integration integration = integrationFactory.spawn(instance, Tenant.DEFAULT_TENANT_UUID);
 
     SentinelOneExecutorConfig config =
         (SentinelOneExecutorConfig) FieldUtils.computeAllFieldValues(integration).get("config");
@@ -251,7 +253,8 @@ public class SentinelOneExecutorIntegrationTest {
 
     integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
-    Integration integration = integrationFactory.spawn(new ConnectorInstanceInMemory());
+    Integration integration =
+        integrationFactory.spawn(new ConnectorInstanceInMemory(), Tenant.DEFAULT_TENANT_UUID);
     AssertionsForClassTypes.assertThat(
             FieldUtils.computeAllFieldValues(integration).get("encryptionService"))
         .isNull();
@@ -275,6 +278,7 @@ public class SentinelOneExecutorIntegrationTest {
                 new SentinelOneExecutorIntegration(
                     instance,
                     connectorInstanceService,
+                    Tenant.DEFAULT_TENANT_UUID,
                     endpointService,
                     agentService,
                     assetGroupService,
@@ -307,7 +311,7 @@ public class SentinelOneExecutorIntegrationTest {
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
     connectorInstanceService.save(instance);
 
-    Integration integration = integrationFactory.spawn(instance);
+    Integration integration = integrationFactory.spawn(instance, Tenant.DEFAULT_TENANT_UUID);
     assertThat(integration.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
 
@@ -334,7 +338,7 @@ public class SentinelOneExecutorIntegrationTest {
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
     connectorInstanceService.save(instance);
 
-    Integration integration = integrationFactory.spawn(instance);
+    Integration integration = integrationFactory.spawn(instance, Tenant.DEFAULT_TENANT_UUID);
     integration.initialise();
     assertThat(integration.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);

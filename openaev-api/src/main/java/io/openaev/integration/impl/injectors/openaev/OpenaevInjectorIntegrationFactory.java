@@ -83,7 +83,7 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance)
+  public Integration spawn(ConnectorInstance instance, String tenantId)
       throws JsonProcessingException,
           InvocationTargetException,
           NoSuchMethodException,
@@ -93,6 +93,7 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
         componentRequestEngine,
         instance,
         connectorInstanceService,
+        tenantId,
         injectorContext,
         injectExpectationService,
         injectService);

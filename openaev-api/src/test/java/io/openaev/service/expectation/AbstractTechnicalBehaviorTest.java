@@ -12,10 +12,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import io.openaev.IntegrationTest;
-import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.integration.impl.collectors.expiration_manager.ExpirationManagerIntegrationFactory;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.service.InjectExpectationService;
@@ -53,7 +53,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private CollectorService collectorService;
-  @Autowired private ExpectationsExpirationManagerJob expectationsExpirationManagerJob;
+  @Autowired private ExpirationManagerIntegrationFactory expirationManagerIntegrationFactory;
 
   @BeforeEach
   void setUp() {
@@ -1882,7 +1882,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
       /** Expires the agents with the expiration collector: silence means "Not vulnerable" */
       private void expireAgents(AssetWithAgents target) throws Exception {
         String tenantId = target.inject().getTenant().getId();
-        expectationsExpirationManagerJob.registerForTenant(tenantId);
+        expirationManagerIntegrationFactory.registerForTenant(tenantId);
         Collector expirationCollector = collectorService.collector(COLLECTOR_ID, tenantId);
         injectExpectationService.expireExpectations(
             List.of(target.agentOne(), target.agentTwo(), target.asset()), expirationCollector);

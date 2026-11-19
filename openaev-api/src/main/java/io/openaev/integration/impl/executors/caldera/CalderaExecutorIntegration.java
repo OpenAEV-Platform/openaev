@@ -67,6 +67,7 @@ public class CalderaExecutorIntegration extends Integration {
   public CalderaExecutorIntegration(
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
+      String tenantId,
       EndpointService endpointService,
       AgentService agentService,
       ExecutorService executorService,
@@ -77,7 +78,7 @@ public class CalderaExecutorIntegration extends Integration {
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory,
       TenantScopedTransaction tenantTx) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.platformSettingsService = platformSettingsService;

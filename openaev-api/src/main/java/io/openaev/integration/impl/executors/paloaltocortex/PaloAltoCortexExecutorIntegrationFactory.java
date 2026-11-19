@@ -139,10 +139,11 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance) {
+  public Integration spawn(ConnectorInstance instance, String tenantId) {
     return new PaloAltoCortexExecutorIntegration(
         instance,
         connectorInstanceService,
+        tenantId,
         endpointService,
         agentService,
         assetGroupService,
