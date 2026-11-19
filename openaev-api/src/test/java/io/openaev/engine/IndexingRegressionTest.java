@@ -1135,12 +1135,21 @@ class IndexingRegressionTest extends IntegrationTest {
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
       EndpointComposer.Composer endpointTwo =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      // Both assets in the shared group, one asset in each of the others: the groups of the
+      // finding are those of its assets, each listed once however many assets it holds
       AssetGroupComposer.Composer groupOwnOnly =
-          assetGroupComposer.forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("own only"));
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("own only"))
+              .withAsset(endpointOne);
       AssetGroupComposer.Composer groupShared =
-          assetGroupComposer.forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("shared"));
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("shared"))
+              .withAsset(endpointOne)
+              .withAsset(endpointTwo);
       AssetGroupComposer.Composer groupOtherOnly =
-          assetGroupComposer.forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("other only"));
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("other only"))
+              .withAsset(endpointTwo);
       FindingComposer.Composer findingWrapper =
           findingComposer
               .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
@@ -1187,8 +1196,10 @@ class IndexingRegressionTest extends IntegrationTest {
       EsFinding indexed = fetchIndexedFinding(findingWrapper.get().getId());
 
       // Assert
+      // contains, not containsExactly: a dynamic group seeded in the shared test database may also
+      // match these endpoints; the side is a set, so each group is listed once
       assertThat(indexed.getBase_asset_groups_side())
-          .containsExactlyInAnyOrder(
+          .contains(
               groupOwnOnly.get().getId(), groupShared.get().getId(), groupOtherOnly.get().getId());
       assertThat(indexed.getBase_endpoint_side())
           .containsExactlyInAnyOrder(endpointOne.get().getId(), endpointTwo.get().getId());
@@ -1208,6 +1219,66 @@ class IndexingRegressionTest extends IntegrationTest {
               scenario.getId(),
               endpointOne.get().getId(),
               endpointTwo.get().getId());
+    }
+
+    @Test
+    @DisplayName(
+        "The asset groups of a finding are those of its assets, static and dynamic, never the"
+            + " groups its inject targeted")
+    void given_injectTargetingOtherGroups_should_indexOnlyTheGroupsOfTheFindingAssets() {
+      // Arrange: the finding hits asset A. A is listed in G1 and matched by the dynamic filter of
+      // G3. The inject targets G1 and G2; G2 holds another asset only.
+      // A is the only Linux asset of the test; B is a Windows asset
+      EndpointComposer.Composer assetA =
+          endpointComposer.forEndpoint(
+              EndpointFixture.createDefaultLinuxEndpointWithArch(Endpoint.PLATFORM_ARCH.x86_64));
+      EndpointComposer.Composer assetB =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint("asset B"));
+      AssetGroupComposer.Composer g1 =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("G1 static"))
+              .withAsset(assetA);
+      AssetGroupComposer.Composer g2 =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("G2 targeted only"))
+              .withAsset(assetB);
+      Filters.Filter linux = new Filters.Filter();
+      linux.setKey("endpoint_platform");
+      linux.setMode(Filters.FilterMode.or);
+      linux.setOperator(Filters.FilterOperator.eq);
+      linux.setValues(List.of(Endpoint.PLATFORM_TYPE.Linux.name()));
+      Filters.FilterGroup dynamicFilter = new Filters.FilterGroup();
+      dynamicFilter.setMode(Filters.FilterMode.and);
+      dynamicFilter.setFilters(List.of(linux));
+      AssetGroupComposer.Composer g3 =
+          assetGroupComposer.forAssetGroup(
+              AssetGroupFixture.createAssetGroupWithDynamicFilter("G3 dynamic", dynamicFilter));
+      FindingComposer.Composer findingWrapper =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
+              .withEndpoint(assetA);
+      exerciseComposer
+          .forExercise(ExerciseFixture.createDefaultExercise())
+          .withInject(
+              injectComposer
+                  .forInject(InjectFixture.getDefaultInject())
+                  .withFinding(findingWrapper)
+                  .withAssetGroup(g1)
+                  .withAssetGroup(g2))
+          .persist();
+      g3.persist();
+      entityManager.flush();
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingWrapper.get().getId());
+
+      // Assert
+      // Other dynamic groups of the shared test database may match the Linux asset too: the
+      // assertion is on the three groups this test owns
+      assertThat(indexed.getBase_asset_groups_side())
+          .as("G1 holds the asset, G3 matches it; G2 is only targeted by the inject")
+          .contains(g1.get().getId(), g3.get().getId())
+          .doesNotContain(g2.get().getId());
     }
 
     private String persistFindingInSimulation(Finding finding) {
