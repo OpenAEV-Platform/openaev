@@ -11,6 +11,7 @@ import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.fixtures.NewsFeedItemFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -310,6 +311,131 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
       // Assert
       assertThat(count).isEqualTo(1);
       assertThat(items).extracting(NewsFeedItem::getId).containsExactly(unread.getId());
+    }
+  }
+
+  @Nested
+  @DisplayName("Unread items by type")
+  class UnreadItemsByType {
+
+    @Test
+    @DisplayName("Given blogposts and resources, should count and find each kind on its own")
+    void given_blogPostsAndResources_should_countAndFindEachKind() {
+      // Arrange
+      User user = createUser();
+      NewsFeedItem blogPost =
+          newsFeedItemRepository.save(NewsFeedItemFixture.createBlogPost(user, "hub-blog"));
+      NewsFeedItem scenario =
+          newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(user, "hub-1"));
+      NewsFeedItem readBlogPost = NewsFeedItemFixture.createBlogPost(user, "hub-read");
+      readBlogPost.setRead(true);
+      newsFeedItemRepository.save(readBlogPost);
+      entityManager.flush();
+      entityManager.clear();
+      String blogPostType = NewsFeedType.BLOG_POST.name();
+
+      // Act & Assert
+      assertThat(
+              newsFeedItemRepository.countByUserIdAndReadFalseAndType(user.getId(), blogPostType))
+          .isEqualTo(1);
+      assertThat(
+              newsFeedItemRepository.countByUserIdAndReadFalseAndTypeNot(
+                  user.getId(), blogPostType))
+          .isEqualTo(1);
+      assertThat(
+              newsFeedItemRepository.findAllByUserIdAndReadFalseAndType(user.getId(), blogPostType))
+          .extracting(NewsFeedItem::getId)
+          .containsExactly(blogPost.getId());
+      assertThat(
+              newsFeedItemRepository.findAllByUserIdAndReadFalseAndTypeNot(
+                  user.getId(), blogPostType))
+          .extracting(NewsFeedItem::getId)
+          .containsExactly(scenario.getId());
+    }
+  }
+
+  @Nested
+  @DisplayName("Metadata")
+  class Metadata {
+
+    @Test
+    @DisplayName("Given metadata, should persist them and replace them in full")
+    void given_metadata_should_persistAndReplaceThemInFull() {
+      // Arrange
+      NewsFeedItem item =
+          newsFeedItemRepository.save(NewsFeedItemFixture.createBlogPost(createUser(), "hub-1"));
+      NewsFeedItem reloaded = reload(item);
+      assertThat(reloaded.getMetadata())
+          .containsOnly(
+              Map.entry("description", "About hub-1"),
+              Map.entry("read_minutes", "7"));
+
+      // Act
+      reloaded.getMetadata().clear();
+      reloaded.getMetadata().put("image_url", "https://img.test/1.png");
+
+      // Assert
+      assertThat(reload(reloaded).getMetadata())
+          .containsOnly(Map.entry("image_url", "https://img.test/1.png"));
+    }
+
+    @Test
+    @DisplayName("Given rows with metadata, should load the metadata of all of them at once")
+    void given_rowsWithMetadata_should_loadTheirMetadataAtOnce() {
+      // Arrange
+      User user = createUser();
+      List<String> ids =
+          IntStream.range(0, 3)
+              .mapToObj(
+                  i ->
+                      newsFeedItemRepository
+                          .save(NewsFeedItemFixture.createBlogPost(user, "hub-" + i))
+                          .getId())
+              .toList();
+      entityManager.flush();
+      entityManager.clear();
+      List<NewsFeedItem> items = newsFeedItemRepository.findAllWithUserByIdIn(ids);
+      Statistics stats =
+          entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
+      // The statistics belong to the session factory shared by every test: put them back as found
+      boolean statisticsWereEnabled = stats.isStatisticsEnabled();
+      stats.setStatisticsEnabled(true);
+      long statements;
+      try {
+        stats.clear();
+
+        // Act
+        items.forEach(item -> assertThat(item.getMetadata()).hasSize(2));
+        statements = stats.getPrepareStatementCount();
+      } finally {
+        stats.setStatisticsEnabled(statisticsWereEnabled);
+      }
+
+      // Assert
+      assertThat(statements).as("one statement for the metadata of every row").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Given an item with metadata, should delete its metadata with it")
+    void given_itemWithMetadata_should_deleteItsMetadataWithIt() {
+      // Arrange
+      NewsFeedItem item =
+          newsFeedItemRepository.saveAndFlush(
+              NewsFeedItemFixture.createBlogPost(createUser(), "hub-1"));
+
+      // Act
+      newsFeedItemRepository.delete(item);
+      entityManager.flush();
+
+      // Assert
+      Number left =
+          (Number)
+              entityManager
+                  .createNativeQuery(
+                      "SELECT count(*) FROM news_feed_items_metadata WHERE news_feed_item_id = ?1")
+                  .setParameter(1, item.getId())
+                  .getSingleResult();
+      assertThat(left.longValue()).isZero();
     }
   }
 
