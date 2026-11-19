@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { type SortHelpers } from '../../../../components/common/queryable/sort/SortHelpers';
 import {
   type CatalogFacetFilters,
   type CatalogSort,
@@ -12,7 +13,7 @@ import {
   STATUS_FILIGRAN,
 } from './catalog-facets';
 
-const SORT_VALUES: CatalogSort[] = ['name_asc', 'name_desc', 'deployed_desc'];
+const SORT_VALUES: CatalogSort[] = ['name_asc', 'name_desc', 'deployed_asc', 'deployed_desc'];
 const DEFAULT_SORT: CatalogSort = 'name_asc';
 const STATUS_VALUES: string[] = [STATUS_FILIGRAN, STATUS_COMMUNITY];
 const DEPLOYMENT_VALUES: string[] = [DEPLOYMENT_EXTERNAL, DEPLOYMENT_BUILT_IN];
@@ -79,12 +80,22 @@ const useCatalogFilters = () => {
 
   const onClearFacets = () => setFilters(EMPTY_FACET_FILTERS);
 
+  // The platform sort control over the local sort values: the toolbar select and the list headers.
+  const sortBy = sort.startsWith('deployed') ? 'deployed' : 'name';
+  const sortAsc = sort.endsWith('_asc');
+  const sortHelpers: SortHelpers = {
+    getSortBy: () => sortBy,
+    getSortAsc: () => sortAsc,
+    handleDirectedSort: (field, asc) => setSort(`${field}_${asc ? 'asc' : 'desc'}` as CatalogSort),
+    handleSort: field => setSort(`${field}_${field === sortBy && sortAsc ? 'desc' : 'asc'}` as CatalogSort),
+  };
+
   return {
     filters,
     keyword,
     setKeyword,
     sort,
-    setSort,
+    sortHelpers,
     onToggleFacet,
     onClearFacets,
   };
