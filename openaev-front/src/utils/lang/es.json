@@ -631,6 +631,7 @@
   "Bulk select lets you add multiple actions, which you will need to configure after adding them": "La selección masiva le permite añadir múltiples acciones, que tendrá que configurar después de añadirlas",
   "Bulk select lets you add multiple injects. They'll show as \"missing content\" until configured": "La selección masiva le permite añadir múltiples inyecciones. Se mostrarán como \"contenido faltante\" hasta que se configure",
   "By": "Por",
+  "by": "por",
   "By default we accept iso date (YYYY-MM-DD hh:mm:ss[.mmm]TZD), but you can specify your own date format in ISO notation (for instance DD.MM.YYYY hh'h'mm)": "Por defecto aceptamos la fecha ISO (YYYY-MM-DDThh:mm:ss[.mmm]TZD), pero puede especificar su propio formato de fecha en notación ISO (por ejemplo, DD.MM.YYYY hh'h'mm)",
   "By default, only assets compliant with the injector are displayed": "Por defecto, solo se muestran los activos compatibles con el inyector",
   "By enabling the OpenAEV Enterprise Edition, you (and your organization) agrees": "Al activar OpenAEV Enterprise Edition, usted (y su organización) acepta",
@@ -2936,6 +2937,7 @@
   "Not Prevented": "No prevenido",
   "not provisioned by any action.": "no proporcionada por ninguna acción.",
   "Not rendered yet": "Aún sin renderizar",
+  "Not responding": "No responde",
   "Not scheduled": "No programado",
   "Not scoped yet": "Aún sin definir",
   "not starts with": "no comienza con",
@@ -3499,6 +3501,7 @@
   "Run this plan for real?": "¿Desea ejecutar este plan de verdad?",
   "Running": "En curso",
   "RUNNING": "RUNNING",
+  "Running (connector)": "En ejecución",
   "Running the next action": "Ejecutando la siguiente acción",
   "Runs inside the platform": "Se ejecuta dentro de la plataforma",
   "Runs once on {date} at {time}": "Se ejecuta una vez el {date} a las {time}",
@@ -4689,5 +4692,6 @@
   "YYYY": "YYYY",
   "ZIP must contain a json file": "El archivo ZIP debe contener un archivo JSON",
   "Zoom in": "Acercar",
-  "Zoom out": "Alejar"
+  "Zoom out": "Alejar",
+  "Always on": "Siempre activo"
 }
