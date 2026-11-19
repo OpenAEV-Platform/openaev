@@ -2,15 +2,28 @@ import '@testing-library/jest-dom/vitest';
 
 import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { DATA_DELETE_SUCCESS, DATA_FETCH_SUCCESS, DATA_UPDATE_SUCCESS } from '../../../../constants/ActionTypes';
 import { type NewsFeedItemOutput, type PlatformSettings, type SearchPaginationInput, type User } from '../../../../utils/api-types';
 import { UserContext } from '../../../../utils/hooks/useAuth';
 
-const { mockSearchMyNewsFeedItems } = vi.hoisted(() => ({ mockSearchMyNewsFeedItems: vi.fn() }));
+const { mockSearchMyNewsFeedItems, streamHandlers } = vi.hoisted(() => ({
+  mockSearchMyNewsFeedItems: vi.fn(),
+  streamHandlers: new Map<string, (event: MessageEvent) => void>(),
+}));
+
+// The stream is the only part of the data loader the list uses: a stand-in lets the tests push events.
+vi.mock('../../../../utils/hooks/useDataLoader', async importOriginal => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  subscribeStreamEvent: (type: string, handler: (event: MessageEvent) => void) => {
+    streamHandlers.set(type, handler);
+    return () => streamHandlers.delete(type);
+  },
+}));
 
 // Only the network is replaced: the pagination, search, sort and local storage stack is the real one.
 vi.mock('../../../../actions/news_feed/news-feed-actions', () => ({ searchMyNewsFeedItems: mockSearchMyNewsFeedItems }));
@@ -33,6 +46,7 @@ vi.mock('../../../../admin/components/common/filters/useKillChains', () => ({
 }));
 
 const { default: NewsFeedList } = await import('../../../../admin/components/profile/news_feed/NewsFeedList');
+const { NEWS_FEED_ITEM_SCHEMA, NEWS_FEED_STREAM_BATCH_MS } = await import('../../../../admin/components/nav/newsFeedStream');
 
 // -- FIXTURES --
 
@@ -524,6 +538,364 @@ describe('NewsFeedList', () => {
 
       // Assert
       await waitFor(() => expect(lastSearch().page).toBe(1));
+    });
+  });
+  describe('Live refresh', () => {
+    const streamEvent = (eventType: string, schema = NEWS_FEED_ITEM_SCHEMA) => ({
+      data: JSON.stringify({
+        event_type: eventType,
+        attribute_schema: schema,
+        attribute_id: 'news_feed_item_id',
+        instance: { news_feed_item_id: 'item-1' },
+        listened: true,
+      }),
+    } as MessageEvent);
+
+    const pushEvents = async (...events: MessageEvent[]) => {
+      await act(async () => {
+        events.forEach(event => streamHandlers.get('message')?.(event));
+        await vi.advanceTimersByTimeAsync(NEWS_FEED_STREAM_BATCH_MS);
+      });
+    };
+
+    const renderLoadedList = async (...pages: ReturnType<typeof buildPage>[]) => {
+      mockSearchMyNewsFeedItems.mockResolvedValueOnce(pages[0]);
+      renderList();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+    };
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      streamHandlers.clear();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      streamHandlers.clear();
+    });
+
+    it('shows the new title of an updated item without a reload', async () => {
+      // Arrange
+      await renderLoadedList(buildPage([buildItem()]));
+      expect(screen.getByText('Ransomware double extortion')).toBeInTheDocument();
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem({ news_feed_item_title: 'Renamed scenario' })]));
+
+      // Act
+      await pushEvents(streamEvent(DATA_UPDATE_SUCCESS));
+
+      // Assert
+      expect(screen.getByText('Renamed scenario')).toBeInTheDocument();
+      expect(screen.queryByText('Ransomware double extortion')).not.toBeInTheDocument();
+    });
+
+    it('removes a deleted item without a reload', async () => {
+      // Arrange
+      await renderLoadedList(buildPage([
+        buildItem({
+          news_feed_item_id: 'a',
+          news_feed_item_title: 'Kept scenario',
+        }),
+        buildItem({
+          news_feed_item_id: 'b',
+          news_feed_item_title: 'Deleted scenario',
+        }),
+      ]));
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem({
+        news_feed_item_id: 'a',
+        news_feed_item_title: 'Kept scenario',
+      })]));
+
+      // Act
+      await pushEvents(streamEvent(DATA_DELETE_SUCCESS));
+
+      // Assert
+      expect(screen.getByText('Kept scenario')).toBeInTheDocument();
+      expect(screen.queryByText('Deleted scenario')).not.toBeInTheDocument();
+    });
+
+    it('shows the empty message when the last item is deleted', async () => {
+      // Arrange
+      await renderLoadedList(buildPage([buildItem()]));
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([]));
+
+      // Act
+      await pushEvents(streamEvent(DATA_DELETE_SUCCESS));
+
+      // Assert
+      expect(screen.getByText(NO_ITEMS)).toBeInTheDocument();
+    });
+
+    it('shows a created item without a reload', async () => {
+      // Arrange
+      await renderLoadedList(buildPage([]));
+      expect(screen.getByText(NO_ITEMS)).toBeInTheDocument();
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem()]));
+
+      // Act
+      await pushEvents(streamEvent(DATA_FETCH_SUCCESS));
+
+      // Assert
+      expect(screen.getByText('Ransomware double extortion')).toBeInTheDocument();
+      expect(screen.queryByText(NO_ITEMS)).not.toBeInTheDocument();
+    });
+
+    it('keeps the rows on screen while it refetches, with the search of the user and no error notification', async () => {
+      // Arrange
+      await renderLoadedList(buildPage([buildItem()]));
+      const refetch = deferred();
+      mockSearchMyNewsFeedItems.mockReturnValue(refetch.promise);
+
+      // Act
+      await pushEvents(streamEvent(DATA_UPDATE_SUCCESS));
+
+      // Assert: no loading placeholders replace the rows
+      expect(screen.getByText('Ransomware double extortion')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'More actions' })).not.toBeInTheDocument();
+      expect(lastSearch().sorts).toEqual([{
+        property: 'news_feed_item_creation_date',
+        direction: 'DESC',
+      }]);
+      expect(mockSearchMyNewsFeedItems.mock.calls.at(-1)![1]).toBe(false);
+
+      // Cleanup: let the request settle
+      await act(async () => {
+        refetch.resolve(buildPage([buildItem()]));
+      });
+    });
+
+    it('refetches once for a burst of events', async () => {
+      // Arrange
+      await renderLoadedList(buildPage([buildItem()]));
+      mockSearchMyNewsFeedItems.mockClear();
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem()]));
+
+      // Act
+      await pushEvents(streamEvent(DATA_UPDATE_SUCCESS), streamEvent(DATA_UPDATE_SUCCESS), streamEvent(DATA_DELETE_SUCCESS));
+
+      // Assert
+      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the rows when the refetch fails', async () => {
+      // Arrange
+      await renderLoadedList(buildPage([buildItem()]));
+      mockSearchMyNewsFeedItems.mockRejectedValue(new Error('boom'));
+
+      // Act
+      await pushEvents(streamEvent(DATA_UPDATE_SUCCESS));
+
+      // Assert
+      expect(screen.getByText('Ransomware double extortion')).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('ignores the events of other entities', async () => {
+      // Arrange
+      await renderLoadedList(buildPage([buildItem()]));
+      mockSearchMyNewsFeedItems.mockClear();
+
+      // Act
+      await pushEvents(streamEvent(DATA_UPDATE_SUCCESS, 'injects'));
+
+      // Assert
+      expect(mockSearchMyNewsFeedItems).not.toHaveBeenCalled();
+    });
+
+    it('refetches when the stream reconnects after a while', async () => {
+      // Arrange
+      await renderLoadedList(buildPage([buildItem()]));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(NEWS_FEED_STREAM_BATCH_MS);
+      });
+      mockSearchMyNewsFeedItems.mockClear();
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem({ news_feed_item_title: 'Renamed while offline' })]));
+
+      // Act
+      await act(async () => {
+        streamHandlers.get('open')?.(new Event('open') as MessageEvent);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      // Assert
+      expect(screen.getByText('Renamed while offline')).toBeInTheDocument();
+    });
+
+    it('goes back to the first page when deletions leave the current page past the end', async () => {
+      // Arrange
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem()], 120));
+      renderList();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /next page/i }));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(lastSearch().page).toBe(1);
+      // Everything left fits on one page: the page the user is on no longer exists
+      mockSearchMyNewsFeedItems.mockResolvedValue({
+        data: {
+          content: [],
+          totalElements: 0,
+          totalPages: 1,
+          pageable: { pageNumber: 1 },
+        },
+      });
+
+      // Act
+      await pushEvents(streamEvent(DATA_DELETE_SUCCESS));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      // Assert
+      expect(lastSearch().page).toBe(0);
+    });
+
+    it('stays on the current page when it still exists after a change', async () => {
+      // Arrange
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem()], 120));
+      renderList();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /next page/i }));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      mockSearchMyNewsFeedItems.mockResolvedValue({
+        data: {
+          content: [buildItem()],
+          totalElements: 120,
+          totalPages: 6,
+          pageable: { pageNumber: 1 },
+        },
+      });
+
+      // Act
+      await pushEvents(streamEvent(DATA_UPDATE_SUCCESS));
+
+      // Assert
+      expect(lastSearch().page).toBe(1);
+    });
+
+    it('refetches once the load in flight ends, so that a slower load cannot put back removed rows', async () => {
+      // Arrange
+      const slowLoad = deferred();
+      mockSearchMyNewsFeedItems.mockReturnValueOnce(slowLoad.promise);
+      renderList();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem({ news_feed_item_title: 'After the deletion' })]));
+
+      // Act: a change streams while the load is in flight, which then ends with the older rows
+      await pushEvents(streamEvent(DATA_DELETE_SUCCESS));
+      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        slowLoad.resolve(buildPage([buildItem({ news_feed_item_title: 'Before the deletion' })]));
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      // Assert
+      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(2);
+      expect(screen.getByText('After the deletion')).toBeInTheDocument();
+      expect(screen.queryByText('Before the deletion')).not.toBeInTheDocument();
+    });
+
+    it('does not refetch while a newer load is in flight, so that its older rows cannot overwrite the refreshed ones', async () => {
+      // Arrange: a change streams during the first load, whose end schedules the refetch
+      const firstLoad = deferred();
+      const secondLoad = deferred();
+      mockSearchMyNewsFeedItems.mockReturnValueOnce(firstLoad.promise);
+      renderList();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      await pushEvents(streamEvent(DATA_DELETE_SUCCESS));
+      await act(async () => {
+        firstLoad.resolve(buildPage([buildItem({ news_feed_item_title: 'First load' })], 120));
+        // Microtasks only: the refetch timer must not fire yet
+        await Promise.resolve().then().then().then().then().then().then();
+      });
+      // The user goes to the next page before the refetch timer fires
+      mockSearchMyNewsFeedItems.mockReturnValueOnce(secondLoad.promise);
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem({ news_feed_item_title: 'Refreshed rows' })], 120));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /next page/i }));
+      });
+      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(2);
+
+      // Act: the timer fires while the second load is in flight, then the second load ends last
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        secondLoad.resolve(buildPage([buildItem({ news_feed_item_title: 'Older rows' })], 120));
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      // Assert: the refetch ran once that load ended and has the last word
+      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(3);
+      expect(screen.getByText('Refreshed rows')).toBeInTheDocument();
+      expect(screen.queryByText('Older rows')).not.toBeInTheDocument();
+    });
+
+    it('does not reset the page, nor store it, for a refetch that ends after the list is gone', async () => {
+      // Arrange: the user is on page 1 and a change is being refetched
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem()], 120));
+      renderList();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /next page/i }));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(lastSearch().page).toBe(1);
+      const refetch = deferred();
+      mockSearchMyNewsFeedItems.mockReturnValue(refetch.promise);
+      await pushEvents(streamEvent(DATA_DELETE_SUCCESS));
+      cleanup();
+      mockSearchMyNewsFeedItems.mockClear();
+      const store = vi.spyOn(window.localStorage, 'setItem');
+
+      // Act: the page is left, then the refetch ends with the page past the end of the data
+      await act(async () => {
+        refetch.resolve({
+          data: {
+            content: [],
+            totalElements: 0,
+            totalPages: 1,
+            pageable: { pageNumber: 1 },
+          },
+        } as ReturnType<typeof buildPage>);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      // Assert: the reset to the first page, which would be stored, is not made
+      expect(store).not.toHaveBeenCalled();
+      expect(mockSearchMyNewsFeedItems).not.toHaveBeenCalled();
+
+      // Cleanup
+      store.mockRestore();
+    });
+
+    it('stops listening to the stream once the list is gone', async () => {
+      // Arrange
+      await renderLoadedList(buildPage([buildItem()]));
+      expect(streamHandlers.has('message')).toBe(true);
+
+      // Act
+      cleanup();
+
+      // Assert
+      expect(streamHandlers.size).toBe(0);
     });
   });
 });

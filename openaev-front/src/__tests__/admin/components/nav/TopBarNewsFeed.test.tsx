@@ -6,7 +6,7 @@ import { IntlProvider } from 'react-intl';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DATA_FETCH_SUCCESS } from '../../../../constants/ActionTypes';
+import { DATA_DELETE_SUCCESS, DATA_FETCH_SUCCESS, DATA_UPDATE_SUCCESS } from '../../../../constants/ActionTypes';
 import { expectNoMuiControls } from '../../../utils/designSystemAssertions';
 
 const mocks = vi.hoisted(() => ({
@@ -43,9 +43,9 @@ const renderMegaphone = (path = '/admin') => render(
 
 const megaphone = () => screen.getByRole('link', { name: 'News feed' });
 
-const streamEvent = (schema: string) => ({
+const streamEvent = (schema: string, eventType = DATA_FETCH_SUCCESS) => ({
   data: JSON.stringify({
-    event_type: DATA_FETCH_SUCCESS,
+    event_type: eventType,
     attribute_schema: schema,
     instance: { news_feed_item_id: 'item' },
   }),
@@ -145,6 +145,21 @@ describe('TopBarNewsFeed', () => {
       await flushRefresh();
 
       expect(megaphone()).toHaveAccessibleDescription('Unread news feed items: 4');
+    });
+
+    it.each([
+      ['updated', DATA_UPDATE_SUCCESS],
+      ['deleted', DATA_DELETE_SUCCESS],
+    ])('refreshes the count from the server when an unread item is %s', async (_, eventType) => {
+      mocks.fetchMyUnreadNewsFeedCount.mockResolvedValueOnce({ data: 3 });
+      renderMegaphone();
+      await flushRefresh();
+      mocks.fetchMyUnreadNewsFeedCount.mockResolvedValue({ data: 2 });
+
+      pushEvent(streamEvent(NEWS_FEED_ITEM_SCHEMA, eventType));
+      await flushRefresh();
+
+      expect(megaphone()).toHaveAccessibleDescription('Unread news feed items: 2');
     });
 
     it('refreshes the count once for a burst of items', async () => {
