@@ -159,7 +159,7 @@ public class SecurityCoverageJob implements Job {
 
   private void consumeInTenantScope(String tenantId, List<SecurityCoverageSendJob> sendJobs) {
     // v2 scope only: the send jobs are not tenant rows and are re-read natively, and their
-    // simulation is loaded by id, which the v1 filter never narrows.
+    // simulation is loaded by id, which the statement inspector narrows to this tenant.
     try {
       tenantTx.execute(
           TxCtx.forTenant(tenantId), () -> securityCoverageSendJobService.consumeJobs(sendJobs));
