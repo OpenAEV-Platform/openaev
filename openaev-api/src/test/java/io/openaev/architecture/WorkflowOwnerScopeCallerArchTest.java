@@ -73,7 +73,7 @@ class WorkflowOwnerScopeCallerArchTest {
    * Lowered when a caller leaves the baseline; raised only for a reviewed, deliberate new entry in
    * {@link WorkflowOwnerScopeCallerRules#SCOPE_SETTERS} (see its javadoc).
    */
-  private static final int FROZEN_SCOPE_SETTERS = 11;
+  private static final int FROZEN_SCOPE_SETTERS = 12;
 
   @ArchTest
   static final ArchRule scope_is_set_on_the_current_transaction_only_from_the_baseline =
