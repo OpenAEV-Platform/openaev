@@ -72,6 +72,7 @@ import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator
 import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
+import ExploreInGraphButton from '../../graph/ExploreInGraphButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import {
   CONTEXTUAL_ENTITY_WIDGET_IDS,
@@ -561,6 +562,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   where the full control surface
                   (pause / resume / stop / steer) lives; once stopped, relaunch happens from the
                   scenario's Normal / Autonomous launch buttons - there is no restart. */}
+              <ExploreInGraphButton type="SIMULATION" entityId={exercise.exercise_id} />
               {/* Entity-scoped reports - self-hides without the reporting access capability. Kept
                   right next to the overflow menu so the two "meta" actions sit together. */}
               <EntityReportsPanel

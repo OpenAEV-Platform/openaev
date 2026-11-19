@@ -13,6 +13,11 @@ export interface NavMenuItem {
   href?: string;
   subItems?: NavMenuSubItem[];
   userRight?: boolean;
+  /**
+   * Other route prefixes this row stands for, so it stays current on them
+   * (one entry whose tabs are separate routes, e.g. Dashboards | Reporting).
+   */
+  matchPaths?: string[];
 }
 
 export interface NavMenuItemWithHref extends NavMenuItem { href: string }
