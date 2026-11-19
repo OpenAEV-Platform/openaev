@@ -71,7 +71,7 @@ Each version of a payload-based Action carries an **approval status** that tells
 |----------------|------------------------------------------------------------------------------------------------------|
 | **Pending**    | The version waits for an approver: it was created or saved by someone who cannot approve it. |
 | **Approved**   | The content is trusted: Injects can run this version. |
-| **Rejected**   | An approver refused the version, with a reason. Its author can save a new version. |
+| **Rejected**   | An approver refused the version, with a reason. It can be fixed in a [draft](#drafts) and sent for approval again under the same number. |
 | **Superseded** | A newer version of the same Action was saved before anyone decided on this one: it can no longer be approved. |
 | **Revoked**    | The version was revoked (see [Revoke a version](filigran-catalog.md#revoke-a-version)): it no longer runs. |
 
@@ -81,7 +81,7 @@ How the status of a new version is set:
 
 * **Filigran catalog versions are approved on arrival**: they are verified by Filigran (see [Filigran catalog and versions](filigran-catalog.md)). The approval history records them as *Verified by Filigran*.
 * Creating, saving, duplicating, customizing or importing an Action is **auto-approved** when you hold *Approve content*; the approval history records it as an automatic approval by its author. Otherwise the new version is **Pending**.
-* Saving a change to what an Action contains adds a new version; changing only its tags or domains keeps the version and its status.
+* Publishing a change to what an Action contains adds a new version; saving a [draft](#drafts) adds none, and changing only its tags or domains keeps the version and its status.
 * Versions synchronized by a collector are **Pending**: collectors bring scripts written by third parties, which is what an approver must review.
 * Payloads the platform generates itself are **Approved** automatically, recorded as a *System* approval in the history: for example the file drop created for a security coverage.
 * Payloads that existed before approval was introduced are **Approved**.
@@ -89,7 +89,7 @@ How the status of a new version is set:
 
 **Who approves by default.** When payload approval is introduced, every tenant role that can manage threat arsenal actions also receives *Approve content*, and so does the default *Manager* role of new tenants. Their authors' versions stay approved, so nothing changes for them. Maker-checker is **opt-in**: remove *Approve content* from the roles of the authors who must be checked, and their new versions become **Pending** until someone else approves them.
 
-Users without *Approve content* do not see **Approve**, **Reject** or **Move to pending approval** anywhere; every edit they make creates a new **Pending** version, and they cannot change the status of an existing version.
+Users without *Approve content* do not see **Approve**, **Reject** or **Move to pending approval** anywhere; every version they send for approval is **Pending**, and they cannot change the status of an existing version.
 
 ### Reviewing a version
 
@@ -184,7 +184,7 @@ To create a new Action, follow these steps:
 
     ![Remediation tab of the Action creation form](assets/threat-arsenal-detection-remediation-view.png)
 
-6. Click **Publish version**: version 1.0 of the Action is approved and usable at once. Without *Approve content*, the
+6. Click **Publish version**: version 1.0.0 of the Action is approved and usable at once. Without *Approve content*, the
     button is **Send for approval**: the version waits for an approver.
 
 Once you complete these steps, the new Action appears in the Action list.
@@ -222,20 +222,20 @@ can update the Action sees its drafts and can change them.
 
 **Update** opens the edit drawer. The selector at its top chooses what you work on:
 
-- a **draft** of the Action, named after the version it started from (*Draft from v1.0*);
+- a **draft** of the Action, named after the version it started from (*Draft from v1.0.0*);
 - a **rejected version**, to fix it: its first save makes it a draft, and it keeps its number;
 - **New draft from a version**: any published version, the latest one or an older one.
 
 At the bottom, **Save draft** keeps your changes in the draft, as often as you need. **Publish version** makes a new
 version, usable at once; without *Approve content*, the button is **Send for approval** and the version waits for an
 approver. A new version is numbered as usual, after the highest version, even when it starts from an older one. A
-rejected version you fixed keeps its number and waits for approval again. You can publish straight from a version,
+rejected version you fixed keeps its number and waits for approval again, or is approved at once with *Approve content*. You can publish straight from a version,
 without saving a draft first. Switching to something else with unsaved changes asks whether to save them as a draft.
 
 The **Versions** tab lists the drafts above the versions, with who saved them last. Each version offers **Duplicate to
 draft** (**Fix in a draft** for a rejected version): the version stays as it is, and the draft starts with its content.
-The **History** tab records when a draft is started from a version, discarded, published as a new version (*v1.0 →
-v1.4*, *Published from a draft*), or when a rejected version is fixed and sent again. A card shows a *Draft* chip while
+The **History** tab records when a draft is started from a version, discarded, published as a new version (*v1.0.0 →
+v1.0.2*, *Published from a draft*), or when a rejected version is fixed and sent again. A card shows a *Draft* chip while
 the Action has a draft.
 
 ## Delete an Action
