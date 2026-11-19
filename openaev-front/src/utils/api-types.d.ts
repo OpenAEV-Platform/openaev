@@ -162,6 +162,8 @@ export interface AgentTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -416,6 +418,8 @@ export interface AiTargetTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -773,6 +777,8 @@ export interface AssetGroupTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -2133,6 +2139,8 @@ interface BaseInjectTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_prevention_status?:
     | "FAILED"
     | "PENDING"
@@ -5104,6 +5112,8 @@ export interface EndpointTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -8297,6 +8307,8 @@ export interface ManualTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -10672,6 +10684,8 @@ export interface PlayerTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -13047,6 +13061,8 @@ export interface TeamTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
