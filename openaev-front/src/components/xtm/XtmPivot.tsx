@@ -2,7 +2,7 @@ import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } fro
 import { CloseOutlined, LinkOffOutlined } from '@mui/icons-material';
 import { Avatar, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type ReactNode, useState } from 'react';
+import { type FunctionComponent, type MouseEvent, type ReactNode, useState } from 'react';
 
 import { type CounterpartKindPath } from '../../actions/xtm/counterpart-actions';
 import octiDark from '../../static/images/xtm/octi_dark.png';
@@ -189,6 +189,7 @@ interface RowMarkProps extends PivotProps {
  */
 export const OpenCtiRowMark: FunctionComponent<RowMarkProps> = ({ kind, objectKey, label = 'Open in OpenCTI', reserveSlot = false }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
   const answer = useCounterpart(kind, objectKey, OPENCTI_PRODUCT);
   const slot = (content: ReactNode) => (
     <Box
@@ -212,17 +213,26 @@ export const OpenCtiRowMark: FunctionComponent<RowMarkProps> = ({ kind, objectKe
   const mark = (
     <Tooltip>
       <TooltipTrigger asChild>
-        <a
+        <Box
+          component="a"
           href={answer.counterpart?.counterpart_url}
           target="_blank"
           rel="noopener noreferrer"
           aria-label={t(label)}
-          onClick={e => e.stopPropagation()}
+          onClick={(e: MouseEvent) => e.stopPropagation()}
           data-testid="xtm-row-mark"
-          style={{ display: 'inline-flex' }}
+          sx={{
+            'display': 'inline-flex',
+            'borderRadius': '2px',
+            // The OpenAEV global :focus reset removes the outline: a keyboard user still sees the mark.
+            '&:focus-visible': {
+              outline: `2px solid ${theme.palette.primary.main}`,
+              outlineOffset: '2px',
+            },
+          }}
         >
           <ProductMark size={16} />
-        </a>
+        </Box>
       </TooltipTrigger>
       <TooltipContent>{text}</TooltipContent>
     </Tooltip>

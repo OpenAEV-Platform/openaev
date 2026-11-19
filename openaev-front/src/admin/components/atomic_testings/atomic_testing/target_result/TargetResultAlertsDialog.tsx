@@ -338,6 +338,12 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
                           'backgroundColor': theme.palette.action.hover,
                           '& .MuiSvgIcon-root': { color: 'primary.main' },
                         },
+                        '&:focus-visible': {
+                          'backgroundColor': theme.palette.action.hover,
+                          'outline': `2px solid ${theme.palette.primary.main}`,
+                          'outlineOffset': '-2px',
+                          '& .MuiSvgIcon-root': { color: 'primary.main' },
+                        },
                       }}
                     >
                       {rowContent}

@@ -139,6 +139,16 @@ describe('OpenCtiRowMark', () => {
     expect(slot.querySelector('[data-testid="xtm-row-mark"]')).toBeTruthy();
   });
 
+  it('given a match should be a keyboard-focusable link named by its action', () => {
+    useCounterpartMock.mockReturnValue(match);
+    renderPivot(<OpenCtiRowMark kind="alerts" objectKey="https://edr/1" label="Investigate in OpenCTI" />);
+    const mark = screen.getByTestId('xtm-row-mark');
+    expect(mark.tagName).toBe('A');
+    expect(mark.getAttribute('aria-label')).toBe('Investigate in OpenCTI');
+    mark.focus();
+    expect(document.activeElement).toBe(mark);
+  });
+
   it('given no match with a reserved slot should keep an empty slot so the row controls stay aligned', () => {
     useCounterpartMock.mockReturnValue({
       state: 'no_match',
