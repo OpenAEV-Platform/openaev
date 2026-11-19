@@ -1,0 +1,11 @@
+io/openaev/api/attack_pattern/**/*Test.java
+io/openaev/api/custom_dashboard/**/*Test.java
+io/openaev/notification/**/*Test.java
+io/openaev/rest/ImportExportMapperApiTest.java
+io/openaev/rest/NonPrefixedCreateTenantPostureTest.java
+io/openaev/rest/asset_group/**/*Test.java
+io/openaev/rest/channel/**/*Test.java
+io/openaev/rest/inject/InjectAgentTargetCheckTenantScopeTest.java
+io/openaev/rest/inject/ResponseCollectionsTenantScopeTest.java
+io/openaev/rest/reporting/**/*Test.java
+io/openaev/utilstest/**/*Test.java

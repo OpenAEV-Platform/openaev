@@ -1,0 +1,12 @@
+io/openaev/database/audit/**/*Test.java
+io/openaev/debug/**/*Test.java
+io/openaev/healthcheck/**/*Test.java
+io/openaev/injectors/**/*Test.java
+io/openaev/killChainPhase/**/*Test.java
+io/openaev/output_processor/**/*Test.java
+io/openaev/rest/DocumentApiTest.java
+io/openaev/rest/EndpointApiTest.java
+io/openaev/rest/comcheck/**/*Test.java
+io/openaev/rest/dashboard/**/*Test.java
+io/openaev/rest/stream/**/*Test.java
+io/openaev/service/autonomous/**/*Test.java

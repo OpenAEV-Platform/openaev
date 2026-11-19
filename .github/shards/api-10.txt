@@ -1,1 +1,8 @@
-io/openaev/architecture/**/*Test.java
+io/openaev/rest/CatalogConnectorApiTenantIsolationTest.java
+io/openaev/rest/asset/**/*Test.java
+io/openaev/rest/collector/**/*Test.java
+io/openaev/rest/inject/InjectPayloadCollectorTypeScopeTest.java
+io/openaev/rest/kill_chain_phase/**/*Test.java
+io/openaev/service/catalog_connectors/**/*Test.java
+io/openaev/telemetry/**/*Test.java
+io/openaev/xtmhub/**/*Test.java

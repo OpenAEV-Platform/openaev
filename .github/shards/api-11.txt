@@ -1,0 +1,10 @@
+io/openaev/config/security/**/*Test.java
+io/openaev/database/model/**/*Test.java
+io/openaev/expectation/**/*Test.java
+io/openaev/rest/TagApiTest.java
+io/openaev/rest/inject/InjectImplantTenantScopeTest.java
+io/openaev/rest/lessons/**/*Test.java
+io/openaev/rest/tag_rule/**/*Test.java
+io/openaev/runner/**/*Test.java
+io/openaev/service/chaining/**/*Test.java
+io/openaev/xtmone/**/*Test.java
