@@ -6453,47 +6453,6 @@ export interface Grant {
   listened?: boolean;
 }
 
-export interface GraphEdgeOutput {
-  edge_id: string;
-  edge_result?: "SUCCESS" | "PENDING" | "FAILED";
-  edge_source: string;
-  edge_target: string;
-  edge_type:
-    | "MEMBER_OF"
-    | "FOUND_ON"
-    | "PRODUCED"
-    | "TARGETS"
-    | "PART_OF"
-    | "RUN_OF";
-}
-
-export interface GraphNodeOutput {
-  node_entity_id: string;
-  /** @format int64 */
-  node_failed_count?: number;
-  /** @format int64 */
-  node_finding_count?: number;
-  node_id: string;
-  node_label: string;
-  node_result?: "SUCCESS" | "PENDING" | "FAILED";
-  node_subtype?: string;
-  node_type:
-    | "ASSET"
-    | "ASSET_GROUP"
-    | "FINDING"
-    | "INJECT"
-    | "SIMULATION"
-    | "SCENARIO";
-}
-
-export interface GraphOutput {
-  graph_edges: GraphEdgeOutput[];
-  graph_focus?: string;
-  graph_nodes: GraphNodeOutput[];
-  graph_path: string[];
-  graph_truncated?: boolean;
-}
-
 export interface Group {
   group_auto_new_marking?: boolean;
   group_default_user_assign?: boolean;
@@ -10518,16 +10477,6 @@ export interface PlatformSettings {
   filigran_chatbot_ai_cgu_status?: string;
   /** IMAP Service availability */
   imap_service_available?: string;
-  /**
-   * Minutes OpenAEV waits for an inject to report a terminal trace before it is finalized with a timeout: the platform setting when set, else the configured value
-   * @format int32
-   */
-  inject_execution_threshold_minutes?: number;
-  /**
-   * Threshold set by configuration (inject.execution.threshold.minutes), used while the platform setting is unset. Read-only
-   * @format int32
-   */
-  inject_execution_threshold_minutes_configured?: number;
   /** Current version of Java */
   java_version?: string;
   /** URL of the server containing the map tile with dark theme */
@@ -12326,16 +12275,6 @@ export interface SettingsChatbotAiCguUpdateInput {
 export interface SettingsEnterpriseEditionUpdateInput {
   /** cert of enterprise edition */
   platform_enterprise_license?: string;
-}
-
-export interface SettingsInjectExecutionUpdateInput {
-  /**
-   * Minutes OpenAEV waits for an inject to report a terminal trace before it is finalized with a timeout (1 to 1440)
-   * @format int32
-   * @min 1
-   * @max 1440
-   */
-  inject_execution_threshold_minutes: number;
 }
 
 export interface SettingsPlatformWhitemarkUpdateInput {
