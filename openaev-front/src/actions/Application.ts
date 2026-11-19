@@ -3,7 +3,7 @@ import { type Dispatch } from 'redux';
 
 import * as Constants from '../constants/ActionTypes';
 import { getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../utils/Action';
-import type { PolicyInput, SettingsEnterpriseEditionUpdateInput, SettingsInjectExecutionUpdateInput, SettingsPlatformWhitemarkUpdateInput, SettingsSessionsUpdateInput, User } from '../utils/api-types';
+import type { PolicyInput, SettingsEnterpriseEditionUpdateInput, SettingsPlatformWhitemarkUpdateInput, SettingsRuntimeUpdateInput, SettingsSessionsUpdateInput, User } from '../utils/api-types';
 import { extractTenantFromUrl } from '../utils/url-helper';
 import * as schema from './Schema';
 
@@ -43,10 +43,10 @@ export const updatePlatformEnterpriseEditionParameters = (data: SettingsEnterpri
   )(dispatch);
 };
 
-export const updatePlatformInjectExecutionParameters = (data: SettingsInjectExecutionUpdateInput) => (dispatch: AppDispatch) => {
+export const updatePlatformRuntimeParameters = (data: SettingsRuntimeUpdateInput) => (dispatch: AppDispatch) => {
   return putReferential(
     schema.platformParameters,
-    '/api/settings/inject-execution',
+    '/api/settings/runtime',
     data,
   )(dispatch);
 };

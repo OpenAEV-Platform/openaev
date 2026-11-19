@@ -8,11 +8,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.SettingKeys;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.scheduler.jobs.InjectsExecutionJob;
 import io.openaev.service.settings.InjectExecutionThresholdService;
+import io.openaev.service.settings.RuntimeSetting;
 import io.openaev.utils.mockUser.WithMockUser;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -24,17 +25,32 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
-@DisplayName("Inject execution threshold setting")
+@DisplayName("Runtime settings: the UI value over the configured default")
 class InjectExecutionSettingsApiTest extends IntegrationTest {
 
-  private static final String URI = "/api/settings/inject-execution";
+  private static final String URI = "/api/settings/runtime";
+  private static final String THRESHOLD = RuntimeSetting.INJECT_EXECUTION_THRESHOLD_MINUTES.key();
 
   @Autowired private MockMvc mvc;
   @Autowired private SettingRepository settingRepository;
   @Autowired private InjectExecutionThresholdService injectExecutionThresholdService;
 
-  private static String body(Object minutes) {
-    return "{\"inject_execution_threshold_minutes\": " + minutes + "}";
+  private static String body(String key, Object value) {
+    return "{\"settings\": {\"" + key + "\": " + value + "}}";
+  }
+
+  private static String setting(String key, String field) {
+    return "$.runtime_settings[?(@.key == '" + key + "')]." + field;
+  }
+
+  @BeforeEach
+  void clearStoredValues() {
+    for (RuntimeSetting runtimeSetting : RuntimeSetting.values()) {
+      settingRepository
+          .findByKeyAndTenantIsNull(runtimeSetting.key())
+          .ifPresent(settingRepository::delete);
+    }
+    entityManager.flush();
   }
 
   @Nested
@@ -43,50 +59,93 @@ class InjectExecutionSettingsApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given_settingUnset_should_returnTheConfiguredThreshold")
-    void given_settingUnset_should_returnTheConfiguredThreshold() throws Exception {
-      settingRepository
-          .findByKeyAndTenantIsNull(SettingKeys.INJECT_EXECUTION_THRESHOLD_MINUTES.key())
-          .ifPresent(settingRepository::delete);
-      entityManager.flush();
-
+    @DisplayName("given_nothingStored_should_returnTheDefaultWithItsSource")
+    void given_nothingStored_should_returnTheDefaultWithItsSource() throws Exception {
       mvc.perform(get("/api/settings").accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isOk())
           .andExpect(
-              jsonPath("$.inject_execution_threshold_minutes")
-                  .value(InjectsExecutionJob.DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES))
+              jsonPath(setting(THRESHOLD, "value"))
+                  .value(
+                      String.valueOf(
+                          InjectsExecutionJob.DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES)))
+          .andExpect(jsonPath(setting(THRESHOLD, "source")).value("default"))
+          .andExpect(jsonPath(setting(THRESHOLD, "locked")).value(false))
           .andExpect(
-              jsonPath("$.inject_execution_threshold_minutes_configured")
-                  .value(InjectsExecutionJob.DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES));
+              jsonPath(setting(THRESHOLD, "env_var")).value("INJECT_EXECUTION_THRESHOLD_MINUTES"))
+          .andExpect(
+              jsonPath(setting(RuntimeSetting.AGENT_MAX_SIMULTANEOUS_JOBS.key(), "value"))
+                  .value("5"))
+          .andExpect(
+              jsonPath(setting(RuntimeSetting.AGENT_QUEUE_THRESHOLD.key(), "value")).value("0"))
+          .andExpect(
+              jsonPath(setting(RuntimeSetting.AGENT_AUTO_UPDATE_ENABLED.key(), "type"))
+                  .value("boolean"));
     }
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given_validThreshold_should_persistItAndReturnTheLiveValue")
-    void given_validThreshold_should_persistItAndReturnTheLiveValue() throws Exception {
-      mvc.perform(put(URI).contentType(MediaType.APPLICATION_JSON).content(body(60)).with(csrf()))
+    @DisplayName("given_validValues_should_storeThemAndApplyThemLive")
+    void given_validValues_should_storeThemAndApplyThemLive() throws Exception {
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"settings\": {\""
+                          + THRESHOLD
+                          + "\": 60, \"agent_max_simultaneous_jobs\": 8,"
+                          + " \"agent_auto_update_enabled\": false}}")
+                  .with(csrf()))
           .andExpect(status().isOk())
-          .andExpect(jsonPath("$.inject_execution_threshold_minutes").value(60));
+          .andExpect(jsonPath(setting(THRESHOLD, "value")).value("60"))
+          .andExpect(jsonPath(setting(THRESHOLD, "source")).value("ui"))
+          .andExpect(jsonPath(setting("agent_max_simultaneous_jobs", "value")).value("8"))
+          .andExpect(jsonPath(setting("agent_auto_update_enabled", "value")).value("false"));
       entityManager.flush();
       entityManager.clear();
 
       assertEquals(60, injectExecutionThresholdService.thresholdMinutes());
-      mvc.perform(get("/api/settings").accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$.inject_execution_threshold_minutes").value(60));
     }
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given_thresholdOutOfRange_should_refuseIt")
-    void given_thresholdOutOfRange_should_refuseIt() throws Exception {
-      mvc.perform(put(URI).contentType(MediaType.APPLICATION_JSON).content(body(0)).with(csrf()))
-          .andExpect(status().isBadRequest());
-      mvc.perform(put(URI).contentType(MediaType.APPLICATION_JSON).content(body(1441)).with(csrf()))
+    @DisplayName("given_invalidValue_should_refuseTheWholeWrite")
+    void given_invalidValue_should_refuseTheWholeWrite() throws Exception {
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body(THRESHOLD, 0))
+                  .with(csrf()))
           .andExpect(status().isBadRequest());
       mvc.perform(
-              put(URI).contentType(MediaType.APPLICATION_JSON).content(body("null")).with(csrf()))
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body(THRESHOLD, 1441))
+                  .with(csrf()))
           .andExpect(status().isBadRequest());
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body("agent_auto_update_enabled", "\"maybe\""))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"settings\": {\"" + THRESHOLD + "\": 30, \"agent_queue_threshold\": -1}}")
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body("platform_name", "\"x\""))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+      entityManager.flush();
+
+      assertEquals(
+          InjectsExecutionJob.DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES,
+          injectExecutionThresholdService.thresholdMinutes());
     }
   }
 
@@ -98,7 +157,11 @@ class InjectExecutionSettingsApiTest extends IntegrationTest {
     @WithMockUser
     @DisplayName("given_nonAdmin_should_beRefused")
     void given_nonAdmin_should_beRefused() throws Exception {
-      mvc.perform(put(URI).contentType(MediaType.APPLICATION_JSON).content(body(60)).with(csrf()))
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body(THRESHOLD, 60))
+                  .with(csrf()))
           .andExpect(status().isForbidden());
     }
   }

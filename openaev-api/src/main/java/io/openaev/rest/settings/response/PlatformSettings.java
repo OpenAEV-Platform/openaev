@@ -224,18 +224,11 @@ public class PlatformSettings extends PublicPlatformSettings {
   @Schema(description = "Maximum number of concurrent sessions per user (0 = unlimited)")
   private Integer platformSessionMaxConcurrent;
 
-  // INJECT EXECUTION
-  @JsonProperty("inject_execution_threshold_minutes")
+  // RUNTIME SETTINGS
+  @JsonProperty("runtime_settings")
   @Schema(
       description =
-          "Minutes OpenAEV waits for an inject to report a terminal trace before it is finalized"
-              + " with a timeout: the platform setting when set, else the configured value")
-  private Integer injectExecutionThresholdMinutes;
-
-  @JsonProperty("inject_execution_threshold_minutes_configured")
-  @Schema(
-      description =
-          "Threshold set by configuration (inject.execution.threshold.minutes), used while the"
-              + " platform setting is unset. Read-only")
-  private Integer injectExecutionThresholdMinutesConfigured;
+          "Settings an administrator may change at runtime, each with its value in force and its"
+              + " source: env (environment variable, read-only), ui or default")
+  private java.util.List<RuntimeSettingOutput> runtimeSettings;
 }

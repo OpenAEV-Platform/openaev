@@ -135,24 +135,27 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.updateSettingsSessions(input);
   }
 
-  @PutMapping("/inject-execution")
+  @PutMapping("/runtime")
   @Transactional
   @PlatformWrite
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "The updated settings"),
-        @ApiResponse(responseCode = "400", description = "Threshold outside 1 to 1440 minutes")
+        @ApiResponse(
+            responseCode = "400",
+            description =
+                "A setting unknown, a value invalid, or a setting set by its environment variable")
       })
   @Operation(
-      summary = "Update inject execution settings",
+      summary = "Update runtime settings",
       description =
-          "Update the inject execution threshold: the minutes OpenAEV waits for an inject to"
-              + " report before it is finalized with a timeout. Applied at the next run of the"
-              + " finalization job, no restart")
-  public PlatformSettings updateSettingsInjectExecution(
-      TxCtx ctx, @Valid @RequestBody SettingsInjectExecutionUpdateInput input) {
-    return platformSettingsService.updateSettingsInjectExecution(input);
+          "Update the runtime settings (inject execution threshold, agent jobs and queue,"
+              + " agent auto-update). A setting whose environment variable is set is read-only"
+              + " and refused. Applied at the next use, no restart")
+  public PlatformSettings updateSettingsRuntime(
+      TxCtx ctx, @Valid @RequestBody SettingsRuntimeUpdateInput input) {
+    return platformSettingsService.updateSettingsRuntime(input);
   }
 
   @PutMapping("/theme/light")

@@ -24,7 +24,23 @@ interface Props {
   mode: FdsThemeMode;
 }
 
-const useStyles = makeStyles()(() => ({ field: { marginBottom: 20 } }));
+// Compact view: two fields per row, label above, the swatch inline in the field.
+const useStyles = makeStyles()(theme => ({
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+    gap: theme.spacing(1.5, 2),
+  },
+  group: {
+    margin: theme.spacing(2, 0, 1),
+    fontSize: 12,
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    opacity: 0.7,
+  },
+  field: {},
+}));
 
 /** Every field this form owns, empty: what "default" means for a theme. */
 const EMPTY_THEME: ThemeInput = {
@@ -112,135 +128,142 @@ const ThemeForm: FunctionComponent<Props> = ({
     + ` (${ratio.toFixed(2)}:1 < ${CONTRAST_FLOOR}:1)`;
 
   return (
-    <form id="themeForm" onSubmit={handleSubmit(onSubmit)}>
+    <form id={`themeForm-${mode}`} onSubmit={handleSubmit(onSubmit)}>
+      <div className={classes.grid}>
+        <ColorPickerField
+          className={classes.field}
+          label={t('Background color')}
+          placeholder={t('Default')}
+          control={control}
+          name="background_color"
+          disabled={canNotManage}
+          helperText={warnings.background !== undefined ? belowFloor(warnings.background) : undefined}
+        />
+        <ColorPickerField
+          className={classes.field}
+          label={t('Paper color')}
+          placeholder={t('Default')}
+          control={control}
+          name="paper_color"
+          disabled={canNotManage}
+        />
+        <ColorPickerField
+          className={classes.field}
+          label={t('Navigation color')}
+          placeholder={t('Default')}
+          control={control}
+          name="navigation_color"
+          disabled={canNotManage}
+        />
+        <ColorPickerField
+          className={classes.field}
+          label={t('Primary color')}
+          placeholder={t('Default')}
+          control={control}
+          name="primary_color"
+          disabled={canNotManage}
+          helperText={warnings.primary !== undefined ? belowFloor(warnings.primary) : undefined}
+        />
+        <ColorPickerField
+          className={classes.field}
+          label={t('Secondary color')}
+          placeholder={t('Default')}
+          control={control}
+          name="secondary_color"
+          disabled={canNotManage}
+        />
+        <ColorPickerField
+          className={classes.field}
+          label={t('Accent color')}
+          placeholder={t('Default')}
+          control={control}
+          name="accent_color"
+          disabled={canNotManage}
+        />
+        <ColorPickerField
+          className={classes.field}
+          label={t('Text color')}
+          placeholder={t('Default')}
+          control={control}
+          name="text_color"
+          disabled={canNotManage}
+          helperText={warnings.text !== undefined ? belowFloor(warnings.text) : undefined}
+        />
+      </div>
+      <div className={classes.group}>{t('Logos')}</div>
+      <div className={classes.grid}>
+        <TextFieldFds
+          className={classes.field}
+          label={t('Logo URL')}
+          placeholder={t('Default')}
 
-      <ColorPickerField
-        className={classes.field}
-        label={t('Background color')}
-        placeholder={t('Default')}
-        control={control}
-        name="background_color"
-        disabled={canNotManage}
-        helperText={warnings.background !== undefined ? belowFloor(warnings.background) : undefined}
-      />
-      <ColorPickerField
-        className={classes.field}
-        label={t('Paper color')}
-        placeholder={t('Default')}
-        control={control}
-        name="paper_color"
-        disabled={canNotManage}
-      />
-      <ColorPickerField
-        className={classes.field}
-        label={t('Navigation color')}
-        placeholder={t('Default')}
-        control={control}
-        name="navigation_color"
-        disabled={canNotManage}
-      />
-      <ColorPickerField
-        className={classes.field}
-        label={t('Primary color')}
-        placeholder={t('Default')}
-        control={control}
-        name="primary_color"
-        disabled={canNotManage}
-        helperText={warnings.primary !== undefined ? belowFloor(warnings.primary) : undefined}
-      />
-      <ColorPickerField
-        className={classes.field}
-        label={t('Secondary color')}
-        placeholder={t('Default')}
-        control={control}
-        name="secondary_color"
-        disabled={canNotManage}
-      />
-      <ColorPickerField
-        className={classes.field}
-        label={t('Accent color')}
-        placeholder={t('Default')}
-        control={control}
-        name="accent_color"
-        disabled={canNotManage}
-      />
-      <ColorPickerField
-        className={classes.field}
-        label={t('Text color')}
-        placeholder={t('Default')}
-        control={control}
-        name="text_color"
-        disabled={canNotManage}
-        helperText={warnings.text !== undefined ? belowFloor(warnings.text) : undefined}
-      />
-      <TextFieldFds
-        className={classes.field}
-        label={t('Logo URL')}
-        placeholder={t('Default')}
+          error={!!errors.logo_url}
+          helperText={errors.logo_url && errors.logo_url?.message}
+          {...register('logo_url')}
+          disabled={canNotManage}
+        />
+        <TextFieldFds
+          className={classes.field}
+          label={t('Logo URL (collapsed)')}
+          placeholder={t('Default')}
 
-        error={!!errors.logo_url}
-        helperText={errors.logo_url && errors.logo_url?.message}
-        {...register('logo_url')}
-        disabled={canNotManage}
-      />
-      <TextFieldFds
-        className={classes.field}
-        label={t('Logo URL (collapsed)')}
-        placeholder={t('Default')}
+          error={!!errors.logo_url_collapsed}
+          helperText={errors.logo_url_collapsed && errors.logo_url_collapsed?.message}
+          {...register('logo_url_collapsed')}
+          disabled={canNotManage}
+        />
+        <TextFieldFds
+          className={classes.field}
+          label={t('Logo URL (login)')}
+          placeholder={t('Default')}
 
-        error={!!errors.logo_url_collapsed}
-        helperText={errors.logo_url_collapsed && errors.logo_url_collapsed?.message}
-        {...register('logo_url_collapsed')}
-        disabled={canNotManage}
-      />
-      <TextFieldFds
-        className={classes.field}
-        label={t('Logo URL (login)')}
-        placeholder={t('Default')}
-
-        error={!!errors.logo_login_url}
-        helperText={errors.logo_login_url && errors.logo_login_url?.message}
-        {...register('logo_login_url')}
-        disabled={canNotManage}
-      />
+          error={!!errors.logo_login_url}
+          helperText={errors.logo_login_url && errors.logo_login_url?.message}
+          {...register('logo_login_url')}
+          disabled={canNotManage}
+        />
+      </div>
       {/* Login page aside customization (aligned with OpenCTI):
           priority is image > gradient > color > default Filigran gradient. */}
-      <ColorPickerField
-        className={classes.field}
-        label={t('Login aside color')}
-        placeholder={t('Default')}
-        control={control}
-        name="login_aside_color"
-        disabled={canNotManage}
-      />
-      <ColorPickerField
-        className={classes.field}
-        label={t('Login aside gradient start color')}
-        placeholder={t('Default')}
-        control={control}
-        name="login_aside_gradient_start"
-        disabled={canNotManage}
-      />
-      <ColorPickerField
-        className={classes.field}
-        label={t('Login aside gradient end color')}
-        placeholder={t('Default')}
-        control={control}
-        name="login_aside_gradient_end"
-        disabled={canNotManage}
-      />
-      <TextFieldFds
-        label={t('Login aside image URL')}
-        placeholder={t('Default')}
+      <div className={classes.group}>{t('Login page')}</div>
+      <div className={classes.grid}>
+        <ColorPickerField
+          className={classes.field}
+          label={t('Login aside color')}
+          placeholder={t('Default')}
+          control={control}
+          name="login_aside_color"
+          disabled={canNotManage}
+        />
+        <ColorPickerField
+          className={classes.field}
+          label={t('Login aside gradient start color')}
+          placeholder={t('Default')}
+          control={control}
+          name="login_aside_gradient_start"
+          disabled={canNotManage}
+        />
+        <ColorPickerField
+          className={classes.field}
+          label={t('Login aside gradient end color')}
+          placeholder={t('Default')}
+          control={control}
+          name="login_aside_gradient_end"
+          disabled={canNotManage}
+        />
+        <TextFieldFds
+          label={t('Login aside image URL')}
+          placeholder={t('Default')}
 
-        error={!!errors.login_aside_image}
-        helperText={errors.login_aside_image && errors.login_aside_image?.message}
-        {...register('login_aside_image')}
-        disabled={canNotManage}
-      />
+          error={!!errors.login_aside_image}
+          helperText={errors.login_aside_image && errors.login_aside_image?.message}
+          {...register('login_aside_image')}
+          disabled={canNotManage}
+        />
+      </div>
 
       <div style={{
-        marginTop: 20,
+        marginTop: 16,
         display: 'flex',
         justifyContent: 'flex-end',
         gap: 8,
