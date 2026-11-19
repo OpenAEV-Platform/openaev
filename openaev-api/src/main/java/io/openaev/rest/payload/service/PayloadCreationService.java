@@ -101,6 +101,7 @@ public class PayloadCreationService {
       TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
     Payload payload = toPayload(ctx, explicitTenant, input);
+    payloadUtils.validateDocumentArguments(payload, payload.getTenant().getId());
     authorService.authorByCurrentUser(payload);
 
     Payload payloadSaved = payloadRepository.save(payload);

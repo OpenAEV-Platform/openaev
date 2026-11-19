@@ -132,6 +132,7 @@ public class PayloadUpsertService {
     } else if (payload instanceof FileDrop fileDrop) {
       fileDrop.setFileDropFile(documentService.documentInTenant(input.getFileDropFile(), tenantId));
     }
+    payloadUtils.validateDocumentArguments(payload, tenantId);
 
     Payload saved = payloadRepository.save(payload);
     payloadService.synchroniseInjectorContractBasedOnPayload(
@@ -161,14 +162,18 @@ public class PayloadUpsertService {
     PayloadType payloadType = PayloadType.fromString(existingPayload.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
-    Payload payload = (Payload) Hibernate.unproxy(existingPayload);
-    payloadUtils.copyProperties(input, payload, true);
-
     // Resolved from the existing payload's own tenant, not the request's write-scope tenant
     // (mirrors PayloadUpdateService#update): the upsert's lookup by external id carries no tenant
     // predicate, so the two can diverge, and an update must never attribute or link anything to a
     // tenant other than the one this payload already belongs to.
     tenantId = existingPayload.getTenant().getId();
+    // Validated against the request's own arguments, before copyProperties: copyProperties sets
+    // the arguments straight onto the managed entity below, so a refusal after that point would
+    // still leave Hibernate's dirty checking holding the cross-tenant value to flush.
+    payloadUtils.validateDocumentArguments(input.getArguments(), tenantId);
+
+    Payload payload = (Payload) Hibernate.unproxy(existingPayload);
+    payloadUtils.copyProperties(input, payload, true);
 
     if (collectorType != null) {
       payload.setCollectorType(collectorType);

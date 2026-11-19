@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
@@ -22,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -32,6 +34,7 @@ public class PayloadUtils {
   private final LicenseCacheManager licenseCacheManager;
   private final OutputParserService outputParserService;
   private final DetectionRemediationUtils detectionRemediationUtils;
+  private final DocumentService documentService;
 
   public static PayloadCreateInput buildPayload(@NotNull final JsonNode payloadNode) {
     PayloadCreateInput payloadCreateInput = new PayloadCreateInput();
@@ -236,6 +239,33 @@ public class PayloadUtils {
     } else {
       target.setPrerequisites(new ArrayList<>());
     }
+  }
+
+  /**
+   * Refuses a Document-type argument whose default value names a document outside {@code tenantId}:
+   * an id of another tenant is treated like an unknown id, the same as the payload's own executable
+   * or file-drop document.
+   */
+  public void validateDocumentArguments(Payload payload, String tenantId) {
+    validateDocumentArguments(payload.getArguments(), tenantId);
+  }
+
+  /**
+   * Same as {@link #validateDocumentArguments(Payload, String)}, taken directly from the request's
+   * own arguments rather than from an entity. An update or an upsert must call this BEFORE {@link
+   * #copyProperties}, never after: {@code copyProperties} sets the arguments straight onto the
+   * managed entity it is given, so validating afterward checks a value Hibernate's dirty checking
+   * has already queued to flush, refusal or not.
+   */
+  public void validateDocumentArguments(List<PayloadArgument> arguments, String tenantId) {
+    if (arguments == null) {
+      return;
+    }
+    arguments.stream()
+        .filter(argument -> PrimitiveType.Document == argument.getType())
+        .filter(argument -> StringUtils.hasText(argument.getDefaultValue()))
+        .forEach(
+            argument -> documentService.documentInTenant(argument.getDefaultValue(), tenantId));
   }
 
   public Payload copyProperties(PayloadCreateInput payloadInput, Payload target) {
