@@ -518,8 +518,8 @@ const GraphExplorerInner = ({
     });
   };
 
-  const copyLink = () => {
-    const focusNode = state.focus ? state.nodes[state.focus] : undefined;
+  const copyLink = (node?: GraphNodeOutput) => {
+    const focusNode = node ?? (state.focus ? state.nodes[state.focus] : undefined);
     const href = focusNode ? graphHref(focusNode.node_type, focusNode.node_entity_id) : '/admin/graph';
     const url = new URL(href, window.location.origin);
     url.searchParams.set('layout', layout);
@@ -725,7 +725,7 @@ const GraphExplorerInner = ({
         {iconAction(t('Show hidden nodes'), <VisibilityOutlined fontSize="small" />, () => commit(showHidden), state.hidden.length === 0)}
         {iconAction(t('Undo'), <UndoOutlined fontSize="small" />, undo, history.past.length === 0)}
         {iconAction(t('Export as PNG'), <DownloadOutlined fontSize="small" />, exportPng)}
-        {iconAction(t('Copy a link to this view'), <LinkOutlined fontSize="small" />, copyLink)}
+        {iconAction(t('Copy a link to this view'), <LinkOutlined fontSize="small" />, () => copyLink())}
         {iconAction(t('Keyboard shortcuts'), <KeyboardOutlined fontSize="small" />, () => setShortcutsOpen(true))}
       </div>
       <div className="mt-2">{legend}</div>
@@ -888,6 +888,7 @@ const GraphExplorerInner = ({
         setSelected(null);
       }),
       ...(href ? [menuItem('open', t('Open'), <OpenInNewOutlined fontSize="small" />, () => navigate(href))] : []),
+      menuItem('copy-link', t('Copy a link to this view'), <LinkOutlined fontSize="small" />, () => copyLink(node)),
       ...nodeActions.filter(a => a.appliesTo(node)).map(a => menuItem(a.key, a.label, a.icon, () => a.onClick(node))),
     ];
   };
