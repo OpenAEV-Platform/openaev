@@ -176,6 +176,22 @@ The value in force is resolved in this order:
 | agent_queue_threshold              | openaev.agent.queue-threshold                | OPENAEV_AGENT_QUEUE_THRESHOLD                | 0       | 0 to 10000  | Pending jobs after which an agent is overloaded and skipped by new injects. `0` disables the check. |
 | agent_auto_update_enabled          | executor.openaev.agent.auto-update-enabled   | EXECUTOR_OPENAEV_AGENT_AUTO_UPDATE_ENABLED   | true    | true, false | When `false`, agents are not upgraded when a new platform version is deployed. Enterprise Edition only. |
 
+#### Expectations expiration manager
+
+The expectations expiration manager is a built-in collector. At a fixed interval, it sets the result of the expectations whose expiration time has passed and that no Collector or security platform filled.
+
+| Parameter                                         | Environment variable                              | Default value | Description |
+|:--------------------------------------------------|:--------------------------------------------------|:--------------|:------------|
+| collector.expectations-expiration-manager.enable     | COLLECTOR_EXPECTATIONS-EXPIRATION-MANAGER_ENABLE     | `true`        | Enables the expectations expiration manager. |
+| collector.expectations-expiration-manager.interval   | COLLECTOR_EXPECTATIONS-EXPIRATION-MANAGER_INTERVAL   | 60            | Interval in seconds between two runs. The first run starts 30 seconds after startup. |
+| collector.expectations-expiration-manager.batch-size | COLLECTOR_EXPECTATIONS-EXPIRATION-MANAGER_BATCH-SIZE | 1000          | Maximum number of expectations expired per run and per tenant. |
+
+#### Attack chaining
+
+| Parameter                        | Environment variable             | Default value | Description |
+|:---------------------------------|:---------------------------------|:--------------|:------------|
+| openaev.chaining.max-retry-count | OPENAEV_CHAINING_MAX-RETRY-COUNT | 5             | Maximum number of times a chaining event is re-queued after a failed transaction. Past this number, the event is not re-queued again. |
+
 {% if feature_visible("CREDENTIAL_ASSET") %}
 #### Credential status validation
 
@@ -310,6 +326,20 @@ Tuning parameters applicable to both engines:
 | engine.indexing-misfire-threshold-ms     | ENGINE_INDEXING_MISFIRE_THRESHOLD_MS     | 120000        | Threshold in milliseconds after which a model synchronisation is declared misfired and is rescheduled.                                                                                                                                                             |
 | engine.indexing-reset-epoch-reassert-delay-seconds | ENGINE_INDEXING_RESET_EPOCH_REASSERT_DELAY_SECONDS | 180 | Delay in seconds after which an instance that reset an index during a rolling deploy re-asserts the indexing cursor of that model, so a stale cursor written by an instance still running an older version does not skip rows. Must exceed the longest indexing round. Set to `0` to disable once every instance runs OpenAEV 3.261001.0 or later. |
 | engine.indexing-refeed-reassert-delay-seconds | ENGINE_INDEXING_REFEED_REASSERT_DELAY_SECONDS | 1800 | Delay in seconds after which the instance that applied an upgrade re-feeding an index in place (for example the findings index, to mask the sensitive values indexed before) re-feeds it a second time. During a rolling deploy, instances still running the previous version take part in the first re-feed and write their own documents, such as finding values in cleartext; the second re-feed rewrites them. Set it longer than your longest rolling deploy plus one indexing round (15 seconds). Set to `0` to skip the second re-feed, which is safe when a single instance runs. |
+| engine.connect-timeout-ms                | ENGINE_CONNECT_TIMEOUT_MS                | 5000          | Connect timeout of the engine client, in milliseconds. |
+| engine.socket-timeout-ms                 | ENGINE_SOCKET_TIMEOUT_MS                 | 60000         | Socket (response) timeout of the engine client, in milliseconds. |
+| engine.max-connections                   | ENGINE_MAX_CONNECTIONS                   | 40            | Maximum number of concurrent connections of the engine client. Applied to both the per-route and the total limit. |
+| engine.reject-unauthorized               | ENGINE_REJECT_UNAUTHORIZED               | `true`        | Verify the TLS certificate of the engine. Set to `false` to trust any certificate, for example a self-signed one. |
+| engine.indexing-batch-size               | ENGINE_INDEXING_BATCH_SIZE               | 500           | Maximum number of records fetched per indexing batch. |
+| engine.indexing-max-concurrent-models    | ENGINE_INDEXING_MAX_CONCURRENT_MODELS    | 3             | Maximum number of models whose indexing runs at the same time. Each indexing round holds a database connection, so a higher value uses more of the connection pool. Values below `1` are treated as `1`. |
+| engine.index-suffix                      | ENGINE_INDEX_SUFFIX                      | -000001       | Suffix of the first index of each rollover alias. |
+| engine.number-of-shards                  | ENGINE_NUMBER_OF_SHARDS                  | 1             | Number of primary shards of each index. Applied when an index is created. |
+| engine.number-of-replicas                | ENGINE_NUMBER_OF_REPLICAS                | 1             | Number of replica shards of each index. Applied when an index is created. |
+| engine.max-result-window                 | ENGINE_MAX_RESULT_WINDOW                 | 100000        | `max_result_window` setting of each index (maximum depth of pagination). Applied when an index is created. |
+| engine.max-fields-size                   | ENGINE_MAX_FIELDS_SIZE                   | 4096          | Maximum number of fields of an index mapping (`mapping.total_fields.limit`). Applied when an index is created. |
+| engine.max-primary-shard-docs            | ENGINE_MAX_PRIMARY_SHARD_DOCS            | 75000000      | Rollover condition of the index lifecycle policy: maximum number of documents in a primary shard. |
+| engine.max-primary-shards-size           | ENGINE_MAX_PRIMARY_SHARDS_SIZE           | 50Gb          | Rollover condition of the index lifecycle policy: maximum size of a primary shard. |
+| engine.search-cap                        | ENGINE_SEARCH_CAP                        | 500           | Maximum number of results a search across the platform indices returns. |
 
 !!! note "Re-feed of the Findings index after an upgrade"
 
@@ -349,6 +379,26 @@ Tuning parameters applicable to both engines:
 | openaev.rabbitmq.trust-store          | OPENAEV_RABBITMQ_TRUST_STORE          |                                   | Path to the p12 trust store (for example `file:/path/to/truststore.p12`) with the CA of the RabbitMQ server certificate. Used when SSL is on. When empty, the platform trust store applies: the JVM default trust store plus the certificates of `openaev.extra-trusted-certs-dir`. Applies to the AMQP connection. The calls to the management plugin trust this store and the platform trust store. |
 | openaev.rabbitmq.trust-store-password | OPENAEV_RABBITMQ_TRUST-STORE-PASSWORD |                                   | Password of the keystore                                                                                                                                                          |
 | openaev.rabbitmq.publish-timeout-ms   | OPENAEV_RABBITMQ_PUBLISH-TIMEOUT-MS   | 30000                             | Hard cap in milliseconds on a single publish, so a broker that stops answering cannot hold a database transaction open. Must be strictly positive, otherwise the default applies.  |
+
+##### Queue tuning
+
+Three batch queues can be tuned with `openaev.queue-config.<queue>.<parameter>` properties, set for example in `application.properties`:
+
+- `inject-trace`: execution traces reported for Injects.
+- `workflows-ready` and `workflows-update`: events of the attack chaining engine.
+
+| Parameter        | `inject-trace` default | `workflows-ready` default | `workflows-update` default | Description |
+|:-----------------|:-----------------------|:--------------------------|:---------------------------|:------------|
+| publisher-number | 2                      | 1                         | 1                          | Number of publisher channels. |
+| consumer-number  | 8                      | 1                         | 1                          | Number of consumer channels. |
+| worker-number    | 8                      | 1                         | 1                          | Number of worker threads that process the batches. Messages are spread over the workers by key. |
+| worker-frequency | 10000                  | 10000                     | 10000                      | Interval in milliseconds at which batches that did not reach `max-size` are processed. |
+| queue-name       | inject-trace           | workflows-ready           | workflows-update           | Name of the queue, exchange and routing key, prefixed with `openaev.rabbitmq.prefix`. |
+| max-size         | 200                    | 200                       | 200                        | Number of buffered messages per worker above which the batch is processed at once. |
+| consumer-qos     | 1000                   | 1000                      | 1000                       | Prefetch count of each consumer channel (`basic.qos`). |
+| publisher-qos    | 0                      | 0                         | 0                          | Prefetch count set on each publisher channel (`basic.qos`). |
+
+For example, `openaev.queue-config.inject-trace.worker-number=16` doubles the inject trace workers.
 
 #### S3 bucket
 
