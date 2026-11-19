@@ -15,12 +15,13 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
+  Text,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@filigran/design-system';
 import { DeleteOutlined } from '@mui/icons-material';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type AxiosResponse } from 'axios';
 import { type FunctionComponent, useCallback, useEffect, useMemo, useState } from 'react';
@@ -111,12 +112,12 @@ const AssetLinks: FunctionComponent<Props> = ({ assetId, assetName, canManage, o
 
   const renderEnd = (id: string, name: string) => {
     if (id === assetId) {
-      return <Typography variant="body2" sx={{ fontWeight: 600 }}>{name}</Typography>;
+      return <Text variant="content-base-bold">{name}</Text>;
     }
     return (
-      <Typography variant="body2" noWrap>
+      <Text variant="content-base" className="truncate">
         <Link to={`/admin/assets/${id}`}>{name}</Link>
-      </Typography>
+      </Text>
     );
   };
 
@@ -176,9 +177,9 @@ const AssetLinks: FunctionComponent<Props> = ({ assetId, assetName, canManage, o
 
       {loading && <Loader variant="inElement" />}
       {!loading && rows.length === 0 && (
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+        <Text variant="content-base" className="text-default-secondary">
           {t('No linked asset')}
-        </Typography>
+        </Text>
       )}
       {!loading && rows.length > 0 && (
         <Box
