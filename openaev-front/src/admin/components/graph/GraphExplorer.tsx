@@ -36,6 +36,8 @@ import {
   DeleteOutlined,
   DonutLargeOutlined,
   DownloadOutlined,
+  ExpandLessOutlined,
+  ExpandMoreOutlined,
   FitScreenOutlined,
   GestureOutlined,
   KeyboardOutlined,
@@ -48,12 +50,13 @@ import {
   UndoOutlined,
   VisibilityOffOutlined,
   VisibilityOutlined,
+  ZoomInOutlined,
+  ZoomOutOutlined,
 } from '@mui/icons-material';
 import { Box, Drawer, List, ListItemButton, ListItemText, Stack } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
   Background,
-  Controls,
   type Edge,
   getNodesBounds,
   getViewportForBounds,
@@ -260,7 +263,7 @@ const GraphExplorerInner = ({
 }: GraphExplorerProps) => {
   const theme = useTheme();
   const { t, fd } = useFormatter();
-  const { fitView, screenToFlowPosition } = useReactFlow();
+  const { fitView, screenToFlowPosition, zoomIn, zoomOut } = useReactFlow();
   const wrapper = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [state, setState] = useState<GraphState>(() => fromSlice(initial));
@@ -780,8 +783,12 @@ const GraphExplorerInner = ({
     Object.values(state.nodes).filter(n => !state.hidden.includes(n.node_id)).forEach(n => counts.set(n.node_type, (counts.get(n.node_type) ?? 0) + 1));
     return counts;
   }, [state.nodes, state.hidden]);
-  const legend = (
-    <div className="flex flex-wrap items-center gap-1" role="group" aria-label={t('Legend')}>
+  const visibleCount = Array.from(typeCounts.values()).reduce((sum, count) => sum + count, 0);
+  // As OpenCTI's GraphLegend, a card floating in the canvas (bottom left), one line per type present
+  // with its count, collapsed by its header; open on the page, closed on the smaller embedded graph.
+  const [legendOpen, setLegendOpen] = useState(variant === 'page');
+  const legendEntries = (
+    <>
       {ALL_NODE_TYPES.filter(type => typeCounts.has(type)).map((type) => {
         const Icon = NODE_ICON[type];
         const on = filters.nodeTypes.includes(type);
@@ -809,7 +816,7 @@ const GraphExplorerInner = ({
           </Tooltip>
         );
       })}
-      <span aria-hidden className="mx-2 h-4 w-px bg-[var(--border-default-primary)]" />
+      <span aria-hidden className="my-1 h-px w-full bg-[var(--border-default-primary)]" />
       {ALL_RESULTS.map(result => (
         <span key={result} className="inline-flex items-center gap-1 px-1">
           <span
@@ -836,6 +843,37 @@ const GraphExplorerInner = ({
         />
         <Text variant="content-caption">{t('Group of neighbours, double-click to open')}</Text>
       </span>
+    </>
+  );
+  const renderLegend = () => (
+    <div
+      data-testid="graph-legend"
+      className="absolute flex flex-col rounded"
+      style={{
+        left: 12,
+        bottom: 12,
+        zIndex: 4,
+        maxWidth: 240,
+        maxHeight: 'calc(100% - 24px)',
+        overflowY: 'auto',
+        background: theme.palette.background.paper,
+        border: `1px solid ${theme.palette.divider}`,
+      }}
+    >
+      <button
+        type="button"
+        aria-expanded={legendOpen}
+        onClick={() => setLegendOpen(!legendOpen)}
+        className="inline-flex items-center justify-between gap-2 px-2 py-1 hover:bg-[var(--background-default-secondary)]"
+      >
+        <Text variant="content-caption">{t('Legend')}</Text>
+        {legendOpen ? <ExpandMoreOutlined fontSize="small" /> : <ExpandLessOutlined fontSize="small" />}
+      </button>
+      {legendOpen && (
+        <div className="flex flex-col items-start gap-0.5 px-1 pb-1" role="group" aria-label={t('Legend')}>
+          {legendEntries}
+        </div>
+      )}
     </div>
   );
 
@@ -945,25 +983,52 @@ const GraphExplorerInner = ({
             />
           </div>
         )}
-        <div style={{ flexGrow: 1 }} />
-        {/* Each layout button runs its layout from scratch (a second click on the active one re-runs
-            it, as OpenCTI's), then the view is framed; every button says what it does on hover. */}
-        <div className="flex items-center" role="group" aria-label={t('Graph layout')}>
+      </div>
+    </Paper>
+  );
+
+  // The graph actions, as OpenCTI's GraphToolbar: ONE icon bar on the canvas (bottom centre, left of
+  // the open side panel) opened by the count of entities shown. Each layout button runs its layout
+  // from scratch (a second click on the active one re-runs it), then the view is framed; every
+  // button says what it does on hover. The embedded graph keeps the count, the zoom and the fit.
+  const canvasToolbar = (offset: number) => (
+    <div
+      data-testid="graph-canvas-toolbar"
+      role="toolbar"
+      aria-label={t('Graph layout')}
+      className="absolute flex items-center gap-0.5 rounded px-2"
+      style={{
+        bottom: 12,
+        left: `calc(50% - ${offset / 2}px)`,
+        transform: 'translateX(-50%)',
+        zIndex: 4,
+        background: theme.palette.background.paper,
+        border: `1px solid ${theme.palette.divider}`,
+      }}
+    >
+      <Text variant="content-caption" className="px-1 text-default-secondary">{`${t('Entities')}: ${visibleCount}`}</Text>
+      <span aria-hidden className="mx-1 h-4 w-px bg-[var(--border-default-primary)]" />
+      {iconAction(t('Zoom in'), <ZoomInOutlined fontSize="small" />, () => zoomIn())}
+      {iconAction(t('Zoom out'), <ZoomOutOutlined fontSize="small" />, () => zoomOut())}
+      {iconAction(t('Fit to screen'), <FitScreenOutlined fontSize="small" />, fitToScreen)}
+      {variant === 'page' && (
+        <>
+          <span aria-hidden className="mx-1 h-4 w-px bg-[var(--border-default-primary)]" />
           {(['force', 'hierarchical', 'radial'] as GraphLayout[]).map(value => (
             <span key={value}>{iconAction(t(LAYOUT_LABEL[value]), LAYOUT_ICON[value], () => relayout(value), false, layout === value)}</span>
           ))}
           {iconAction(t('Re-run the layout'), <AutorenewOutlined fontSize="small" />, () => relayout())}
-          {iconAction(t('Fit to screen'), <FitScreenOutlined fontSize="small" />, fitToScreen)}
+          <span aria-hidden className="mx-1 h-4 w-px bg-[var(--border-default-primary)]" />
           {iconAction(t(LASSO_LABEL), <GestureOutlined fontSize="small" />, () => setLassoOn(!lassoOn), false, lassoOn)}
-        </div>
-        {iconAction(t('Show hidden nodes'), <VisibilityOutlined fontSize="small" />, () => commit(showHidden), state.hidden.length === 0)}
-        {iconAction(t('Undo'), <UndoOutlined fontSize="small" />, undo, history.past.length === 0)}
-        {iconAction(t('Export as PNG'), <DownloadOutlined fontSize="small" />, exportPng)}
-        {iconAction(t('Copy a link to this view'), <LinkOutlined fontSize="small" />, () => copyLink())}
-        {iconAction(t('Keyboard shortcuts'), <KeyboardOutlined fontSize="small" />, () => setShortcutsOpen(true))}
-      </div>
-      <div className="mt-2">{legend}</div>
-    </Paper>
+          {iconAction(t('Show hidden nodes'), <VisibilityOutlined fontSize="small" />, () => commit(showHidden), state.hidden.length === 0)}
+          {iconAction(t('Undo'), <UndoOutlined fontSize="small" />, undo, history.past.length === 0)}
+          <span aria-hidden className="mx-1 h-4 w-px bg-[var(--border-default-primary)]" />
+          {iconAction(t('Export as PNG'), <DownloadOutlined fontSize="small" />, exportPng)}
+          {iconAction(t('Copy a link to this view'), <LinkOutlined fontSize="small" />, () => copyLink())}
+          {iconAction(t('Keyboard shortcuts'), <KeyboardOutlined fontSize="small" />, () => setShortcutsOpen(true))}
+        </>
+      )}
+    </div>
   );
 
   const panelOpen = Boolean(selectedNode && interactive);
@@ -1354,7 +1419,6 @@ const GraphExplorerInner = ({
           fitViewOptions={fitOptions}
         >
           <Background />
-          {interactive && <Controls showInteractive={false} style={{ marginLeft: 8 }} />}
           {variant === 'page' && drawnNodes.length > MINI_MAP_MIN_NODES && (
             <MiniMap
               pannable
@@ -1501,10 +1565,11 @@ const GraphExplorerInner = ({
             </Tooltip>
           </div>
         )}
+        {!empty && renderLegend()}
+        {!empty && canvasToolbar(sideOffset)}
         {panel}
         {contextMenu}
       </Box>
-      {variant === 'embedded' && legend}
     </Stack>
   );
 };
