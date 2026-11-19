@@ -228,7 +228,8 @@
     "Tenants",
     "total",
     "Variables",
-    "Vulnerable"
+    "Vulnerable",
+    "Local"
   ],
   "fr": [
     "{count} / page",
@@ -307,7 +308,6 @@
     "Microblogging",
     "Microservice",
     "Minutes",
-    "minutes",
     "Mission",
     "Mode",
     "Modification",
@@ -364,7 +364,8 @@
     "Variables",
     "Version",
     "Vision",
-    "~{count} injects"
+    "~{count} injects",
+    "Local"
   ],
   "it": [
     "Asset",
