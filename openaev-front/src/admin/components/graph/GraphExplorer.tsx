@@ -1,13 +1,20 @@
 import {
   Alert,
   Button,
-  ButtonGroup,
-  ButtonGroupItem,
   Chip,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogTitle,
   IconButton,
   Menu,
   MenuContent,
   MenuItem,
+  MenuLabel,
+  MenuSeparator,
+  MenuSub,
+  MenuSubContent,
+  MenuSubTrigger,
   MenuTrigger,
   Paper,
   SearchField,
@@ -21,11 +28,14 @@ import {
 import {
   AccountTreeOutlined,
   ArrowDropDownOutlined,
+  AutorenewOutlined,
   BubbleChartOutlined,
   CenterFocusStrongOutlined,
   CloseOutlined,
   DonutLargeOutlined,
   DownloadOutlined,
+  FitScreenOutlined,
+  KeyboardOutlined,
   LinkOutlined,
   OpenInFullOutlined,
   OpenInNewOutlined,
@@ -33,6 +43,7 @@ import {
   RouteOutlined,
   UndoOutlined,
   VisibilityOffOutlined,
+  VisibilityOutlined,
 } from '@mui/icons-material';
 import { Box, Drawer, List, ListItemButton, ListItemText, Stack } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -49,14 +60,15 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import { toPng } from 'html-to-image';
-import { type MouseEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router';
+import { type KeyboardEvent, type MouseEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router';
 
 import { fetchGraphNeighbourhood, fetchGraphPath } from '../../../actions/graph/graph-actions';
 import { useFormatter } from '../../../components/i18n';
 import { NODE_LABEL_OFFSET, NODE_WIDTH } from './graph-edge-geometry';
+import { type GroupedNode, groupNeighbours, isGroupId, miniView } from './graph-grouping';
 import NODE_ICON from './graph-icons';
-import { entering, type GraphLayout, interpolate, layoutFrames, miniLayout, type Point } from './graph-layout';
+import { entering, extendLayout, type GraphLayout, interpolate, layoutFrames, miniCardLayout, type Point } from './graph-layout';
 import {
   ALL_EDGE_TYPES,
   ALL_NODE_TYPES,
@@ -65,14 +77,17 @@ import {
   type GraphEdgeType,
   graphHref,
   type GraphNodeOutput,
+  type GraphNodeType,
   type GraphOutput,
   type GraphResult,
   NODE_TYPE_LABEL,
+  NODE_TYPE_PLURAL,
   nodeHref,
   RESULT_LABEL,
 } from './graph-model';
 import {
   DEFAULT_FILTERS,
+  expandSlice,
   failedHighlights,
   firstRing,
   fromSlice,
@@ -81,7 +96,9 @@ import {
   hideNode,
   mergeSlice,
   pathEdges,
+  showHidden,
   togglePin,
+  ungroup,
   visibleGraph,
 } from './graph-state';
 import GraphEntityNode, { type GraphEntityNodeType } from './GraphEntityNode';
@@ -156,11 +173,31 @@ const LAYOUT_ICON: Record<GraphLayout, ReactNode> = {
   radial: <DonutLargeOutlined fontSize="small" />,
 };
 
+/** What each layout button does, said in its tooltip (Sam, 19 Nov 2026: no button without one). */
 const LAYOUT_LABEL: Record<GraphLayout, string> = {
-  force: 'Force',
-  hierarchical: 'Hierarchical',
-  radial: 'Radial',
+  force: 'Force layout: nodes repel each other, links pull them together. Click again to re-run it.',
+  hierarchical: 'Hierarchical layout: scenarios on top, findings at the bottom',
+  radial: 'Radial layout: rings of neighbours around the selected node',
 };
+
+/** The keyboard shortcuts of the page graph, listed by the shortcuts dialog (as in OpenCTI). */
+const SHORTCUTS: [string, string][] = [
+  ['E', 'Expand the selected node'],
+  ['P', 'Pin or unpin the selected node'],
+  ['H', 'Hide the selected node'],
+  ['F', 'Fit to screen'],
+  ['L', 'Re-run the layout'],
+  ['Ctrl+Z', 'Undo'],
+  ['?', 'Show this list'],
+];
+
+/** Where the context menu opens (in the coordinates of the canvas) and what it was opened on. */
+interface ContextMenuAnchor {
+  x: number;
+  y: number;
+  nodeId?: string;
+  edgeId?: string;
+}
 
 const prefersReducedMotion = () => typeof window !== 'undefined'
   && typeof window.matchMedia === 'function'
@@ -187,6 +224,7 @@ const GraphExplorerInner = ({
   const { t } = useFormatter();
   const { fitView } = useReactFlow();
   const wrapper = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   const [state, setState] = useState<GraphState>(() => fromSlice(initial));
   const [history, setHistory] = useState<History>({ past: [] });
   const [filters, setFilters] = useState<GraphFilters>(DEFAULT_FILTERS);
@@ -197,6 +235,11 @@ const GraphExplorerInner = ({
   const [notice, setNotice] = useState<string | null>(null);
   const [showFailed, setShowFailed] = useState(true);
   const [hovered, setHovered] = useState<string | null>(null);
+  const [menu, setMenu] = useState<ContextMenuAnchor | null>(null);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // Bumped to lay the whole graph out again (a layout button, Re-run the layout, a new initial slice);
+  // every other change (an expand, a hide, a group opened) extends the layout on screen in place.
+  const [layoutRun, setLayoutRun] = useState(0);
   const interactive = variant !== 'mini';
   // The mini graph never fits below MINI_MIN_ZOOM: its labels stay readable (10 px at zoom 1) and an
   // outer ring that does not fit is clipped by the card, the full graph being one click away.
@@ -214,6 +257,7 @@ const GraphExplorerInner = ({
     setState(fromSlice(initial));
     setHistory({ past: [] });
     setSelected(selectFocus ? initial.graph_focus ?? null : null);
+    setLayoutRun(run => run + 1);
   }, [initial, selectFocus]);
 
   const commit = useCallback((next: (s: GraphState) => GraphState) => {
@@ -242,25 +286,70 @@ const GraphExplorerInner = ({
   }, [shownEdges, showFailed]);
   const onPath = useMemo(() => pathEdges(state.path, shownEdges), [state.path, shownEdges]);
   const pathNodes = useMemo(() => new Set(state.path), [state.path]);
-  // The frames toward the current layout: the force simulation's steps, or one static placement.
-  // The mini card draws its own short strip (focus centred, neighbours on two rows) so it fits at zoom 1.
-  const frames = useMemo(
-    () => (variant === 'mini' ? [miniLayout(shownNodes, state.focus)] : layoutFrames(layout, shownNodes, shownEdges, state.focus)),
-    [variant, layout, shownNodes, shownEdges, state.focus],
-  );
+  // What is drawn: the mini card's ranked two-hop view, or the graph with the leaves of a node folded
+  // by type into group nodes ("+14 Injects", as OpenCTI's graph collapse) unless the user opened them.
+  const drawn = useMemo(() => {
+    if (variant === 'mini') {
+      return state.focus
+        ? miniView(state.focus, shownNodes, shownEdges)
+        : {
+            nodes: shownNodes as GroupedNode[],
+            edges: shownEdges,
+          };
+    }
+    const keep = new Set<string>([...state.pinned, ...state.path, ...(state.focus ? [state.focus] : []), ...(selected ? [selected] : [])]);
+    return groupNeighbours(shownNodes, shownEdges, state.ungrouped, keep);
+  }, [variant, shownNodes, shownEdges, state.focus, state.pinned, state.path, state.ungrouped, selected]);
+  const drawnNodes = drawn.nodes as GroupedNode[];
+  const drawnEdges = drawn.edges;
+  // The positions on screen: read by the layout to extend it in place.
+  const shown = useRef<Map<string, Point>>(new Map());
+  const laidOut = useRef<string>('');
+  // Set when the view must frame the graph once the move has landed (a load, a layout, new nodes).
+  const fitPending = useRef(true);
+  // The frames toward the current layout. A whole layout (the force simulation's steps, or one static
+  // placement) runs on a layout button, Re-run the layout and a new slice; an expand, a hide or a group
+  // opened keeps every node where it is and places the newcomers next to their neighbour (an OpenCTI
+  // investigation never jumps). The mini card draws its own compact two-hop block.
+  const frames = useMemo(() => {
+    if (variant === 'mini') {
+      return [miniCardLayout(drawnNodes, drawnEdges, state.focus ?? '')];
+    }
+    const key = `${layout}|${layoutRun}`;
+    if (laidOut.current !== key || shown.current.size === 0) {
+      laidOut.current = key;
+      fitPending.current = true;
+      return layoutFrames(layout, drawnNodes, drawnEdges, state.focus);
+    }
+    if (drawnNodes.some(n => !shown.current.has(n.node_id))) {
+      fitPending.current = true;
+    }
+    return [extendLayout(shown.current, drawnNodes, drawnEdges)];
+  }, [variant, layout, layoutRun, drawnNodes, drawnEdges, state.focus]);
   const target = frames[frames.length - 1];
   // What is on screen. A layout switch, an expand or a hide moves the nodes from where they are to
   // where they go: the force layout plays its simulation frames (the forces settle visibly), a static
   // layout glides; a node entering the graph grows out of its neighbour already on screen.
   const [positions, setPositions] = useState<Map<string, Point>>(target);
-  const shown = useRef<Map<string, Point>>(target);
+  const frame = useCallback(() => {
+    if (!fitPending.current) {
+      return;
+    }
+    fitPending.current = false;
+    // After the frame that drew the last positions, so the fit measures the settled graph.
+    window.requestAnimationFrame(() => fitView({
+      ...fitOptions,
+      duration: 300,
+    }));
+  }, [fitView, fitOptions]);
   useEffect(() => {
-    const from = entering(shown.current, target, shownEdges);
-    const steps = layout === 'force' && frames.length > 1 ? frames : [target];
-    const duration = layout === 'force' ? Math.max(MOVE_MS, steps.length * FRAME_MS) : MOVE_MS;
-    if (prefersReducedMotion() || variant === 'mini') {
+    const from = entering(shown.current, target, drawnEdges);
+    const steps = frames.length > 1 ? frames : [target];
+    const duration = frames.length > 1 ? Math.max(MOVE_MS, steps.length * FRAME_MS) : MOVE_MS;
+    if (prefersReducedMotion() || variant === 'mini' || shown.current.size === 0) {
       shown.current = target;
       setPositions(target);
+      frame();
       return undefined;
     }
     let raf = 0;
@@ -278,15 +367,17 @@ const GraphExplorerInner = ({
       setPositions(next);
       if (progress < 1) {
         raf = window.requestAnimationFrame(tick);
+      } else {
+        frame();
       }
     };
     raf = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(raf);
-  }, [frames, target, shownEdges, layout, variant]);
+  }, [frames, target, drawnEdges, variant, frame]);
   // Hover dimming: the hovered node's first ring stays, the rest fades.
-  const ring = useMemo(() => (hovered ? firstRing(hovered, shownEdges) : null), [hovered, shownEdges]);
+  const ring = useMemo(() => (hovered ? firstRing(hovered, drawnEdges) : null), [hovered, drawnEdges]);
 
-  const flowNodes: GraphEntityNodeType[] = shownNodes.map(n => ({
+  const flowNodes: GraphEntityNodeType[] = drawnNodes.map(n => ({
     id: n.node_id,
     type: 'entity',
     // Declared size (circle and label): the mini-map draws a node only once it has one, and the
@@ -305,13 +396,14 @@ const GraphExplorerInner = ({
       dimmed: (matches.size > 0 && !matches.has(n.node_id))
         || (state.path.length > 0 && !pathNodes.has(n.node_id))
         || (ring !== null && !ring.nodeIds.has(n.node_id)),
-      highlighted: failed.nodeIds.has(n.node_id) && n.node_type !== 'INJECT',
+      highlighted: (failed.nodeIds.has(n.node_id) || (showFailed && Boolean(n.node_group_members) && n.node_result === 'FAILED')) && n.node_type !== 'INJECT',
       truncated: state.truncatedAt.includes(n.node_id),
+      groupCount: n.node_group_members?.length,
     },
   }));
 
-  const flowEdges: Edge[] = shownEdges.map((e) => {
-    const isFailed = failed.edgeIds.has(e.edge_id);
+  const flowEdges: Edge[] = drawnEdges.map((e) => {
+    const isFailed = failed.edgeIds.has(e.edge_id) || (showFailed && e.edge_result === 'FAILED' && (isGroupId(e.edge_source) || isGroupId(e.edge_target)));
     const isPath = onPath.has(e.edge_id);
     let stroke = theme.palette.text.disabled;
     if (isPath) {
@@ -330,9 +422,11 @@ const GraphExplorerInner = ({
       type: 'floating',
       source: e.edge_source,
       target: e.edge_target,
-      // The relation name only where it is read: on a path, or around the selected node (a failed
-      // edge already says it by its colour; a label on each of them piles up between close nodes).
-      label: interactive && (isPath || (selected !== null && (e.edge_source === selected || e.edge_target === selected)))
+      // The relation name only where it is read: on a path, around the selected node and on hover (a
+      // failed edge already says it by its colour; a label on each of them piles up between close nodes).
+      label: interactive && (isPath
+        || (selected !== null && (e.edge_source === selected || e.edge_target === selected))
+        || (hovered !== null && (e.edge_source === hovered || e.edge_target === hovered)))
         ? t(EDGE_TYPE_LABEL[e.edge_type])
         : undefined,
       animated: isPath,
@@ -350,30 +444,29 @@ const GraphExplorerInner = ({
     };
   });
 
-  useEffect(() => {
-    // Fit once the move has landed, so the view frames the settled layout.
-    const id = window.setTimeout(() => fitView({
-      ...fitOptions,
-      duration: 300,
-    }), layout === 'force' ? Math.max(MOVE_MS, frames.length * FRAME_MS) + 50 : MOVE_MS + 50);
-    return () => window.clearTimeout(id);
-  }, [layout, shownNodes.length, fitView, frames.length, fitOptions]);
+  const fitToScreen = () => fitView({
+    ...fitOptions,
+    duration: 300,
+  });
 
-  const expand = async (node: GraphNodeOutput, edges: GraphEdgeType[] = [], limit = 50) => {
-    setLoading(true);
-    try {
-      const slice = await fetchGraphNeighbourhood(node.node_type, node.node_entity_id, edges, limit);
-      commit(s => mergeSlice(s, slice, node.node_id));
-    } finally {
-      setLoading(false);
+  const relayout = (next: GraphLayout = layout) => {
+    setLayout(next);
+    setLayoutRun(run => run + 1);
+    if (next !== layout) {
+      onLayoutChange?.(next);
     }
   };
 
-  const refocus = async (node: GraphNodeOutput) => {
+  /**
+   * Expands a node in place (OpenCTI investigation): its neighbours join the graph on screen next to
+   * it, every node already there keeps its place, the node becomes the focus. A relation or an entity
+   * type narrows the expansion; Undo rolls it back.
+   */
+  const expand = async (node: GraphNodeOutput, edges: GraphEdgeType[] = [], limit = 50, nodeType?: GraphNodeType) => {
     setLoading(true);
     try {
-      const slice = await fetchGraphNeighbourhood(node.node_type, node.node_entity_id);
-      commit(() => fromSlice(slice));
+      const slice = await fetchGraphNeighbourhood(node.node_type, node.node_entity_id, edges, limit);
+      commit(s => expandSlice(s, slice, node.node_id, nodeType));
       setSelected(node.node_id);
       onFocusChange?.(node.node_id);
     } finally {
@@ -464,20 +557,45 @@ const GraphExplorerInner = ({
     SUCCESS: theme.palette.success.main,
   };
 
+  // The legend, as OpenCTI's GraphLegend: the entity types present in the graph with their count, a
+  // click shows or hides the type (the Entities filter, in sync), then the result colours.
+  const typeCounts = useMemo(() => {
+    const counts = new Map<GraphNodeType, number>();
+    Object.values(state.nodes).filter(n => !state.hidden.includes(n.node_id)).forEach(n => counts.set(n.node_type, (counts.get(n.node_type) ?? 0) + 1));
+    return counts;
+  }, [state.nodes, state.hidden]);
   const legend = (
-    <div className="flex flex-wrap items-center gap-3">
-      {ALL_NODE_TYPES.map((type) => {
+    <div className="flex flex-wrap items-center gap-1" role="group" aria-label={t('Legend')}>
+      {ALL_NODE_TYPES.filter(type => typeCounts.has(type)).map((type) => {
         const Icon = NODE_ICON[type];
+        const on = filters.nodeTypes.includes(type);
         return (
-          <span key={type} className="inline-flex items-center gap-1">
-            <Icon />
-            <Text variant="content-caption">{t(NODE_TYPE_LABEL[type])}</Text>
-          </span>
+          <Tooltip key={type}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-pressed={on}
+                onClick={() => setFilters({
+                  ...filters,
+                  nodeTypes: toggle(filters.nodeTypes, type),
+                })}
+                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-[var(--background-default-secondary)]"
+                style={{
+                  opacity: on ? 1 : 0.4,
+                  textDecoration: on ? 'none' : 'line-through',
+                }}
+              >
+                <Icon />
+                <Text variant="content-caption">{`${t(NODE_TYPE_LABEL[type])} (${typeCounts.get(type)})`}</Text>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{on ? t('Hide this type') : t('Show this type')}</TooltipContent>
+          </Tooltip>
         );
       })}
-      <span aria-hidden className="h-4 w-px bg-[var(--border-default-primary)]" />
+      <span aria-hidden className="mx-2 h-4 w-px bg-[var(--border-default-primary)]" />
       {ALL_RESULTS.map(result => (
-        <span key={result} className="inline-flex items-center gap-1">
+        <span key={result} className="inline-flex items-center gap-1 px-1">
           <span
             aria-hidden
             style={{
@@ -490,6 +608,18 @@ const GraphExplorerInner = ({
           <Text variant="content-caption">{t(RESULT_LABEL[result])}</Text>
         </span>
       ))}
+      <span className="inline-flex items-center gap-1 px-1">
+        <span
+          aria-hidden
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            border: `2px dashed ${theme.palette.text.secondary}`,
+          }}
+        />
+        <Text variant="content-caption">{t('Group of neighbours, double-click to open')}</Text>
+      </span>
     </div>
   );
 
@@ -519,11 +649,11 @@ const GraphExplorerInner = ({
     </Menu>
   );
 
-  const iconAction = (label: string, icon: ReactNode, onClick: () => void, disabled = false) => (
+  const iconAction = (label: string, icon: ReactNode, onClick: () => void, disabled = false, active = false) => (
     <Tooltip>
       <TooltipTrigger asChild>
         <span>
-          <IconButton priority="tertiary" icon={icon} aria-label={label} onClick={onClick} disabled={disabled} />
+          <IconButton priority="tertiary" icon={icon} aria-label={label} onClick={onClick} disabled={disabled} active={active} aria-pressed={active || undefined} />
         </span>
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
@@ -583,22 +713,20 @@ const GraphExplorerInner = ({
           onCheckedChange={checked => setShowFailed(checked === true)}
         />
         <div style={{ flexGrow: 1 }} />
-        <ButtonGroup
-          value={layout}
-          onValueChange={(value) => {
-            const next = value as GraphLayout;
-            setLayout(next);
-            onLayoutChange?.(next);
-          }}
-          aria-label={t('Graph layout')}
-        >
+        {/* Each layout button runs its layout from scratch (a second click on the active one re-runs
+            it, as OpenCTI's), then the view is framed; every button says what it does on hover. */}
+        <div className="flex items-center" role="group" aria-label={t('Graph layout')}>
           {(['force', 'hierarchical', 'radial'] as GraphLayout[]).map(value => (
-            <ButtonGroupItem key={value} value={value} icon={LAYOUT_ICON[value]} aria-label={t(LAYOUT_LABEL[value])} />
+            <span key={value}>{iconAction(t(LAYOUT_LABEL[value]), LAYOUT_ICON[value], () => relayout(value), false, layout === value)}</span>
           ))}
-        </ButtonGroup>
+          {iconAction(t('Re-run the layout'), <AutorenewOutlined fontSize="small" />, () => relayout())}
+          {iconAction(t('Fit to screen'), <FitScreenOutlined fontSize="small" />, fitToScreen)}
+        </div>
+        {iconAction(t('Show hidden nodes'), <VisibilityOutlined fontSize="small" />, () => commit(showHidden), state.hidden.length === 0)}
         {iconAction(t('Undo'), <UndoOutlined fontSize="small" />, undo, history.past.length === 0)}
         {iconAction(t('Export as PNG'), <DownloadOutlined fontSize="small" />, exportPng)}
         {iconAction(t('Copy a link to this view'), <LinkOutlined fontSize="small" />, copyLink)}
+        {iconAction(t('Keyboard shortcuts'), <KeyboardOutlined fontSize="small" />, () => setShortcutsOpen(true))}
       </div>
       <div className="mt-2">{legend}</div>
     </Paper>
@@ -651,8 +779,8 @@ const GraphExplorerInner = ({
             </Link>
           </Button>
         )}
-        <Button type="button" priority="secondary" startIcon={<CenterFocusStrongOutlined fontSize="small" />} onClick={() => refocus(selectedNode)}>
-          {t('Pivot on this node')}
+        <Button type="button" priority="secondary" startIcon={<CenterFocusStrongOutlined fontSize="small" />} onClick={() => expand(selectedNode)}>
+          {t('Expand')}
         </Button>
         <Button
           type="button"
@@ -715,7 +843,173 @@ const GraphExplorerInner = ({
     </Drawer>
   );
 
-  const empty = shownNodes.length === 0;
+  // The right-click menu, as OpenCTI's GraphContextMenu: the actions that apply to what is under the
+  // pointer (a node, a group, a relation, the empty canvas), grouped under a label naming it.
+  const openMenu = (event: MouseEvent | globalThis.MouseEvent, on: Pick<ContextMenuAnchor, 'nodeId' | 'edgeId'>) => {
+    event.preventDefault();
+    const box = wrapper.current?.getBoundingClientRect();
+    if (on.nodeId && !isGroupId(on.nodeId)) {
+      setSelected(on.nodeId);
+    }
+    setMenu({
+      x: event.clientX - (box?.left ?? 0),
+      y: event.clientY - (box?.top ?? 0),
+      ...on,
+    });
+  };
+  const closeMenu = () => setMenu(null);
+  const menuItem = (key: string, label: string, icon: ReactNode, onSelect: () => void, disabled = false) => (
+    <MenuItem key={key} startIcon={icon} disabled={disabled} onSelect={onSelect}>{label}</MenuItem>
+  );
+  const nodeMenu = (node: GraphNodeOutput) => {
+    const href = nodeHref(node);
+    const present = ALL_NODE_TYPES.filter(type => type !== node.node_type);
+    return [
+      <MenuLabel key="label">{`${t(NODE_TYPE_LABEL[node.node_type])}: ${node.node_label}`}</MenuLabel>,
+      menuItem('expand', t('Expand'), <CenterFocusStrongOutlined fontSize="small" />, () => expand(node)),
+      <MenuSub key="by-relation">
+        <MenuSubTrigger>{t('Expand by relation')}</MenuSubTrigger>
+        <MenuSubContent>
+          {ALL_EDGE_TYPES.map(type => menuItem(type, t(EDGE_TYPE_LABEL[type]), null, () => expand(node, [type])))}
+        </MenuSubContent>
+      </MenuSub>,
+      <MenuSub key="by-type">
+        <MenuSubTrigger>{t('Expand by entity type')}</MenuSubTrigger>
+        <MenuSubContent>
+          {present.map(type => menuItem(type, t(NODE_TYPE_PLURAL[type]), null, () => expand(node, [], 200, type)))}
+        </MenuSubContent>
+      </MenuSub>,
+      ...(state.truncatedAt.includes(node.node_id) ? [menuItem('more', t('Load more'), null, () => expand(node, [], 200))] : []),
+      <MenuSeparator key="sep-1" />,
+      menuItem('path', t('Find a path from here'), <RouteOutlined fontSize="small" />, () => setPathFrom(node.node_id)),
+      menuItem('pin', state.pinned.includes(node.node_id) ? t('Unpin') : t('Pin'), <PushPinOutlined fontSize="small" />, () => commit(s => togglePin(s, node.node_id))),
+      menuItem('hide', t('Hide'), <VisibilityOffOutlined fontSize="small" />, () => {
+        commit(s => hideNode(s, node.node_id));
+        setSelected(null);
+      }),
+      ...(href ? [menuItem('open', t('Open'), <OpenInNewOutlined fontSize="small" />, () => navigate(href))] : []),
+      ...nodeActions.filter(a => a.appliesTo(node)).map(a => menuItem(a.key, a.label, a.icon, () => a.onClick(node))),
+    ];
+  };
+  const graphMenu = () => [
+    <MenuLabel key="label">{t('Graph')}</MenuLabel>,
+    menuItem('relayout', t('Re-run the layout'), <AutorenewOutlined fontSize="small" />, () => relayout()),
+    menuItem('fit', t('Fit to screen'), <FitScreenOutlined fontSize="small" />, fitToScreen),
+    menuItem('show', t('Show hidden nodes'), <VisibilityOutlined fontSize="small" />, () => commit(showHidden), state.hidden.length === 0),
+    menuItem('undo', t('Undo'), <UndoOutlined fontSize="small" />, undo, history.past.length === 0),
+    menuItem('shortcuts', t('Keyboard shortcuts'), <KeyboardOutlined fontSize="small" />, () => setShortcutsOpen(true)),
+  ];
+  const menuSections = (): ReactNode[] => {
+    if (!menu) {
+      return [];
+    }
+    if (menu.nodeId && isGroupId(menu.nodeId)) {
+      const groupNode = drawnNodes.find(n => n.node_id === menu.nodeId);
+      return [
+        <MenuLabel key="label">{groupNode ? `+${groupNode.node_group_members?.length ?? 0} ${t(NODE_TYPE_PLURAL[groupNode.node_type])}` : t('Group')}</MenuLabel>,
+        menuItem('ungroup', t('Ungroup'), <OpenInFullOutlined fontSize="small" />, () => commit(s => ungroup(s, menu.nodeId as string))),
+      ];
+    }
+    if (menu.nodeId && state.nodes[menu.nodeId]) {
+      return nodeMenu(state.nodes[menu.nodeId]);
+    }
+    if (menu.edgeId) {
+      const edge = drawnEdges.find(e => e.edge_id === menu.edgeId);
+      const ends = edge ? [state.nodes[edge.edge_source], state.nodes[edge.edge_target]].filter((n): n is GraphNodeOutput => Boolean(n)) : [];
+      return [
+        <MenuLabel key="label">{edge ? t(EDGE_TYPE_LABEL[edge.edge_type]) : t('Relations')}</MenuLabel>,
+        ...ends.map(n => menuItem(`expand-${n.node_id}`, `${t('Expand')}: ${n.node_label}`, <CenterFocusStrongOutlined fontSize="small" />, () => expand(n))),
+        ...ends.map(n => menuItem(`select-${n.node_id}`, `${t('Select')}: ${n.node_label}`, null, () => setSelected(n.node_id))),
+      ];
+    }
+    return graphMenu();
+  };
+  const contextMenu = menu && (
+    <Menu
+      open
+      modal={false}
+      onOpenChange={(open) => {
+        if (!open) {
+          closeMenu();
+        }
+      }}
+    >
+      {/* The library Menu opens from a trigger only: a hidden one sits at the pointer, as in OpenCTI. */}
+      <MenuTrigger asChild>
+        <span
+          aria-hidden
+          tabIndex={-1}
+          style={{
+            position: 'absolute',
+            left: menu.x,
+            top: menu.y,
+            width: 1,
+            height: 1,
+            pointerEvents: 'none',
+          }}
+        />
+      </MenuTrigger>
+      <MenuContent align="start" side="bottom" aria-label={t('Graph actions')} collisionPadding={8} data-testid="graph-context-menu">
+        {menuSections()}
+      </MenuContent>
+    </Menu>
+  );
+
+  const shortcutsDialog = (
+    <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
+      <DialogContent size="sm">
+        <DialogTitle>{t('Keyboard shortcuts')}</DialogTitle>
+        <DialogBody>
+          <table className="w-full">
+            <tbody>
+              {SHORTCUTS.map(([keys, action]) => (
+                <tr key={keys}>
+                  <td className="py-1 pr-4"><kbd>{keys}</kbd></td>
+                  <td className="py-1"><Text variant="content-compact">{t(action)}</Text></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
+  );
+
+  // The shortcuts act on the graph while the focus is in it (a field of the toolbar keeps its keys).
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (!interactive || target.closest('input, textarea, [role="menu"], [role="dialog"]')) {
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+      event.preventDefault();
+      undo();
+      return;
+    }
+    if (event.ctrlKey || event.metaKey || event.altKey) {
+      return;
+    }
+    const key = event.key.toLowerCase();
+    if (key === '?') {
+      setShortcutsOpen(true);
+    } else if (key === 'f') {
+      fitToScreen();
+    } else if (key === 'l') {
+      relayout();
+    } else if (selectedNode && key === 'e') {
+      expand(selectedNode);
+    } else if (selectedNode && key === 'p') {
+      commit(s => togglePin(s, selectedNode.node_id));
+    } else if (selectedNode && key === 'h') {
+      commit(s => hideNode(s, selectedNode.node_id));
+      setSelected(null);
+    } else {
+      return;
+    }
+    event.preventDefault();
+  };
+
+  const empty = drawnNodes.length === 0;
   // The controls and the mini-map move left of the open side panel instead of sitting under it.
   const sideOffset = panelOpen ? PANEL_WIDTH + 8 : 0;
 
@@ -750,6 +1044,10 @@ const GraphExplorerInner = ({
           onNodeMouseLeave={() => setHovered(null)}
           onNodeClick={interactive
             ? (_, n) => {
+                setMenu(null);
+                if (isGroupId(n.id)) {
+                  return;
+                }
                 const node = state.nodes[n.id];
                 if (pathFrom && pathFrom !== n.id) {
                   findPath(state.nodes[pathFrom], node);
@@ -758,7 +1056,13 @@ const GraphExplorerInner = ({
                 setSelected(n.id);
               }
             : undefined}
-          onNodeDoubleClick={interactive ? (_, n) => expand(state.nodes[n.id]) : undefined}
+          onNodeDoubleClick={interactive
+            ? (_, n) => (isGroupId(n.id) ? commit(s => ungroup(s, n.id)) : expand(state.nodes[n.id]))
+            : undefined}
+          onNodeContextMenu={interactive ? (event, n) => openMenu(event, { nodeId: n.id }) : undefined}
+          onEdgeContextMenu={interactive ? (event, e) => openMenu(event, { edgeId: e.id }) : undefined}
+          onPaneContextMenu={interactive ? event => openMenu(event, {}) : undefined}
+          onPaneClick={() => setMenu(null)}
           panOnScroll={false}
           fitView
           fitViewOptions={fitOptions}
@@ -831,6 +1135,7 @@ const GraphExplorerInner = ({
   return (
     <Stack spacing={1.5} sx={{ height }}>
       {variant === 'page' && toolbar}
+      {interactive && shortcutsDialog}
       {notice && (
         <Alert
           severity="info"
@@ -841,6 +1146,7 @@ const GraphExplorerInner = ({
       {pathFrom && <Alert severity="info" title={t('Select the destination node to find the shortest path')} />}
       <Box
         ref={wrapper}
+        onKeyDown={onKeyDown}
         sx={{
           position: 'relative',
           flexGrow: 1,
@@ -882,6 +1188,7 @@ const GraphExplorerInner = ({
           </div>
         )}
         {panel}
+        {contextMenu}
       </Box>
       {variant === 'embedded' && legend}
     </Stack>

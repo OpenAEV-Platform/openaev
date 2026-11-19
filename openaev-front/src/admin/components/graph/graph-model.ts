@@ -56,6 +56,19 @@ export const NODE_TYPE_LABEL: Record<GraphNodeType, string> = {
   TEAM: 'Team',
 };
 
+/** Catalog keys of the node types, plural: the label of a group node ("+14 Injects"). */
+export const NODE_TYPE_PLURAL: Record<GraphNodeType, string> = {
+  ASSET: 'Assets',
+  ASSET_GROUP: 'Asset groups',
+  FINDING: 'Findings',
+  INJECT: 'Injects',
+  SIMULATION: 'Simulations',
+  SCENARIO: 'Scenarios',
+  PERSON: 'Persons',
+  ORGANIZATION: 'Organizations',
+  TEAM: 'Teams',
+};
+
 /** Catalog keys of the relation types. */
 export const EDGE_TYPE_LABEL: Record<GraphEdgeType, string> = {
   MEMBER_OF: 'Member of',

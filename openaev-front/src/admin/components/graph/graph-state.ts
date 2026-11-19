@@ -19,6 +19,8 @@ export interface GraphState {
   pinned: string[];
   path: string[];
   truncatedAt: string[];
+  /** Group nodes the user opened: their members are drawn one by one (see graph-grouping). */
+  ungrouped: string[];
 }
 
 export interface GraphFilters {
@@ -38,6 +40,7 @@ export const EMPTY_STATE: GraphState = {
   pinned: [],
   path: [],
   truncatedAt: [],
+  ungrouped: [],
 };
 
 export const DEFAULT_FILTERS: GraphFilters = {
@@ -99,6 +102,42 @@ export const mergeSlice = (state: GraphState, slice: GraphOutput, expandedFrom?:
     truncatedAt,
   };
 };
+
+/**
+ * Expands a node in place, as an OpenCTI investigation: the slice is merged into the graph on
+ * screen and the node becomes the focus; nothing already on screen is dropped. `nodeType` keeps only
+ * the neighbours of one entity type (the context menu's Expand by entity type).
+ */
+export const expandSlice = (state: GraphState, slice: GraphOutput, nodeId: string, nodeType?: GraphNodeOutput['node_type']): GraphState => {
+  const kept = nodeType
+    ? {
+        ...slice,
+        graph_nodes: slice.graph_nodes.filter(n => n.node_id === nodeId || n.node_type === nodeType || state.nodes[n.node_id]),
+      }
+    : slice;
+  const ids = new Set([...Object.keys(state.nodes), ...kept.graph_nodes.map(n => n.node_id)]);
+  const merged = mergeSlice(state, {
+    ...kept,
+    graph_edges: kept.graph_edges.filter(e => ids.has(e.edge_source) && ids.has(e.edge_target)),
+    graph_path: [],
+  }, nodeId);
+  return {
+    ...merged,
+    focus: nodeId,
+  };
+};
+
+/** Shows every hidden node again. */
+export const showHidden = (state: GraphState): GraphState => ({
+  ...state,
+  hidden: [],
+});
+
+/** Opens a group node: its members are drawn one by one. */
+export const ungroup = (state: GraphState, groupId: string): GraphState => ({
+  ...state,
+  ungrouped: state.ungrouped.includes(groupId) ? state.ungrouped : [...state.ungrouped, groupId],
+});
 
 /** A fresh state from one slice: the landing view, or a new focus. */
 export const fromSlice = (slice: GraphOutput): GraphState => mergeSlice(EMPTY_STATE, slice, slice.graph_focus ?? null);

@@ -7,7 +7,7 @@ import { memo } from 'react';
 import { useFormatter } from '../../../components/i18n';
 import { LABEL_MARGIN, NODE_CIRCLE_SIZE, NODE_WIDTH } from './graph-edge-geometry';
 import NODE_ICON from './graph-icons';
-import { type GraphNodeOutput, NODE_TYPE_LABEL } from './graph-model';
+import { type GraphNodeOutput, NODE_TYPE_LABEL, NODE_TYPE_PLURAL } from './graph-model';
 
 export interface GraphEntityNodeData extends Record<string, unknown> {
   node: GraphNodeOutput;
@@ -17,6 +17,8 @@ export interface GraphEntityNodeData extends Record<string, unknown> {
   dimmed: boolean;
   highlighted: boolean;
   truncated: boolean;
+  /** A group node (same-type neighbours folded, as OpenCTI's graph collapse): how many it stands for. */
+  groupCount?: number;
 }
 
 export type GraphEntityNodeType = Node<GraphEntityNodeData, 'entity'>;
@@ -26,7 +28,8 @@ const SIZE = NODE_CIRCLE_SIZE;
 const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const { node, focused, pinned, matched, dimmed, highlighted, truncated } = data;
+  const { node, focused, pinned, matched, dimmed, highlighted, truncated, groupCount } = data;
+  const label = groupCount ? `+${groupCount} ${t(NODE_TYPE_PLURAL[node.node_type])}` : node.node_label;
   let ring = theme.palette.divider;
   if (node.node_result === 'FAILED') {
     ring = theme.palette.error.main;
@@ -66,7 +69,7 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
                 justifyContent: 'center',
                 backgroundColor: theme.palette.background.paper,
                 color: theme.palette.text.primary,
-                border: `2px solid ${ring}`,
+                border: `2px ${groupCount ? 'dashed' : 'solid'} ${ring}`,
                 outline: focused || matched || highlighted ? `3px solid ${matched ? theme.palette.secondary.main : theme.palette.primary.main}` : 'none',
                 outlineOffset: 2,
                 boxShadow: highlighted ? `0 0 12px ${theme.palette.error.main}` : 'none',
@@ -91,13 +94,17 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
             }}
           >
             {pinned ? '\u25CF ' : ''}
-            {node.node_label}
+            {label}
             {truncated ? ' +' : ''}
           </Text>
           <Handle type="source" position={Position.Bottom} style={{ visibility: 'hidden' }} />
         </Box>
       </TooltipTrigger>
-      <TooltipContent>{`${t(NODE_TYPE_LABEL[node.node_type])}: ${node.node_label}`}</TooltipContent>
+      <TooltipContent>
+        {groupCount ? label : `${t(NODE_TYPE_LABEL[node.node_type])}: ${node.node_label}`}
+        {node.node_failed_count > 0 ? ` · ${t('Failed expectations')}: ${node.node_failed_count}` : ''}
+        {node.node_finding_count > 0 ? ` · ${t('Findings')}: ${node.node_finding_count}` : ''}
+      </TooltipContent>
     </Tooltip>
   );
 };
