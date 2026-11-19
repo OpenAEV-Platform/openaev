@@ -36,6 +36,7 @@ import {
   DonutLargeOutlined,
   DownloadOutlined,
   FitScreenOutlined,
+  GestureOutlined,
   KeyboardOutlined,
   LinkOutlined,
   OpenInFullOutlined,
@@ -63,7 +64,7 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import { toPng } from 'html-to-image';
-import { type KeyboardEvent, type MouseEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 
 import { fetchGraphNeighbourhood, fetchGraphPath } from '../../../actions/graph/graph-actions';
@@ -71,6 +72,7 @@ import { useFormatter } from '../../../components/i18n';
 import { NODE_LABEL_OFFSET, NODE_WIDTH } from './graph-edge-geometry';
 import { type GroupedNode, groupNeighbours, isGroupId, miniView } from './graph-grouping';
 import NODE_ICON from './graph-icons';
+import { LASSO_MIN_LENGTH, nodesInLasso, pathLength } from './graph-lasso';
 import { entering, extendLayout, type GraphLayout, interpolate, layoutFrames, miniCardLayout, type Point } from './graph-layout';
 import {
   ALL_EDGE_TYPES,
@@ -186,6 +188,9 @@ const LAYOUT_LABEL: Record<GraphLayout, string> = {
   radial: 'Radial layout: rings of neighbours around the selected node',
 };
 
+/** The lasso button's tooltip and its shortcut line (OpenCTI's LassoSelection). */
+const LASSO_LABEL = 'Lasso selection: draw around nodes to select them';
+
 /** The keyboard shortcuts of the page graph, listed by the shortcuts dialog (as in OpenCTI). */
 const SHORTCUTS: [string, string][] = [
   ['E', 'Expand the selected node'],
@@ -196,6 +201,7 @@ const SHORTCUTS: [string, string][] = [
   ['N', 'Select the neighbours of the selection'],
   ['Delete', 'Remove the selection from the view'],
   ['Shift+drag', 'Select an area'],
+  ['S', LASSO_LABEL],
   ['Ctrl+click', 'Add a node to the selection'],
   ['Esc', 'Clear the selection'],
   ['Ctrl+Z', 'Undo'],
@@ -235,7 +241,7 @@ const GraphExplorerInner = ({
 }: GraphExplorerProps) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const { fitView } = useReactFlow();
+  const { fitView, screenToFlowPosition } = useReactFlow();
   const wrapper = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [state, setState] = useState<GraphState>(() => fromSlice(initial));
@@ -253,6 +259,11 @@ const GraphExplorerInner = ({
   // The multi-selection, as OpenCTI's graph: Shift+drag draws a rectangle, Ctrl+click adds a node; the
   // selection's actions (expand, pin, hide, remove, select neighbours) run on every node of it.
   const [selection, setSelection] = useState<string[]>([]);
+  // The lasso (OpenCTI's LassoSelection): while on, a drag on the canvas draws a free-hand outline and
+  // the nodes it surrounds become the selection (Shift adds them to it). The points are client pixels,
+  // drawn relative to the canvas.
+  const [lassoOn, setLassoOn] = useState(false);
+  const [lasso, setLasso] = useState<Point[] | null>(null);
   // Bumped to lay the whole graph out again (a layout button, Re-run the layout, a new initial slice);
   // every other change (an expand, a hide, a group opened) extends the layout on screen in place.
   const [layoutRun, setLayoutRun] = useState(0);
@@ -510,6 +521,49 @@ const GraphExplorerInner = ({
     ...fitOptions,
     duration: 300,
   });
+
+  // The lasso's pointer handlers: the outline is kept in client coordinates, drawn relative to the
+  // canvas, and turned into flow coordinates once closed to pick the nodes whose circle it surrounds.
+  const lassoStart = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    setMenu(null);
+    setLasso([{
+      x: event.clientX,
+      y: event.clientY,
+    }]);
+  };
+  const lassoMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!lasso) {
+      return;
+    }
+    setLasso([...lasso, {
+      x: event.clientX,
+      y: event.clientY,
+    }]);
+  };
+  const lassoEnd = (event: PointerEvent<HTMLDivElement>) => {
+    if (!lasso) {
+      return;
+    }
+    const outline = lasso;
+    setLasso(null);
+    if (pathLength(outline) < LASSO_MIN_LENGTH) {
+      return;
+    }
+    const polygon = outline.map(p => screenToFlowPosition(p));
+    const picked = nodesInLasso(polygon, shown.current).filter(id => !isGroupId(id) && state.nodes[id]);
+    setSelection(event.shiftKey ? Array.from(new Set([...selection, ...picked])) : picked);
+  };
+  const lassoOutline = () => {
+    const box = wrapper.current?.getBoundingClientRect();
+    if (!lasso || !box) {
+      return '';
+    }
+    return lasso.map(p => `${p.x - box.left},${p.y - box.top}`).join(' ');
+  };
 
   const relayout = (next: GraphLayout = layout) => {
     setLayout(next);
@@ -783,6 +837,7 @@ const GraphExplorerInner = ({
           ))}
           {iconAction(t('Re-run the layout'), <AutorenewOutlined fontSize="small" />, () => relayout())}
           {iconAction(t('Fit to screen'), <FitScreenOutlined fontSize="small" />, fitToScreen)}
+          {iconAction(t(LASSO_LABEL), <GestureOutlined fontSize="small" />, () => setLassoOn(!lassoOn), false, lassoOn)}
         </div>
         {iconAction(t('Show hidden nodes'), <VisibilityOutlined fontSize="small" />, () => commit(showHidden), state.hidden.length === 0)}
         {iconAction(t('Undo'), <UndoOutlined fontSize="small" />, undo, history.past.length === 0)}
@@ -1083,8 +1138,12 @@ const GraphExplorerInner = ({
       fitToScreen();
     } else if (key === 'l') {
       relayout();
-    } else if (key === 'escape' && selection.length > 0) {
+    } else if (key === 's') {
+      setLassoOn(!lassoOn);
+    } else if (key === 'escape' && (selection.length > 0 || lassoOn)) {
       setSelection([]);
+      setLassoOn(false);
+      setLasso(null);
     } else if (key === 'n' && (selection.length > 0 || selectedNode)) {
       selectNeighbours(selection.length > 0 ? selection : [selectedNode?.node_id as string]);
     } else if ((key === 'delete' || key === 'backspace') && (selection.length > 0 || selectedNode)) {
@@ -1260,6 +1319,34 @@ const GraphExplorerInner = ({
         }}
       >
         {canvas}
+        {interactive && lassoOn && !empty && (
+          <div
+            data-testid="graph-lasso"
+            aria-label={t(LASSO_LABEL)}
+            className="absolute inset-0"
+            style={{
+              cursor: 'crosshair',
+              zIndex: 5,
+              touchAction: 'none',
+            }}
+            onPointerDown={lassoStart}
+            onPointerMove={lassoMove}
+            onPointerUp={lassoEnd}
+            onPointerCancel={() => setLasso(null)}
+          >
+            {lasso && lasso.length > 1 && (
+              <svg className="absolute inset-0 h-full w-full" aria-hidden style={{ pointerEvents: 'none' }}>
+                <polygon
+                  points={lassoOutline()}
+                  fill={alpha(theme.palette.primary.main, 0.08)}
+                  stroke={theme.palette.primary.main}
+                  strokeWidth={1.5}
+                  strokeDasharray="6 4"
+                />
+              </svg>
+            )}
+          </div>
+        )}
         {loading && (
           <div
             className="absolute"

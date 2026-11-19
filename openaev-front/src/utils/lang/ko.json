@@ -4805,5 +4805,6 @@
   "Select the neighbours of the selection": "선택 항목의 이웃 노드 선택",
   "Remove the selection from the view": "선택 항목을 보기에서 제거",
   "Select an area": "영역 선택",
+  "Lasso selection: draw around nodes to select them": "올가미 선택: 노드를 둘러싸 선택합니다",
   "Add a node to the selection": "선택에 노드 추가"
 }

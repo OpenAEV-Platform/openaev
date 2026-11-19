@@ -4805,5 +4805,6 @@
   "Select the neighbours of the selection": "Выбрать соседей выделенного",
   "Remove the selection from the view": "Убрать выделенное из представления",
   "Select an area": "Выделить область",
+  "Lasso selection: draw around nodes to select them": "Выделение лассо: обведите узлы, чтобы выбрать их",
   "Add a node to the selection": "Добавить узел к выделению"
 }

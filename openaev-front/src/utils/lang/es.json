@@ -4805,5 +4805,6 @@
   "Select the neighbours of the selection": "Seleccionar los vecinos de la selección",
   "Remove the selection from the view": "Quitar la selección de la vista",
   "Select an area": "Seleccionar un área",
+  "Lasso selection: draw around nodes to select them": "Selección con lazo: rodee los nodos para seleccionarlos",
   "Add a node to the selection": "Añadir un nodo a la selección"
 }

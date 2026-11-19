@@ -4805,5 +4805,6 @@
   "Select the neighbours of the selection": "選択範囲の隣接ノードを選択",
   "Remove the selection from the view": "選択範囲をビューから削除",
   "Select an area": "範囲を選択",
+  "Lasso selection: draw around nodes to select them": "なげなわ選択: ノードを囲んで選択します",
   "Add a node to the selection": "ノードを選択に追加"
 }
