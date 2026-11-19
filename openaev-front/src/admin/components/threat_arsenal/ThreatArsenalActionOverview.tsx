@@ -46,15 +46,13 @@ import {
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
 import { tint } from '../../../utils/tint';
 import expectationIconByType, { expectationTypeColor } from '../common/ExpectationIconByType';
-import { expectationTypeLabelKey } from '../common/injects/expectations/Expectation';
+import { type ExpectationType, expectationTypeLabelKey } from '../common/injects/expectations/Expectation';
 import { isTechnicalExpectation } from '../common/injects/expectations/ExpectationUtils';
 import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
 import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
-
-type ExpectationType = 'ARTICLE' | 'CHALLENGE' | 'MANUAL' | 'PREVENTION' | 'DETECTION' | 'LOGGING' | 'VULNERABILITY';
 
 interface Props {
   action: Omit<ThreatArsenalAction, 'action_grant_resource_id'>;

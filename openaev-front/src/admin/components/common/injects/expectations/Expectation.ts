@@ -42,15 +42,17 @@ export interface ExpectationInputForm extends Omit<ExpectationInput, 'expectatio
   expiration_time_minutes: number;
 }
 
-export enum ExpectationType {
-  PREVENTION = 'PREVENTION',
-  DETECTION = 'DETECTION',
-  LOGGING = 'LOGGING',
-  VULNERABILITY = 'VULNERABILITY',
-  MANUAL = 'MANUAL',
-  ARTICLE = 'ARTICLE',
-  CHALLENGE = 'CHALLENGE',
-}
+export const ExpectationType = {
+  PREVENTION: 'PREVENTION',
+  DETECTION: 'DETECTION',
+  LOGGING: 'LOGGING',
+  VULNERABILITY: 'VULNERABILITY',
+  MANUAL: 'MANUAL',
+  ARTICLE: 'ARTICLE',
+  CHALLENGE: 'CHALLENGE',
+} as const;
+
+export type ExpectationType = typeof ExpectationType[keyof typeof ExpectationType];
 
 export type ExpectationResultType = 'PREVENTION' | 'DETECTION' | 'LOGGING' | 'VULNERABILITY' | 'HUMAN_RESPONSE';
 
