@@ -24,6 +24,7 @@ interface Props {
   onDuplicate: (result: ThreatArsenalAction) => void;
   onDelete: () => void;
   onRunTest: () => void;
+  onShowVersions: (action: ThreatArsenalAction) => void;
 }
 
 const ThreatArsenalCard: FunctionComponent<Props> = ({
@@ -33,6 +34,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   onDuplicate,
   onDelete,
   onRunTest,
+  onShowVersions,
 }) => {
   const { t, tPick, nsd } = useFormatter();
   const canRunTest = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
@@ -68,7 +70,22 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       overline={primaryDomain ? t(primaryDomain.domain_name) : undefined}
       subtitle={action.action_author_name ? `${t('by')} ${action.action_author_name}` : undefined}
       onClick={onSelect}
-      banner={revoked && <CardBanner severity="error">{t('Revoked: injects using it fail')}</CardBanner>}
+      banner={revoked && (
+        <CardBanner
+          severity="error"
+          icon="ban"
+          action={{
+            label: t('Versions'),
+            onClick: (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onShowVersions(action);
+            },
+          }}
+        >
+          {t('Revoked: injects using it fail')}
+        </CardBanner>
+      )}
       chips={techniques.length > 0 && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -115,6 +132,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
             onUpdate={onUpdate}
             onDuplicate={onDuplicate}
             onDelete={onDelete}
+            onShowVersions={onShowVersions}
           />
         </Box>
       )}

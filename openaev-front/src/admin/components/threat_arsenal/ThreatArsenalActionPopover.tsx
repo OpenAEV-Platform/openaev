@@ -1,6 +1,6 @@
 import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText, Divider, Menu, MenuItem } from '@mui/material';
 import { type MouseEvent, useState } from 'react';
 
 import {
@@ -25,6 +25,8 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
+import usePayloadRevocation from './hook/usePayloadRevocation';
+import PayloadRevocationDialog from './revocation/PayloadRevocationDialog';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 
@@ -33,6 +35,7 @@ interface PayloadPopoverNewProps {
   onUpdate?: (action: ThreatArsenalAction) => void;
   onDelete?: () => void;
   onDuplicate?: (action: ThreatArsenalAction) => void;
+  onShowVersions?: (action: ThreatArsenalAction) => void;
 }
 
 const buildInitialValues
@@ -95,6 +98,7 @@ const ThreatArsenalActionPopover = ({
   onUpdate,
   onDuplicate,
   onDelete,
+  onShowVersions,
 }: PayloadPopoverNewProps) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [openEdit, setOpenEdit] = useState(false);
@@ -215,7 +219,16 @@ const ThreatArsenalActionPopover = ({
   const duplicateOff = !hasDuplicateCapability || !!disableDuplicate;
   const updateOff = !hasUpdateCapability || !!disableUpdate;
   const deleteOff = !hasDeleteCapability || !!disableDelete;
-  const allDisabled = duplicateOff && !!disableJsonExport && updateOff && deleteOff;
+  // -- Revocation --
+  const { canRevoke, revocable, liftable, revocation, openRevocation, closeRevocation, revocationDone } = usePayloadRevocation(
+    action,
+    !!anchorEl,
+    (changed) => {
+      onUpdate?.(changed);
+      onShowVersions?.(changed);
+    },
+  );
+  const allDisabled = duplicateOff && !!disableJsonExport && updateOff && deleteOff && !canRevoke;
 
   // -- Export --
   const handleExportJsonSingle = async () => {
@@ -252,7 +265,36 @@ const ThreatArsenalActionPopover = ({
         {hasDeleteCapability && (
           <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         )}
+        {(revocable.length > 0 || liftable.length > 0) && <Divider />}
+        {revocable.length > 0 && (
+          <MenuItem onClick={() => {
+            handlePopoverClose();
+            openRevocation('revoke');
+          }}
+          >
+            {t('Revoke')}
+          </MenuItem>
+        )}
+        {liftable.length > 0 && (
+          <MenuItem onClick={() => {
+            handlePopoverClose();
+            openRevocation('lift');
+          }}
+          >
+            {t('Lift revocation')}
+          </MenuItem>
+        )}
       </Menu>
+
+      <PayloadRevocationDialog
+        open={revocation !== null}
+        name={name}
+        lift={revocation === 'lift'}
+        versions={revocation === 'lift' ? liftable : revocable}
+        currentPayloadId={payloadId}
+        onClose={closeRevocation}
+        onDone={revocationDone}
+      />
 
       <DialogDelete
         open={deletion}

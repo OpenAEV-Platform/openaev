@@ -25,6 +25,7 @@ interface Props {
   onUpdate: (result: ThreatArsenalAction) => void;
   onDuplicate: (result: ThreatArsenalAction) => void;
   onDelete: () => void;
+  onShowVersions: (action: ThreatArsenalAction) => void;
 }
 
 const ThreatArsenalListRow: FunctionComponent<Props> = ({
@@ -35,6 +36,7 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
   onUpdate,
   onDuplicate,
   onDelete,
+  onShowVersions,
 }) => {
   const { classes } = useStyles();
   const { t, tPick, nsdt } = useFormatter();
@@ -51,6 +53,7 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
           onUpdate={onUpdate}
           onDuplicate={onDuplicate}
           onDelete={onDelete}
+          onShowVersions={onShowVersions}
         />
       )}
     >
