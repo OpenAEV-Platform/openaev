@@ -196,6 +196,30 @@ const snapshot = (positions: Map<string, Point>) => new Map([...positions].map((
   y: Math.round(p.y),
 }]));
 
+/** True when the placement is taller than it is wide. */
+export const isPortrait = (positions: Map<string, Point>): boolean => {
+  const points = [...positions.values()];
+  if (points.length < 2) {
+    return false;
+  }
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+  return Math.max(...ys) - Math.min(...ys) > Math.max(...xs) - Math.min(...xs);
+};
+
+/**
+ * Turns a placement a quarter turn about a centre, in place: what was top to bottom reads left to
+ * right. The page canvas is wider than tall, so a force placement that settled as a tall chain (the
+ * landing story of #9447 is one attack path) is turned to fill the width instead of falling off the
+ * top and the bottom of the canvas at the story's minimum zoom.
+ */
+export const quarterTurn = (positions: Map<string, Point>, centre: Point) => {
+  positions.forEach((p, id) => positions.set(id, {
+    x: centre.x + (p.y - centre.y),
+    y: centre.y - (p.x - centre.x),
+  }));
+};
+
 /** One frame of the force simulation every this many iterations: what the screen plays live. */
 export const FORCE_FRAME_EVERY = 5;
 
@@ -204,7 +228,8 @@ export const FORCE_FRAME_EVERY = 5;
  * same graph always lands the same way: repulsion between every pair, attraction along edges, a
  * cooling step. Bounded to a fixed number of iterations: the API caps a slice at a few hundred nodes.
  * Answers the frames of the simulation, from the seed to the settled, separated placement, so the
- * explorer plays the forces settling on screen instead of jumping to the result.
+ * explorer plays the forces settling on screen instead of jumping to the result. A placement that
+ * settles taller than wide is turned a quarter turn, every frame with it, to fit the wide canvas.
  */
 const forceFrames = (nodes: GraphNodeOutput[], edges: GraphEdgeOutput[], focus?: string | null): Map<string, Point>[] => {
   const positions = radial(nodes, edges, focus);
@@ -268,6 +293,18 @@ const forceFrames = (nodes: GraphNodeOutput[], edges: GraphEdgeOutput[], focus?:
     if ((step + 1) % FORCE_FRAME_EVERY === 0) {
       frames.push(snapshot(positions));
     }
+  }
+  if (isPortrait(positions)) {
+    const pivot = (focus && positions.get(focus)) || {
+      x: 0,
+      y: 0,
+    };
+    const centre = {
+      x: pivot.x,
+      y: pivot.y,
+    };
+    frames.forEach(frame => quarterTurn(frame, centre));
+    quarterTurn(positions, centre);
   }
   separate(positions, ids, focus);
   frames.push(snapshot(positions));
