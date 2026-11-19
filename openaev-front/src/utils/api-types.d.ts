@@ -3837,27 +3837,6 @@ export interface CustomDashboardParametersInput {
     | "scenario";
 }
 
-/** Scenarios, simulations and tenant defaults that use a custom dashboard */
-export interface CustomDashboardUsageOutput {
-  custom_dashboard_id: string;
-  /** The dashboard is the tenant default home dashboard (delete refused) */
-  default_home_dashboard: boolean;
-  /** The dashboard is the tenant default scenario dashboard */
-  default_scenario_dashboard: boolean;
-  /** The dashboard is the tenant default simulation dashboard */
-  default_simulation_dashboard: boolean;
-  /**
-   * Scenarios that show this dashboard in their Analysis tab
-   * @format int64
-   */
-  scenarios_count: number;
-  /**
-   * Simulations that show this dashboard in their Analysis tab
-   * @format int64
-   */
-  simulations_count: number;
-}
-
 export interface CustomDomain {
   /** @format date-time */
   custom_domain_created_at: string;
@@ -6472,47 +6451,6 @@ export interface Grant {
     | "PAYLOAD"
     | "UNKNOWN";
   listened?: boolean;
-}
-
-export interface GraphEdgeOutput {
-  edge_id: string;
-  edge_result?: "SUCCESS" | "PENDING" | "FAILED";
-  edge_source: string;
-  edge_target: string;
-  edge_type:
-    | "MEMBER_OF"
-    | "FOUND_ON"
-    | "PRODUCED"
-    | "TARGETS"
-    | "PART_OF"
-    | "RUN_OF";
-}
-
-export interface GraphNodeOutput {
-  node_entity_id: string;
-  /** @format int64 */
-  node_failed_count?: number;
-  /** @format int64 */
-  node_finding_count?: number;
-  node_id: string;
-  node_label: string;
-  node_result?: "SUCCESS" | "PENDING" | "FAILED";
-  node_subtype?: string;
-  node_type:
-    | "ASSET"
-    | "ASSET_GROUP"
-    | "FINDING"
-    | "INJECT"
-    | "SIMULATION"
-    | "SCENARIO";
-}
-
-export interface GraphOutput {
-  graph_edges: GraphEdgeOutput[];
-  graph_focus?: string;
-  graph_nodes: GraphNodeOutput[];
-  graph_path: string[];
-  graph_truncated?: boolean;
 }
 
 export interface Group {
@@ -12511,16 +12449,6 @@ export interface SortObject {
   empty?: boolean;
   sorted?: boolean;
   unsorted?: boolean;
-}
-
-/** Starter-pack dashboards restored and tenant defaults set back */
-export interface StarterPackDashboardsRestoreOutput {
-  /** Tenant default dashboard settings that were empty and are set back */
-  defaults_set: string[];
-  /** Names of the starter-pack dashboards that already existed */
-  existing_dashboards: string[];
-  /** Names of the dashboards created by this restore */
-  restored_dashboards: string[];
 }
 
 export interface StatusPayload {
