@@ -1,19 +1,19 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import {
   type AuthorOption,
   buildAuthorRows,
   buildStatusRows,
   useAuthorFacetFilter,
-} from '../../../components/common/facets/ContractFacets';
-import { type FacetRow, type FacetSection, FacetSidebar } from '../../../components/common/facets/FacetFilters';
-import { type FilterHelpers } from '../../../components/common/queryable/filter/FilterHelpers';
-import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
-import { useFormatter } from '../../../components/i18n';
-import PlatformIcon from '../../../components/PlatformIcon';
-import { type Filter, type SearchPaginationInput } from '../../../utils/api-types';
-import { type IconBarElement } from '../common/domains/IconBar-model';
-import { type ThreatArsenalFacetCounts } from './useThreatArsenalFacetCounts';
+} from '../../../../components/common/facets/ContractFacets';
+import { type FacetRow, type FacetSection, FacetSidebar } from '../../../../components/common/facets/FacetFilters';
+import useFacetFilterToggle from '../../../../components/common/facets/useFacetFilterToggle';
+import { type FilterHelpers } from '../../../../components/common/queryable/filter/FilterHelpers';
+import { useFormatter } from '../../../../components/i18n';
+import PlatformIcon from '../../../../components/PlatformIcon';
+import { type SearchPaginationInput } from '../../../../utils/api-types';
+import { type IconBarElement } from '../../common/domains/IconBar-model';
+import { type ThreatArsenalFacetCounts } from '../useThreatArsenalFacetCounts';
 
 const PLATFORM_FILTER_KEY = 'action_platforms';
 const STATUS_FILTER_KEY = 'action_payload_status';
@@ -43,56 +43,15 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
     [searchPaginationInput.filterGroup],
   );
 
-  const platformValues = useMemo(
-    () => filters.find((f: Filter) => f.key === PLATFORM_FILTER_KEY)?.values ?? [],
-    [filters],
-  );
-  const statusValues = useMemo(
-    () => filters.find((f: Filter) => f.key === STATUS_FILTER_KEY)?.values ?? [],
-    [filters],
-  );
+  const { valuesOf, toggle } = useFacetFilterToggle(searchPaginationInput, filterHelpers);
+  const platformValues = valuesOf(PLATFORM_FILTER_KEY);
+  const statusValues = valuesOf(STATUS_FILTER_KEY);
   const {
     authorValues,
     noAuthorActive,
     toggleAuthorValue,
     toggleNoAuthor,
   } = useAuthorFacetFilter(AUTHOR_FILTER_KEY, filters, filterHelpers);
-
-  const setFilterValues = useCallback(
-    (key: string, values: string[]) => {
-      const existing = filters.find((f: Filter) => f.key === key);
-      if (values.length === 0) {
-        if (existing?.id) {
-          filterHelpers.handleRemoveFilterById(existing.id);
-        } else {
-          filterHelpers.handleRemoveFilterByKey(key);
-        }
-        return;
-      }
-      if (existing?.id) {
-        filterHelpers.handleUpdateValuesById(existing.id, values);
-        return;
-      }
-      filterHelpers.handleAddFilterWithEmptyValue({
-        id: generateFilterId(),
-        key,
-        operator: 'eq',
-        values,
-        mode: 'and',
-      });
-    },
-    [filterHelpers, filters],
-  );
-
-  const toggleValue = useCallback(
-    (key: string, current: string[], value: string) => {
-      const next = current.includes(value)
-        ? current.filter(v => v !== value)
-        : [...current, value];
-      setFilterValues(key, next);
-    },
-    [setFilterValues],
-  );
 
   const sections: FacetSection[] = useMemo(() => {
     const domainRows: FacetRow[] = domainElements.map(element => ({
@@ -112,14 +71,14 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
       count: facetCounts ? facetCounts.platforms[platform] ?? 0 : undefined,
       icon: () => <PlatformIcon platform={platform} width={16} />,
       checked: platformValues.includes(platform),
-      onToggle: () => toggleValue(PLATFORM_FILTER_KEY, platformValues, platform),
+      onToggle: () => toggle(PLATFORM_FILTER_KEY, platform),
     }));
 
     const statusRows = buildStatusRows({
       t,
       statusValues,
       statusCounts: facetCounts?.statuses,
-      toggle: value => toggleValue(STATUS_FILTER_KEY, statusValues, value),
+      toggle: value => toggle(STATUS_FILTER_KEY, value),
     });
 
     const authorRows = buildAuthorRows({
@@ -153,7 +112,7 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
         rows: authorRows,
       },
     ].filter(section => section.rows.length > 0);
-  }, [domainElements, authorOptions, facetCounts, platformValues, statusValues, authorValues, noAuthorActive, toggleValue, toggleAuthorValue, toggleNoAuthor, t]);
+  }, [domainElements, authorOptions, facetCounts, platformValues, statusValues, authorValues, noAuthorActive, toggle, toggleAuthorValue, toggleNoAuthor, t]);
 
   return <FacetSidebar sections={sections} />;
 };
