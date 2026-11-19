@@ -4693,8 +4693,10 @@
   "ZIP must contain a json file": "ZIP must contain a json file",
   "Zoom in": "Zoom in",
   "Zoom out": "Zoom out",
-  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.",
-  "Do you want to stop this atomic testing: {title}?": "Do you want to stop this atomic testing: {title}?",
-  "Stop execution": "Stop execution",
-  "Always on": "Always on"
+  "Always on": "Always on",
+  "Revoked: injects using it fail": "Revoked: injects using it fail",
+  "Browse and version the actions your simulations run.": "Browse and version the actions your simulations run.",
+  "Revoked": "Revoked",
+  "Filigran": "Filigran",
+  "Local": "Local"
 }

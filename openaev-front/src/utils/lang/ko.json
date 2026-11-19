@@ -4693,8 +4693,10 @@
   "ZIP must contain a json file": "ZIP 파일에는 JSON 파일이 포함되어 있어야 합니다",
   "Zoom in": "확대",
   "Zoom out": "축소",
-  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "에이전트는 대기 중인 작업을 받지 않으며 테스트는 오류로 종료됩니다. 에이전트가 이미 시작한 명령은 중단되지 않습니다.",
-  "Do you want to stop this atomic testing: {title}?": "이 원자 테스트를 중지하시겠습니까: {title}?",
-  "Stop execution": "실행 중지",
-  "Always on": "항상 실행 중"
+  "Always on": "항상 실행 중",
+  "Revoked: injects using it fail": "취소됨: 이를 사용하는 인젝트는 실패합니다",
+  "Browse and version the actions your simulations run.": "시뮬레이션이 실행하는 작업을 살펴보고 버전을 관리하세요.",
+  "Revoked": "폐기됨",
+  "Filigran": "Filigran",
+  "Local": "로컬"
 }
