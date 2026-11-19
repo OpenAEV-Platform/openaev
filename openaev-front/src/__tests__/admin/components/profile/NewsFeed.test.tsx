@@ -116,14 +116,21 @@ describe('NewsFeed page', () => {
   });
 
   describe('unread items', () => {
-    it('marks only the blogposts read once under the Blogpost tab, then refreshes the counter', async () => {
+    it('marks the blogposts read once under the Blogpost tab, then refreshes the counter', async () => {
       const refreshCounter = vi.fn();
       const subscription = MESSAGING$.refreshNewsFeedUnreadCount.subscribe(refreshCounter);
       renderPage('blog_posts');
-      await waitFor(() => expect(refreshCounter).toHaveBeenCalledTimes(1));
-      expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(refreshCounter).toHaveBeenCalledTimes(2));
+      expect(mockMarkAllRead).toHaveBeenCalledTimes(2);
       expect(mockMarkAllRead).toHaveBeenCalledWith('BLOG_POST');
       subscription.unsubscribe();
+    });
+
+    it('marks the resources read too, as no tab shows them, so that the top bar counter goes back to 0', async () => {
+      renderPage('blog_posts');
+      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(2));
+      expect(mockMarkAllRead).toHaveBeenCalledWith('RESOURCE');
+      expect(mockMarkAllRead).not.toHaveBeenCalledWith(undefined);
     });
 
     it('marks every item read, whatever its category, when XTM Hub provisions no blogpost', async () => {
@@ -131,6 +138,7 @@ describe('NewsFeed page', () => {
       renderPage('blog_posts');
       await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(1));
       expect(mockMarkAllRead).toHaveBeenCalledWith(undefined);
+      expect(mockMarkAllRead).not.toHaveBeenCalledWith('RESOURCE');
     });
 
     it('marks nothing read before it knows whether XTM Hub provisions blogposts', async () => {
@@ -142,10 +150,10 @@ describe('NewsFeed page', () => {
 
     it('marks the blogposts read and reloads them again when the user navigates to the page already shown', async () => {
       renderPage('blog_posts');
-      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(2));
       expect(mockBlogPostsMounted).toHaveBeenCalledTimes(1);
       fireEvent.click(screen.getByRole('link', { name: TOP_BAR_LINK }));
-      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(4));
       expect(mockBlogPostsMounted).toHaveBeenCalledTimes(2);
     });
 
@@ -174,7 +182,7 @@ describe('NewsFeed page', () => {
       const refreshCounter = vi.fn();
       const subscription = MESSAGING$.refreshNewsFeedUnreadCount.subscribe(refreshCounter);
       renderPage('blog_posts');
-      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(2));
       expect(screen.getByTestId('news-feed-blog-posts')).toBeInTheDocument();
       expect(refreshCounter).not.toHaveBeenCalled();
       expect(mockNotifyError).not.toHaveBeenCalled();

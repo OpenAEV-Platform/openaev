@@ -24,8 +24,9 @@ interface Props { tab: NewsFeedTab }
  * inviting to connect XTM Hub shows. As on OpenCTI, a platform that lost its connectivity gets the banner too. One
  * that cannot reach XTM Hub, and a user who cannot connect it, get it without the way to connect.
  *
- * The page of the news feed itself shows the blogposts. When XTM Hub provisions none, it falls back to the settings,
- * and a visit marks every item read, since no tab shows them.
+ * The page of the news feed itself shows the blogposts. A visit marks the blogposts read, and the resources too, since
+ * no tab shows them. When XTM Hub provisions no blogpost, it falls back to the settings, and a visit marks every item
+ * read.
  */
 const NewsFeedPage = ({ tab }: Props) => {
   const { t } = useFormatter();
@@ -51,8 +52,11 @@ const NewsFeedPage = ({ tab }: Props) => {
     // Until the settings tell, no tab is shown as current; without blogposts, the page is the settings.
     displayedTab = settings || failed ? 'settings' : undefined;
   }
-  // Only the visit of the page of the news feed marks the items read, once it knows what it shows.
-  useMarkNewsFeedItemsRead(tab === 'blog_posts' && settings !== null, visitKey, isBlogPostAvailable ? 'BLOG_POST' : undefined);
+  // Only the visit of the page of the news feed marks the items read, once it knows what it shows: the blogposts
+  // it shows, and the resources, which no tab shows, so that the top bar counter goes back to 0.
+  const isNewsFeedVisited = tab === 'blog_posts' && settings !== null;
+  useMarkNewsFeedItemsRead(isNewsFeedVisited, visitKey, isBlogPostAvailable ? 'BLOG_POST' : undefined);
+  useMarkNewsFeedItemsRead(isNewsFeedVisited && isBlogPostAvailable, visitKey, 'RESOURCE');
 
   let bannerVariant: NewsFeedHubBannerVariant | null = null;
   if (isXtmHubUnreachable) {

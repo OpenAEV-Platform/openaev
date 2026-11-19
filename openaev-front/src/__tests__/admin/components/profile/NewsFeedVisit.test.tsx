@@ -141,15 +141,16 @@ describe('NewsFeed page visit', () => {
   });
 
   describe('opening the page', () => {
-    it('settles: the blogposts load and are marked read once, and the page does not navigate', async () => {
+    it('settles: the blogposts and resources are marked read once, and the page does not navigate', async () => {
       // Act
       renderPage();
       await screen.findByText(BLOG_POST_TITLE);
       await settle();
 
       // Assert: a remount per navigation would repeat these calls without end
-      expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
+      expect(mockMarkAllRead).toHaveBeenCalledTimes(2);
       expect(mockMarkAllRead).toHaveBeenCalledWith('BLOG_POST');
+      expect(mockMarkAllRead).toHaveBeenCalledWith('RESOURCE');
       expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(1);
       expect(navigations).toHaveLength(1);
       expect(screen.getByTestId('search')).toBeEmptyDOMElement();
@@ -157,24 +158,24 @@ describe('NewsFeed page visit', () => {
   });
 
   describe('visiting the page again', () => {
-    it('reloads the blogposts and marks them read again when the page is clicked while shown', async () => {
+    it('reloads the blogposts and marks the items read again when the page is clicked while shown', async () => {
       // Arrange
       renderPage();
       await screen.findByText(BLOG_POST_TITLE);
       await settle();
-      expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
+      expect(mockMarkAllRead).toHaveBeenCalledTimes(2);
 
       // Act
       fireEvent.click(screen.getByRole('link', { name: TOP_BAR_LINK }));
-      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(4));
       await settle();
 
       // Assert: once more, not in a loop
-      expect(mockMarkAllRead).toHaveBeenCalledTimes(2);
+      expect(mockMarkAllRead).toHaveBeenCalledTimes(4);
       expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(2);
     });
 
-    it('reloads the blogposts and marks them read again when the user comes back from another page', async () => {
+    it('reloads the blogposts and marks the items read again when the user comes back from another page', async () => {
       // Arrange
       renderPage();
       await screen.findByText(BLOG_POST_TITLE);
@@ -184,11 +185,11 @@ describe('NewsFeed page visit', () => {
 
       // Act
       fireEvent.click(screen.getByRole('link', { name: TOP_BAR_LINK }));
-      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(4));
       await settle();
 
       // Assert
-      expect(mockMarkAllRead).toHaveBeenCalledTimes(2);
+      expect(mockMarkAllRead).toHaveBeenCalledTimes(4);
       expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(2);
     });
   });
