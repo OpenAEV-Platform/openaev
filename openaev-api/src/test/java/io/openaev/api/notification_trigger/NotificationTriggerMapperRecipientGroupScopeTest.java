@@ -9,8 +9,12 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.NotificationTrigger;
 import io.openaev.database.model.NotificationTriggerType;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
+import io.openaev.database.repository.NotificationTriggerRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -38,10 +42,13 @@ class NotificationTriggerMapperRecipientGroupScopeTest extends ProductionTablesI
   @Autowired private NotificationTriggerMapper mapper;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private DataSource dataSource;
+  @Autowired private NotificationTriggerRepository notificationTriggerRepository;
+  @Autowired private EntityManager entityManager;
 
   private JdbcTemplate jdbc;
   private final List<String> seededTenants = new ArrayList<>();
   private final List<String> seededGroups = new ArrayList<>();
+  private final List<String> seededTriggers = new ArrayList<>();
   private String writeTenant;
   private String otherTenant;
   private String groupOfWriteTenant;
@@ -60,8 +67,15 @@ class NotificationTriggerMapperRecipientGroupScopeTest extends ProductionTablesI
 
   @AfterEach
   void sweep() {
+    seededTriggers.forEach(
+        id -> {
+          jdbc.update(
+              "DELETE FROM notification_triggers_groups WHERE notification_trigger_id = ?", id);
+          jdbc.update("DELETE FROM notification_triggers WHERE notification_trigger_id = ?", id);
+        });
     seededGroups.forEach(id -> jdbc.update("DELETE FROM groups WHERE group_id = ?", id));
     seededTenants.forEach(id -> jdbc.update("DELETE FROM tenants WHERE tenant_id = ?", id));
+    seededTriggers.clear();
     seededGroups.clear();
     seededTenants.clear();
   }
@@ -103,6 +117,58 @@ class NotificationTriggerMapperRecipientGroupScopeTest extends ProductionTablesI
     assertEquals(
         List.of(groupOfWriteTenant),
         trigger.getRecipientGroups().stream().map(Group::getId).toList());
+  }
+
+  @Test
+  @DisplayName("given_anAlreadyLinkedPlatformGroup_shouldUpdate_keepIt")
+  void given_anAlreadyLinkedPlatformGroup_shouldUpdate_keepIt() {
+    // Arrange: a trigger that already carries the platform group as a recipient, grandfathered
+    // from before groups activated under this guard.
+    String triggerId =
+        tenantTx.execute(TxCtx.forTenant(writeTenant), () -> persistTrigger(platformGroup));
+
+    // Act
+    NotificationTrigger updated =
+        tenantTx.execute(
+            bothTenants(),
+            () ->
+                mapper.toNotificationTriggerForUpdate(
+                    writeTenant, triggerId, recipients(platformGroup)));
+
+    // Assert: no refusal, the platform group is kept
+    assertEquals(
+        List.of(platformGroup), updated.getRecipientGroups().stream().map(Group::getId).toList());
+  }
+
+  @Test
+  @DisplayName("given_aNewPlatformGroupNotPreviouslyLinked_shouldUpdate_stillRefuseIt")
+  void given_aNewPlatformGroupNotPreviouslyLinked_shouldUpdate_stillRefuseIt() {
+    // Arrange: a trigger with no recipient group yet
+    String triggerId = tenantTx.execute(TxCtx.forTenant(writeTenant), () -> persistTrigger());
+
+    // Act + Assert: the platform group was never linked, so it is refused as any new one would be
+    tenantTx.execute(
+        bothTenants(),
+        () ->
+            assertThrows(
+                ElementNotFoundException.class,
+                () ->
+                    mapper.toNotificationTriggerForUpdate(
+                        writeTenant, triggerId, recipients(platformGroup))));
+  }
+
+  private String persistTrigger(String... recipientGroupIds) {
+    NotificationTrigger trigger = new NotificationTrigger();
+    trigger.setName("mapper-recipients-existing");
+    trigger.setType(NotificationTriggerType.LIVE);
+    trigger.setTenant(entityManager.getReference(Tenant.class, writeTenant));
+    trigger.setOwner(entityManager.getReference(User.class, User.ADMIN_UUID));
+    for (String groupId : recipientGroupIds) {
+      trigger.getRecipientGroups().add(entityManager.getReference(Group.class, groupId));
+    }
+    String id = notificationTriggerRepository.save(trigger).getId();
+    seededTriggers.add(id);
+    return id;
   }
 
   private TxCtx bothTenants() {
