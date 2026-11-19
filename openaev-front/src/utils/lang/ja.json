@@ -2912,6 +2912,7 @@
   "No organizations in this platform": "このプラットフォームに組織はない。",
   "No password capture": "パスワード取得なし",
   "No path found between these two nodes within six hops": "6ホップ以内でこの2つのノード間のパスが見つかりません",
+  "Nothing more to expand around this node": "このノードの周囲に展開できるものはもうありません",
   "No pending injects in this simulation.": "このシミュレーションに保留中のインジェクトはありません。",
   "No platform attribution available": "利用可能なプラットフォームの帰属はありません",
   "No player in this team.": "このチームには人物がいません。",

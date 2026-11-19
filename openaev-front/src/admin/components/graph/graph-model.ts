@@ -43,6 +43,22 @@ export const ALL_EDGE_TYPES: GraphEdgeType[] = [
   'IDENTITY_OF', 'WORKS_FOR', 'IN_TEAM', 'TEAM_OF', 'LINKED_TO', 'ATTACK_STEP',
 ];
 
+/**
+ * The relations each node type can have, as GraphExplorationService resolves them: the panel and the
+ * context menu offer only these (OpenCTI offers only the relations an entity can hold).
+ */
+export const EDGE_TYPES_BY_NODE_TYPE: Record<GraphNodeType, GraphEdgeType[]> = {
+  ASSET: ['MEMBER_OF', 'IDENTITY_OF', 'LINKED_TO', 'ATTACK_STEP', 'FOUND_ON', 'TARGETS'],
+  ASSET_GROUP: ['MEMBER_OF', 'TARGETS'],
+  FINDING: ['FOUND_ON', 'PRODUCED'],
+  INJECT: ['TARGETS', 'PRODUCED', 'PART_OF'],
+  SIMULATION: ['PART_OF', 'RUN_OF', 'ATTACK_STEP'],
+  SCENARIO: ['RUN_OF'],
+  PERSON: ['IDENTITY_OF', 'WORKS_FOR', 'IN_TEAM'],
+  ORGANIZATION: ['WORKS_FOR', 'TEAM_OF'],
+  TEAM: ['IN_TEAM', 'TEAM_OF'],
+};
+
 export const ALL_RESULTS: GraphResult[] = ['FAILED', 'PENDING', 'SUCCESS'];
 
 /** Catalog keys of the node types, singular. */

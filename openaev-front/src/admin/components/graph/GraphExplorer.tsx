@@ -80,6 +80,7 @@ import {
   ALL_NODE_TYPES,
   ALL_RESULTS,
   EDGE_TYPE_LABEL,
+  EDGE_TYPES_BY_NODE_TYPE,
   type GraphEdgeType,
   graphHref,
   type GraphNodeOutput,
@@ -627,6 +628,10 @@ const GraphExplorerInner = ({
     setLoading(true);
     try {
       const slice = await fetchGraphNeighbourhood(node.node_type, node.node_entity_id, edges, limit);
+      if (slice.graph_nodes.every(n => n.node_id === node.node_id || state.nodes[n.node_id])) {
+        // Nothing new around this node: say so instead of a click with no visible effect.
+        setNotice(t('Nothing more to expand around this node'));
+      }
       commit(s => expandSlice(s, slice, node.node_id, nodeType));
       setSelected(node.node_id);
       onFocusChange?.(node.node_id);
@@ -994,7 +999,7 @@ const GraphExplorerInner = ({
       </div>
       <Text variant="content-compact-bold" as="div" className="mt-4">{t('Expand by relation')}</Text>
       <div className="mt-1 flex flex-wrap gap-1">
-        {ALL_EDGE_TYPES.map(type => (
+        {EDGE_TYPES_BY_NODE_TYPE[selectedNode.node_type].map(type => (
           <Chip key={type} label={t(EDGE_TYPE_LABEL[type])} onClick={() => expand(selectedNode, [type])} />
         ))}
       </div>
@@ -1049,7 +1054,7 @@ const GraphExplorerInner = ({
       <MenuSub key="by-relation">
         <MenuSubTrigger>{t('Expand by relation')}</MenuSubTrigger>
         <MenuSubContent>
-          {ALL_EDGE_TYPES.map(type => menuItem(type, t(EDGE_TYPE_LABEL[type]), null, () => expand(node, [type])))}
+          {EDGE_TYPES_BY_NODE_TYPE[node.node_type].map(type => menuItem(type, t(EDGE_TYPE_LABEL[type]), null, () => expand(node, [type])))}
         </MenuSubContent>
       </MenuSub>,
       <MenuSub key="by-type">

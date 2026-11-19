@@ -2912,6 +2912,7 @@
   "No organizations in this platform": "이 플랫폼에 조직이 없습니다.",
   "No password capture": "비밀번호 수집 없음",
   "No path found between these two nodes within six hops": "6홉 이내에서 두 노드 사이의 경로를 찾을 수 없습니다",
+  "Nothing more to expand around this node": "이 노드 주변에 더 펼칠 항목이 없습니다",
   "No pending injects in this simulation.": "이 시뮬레이션에 보류 중인 인젝트가 없습니다.",
   "No platform attribution available": "사용 가능한 플랫폼 귀속이 없습니다",
   "No player in this team.": "이 팀에 플레이어가 없습니다.",
