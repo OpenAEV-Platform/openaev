@@ -19,23 +19,32 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.organization.form.OrganizationBulkProcessingInput;
 import io.openaev.rest.organization.form.OrganizationCreateInput;
 import io.openaev.rest.organization.form.OrganizationUpdateInput;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.OrganizationFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.TagFixture;
+import io.openaev.utils.fixtures.TeamFixture;
+import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.OrganizationComposer;
 import io.openaev.utils.fixtures.composers.TagComposer;
+import io.openaev.utils.fixtures.composers.TeamComposer;
+import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.WithoutTenantScope;
 import java.sql.PreparedStatement;
@@ -74,6 +83,9 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
   @Autowired private OrganizationComposer organizationComposer;
   @Autowired private TagComposer tagComposer;
   @Autowired private InjectComposer injectComposer;
+  @Autowired private TeamComposer teamComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private UserComposer userComposer;
   @Autowired private OrganizationService organizationService;
   @Autowired private TenantScopedTransaction tenantTx;
 
@@ -91,6 +103,9 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
     organizationComposer.reset();
     tagComposer.reset();
     injectComposer.reset();
+    teamComposer.reset();
+    exerciseComposer.reset();
+    userComposer.reset();
     tenantA = tenantHelper.createTenant("organization-http-a");
     tenantB = tenantHelper.createTenant("organization-http-b");
     // Onboarding enrolls its creator; each test must grant only the memberships it exercises.
@@ -555,14 +570,17 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
     @Test
     @DisplayName("Raw organization projections exclude foreign all-team injects")
     void given_allTeamInjectsInBothTenants_should_listOnlyOwnedInjects() throws Exception {
-      // Arrange
+      // Arrange: a member of organization A is in a team of each tenant, each team in a
+      // simulation of its tenant holding an all-teams inject
       tenantHelper.attachCurrentUserToTenant(tenantA.getId());
-      Inject injectA = InjectFixture.getInjectWithAllTeams();
-      injectA.setTenant(tenantA);
-      Inject injectB = InjectFixture.getInjectWithAllTeams();
-      injectB.setTenant(tenantB);
-      injectComposer.forInject(injectA).persist();
-      injectComposer.forInject(injectB).persist();
+      User member =
+          userComposer
+              .forUser(UserFixture.getUser("Member", "A", searchPrefix + "@filigran.io"))
+              .withOrganization(organizationA)
+              .persist()
+              .get();
+      Inject injectA = seedAllTeamsInjectReaching(member, tenantA);
+      Inject injectB = seedAllTeamsInjectReaching(member, tenantB);
       entityManager.flush();
       entityManager.clear();
 
@@ -734,6 +752,22 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
     Tag tag = TagFixture.getTagWithText(UUID.randomUUID().toString());
     tag.setTenant(tenant);
     return tagComposer.forTag(tag).persist().get();
+  }
+
+  /** Seeds, in the tenant, a simulation whose team holds the member and an all-teams inject. */
+  private Inject seedAllTeamsInjectReaching(User member, Tenant tenant) {
+    Team team = TeamFixture.getTeam(member, searchPrefix + "-" + tenant.getId(), false);
+    team.setTenant(tenant);
+    Exercise exercise = ExerciseFixture.getExercise();
+    exercise.setTenant(tenant);
+    Inject inject = InjectFixture.getInjectWithAllTeams();
+    inject.setTenant(tenant);
+    exerciseComposer
+        .forExercise(exercise)
+        .withTeam(teamComposer.forTeam(team))
+        .withInject(injectComposer.forInject(inject))
+        .persist();
+    return inject;
   }
 
   private Organization seedOrganization(Tenant tenant, String suffix, Tag tag) {
