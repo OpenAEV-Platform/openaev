@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import { fetchThreatArsenalUsages } from '../../../../../actions/threat_arsenals/threatArsenal-actions';
 import { type PayloadUsagesOutput } from '../../../../../utils/api-types';
 
-/** Where one version runs: the usages of its action, null while loading. */
-const useVersionUsages = (actionId: string | undefined) => {
+/** Where one version runs: the usages of its action, null while loading, fetched again when `reloadKey` changes. */
+const useVersionUsages = (actionId: string | undefined, reloadKey = 0) => {
   const [usages, setUsages] = useState<PayloadUsagesOutput | null>(null);
 
   useEffect(() => {
@@ -17,7 +17,7 @@ const useVersionUsages = (actionId: string | undefined) => {
     return () => {
       cancelled = true;
     };
-  }, [actionId]);
+  }, [actionId, reloadKey]);
 
   return usages;
 };

@@ -1,22 +1,29 @@
 import { useEffect, useState } from 'react';
 
 import { liftPayloadRevocation, revokePayload } from '../../../../actions/payloads/payload-revocation-actions';
+import { useFormatter } from '../../../../components/i18n';
 import { type PayloadVersionOutput } from '../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../utils/Environment';
+import moveUsages from '../versions/moveUsages';
 import useVersionUsages from '../versions/usages/useVersionUsages';
 
 interface Options {
   open: boolean;
   lift: boolean;
+  // Revoking, the other versions are where its injects can go.
   versions: PayloadVersionOutput[];
   currentPayloadId: string;
   onDone: (version: PayloadVersionOutput) => void;
 }
 
-/** The revoke or lift form: the version chosen, what it stops, the reason, and the submit. */
+/** The revoke or lift form: the version chosen, what it stops, where its injects go, and the submit. */
 const useRevocationForm = ({ open, lift, versions, currentPayloadId, onDone }: Options) => {
+  const { t } = useFormatter();
   const [selected, setSelected] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [replace, setReplace] = useState(true);
+  const [replacement, setReplacement] = useState('');
 
   useEffect(() => {
     if (open) {
@@ -28,6 +35,23 @@ const useRevocationForm = ({ open, lift, versions, currentPayloadId, onDone }: O
   const version = versions.find(v => v.payload_id === selected);
   const usages = useVersionUsages(open ? version?.payload_action_id : undefined);
 
+  const replacements = versions.filter(v => v.payload_id !== selected);
+  const defaultReplacement = (replacements.find(v => v.payload_is_latest) ?? replacements[0])?.payload_id ?? '';
+  useEffect(() => setReplacement(defaultReplacement), [defaultReplacement]);
+  const shown = usages?.payload_usages ?? [];
+  const canReplace = !lift && shown.length > 0 && replacements.length > 0;
+  const target = replacements.find(v => v.payload_id === replacement);
+
+  // The injects move first, so none of them fails between the revocation and the move.
+  const moveFirst = async (source: PayloadVersionOutput) => {
+    if (!canReplace || !replace || !target) return;
+    const moves = await moveUsages(source.payload_action_id, target.payload_id, shown);
+    MESSAGING$.notifySuccess(t('{count} usages moved to v{version}', {
+      count: String(moves.moved_ids.length),
+      version: target.payload_version,
+    }));
+  };
+
   const submit = async () => {
     if (!version) return;
     setSubmitting(true);
@@ -35,6 +59,7 @@ const useRevocationForm = ({ open, lift, versions, currentPayloadId, onDone }: O
       if (lift) {
         await liftPayloadRevocation(version.payload_id);
       } else {
+        await moveFirst(version);
         await revokePayload(version.payload_id, { payload_revocation_reason: reason.trim() });
       }
       onDone(version);
@@ -50,6 +75,12 @@ const useRevocationForm = ({ open, lift, versions, currentPayloadId, onDone }: O
     usages,
     reason,
     setReason,
+    canReplace,
+    replace,
+    setReplace,
+    replacement,
+    setReplacement,
+    replacements,
     submitting,
     canSubmit: !!version && !submitting && (lift || reason.trim() !== ''),
     submit,

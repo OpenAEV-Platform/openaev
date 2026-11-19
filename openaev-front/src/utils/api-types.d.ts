@@ -10327,6 +10327,18 @@ export interface PayloadUpsertInput {
   payload_type: string;
 }
 
+export interface PayloadUsageMoveInput {
+  inject_ids: string[];
+  step_ids: string[];
+  /** @minLength 1 */
+  target_payload_id: string;
+}
+
+export interface PayloadUsageMoveOutput {
+  moved_ids: string[];
+  refused: UsageRefusal[];
+}
+
 export interface PayloadUsageOutput {
   /** @minLength 1 */
   usage_id: string;
@@ -13844,6 +13856,13 @@ export interface UpdateUserInfoInput {
 export interface UpdateUsersTeamInput {
   /** The list of users the team contains */
   team_users?: string[];
+}
+
+export interface UsageRefusal {
+  /** @minLength 1 */
+  reason: string;
+  /** @minLength 1 */
+  usage_id: string;
 }
 
 export interface User {
