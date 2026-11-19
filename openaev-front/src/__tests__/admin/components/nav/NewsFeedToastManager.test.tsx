@@ -5,7 +5,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { IntlProvider } from 'react-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DATA_FETCH_SUCCESS, DATA_UPDATE_SUCCESS } from '../../../../constants/ActionTypes';
+import { DATA_DELETE_SUCCESS, DATA_FETCH_SUCCESS, DATA_UPDATE_SUCCESS } from '../../../../constants/ActionTypes';
 import { type PlatformSettings, type User } from '../../../../utils/api-types';
 import { UserContext } from '../../../../utils/hooks/useAuth';
 import { expectLibraryIconButton, expectNoMuiControls } from '../../../utils/designSystemAssertions';
@@ -227,6 +227,7 @@ describe('NewsFeedToastManager', () => {
 
     describe.each([
       ['an updated item', streamEvent('Ransomware', { eventType: DATA_UPDATE_SUCCESS })],
+      ['a deleted item', streamEvent('Ransomware', { eventType: DATA_DELETE_SUCCESS })],
       ['another entity', streamEvent('Ransomware', { schema: 'injects' })],
       ['another entity mentioning the news feed schema', streamEvent(NEWS_FEED_ITEM_SCHEMA, { schema: 'notifications' })],
     ])('given %s', (_, event) => {
