@@ -680,4 +680,13 @@ public interface InjectRepository
 
   @Query("SELECT i FROM Inject i WHERE i.exercise.id = :simulationId")
   List<Inject> findAllInjectBySimulationId(@Param("simulationId") String simulationId);
+
+  // -- PAYLOAD --
+
+  /** Scenario injects and atomic testings running this payload, simulation injects left out. */
+  @Query(
+      "SELECT i FROM Inject i WHERE i.tenant.id = :tenantId"
+          + " AND i.injectorContract.payload.id = :payloadId AND i.exercise IS NULL")
+  List<Inject> findAllOutsideSimulationsByTenantIdAndPayloadId(
+      @Param("tenantId") String tenantId, @Param("payloadId") String payloadId);
 }

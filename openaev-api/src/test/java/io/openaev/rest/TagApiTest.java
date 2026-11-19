@@ -40,7 +40,7 @@ public class TagApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("When tag already exists, update tag changes properties and returns modified tag")
   public void whenTagAlreadyExists_updateTagChangesPropertiesAndReturnsTag() throws Exception {
     Tag tag = tagComposer.forTag(TagFixture.getTagWithText("mock text")).persist().get();

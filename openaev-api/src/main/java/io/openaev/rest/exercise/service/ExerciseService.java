@@ -171,6 +171,8 @@ public class ExerciseService {
   // Lazy: PermissionService reaches the services this one is built from.
   private final ObjectProvider<PermissionService> permissionServiceProvider;
 
+  private final io.openaev.service.finding.FindingDetachService findingDetachService;
+
   // region properties
   @Resource private PlatformMailSender platformMailSender;
 
@@ -787,7 +789,20 @@ public class ExerciseService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteById(TxCtx ctx, String simulationId) {
-    delete(exercise(ctx, simulationId));
+    delete(exercise(ctx, simulationId), false);
+  }
+
+  /**
+   * Delete a simulation found inside the request's tenant scope.
+   *
+   * @param ctx the request's tenant scope
+   * @param simulationId ID of the simulation to delete
+   * @param keepFindings true to keep the findings its injects produced, detached from them; false
+   *     (the default) deletes them with the simulation
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteById(TxCtx ctx, String simulationId, boolean keepFindings) {
+    delete(exercise(ctx, simulationId), keepFindings);
   }
 
   /**
@@ -797,12 +812,12 @@ public class ExerciseService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteById(String simulationId) {
-    delete(exercise(simulationId));
+    delete(exercise(simulationId), false);
   }
 
   // The simulation is loaded by the caller, in the request scope or in the current tenant, so the
   // tenant check and the workflow sweep's tenant come from the same row.
-  private void delete(Exercise simulation) {
+  private void delete(Exercise simulation, boolean keepFindings) {
     String simulationId = simulation.getId();
     workflowOwnerScope.run(
         simulation,
@@ -814,6 +829,10 @@ public class ExerciseService {
           }
         });
 
+    if (keepFindings) {
+      // Right before the native delete: finding_inject_id_fk would otherwise cascade to them
+      findingDetachService.detachFromSimulations(List.of(simulationId));
+    }
     exerciseRepository.deleteById(simulationId);
     // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
     // must be notified explicitly or the simulation (and its cascade-deleted injects,
@@ -888,7 +907,7 @@ public class ExerciseService {
         ctx,
         "simulations",
         exerciseIdsToDelete,
-        chunk -> chunk.forEach(id -> delete(exercise(ctx, id))));
+        chunk -> chunk.forEach(id -> delete(exercise(ctx, id), input.isKeepFindings())));
   }
 
   /** Changes the status of an exercise found inside the request's tenant scope. */
@@ -955,6 +974,10 @@ public class ExerciseService {
       exercise.setEnd(null);
       exercise.setCurrentPause(null);
       exerciseRepository.save(exercise);
+      // Captured now, before the afterCommit callback below: the entity is not safe to read once
+      // the transaction has committed, and the directory must be removed from the exercise's own
+      // tenant path, not the caller's ambient one (it differs on the non-prefixed route).
+      final String exerciseTenantId = exercise.getTenant().getId();
       // Delete exercise transient files (communications, ...) AFTER commit: this is an external
       // MinIO/S3 call. Running it inside the transaction pinned the DB connection and every row
       // lock taken by the deletes above for the whole duration of the object-storage roundtrips,
@@ -965,9 +988,23 @@ public class ExerciseService {
             @Override
             public void afterCommit() {
               try {
-                fileService.deleteDirectory(exerciseId);
+                fileService.deleteDirectory(exerciseTenantId, exerciseId);
               } catch (Exception e) {
                 log.error("Failed to delete directory for exercise {}", exerciseId, e);
+              }
+              // Attachments uploaded under the earlier storage layout (#7961) sit under the
+              // default tenant's prefix, regardless of the exercise's own tenant. During the
+              // compatibility period, clear that prefix too, unless it is the one already cleared
+              // above.
+              if (!Tenant.DEFAULT_TENANT_UUID.equals(exerciseTenantId)) {
+                try {
+                  fileService.deleteDirectory(Tenant.DEFAULT_TENANT_UUID, exerciseId);
+                } catch (Exception e) {
+                  log.error(
+                      "Failed to delete default-tenant-prefixed directory for exercise {}",
+                      exerciseId,
+                      e);
+                }
               }
             }
           });

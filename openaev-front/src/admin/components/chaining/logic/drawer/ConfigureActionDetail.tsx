@@ -14,6 +14,7 @@ import TextFieldController from '../../../../../components/fields/TextFieldContr
 import { useFormatter } from '../../../../../components/i18n';
 import type { ScopeAssetOutput, ScopeTeamOutput, TeamOutput, ThreatArsenalAction } from '../../../../../utils/api-types';
 import type { ContractElement, ContractType, EnhancedContractElement } from '../../../../../utils/api-types-custom';
+import { isFeatureEnabled } from '../../../../../utils/utils';
 import { zodImplement } from '../../../../../utils/Zod';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
 import InjectDocumentsList from '../../../common/injects/form/documents/InjectDocumentsList';
@@ -36,6 +37,7 @@ import {
   isExpectationInput,
   normalizeFieldLinks,
   stripFrontendMetadataKeys,
+  withEnabledExpectations,
 } from './ConfigureActionDetail.utils';
 import FieldOutputLink, { type FieldLink } from './FieldOutputLink';
 
@@ -124,6 +126,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   onSave,
 }) => {
   const { t, tPick } = useFormatter();
+  const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
 
   const isPayload = !!action?.action_payload;
 
@@ -176,7 +179,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
       inject_asset_groups: initialData?.inject_asset_groups ?? [],
     });
     setFieldLinks(normalizeFieldLinks(initialData?.inject_field_links));
-    setContractFields(initialData?.contract_fields ?? []);
+    setContractFields(withEnabledExpectations(initialData?.contract_fields ?? [], isLoggingEnabled));
 
     const existingContractId = initialData?.inject_injector_contract;
     const contractId = existingContractId ?? action.injector_contract_id;
@@ -193,7 +196,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
         if (!res.data?.injector_contract_content) return;
         try {
           const parsed = JSON.parse(res.data.injector_contract_content);
-          const fields = (parsed.fields ?? []) as ContractElement[];
+          const fields = withEnabledExpectations((parsed.fields ?? []) as ContractElement[], isLoggingEnabled);
           setContractFields(fields);
           // Use sanitized initial content when editing, otherwise contract defaults.
           const baseContent = initialData?.inject_content ?? buildContractDefaults(fields);

@@ -134,6 +134,7 @@ public class InjectService {
   private final InjectRepository injectRepository;
   private final InjectAuthorisationRepository injectAuthorisationRepository;
   private final InjectDocumentRepository injectDocumentRepository;
+  private final io.openaev.service.finding.FindingDetachService findingDetachService;
   private final GrantRepository grantRepository;
   private final InjectorService injectorService;
   private final InjectStatusRepository injectStatusRepository;
@@ -543,7 +544,26 @@ public class InjectService {
 
   @Transactional(rollbackFor = Exception.class)
   public void deleteAllByIds(TxCtx ctx, List<String> injectIds) {
+    deleteInjects(injectIds, false);
+  }
+
+  /**
+   * Deletes the given injects.
+   *
+   * @param keepFindings true keeps the findings they produced, detached from them; false (the
+   *     default) deletes them with the injects
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteAllByIds(TxCtx ctx, List<String> injectIds, boolean keepFindings) {
+    deleteInjects(injectIds, keepFindings);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points (no self-invocation).
+  private void deleteInjects(List<String> injectIds, boolean keepFindings) {
     if (!CollectionUtils.isEmpty(injectIds)) {
+      if (keepFindings) {
+        findingDetachService.detachFromInjects(injectIds);
+      }
       injectRepository.deleteByAllIdsNative(injectIds);
       // Native delete: no JPA lifecycle event fires, notify the search engine explicitly so the
       // inject docs (and their expectation/finding docs via dependency cascade) are removed.
@@ -855,6 +875,27 @@ public class InjectService {
 
   @Transactional
   public void delete(String id) {
+    deleteInject(id, false);
+  }
+
+  /**
+   * Deletes an inject.
+   *
+   * @param keepFindings true keeps the findings it produced, detached from it; false (the default)
+   *     deletes them with the inject
+   */
+  @Transactional
+  public void delete(String id, boolean keepFindings) {
+    deleteInject(id, keepFindings);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points (no self-invocation).
+  private void deleteInject(String id, boolean keepFindings) {
+    if (keepFindings) {
+      // Clears the session: the inject is loaded again without the detached findings, so its
+      // cascade (Inject.findings) no longer removes them.
+      findingDetachService.detachFromInjects(List.of(id));
+    }
     injectRepository.deleteById(id);
   }
 

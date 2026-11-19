@@ -46,6 +46,22 @@ public class PayloadRevocationService {
         PayloadRevocation.byAdmin(payload, reason, userService.currentUserOrNull()));
   }
 
+  // -- READ --
+
+  public PayloadRevocation revocation(String tenantId, String payloadId) {
+    return payloadRevocationRepository
+        .findByTenantIdAndPayloadId(tenantId, payloadId)
+        .orElseThrow(() -> new ElementNotFoundException(NOT_REVOKED));
+  }
+
+  /** The revocations of these payload versions in the tenant, by payload id. */
+  public Map<String, PayloadRevocation> revocations(String tenantId, Collection<Payload> payloads) {
+    return payloadRevocationRepository
+        .findAllByTenantIdAndPayloadIdIn(tenantId, payloads.stream().map(Payload::getId).toList())
+        .stream()
+        .collect(Collectors.toMap(r -> r.getPayload().getId(), Function.identity()));
+  }
+
   // -- EXECUTION --
 
   /** Why the inject must not run: the payload version it runs is revoked in its tenant. */
@@ -108,9 +124,6 @@ public class PayloadRevocationService {
     if (catalogPayloadStatuses.current().revokes(payloadService.payload(tenantId, payloadId))) {
       throw new BadRequestException(LIFT_REFUSED);
     }
-    payloadRevocationRepository.delete(
-        payloadRevocationRepository
-            .findByTenantIdAndPayloadId(tenantId, payloadId)
-            .orElseThrow(() -> new ElementNotFoundException(NOT_REVOKED)));
+    payloadRevocationRepository.delete(revocation(tenantId, payloadId));
   }
 }

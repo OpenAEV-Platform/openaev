@@ -37,7 +37,6 @@ import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
-import jakarta.servlet.ServletException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -396,38 +395,76 @@ class TeamApiTest extends IntegrationTest {
     assertEquals(TEAM_NAME, JsonPath.read(response, "$.team_name"));
   }
 
-  @DisplayName("Given contextual team input with multiple exercise, should throw an exception")
+  @DisplayName(
+      "Given contextual team input naming several simulations, should answer 400 on the plain route")
   @Test
   @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
-  void given_contextualTeamWithMultipleExercise_should_throwAnException() {
+  void given_contextualTeamWithMultipleExercise_should_answer400OnPlainRoute() throws Exception {
     // -- PREPARE --
+    TeamCreateInput teamInput = contextualTeamNamingTwoSimulations();
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post(TEAM_URI + "/upsert")
+                    .content(asJsonString(teamInput))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().isBadRequest())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    assertEquals(
+        "Contextual team can only be associated to one exercise",
+        JsonPath.read(response, "$.message"));
+    assertTrue(
+        teamRepository
+            .findByNameAndTenantIdIn(CONTEXTUAL_TEAM_NAME, Set.of(Tenant.DEFAULT_TENANT_UUID))
+            .isEmpty());
+  }
+
+  @DisplayName(
+      "Given contextual team input naming several simulations, should answer 400 on the tenant route")
+  @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void given_contextualTeamWithMultipleExercise_should_answer400OnTenantRoute() throws Exception {
+    // -- PREPARE --
+    TeamCreateInput teamInput = contextualTeamNamingTwoSimulations();
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post("/api/tenants/" + Tenant.DEFAULT_TENANT_UUID + "/teams/upsert")
+                    .content(asJsonString(teamInput))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().isBadRequest())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    assertEquals(
+        "Contextual team can only be associated to one exercise",
+        JsonPath.read(response, "$.message"));
+    assertTrue(
+        teamRepository
+            .findByNameAndTenantIdIn(CONTEXTUAL_TEAM_NAME, Set.of(Tenant.DEFAULT_TENANT_UUID))
+            .isEmpty());
+  }
+
+  private TeamCreateInput contextualTeamNamingTwoSimulations() {
     Exercise exercise1 = ExerciseFixture.getExercise();
     exercise1.setName("exercise 1");
     exercise1 = this.exerciseService.createExercise(exercise1);
     Exercise exercise2 = ExerciseFixture.getExercise();
     exercise2.setName("exercise 2");
     exercise2 = this.exerciseService.createExercise(exercise2);
-
-    TeamCreateInput teamInput =
-        createContextualExerciseTeam(List.of(exercise1.getId(), exercise2.getId()));
-
-    // --EXECUTE--
-    Exception exception =
-        assertThrows(
-            ServletException.class,
-            () ->
-                mvc.perform(
-                    post(TEAM_URI + "/upsert")
-                        .content(asJsonString(teamInput))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON)
-                        .with(csrf())));
-
-    String expectedMessage = "Contextual team can only be associated to one exercise";
-    String actualMessage = exception.getMessage();
-
-    // --ASSERT--
-    assertTrue(actualMessage.contains(expectedMessage));
+    return createContextualExerciseTeam(List.of(exercise1.getId(), exercise2.getId()));
   }
 
   @DisplayName("Given a team linked to injects, should delete the team and keep the injects")

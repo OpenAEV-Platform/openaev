@@ -68,6 +68,7 @@ class AssetOptionsApiTest extends IntegrationTest {
   @DisplayName("GET /api/assets/options")
   class OptionsByName {
 
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @Test
     @DisplayName("Returns matching assets but never security platforms")
     void given_searchText_should_returnMatchingAssetsWithoutSecurityPlatforms() throws Exception {
@@ -93,6 +94,7 @@ class AssetOptionsApiTest extends IntegrationTest {
       assertThat(categories).containsExactlyInAnyOrder("HOST", "WEB_APPLICATION");
     }
 
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @Test
     @DisplayName("Narrower search text only returns the matching asset")
     void given_narrowerSearchText_should_returnOnlyMatchingAsset() throws Exception {
@@ -121,6 +123,7 @@ class AssetOptionsApiTest extends IntegrationTest {
   @DisplayName("POST /api/assets/options")
   class OptionsByIds {
 
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @Test
     @DisplayName("Resolves labels for the given asset ids")
     void given_assetIds_should_resolveLabels() throws Exception {
@@ -142,6 +145,7 @@ class AssetOptionsApiTest extends IntegrationTest {
       assertThat(ids).containsExactlyInAnyOrder(endpoint1.getId(), endpoint2.getId());
     }
 
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @Test
     @DisplayName("Excludes security platform ids, consistent with the GET endpoint")
     void given_securityPlatformId_should_excludeItFromResolvedOptions() throws Exception {

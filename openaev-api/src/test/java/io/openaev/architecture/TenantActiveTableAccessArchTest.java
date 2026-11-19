@@ -289,6 +289,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.custom_domain.CustomDomainPublicLookupService;
 import io.openaev.service.expectation.ChallengeBehavior;
+import io.openaev.service.finding.FindingRecordingService;
 import io.openaev.service.finding.FindingValueDisplayBackfill;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
@@ -1623,9 +1624,10 @@ class TenantActiveTableAccessArchTest {
               FindingDistinctSearchService.class,
               // Reached only from those handlers, inside their scoped transaction.
               FindingMapper.class,
-              // REQUIRES_NEW, so it declares its own TxCtx and the aspect scopes the new
+              // REQUIRES_NEW, so each declares its own TxCtx and the aspect scopes the new
               // transaction (see the note on the class).
               FindingWriter.class,
+              FindingRecordingService.class,
               // Background writers, each reaching the primitive with the tenant taken from the
               // inject or run that owns the work.
               AttackPathExecutionIngestionService.class,
@@ -1640,7 +1642,11 @@ class TenantActiveTableAccessArchTest {
               ProductInventoryMetricCollector.class,
               // One pass after an upgrade over every tenant's findings, each batch in
               // TxCtx.allTenants() (FindingValueDisplayBackfillTest).
-              FindingValueDisplayBackfill.class)
+              FindingValueDisplayBackfill.class,
+              // Opt-in keep_findings on delete: Propagation.MANDATORY, so it only joins the
+              // tenant-scoped transaction of the delete entry point that calls it (pinned by
+              // DeleteKeepFindingsApiTest).
+              io.openaev.service.finding.FindingDetachService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(FindingRepository.class)

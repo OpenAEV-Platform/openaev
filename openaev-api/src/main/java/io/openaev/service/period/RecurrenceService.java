@@ -1,5 +1,6 @@
 package io.openaev.service.period;
 
+import io.openaev.rest.exception.BadRequestException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -17,7 +18,44 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class RecurrenceService {
 
+  /** Accepted forms, as named to API callers when an expression is refused. */
+  public static final String ACCEPTED_RECURRENCE_FORMS =
+      "use a Spring 6-field cron, seconds first, evaluated in UTC, e.g. '0 0 2 * * *', or an"
+          + " ISO 8601 period such as P1D";
+
   private final List<PeriodExpressionHandler> periodExpressionHandlers;
+
+  /**
+   * Whether one of the handlers the scheduling jobs use can interpret the expression. A null or
+   * blank expression is not supported (callers normalise it to "no recurrence" first).
+   *
+   * @param expression the recurrence expression
+   * @return true when a scheduler handler can parse it
+   */
+  public boolean isSupportedExpression(String expression) {
+    if (expression == null || expression.isBlank()) {
+      return false;
+    }
+    return periodExpressionHandlers.stream().anyMatch(h -> h.canHandleExpression(expression));
+  }
+
+  /**
+   * Refuses a recurrence expression the scheduler could never fire, so it is not stored silently. A
+   * null or blank expression is accepted: it clears the schedule.
+   *
+   * @param expression the normalised recurrence expression, or null to clear
+   * @throws BadRequestException when no handler can interpret a non-blank expression
+   */
+  public void validateExpression(String expression) {
+    if (expression == null || expression.isBlank()) {
+      return;
+    }
+    if (!isSupportedExpression(expression)) {
+      throw new BadRequestException(
+          "Unsupported recurrence expression '%s': %s"
+              .formatted(expression, ACCEPTED_RECURRENCE_FORMS));
+    }
+  }
 
   /**
    * Computes the next occurrence of a recurrence expression.

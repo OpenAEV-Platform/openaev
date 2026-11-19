@@ -42,6 +42,7 @@ Escalate to **Opus 4.6** for reviews involving complex query optimization or arc
 - **Transaction scope**: Read method without `readOnly = true` = 🟡 MEDIUM
 - **Loop DB calls**: Any `findById()` inside a loop = 🟠 HIGH regardless of collection size
 - **DTO mapping**: `entity.getCollection()` in a mapper without `@Fetch(SUBSELECT)` = 🟠 HIGH (N+1)
+- **Query plans**: a global `prepareThreshold` or a role/database `plan_cache_mode` added to fix a slow plan = 🟠 HIGH (ADR-022). `QueryPlanHelper.forceCustomPlan()` goes inside the transaction, last before the query, with a test asserting the call
 
 ## What NOT to Flag
 
@@ -52,6 +53,8 @@ In addition to **Shared Exceptions** in `AGENTS.md`:
 - Test code performance — only flag production code
 - `@Transactional` on methods that both read and write — `readOnly` would break them
 - `FetchType.LAZY` collections accessed within the same transaction — correct pattern
+- A cursor query without `QueryPlanHelper.forceCustomPlan()` when the PR shows no `EXPLAIN` evidence of a slow generic plan (ADR-022)
+- `prepareThreshold=0` set because a transaction pooler does not support prepared statements
 
 ## Output Format
 
