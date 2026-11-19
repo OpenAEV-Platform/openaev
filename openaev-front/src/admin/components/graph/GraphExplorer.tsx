@@ -878,7 +878,7 @@ const GraphExplorerInner = ({
         {legendOpen ? <ExpandMoreOutlined fontSize="small" /> : <ExpandLessOutlined fontSize="small" />}
       </button>
       {legendOpen && (
-        <div className="flex flex-col items-start gap-0.5 px-1 pb-1" role="group" aria-label={t('Legend')}>
+        <div className="flex flex-col items-start gap-1 px-1 pb-1" role="group" aria-label={t('Legend')}>
           {legendEntries}
         </div>
       )}
@@ -1004,7 +1004,7 @@ const GraphExplorerInner = ({
       data-testid="graph-canvas-toolbar"
       role="toolbar"
       aria-label={t('Graph layout')}
-      className="absolute flex items-center gap-0.5 rounded px-2"
+      className="absolute flex items-center gap-1 rounded px-2"
       style={{
         bottom: 12,
         right: 12 + offset,
