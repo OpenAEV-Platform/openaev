@@ -36,7 +36,11 @@ class ExecutableInjectServiceTest {
     // Act
     String result =
         service.resolveArgumentsForDisplay(
-            command, List.of(payloadArgument("message", "fallback")), List.of(), injectContent);
+            command,
+            List.of(payloadArgument("message", "fallback")),
+            List.of(),
+            injectContent,
+            "tenant-1");
 
     // Assert
     assertThat(result)
@@ -62,7 +66,8 @@ class ExecutableInjectServiceTest {
             command,
             List.of(payloadArgument("IP", ""), payloadArgument("username", "")),
             List.of(usernameField),
-            injectContent);
+            injectContent,
+            "tenant-1");
 
     // Assert
     assertThat(result).isEqualTo("nxc smb 10.10.10.10 -u  --shares");
@@ -80,6 +85,7 @@ class ExecutableInjectServiceTest {
             List.class,
             ObjectNode.class,
             List.class,
+            String.class,
             String.class);
     method.setAccessible(true);
 
@@ -99,7 +105,8 @@ class ExecutableInjectServiceTest {
                     List.of(payloadArgument("username", "")),
                     injectContent,
                     List.of(usernameField),
-                    "plain-text"))
+                    "plain-text",
+                    "tenant-1"))
         .isInstanceOf(InvocationTargetException.class)
         .hasCauseInstanceOf(IllegalArgumentException.class)
         .hasRootCauseMessage("Missing mandatory input 'username' for inject execution");
@@ -120,7 +127,11 @@ class ExecutableInjectServiceTest {
     // Act
     String result =
         service.resolveArgumentsForDisplay(
-            command, List.of(payloadArgument("mode", "")), List.of(modeField), injectContent);
+            command,
+            List.of(payloadArgument("mode", "")),
+            List.of(modeField),
+            injectContent,
+            "tenant-1");
 
     // Assert
     assertThat(result).isEqualTo("tool run ");
@@ -133,7 +144,7 @@ class ExecutableInjectServiceTest {
     Document legacyDocument = new Document();
     legacyDocument.setName("../../ba03_direct.txt");
     DocumentService documentService = mock(DocumentService.class);
-    when(documentService.document("document-id")).thenReturn(legacyDocument);
+    when(documentService.documentInTenant("document-id", "tenant-1")).thenReturn(legacyDocument);
     ExecutableInjectService serviceWithDocuments =
         new ExecutableInjectService(null, documentService, null, null, null, null);
 
@@ -143,10 +154,42 @@ class ExecutableInjectServiceTest {
     // Act
     String result =
         serviceWithDocuments.resolveArgumentsForDisplay(
-            "cat #{file}", List.of(fileArgument), List.of(), JsonNodeFactory.instance.objectNode());
+            "cat #{file}",
+            List.of(fileArgument),
+            List.of(),
+            JsonNodeFactory.instance.objectNode(),
+            "tenant-1");
 
     // Assert
     assertThat(result).isEqualTo("cat #{location}/ba03_direct.txt");
+  }
+
+  @Test
+  @DisplayName("Should refuse a document argument resolving in another tenant")
+  void given_documentArgumentInAnotherTenant_should_leaveValueMissing() {
+    // Arrange
+    DocumentService documentService = mock(DocumentService.class);
+    when(documentService.documentInTenant("document-id", "tenant-1"))
+        .thenThrow(new io.openaev.rest.exception.ElementNotFoundException("Document not found"));
+    ExecutableInjectService serviceWithDocuments =
+        new ExecutableInjectService(null, documentService, null, null, null, null);
+
+    PayloadArgument fileArgument = payloadArgument("file", "document-id");
+    fileArgument.setType(PrimitiveType.Document);
+
+    // Act
+    String result =
+        serviceWithDocuments.resolveArgumentsForDisplay(
+            "cat #{file}",
+            List.of(fileArgument),
+            List.of(),
+            JsonNodeFactory.instance.objectNode(),
+            "tenant-1");
+
+    // Assert: the document does not resolve inside the inject's own tenant, so it is treated
+    // like an unknown id, the same as an id that resolves nowhere at all (the raw value is left
+    // in place rather than the resolved file name), never a foreign file's name.
+    assertThat(result).isEqualTo("cat document-id");
   }
 
   private static PayloadArgument payloadArgument(String key, String defaultValue) {

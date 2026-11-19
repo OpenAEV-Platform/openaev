@@ -114,7 +114,8 @@ public class ExecutableInjectService {
       List<PayloadArgument> defaultPayloadArguments,
       List<ObjectNode> injectorContractContentFields,
       ObjectNode injectContent,
-      boolean enforceMandatory) {
+      boolean enforceMandatory,
+      String tenantId) {
 
     Set<String> argumentKeys = getArgumentsFromCommandLines(command);
     List<PayloadArgument> payloadArguments =
@@ -140,7 +141,8 @@ public class ExecutableInjectService {
               defaultValue,
               mandatory,
               contractFields,
-              safeInjectContent);
+              safeInjectContent,
+              tenantId);
 
       if (resolvedArgument.missing() && enforceMandatory && resolvedArgument.mandatory()) {
         log.error(
@@ -172,14 +174,16 @@ public class ExecutableInjectService {
       String command,
       List<PayloadArgument> defaultPayloadArguments,
       List<ObjectNode> injectorContractContentFields,
-      ObjectNode injectContent) {
+      ObjectNode injectContent,
+      String tenantId) {
     return replaceArgumentsByValue(
         command,
         CommandArgumentBinder.literal(),
         defaultPayloadArguments,
         injectorContractContentFields,
         injectContent,
-        false);
+        false,
+        tenantId);
   }
 
   /** Resolves the effective value of a single argument, before any shell escaping. */
@@ -189,7 +193,8 @@ public class ExecutableInjectService {
       String defaultValue,
       boolean mandatory,
       List<ObjectNode> injectorContractContentFields,
-      ObjectNode injectContent) {
+      ObjectNode injectContent,
+      String tenantId) {
     PrimitiveType type = defaultPayloadArgument != null ? defaultPayloadArgument.getType() : null;
     String value = "";
     boolean missing = true;
@@ -214,7 +219,7 @@ public class ExecutableInjectService {
     // by the implant
     if (PrimitiveType.Document == type && !value.isEmpty()) {
       try {
-        Document doc = documentService.document(value);
+        Document doc = documentService.documentInTenant(value, tenantId);
         value = "#{location}/" + DocumentService.safeFileName(doc.getName());
         missing = false;
       } catch (ElementNotFoundException e) {
@@ -269,7 +274,8 @@ public class ExecutableInjectService {
       List<PayloadArgument> defaultPayloadArguments,
       ObjectNode injectContent,
       List<ObjectNode> injectorContractContentFields,
-      String obfuscator) {
+      String obfuscator,
+      String tenantId) {
     OpenAEVObfuscationMap obfuscationMap = new OpenAEVObfuscationMap(executor);
 
     String computedCommand = command;
@@ -287,7 +293,8 @@ public class ExecutableInjectService {
             defaultPayloadArguments,
             injectorContractContentFields,
             injectContent,
-            true);
+            true,
+            tenantId);
 
     computedCommand = obfuscationMap.executeObfuscation(obfuscator, computedCommand, executor);
 
@@ -371,7 +378,8 @@ public class ExecutableInjectService {
                           contract.getPayload().getArguments(),
                           inject.getContent(),
                           injectorContractFields,
-                          obfuscator));
+                          obfuscator,
+                          inject.getTenant().getId()));
                 }
                 if (hasText(prerequisite.getGetCommand())) {
                   payload.setGetCommand(
@@ -381,7 +389,8 @@ public class ExecutableInjectService {
                           contract.getPayload().getArguments(),
                           inject.getContent(),
                           injectorContractFields,
-                          obfuscator));
+                          obfuscator,
+                          inject.getTenant().getId()));
                 }
                 prerequisiteList.add(payload);
               });
@@ -398,7 +407,8 @@ public class ExecutableInjectService {
               contract.getPayload().getArguments(),
               inject.getContent(),
               injectorContractFields,
-              obfuscator));
+              obfuscator,
+              inject.getTenant().getId()));
     }
 
     return processPayloadToExecute(
@@ -444,7 +454,8 @@ public class ExecutableInjectService {
             contract.getPayload().getArguments(),
             inject.getContent(),
             injectorContractFields,
-            obfuscator));
+            obfuscator,
+            inject.getTenant().getId()));
     return payloadCommand;
   }
 
@@ -489,7 +500,8 @@ public class ExecutableInjectService {
             dnsResolution.getArguments(),
             null,
             inject.getContent(),
-            false));
+            false,
+            inject.getTenant().getId()));
     return dnsResolution;
   }
 
