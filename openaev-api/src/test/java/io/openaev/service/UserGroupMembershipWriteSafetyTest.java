@@ -25,6 +25,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -264,6 +266,48 @@ class UserGroupMembershipWriteSafetyTest extends IntegrationTest {
 
       // Assert: the mapped group of tenant A is revoked, tenant B's row survives
       assertThat(groupIdsOf(user.getId())).containsExactly(groupB.getId());
+    }
+
+    @ParameterizedTest(name = "initially a member: {0}, grant mapping first: {1}")
+    @CsvSource({"false,true", "false,false", "true,true", "true,false"})
+    @DisplayName("given_overlappingMappingsOfOneGroup_should_endWithTheLastMappingsOutcome")
+    void given_overlappingMappingsOfOneGroup_should_endWithTheLastMappingsOutcome(
+        boolean initiallyMember, boolean grantFirst) {
+      // Arrange: two mappings name the same group of tenant A, one granted by the token, one
+      // revoked by its absence from it
+      Group sharedGroupA =
+          tenantTx.executeAsPlatformWrite(
+              TxCtx.forTenant(tenantA), () -> tenantGroupService.createGroup("overlap", tenantA));
+      if (initiallyMember) {
+        jdbc.update(
+            "INSERT INTO users_groups (user_id, group_id) VALUES (?, ?)",
+            user.getId(),
+            sharedGroupA.getId());
+      }
+      String granted = mapping("idp-in", tenantA);
+      String revoked = mapping("idp-out", tenantA);
+      String mappingJson =
+          grantFirst ? "[" + granted + "," + revoked + "]" : "[" + revoked + "," + granted + "]";
+
+      // Act: one login, the token carries only "idp-in"
+      tenantTx.execute(
+          TxCtx.forTenant(tenantA),
+          () -> {
+            User freshUser = userRepository.findById(user.getId()).orElseThrow();
+            userMappingService.mapCurrentUserWithGroup(mappingJson, freshUser, List.of("idp-in"));
+          });
+
+      // Assert: the later mapping wins, whatever the loaded groups of the user held
+      List<String> expected =
+          grantFirst
+              ? List.of(groupB.getId())
+              : List.of(sharedGroupA.getId(), groupB.getId()).stream().sorted().toList();
+      assertThat(groupIdsOf(user.getId())).containsExactlyInAnyOrderElementsOf(expected);
+    }
+
+    private String mapping(String idpGroup, String tenantId) {
+      return "{\"idpGroup\":\"%s\",\"userGroup\":\"overlap\",\"autoCreate\":false,\"tenantId\":\"%s\"}"
+          .formatted(idpGroup, tenantId);
     }
   }
 

@@ -142,47 +142,34 @@ public class UserMappingService {
     }
   }
 
+  // Both mappings write the membership row by id, whatever the user's loaded groups hold: the bag
+  // is stale after a native write, so overlapping mappings must not read it.
   private boolean grantGroup(User user, GroupMapping mapping, Tenant tenant) {
     if (tenant != null) {
       attachTenant(user, tenant);
     }
-    List<Group> userGroups = user.getUnscopedGroups();
-    if (userGroups.stream().anyMatch(g -> isMappedGroup(g, mapping.getUserGroup(), tenant))) {
-      return false;
-    }
-    Optional<Group> group = findOrCreateGroup(mapping, tenant);
-    return group
+    return findOrCreateGroup(mapping, tenant)
         .map(g -> userGroupMembershipService.addMembership(user.getId(), g.getId()))
         .orElse(false);
   }
 
   /** The user left the group in the identity provider. */
   private boolean revokeGroup(User user, String userGroup, Tenant tenant) {
-    boolean changed = false;
-    for (Group group : user.getUnscopedGroups().stream().toList()) {
-      if (isMappedGroup(group, userGroup, tenant)) {
-        changed |= userGroupMembershipService.removeMembership(user.getId(), group.getId());
-      }
-    }
-    return changed;
+    return findGroup(userGroup, tenant)
+        .map(g -> userGroupMembershipService.removeMembership(user.getId(), g.getId()))
+        .orElse(false);
   }
 
   /** A mapping with a tenant targets a group of that tenant, otherwise a platform group. */
-  private static boolean isMappedGroup(Group group, String name, Tenant tenant) {
-    if (!group.getName().equals(name)) {
-      return false;
-    }
+  private Optional<Group> findGroup(String userGroup, Tenant tenant) {
     return tenant == null
-        ? group.getTenant() == null
-        : group.getTenant() != null && tenant.getId().equals(group.getTenant().getId());
+        ? platformGroupService.findByName(userGroup)
+        : tenantGroupService.findByNameAndTenantId(userGroup, tenant.getId());
   }
 
   private Optional<Group> findOrCreateGroup(GroupMapping mapping, Tenant tenant) {
     String userGroup = mapping.getUserGroup();
-    Optional<Group> existing =
-        tenant == null
-            ? platformGroupService.findByName(userGroup)
-            : tenantGroupService.findByNameAndTenantId(userGroup, tenant.getId());
+    Optional<Group> existing = findGroup(userGroup, tenant);
     if (existing.isPresent()) {
       return existing;
     }
