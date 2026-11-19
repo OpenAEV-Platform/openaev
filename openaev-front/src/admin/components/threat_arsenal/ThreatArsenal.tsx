@@ -241,7 +241,7 @@ const ThreatArsenal = () => {
                 items={threatArsenalActions}
                 loading={loadingFirstPage}
                 emptyState={emptyState}
-                {...sections}
+                sections={sections}
                 renderItem={action => (
                   <ThreatArsenalCard
                     key={action.injector_contract_id}

@@ -3534,6 +3534,8 @@
   "Scenario planner": "Planificateur de scénario",
   "scenario_category": "Catégorie",
   "scenario_dependencies": "Dépendances",
+  "scenario_author": "Auteur",
+  "scenario_domains": "Domaines",
   "scenario_kill_chain_phases": "Phase de kill chain",
   "scenario_name": "Nom",
   "scenario_platforms": "Plateformes",
@@ -4701,5 +4703,9 @@
   "Browse and version the actions your simulations run.": "Parcourez et versionnez les actions que vos simulations exécutent.",
   "Revoked": "Révoqué",
   "Filigran": "Filigran",
-  "Local": "Local"
+  "Local": "Local",
+  "Browse and version ready-to-use scenarios.": "Parcourez et versionnez des scénarios prêts à l'emploi.",
+  "No scenario matches these filters.": "Aucun scénario ne correspond à ces filtres.",
+  "Last run": "Dernier lancement",
+  "Never": "Jamais"
 }

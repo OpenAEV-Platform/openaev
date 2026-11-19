@@ -3534,6 +3534,8 @@
   "Scenario planner": "シナリオプランナー",
   "scenario_category": "カテゴリー",
   "scenario_dependencies": "依存関係",
+  "scenario_author": "作成者",
+  "scenario_domains": "ドメイン",
   "scenario_kill_chain_phases": "キルチェーンフェーズ",
   "scenario_name": "名前",
   "scenario_platforms": "プラットフォーム",
@@ -4701,5 +4703,9 @@
   "Browse and version the actions your simulations run.": "シミュレーションが実行するアクションを参照し、バージョンを管理します。",
   "Revoked": "失効済み",
   "Filigran": "Filigran",
-  "Local": "ローカル"
+  "Local": "ローカル",
+  "Browse and version ready-to-use scenarios.": "すぐに使えるシナリオを参照し、バージョンを管理します。",
+  "No scenario matches these filters.": "これらのフィルターに一致するシナリオはありません。",
+  "Last run": "最終実行",
+  "Never": "なし"
 }

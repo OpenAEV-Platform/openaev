@@ -3534,6 +3534,8 @@
   "Scenario planner": "Планировщик сценария",
   "scenario_category": "Категория",
   "scenario_dependencies": "Зависимости",
+  "scenario_author": "Автор",
+  "scenario_domains": "Домены",
   "scenario_kill_chain_phases": "Фаза цепочки убийств",
   "scenario_name": "Имя",
   "scenario_platforms": "Платформы",
@@ -4701,5 +4703,9 @@
   "Browse and version the actions your simulations run.": "Просматривайте действия, которые выполняют ваши симуляции, и управляйте их версиями.",
   "Revoked": "Отозван",
   "Filigran": "Filigran",
-  "Local": "Локальный"
+  "Local": "Локальный",
+  "Browse and version ready-to-use scenarios.": "Просматривайте готовые сценарии и управляйте их версиями.",
+  "No scenario matches these filters.": "Нет сценариев, соответствующих этим фильтрам.",
+  "Last run": "Последний запуск",
+  "Never": "Никогда"
 }
