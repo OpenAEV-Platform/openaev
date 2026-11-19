@@ -315,46 +315,6 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Unread items by type")
-  class UnreadItemsByType {
-
-    @Test
-    @DisplayName("Given blogposts and resources, should count and find each kind on its own")
-    void given_blogPostsAndResources_should_countAndFindEachKind() {
-      // Arrange
-      User user = createUser();
-      NewsFeedItem blogPost =
-          newsFeedItemRepository.save(NewsFeedItemFixture.createBlogPost(user, "hub-blog"));
-      NewsFeedItem scenario =
-          newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(user, "hub-1"));
-      NewsFeedItem readBlogPost = NewsFeedItemFixture.createBlogPost(user, "hub-read");
-      readBlogPost.setRead(true);
-      newsFeedItemRepository.save(readBlogPost);
-      entityManager.flush();
-      entityManager.clear();
-      String blogPostType = NewsFeedType.BLOG_POST.name();
-
-      // Act & Assert
-      assertThat(
-              newsFeedItemRepository.countByUserIdAndReadFalseAndType(user.getId(), blogPostType))
-          .isEqualTo(1);
-      assertThat(
-              newsFeedItemRepository.countByUserIdAndReadFalseAndTypeNot(
-                  user.getId(), blogPostType))
-          .isEqualTo(1);
-      assertThat(
-              newsFeedItemRepository.findAllByUserIdAndReadFalseAndType(user.getId(), blogPostType))
-          .extracting(NewsFeedItem::getId)
-          .containsExactly(blogPost.getId());
-      assertThat(
-              newsFeedItemRepository.findAllByUserIdAndReadFalseAndTypeNot(
-                  user.getId(), blogPostType))
-          .extracting(NewsFeedItem::getId)
-          .containsExactly(scenario.getId());
-    }
-  }
-
-  @Nested
   @DisplayName("Metadata")
   class Metadata {
 

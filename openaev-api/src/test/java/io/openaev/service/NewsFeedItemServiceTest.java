@@ -50,6 +50,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -865,8 +866,6 @@ class NewsFeedItemServiceTest {
   @DisplayName("Categories")
   class Categories {
 
-    private static final String BLOG_POST = NewsFeedType.BLOG_POST.name();
-
     private User me;
 
     @BeforeEach
@@ -876,34 +875,26 @@ class NewsFeedItemServiceTest {
       when(userService.currentUser()).thenReturn(me);
     }
 
+    // Which rows a category holds is checked against the database by NewsFeedItemApiTest.
     @Test
-    @DisplayName("Given the blogpost category, should count only the unread blogposts")
-    void given_blogPostCategory_should_countOnlyUnreadBlogPosts() {
+    @DisplayName("Given a category, should count only the unread items of the category")
+    void given_category_should_countOnlyItsUnreadItems() {
       // Arrange
-      when(newsFeedItemRepository.countByUserIdAndReadFalseAndType("me", BLOG_POST)).thenReturn(2L);
+      when(newsFeedItemRepository.count(ArgumentMatchers.<Specification<NewsFeedItem>>any()))
+          .thenReturn(2L);
 
       // Act & Assert
       assertThat(service.countMyUnreadItems(NewsFeedCategory.BLOG_POST)).isEqualTo(2L);
+      verify(newsFeedItemRepository, never()).countByUserIdAndReadFalse(any());
     }
 
     @Test
-    @DisplayName("Given the resource category, should count the unread items of the other types")
-    void given_resourceCategory_should_countUnreadItemsOfOtherTypes() {
-      // Arrange
-      when(newsFeedItemRepository.countByUserIdAndReadFalseAndTypeNot("me", BLOG_POST))
-          .thenReturn(4L);
-
-      // Act & Assert
-      assertThat(service.countMyUnreadItems(NewsFeedCategory.RESOURCE)).isEqualTo(4L);
-    }
-
-    @Test
-    @DisplayName("Given the blogpost category, should mark only the blogposts as read")
-    void given_blogPostCategory_should_markOnlyBlogPostsRead() {
+    @DisplayName("Given a category, should mark only the unread items of the category as read")
+    void given_category_should_markOnlyItsItemsRead() {
       // Arrange
       NewsFeedItem blogPost = NewsFeedItemFixture.createNewsFeedItem(me, "hub-1");
       blogPost.setType(NewsFeedType.BLOG_POST);
-      when(newsFeedItemRepository.findAllByUserIdAndReadFalseAndType("me", BLOG_POST))
+      when(newsFeedItemRepository.findAll(ArgumentMatchers.<Specification<NewsFeedItem>>any()))
           .thenReturn(List.of(blogPost));
 
       // Act
@@ -913,22 +904,6 @@ class NewsFeedItemServiceTest {
       assertThat(blogPost.isRead()).isTrue();
       verify(newsFeedItemRepository).saveAll(List.of(blogPost));
       verify(newsFeedItemRepository, never()).findAllByUserIdAndReadFalse(any());
-    }
-
-    @Test
-    @DisplayName("Given the resource category, should mark only the other types as read")
-    void given_resourceCategory_should_markOnlyOtherTypesRead() {
-      // Arrange
-      NewsFeedItem scenario = NewsFeedItemFixture.createNewsFeedItem(me, "hub-1");
-      when(newsFeedItemRepository.findAllByUserIdAndReadFalseAndTypeNot("me", BLOG_POST))
-          .thenReturn(List.of(scenario));
-
-      // Act
-      service.markMyItemsRead(NewsFeedCategory.RESOURCE);
-
-      // Assert
-      assertThat(scenario.isRead()).isTrue();
-      verify(newsFeedItemRepository).saveAll(List.of(scenario));
     }
   }
 

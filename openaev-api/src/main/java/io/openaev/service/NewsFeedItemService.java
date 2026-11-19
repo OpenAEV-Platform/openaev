@@ -64,7 +64,7 @@ public class NewsFeedItemService {
 
   private record TypedItem(ProvisionedNewsFeedItem item, NewsFeedType type) {}
 
-  private static final String BLOG_POST = NewsFeedType.BLOG_POST.name();
+  private static final String BLOG_POST_TYPE = NewsFeedType.BLOG_POST.name();
 
   // -- READ --
 
@@ -78,9 +78,7 @@ public class NewsFeedItemService {
    */
   public Page<NewsFeedItem> searchMyItems(
       @NotNull final SearchPaginationInput searchPaginationInput, final NewsFeedCategory category) {
-    String userId = userService.currentUser().getId();
-    Specification<NewsFeedItem> ownerSpec =
-        (root, query, cb) -> cb.equal(root.get("user").get("id"), userId);
+    Specification<NewsFeedItem> ownerSpec = ownedBy(userService.currentUser().getId());
     Specification<NewsFeedItem> mySpec =
         category == null ? ownerSpec : ownerSpec.and(inCategory(category));
     return buildPaginationJPA(
@@ -99,19 +97,25 @@ public class NewsFeedItemService {
     if (category == null) {
       return newsFeedItemRepository.countByUserIdAndReadFalse(userId);
     }
-    return switch (category) {
-      case BLOG_POST -> newsFeedItemRepository.countByUserIdAndReadFalseAndType(userId, BLOG_POST);
-      case RESOURCE ->
-          newsFeedItemRepository.countByUserIdAndReadFalseAndTypeNot(userId, BLOG_POST);
-    };
+    return newsFeedItemRepository.count(unreadInCategory(userId, category));
+  }
+
+  private static Specification<NewsFeedItem> ownedBy(String userId) {
+    return (root, query, cb) -> cb.equal(root.get("user").get("id"), userId);
   }
 
   /** The items of a category, by their stored type: the resources are all the other types. */
   private static Specification<NewsFeedItem> inCategory(NewsFeedCategory category) {
     return switch (category) {
-      case BLOG_POST -> (root, query, cb) -> cb.equal(root.get("type"), BLOG_POST);
-      case RESOURCE -> (root, query, cb) -> cb.notEqual(root.get("type"), BLOG_POST);
+      case BLOG_POST -> (root, query, cb) -> cb.equal(root.get("type"), BLOG_POST_TYPE);
+      case RESOURCE -> (root, query, cb) -> cb.notEqual(root.get("type"), BLOG_POST_TYPE);
     };
+  }
+
+  private static Specification<NewsFeedItem> unreadInCategory(
+      String userId, NewsFeedCategory category) {
+    Specification<NewsFeedItem> unread = (root, query, cb) -> cb.isFalse(root.get("read"));
+    return ownedBy(userId).and(unread).and(inCategory(category));
   }
 
   /** The news feed types the current user is subscribed to. */
@@ -157,12 +161,7 @@ public class NewsFeedItemService {
     List<NewsFeedItem> unreadItems =
         category == null
             ? newsFeedItemRepository.findAllByUserIdAndReadFalse(userId)
-            : switch (category) {
-              case BLOG_POST ->
-                  newsFeedItemRepository.findAllByUserIdAndReadFalseAndType(userId, BLOG_POST);
-              case RESOURCE ->
-                  newsFeedItemRepository.findAllByUserIdAndReadFalseAndTypeNot(userId, BLOG_POST);
-            };
+            : newsFeedItemRepository.findAll(unreadInCategory(userId, category));
     unreadItems.forEach(item -> item.setRead(true));
     newsFeedItemRepository.saveAll(unreadItems);
   }

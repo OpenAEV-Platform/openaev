@@ -21,18 +21,6 @@ public interface NewsFeedItemRepository
 
   List<NewsFeedItem> findAllByUserIdAndReadFalse(@NotNull String userId);
 
-  /** The unread items of a user of the given type, for the blogposts. */
-  long countByUserIdAndReadFalseAndType(@NotNull String userId, @NotNull String type);
-
-  /** The unread items of a user of any other type than the given one, for the resources. */
-  long countByUserIdAndReadFalseAndTypeNot(@NotNull String userId, @NotNull String type);
-
-  List<NewsFeedItem> findAllByUserIdAndReadFalseAndType(
-      @NotNull String userId, @NotNull String type);
-
-  List<NewsFeedItem> findAllByUserIdAndReadFalseAndTypeNot(
-      @NotNull String userId, @NotNull String type);
-
   /** Projection rather than entities: loading an item also loads its user (EAGER). */
   @Query(
       "select n.user.id as userId, n.hubItemId as hubItemId"
