@@ -366,9 +366,7 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
           newsFeedItemRepository.save(NewsFeedItemFixture.createBlogPost(createUser(), "hub-1"));
       NewsFeedItem reloaded = reload(item);
       assertThat(reloaded.getMetadata())
-          .containsOnly(
-              Map.entry("description", "About hub-1"),
-              Map.entry("read_minutes", "7"));
+          .containsOnly(Map.entry("description", "About hub-1"), Map.entry("read_minutes", "7"));
 
       // Act
       reloaded.getMetadata().clear();
