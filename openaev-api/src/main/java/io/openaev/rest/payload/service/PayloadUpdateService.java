@@ -69,7 +69,8 @@ public class PayloadUpdateService {
     // the arguments straight onto the managed entity below, so a refusal after that point would
     // still leave Hibernate's dirty checking holding the cross-tenant value to flush.
     String tenantId = existingPayload.getTenant().getId();
-    payloadUtils.validateDocumentArguments(input.getArguments(), tenantId);
+    payloadUtils.validateDocumentArguments(
+        input.getArguments(), existingPayload.getArguments(), tenantId);
 
     Payload payload = (Payload) Hibernate.unproxy(existingPayload);
     payloadUtils.copyProperties(input, payload);

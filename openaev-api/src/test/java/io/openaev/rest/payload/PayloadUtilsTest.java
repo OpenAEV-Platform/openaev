@@ -2,7 +2,10 @@ package io.openaev.rest.payload;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -154,5 +157,58 @@ class PayloadUtilsTest {
     PayloadCreateInput payload = PayloadUtils.buildPayload(payloadNode);
 
     assertEquals(PrimitiveType.TargetedAsset, payload.getArguments().getFirst().getType());
+  }
+
+  @Test
+  void given_unchangedAndChangedDocumentDefaults_should_checkOnlyTheChangedOne() {
+    // Arrange
+    DocumentService documentService = mock(DocumentService.class);
+    PayloadUtils payloadUtils =
+        new PayloadUtils(
+            mock(EnterpriseEditionService.class),
+            mock(LicenseCacheManager.class),
+            mock(OutputParserService.class),
+            mock(DetectionRemediationUtils.class),
+            documentService);
+    List<PayloadArgument> stored =
+        List.of(documentArgument("kept", "deleted-doc"), documentArgument("changed", "old-doc"));
+    List<PayloadArgument> requested =
+        List.of(documentArgument("kept", "deleted-doc"), documentArgument("changed", "new-doc"));
+
+    // Act
+    payloadUtils.validateDocumentArguments(requested, stored, "tenant-1");
+
+    // Assert
+    verify(documentService).documentInTenant("new-doc", "tenant-1");
+    verify(documentService, never()).documentInTenant("deleted-doc", "tenant-1");
+  }
+
+  @Test
+  void given_noStoredArguments_should_checkEveryDocumentDefault() {
+    // Arrange
+    DocumentService documentService = mock(DocumentService.class);
+    PayloadUtils payloadUtils =
+        new PayloadUtils(
+            mock(EnterpriseEditionService.class),
+            mock(LicenseCacheManager.class),
+            mock(OutputParserService.class),
+            mock(DetectionRemediationUtils.class),
+            documentService);
+
+    // Act
+    payloadUtils.validateDocumentArguments(
+        List.of(documentArgument("file", "doc")), List.of(), "tenant-1");
+
+    // Assert
+    verify(documentService).documentInTenant("doc", "tenant-1");
+    verify(documentService, never()).document(any());
+  }
+
+  private static PayloadArgument documentArgument(String key, String defaultValue) {
+    PayloadArgument argument = new PayloadArgument();
+    argument.setType(PrimitiveType.Document);
+    argument.setKey(key);
+    argument.setDefaultValue(defaultValue);
+    return argument;
   }
 }

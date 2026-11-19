@@ -160,6 +160,59 @@ class PayloadArgumentDocumentLinkTenantTest extends IntegrationTest {
       assertThat(column(entityManager, ARGUMENT_SQL, payloadId).get(0))
           .contains(newDefaultDocument);
     }
+
+    @Test
+    @DisplayName(
+        "given a payload whose stored default points to a deleted document when the body resends"
+            + " it unchanged with a new name then the update passes and the default is kept")
+    void given_unchangedDanglingDefault_should_acceptTheRename() throws Exception {
+      // -- Arrange --
+      armRequest();
+      String deletedDocument = saveDocument(Tenant.DEFAULT_TENANT_UUID);
+      String payloadId = saveCommandPayload(deletedDocument);
+      documentRepository.deleteById(deletedDocument);
+      entityManager.flush();
+      PayloadUpdateInput input = PayloadInputFixture.getDefaultCommandPayloadUpdateInput(List.of());
+      input.setName("renamed-" + UUID.randomUUID());
+      input.setArguments(List.of(documentArgument(deletedDocument)));
+
+      // -- Act --
+      mvc.perform(
+              put(PAYLOAD_URI + "/{payloadId}", payloadId)
+                  .header(TENANT_HEADER, Tenant.DEFAULT_TENANT_UUID + "," + otherTenant)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- Assert --
+      assertThat(column(entityManager, ARGUMENT_SQL, payloadId).get(0)).contains(deletedDocument);
+    }
+
+    @Test
+    @DisplayName(
+        "given a payload whose stored default points to a deleted document when the body changes"
+            + " it to the other tenant document then the update is refused")
+    void given_danglingDefaultChangedToOtherTenantDocument_should_refuse() throws Exception {
+      // -- Arrange --
+      armRequest();
+      String deletedDocument = saveDocument(Tenant.DEFAULT_TENANT_UUID);
+      String payloadId = saveCommandPayload(deletedDocument);
+      documentRepository.deleteById(deletedDocument);
+      entityManager.flush();
+      PayloadUpdateInput input = PayloadInputFixture.getDefaultCommandPayloadUpdateInput(List.of());
+      input.setArguments(List.of(documentArgument(documentInOther)));
+
+      // -- Act & Assert --
+      mvc.perform(
+              put(PAYLOAD_URI + "/{payloadId}", payloadId)
+                  .header(TENANT_HEADER, Tenant.DEFAULT_TENANT_UUID + "," + otherTenant)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+      assertThat(column(entityManager, ARGUMENT_SQL, payloadId).get(0)).contains(deletedDocument);
+    }
   }
 
   @Nested

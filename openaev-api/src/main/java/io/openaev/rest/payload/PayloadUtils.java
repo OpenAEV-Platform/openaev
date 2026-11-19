@@ -247,23 +247,34 @@ public class PayloadUtils {
    * or file-drop document.
    */
   public void validateDocumentArguments(Payload payload, String tenantId) {
-    validateDocumentArguments(payload.getArguments(), tenantId);
+    validateDocumentArguments(payload.getArguments(), List.of(), tenantId);
   }
 
   /**
-   * Same as {@link #validateDocumentArguments(Payload, String)}, taken directly from the request's
-   * own arguments rather than from an entity. An update or an upsert must call this BEFORE {@link
-   * #copyProperties}, never after: {@code copyProperties} sets the arguments straight onto the
-   * managed entity it is given, so validating afterward checks a value Hibernate's dirty checking
-   * has already queued to flush, refusal or not.
+   * Same check for an update or an upsert, on the request's own arguments: a default equal to the
+   * one stored under the same key is not checked again, since a document used as a default can be
+   * deleted later and an unrelated edit resends it. Call it BEFORE {@link #copyProperties}, which
+   * sets the arguments straight onto the managed entity, so a refusal afterward would still leave
+   * Hibernate holding the value to flush.
    */
-  public void validateDocumentArguments(List<PayloadArgument> arguments, String tenantId) {
-    if (arguments == null) {
+  public void validateDocumentArguments(
+      List<PayloadArgument> requested, List<PayloadArgument> stored, String tenantId) {
+    if (requested == null) {
       return;
     }
-    arguments.stream()
+    Map<String, String> storedDefaults = new HashMap<>();
+    if (stored != null) {
+      stored.stream()
+          .filter(argument -> PrimitiveType.Document == argument.getType())
+          .forEach(
+              argument ->
+                  storedDefaults.putIfAbsent(argument.getKey(), argument.getDefaultValue()));
+    }
+    requested.stream()
         .filter(argument -> PrimitiveType.Document == argument.getType())
         .filter(argument -> StringUtils.hasText(argument.getDefaultValue()))
+        .filter(
+            argument -> !argument.getDefaultValue().equals(storedDefaults.get(argument.getKey())))
         .forEach(
             argument -> documentService.documentInTenant(argument.getDefaultValue(), tenantId));
   }

@@ -170,7 +170,8 @@ public class PayloadUpsertService {
     // Validated against the request's own arguments, before copyProperties: copyProperties sets
     // the arguments straight onto the managed entity below, so a refusal after that point would
     // still leave Hibernate's dirty checking holding the cross-tenant value to flush.
-    payloadUtils.validateDocumentArguments(input.getArguments(), tenantId);
+    payloadUtils.validateDocumentArguments(
+        input.getArguments(), existingPayload.getArguments(), tenantId);
 
     Payload payload = (Payload) Hibernate.unproxy(existingPayload);
     payloadUtils.copyProperties(input, payload, true);
