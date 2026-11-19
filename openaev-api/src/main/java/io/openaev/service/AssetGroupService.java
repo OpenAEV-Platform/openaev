@@ -328,7 +328,7 @@ public class AssetGroupService implements AssetGroupMembershipResolver {
   @Transactional(readOnly = true)
   public List<AssetGroup> assetGroupsOfAssets(@NotNull final Collection<String> assetIds) {
     Set<String> groupIds =
-        assetGroupIdsByAssetId(assetIds).values().stream()
+        membershipsOfAssets(assetIds).values().stream()
             .flatMap(Set::stream)
             .collect(Collectors.toSet());
     if (groupIds.isEmpty()) {
@@ -346,6 +346,14 @@ public class AssetGroupService implements AssetGroupMembershipResolver {
   @Override
   @Transactional(readOnly = true)
   public Map<String, Set<String>> assetGroupIdsByAssetId(final Collection<String> assetIds) {
+    return membershipsOfAssets(assetIds);
+  }
+
+  /**
+   * The body of {@link #assetGroupIdsByAssetId(Collection)}, run inside the caller's transaction so
+   * a method of this class never calls a {@code @Transactional} method of its own.
+   */
+  private Map<String, Set<String>> membershipsOfAssets(final Collection<String> assetIds) {
     Map<String, Set<String>> groupsByAsset = new HashMap<>();
     if (assetIds == null || assetIds.isEmpty()) {
       return groupsByAsset;
