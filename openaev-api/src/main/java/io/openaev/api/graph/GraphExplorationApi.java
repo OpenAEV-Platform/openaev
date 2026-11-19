@@ -6,6 +6,8 @@ import io.openaev.aop.AccessControl;
 import io.openaev.api.graph.dto.GraphEdgeType;
 import io.openaev.api.graph.dto.GraphNodeType;
 import io.openaev.api.graph.dto.GraphOutput;
+import io.openaev.api.graph.dto.GraphOverviewOutput;
+import io.openaev.api.graph.dto.GraphStartingPointsOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -46,10 +48,38 @@ public class GraphExplorationApi extends RestBehavior {
   public static final String GRAPH_URI = "/api/graph";
 
   private final GraphExplorationService graphService;
+  private final GraphLandingService landingService;
   private final UserService userService;
   private final PermissionService permissionService;
 
-  /** The risk-first landing view: exposure hot paths. */
+  /**
+   * The top exposure story of the landing (#9447): one connected subgraph of about 30 nodes, the
+   * worst attack path, else the most exposed asset. Empty when nothing failed.
+   */
+  @GetMapping("/story")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  public GraphOutput story(TxCtx ctx) {
+    return landingService.story(scope(ctx), visibility(ctx));
+  }
+
+  /** The aggregated estate overview of the landing (#9447): asset-group bubbles, not nodes. */
+  @GetMapping("/overview")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  public GraphOverviewOutput overview(TxCtx ctx) {
+    return landingService.overview(scope(ctx), visibility(ctx));
+  }
+
+  /** The starting-points rail of the landing (#9447). */
+  @GetMapping("/starting-points")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  public GraphStartingPointsOutput startingPoints(TxCtx ctx) {
+    return landingService.startingPoints(scope(ctx), visibility(ctx));
+  }
+
+  /** The risk-first landing view of #9388: exposure hot paths (kept for compatibility). */
   @GetMapping("/hot-paths")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)

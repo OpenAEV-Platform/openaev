@@ -850,8 +850,7 @@ public class GraphExplorationService {
    * {@code predicate}, each pair carrying the worst verdict per simulation. Discovered targets (no
    * asset) and injector sources (no asset) are not part of the estate graph and are skipped.
    */
-  private void steps(
-      Slice slice, Collection<String> tenantIds, String predicate, String id, int cap) {
+  void steps(Slice slice, Collection<String> tenantIds, String predicate, String id, int cap) {
     List<Object[]> rows =
         entityManager
             .createQuery(

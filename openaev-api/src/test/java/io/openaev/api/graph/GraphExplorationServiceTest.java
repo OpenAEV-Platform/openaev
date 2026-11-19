@@ -18,7 +18,9 @@ import io.openaev.api.graph.dto.GraphEdgeType;
 import io.openaev.api.graph.dto.GraphNodeOutput;
 import io.openaev.api.graph.dto.GraphNodeType;
 import io.openaev.api.graph.dto.GraphOutput;
+import io.openaev.api.graph.dto.GraphOverviewOutput;
 import io.openaev.api.graph.dto.GraphResult;
+import io.openaev.api.graph.dto.GraphStartingPointOutput;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -72,6 +74,8 @@ class GraphExplorationServiceTest extends IntegrationTest {
   private static final String NEIGHBOURHOOD = TENANT_PREFIX + "/graph/{type}/{id}/neighbourhood";
 
   @Autowired private GraphExplorationService service;
+  @Autowired private GraphLandingService landing;
+  @Autowired private GraphLandingCache landingCache;
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
@@ -104,6 +108,7 @@ class GraphExplorationServiceTest extends IntegrationTest {
     expectationComposer.reset();
     exerciseComposer.reset();
     scenarioComposer.reset();
+    landingCache.clear();
     tenant = TenantContext.getCurrentTenant();
     scope = List.of(tenant);
     tenantHelper.attachCurrentUserToTenant(tenant);
@@ -690,6 +695,194 @@ class GraphExplorationServiceTest extends IntegrationTest {
         return atomicTestings;
       }
     };
+  }
+
+  // -- Landing (#9447): story, overview, starting points --
+
+  @Test
+  @DisplayName("the story is the worst attack path, one connected subgraph under its budget")
+  void storyFollowsWorstAttackPath() {
+    scopeToAmbientTenant();
+    insertStep(e1.getId(), e2.getId(), "Not Prevented");
+
+    GraphOutput out = landing.story(scope, GraphVisibility.ALL);
+
+    String from = id(GraphNodeType.ASSET, e1.getId());
+    assertThat(out.focus()).isEqualTo(from);
+    assertThat(nodeIds(out)).contains(from, id(GraphNodeType.ASSET, e2.getId()));
+    assertThat(edgeTypes(out)).contains(GraphEdgeType.ATTACK_STEP, GraphEdgeType.FOUND_ON);
+    assertThat(out.nodes()).hasSizeLessThanOrEqualTo(GraphLandingService.STORY_BUDGET + 2);
+    assertConnected(out);
+  }
+
+  @Test
+  @DisplayName("without attack path, the story is the most exposed asset and its ring")
+  void storyFallsBackToMostExposedAsset() {
+    scopeToAmbientTenant();
+
+    GraphOutput out = landing.story(scope, GraphVisibility.ALL);
+
+    assertThat(out.focus()).startsWith(GraphNodeType.ASSET.name() + ":");
+    assertThat(edgeTypes(out)).contains(GraphEdgeType.TARGETS);
+    assertConnected(out);
+  }
+
+  @Test
+  @DisplayName("an attack path of a simulation the caller cannot read never becomes the story")
+  void storySkipsUnreadableAttackPath() {
+    scopeToAmbientTenant();
+    insertStep(e1.getId(), e2.getId(), "Not Prevented");
+
+    GraphOutput out = landing.story(scope, visibility(false, true, true));
+
+    assertThat(edgeTypes(out)).doesNotContain(GraphEdgeType.ATTACK_STEP);
+    assertThat(nodeIds(out)).doesNotContain(id(GraphNodeType.SIMULATION, x.getId()));
+  }
+
+  @Test
+  @DisplayName("the story of a scope with nothing in it is empty")
+  void storyEmptyOutsideScope() {
+    GraphOutput out = landing.story(List.of(UUID.randomUUID().toString()), GraphVisibility.ALL);
+
+    assertThat(out.nodes()).isEmpty();
+    assertThat(out.edges()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("the overview aggregates groups, the ungrouped bucket and the simulations")
+  void overviewAggregatesGroups() {
+    scopeToAmbientTenant();
+
+    GraphOverviewOutput out = landing.overview(scope, GraphVisibility.ALL);
+
+    assertThat(out.assetCount()).isGreaterThanOrEqualTo(2);
+    assertThat(out.groups())
+        .anySatisfy(
+            group -> {
+              assertThat(group.groupId()).isEqualTo(g.getId());
+              assertThat(group.assetCount()).isEqualTo(1);
+              assertThat(group.scoredCount()).isEqualTo(1);
+              assertThat(group.failedCount()).isEqualTo(1);
+              assertThat(group.failureRate()).isEqualTo(1.0);
+              assertThat(group.ungrouped()).isFalse();
+            })
+        .anySatisfy(
+            group -> {
+              assertThat(group.ungrouped()).isTrue();
+              assertThat(group.assetCount()).isGreaterThanOrEqualTo(1);
+              assertThat(group.failedCount()).isGreaterThanOrEqualTo(1);
+            });
+    assertThat(out.links())
+        .anySatisfy(
+            link -> {
+              assertThat(link.groupId()).isEqualTo(g.getId());
+              assertThat(link.simulationId()).isEqualTo(x.getId());
+              assertThat(link.result()).isEqualTo(GraphResult.SUCCESS);
+            });
+  }
+
+  @Test
+  @DisplayName("the overview keeps the counts but drops the links to unreadable simulations")
+  void overviewGatesSimulationLinks() {
+    scopeToAmbientTenant();
+
+    GraphOverviewOutput out = landing.overview(scope, visibility(false, true, true));
+
+    assertThat(out.groups()).anySatisfy(group -> assertThat(group.groupId()).isEqualTo(g.getId()));
+    assertThat(out.links()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("the overview is served from the cache until it is cleared")
+  void overviewIsCached() {
+    scopeToAmbientTenant();
+    GraphOverviewOutput first = landing.overview(scope, GraphVisibility.ALL);
+    entityManager
+        .createNativeQuery("DELETE FROM asset_groups_assets WHERE asset_group_id = :g")
+        .setParameter("g", g.getId())
+        .executeUpdate();
+
+    assertThat(landing.overview(scope, GraphVisibility.ALL).groups()).isEqualTo(first.groups());
+    landingCache.clear();
+    assertThat(landing.overview(scope, GraphVisibility.ALL).groups())
+        .anySatisfy(
+            group -> {
+              assertThat(group.groupId()).isEqualTo(g.getId());
+              assertThat(group.assetCount()).isZero();
+            });
+  }
+
+  @Test
+  @DisplayName("the rail ranks exposed assets, findings, simulations and attack paths")
+  void startingPoints() {
+    scopeToAmbientTenant();
+    insertStep(e1.getId(), e2.getId(), "Not Prevented");
+
+    List<GraphStartingPointOutput> points =
+        landing.startingPoints(scope, GraphVisibility.ALL).points();
+
+    assertThat(points)
+        .anySatisfy(
+            p -> {
+              assertThat(p.kind()).isEqualTo(GraphStartingPointOutput.Kind.EXPOSED_ASSET);
+              assertThat(p.nodeType()).isEqualTo(GraphNodeType.ASSET);
+              assertThat(p.score()).isPositive();
+            })
+        .anySatisfy(
+            p -> {
+              assertThat(p.kind()).isEqualTo(GraphStartingPointOutput.Kind.ATTACK_PATH);
+              assertThat(p.entityId()).isEqualTo(x.getId());
+            })
+        .anySatisfy(p -> assertThat(p.kind()).isEqualTo(GraphStartingPointOutput.Kind.TOP_FINDING))
+        .anySatisfy(
+            p -> assertThat(p.kind()).isEqualTo(GraphStartingPointOutput.Kind.FAILING_GROUP))
+        .anySatisfy(
+            p -> assertThat(p.kind()).isEqualTo(GraphStartingPointOutput.Kind.LATEST_SIMULATION));
+    assertThat(points.stream().filter(p -> p.kind() == GraphStartingPointOutput.Kind.TOP_FINDING))
+        .hasSizeLessThanOrEqualTo(GraphLandingService.RAIL_SIZE);
+  }
+
+  @Test
+  @DisplayName("the rail drops attack paths, simulations and persons the caller cannot read")
+  void startingPointsGated() {
+    scopeToAmbientTenant();
+    insertStep(e1.getId(), e2.getId(), "Not Prevented");
+    linkPerson(e1.getId(), testUserHolder.get().getId());
+
+    List<GraphStartingPointOutput> points = landing.startingPoints(scope, noPeople()).points();
+
+    assertThat(points)
+        .noneSatisfy(
+            p -> assertThat(p.kind()).isEqualTo(GraphStartingPointOutput.Kind.EXPOSED_PERSON));
+    assertThat(landing.startingPoints(scope, visibility(false, true, true)).points())
+        .noneSatisfy(p -> assertThat(p.nodeType()).isEqualTo(GraphNodeType.SIMULATION));
+  }
+
+  @Test
+  @DisplayName("the rail names the person behind an exposed identity asset")
+  void startingPointsExposedPerson() {
+    scopeToAmbientTenant();
+    String person = testUserHolder.get().getId();
+    linkPerson(e1.getId(), person);
+
+    assertThat(landing.startingPoints(scope, GraphVisibility.ALL).points())
+        .anySatisfy(
+            p -> {
+              assertThat(p.kind()).isEqualTo(GraphStartingPointOutput.Kind.EXPOSED_PERSON);
+              assertThat(p.entityId()).isEqualTo(person);
+            });
+  }
+
+  /** Every node of a story but its focus is reached by at least one edge: never a scatter. */
+  private static void assertConnected(GraphOutput out) {
+    Set<String> touched = new java.util.HashSet<>();
+    out.edges()
+        .forEach(
+            e -> {
+              touched.add(e.source());
+              touched.add(e.target());
+            });
+    out.nodes().forEach(n -> assertThat(touched).contains(n.nodeId()));
   }
 
   // -- Landing view --

@@ -190,6 +190,9 @@ For a Simulation, use the same calls under `/api/tenants/{tenantId}/exercises/{e
 The exploration graph links Assets, Asset groups, Findings, Injects, Simulations and Scenarios. The API returns lazy slices of it, never the whole graph: one entity and its first ring, a path between two entities, or the risk-first landing view. Each endpoint is available under `/api/graph/...` and under the Tenant prefix `/api/tenants/{tenantId}/graph/...`.
 
 ```http
+GET /api/graph/story
+GET /api/graph/overview
+GET /api/graph/starting-points
 GET /api/graph/hot-paths?limit=15
 GET /api/graph/{entityType}/{entityId}/neighbourhood?edges=FOUND_ON,TARGETS&limit=50
 GET /api/graph/path?fromType=asset&fromId={assetId}&toType=scenario&toId={scenarioId}
@@ -197,12 +200,16 @@ GET /api/graph/path?fromType=asset&fromId={assetId}&toType=scenario&toId={scenar
 
 | Endpoint | Returns | Parameters |
 |---|---|---|
-| `hot-paths` | The exposure hot paths: the entities with the most failed expectations and findings | `limit`, default `15` |
+| `story` | The top exposure story of the landing page: one connected slice of about 30 nodes, the attack path with the most failed steps you can read, else the most exposed Asset with its failed Injects, Findings, Asset groups and identity; empty when nothing failed | none |
+| `overview` | The aggregated estate: up to 40 Asset groups with their member count, scored and failed expectations and failure rate, a bucket for the Assets in no group, and the Simulations that targeted each group (at most 3 per group). Dynamic groups are flagged and counted by their static members | none |
+| `starting-points` | The starting points of the landing page, at most 5 per section: exposed Assets, failing Asset groups, the latest Simulation, Findings by Assets affected, attack paths, exposed Persons | none |
+| `hot-paths` | The exposure hot paths: the entities with the most failed expectations and findings (the former landing view) | `limit`, default `15` |
 | `{entityType}/{entityId}/neighbourhood` | The entity and its direct neighbours | `edges`: comma-separated edge types to expand, all when empty; `limit`: neighbours per edge type, default `50`, maximum `200` |
 | `path` | A shortest path between two entities, at most 6 hops; an empty path when none is found | `fromType`, `fromId`, `toType`, `toId` |
 
 - **Entity types** (case-insensitive): `asset`, `asset_group`, `finding`, `inject`, `simulation`, `scenario`, `person`, `organization`, `team`. An unknown type returns `400`.
 - **Edge types**: `MEMBER_OF` (Asset group contains Asset, static or through the group's dynamic filter), `FOUND_ON` (Finding observed on Asset), `PRODUCED` (Inject produced Finding), `TARGETS` (Inject targeted Asset or Asset group, with its expectation result), `PART_OF` (Inject belongs to Simulation), `RUN_OF` (Simulation is a run of Scenario), `IDENTITY_OF` (Asset is the identity of a Person), `WORKS_FOR` (Person belongs to Organization), `IN_TEAM` (Person is a member of Team), `TEAM_OF` (Team belongs to Organization), `LINKED_TO` (Asset linked to another Asset, see [Asset links](#asset-links)), `ATTACK_STEP` (an attack path step of a Simulation between two Assets). An unknown edge type returns `400`.
+- **Freshness**: `story`, `overview` and `starting-points` read their tenant-wide rankings at most once a minute per Tenant scope; your access is applied on every request.
 - **Access**: the endpoints need the right to read Assets. Simulation, Scenario and Inject nodes are returned only when you can read them in the Tenant of the request; Person, Organization and Team nodes only with the right to read players, organizations or teams; the others are dropped with their edges.
 
 The response is one graph slice:
