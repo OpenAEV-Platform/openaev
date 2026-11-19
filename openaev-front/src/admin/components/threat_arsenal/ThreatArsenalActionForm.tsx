@@ -2,7 +2,7 @@ import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type SyntheticEvent, useEffect } from 'react';
+import { type SyntheticEvent, useEffect, useState } from 'react';
 import { type FieldValues, FormProvider, type Resolver, type SubmitHandler, useForm, useWatch } from 'react-hook-form';
 import { z, type ZodTypeAny } from 'zod';
 
@@ -14,6 +14,8 @@ import { useFormatter } from '../../../components/i18n';
 import { type DetectionRemediationInput } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import EEChip from '../common/entreprise_edition/EEChip';
 import { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../findings/ContractOutputElementType';
 import { hasSpecificDirtyFieldAI, trackedFields } from '../payloads/utils/payloadFormToPayloadInput';
@@ -25,6 +27,24 @@ import RemediationFormTabs from './form/RemediationFormTabs';
 import { useSnapshotRemediation } from './utils/useSnapshotRemediation';
 import VariantBaseContext from './variants/VariantBaseContext';
 
+/**
+ * Payload drafts: the editor works on a draft. "Save draft" keeps the form as it is, unchecked (a
+ * draft may be incomplete), and the submit button publishes it.
+ */
+export interface ThreatArsenalDraftMode {
+  /** "Publish version", or "Send for approval" without "Approve content". */
+  publishLabel: string;
+  /** The draft already holds changes: publishing is possible before any new edit. */
+  saved: boolean;
+  onSaveDraft: (values: ThreatArsenalActionCreateCustomInput) => Promise<void>;
+  /** Shown for a saved draft only. */
+  onDiscard?: () => void;
+  /** Told whether the form holds changes not saved yet. */
+  onDirtyChange?: (dirty: boolean) => void;
+  /** Receives a way to read the form's current values (to save them from outside the form). */
+  bindValues?: (getValues: () => ThreatArsenalActionCreateCustomInput) => void;
+}
+
 interface Props {
   onSubmit: SubmitHandler<ThreatArsenalActionCreateCustomInput>;
   handleClose: () => void;
@@ -32,6 +52,7 @@ interface Props {
   initialValues?: ThreatArsenalActionFormValues;
   // Customizing a catalogue payload: only the fields a variant may change stay editable.
   baseValues?: ThreatArsenalActionFormValues;
+  draft?: ThreatArsenalDraftMode;
 }
 
 const ThreatArsenalActionForm = ({
@@ -39,6 +60,7 @@ const ThreatArsenalActionForm = ({
   handleClose,
   editing,
   baseValues,
+  draft,
   initialValues = {
     action_id: '',
     // @ts-expect-error set payload type to null to get a controlled component from the start
@@ -245,8 +267,30 @@ const ThreatArsenalActionForm = ({
     ),
   }];
   const customizing = baseValues !== undefined;
-  let submitLabel = editing ? t('Update') : t('Create');
+  // A new action is its first version: published at once with "Approve content", sent otherwise.
+  const canApprove = useAbility().can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS);
+  let submitLabel = editing ? t('Update') : t(canApprove ? 'Publish version' : 'Send for approval');
   if (customizing) submitLabel = t('Save');
+  if (draft) submitLabel = draft.publishLabel;
+  const [savingDraft, setSavingDraft] = useState(false);
+  useEffect(() => {
+    draft?.onDirtyChange?.(isDirty);
+  }, [isDirty]);
+  useEffect(() => {
+    draft?.bindValues?.(() => methods.getValues());
+  }, []);
+  const saveDraft = async () => {
+    if (!draft) return;
+    setSavingDraft(true);
+    try {
+      const values = methods.getValues();
+      await draft.onSaveDraft(values);
+      // Saved: the form holds no unsaved change any more.
+      methods.reset(values);
+    } finally {
+      setSavingDraft(false);
+    }
+  };
   const { currentTab, handleChangeTab } = useTabs(customizing ? 'Commands' : tabEntries[0].key);
 
   const focusFirstErrorTab = () => {
@@ -360,10 +404,26 @@ const ThreatArsenalActionForm = ({
               marginBottom: theme.spacing(2),
             }}
             >
-              <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
+              {draft?.onDiscard && (
+                <Button
+                  type="button"
+                  priority="tertiary"
+                  onClick={draft.onDiscard}
+                  disabled={isSubmitting || savingDraft}
+                  style={{ marginRight: 'auto' }}
+                >
+                  {t('Discard draft')}
+                </Button>
+              )}
+              <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting || savingDraft}>
                 {t('Cancel')}
               </Button>
-              <Button type="submit" disabled={isSubmitting || !isDirty}>
+              {draft && (
+                <Button type="button" priority="secondary" onClick={saveDraft} disabled={isSubmitting || savingDraft || !isDirty}>
+                  {t('Save draft')}
+                </Button>
+              )}
+              <Button type="submit" disabled={isSubmitting || savingDraft || !(isDirty || draft?.saved)}>
                 {submitLabel}
               </Button>
             </div>

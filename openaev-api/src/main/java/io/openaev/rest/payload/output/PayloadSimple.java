@@ -61,6 +61,10 @@ public class PayloadSimple {
   @JsonProperty("payload_installed_versions")
   private long installedVersions;
 
+  // Payload drafts: versions not published yet, of any version of this payload.
+  @JsonProperty("payload_drafts_count")
+  private long draftsCount;
+
   @Builder
   public PayloadSimple(
       String id,

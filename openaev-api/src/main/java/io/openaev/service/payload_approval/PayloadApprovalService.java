@@ -230,6 +230,26 @@ public class PayloadApprovalService {
   }
 
   /**
+   * A rejected version fixed in a draft and sent again under the same number: it waits for approval
+   * again, approvers are told, or it is approved at once when its author holds "Approve content".
+   */
+  public void resubmit(@NotNull final Payload version, @Nullable final User actor) {
+    require(version, "sent for approval again", PAYLOAD_APPROVAL_STATUS.REJECTED);
+    if (canApprove(actor)) {
+      apply(
+          version,
+          PAYLOAD_APPROVAL_STATUS.APPROVED,
+          ORIGIN.UPDATE,
+          true,
+          actor,
+          AUTO_APPROVED_COMMENT);
+    } else {
+      pending(version, actor, ORIGIN.UPDATE, !olderPending(version).isEmpty());
+    }
+    payloadVersionService.refreshLatest(version.getIdentity());
+  }
+
+  /**
    * What to offer to whoever made this version approved: moving the injects of the approved version
    * it replaces (the highest approved one below it). Empty when the version is not approved or
    * replaces none.

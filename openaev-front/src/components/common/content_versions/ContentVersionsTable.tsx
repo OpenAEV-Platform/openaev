@@ -27,6 +27,9 @@ interface HistoryDetails {
   changelog?: string;
   compared_to?: string;
   source?: string;
+  // Payload drafts: an update published from a draft, a draft that fixes a rejected version.
+  draft?: boolean;
+  rework?: boolean;
 }
 
 const HISTORY_PER_PAGE = 10;
@@ -131,6 +134,9 @@ const HISTORY_ACTION_LABELS: Record<string, string> = {
   OVERRIDE: 'Customization changed',
   REBASE: 'Rebased',
   CONFLICT: 'Conflict with a new version',
+  DRAFT_CREATE: 'Draft started',
+  DRAFT_DISCARD: 'Draft discarded',
+  REWORK: 'Fixed and sent again',
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -219,6 +225,10 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
   const [page, setPage] = useState(0);
   // The row reads version first (what the reader scans for), then what happened under it.
   const versionLine = (entry: ContentHistoryOutput) => {
+    // A draft has no number: it is named after the version it started from.
+    if (entry.content_history_action === 'DRAFT_CREATE' || entry.content_history_action === 'DRAFT_DISCARD') {
+      return t('Draft from v{version}', { version: entry.content_history_from_version ?? entry.content_history_version ?? '-' });
+    }
     if (entry.content_history_from_version) {
       return `v${entry.content_history_from_version} → v${entry.content_history_version ?? '-'}`;
     }
@@ -227,6 +237,12 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
   const actionLine = (entry: ContentHistoryOutput) => {
     if (entry.content_history_action === 'VERSION_CHANGE' && entry.content_history_count != null) {
       return t('{count, plural, one {# inject moved} other {# injects moved}}', { count: String(entry.content_history_count) });
+    }
+    if (entry.content_history_action === 'UPDATE' && historyDetails(entry)?.draft) {
+      return t('Published from a draft');
+    }
+    if (entry.content_history_action === 'DRAFT_CREATE' && historyDetails(entry)?.rework) {
+      return t('Moved back to draft');
     }
     return t(HISTORY_ACTION_LABELS[entry.content_history_action ?? ''] ?? entry.content_history_action ?? '-');
   };

@@ -184,6 +184,9 @@ To create a new Action, follow these steps:
 
     ![Remediation tab of the Action creation form](assets/threat-arsenal-detection-remediation-view.png)
 
+6. Click **Publish version**: version 1.0 of the Action is approved and usable at once. Without *Approve content*, the
+    button is **Send for approval**: the version waits for an approver.
+
 Once you complete these steps, the new Action appears in the Action list.
 
 For the complete list of the fields available in each tab, see [Action properties](action-properties.md).
@@ -205,11 +208,35 @@ The following diagram shows how an Action executes on a target:
 As described in the [Action list view](#action-list-view) section, you can create Actions yourself, or the platform can
 insert them through Injectors or Collectors. The update process depends on the source of the Action:
 
-- **User-created Actions** -- Update them directly from the Threat Arsenal view. Click the Action and modify any of its
-  properties.
+- **User-created Actions** -- Update them from the Threat Arsenal view: click **Update** in the Action's menu. See
+  [Drafts](#drafts).
 - **Actions inserted through Injectors** -- Update only the domains, attack patterns, and tags linked to the Action.
 - **Actions inserted through Collectors**, such as Atomic Red Team -- You cannot update them from the platform, because
   the Collector manages them.
+
+### Drafts
+
+A published version is never changed: an update makes a new version, or works on a **draft** first. A draft is a
+version that is not published yet: nothing can use it, it has no number, and saving it changes no version. Everyone who
+can update the Action sees its drafts and can change them.
+
+**Update** opens the edit drawer. The selector at its top chooses what you work on:
+
+- a **draft** of the Action, named after the version it started from (*Draft from v1.0*);
+- a **rejected version**, to fix it: its first save makes it a draft, and it keeps its number;
+- **New draft from a version**: any published version, the latest one or an older one.
+
+At the bottom, **Save draft** keeps your changes in the draft, as often as you need. **Publish version** makes a new
+version, usable at once; without *Approve content*, the button is **Send for approval** and the version waits for an
+approver. A new version is numbered as usual, after the highest version, even when it starts from an older one. A
+rejected version you fixed keeps its number and waits for approval again. You can publish straight from a version,
+without saving a draft first. Switching to something else with unsaved changes asks whether to save them as a draft.
+
+The **Versions** tab lists the drafts above the versions, with who saved them last. Each version offers **Duplicate to
+draft** (**Fix in a draft** for a rejected version): the version stays as it is, and the draft starts with its content.
+The **History** tab records when a draft is started from a version, discarded, published as a new version (*v1.0 →
+v1.4*, *Published from a draft*), or when a rejected version is fixed and sent again. A card shows a *Draft* chip while
+the Action has a draft.
 
 ## Delete an Action
 

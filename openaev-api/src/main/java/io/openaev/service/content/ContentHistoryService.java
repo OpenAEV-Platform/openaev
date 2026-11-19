@@ -106,6 +106,31 @@ public class ContentHistoryService {
   }
 
   /** A local payload saved by a user as a new version. */
+  /** A draft started from a version (or reworking a rejected one): {@code from} is that version. */
+  public ContentHistory payloadDraftCreated(Payload from, boolean rework) {
+    ObjectNode details = mapper.createObjectNode();
+    details.put("rework", rework);
+    return save(from, ContentHistory.ACTION.DRAFT_CREATE, from.getVersion(), null, details);
+  }
+
+  /** A draft dropped without publishing: {@code from} is the version it started from. */
+  public ContentHistory payloadDraftDiscarded(Payload from) {
+    return save(from, ContentHistory.ACTION.DRAFT_DISCARD, from.getVersion());
+  }
+
+  /** A draft published as a new version: an update, from the version the draft started from. */
+  public ContentHistory payloadPublishedFromDraft(Payload source, Payload saved) {
+    ObjectNode details = changes(source, saved);
+    details.put("draft", true);
+    return save(saved, ContentHistory.ACTION.UPDATE, source.getVersion(), null, details);
+  }
+
+  /** A rejected version fixed in a draft and sent again under its own number. */
+  public ContentHistory payloadReworked(Payload before, Payload saved) {
+    return save(
+        saved, ContentHistory.ACTION.REWORK, saved.getVersion(), null, changes(before, saved));
+  }
+
   public ContentHistory payloadUpdated(Payload previous, Payload saved) {
     return save(
         saved, ContentHistory.ACTION.UPDATE, previous.getVersion(), null, changes(previous, saved));

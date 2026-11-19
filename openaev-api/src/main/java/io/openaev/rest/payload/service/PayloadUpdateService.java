@@ -80,6 +80,16 @@ public class PayloadUpdateService {
 
   @Transactional(rollbackFor = Exception.class)
   public PayloadSaveResult updatePayload(String payloadId, PayloadUpdateInput input) {
+    return updatePayload(payloadId, input, false);
+  }
+
+  /**
+   * Saves a version of a payload as its next version.
+   *
+   * @param fromDraft the content comes from a draft started from this version: the history says so
+   */
+  public PayloadSaveResult updatePayload(
+      String payloadId, PayloadUpdateInput input, boolean fromDraft) {
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);
@@ -101,11 +111,66 @@ public class PayloadUpdateService {
     List<AttackPattern> attackPatterns =
         fromIterable(
             attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds())));
-    return save(input, (Payload) Hibernate.unproxy(payload), attackPatterns);
+    return save(input, (Payload) Hibernate.unproxy(payload), attackPatterns, fromDraft);
+  }
+
+  /**
+   * Payload drafts: rewrites a rejected version with the content fixed in its draft, keeping its
+   * number, and sends it for approval again. Only a rejected version can be rewritten: it never
+   * ran, and nothing can run it until it is approved.
+   */
+  public PayloadSaveResult rework(String payloadId, PayloadUpdateInput input) {
+    if (enterpriseEditionService.isEnterpriseLicenseInactive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
+      input.setDetectionRemediations(null);
+    }
+    Payload current =
+        (Payload)
+            Hibernate.unproxy(
+                this.payloadRepository
+                    .findById(payloadId)
+                    .orElseThrow(ElementNotFoundException::new));
+    if (PayloadVersionService.isManaged(current) || current.getIdentity().isVariant()) {
+      throw new BadRequestException("Payload " + payloadId + " cannot be changed in place.");
+    }
+    if (current.getApprovalStatus() != Payload.PAYLOAD_APPROVAL_STATUS.REJECTED) {
+      throw new BadRequestException(
+          "Payload " + payloadId + " is not rejected: publish its draft as a new version.");
+    }
+    PayloadType payloadType = PayloadType.fromString(current.getType());
+    validateArchitecture(payloadType.key, input.getExecutionArch());
+    List<AttackPattern> attackPatterns =
+        fromIterable(
+            attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds())));
+    Set<Domain> domains =
+        iterableToSet(domainRepository.findAllById(emptyIfNull(input.getDomainIds())));
+    Set<Tag> tags = iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds())));
+    // What the version was, for the history of what changed.
+    Payload before = payloadService.copyForNewVersion(current);
+    before.setVersion(current.getVersion());
+    payloadUtils.copyProperties(input, current);
+    current.setLastModifiedBy(userService.currentUserOrNull());
+    if (current instanceof Executable executable) {
+      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
+    } else if (current instanceof FileDrop fileDrop) {
+      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
+    }
+    Payload saved = payloadRepository.save(current);
+    // Decided before the contract is synchronised, as for a new version: the synchronisation
+    // leaves the payload detached, so a later status change would not be written.
+    payloadApprovalService.resubmit(saved, saved.getLastModifiedBy());
+    InjectorContract contract =
+        payloadService.synchroniseInjectorContractBasedOnPayload(
+            saved, attackPatterns, domains, tags);
+    contentHistoryService.payloadReworked(before, saved);
+    return new PayloadSaveResult(saved, contract, null, 0);
   }
 
   private PayloadSaveResult save(
-      PayloadUpdateInput input, Payload current, List<AttackPattern> attackPatterns) {
+      PayloadUpdateInput input,
+      Payload current,
+      List<AttackPattern> attackPatterns,
+      boolean fromDraft) {
     PayloadType payloadType = PayloadType.fromString(current.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
     Set<Domain> domains =
@@ -150,7 +215,11 @@ public class PayloadUpdateService {
         previous ->
             grantService.copyGrants(
                 previous.getId(), contract.getId(), Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL));
-    contentHistoryService.payloadUpdated(current, saved);
+    if (fromDraft) {
+      contentHistoryService.payloadPublishedFromDraft(current, saved);
+    } else {
+      contentHistoryService.payloadUpdated(current, saved);
+    }
     // The saver is asked to move the injects only when the new version is approved at once; a
     // pending version is offered to them by the approver who approves it.
     return payloadApprovalService

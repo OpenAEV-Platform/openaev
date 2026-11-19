@@ -67,6 +67,7 @@ import io.openaev.database.repository.NotifierRepository;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.PayloadApprovalNotificationRepository;
 import io.openaev.database.repository.PayloadApprovalRepository;
+import io.openaev.database.repository.PayloadDraftRepository;
 import io.openaev.database.repository.PayloadIdentityRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
@@ -259,6 +260,7 @@ import io.openaev.service.notification.NotificationService;
 import io.openaev.service.notification.NotificationTriggerService;
 import io.openaev.service.notification.NotifierService;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.payload.PayloadDraftService;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.payload_approval.PayloadApprovalNotificationService;
 import io.openaev.service.payload_approval.PayloadApprovalService;
@@ -364,6 +366,7 @@ class TenantActiveTableAccessArchTest {
           "payload_approvals",
           "payload_versions",
           "payload_approval_notifications",
+          "payload_drafts",
           "vulnerabilities",
           "phishing_results",
           "reporting_schedules",
@@ -2140,6 +2143,22 @@ class TenantActiveTableAccessArchTest {
           .because(
               "payload_approvals is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule payload_drafts_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // The only accessor. Called from ThreatArsenalDraftService (behind the
+              // TxCtx-carrying ThreatArsenalDraftApi entrypoints) and from ThreatArsenalService for
+              // the draft counts of the cards (behind the TxCtx-carrying search entrypoints).
+              PayloadDraftService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(PayloadDraftRepository.class)
+          .because(
+              "payload_drafts is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
   static final ArchRule payload_approval_notifications_repository_access_is_reviewed =

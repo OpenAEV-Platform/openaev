@@ -1,7 +1,6 @@
-import { Alert, Button, IconButton } from '@filigran/design-system';
+import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Divider, Menu, MenuItem } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { type MouseEvent, useEffect, useState } from 'react';
 
 import { uninstallCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
@@ -26,7 +25,6 @@ import {
   type PayloadVersionOutput,
   type ThreatArsenalAction,
   type ThreatArsenalActionFullOutput,
-  type ThreatArsenalActionUpdateInput,
   type ThreatArsenalApprovalDecisionOutput,
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
@@ -35,13 +33,11 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
-import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
-import { buildInitialValues, handleCleanupCommandValue, handleCleanupExecutorValue } from './actionFormValues';
+import { toActionUpdateInput } from './actionFormValues';
+import ThreatArsenalDraftEditor from './drafts/ThreatArsenalDraftEditor';
 import PayloadNewVersionDialog from './PayloadNewVersionDialog';
 import payloadVersionDecisionChoices from './payloadVersionDecisionChoices';
 import PayloadVersionDecisionDialog from './PayloadVersionDecisionDialog';
-import ThreatArsenalActionForm from './ThreatArsenalActionForm';
-import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 import PayloadVariantEditor from './variants/PayloadVariantEditor';
 
 interface PayloadPopoverNewProps {
@@ -96,7 +92,6 @@ const ThreatArsenalActionPopover = ({
 
   const { t, tPick } = useFormatter();
   const ability = useAbility();
-  const theme = useTheme();
 
   // -- Popover --
   const handlePopoverOpen = (event: MouseEvent<HTMLButtonElement>) => {
@@ -120,29 +115,9 @@ const ThreatArsenalActionPopover = ({
 
   const [newVersion, setNewVersion] = useState<ThreatArsenalAction | null>(null);
 
-  const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
-    const inputValues: ThreatArsenalActionUpdateInput = {
-      ...data,
-      action_cleanup_executor: handleCleanupExecutorValue(
-        data.action_cleanup_executor as string ?? '',
-        data.action_cleanup_command as string ?? '',
-      ),
-      action_cleanup_command: handleCleanupCommandValue(data.action_cleanup_command as string ?? ''),
-      action_detection_remediations: Object.entries(data.remediations ?? {})
-        .filter(([, value]) => value)
-        .map(([key, value]) => {
-          const remediation = value as unknown as DetectionRemediationForm;
-          return {
-            detection_remediation_security_platform: key,
-            detection_remediation_values: remediation.content,
-            detection_remediation_id: remediation.remediationId,
-            author_rule: remediation.author_rule,
-          };
-        }),
-    } as ThreatArsenalActionUpdateInput;
-
-    const response = await updateThreatArsenalAction(actionId, inputValues);
-    const saved = response.data as ThreatArsenalAction | undefined;
+  // After a save (or a published draft): the card shows the version, and the injects of the version
+  // it replaces may move to it.
+  const afterSave = (saved: ThreatArsenalAction | undefined) => {
     if (saved && onUpdate) {
       onUpdate(saved);
     }
@@ -153,6 +128,12 @@ const ThreatArsenalActionPopover = ({
       // The move question goes to the approver, when the version is approved.
       MESSAGING$.notifySuccess(t('v{version} is waiting for approval. Injects keep running their current version until an approver approves it.', { version: saved.action_payload.payload_version ?? '' }));
     }
+  };
+
+  const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
+    const inputValues = toActionUpdateInput(data);
+    const response = await updateThreatArsenalAction(actionId, inputValues);
+    afterSave(response.data as ThreatArsenalAction | undefined);
   };
 
   const onSubmitInjectorContractEdit = (data: InjectorContractFormValues) => {
@@ -252,9 +233,6 @@ const ThreatArsenalActionPopover = ({
 
   // Saving what an action runs adds a version: without "Approve content", it waits for approval and
   // the injects stay on their version until an approver approves it and moves them.
-  const versionNote = (): string | null => (ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS)
-    ? null
-    : t('Changes to what this action runs create a new version that waits for approval. Injects keep running their current version until an approver approves the new one.'));
   const hasUpdateCapability = hasDuplicateCapability || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
   const hasRevokeCapability = ability.can(ACTIONS.REVOKE, SUBJECTS.THREAT_ARSENALS);
@@ -489,23 +467,10 @@ const ThreatArsenalActionPopover = ({
         title={`${t('Update the action :')} ${name}`}
       >
         <>
-          {fetchedAction && !!payloadId && versionNote() && (
-            <div style={{ marginBottom: theme.spacing(2) }}>
-              <Alert severity="info" title={versionNote()} />
-            </div>
-          )}
-          {fetchedAction && !!payloadId && (
-            <SnapshotRemediationProvider>
-              <ThreatArsenalActionForm
-                onSubmit={onSubmitEdit}
-                handleClose={handleCloseEdit}
-                editing
-                initialValues={{
-                  ...buildInitialValues(fetchedAction, tPick(fetchedAction.action_labels)),
-                  payload_id: payloadId,
-                }}
-              />
-            </SnapshotRemediationProvider>
+          {/* Payload drafts: the version worked on is chosen at the top, then saved as a draft or
+              published (sent for approval without "Approve content"). */}
+          {openEdit && !!payloadId && (
+            <ThreatArsenalDraftEditor actionId={actionId} onClose={handleCloseEdit} onPublished={afterSave} />
           )}
           {fetchedAction && !payloadId && (
             <InjectorContractForm

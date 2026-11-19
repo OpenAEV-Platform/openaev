@@ -39,7 +39,14 @@ public class ContentHistory implements TenantBase, Auditable {
     CUSTOMIZE,
     OVERRIDE,
     REBASE,
-    CONFLICT
+    CONFLICT,
+    // Payload drafts: a draft started from a version, a draft dropped, a rejected version fixed in
+    // a
+    // draft and sent again under the same number. Publishing a draft as a new version is an UPDATE
+    // whose details say it came from a draft.
+    DRAFT_CREATE,
+    DRAFT_DISCARD,
+    REWORK
   }
 
   @Id
