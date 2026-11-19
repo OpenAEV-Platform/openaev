@@ -120,7 +120,7 @@ describe('NewsFeed page', () => {
       const refreshCounter = vi.fn();
       const subscription = MESSAGING$.refreshNewsFeedUnreadCount.subscribe(refreshCounter);
       renderPage('blog_posts');
-      await waitFor(() => expect(refreshCounter).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(refreshCounter).toHaveBeenCalledTimes(1));
       expect(mockMarkAllRead).toHaveBeenCalledTimes(2);
       expect(mockMarkAllRead).toHaveBeenCalledWith('BLOG_POST');
       subscription.unsubscribe();
@@ -130,14 +130,14 @@ describe('NewsFeed page', () => {
       renderPage('blog_posts');
       await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(2));
       expect(mockMarkAllRead).toHaveBeenCalledWith('RESOURCE');
-      expect(mockMarkAllRead).not.toHaveBeenCalledWith(undefined);
+      expect(mockMarkAllRead).not.toHaveBeenCalledWith();
     });
 
     it('marks every item read, whatever its category, when XTM Hub provisions no blogpost', async () => {
       mockFetchSettings.mockResolvedValue({ data: WITHOUT_BLOG_POSTS });
       renderPage('blog_posts');
       await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(1));
-      expect(mockMarkAllRead).toHaveBeenCalledWith(undefined);
+      expect(mockMarkAllRead).toHaveBeenCalledWith();
       expect(mockMarkAllRead).not.toHaveBeenCalledWith('RESOURCE');
     });
 
@@ -339,6 +339,25 @@ describe('NewsFeed page', () => {
       expect(await screen.findByRole('switch', { name: 'Scenario' })).toBeChecked();
       expect(screen.getByRole('switch', { name: 'Blogpost' })).not.toBeChecked();
       expect(screen.getByRole('switch', { name: ENABLE_ALL })).toBeChecked();
+    });
+
+    it('lists every known type until XTM Hub told which types it provisions', async () => {
+      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_available_types: [] }) });
+      renderPage('settings');
+      expect(await screen.findByRole('switch', { name: 'Scenario' })).toBeChecked();
+      expect(screen.getByRole('switch', { name: 'Blogpost' })).not.toBeChecked();
+    });
+
+    it('turns the global switch off when the user is subscribed to none of the listed types', async () => {
+      mockFetchSettings.mockResolvedValue({
+        data: buildSettings({
+          news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO'],
+          news_feed_settings_available_types: ['BLOG_POST'],
+        }),
+      });
+      renderPage('settings');
+      expect(await screen.findByRole('switch', { name: 'Blogpost' })).not.toBeChecked();
+      expect(screen.getByRole('switch', { name: ENABLE_ALL })).not.toBeChecked();
     });
 
     it('lists only the types XTM Hub provisions', async () => {

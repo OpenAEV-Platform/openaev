@@ -79,7 +79,8 @@ const NewsFeedToastManager: FunctionComponent = () => {
   const hiddenToasts = toasts.slice(MAX_VISIBLE_TOASTS);
   const hiddenCount = hiddenToasts.length;
   const isOnlyBlogPostHidden = hiddenCount > 0 && hiddenToasts.every(toast => toast.news_feed_item_type === NEWS_FEED_BLOG_POST_TYPE);
-  const isOnlyResourceHidden = hiddenToasts.every(toast => toast.news_feed_item_type !== NEWS_FEED_BLOG_POST_TYPE);
+  // Every type but the blogposts is a resource of XTM Hub, including a type this version does not know.
+  const isOnlyResourceHidden = hiddenCount > 0 && hiddenToasts.every(toast => toast.news_feed_item_type !== NEWS_FEED_BLOG_POST_TYPE);
   // The blogposts live on the Filigran blog, the resources on XTM Hub.
   let overflowUrl = buildConfiguredHubUrl('/app', settings.xtm_hub_url);
   let overflowMessage = t('(+{count}) Click to view all the new items', { count: String(hiddenCount) });

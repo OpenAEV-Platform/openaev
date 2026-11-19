@@ -13,7 +13,7 @@ import NewsFeedHubBanner, { type NewsFeedHubBannerVariant } from './NewsFeedHubB
 import NewsFeedSettings from './NewsFeedSettings';
 import NewsFeedTabs, { type NewsFeedTab } from './NewsFeedTabs';
 import { NEWS_FEED_BLOG_POST_TYPE } from './newsFeedUtils';
-import useMarkNewsFeedItemsRead from './useMarkNewsFeedItemsRead';
+import useMarkNewsFeedItemsRead, { ALL_NEWS_FEED_ITEMS, type NewsFeedItemsToMark } from './useMarkNewsFeedItemsRead';
 import useNewsFeedSettings from './useNewsFeedSettings';
 import useNewsFeedVisitKey from './useNewsFeedVisitKey';
 
@@ -52,11 +52,11 @@ const NewsFeedPage = ({ tab }: Props) => {
     // Until the settings tell, no tab is shown as current; without blogposts, the page is the settings.
     displayedTab = settings || failed ? 'settings' : undefined;
   }
-  // Only the visit of the page of the news feed marks the items read, once it knows what it shows: the blogposts
-  // it shows, and the resources, which no tab shows, so that the top bar counter goes back to 0.
-  const isNewsFeedVisited = tab === 'blog_posts' && settings !== null;
-  useMarkNewsFeedItemsRead(isNewsFeedVisited, visitKey, isBlogPostAvailable ? 'BLOG_POST' : undefined);
-  useMarkNewsFeedItemsRead(isNewsFeedVisited && isBlogPostAvailable, visitKey, 'RESOURCE');
+  // Only the visit of the page of the news feed marks the items read, once it knows what it shows: the blogposts it
+  // shows and the resources, which no tab shows, each category on its own as on OpenCTI, so that the top bar counter
+  // goes back to 0. Without blogposts, no tab shows any item: every item at once.
+  const itemsToMark: NewsFeedItemsToMark = isBlogPostAvailable ? ['BLOG_POST', 'RESOURCE'] : ALL_NEWS_FEED_ITEMS;
+  useMarkNewsFeedItemsRead(tab === 'blog_posts' && settings !== null, visitKey, itemsToMark);
 
   let bannerVariant: NewsFeedHubBannerVariant | null = null;
   if (isXtmHubUnreachable) {

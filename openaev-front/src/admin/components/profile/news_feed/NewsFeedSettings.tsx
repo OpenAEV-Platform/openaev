@@ -64,7 +64,10 @@ const NewsFeedSettings = ({ settings, failed, saving, onChange }: Props) => {
   }
 
   const subscribedTypes = settings.news_feed_settings_subscribed_types;
-  const availableTypes = settings.news_feed_settings_available_types;
+  // Until XTM Hub told which types it provisions (no collector run since the upgrade), every known type is listed.
+  const listedTypes = settings.news_feed_settings_available_types.length > 0 ? settings.news_feed_settings_available_types : NEWS_FEED_TYPES;
+  // On when a listed type is: a subscription to a type that is not listed shows nowhere.
+  const isAnyListedTypeSubscribed = listedTypes.some(type => subscribedTypes.includes(type));
   // Changing the preferences is only possible when XTM Hub delivers the items.
   const disabled = saving || !settings.news_feed_settings_hub_registered;
 
@@ -96,32 +99,28 @@ const NewsFeedSettings = ({ settings, failed, saving, onChange }: Props) => {
           <SettingRow
             primary
             label={t('Enable News Feed notifications')}
-            checked={subscribedTypes.length > 0}
+            checked={isAnyListedTypeSubscribed}
             disabled={disabled}
             onCheckedChange={checked => onChange(checked ? NEWS_FEED_TYPES : [])}
           />
-          {availableTypes.length > 0 && (
-            <>
-              <Divider />
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 16,
-                padding: '0 20px',
-              }}
-              >
-                {availableTypes.map(type => (
-                  <SettingRow
-                    key={type}
-                    label={typeLabels[type]}
-                    checked={subscribedTypes.includes(type)}
-                    disabled={disabled}
-                    onCheckedChange={checked => toggleType(type, checked)}
-                  />
-                ))}
-              </div>
-            </>
-          )}
+          <Divider />
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+            padding: '0 20px',
+          }}
+          >
+            {listedTypes.map(type => (
+              <SettingRow
+                key={type}
+                label={typeLabels[type]}
+                checked={subscribedTypes.includes(type)}
+                disabled={disabled}
+                onCheckedChange={checked => toggleType(type, checked)}
+              />
+            ))}
+          </div>
         </div>
       </Paper>
     </section>
