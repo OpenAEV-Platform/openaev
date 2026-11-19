@@ -3415,6 +3415,7 @@ export interface CounterpartLookupInput {
 export interface CounterpartOutput {
   counterpart_entity_id?: string;
   counterpart_entity_type?: string;
+  counterpart_facts?: FactOutput[];
   counterpart_key?: string;
   counterpart_name?: string;
   counterpart_product?: string;
