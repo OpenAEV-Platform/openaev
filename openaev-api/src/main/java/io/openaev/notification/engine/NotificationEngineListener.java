@@ -15,6 +15,8 @@ import io.openaev.database.model.TenantIdBase;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.StreamService;
+import io.openaev.service.stream.StreamVisibility;
+import io.openaev.service.stream.StreamVisibilityService;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +46,7 @@ public class NotificationEngineListener {
 
   private final NotificationEngineService notificationEngineService;
   private final UserRepository userRepository;
+  private final StreamVisibilityService streamVisibilityService;
 
   @Async("notificationEngineExecutor")
   @TransactionalEventListener
@@ -69,7 +72,9 @@ public class NotificationEngineListener {
       // Users are not tenant-scoped entities: fan the event out once per tenant the user
       // belongs to, so a tenant's PLAYER triggers never see another tenant's users.
       for (String tenantId : resolveTenantIds(event.getInstance())) {
-        notificationEngineService.handleEvent(entry.get(), entityId, tenantId, eventType, label);
+        StreamVisibility visibility = streamVisibilityService.visibilityOf(event, tenantId);
+        notificationEngineService.handleEvent(
+            entry.get(), entityId, tenantId, eventType, label, visibility);
       }
     } catch (Exception e) {
       log.error("Notification engine failed to process entity event", e);

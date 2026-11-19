@@ -1,9 +1,10 @@
 package io.openaev.notification.engine;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.NotificationEventRecord;
 import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerType;
-import io.openaev.scheduler.TenantScopedJobRunner;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -19,9 +20,9 @@ import org.springframework.stereotype.Service;
  * Digest stage of the notifications engine: evaluated every minute by the digest job. Digests due
  * at the current minute replay the {@link NotificationEventRecord} outbox over their period window
  * (the OpenAEV equivalent of OpenCTI re-reading {@code stream.notification}) and deliver one
- * aggregated notification per recipient - each outbox record re-checked against the recipient's
- * marking clearance at send time via {@link NotificationMarkingResolver}, since the outbox itself
- * carries no marking snapshot.
+ * aggregated notification per recipient. No marking re-check here: {@code
+ * NotificationEngineService} already resolves clearance before writing a row, so a recipient never
+ * cleared for an event never has one recorded for it in the first place.
  *
  * <p>Each row is re-checked at send time against the recipient's current rights ({@link
  * NotificationRecipientFilter}, in the digest's tenant): a row whose object the recipient no longer
@@ -36,8 +37,7 @@ public class NotificationDigestService {
   private final NotificationTriggerLoader triggerLoader;
   private final NotificationDispatchService dispatchService;
   private final NotificationRecipientFilter recipientFilter;
-  private final TenantScopedJobRunner tenantJobRunner;
-  private final NotificationMarkingResolver markingResolver;
+  private final TenantScopedTransaction tenantTx;
 
   public void runDigests(Instant now) {
     List<ResolvedNotificationTrigger> digests =

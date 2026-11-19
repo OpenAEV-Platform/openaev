@@ -1,7 +1,6 @@
 package io.openaev.notification.engine;
 
 import io.openaev.config.cache.MarkingClearanceCacheManager;
-import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -15,7 +14,7 @@ import io.openaev.database.repository.NotificationEventRecordRepository;
 import java.util.LinkedHashMap;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
-import java.util.Arrays;
+import io.openaev.service.stream.StreamVisibility;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -51,7 +50,6 @@ public class NotificationEngineService {
   private final TenantScopedTransaction tenantTx;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final PreviewFeatureService previewFeatureService;
-  private final NotificationMarkingResolver markingResolver;
 
   /**
    * Processes one entity lifecycle event.
@@ -61,15 +59,24 @@ public class NotificationEngineService {
    * @param entityTenantId tenant of the affected entity (null when not tenant-scoped)
    * @param eventType lifecycle operation
    * @param label human-readable entity label used in notification messages
+   * @param visibility the event's marking visibility ({@code StreamVisibility.UNFILTERED} for a
+   *     resource type that carries no markings), computed once by the caller from the same payload
+   *     the activity stream uses
    */
   public void handleEvent(
       NotificationResourceCatalog entry,
       String entityId,
       String entityTenantId,
       NotificationTriggerEventType eventType,
-      String label) {
+      String label,
+      StreamVisibility visibility) {
     handleEventWithMessage(
-        entry, entityId, entityTenantId, eventType, buildMessage(entry, eventType, label));
+        entry,
+        entityId,
+        entityTenantId,
+        eventType,
+        buildMessage(entry, eventType, label),
+        visibility);
   }
 
   /**
@@ -81,7 +88,8 @@ public class NotificationEngineService {
       String entityId,
       String entityTenantId,
       NotificationTriggerEventType eventType,
-      String message) {
+      String message,
+      StreamVisibility visibility) {
     handleEventWithMessage(
         entry, entityId, entityTenantId, eventType, NotificationMessage.of(message));
   }
@@ -296,24 +304,26 @@ public class NotificationEngineService {
   }
 
   /**
-   * Narrows a trigger's recipients to those cleared for at least one of the event's marking sets
-   * (OR across them, see {@link NotificationMarkingResolver#resolveMarkingSets}) - unchanged when
-   * there are none or the MARKING preview feature is off. Only gates live dispatch: the digest
-   * outbox ({@link #recordEvents}) still records one row per configured recipient regardless of
-   * clearance - {@link NotificationDigestService} re-checks it per record at send time instead.
+   * Narrows a trigger's recipients to those the event's {@link StreamVisibility} shows - unchanged
+   * when the MARKING preview feature is off or the visibility is unfiltered. The feature check
+   * comes first, deliberately: {@code visibility} is already computed by the caller at that point
+   * (from the same payload the activity stream reads), so there is nothing to gate a DB lookup for
+   * here, but the clearance lookup per recipient is still worth skipping. Resolved once, before
+   * both the outbox write and the live dispatch use it: a recipient never cleared for this event
+   * gets neither a {@link #recordEvents} row nor the live notification, so a later digest built
+   * from that outbox never has to re-check it.
    */
   private List<String> recipientsUnderClearance(
-      ResolvedNotificationTrigger trigger, List<String[]> markingSets) {
-    if (markingSets.isEmpty() || !previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)) {
+      ResolvedNotificationTrigger trigger, StreamVisibility visibility) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)
+        || visibility.isUnfiltered()) {
       return trigger.recipientUserIds();
     }
     return trigger.recipientUserIds().stream()
         .filter(
-            userId -> {
-              MarkingCtx clearance =
-                  markingClearanceCacheManager.findClearance(userId, trigger.tenantId());
-              return markingSets.stream().anyMatch(ids -> clearance.allows(Arrays.asList(ids)));
-            })
+            userId ->
+                visibility.visibleUnder(
+                    markingClearanceCacheManager.findClearance(userId, trigger.tenantId())))
         .toList();
   }
 
@@ -323,7 +333,8 @@ public class NotificationEngineService {
       NotificationResourceCatalog entry,
       String entityId,
       NotificationTriggerEventType eventType,
-      String message) {
+      String message,
+      List<String> recipients) {
     List<NotificationEventRecord> records =
         readers.stream()
             .map(

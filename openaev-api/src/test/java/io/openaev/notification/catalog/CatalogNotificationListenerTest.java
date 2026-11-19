@@ -66,7 +66,8 @@ class CatalogNotificationListenerTest {
             eq(release),
             eq(TENANT),
             eq(eventType),
-            message.capture());
+            message.capture(),
+            eq(StreamVisibility.UNFILTERED));
     return message.getValue();
   }
 

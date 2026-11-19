@@ -687,20 +687,6 @@ public class InjectService {
     return assetToExecutes;
   }
 
-  /**
-   * Marking ids of every asset this inject can reach - its own {@code injects_assets} link and,
-   * through {@code injects_asset_groups}, every member of its targeted asset groups - one array per
-   * asset. Feeds notification-recipient clearance narrowing (OR across them, the same permissive
-   * reading {@link io.openaev.config.MarkingDimension}'s link-rows predicate uses for reads).
-   */
-  @Transactional(readOnly = true)
-  public List<String[]> findAssetMarkingIds(String injectId) {
-    List<String[]> markingSets =
-        new ArrayList<>(injectRepository.findDirectAssetMarkingIdsByInjectId(injectId));
-    markingSets.addAll(injectRepository.findAssetGroupMarkingIdsByInjectId(injectId));
-    return markingSets;
-  }
-
   /** Resolve feature flag MARKING */
   private java.util.function.Predicate<Asset> launchableUnderClearance(Inject inject) {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)) {
