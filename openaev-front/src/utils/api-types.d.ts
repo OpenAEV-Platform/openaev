@@ -10555,6 +10555,8 @@ export interface PlatformSettings {
   postgre_version?: string;
   /** Current version of RabbitMQ */
   rabbitmq_version?: string;
+  /** Settings an administrator may change at runtime, each with its value in force and its source: env (environment variable, read-only), ui or default */
+  runtime_settings?: RuntimeSettingOutput[];
   /** SMTP Service availability */
   smtp_service_available?: string;
   /** True if telemetry manager enable */
@@ -11467,6 +11469,49 @@ export interface RuleAttributeUpdateInput {
   rule_attribute_name: string;
 }
 
+/** A platform setting an administrator may change unless its env var is set */
+export interface RuntimeSettingOutput {
+  /** Only effective with an Enterprise Edition license */
+  enterprise_only: boolean;
+  /**
+   * Environment variable that pins the setting when set
+   * @minLength 1
+   */
+  env_var: string;
+  /**
+   * Setting key
+   * @minLength 1
+   */
+  key: string;
+  /** True when the environment variable is set: the UI is read-only */
+  locked: boolean;
+  /**
+   * Highest value, for an integer
+   * @format int32
+   */
+  max?: number;
+  /**
+   * Lowest value, for an integer
+   * @format int32
+   */
+  min?: number;
+  /**
+   * Where the value comes from: env (environment variable, read-only), ui (set by an administrator) or default (configuration default)
+   * @minLength 1
+   */
+  source: "env" | "ui" | "default";
+  /**
+   * Value type
+   * @minLength 1
+   */
+  type: "integer" | "boolean";
+  /**
+   * Value in force, as text
+   * @minLength 1
+   */
+  value: string;
+}
+
 export interface Scenario {
   listened?: boolean;
   /** @format int64 */
@@ -12285,6 +12330,11 @@ export interface SettingsPlatformWhitemarkUpdateInput {
    * @minLength 1
    */
   platform_whitemark: string;
+}
+
+export interface SettingsRuntimeUpdateInput {
+  /** Runtime settings to store, by key (inject_execution_threshold_minutes, agent_max_simultaneous_jobs, agent_queue_threshold, agent_auto_update_enabled). A setting whose environment variable is set is refused */
+  settings: Record<string, any>;
 }
 
 export interface SettingsSessionsUpdateInput {
