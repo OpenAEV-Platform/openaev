@@ -10,11 +10,12 @@
   <a href="https://hub.docker.com/u/openaev" alt="Docker pulls"><img src="https://img.shields.io/docker/pulls/openaev/platform" /></a>
 </p>
 
-> [!NOTE]
-> Writing injectors or collectors, contributing to the platform, or running adversary
-> simulations in production? Join us on the
+> **Community workshop:** Join us as Taylor Walton (of SOCFortress) walks through his working SOC stack: OpenCTI → OpenAEV → Wazuh → Velociraptor. Taylor will be joined by the OpenAEV's product owner to cover what's coming next for OpenCTI and OpenAEV.
+>
+> [Register](https://events.filigran.io/register/e751635a-9aec-49f5-801c-40cfded49c87?utm_medium=community&utm_source=github) · Dec 10 at 10 AM New York City time
+>
+> Join us on the
 > [Filigran Community Slack](https://community.filigran.io/?utm_medium=community&utm_source=github).
-> It's the best place to ask questions, talk through a PR before you open it, or compare notes on integrations and more.
 
 ## Introduction
 
