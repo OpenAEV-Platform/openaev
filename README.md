@@ -34,7 +34,7 @@ The result is a list of exposures backed by evidence, with the detection and rem
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./.github/img/openaev-graph-dark.png">
-    <img src="./.github/img/openaev-graph-light.png" alt="OpenAEV exploration graph: a simulation linked to the endpoints it reached, the attack patterns it executed and the findings it produced, with prevention and detection outcomes on every edge" width="100%">
+    <img src="./.github/img/openaev-graph-light.png" alt="OpenAEV exploration graph: an asset group expanded into its endpoints, with entity and relation filters, the time range and the outcome legend" width="100%">
   </picture>
   <br/><sub>The exploration graph (coming in the next release, <a href="https://github.com/OpenAEV-Platform/openaev/pull/9448">#9448</a>).</sub>
 </p>
@@ -78,7 +78,7 @@ controls stop the techniques the adversaries that target them actually use. Open
 | **Attack chaining** | Chain actions with conditions on their outputs into a logic graph, and read how the attack actually propagated on the attack path map: endpoints reached, findings produced, chokepoints. | Released, EE, preview flag |
 | **Findings and exposure** | CVEs, open ports, credentials, shares and Active Directory weaknesses extracted from execution output, deduplicated across runs, enriched with CVSS, sensitive values masked. | Released |
 | **Remediation** | Detection remediation on threat arsenal actions and injects, remediation on CVEs, so every gap comes with the rule or fix that closes it. | Released, EE |
-| **Dashboards** | Custom dashboards and widgets over simulations, findings and coverage; a default home dashboard; usage shown before a dashboard is deleted and starter-pack dashboards restored (coming in the next release, [#9420](https://github.com/OpenAEV-Platform/openaev/pull/9420)). | Released |
+| **Dashboards** | The exposure command center on the home page (assets at risk, prevention, detection and vulnerability scores, gaps to remediate), custom dashboards and widgets over simulations, findings and coverage; usage shown before a dashboard is deleted and starter-pack dashboards restored (coming in the next release, [#9420](https://github.com/OpenAEV-Platform/openaev/pull/9420)). | Released |
 | **Exploration graph** | One graph across simulations, scenarios, endpoints, asset groups, findings, attack patterns, persons and organizations, with time range and attack paths. | Coming in the next release ([#9448](https://github.com/OpenAEV-Platform/openaev/pull/9448)) |
 | **OpenCTI and OpenCRQ pivots** | See the OpenCTI counterpart of an asset, attack pattern, vulnerability or threat, and its OpenCRQ risk, from the OpenAEV screen you are on. | Coming in the next release ([#9393](https://github.com/OpenAEV-Platform/openaev/pull/9393)) |
 | **Generative AI** | Generate content and scenarios with AI, through your own AI provider or XTM One. | Released, EE |
@@ -86,24 +86,18 @@ controls stop the techniques the adversaries that target them actually use. Open
 | **Multi-tenancy** | Isolated tenants on one platform. | Released, EE |
 | **Human-centric exercises** | Phishing campaigns and tabletop injects (email, media pressure, challenges) for the human side of exposure. | Released |
 
-<table>
-  <tr>
-    <td width="50%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="./.github/img/openaev-dashboard-dark.png">
-        <img src="./.github/img/openaev-dashboard-light.png" alt="OpenAEV home dashboard with prevention, detection and vulnerability scores, simulations over time and the latest findings">
-      </picture>
-      <p align="center"><sub>Home dashboard</sub></p>
-    </td>
-    <td width="50%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="./.github/img/openaev-findings-dark.png">
-        <img src="./.github/img/openaev-findings-light.png" alt="OpenAEV findings list with type, value, affected endpoints and the simulations that produced them">
-      </picture>
-      <p align="center"><sub>Findings</sub></p>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./.github/img/openaev-dashboard-dark.png">
+    <img src="./.github/img/openaev-dashboard-light.png" alt="OpenAEV exposure command center: assets at risk, and the adversary, vulnerability, prevention, detection and breached stages of the attack with their scores" width="100%">
+  </picture>
+  <br/><sub>Home: the exposure command center (sample data).</sub>
+</p>
+
+<p align="center">
+  <img src="./.github/img/openaev-attack-path.png" alt="OpenAEV attack path map of a chained simulation: injectors, endpoint clusters and findings such as port scans, SMB shares and captured credentials, colored by prevention and detection outcome" width="100%">
+  <br/><sub>Attack path map of a chained simulation.</sub>
+</p>
 
 ## OpenAEV in the XTM Platform
 
