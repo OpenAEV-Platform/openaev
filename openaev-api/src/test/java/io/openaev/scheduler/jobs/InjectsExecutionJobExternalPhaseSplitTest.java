@@ -1,7 +1,6 @@
 package io.openaev.scheduler.jobs;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -9,15 +8,15 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
+import io.openaev.database.audit.BaseEvent;
+import io.openaev.database.helper.ExecutionTraceRepositoryHelper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.executors.Executor;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
-import io.openaev.helper.InjectHelper;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -29,7 +28,10 @@ import io.openaev.utils.fixtures.composers.InjectStatusComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utilstest.RowTenantScope;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +39,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.event.EventListener;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,15 +65,16 @@ class InjectsExecutionJobExternalPhaseSplitTest extends IntegrationTest {
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectRepository injectRepository;
-  @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private RowTenantScope rowTenantScope;
-  @Autowired private TenantScopedTransaction tenantTx;
-  @Autowired private InjectHelper injectHelper;
 
   @MockitoSpyBean private RabbitmqService rabbitmqService;
   @MockitoSpyBean private ConnectorInstanceService connectorInstanceService;
   @MockitoSpyBean private HealthCheckUtils healthCheckUtils;
   @MockitoSpyBean private Executor executor;
+  @Autowired private InjectStatusRepository injectStatusRepository;
+  @MockitoSpyBean private ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
+  @MockitoSpyBean private InjectStatusService injectStatusService;
+  @Autowired private InjectEventCapture eventCapture;
 
   private void inTransaction(Runnable work) {
     rowTenantScope.write(Tenant.DEFAULT_TENANT_UUID, work);
@@ -284,44 +289,93 @@ class InjectsExecutionJobExternalPhaseSplitTest extends IntegrationTest {
   @Test
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @DisplayName(
-      "a publish deferred past the caller's commit that fails leaves an ERROR status and throws")
-  void given_deferredPublishFailsAfterCommit_should_recordErrorAndThrow()
-      throws IOException, TimeoutException {
+      "a completion committed by the injector's callback while the outcome is recorded is kept,"
+          + " and no stale status is streamed")
+  void given_callbackCompletesBeforeTheOutcomeIsRecorded_should_keepItsStatus()
+      throws JobExecutionException, IOException, TimeoutException {
     // Arrange
     doReturn(true)
         .when(connectorInstanceService)
         .hasStartedConnectorInstanceForInjector(any(String.class));
     doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
-    doThrow(new IOException("broker unreachable"))
+    AtomicBoolean published = new AtomicBoolean(false);
+    doAnswer(
+            invocation -> {
+              published.set(true);
+              return null;
+            })
         .when(rabbitmqService)
         .publish(any(String.class), any(String.class));
     DueExternalInject due = persistDueAtomicInject();
+    String statusId = injectStatusRepository.findByInjectId(due.injectId()).orElseThrow().getId();
+    AtomicBoolean callbackDone = new AtomicBoolean(false);
+    // The callback commits from its own thread once the publish is out, just before the outcome
+    // write reaches the database
+    Runnable callback =
+        () -> {
+          if (published.get() && callbackDone.compareAndSet(false, true)) {
+            CompletableFuture.runAsync(
+                    () ->
+                        executionTraceRepositoryHelper.updateInjectStatus(
+                            statusId, ExecutionStatus.EXECUTED.name(), Instant.now()))
+                .join();
+            eventCapture.streamedStatuses().clear();
+          }
+        };
+    doAnswer(
+            invocation -> {
+              callback.run();
+              return invocation.callRealMethod();
+            })
+        .when(executionTraceRepositoryHelper)
+        .saveExecutionTrace(any(ExecutionTrace.class));
+    doAnswer(
+            invocation -> {
+              callback.run();
+              return invocation.callRealMethod();
+            })
+        .when(injectStatusService)
+        .saveAndStreamInject(any(InjectStatus.class));
 
     try {
-      // Act: the caller's own transaction, as the manual launch and the chaining step have
-      assertThatThrownBy(
-              () ->
-                  tenantTx.execute(
-                      TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
-                      () -> {
-                        try {
-                          return executor.execute(
-                              injectHelper.executableInject(due.injectId()).orElseThrow());
-                        } catch (Exception e) {
-                          throw new IllegalStateException(e);
-                        }
-                      }))
-          .hasStackTraceContaining("broker unreachable");
+      // Act
+      job.execute(null);
 
-      // Assert: the caller's transaction committed, then a new one wrote the error
+      // Assert
+      assertThat(callbackDone).as("the outcome write ran").isTrue();
       InjectStatus status = injectStatusRepository.findByInjectId(due.injectId()).orElseThrow();
-      assertThat(status.getName()).isEqualTo(ExecutionStatus.ERROR);
+      assertThat(status.getName())
+          .as("the callback's completion is not overwritten")
+          .isEqualTo(ExecutionStatus.EXECUTED);
       assertThat(status.getTraces())
+          .as("the published trace is still recorded")
           .anyMatch(
               trace ->
-                  trace.getMessage() != null && trace.getMessage().contains("broker unreachable"));
+                  trace.getMessage() != null
+                      && trace.getMessage().contains("waiting to be consumed"));
+      assertThat(eventCapture.streamedStatuses())
+          .as("no status event is sent after the completion")
+          .isEmpty();
     } finally {
       sweep(due);
+    }
+  }
+
+  /** Records the status each inject carried when its update event was published. */
+  @TestConfiguration
+  static class InjectEventCapture {
+    private final List<String> streamedStatuses = new CopyOnWriteArrayList<>();
+
+    List<String> streamedStatuses() {
+      return streamedStatuses;
+    }
+
+    @EventListener
+    void on(BaseEvent event) {
+      if (event.getInstance() instanceof Inject inject) {
+        streamedStatuses.add(
+            inject.getStatus().map(status -> status.getName().name()).orElse("none"));
+      }
     }
   }
 }

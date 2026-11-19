@@ -5,8 +5,7 @@ import static io.openaev.utils.InjectionUtils.isInInjectableRange;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
+import io.openaev.database.helper.ExecutionTraceRepositoryHelper;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectStatusRepository;
@@ -19,7 +18,6 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
-import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -28,6 +26,7 @@ import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,11 +56,13 @@ public class Executor {
   private final InjectExpectationService injectExpectationService;
   private final PayloadRevocationService payloadRevocationService;
   private final OpenAEVConfig openAEVConfig;
-  private final TenantScopedJobRunner tenantScopedJobRunner;
-  private final TenantScopedTransaction tenantTx;
+  private final ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
 
   public static final String CMD = "cmd";
   public static final String PSH = "psh";
+
+  private static final String PUBLISHED_TRACE =
+      "The inject has been published and is now waiting to be consumed.";
 
   /**
    * What phase 1 (DB prep) of an execution produced. An internal injector finishes synchronously,
@@ -87,11 +88,7 @@ public class Executor {
 
   /** What a confirmed or failed publish needs, carried across the no-transaction publish step. */
   public record ExternalPublish(
-      String tenantId,
-      String injectId,
-      String injectStatusId,
-      String injectorId,
-      String jsonInject) {}
+      String injectId, String injectStatusId, String injectorId, String jsonInject) {}
 
   /**
    * Phase 1 of the external path: DB prep up to {@code computeAndSaveExpectations}, ending before
@@ -109,12 +106,7 @@ public class Executor {
 
     injectExpectationService.computeAndSaveExpectations(executableInject, injector.getType());
 
-    return new ExternalPublish(
-        inject.getTenant().getId(),
-        inject.getId(),
-        injectStatus.getId(),
-        injector.getId(),
-        jsonInject);
+    return new ExternalPublish(inject.getId(), injectStatus.getId(), injector.getId(), jsonInject);
   }
 
   /**
@@ -135,18 +127,23 @@ public class Executor {
   }
 
   /**
-   * Phase 3 of the external path, confirmed publish: writes the "published and waiting" trace.
-   * Needs an active transaction, the caller's own or a fresh one it opened for this alone.
+   * Phase 3 of the external path, confirmed publish: inserts the "published and waiting" trace row.
+   * The inject status is neither rewritten nor streamed: the injector's callback may have completed
+   * the inject since phase 1, and a write or an event built from the status read here could undo
+   * that completion. Needs an active transaction.
    */
-  public InjectStatus recordPublishSuccess(ExternalPublish pending) {
+  public void recordPublishSuccess(ExternalPublish pending) {
     InjectStatus injectStatus =
         this.injectStatusRepository.findById(pending.injectStatusId()).orElseThrow();
-    injectStatus.addInfoTrace(
-        "The inject has been published and is now waiting to be consumed.",
-        ExecutionTraceAction.EXECUTION);
-    // Saved and streamed: InjectStatus has no listener, and the EXECUTING event of phase 1 was
-    // committed before this trace existed.
-    return injectStatusService.saveAndStreamInject(injectStatus);
+    this.executionTraceRepositoryHelper.saveExecutionTrace(
+        new ExecutionTrace(
+            injectStatus,
+            ExecutionTraceStatus.INFO,
+            List.of(),
+            PUBLISHED_TRACE,
+            ExecutionTraceAction.EXECUTION,
+            null,
+            null));
   }
 
   /**
@@ -251,12 +248,9 @@ public class Executor {
   }
 
   /**
-   * All three phases in one call, for the manual launch and the chaining step. With no transaction
-   * active, the trace follows the publish outcome. Inside the caller's transaction, the publish
-   * waits for {@code afterCommit()}, as before #6968, so a rollback or a chaining retry never
-   * leaves a message for an inject that does not exist. The trace is then written before the
-   * publish: a publish that fails after the commit records the error in a new transaction and
-   * throws, as on {@code main}.
+   * All three phases in one call, for the manual launch and the chaining step: the behaviour this
+   * method had before #6968. Inside the caller's transaction the trace is written with it and the
+   * publish waits for {@code afterCommit()}; with none, the publish is inline.
    */
   public InjectStatus execute(ExecutableInject executableInject) throws Exception {
     ExecutionPhase1Result phase1 = executePhase1(executableInject);
@@ -272,34 +266,17 @@ public class Executor {
               try {
                 publish(pending);
               } catch (IOException | TimeoutException e) {
-                recordDeferredPublishFailure(pending, e);
                 throw new IllegalStateException("Failed to publish inject after commit", e);
               }
             }
           });
-      return recordPublishSuccess(pending);
-    }
-    try {
+    } else {
       publish(pending);
-    } catch (IOException | TimeoutException e) {
-      tenantScopedJobRunner.runInTenant(pending.tenantId(), () -> recordPublishFailure(pending, e));
-      throw e;
     }
-    return recordPublishSuccess(pending);
-  }
-
-  /**
-   * The caller's transaction is already committed but still bound to the thread: only a new one can
-   * write the error status. Best effort, the publish failure is what reaches the caller.
-   */
-  private void recordDeferredPublishFailure(ExternalPublish pending, Exception cause) {
-    try {
-      tenantTx.executeNew(
-          TxCtx.forTenant(pending.tenantId()), () -> recordPublishFailure(pending, cause));
-    } catch (Exception recordFailure) {
-      log.error(
-          "Could not record the failed publish of inject {}", pending.injectId(), recordFailure);
-    }
+    InjectStatus injectStatus =
+        this.injectStatusRepository.findById(pending.injectStatusId()).orElseThrow();
+    injectStatus.addInfoTrace(PUBLISHED_TRACE, ExecutionTraceAction.EXECUTION);
+    return this.injectStatusRepository.save(injectStatus);
   }
 
   /**

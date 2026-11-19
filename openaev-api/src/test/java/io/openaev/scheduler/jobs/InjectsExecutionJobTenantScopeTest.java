@@ -387,8 +387,7 @@ class InjectsExecutionJobTenantScopeTest {
           + " status, and does not abort the sweep")
   void given_recordPublishSuccessFails_should_logAndNeverWriteAnErrorStatus() throws Exception {
     Executor.ExternalPublish pending =
-        new Executor.ExternalPublish(
-            INJECT_TENANT, "the-inject-id", "the-status-id", "the-injector-id", "{}");
+        new Executor.ExternalPublish("the-inject-id", "the-status-id", "the-injector-id", "{}");
     when(executor.executePhase1(any(ExecutableInject.class)))
         .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
     doThrow(new RuntimeException("could not record the outcome"))
@@ -407,8 +406,7 @@ class InjectsExecutionJobTenantScopeTest {
       "when recording a failed publish also fails, the job falls back to a plain error status")
   void given_recordPublishFailureAlsoFails_should_fallBackToAnErrorStatus() throws Exception {
     Executor.ExternalPublish pending =
-        new Executor.ExternalPublish(
-            INJECT_TENANT, "the-inject-id", "the-status-id", "the-injector-id", "{}");
+        new Executor.ExternalPublish("the-inject-id", "the-status-id", "the-injector-id", "{}");
     when(executor.executePhase1(any(ExecutableInject.class)))
         .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
     doThrow(new IOException("broker unreachable")).when(executor).publish(pending);
@@ -429,8 +427,7 @@ class InjectsExecutionJobTenantScopeTest {
   void given_nonDefaultTenant_should_recordPublishSuccessUnderItsScopes() throws Exception {
     // Arrange
     Executor.ExternalPublish pending =
-        new Executor.ExternalPublish(
-            INJECT_TENANT, "the-inject-id", "the-status-id", "the-injector-id", "{}");
+        new Executor.ExternalPublish("the-inject-id", "the-status-id", "the-injector-id", "{}");
     when(executor.executePhase1(any(ExecutableInject.class)))
         .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
     AtomicReference<String> ambientTenant = new AtomicReference<>();
@@ -457,8 +454,7 @@ class InjectsExecutionJobTenantScopeTest {
   void given_nonDefaultTenant_should_recordPublishFailureUnderItsScopes() throws Exception {
     // Arrange
     Executor.ExternalPublish pending =
-        new Executor.ExternalPublish(
-            INJECT_TENANT, "the-inject-id", "the-status-id", "the-injector-id", "{}");
+        new Executor.ExternalPublish("the-inject-id", "the-status-id", "the-injector-id", "{}");
     when(executor.executePhase1(any(ExecutableInject.class)))
         .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
     doThrow(new IOException("broker unreachable")).when(executor).publish(pending);
@@ -487,8 +483,7 @@ class InjectsExecutionJobTenantScopeTest {
   void given_publishFailureWithoutMessage_should_fallBackToTheExceptionType() throws Exception {
     // Arrange: recording the failure also fails, so the plain error status carries the message
     Executor.ExternalPublish pending =
-        new Executor.ExternalPublish(
-            INJECT_TENANT, "the-inject-id", "the-status-id", "the-injector-id", "{}");
+        new Executor.ExternalPublish("the-inject-id", "the-status-id", "the-injector-id", "{}");
     when(executor.executePhase1(any(ExecutableInject.class)))
         .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
     doThrow(new TimeoutException()).when(executor).publish(pending);
@@ -518,8 +513,7 @@ class InjectsExecutionJobTenantScopeTest {
     }
     stubInjectsToRun(executables);
     Executor.ExternalPublish pending =
-        new Executor.ExternalPublish(
-            INJECT_TENANT, "the-inject-id", "the-status-id", "the-injector-id", "{}");
+        new Executor.ExternalPublish("the-inject-id", "the-status-id", "the-injector-id", "{}");
     when(executor.executePhase1(any(ExecutableInject.class)))
         .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
     AtomicInteger inFlight = new AtomicInteger();
