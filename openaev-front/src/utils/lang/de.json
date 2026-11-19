@@ -4789,5 +4789,13 @@
   "Show this list": "Diese Liste anzeigen",
   "Show this type": "Diesen Typ anzeigen",
   "Ungroup": "Gruppierung aufheben",
-  "Always on": "Immer aktiv"
+  "Always on": "Immer aktiv",
+  "Select neighbours": "Nachbarn auswählen",
+  "Remove from view": "Aus der Ansicht entfernen",
+  "Selection": "Auswahl",
+  "Clear the selection": "Auswahl aufheben",
+  "Select the neighbours of the selection": "Nachbarn der Auswahl auswählen",
+  "Remove the selection from the view": "Auswahl aus der Ansicht entfernen",
+  "Select an area": "Bereich auswählen",
+  "Add a node to the selection": "Knoten zur Auswahl hinzufügen"
 }

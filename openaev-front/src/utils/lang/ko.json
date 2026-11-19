@@ -4789,5 +4789,13 @@
   "Show this list": "이 목록 표시",
   "Show this type": "이 유형 표시",
   "Ungroup": "그룹 해제",
-  "Always on": "항상 실행 중"
+  "Always on": "항상 실행 중",
+  "Select neighbours": "이웃 노드 선택",
+  "Remove from view": "보기에서 제거",
+  "Selection": "선택",
+  "Clear the selection": "선택 해제",
+  "Select the neighbours of the selection": "선택 항목의 이웃 노드 선택",
+  "Remove the selection from the view": "선택 항목을 보기에서 제거",
+  "Select an area": "영역 선택",
+  "Add a node to the selection": "선택에 노드 추가"
 }

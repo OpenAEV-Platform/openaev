@@ -4789,5 +4789,13 @@
   "Show this list": "显示此列表",
   "Show this type": "显示此类型",
   "Ungroup": "取消分组",
-  "Always on": "始终运行"
+  "Always on": "始终运行",
+  "Select neighbours": "选择相邻节点",
+  "Remove from view": "从视图中移除",
+  "Selection": "选择",
+  "Clear the selection": "清除选择",
+  "Select the neighbours of the selection": "选择所选项的相邻节点",
+  "Remove the selection from the view": "从视图中移除所选项",
+  "Select an area": "选择区域",
+  "Add a node to the selection": "将节点添加到选择"
 }

@@ -148,6 +148,47 @@ export const hideNode = (state: GraphState, nodeId: string): GraphState => ({
   pinned: state.pinned.filter(id => id !== nodeId),
 });
 
+/**
+ * Removes nodes from the view, as OpenCTI's "Remove from view" in an investigation: the nodes and
+ * their relations leave the graph (a later expand brings them back); Hide only masks them.
+ */
+export const removeNodes = (state: GraphState, nodeIds: string[]): GraphState => {
+  const gone = new Set(nodeIds.filter(id => id !== state.focus));
+  if (gone.size === 0) {
+    return state;
+  }
+  const nodes = Object.fromEntries(Object.entries(state.nodes).filter(([id]) => !gone.has(id)));
+  const edges = Object.fromEntries(Object.entries(state.edges)
+    .filter(([, e]) => !gone.has(e.edge_source) && !gone.has(e.edge_target)));
+  return {
+    ...state,
+    nodes,
+    edges,
+    hidden: state.hidden.filter(id => !gone.has(id)),
+    pinned: state.pinned.filter(id => !gone.has(id)),
+    path: state.path.some(id => gone.has(id)) ? [] : state.path,
+    truncatedAt: state.truncatedAt.filter(id => !gone.has(id)),
+  };
+};
+
+/** Pins every node of a selection (or unpins them all when every one is already pinned). */
+export const pinNodes = (state: GraphState, nodeIds: string[]): GraphState => {
+  const allPinned = nodeIds.every(id => state.pinned.includes(id));
+  return {
+    ...state,
+    pinned: allPinned
+      ? state.pinned.filter(id => !nodeIds.includes(id))
+      : Array.from(new Set([...state.pinned, ...nodeIds])),
+  };
+};
+
+/** Hides every node of a selection. */
+export const hideNodes = (state: GraphState, nodeIds: string[]): GraphState => ({
+  ...state,
+  hidden: Array.from(new Set([...state.hidden, ...nodeIds])),
+  pinned: state.pinned.filter(id => !nodeIds.includes(id)),
+});
+
 export const togglePin = (state: GraphState, nodeId: string): GraphState => ({
   ...state,
   pinned: state.pinned.includes(nodeId) ? state.pinned.filter(id => id !== nodeId) : [...state.pinned, nodeId],

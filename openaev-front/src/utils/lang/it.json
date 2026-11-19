@@ -4789,5 +4789,13 @@
   "Show this list": "Mostra questo elenco",
   "Show this type": "Mostra questo tipo",
   "Ungroup": "Separa",
-  "Always on": "Sempre attivo"
+  "Always on": "Sempre attivo",
+  "Select neighbours": "Seleziona i vicini",
+  "Remove from view": "Rimuovi dalla vista",
+  "Selection": "Selezione",
+  "Clear the selection": "Cancella la selezione",
+  "Select the neighbours of the selection": "Seleziona i vicini della selezione",
+  "Remove the selection from the view": "Rimuovi la selezione dalla vista",
+  "Select an area": "Seleziona un'area",
+  "Add a node to the selection": "Aggiungi un nodo alla selezione"
 }

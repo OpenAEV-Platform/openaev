@@ -4789,5 +4789,13 @@
   "Show this list": "Показать этот список",
   "Show this type": "Показать этот тип",
   "Ungroup": "Разгруппировать",
-  "Always on": "Всегда работает"
+  "Always on": "Всегда работает",
+  "Select neighbours": "Выбрать соседей",
+  "Remove from view": "Убрать из представления",
+  "Selection": "Выбор",
+  "Clear the selection": "Снять выделение",
+  "Select the neighbours of the selection": "Выбрать соседей выделенного",
+  "Remove the selection from the view": "Убрать выделенное из представления",
+  "Select an area": "Выделить область",
+  "Add a node to the selection": "Добавить узел к выделению"
 }

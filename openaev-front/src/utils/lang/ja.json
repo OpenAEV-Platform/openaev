@@ -4789,5 +4789,13 @@
   "Show this list": "この一覧を表示",
   "Show this type": "このタイプを表示",
   "Ungroup": "グループ解除",
-  "Always on": "常時稼働"
+  "Always on": "常時稼働",
+  "Select neighbours": "隣接ノードを選択",
+  "Remove from view": "ビューから削除",
+  "Selection": "選択",
+  "Clear the selection": "選択を解除",
+  "Select the neighbours of the selection": "選択範囲の隣接ノードを選択",
+  "Remove the selection from the view": "選択範囲をビューから削除",
+  "Select an area": "範囲を選択",
+  "Add a node to the selection": "ノードを選択に追加"
 }

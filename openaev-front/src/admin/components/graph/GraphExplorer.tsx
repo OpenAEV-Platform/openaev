@@ -32,6 +32,7 @@ import {
   BubbleChartOutlined,
   CenterFocusStrongOutlined,
   CloseOutlined,
+  DeleteOutlined,
   DonutLargeOutlined,
   DownloadOutlined,
   FitScreenOutlined,
@@ -41,6 +42,7 @@ import {
   OpenInNewOutlined,
   PushPinOutlined,
   RouteOutlined,
+  SelectAllOutlined,
   UndoOutlined,
   VisibilityOffOutlined,
   VisibilityOutlined,
@@ -55,6 +57,7 @@ import {
   getViewportForBounds,
   MarkerType,
   MiniMap,
+  type NodeChange,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
@@ -94,8 +97,11 @@ import {
   type GraphFilters,
   type GraphState,
   hideNode,
+  hideNodes,
   mergeSlice,
   pathEdges,
+  pinNodes,
+  removeNodes,
   showHidden,
   togglePin,
   ungroup,
@@ -187,6 +193,11 @@ const SHORTCUTS: [string, string][] = [
   ['H', 'Hide the selected node'],
   ['F', 'Fit to screen'],
   ['L', 'Re-run the layout'],
+  ['N', 'Select the neighbours of the selection'],
+  ['Delete', 'Remove the selection from the view'],
+  ['Shift+drag', 'Select an area'],
+  ['Ctrl+click', 'Add a node to the selection'],
+  ['Esc', 'Clear the selection'],
   ['Ctrl+Z', 'Undo'],
   ['?', 'Show this list'],
 ];
@@ -197,6 +208,8 @@ interface ContextMenuAnchor {
   y: number;
   nodeId?: string;
   edgeId?: string;
+  /** Opened on the multi-selection: its actions run on every selected node. */
+  selection?: boolean;
 }
 
 const prefersReducedMotion = () => typeof window !== 'undefined'
@@ -237,6 +250,9 @@ const GraphExplorerInner = ({
   const [hovered, setHovered] = useState<string | null>(null);
   const [menu, setMenu] = useState<ContextMenuAnchor | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // The multi-selection, as OpenCTI's graph: Shift+drag draws a rectangle, Ctrl+click adds a node; the
+  // selection's actions (expand, pin, hide, remove, select neighbours) run on every node of it.
+  const [selection, setSelection] = useState<string[]>([]);
   // Bumped to lay the whole graph out again (a layout button, Re-run the layout, a new initial slice);
   // every other change (an expand, a hide, a group opened) extends the layout on screen in place.
   const [layoutRun, setLayoutRun] = useState(0);
@@ -388,9 +404,10 @@ const GraphExplorerInner = ({
       x: 0,
       y: 0,
     },
+    selected: selection.includes(n.node_id),
     data: {
       node: n,
-      focused: n.node_id === state.focus || n.node_id === selected,
+      focused: n.node_id === state.focus || n.node_id === selected || selection.includes(n.node_id),
       pinned: state.pinned.includes(n.node_id),
       matched: matches.has(n.node_id),
       dimmed: (matches.size > 0 && !matches.has(n.node_id))
@@ -443,6 +460,51 @@ const GraphExplorerInner = ({
       },
     };
   });
+
+  // The nodes are controlled: a drag moves the node where it is dropped (the next expand extends the
+  // layout from there), a rectangle or a Ctrl+click changes the multi-selection.
+  const onNodesChange = (changes: NodeChange[]) => {
+    let moved: Map<string, Point> | null = null;
+    let picked: Set<string> | null = null;
+    for (const change of changes) {
+      if (change.type === 'position' && change.position) {
+        moved = moved ?? new Map(shown.current);
+        moved.set(change.id, change.position);
+      } else if (change.type === 'select' && !isGroupId(change.id)) {
+        picked = picked ?? new Set(selection);
+        if (change.selected) {
+          picked.add(change.id);
+        } else {
+          picked.delete(change.id);
+        }
+      }
+    }
+    if (moved) {
+      shown.current = moved;
+      setPositions(moved);
+    }
+    if (picked) {
+      setSelection(Array.from(picked));
+    }
+  };
+
+  /** Adds the neighbours of every selected node to the selection (OpenCTI: Select neighbours). */
+  const selectNeighbours = (ids: string[] = selection) => {
+    const next = new Set(ids);
+    drawnEdges.forEach((e) => {
+      if (ids.includes(e.edge_source) && !isGroupId(e.edge_target)) next.add(e.edge_target);
+      if (ids.includes(e.edge_target) && !isGroupId(e.edge_source)) next.add(e.edge_source);
+    });
+    setSelection(Array.from(next));
+  };
+
+  const removeFromView = (ids: string[]) => {
+    commit(s => removeNodes(s, ids));
+    setSelection([]);
+    if (selected && ids.includes(selected) && selected !== state.focus) {
+      setSelected(null);
+    }
+  };
 
   const fitToScreen = () => fitView({
     ...fitOptions,
@@ -845,7 +907,7 @@ const GraphExplorerInner = ({
 
   // The right-click menu, as OpenCTI's GraphContextMenu: the actions that apply to what is under the
   // pointer (a node, a group, a relation, the empty canvas), grouped under a label naming it.
-  const openMenu = (event: MouseEvent | globalThis.MouseEvent, on: Pick<ContextMenuAnchor, 'nodeId' | 'edgeId'>) => {
+  const openMenu = (event: MouseEvent | globalThis.MouseEvent, on: Pick<ContextMenuAnchor, 'nodeId' | 'edgeId' | 'selection'>) => {
     event.preventDefault();
     const box = wrapper.current?.getBoundingClientRect();
     if (on.nodeId && !isGroupId(on.nodeId)) {
@@ -887,9 +949,30 @@ const GraphExplorerInner = ({
         commit(s => hideNode(s, node.node_id));
         setSelected(null);
       }),
+      menuItem('neighbours', t('Select neighbours'), <SelectAllOutlined fontSize="small" />, () => selectNeighbours([node.node_id])),
+      menuItem('remove', t('Remove from view'), <DeleteOutlined fontSize="small" />, () => removeFromView([node.node_id]), node.node_id === state.focus),
       ...(href ? [menuItem('open', t('Open'), <OpenInNewOutlined fontSize="small" />, () => navigate(href))] : []),
       menuItem('copy-link', t('Copy a link to this view'), <LinkOutlined fontSize="small" />, () => copyLink(node)),
       ...nodeActions.filter(a => a.appliesTo(node)).map(a => menuItem(a.key, a.label, a.icon, () => a.onClick(node))),
+    ];
+  };
+  const selectionMenu = () => {
+    const nodes = selection.map(id => state.nodes[id]).filter((n): n is GraphNodeOutput => Boolean(n));
+    const ids = nodes.map(n => n.node_id);
+    return [
+      <MenuLabel key="label">{`${t('Selection')}: ${nodes.length}`}</MenuLabel>,
+      menuItem('expand-all', t('Expand'), <CenterFocusStrongOutlined fontSize="small" />, () => {
+        nodes.forEach(n => expand(n));
+      }),
+      menuItem('neighbours', t('Select neighbours'), <SelectAllOutlined fontSize="small" />, () => selectNeighbours(ids)),
+      menuItem('pin', t('Pin'), <PushPinOutlined fontSize="small" />, () => commit(s => pinNodes(s, ids))),
+      menuItem('hide', t('Hide'), <VisibilityOffOutlined fontSize="small" />, () => {
+        commit(s => hideNodes(s, ids));
+        setSelection([]);
+      }),
+      menuItem('remove', t('Remove from view'), <DeleteOutlined fontSize="small" />, () => removeFromView(ids)),
+      <MenuSeparator key="sep" />,
+      menuItem('clear', t('Clear the selection'), <CloseOutlined fontSize="small" />, () => setSelection([])),
     ];
   };
   const graphMenu = () => [
@@ -903,6 +986,9 @@ const GraphExplorerInner = ({
   const menuSections = (): ReactNode[] => {
     if (!menu) {
       return [];
+    }
+    if (menu.selection || (menu.nodeId && selection.length > 1 && selection.includes(menu.nodeId))) {
+      return selectionMenu();
     }
     if (menu.nodeId && isGroupId(menu.nodeId)) {
       const groupNode = drawnNodes.find(n => n.node_id === menu.nodeId);
@@ -997,6 +1083,12 @@ const GraphExplorerInner = ({
       fitToScreen();
     } else if (key === 'l') {
       relayout();
+    } else if (key === 'escape' && selection.length > 0) {
+      setSelection([]);
+    } else if (key === 'n' && (selection.length > 0 || selectedNode)) {
+      selectNeighbours(selection.length > 0 ? selection : [selectedNode?.node_id as string]);
+    } else if ((key === 'delete' || key === 'backspace') && (selection.length > 0 || selectedNode)) {
+      removeFromView(selection.length > 0 ? selection : [selectedNode?.node_id as string]);
     } else if (selectedNode && key === 'e') {
       expand(selectedNode);
     } else if (selectedNode && key === 'p') {
@@ -1041,6 +1133,13 @@ const GraphExplorerInner = ({
           minZoom={0.1}
           // Set on the mini graph too: React Flow gives a node pointer events only when it has a
           // handler, and the node's tooltip needs the hover (the pane itself stays inert).
+          onNodesChange={interactive ? onNodesChange : undefined}
+          // Shift+drag draws a selection rectangle, Ctrl or Cmd+click adds a node (OpenCTI's graph);
+          // the Delete key is ours (Remove from view), never React Flow's own deletion.
+          selectionKeyCode={interactive ? 'Shift' : null}
+          multiSelectionKeyCode={interactive ? ['Meta', 'Control'] : null}
+          deleteKeyCode={null}
+          onSelectionContextMenu={interactive ? event => openMenu(event, { selection: true }) : undefined}
           onNodeMouseEnter={(_, n) => setHovered(n.id)}
           onNodeMouseLeave={() => setHovered(null)}
           onNodeClick={interactive
@@ -1063,7 +1162,10 @@ const GraphExplorerInner = ({
           onNodeContextMenu={interactive ? (event, n) => openMenu(event, { nodeId: n.id }) : undefined}
           onEdgeContextMenu={interactive ? (event, e) => openMenu(event, { edgeId: e.id }) : undefined}
           onPaneContextMenu={interactive ? event => openMenu(event, {}) : undefined}
-          onPaneClick={() => setMenu(null)}
+          onPaneClick={() => {
+            setMenu(null);
+            setSelection([]);
+          }}
           panOnScroll={false}
           fitView
           fitViewOptions={fitOptions}
