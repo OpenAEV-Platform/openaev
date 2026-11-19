@@ -12,13 +12,13 @@ interface Props {
 }
 
 const ItemMarkings = ({ markingIds, limit = 2 }: Props) => {
-  const { markings } = useHelper((helper: MarkingDefinitionHelper) => ({
-    markings: (markingIds ?? [])
-      .map(id => helper.getMarkingDefinition(id))
-      .filter((marking): marking is MarkingDefinitionOutput => !!marking),
-  }));
+  const { definitions } = useHelper((helper: MarkingDefinitionHelper) => ({ definitions: helper.getMarkingDefinitionsMap() }));
 
-  const resolved = useMemo(() => collapseToHighestPerType(markings), [markings]);
+  const resolved = useMemo(() => collapseToHighestPerType(
+    (markingIds ?? [])
+      .map(id => definitions[id])
+      .filter((marking): marking is MarkingDefinitionOutput => !!marking),
+  ), [markingIds, definitions]);
 
   if (resolved.length === 0) {
     return <span>-</span>;
