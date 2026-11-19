@@ -39,6 +39,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -386,7 +387,8 @@ class InjectsExecutionJobTenantScopeTest {
           + " status, and does not abort the sweep")
   void given_recordPublishSuccessFails_should_logAndNeverWriteAnErrorStatus() throws Exception {
     Executor.ExternalPublish pending =
-        new Executor.ExternalPublish("the-inject-id", "the-status-id", "the-injector-id", "{}");
+        new Executor.ExternalPublish(
+            INJECT_TENANT, "the-inject-id", "the-status-id", "the-injector-id", "{}");
     when(executor.executePhase1(any(ExecutableInject.class)))
         .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
     doThrow(new RuntimeException("could not record the outcome"))
@@ -405,7 +407,8 @@ class InjectsExecutionJobTenantScopeTest {
       "when recording a failed publish also fails, the job falls back to a plain error status")
   void given_recordPublishFailureAlsoFails_should_fallBackToAnErrorStatus() throws Exception {
     Executor.ExternalPublish pending =
-        new Executor.ExternalPublish("the-inject-id", "the-status-id", "the-injector-id", "{}");
+        new Executor.ExternalPublish(
+            INJECT_TENANT, "the-inject-id", "the-status-id", "the-injector-id", "{}");
     when(executor.executePhase1(any(ExecutableInject.class)))
         .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
     doThrow(new IOException("broker unreachable")).when(executor).publish(pending);
@@ -418,5 +421,126 @@ class InjectsExecutionJobTenantScopeTest {
 
     verify(injectStatusService)
         .persistErrorStatusInTransaction("the-inject-id", "broker unreachable");
+  }
+
+  @Test
+  @DisplayName(
+      "recording a published inject's outcome runs under the inject's tenant, in both scopes")
+  void given_nonDefaultTenant_should_recordPublishSuccessUnderItsScopes() throws Exception {
+    // Arrange
+    Executor.ExternalPublish pending =
+        new Executor.ExternalPublish(
+            INJECT_TENANT, "the-inject-id", "the-status-id", "the-injector-id", "{}");
+    when(executor.executePhase1(any(ExecutableInject.class)))
+        .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
+    AtomicReference<String> ambientTenant = new AtomicReference<>();
+    AtomicReference<String> primitiveGuc = new AtomicReference<>();
+    doAnswer(
+            invocation -> {
+              ambientTenant.set(TenantContext.getCurrentTenant());
+              primitiveGuc.set(primitiveScope.get().toGuc());
+              return null;
+            })
+        .when(executor)
+        .recordPublishSuccess(pending);
+
+    // Act
+    job.execute(null);
+
+    // Assert
+    assertThat(ambientTenant.get()).isEqualTo(INJECT_TENANT);
+    assertThat(primitiveGuc.get()).isEqualTo(INJECT_TENANT);
+  }
+
+  @Test
+  @DisplayName("recording a failed publish runs under the inject's tenant, in both scopes")
+  void given_nonDefaultTenant_should_recordPublishFailureUnderItsScopes() throws Exception {
+    // Arrange
+    Executor.ExternalPublish pending =
+        new Executor.ExternalPublish(
+            INJECT_TENANT, "the-inject-id", "the-status-id", "the-injector-id", "{}");
+    when(executor.executePhase1(any(ExecutableInject.class)))
+        .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
+    doThrow(new IOException("broker unreachable")).when(executor).publish(pending);
+    AtomicReference<String> ambientTenant = new AtomicReference<>();
+    AtomicReference<String> primitiveGuc = new AtomicReference<>();
+    doAnswer(
+            invocation -> {
+              ambientTenant.set(TenantContext.getCurrentTenant());
+              primitiveGuc.set(primitiveScope.get().toGuc());
+              return null;
+            })
+        .when(executor)
+        .recordPublishFailure(eq(pending), any());
+
+    // Act
+    job.execute(null);
+
+    // Assert
+    assertThat(ambientTenant.get()).isEqualTo(INJECT_TENANT);
+    assertThat(primitiveGuc.get()).isEqualTo(INJECT_TENANT);
+    verify(executor, never()).recordPublishSuccess(any());
+  }
+
+  @Test
+  @DisplayName("a publish that times out with no message is recorded with the exception type")
+  void given_publishFailureWithoutMessage_should_fallBackToTheExceptionType() throws Exception {
+    // Arrange: recording the failure also fails, so the plain error status carries the message
+    Executor.ExternalPublish pending =
+        new Executor.ExternalPublish(
+            INJECT_TENANT, "the-inject-id", "the-status-id", "the-injector-id", "{}");
+    when(executor.executePhase1(any(ExecutableInject.class)))
+        .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
+    doThrow(new TimeoutException()).when(executor).publish(pending);
+    doThrow(new RuntimeException("recording the failure failed"))
+        .when(executor)
+        .recordPublishFailure(eq(pending), any());
+
+    // Act
+    job.execute(null);
+
+    // Assert
+    verify(injectStatusService)
+        .persistErrorStatusInTransaction(
+            "the-inject-id", "Failed to publish the inject: TimeoutException");
+  }
+
+  @Test
+  @DisplayName("a batch larger than the publish slots waits for a slot: none is rejected")
+  void given_moreInjectsThanPublishSlots_should_neverExceedTheSlots() throws Exception {
+    // Arrange
+    int slots = 2;
+    int injects = 12;
+    when(executor.maxConcurrentPublishes()).thenReturn(slots);
+    ExecutableInject[] executables = new ExecutableInject[injects];
+    for (int i = 0; i < injects; i++) {
+      executables[i] = atomicInjectOfTenant(INJECT_TENANT);
+    }
+    stubInjectsToRun(executables);
+    Executor.ExternalPublish pending =
+        new Executor.ExternalPublish(
+            INJECT_TENANT, "the-inject-id", "the-status-id", "the-injector-id", "{}");
+    when(executor.executePhase1(any(ExecutableInject.class)))
+        .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
+    AtomicInteger inFlight = new AtomicInteger();
+    AtomicInteger maxInFlight = new AtomicInteger();
+    AtomicInteger published = new AtomicInteger();
+    doAnswer(
+            invocation -> {
+              maxInFlight.accumulateAndGet(inFlight.incrementAndGet(), Math::max);
+              Thread.sleep(50);
+              inFlight.decrementAndGet();
+              published.incrementAndGet();
+              return null;
+            })
+        .when(executor)
+        .publish(pending);
+
+    // Act
+    job.execute(null);
+
+    // Assert
+    assertThat(published.get()).isEqualTo(injects);
+    assertThat(maxInFlight.get()).isLessThanOrEqualTo(slots);
   }
 }

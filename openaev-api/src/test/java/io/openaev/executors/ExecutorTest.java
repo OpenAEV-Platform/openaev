@@ -1,12 +1,13 @@
 package io.openaev.executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectStatusRepository;
@@ -20,6 +21,7 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -29,6 +31,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -69,6 +73,8 @@ class ExecutorTest {
   @Mock private ConnectorInstanceService connectorInstanceService;
   @Mock private InjectExpectationService injectExpectationService;
   @Mock private PayloadRevocationService payloadRevocationService;
+  @Mock private TenantScopedJobRunner tenantScopedJobRunner;
+  @Mock private TenantScopedTransaction tenantTx;
 
   @InjectMocks private Executor executor;
 
@@ -481,7 +487,7 @@ class ExecutorTest {
 
       // -------- Assert: the publish has not run yet, the trace already has --------
       verifyNoInteractions(rabbitmqService);
-      verify(injectStatusRepository, atLeastOnce()).save(any(InjectStatus.class));
+      verify(injectStatusService).saveAndStreamInject(any(InjectStatus.class));
       List<TransactionSynchronization> registered =
           TransactionSynchronizationManager.getSynchronizations();
       assertThat(registered).hasSize(1);
@@ -495,26 +501,77 @@ class ExecutorTest {
 
     @Test
     @DisplayName(
-        "a publish deferred past commit that then fails is logged, never thrown back into the"
-            + " (already finished) caller")
-    void given_deferredPublishFails_should_notThrow() throws Exception {
+        "a publish deferred past commit that then fails records the error in a new transaction"
+            + " of the inject's tenant, then throws as before")
+    void given_deferredPublishFails_should_recordErrorInNewTransactionThenThrow() throws Exception {
       // -------- Arrange --------
       givenExternalInjectorReadyToPublish();
       doThrow(new IOException("broker unreachable")).when(rabbitmqService).publish(any(), any());
+      ArgumentCaptor<TxCtx> scope = ArgumentCaptor.forClass(TxCtx.class);
+      doAnswer(
+              invocation -> {
+                Object work = invocation.getArgument(1);
+                return work instanceof Supplier<?> supplier ? supplier.get() : null;
+              })
+          .when(tenantTx)
+          .executeNew(scope.capture(), any(Supplier.class));
       TransactionSynchronizationManager.initSynchronization();
-
-      // -------- Act --------
       executor.execute(executableInject);
       TransactionSynchronization registered =
           TransactionSynchronizationManager.getSynchronizations().get(0);
 
-      // -------- Act & Assert: the deferred failure must not propagate --------
-      assertThatCode(registered::afterCommit).doesNotThrowAnyException();
-      // Recording the outcome needs a transaction this callback does not have: #6968 targets the
-      // job path (InjectsExecutionJob#completeExternalPublish) for the after-the-fact trace, not
-      // this one. See Executor#execute's javadoc.
-      verify(injectStatusService, never()).persistErrorStatusInTransaction(any(), any());
-      verify(injectStatusService, never()).failInjectStatus(any(), any());
+      // -------- Act & Assert --------
+      assertThatThrownBy(registered::afterCommit)
+          .isInstanceOf(IllegalStateException.class)
+          .hasCauseInstanceOf(IOException.class);
+      assertThat(scope.getValue().toGuc()).isEqualTo(TENANT_ID);
+      verify(injectStatusService).persistErrorStatusInTransaction(INJECT_ID, "broker unreachable");
+    }
+
+    @Test
+    @DisplayName("a failed deferred publish still throws when its error status cannot be recorded")
+    void given_deferredPublishAndRecordingFail_should_stillThrowThePublishFailure()
+        throws Exception {
+      // -------- Arrange --------
+      givenExternalInjectorReadyToPublish();
+      doThrow(new IOException("broker unreachable")).when(rabbitmqService).publish(any(), any());
+      doThrow(new IllegalStateException("no connection"))
+          .when(tenantTx)
+          .executeNew(any(TxCtx.class), any(Supplier.class));
+      TransactionSynchronizationManager.initSynchronization();
+      executor.execute(executableInject);
+      TransactionSynchronization registered =
+          TransactionSynchronizationManager.getSynchronizations().get(0);
+
+      // -------- Act & Assert --------
+      assertThatThrownBy(registered::afterCommit)
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage("Failed to publish inject after commit");
+    }
+
+    @Test
+    @DisplayName(
+        "with no transaction, a failed publish records the error in a transaction of the"
+            + " inject's tenant and rethrows the publish failure")
+    void given_noTransactionAndPublishFails_should_recordErrorThenRethrow() throws Exception {
+      // -------- Arrange --------
+      givenExternalInjectorReadyToPublish();
+      doThrow(new IOException("broker unreachable")).when(rabbitmqService).publish(any(), any());
+      doAnswer(
+              invocation -> {
+                invocation.getArgument(1, Runnable.class).run();
+                return null;
+              })
+          .when(tenantScopedJobRunner)
+          .runInTenant(eq(TENANT_ID), any(Runnable.class));
+
+      // -------- Act & Assert --------
+      assertThatThrownBy(() -> executor.execute(executableInject))
+          .isInstanceOf(IOException.class)
+          .hasMessage("broker unreachable");
+      // The status write is MANDATORY: it must run in a transaction opened for it
+      verify(tenantScopedJobRunner).runInTenant(eq(TENANT_ID), any(Runnable.class));
+      verify(injectStatusService).persistErrorStatusInTransaction(INJECT_ID, "broker unreachable");
     }
 
     @Test
@@ -529,6 +586,51 @@ class ExecutorTest {
 
       // -------- Assert: no deferral, the publish already ran --------
       verify(rabbitmqService).publish(any(), any());
+    }
+  }
+
+  @Nested
+  @DisplayName("outcome of the external publish")
+  class PublishOutcome {
+
+    @Test
+    @DisplayName("a confirmed publish saves the trace through the streaming save")
+    void given_publishConfirmed_should_saveAndStreamTheTrace() {
+      // -------- Arrange --------
+      InjectStatus injectStatus = mock(InjectStatus.class);
+      when(injectStatusRepository.findById("status-1")).thenReturn(Optional.of(injectStatus));
+
+      // -------- Act --------
+      executor.recordPublishSuccess(
+          new Executor.ExternalPublish(TENANT_ID, INJECT_ID, "status-1", "injector-1", "{}"));
+
+      // -------- Assert --------
+      verify(injectStatusService).saveAndStreamInject(injectStatus);
+      verify(injectStatusRepository, never()).save(any(InjectStatus.class));
+    }
+
+    @Test
+    @DisplayName("a publish failure with no message is recorded with the exception type")
+    void given_failureWithoutMessage_should_recordTheExceptionType() {
+      // -------- Act --------
+      executor.recordPublishFailure(
+          new Executor.ExternalPublish(TENANT_ID, INJECT_ID, "status-1", "injector-1", "{}"),
+          new TimeoutException());
+
+      // -------- Assert --------
+      verify(injectStatusService)
+          .persistErrorStatusInTransaction(
+              INJECT_ID, "Failed to publish the inject: TimeoutException");
+    }
+
+    @Test
+    @DisplayName("a batch may keep half the publisher pool in flight, at least one")
+    void given_publisherPool_should_leaveHalfOfItFree() {
+      // -------- Arrange & Act & Assert --------
+      when(rabbitmqService.getPublishThreads()).thenReturn(20);
+      assertThat(executor.maxConcurrentPublishes()).isEqualTo(10);
+      when(rabbitmqService.getPublishThreads()).thenReturn(1);
+      assertThat(executor.maxConcurrentPublishes()).isEqualTo(1);
     }
   }
 }

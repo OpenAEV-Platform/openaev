@@ -86,6 +86,10 @@ public class RabbitmqService {
 
   private ExecutorService publishExecutor;
 
+  public int getPublishThreads() {
+    return publishThreads;
+  }
+
   private final RabbitmqConfig rabbitmqConfig;
   private final ConnectionFactory connectionFactory;
   private final RabbitmqDriver rabbitmqDriver;

@@ -1,18 +1,23 @@
 package io.openaev.scheduler.jobs;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.executors.Executor;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.helper.InjectHelper;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -58,6 +63,8 @@ class InjectsExecutionJobExternalPhaseSplitTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private RowTenantScope rowTenantScope;
+  @Autowired private TenantScopedTransaction tenantTx;
+  @Autowired private InjectHelper injectHelper;
 
   @MockitoSpyBean private RabbitmqService rabbitmqService;
   @MockitoSpyBean private ConnectorInstanceService connectorInstanceService;
@@ -233,12 +240,15 @@ class InjectsExecutionJobExternalPhaseSplitTest extends IntegrationTest {
   @Test
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @DisplayName("a failure recording one inject's outcome does not abort the rest of the batch")
-  void given_recordOutcomeFailure_should_notAbortTheRestOfTheBatch() throws JobExecutionException {
+  void given_recordOutcomeFailure_should_notAbortTheRestOfTheBatch()
+      throws JobExecutionException, IOException, TimeoutException {
     // Arrange
     doReturn(true)
         .when(connectorInstanceService)
         .hasStartedConnectorInstanceForInjector(any(String.class));
     doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
+    // The broker is not under test: a healthy publish, so the recording is what fails
+    doNothing().when(rabbitmqService).publish(any(String.class), any(String.class));
     DueExternalInject failing = persistDueAtomicInject();
     DueExternalInject healthy = persistDueAtomicInject();
     doAnswer(
@@ -268,6 +278,50 @@ class InjectsExecutionJobExternalPhaseSplitTest extends IntegrationTest {
     } finally {
       sweep(failing);
       sweep(healthy);
+    }
+  }
+
+  @Test
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  @DisplayName(
+      "a publish deferred past the caller's commit that fails leaves an ERROR status and throws")
+  void given_deferredPublishFailsAfterCommit_should_recordErrorAndThrow()
+      throws IOException, TimeoutException {
+    // Arrange
+    doReturn(true)
+        .when(connectorInstanceService)
+        .hasStartedConnectorInstanceForInjector(any(String.class));
+    doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
+    doThrow(new IOException("broker unreachable"))
+        .when(rabbitmqService)
+        .publish(any(String.class), any(String.class));
+    DueExternalInject due = persistDueAtomicInject();
+
+    try {
+      // Act: the caller's own transaction, as the manual launch and the chaining step have
+      assertThatThrownBy(
+              () ->
+                  tenantTx.execute(
+                      TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+                      () -> {
+                        try {
+                          return executor.execute(
+                              injectHelper.executableInject(due.injectId()).orElseThrow());
+                        } catch (Exception e) {
+                          throw new IllegalStateException(e);
+                        }
+                      }))
+          .hasStackTraceContaining("broker unreachable");
+
+      // Assert: the caller's transaction committed, then a new one wrote the error
+      InjectStatus status = injectStatusRepository.findByInjectId(due.injectId()).orElseThrow();
+      assertThat(status.getName()).isEqualTo(ExecutionStatus.ERROR);
+      assertThat(status.getTraces())
+          .anyMatch(
+              trace ->
+                  trace.getMessage() != null && trace.getMessage().contains("broker unreachable"));
+    } finally {
+      sweep(due);
     }
   }
 }

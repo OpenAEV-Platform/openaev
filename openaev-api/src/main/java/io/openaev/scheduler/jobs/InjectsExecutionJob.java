@@ -45,6 +45,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterators;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -426,10 +427,14 @@ public class InjectsExecutionJob implements Job {
 
     // Classical inject execution only applies to non-chained simulations; chained ones are driven
     // by the workflow engine after the run is created.
+    // Published outside any transaction, so the connection pool no longer bounds the publishes in
+    // flight: the batch waits on this instead of overrunning the publisher pool.
+    Semaphore publishSlots = new Semaphore(Math.max(1, executor.maxConcurrentPublishes()));
     byExercises.entrySet().parallelStream()
         .forEach(
             entry -> {
-              entry.getValue().parallelStream().forEach(this::executeInTenant);
+              entry.getValue().parallelStream()
+                  .forEach(injectToRun -> executeInTenant(injectToRun, publishSlots));
 
               // Update the exercise once all injects of the batch are processed.
               if (!entry.getKey().equals(ATOMIC_BATCH_KEY)) {
@@ -439,7 +444,7 @@ public class InjectsExecutionJob implements Job {
             });
   }
 
-  private void executeInTenant(InjectToRun injectToRun) {
+  private void executeInTenant(InjectToRun injectToRun, Semaphore publishSlots) {
     String injectId = injectToRun.injectId();
     String tenantId = injectToRun.tenantId();
     Executor.ExecutionPhase1Result phase1;
@@ -479,7 +484,7 @@ public class InjectsExecutionJob implements Job {
     if (phase1 == null || !phase1.isPendingPublish()) {
       return;
     }
-    completeExternalPublish(tenantId, phase1.pending());
+    completeExternalPublish(tenantId, phase1.pending(), publishSlots);
   }
 
   /**
@@ -496,9 +501,15 @@ public class InjectsExecutionJob implements Job {
    *
    * <p>Phase 3 is wrapped the same way, so a failure recording one outcome never aborts the batch.
    */
-  private void completeExternalPublish(String tenantId, Executor.ExternalPublish pending) {
+  private void completeExternalPublish(
+      String tenantId, Executor.ExternalPublish pending, Semaphore publishSlots) {
     try {
-      executor.publish(pending);
+      publishSlots.acquireUninterruptibly();
+      try {
+        executor.publish(pending);
+      } finally {
+        publishSlots.release();
+      }
     } catch (Exception e) {
       log.warn(e.getMessage(), e);
       recordPublishFailureBestEffort(tenantId, pending, e);
@@ -525,7 +536,7 @@ public class InjectsExecutionJob implements Job {
             tenantId,
             () ->
                 injectStatusService.persistErrorStatusInTransaction(
-                    pending.injectId(), cause.getMessage()));
+                    pending.injectId(), Executor.failureMessage(cause)));
       } catch (Exception fallbackFailure) {
         log.warn(fallbackFailure.getMessage(), fallbackFailure);
       }
