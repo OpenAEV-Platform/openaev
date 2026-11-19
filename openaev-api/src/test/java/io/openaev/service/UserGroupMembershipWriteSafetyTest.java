@@ -13,6 +13,8 @@ import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.processor.datapack.PresetTenantData;
 import io.openaev.service.account.AdminPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
+import io.openaev.service.account.ReservedServiceAccount;
 import io.openaev.service.platform.groups.PlatformGroupService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.UserFixture;
@@ -50,6 +52,7 @@ class UserGroupMembershipWriteSafetyTest extends IntegrationTest {
   @Autowired private TenantGroupService tenantGroupService;
   @Autowired private PlatformGroupService platformGroupService;
   @Autowired private AdminPrivilegeService adminPrivilegeService;
+  @Autowired private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   @Autowired private GroupRepository groupRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private JdbcTemplate jdbc;
@@ -208,6 +211,89 @@ class UserGroupMembershipWriteSafetyTest extends IntegrationTest {
       assertThat(groupIdsOf(user.getId()))
           .containsExactlyInAnyOrder(adminGroupA.getId(), groupB.getId());
     }
+
+    @Test
+    @DisplayName("given_anSsoAdminDemotionForOneTenant_should_revokeOnlyItAndKeepTheOther")
+    void given_anSsoAdminDemotionForOneTenant_should_revokeOnlyItAndKeepTheOther() {
+      // Arrange: the user already holds tenant A's Admin group
+      Group adminGroupA =
+          tenantTx.executeAsPlatformWrite(
+              TxCtx.forTenant(tenantA),
+              () -> tenantGroupService.createGroup(PresetTenantData.ADMIN, tenantA));
+      jdbc.update(
+          "INSERT INTO users_groups (user_id, group_id) VALUES (?, ?)",
+          user.getId(),
+          adminGroupA.getId());
+
+      // Act: the real production writer, scoped to tenant A only, isAdmin = false
+      tenantTx.execute(
+          TxCtx.forTenant(tenantA), () -> userMappingService.mapAdminGroup(user, tenantA, false));
+
+      // Assert: tenant A's admin group is revoked, tenant B's row survives
+      assertThat(groupIdsOf(user.getId())).containsExactly(groupB.getId());
+    }
+
+    @Test
+    @DisplayName(
+        "given_aTokenGroupNoLongerPresent_should_revokeOnlyTheMappedGroupAndKeepTheOtherTenant")
+    void given_aTokenGroupNoLongerPresent_should_revokeOnlyTheMappedGroupAndKeepTheOtherTenant() {
+      // Arrange: a mapped group of tenant A, held by the user, the idp token no longer carries it
+      Group mappedGroupA =
+          tenantTx.executeAsPlatformWrite(
+              TxCtx.forTenant(tenantA),
+              () -> tenantGroupService.createGroup("idp-mapped", tenantA));
+      jdbc.update(
+          "INSERT INTO users_groups (user_id, group_id) VALUES (?, ?)",
+          user.getId(),
+          mappedGroupA.getId());
+      String mappingJson =
+          """
+          [{"idpGroup":"idp-group-a","userGroup":"idp-mapped","autoCreate":false,"tenantId":"%s"}]
+          """
+              .formatted(tenantA);
+
+      // Act: the real production writer, scoped to tenant A only, the token carries no group.
+      // Reloaded fresh: the SSO login always reads the user inside its own scope, never the
+      // detached instance a previous, already-closed transaction happened to load.
+      tenantTx.execute(
+          TxCtx.forTenant(tenantA),
+          () -> {
+            User freshUser = userRepository.findById(user.getId()).orElseThrow();
+            userMappingService.mapCurrentUserWithGroup(mappingJson, freshUser, List.of());
+          });
+
+      // Assert: the mapped group of tenant A is revoked, tenant B's row survives
+      assertThat(groupIdsOf(user.getId())).containsExactly(groupB.getId());
+    }
+  }
+
+  @Nested
+  @DisplayName("family: tenant detach")
+  class TenantDetach {
+
+    @Test
+    @DisplayName("given_aTenantDetached_should_revokeOnlyThatTenantsGroupsAndKeepTheOther")
+    void given_aTenantDetached_should_revokeOnlyThatTenantsGroupsAndKeepTheOther() {
+      // Arrange: the user holds a group of tenant A too, which the detach must revoke
+      Group groupA =
+          tenantTx.executeAsPlatformWrite(
+              TxCtx.forTenant(tenantA), () -> groupRepository.save(plainGroup(tenantA)));
+      jdbc.update(
+          "INSERT INTO users_groups (user_id, group_id) VALUES (?, ?)",
+          user.getId(),
+          groupA.getId());
+
+      // Act: the real production writer, leaving tenant A
+      tenantTx.execute(
+          TxCtx.forTenants(List.of(tenantA, tenantB)),
+          () -> {
+            userService.revokeTenantGroups(user.getId(), List.of(tenantA));
+            return null;
+          });
+
+      // Assert: tenant A's group is revoked, tenant B's row survives
+      assertThat(groupIdsOf(user.getId())).containsExactly(groupB.getId());
+    }
   }
 
   @Nested
@@ -224,6 +310,56 @@ class UserGroupMembershipWriteSafetyTest extends IntegrationTest {
       // Assert: tenant A's admin group is granted, tenant B's row survives
       assertThat(groupIdsOf(user.getId()))
           .containsExactlyInAnyOrder(adminGroupA.getId(), groupB.getId());
+    }
+
+    @Test
+    @DisplayName(
+        "given_aServiceAccountReplacingItsStaleGroup_should_notDropABystandersRowOfTheSameGroup")
+    void given_aServiceAccountReplacingItsStaleGroup_should_notDropABystandersRowOfTheSameGroup() {
+      // Arrange: a stale group of tenant A, held by both the service account and a bystander;
+      // makeOnlyMembershipOf is production-correct to drop the service account's own row of it
+      // (its membership must be exactly its well-known group), but a whole-bag Group.users
+      // rewrite would drop the BYSTANDER's row of the same group too.
+      Group staleGroupA =
+          tenantTx.executeAsPlatformWrite(
+              TxCtx.forTenant(tenantA), () -> groupRepository.save(plainGroup(tenantA)));
+      String serviceEmail = ReservedServiceAccount.AGENT.emailPattern().formatted(tenantA);
+      User serviceUser =
+          userRepository.save(UserFixture.getUser("service", "account", serviceEmail, false));
+      User bystander =
+          userRepository.save(
+              UserFixture.getUser(
+                  "bystander",
+                  "user",
+                  "bystander-" + UUID.randomUUID() + "@unittests.invalid",
+                  false));
+      jdbc.update(
+          "INSERT INTO users_groups (user_id, group_id) VALUES (?, ?)",
+          serviceUser.getId(),
+          staleGroupA.getId());
+      jdbc.update(
+          "INSERT INTO users_groups (user_id, group_id) VALUES (?, ?)",
+          bystander.getId(),
+          staleGroupA.getId());
+
+      try {
+        // Act: the real production writer; the account has no token yet, so
+        // applyUserServiceAttributes -> makeOnlyMembershipOf runs
+        agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+            TxCtx.forTenant(tenantA), tenantA);
+
+        // Assert: the service account's own row of the stale group is gone, the bystander's
+        // survives
+        assertThat(groupIdsOf(bystander.getId())).containsExactly(staleGroupA.getId());
+        assertThat(groupIdsOf(serviceUser.getId())).doesNotContain(staleGroupA.getId());
+      } finally {
+        jdbc.update(
+            "DELETE FROM users_groups WHERE user_id IN (?, ?)",
+            serviceUser.getId(),
+            bystander.getId());
+        jdbc.update(
+            "DELETE FROM users WHERE user_id IN (?, ?)", serviceUser.getId(), bystander.getId());
+      }
     }
   }
 
