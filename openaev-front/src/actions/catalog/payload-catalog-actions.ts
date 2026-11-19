@@ -1,5 +1,6 @@
 import { simpleCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import {
+  type AvailableActionOutput,
   type CatalogInstallAllOutput,
   type CatalogInstallOutput,
   type CatalogPayloadOutput,
@@ -13,8 +14,8 @@ const CATALOG_URI = '/api/catalog';
 const payloadUri = (externalId: string) => `${CATALOG_URI}/payloads/${encodeURIComponent(externalId)}`;
 const versionUri = (externalId: string, version: string) => `${payloadUri(externalId)}/versions/${encodeURIComponent(version)}`;
 
-export const fetchCatalogPayloads = (): Promise<CatalogPayloadOutput[]> => simpleCall(`${CATALOG_URI}/payloads`)
-  .then(({ data }: { data: CatalogPayloadOutput[] }) => data);
+export const fetchAvailableActions = (): Promise<AvailableActionOutput[]> => simpleCall(`${CATALOG_URI}/actions`)
+  .then(({ data }: { data: AvailableActionOutput[] }) => data);
 
 export const fetchCatalogPayloadVersions = (externalId: string): Promise<CatalogPayloadOutput[]> => simpleCall(`${payloadUri(externalId)}/versions`)
   .then(({ data }: { data: CatalogPayloadOutput[] }) => data);
