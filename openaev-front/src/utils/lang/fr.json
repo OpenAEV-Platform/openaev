@@ -631,6 +631,7 @@
   "Bulk select lets you add multiple actions, which you will need to configure after adding them": "La sélection en bloc vous permet d'ajouter plusieurs actions, que vous devrez configurer après les avoir ajoutées",
   "Bulk select lets you add multiple injects. They'll show as \"missing content\" until configured": "La sélection en bloc vous permet d'ajouter plusieurs injects. Ils s'afficheront comme « contenu manquant » jusqu'à ce qu'ils soient configurés",
   "By": "Par",
+  "by": "par",
   "By default we accept iso date (YYYY-MM-DD hh:mm:ss[.mmm]TZD), but you can specify your own date format in ISO notation (for instance DD.MM.YYYY hh'h'mm)": "Par défaut nous acceptons la date iso (AAAA-MM-JJ hh:mm:ss[.mmm]TZD), mais vous pouvez spécifiez votre propre format de date en notation ISO (par exemple JJ.MM.AAAA hh'h'mm)",
   "By default, only assets compliant with the injector are displayed": "Par défaut, seuls les actifs conformes à l'injecteur sont affichés",
   "By enabling the OpenAEV Enterprise Edition, you (and your organization) agrees": "En activant l'OpenAEV Enterprise Edition, vous (et votre organisation) acceptez de",
@@ -2936,6 +2937,7 @@
   "Not Prevented": "Non bloqué",
   "not provisioned by any action.": "non fournie par aucune action.",
   "Not rendered yet": "Pas encore rendue",
+  "Not responding": "Ne répond pas",
   "Not scheduled": "Non programmé",
   "Not scoped yet": "Pas encore défini",
   "not starts with": "ne commence pas par",
@@ -3499,6 +3501,7 @@
   "Run this plan for real?": "Exécuter ce plan réellement ?",
   "Running": "En cours",
   "RUNNING": "EN COURS",
+  "Running (connector)": "En fonctionnement",
   "Running the next action": "Exécution de l’action suivante",
   "Runs inside the platform": "Exécuté au sein de la plateforme",
   "Runs once on {date} at {time}": "Exécution unique le {date} à {time}",
@@ -4690,7 +4693,5 @@
   "ZIP must contain a json file": "Le fichier ZIP doit contenir un fichier JSON",
   "Zoom in": "Zoom avant",
   "Zoom out": "Zoom arrière",
-  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "Les agents ne recevront pas ses tâches en attente et il se terminera en erreur. Les commandes déjà lancées par un agent ne sont pas interrompues.",
-  "Do you want to stop this atomic testing: {title}?": "Voulez-vous arrêter ce test atomique : {title} ?",
-  "Stop execution": "Arrêter l'exécution"
+  "Always on": "Toujours actif"
 }

@@ -631,6 +631,7 @@
   "Bulk select lets you add multiple actions, which you will need to configure after adding them": "一括選択により、複数のアクションを追加することができます。",
   "Bulk select lets you add multiple injects. They'll show as \"missing content\" until configured": "一括選択により、複数のインジェクトを追加することができます。設定されるまで、これらは「コンテンツがありません」と表示されます。",
   "By": "による",
+  "by": "作成者:",
   "By default we accept iso date (YYYY-MM-DD hh:mm:ss[.mmm]TZD), but you can specify your own date format in ISO notation (for instance DD.MM.YYYY hh'h'mm)": "デフォルトでは ISO 日付形式（YYYY-MM-DDThh:mm:ss[.mmm]TZD）を受け付けますが、ISO 記法で独自の日付形式を指定することもできます（例：DD.MM.YYYY hh'h'mm）",
   "By default, only assets compliant with the injector are displayed": "デフォルトでは、インジェクターに対応したアセットのみが表示されます",
   "By enabling the OpenAEV Enterprise Edition, you (and your organization) agrees": "OpenAEV Enterprise Edition を有効にすることで、あなた（およびあなたの組織）は以下のことに同意します。",
@@ -2936,6 +2937,7 @@
   "Not Prevented": "防止されず",
   "not provisioned by any action.": "どのアクションによっても提供されていません。",
   "Not rendered yet": "未レンダリング",
+  "Not responding": "応答なし",
   "Not scheduled": "予定なし",
   "Not scoped yet": "まだスコープ設定されていません",
   "not starts with": "で始まらない",
@@ -3499,6 +3501,7 @@
   "Run this plan for real?": "この計画を実際に実行しますか？",
   "Running": "実行中",
   "RUNNING": "RUNNING",
+  "Running (connector)": "実行中",
   "Running the next action": "次のアクションを実行中",
   "Runs inside the platform": "プラットフォーム内で実行",
   "Runs once on {date} at {time}": "{date} の {time} に1回実行されます",
@@ -4690,7 +4693,5 @@
   "ZIP must contain a json file": "ZIPファイルにはjsonファイルが含まれている必要があります",
   "Zoom in": "ズームイン",
   "Zoom out": "ズームアウト",
-  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "エージェントは保留中のジョブを受け取らず、テストはエラーで終了します。エージェントがすでに開始したコマンドは中断されません。",
-  "Do you want to stop this atomic testing: {title}?": "このアトミックテストを停止しますか: {title}?",
-  "Stop execution": "実行を停止"
+  "Always on": "常時稼働"
 }

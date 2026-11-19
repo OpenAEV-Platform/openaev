@@ -631,6 +631,7 @@
   "Bulk select lets you add multiple actions, which you will need to configure after adding them": "批量选择可让您添加多个操作，添加后需要对其进行配置",
   "Bulk select lets you add multiple injects. They'll show as \"missing content\" until configured": "批量选择可让您添加多个注入。在配置之前，它们将显示为\"缺失内容\"。",
   "By": "由",
+  "by": "作者:",
   "By default we accept iso date (YYYY-MM-DD hh:mm:ss[.mmm]TZD), but you can specify your own date format in ISO notation (for instance DD.MM.YYYY hh'h'mm)": "默認情況下，我哋接受iso日期（ YYYY-MM-DDThh：mm：ss[.mmm]TZD ），但你可以用ISO表示法指定自己嘅日期格式（例如DD.MM.YYYY hh'h'mm ）",
   "By default, only assets compliant with the injector are displayed": "默认情况下,只显示符合注入器要求的资产",
   "By enabling the OpenAEV Enterprise Edition, you (and your organization) agrees": "通过启用 OpenAEV 企业版，您（和您的组织）同意",
@@ -2936,6 +2937,7 @@
   "Not Prevented": "未预防",
   "not provisioned by any action.": "未由任何操作提供。",
   "Not rendered yet": "尚未渲染",
+  "Not responding": "无响应",
   "Not scheduled": "未计划",
   "Not scoped yet": "尚未确定范围",
   "not starts with": "不开始于",
@@ -3499,6 +3501,7 @@
   "Run this plan for real?": "是否实际运行此计划？",
   "Running": "运行中",
   "RUNNING": "RUNNING",
+  "Running (connector)": "运行中",
   "Running the next action": "正在执行下一项操作",
   "Runs inside the platform": "在平台内部运行",
   "Runs once on {date} at {time}": "将于 {date} {time} 运行一次",
@@ -4690,7 +4693,5 @@
   "ZIP must contain a json file": "ZIP 文件必须包含一个 JSON 文件",
   "Zoom in": "放大",
   "Zoom out": "缩小",
-  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "代理将不会收到其待处理的作业，测试将以错误结束。代理已启动的命令不会被中断。",
-  "Do you want to stop this atomic testing: {title}?": "是否停止此原子测试：{title}？",
-  "Stop execution": "停止执行"
+  "Always on": "始终运行"
 }

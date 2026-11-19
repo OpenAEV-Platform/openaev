@@ -631,6 +631,7 @@
   "Bulk select lets you add multiple actions, which you will need to configure after adding them": "Массовый выбор позволяет добавить несколько действий, которые необходимо настроить после добавления",
   "Bulk select lets you add multiple injects. They'll show as \"missing content\" until configured": "Массовый выбор позволяет добавить несколько инъекций. Они будут отображаться как \"отсутствующее содержимое\", пока не будут настроены",
   "By": "По",
+  "by": "от",
   "By default we accept iso date (YYYY-MM-DD hh:mm:ss[.mmm]TZD), but you can specify your own date format in ISO notation (for instance DD.MM.YYYY hh'h'mm)": "По умолчанию мы принимаем iso дату (YYYY-MM-DDThh:mm:ss[.mmm]TZD), но вы можете указать свой собственный формат даты в нотации ISO (например, DD.MM.YYYY hh'h'mm)",
   "By default, only assets compliant with the injector are displayed": "По умолчанию отображаются только активы, совместимые с инжектором",
   "By enabling the OpenAEV Enterprise Edition, you (and your organization) agrees": "Включая OpenAEV Enterprise Edition, вы (и ваша организация) соглашаетесь с тем, что",
@@ -2936,6 +2937,7 @@
   "Not Prevented": "Не предотвращено",
   "not provisioned by any action.": "не определяется никаким действием.",
   "Not rendered yet": "Ещё не отрендерено",
+  "Not responding": "Не отвечает",
   "Not scheduled": "Не запланировано",
   "Not scoped yet": "Ещё не включено в область действия",
   "not starts with": "не начинается с",
@@ -3499,6 +3501,7 @@
   "Run this plan for real?": "Запустить этот план в реальных условиях?",
   "Running": "Продолжение",
   "RUNNING": "RUNNING",
+  "Running (connector)": "Работает",
   "Running the next action": "Выполнение следующего действия",
   "Runs inside the platform": "Работает внутри платформы",
   "Runs once on {date} at {time}": "Однократный запуск {date} в {time}",
@@ -4690,7 +4693,5 @@
   "ZIP must contain a json file": "Архив ZIP должен содержать файл JSON",
   "Zoom in": "Приблизить",
   "Zoom out": "Отдалить",
-  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "Агенты не получат его ожидающие задания, и тест завершится с ошибкой. Команды, уже запущенные агентом, не прерываются.",
-  "Do you want to stop this atomic testing: {title}?": "Остановить этот атомарный тест: {title}?",
-  "Stop execution": "Остановить выполнение"
+  "Always on": "Всегда работает"
 }

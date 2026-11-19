@@ -631,6 +631,7 @@
   "Bulk select lets you add multiple actions, which you will need to configure after adding them": "Bulk select lets you add multiple actions, which you will need to configure after adding them",
   "Bulk select lets you add multiple injects. They'll show as \"missing content\" until configured": "Bulk select lets you add multiple injects. They'll show as \"missing content\" until configured",
   "By": "By",
+  "by": "by",
   "By default we accept iso date (YYYY-MM-DD hh:mm:ss[.mmm]TZD), but you can specify your own date format in ISO notation (for instance DD.MM.YYYY hh'h'mm)": "By default we accept iso date (YYYY-MM-DDThh:mm:ss[.mmm]TZD), but you can specify your own date format in ISO notation (for instance DD.MM.YYYY hh'h'mm)",
   "By default, only assets compliant with the injector are displayed": "By default, only assets compliant with the injector are displayed",
   "By enabling the OpenAEV Enterprise Edition, you (and your organization) agrees": "By enabling the OpenAEV Enterprise Edition, you (and your organization) agrees",
@@ -2936,6 +2937,7 @@
   "Not Prevented": "Not Prevented",
   "not provisioned by any action.": "not provisioned by any action.",
   "Not rendered yet": "Not rendered yet",
+  "Not responding": "Not responding",
   "Not scheduled": "Not scheduled",
   "Not scoped yet": "Not scoped yet",
   "not starts with": "not starts with",
@@ -3499,6 +3501,7 @@
   "Run this plan for real?": "Run this plan for real?",
   "Running": "On-going",
   "RUNNING": "RUNNING",
+  "Running (connector)": "Running",
   "Running the next action": "Running the next action",
   "Runs inside the platform": "Runs inside the platform",
   "Runs once on {date} at {time}": "Runs once on {date} at {time}",
@@ -4690,7 +4693,5 @@
   "ZIP must contain a json file": "ZIP must contain a json file",
   "Zoom in": "Zoom in",
   "Zoom out": "Zoom out",
-  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.",
-  "Do you want to stop this atomic testing: {title}?": "Do you want to stop this atomic testing: {title}?",
-  "Stop execution": "Stop execution"
+  "Always on": "Always on"
 }
