@@ -36,8 +36,6 @@ import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
-import EntityGraph from '../../graph/EntityGraph';
-import ExploreInGraphButton from '../../graph/ExploreInGraphButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import ExpectationList from '../ExpectationList';
@@ -99,7 +97,7 @@ const AssetGroupDetail = () => {
   // charts without eating vertical space on the main tab. Tabs are routed
   // (/admin/asset_groups/:id[/statistics]) so they can be deep-linked like the
   // atomic testing and scenario tabs.
-  const { currentTab, handleChangeTab } = useRoutedTabs(['overview', 'graph', 'statistics'], 'overview');
+  const { currentTab, handleChangeTab } = useRoutedTabs(['overview', 'statistics'], 'overview');
 
   // Injects played: the same scoped search as the hero count above, but
   // server-paginated for the full list section below.
@@ -197,7 +195,6 @@ const AssetGroupDetail = () => {
         title={assetGroup.asset_group_name}
         action={(
           <>
-            <ExploreInGraphButton type="ASSET_GROUP" entityId={assetGroupId} />
             {/* Entity-scoped reports - self-hides without the reporting
                 access capability. */}
             <EntityReportsPanel
@@ -240,10 +237,6 @@ const AssetGroupDetail = () => {
             label: t('Overview'),
           },
           {
-            key: 'graph',
-            label: t('Graph'),
-          },
-          {
             key: 'statistics',
             label: t('Statistics'),
           },
@@ -251,8 +244,6 @@ const AssetGroupDetail = () => {
         currentTab={currentTab}
         onChange={handleChangeTab}
       />
-
-      {currentTab === 'graph' && <EntityGraph type="ASSET_GROUP" entityId={assetGroupId} variant="embedded" />}
 
       {currentTab === 'statistics' && (
         // Two simple 50/50 time series: the posture-score evolution (same
@@ -286,12 +277,6 @@ const AssetGroupDetail = () => {
               {computeRuleValues(assetGroup, t)}
             </SectionBlock>
           </DetailSections>
-
-          {/* Mini graph: the group, its member assets and their findings, result coloured; a
-              click opens the Graph page focused on the group. */}
-          <SectionBlock title={t('Graph')}>
-            <EntityGraph type="ASSET_GROUP" entityId={assetGroupId} variant="mini" />
-          </SectionBlock>
 
           <SectionBlock title={t('Assets')}>
             <PaginationComponentV2
