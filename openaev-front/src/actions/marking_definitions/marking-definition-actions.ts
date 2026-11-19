@@ -1,13 +1,14 @@
 import type { Dispatch } from 'redux';
 
-import { type ImportReport } from '../../components/common/import/import-report-types';
+import { ImportFileError } from '../../components/common/import/import-report-types';
 import { delReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
 import {
+  type ImportReport,
   type MarkingDefinitionInput,
   type SearchPaginationInput,
 } from '../../utils/api-types';
+import { type Error as ApiError, notifyErrorHandler } from '../../utils/error/errorHandlerUtil';
 import * as schema from '../Schema';
-import { mockExportMarkingDefinitions, mockImportMarkingDefinitions } from './marking-definition-import-mock';
 
 const MARKING_DEFINITIONS_URI = '/api/marking_definitions';
 
@@ -48,33 +49,34 @@ export const deleteMarkingDefinition = (markingDefinitionId: string) => (dispatc
 
 // -- EXPORT / IMPORT --
 
-// The export/import endpoints are not implemented yet (issue #8690): while this is true, both calls
-// are answered by marking-definition-import-mock.ts. Set to false and delete the mock once the
-// backend is in.
-export const USE_MOCK_IMPORT_EXPORT = true;
-
-export const exportMarkingDefinitions = (): Promise<{
+// Exports what the list currently shows: the search input of the list, without its paging.
+export const exportMarkingDefinitions = (searchPaginationInput: SearchPaginationInput): Promise<{
   data: string;
   filename: string;
 }> => {
-  if (USE_MOCK_IMPORT_EXPORT) {
-    return mockExportMarkingDefinitions(searchMarkingDefinitions);
-  }
-  return simpleCall(`${MARKING_DEFINITIONS_URI}/export`).then((response) => {
+  return simplePostCall(`${MARKING_DEFINITIONS_URI}/export/csv`, searchPaginationInput).then((response) => {
     return {
       data: response.data,
-      filename: response.headers['content-disposition'].split('filename=')[1],
+      filename: response.headers['content-disposition']?.split('filename=')[1] ?? 'MarkingDefinitions.csv',
     };
   });
 };
 
+// A 400 is a file-level failure (empty file, missing column, too big...): the generic error
+// notification is turned off for it, the message is shown in the report dialog as an
+// ImportFileError. Any other failure keeps the generic notification.
 export const importMarkingDefinitions = (file: File): Promise<ImportReport> => {
-  if (USE_MOCK_IMPORT_EXPORT) {
-    return mockImportMarkingDefinitions(file, searchMarkingDefinitions);
-  }
   const formData = new FormData();
   formData.append('file', file);
-  return simplePostCall(`${MARKING_DEFINITIONS_URI}/import`, formData).then(response => response.data);
+  return simplePostCall(`${MARKING_DEFINITIONS_URI}/import/csv`, formData, undefined, false)
+    .then(response => response.data)
+    .catch((error: ApiError) => {
+      if (error.status === 400 && error.message) {
+        throw new ImportFileError(error.message);
+      }
+      notifyErrorHandler(error);
+      throw error;
+    });
 };
 
 // -- OPTIONS --

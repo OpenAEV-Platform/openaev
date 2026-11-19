@@ -6,7 +6,7 @@ Complements `implementation-plan.md`, which deferred import/export (section 2, "
 
 A user holding the access marking definitions capability exports the tenant's marking definitions to a CSV file, and a user holding the manage marking definitions capability imports a compatible CSV file into another tenant or instance. The import is one step, partial, and never overwrites. The UI shows a per-row report, including every conflicting row.
 
-Out of scope: marking assignments to assets, roles and groups. Compatibility with the OpenCTI file format: a separate issue (the OpenCTI example is not consistent for now); here the format is the CSV of section 4, the same CSV as the other lists of the platform. Clearance on the import follows the rule the manual create already applies (D14): a row above the caller's clearance is skipped with the reason `INSUFFICIENT_ACCESS`. The export mirrors the list (`search`) and adds no clearance narrowing of its own (D12).
+Out of scope: Compatibility with the OpenCTI file format: a separate issue (the OpenCTI example is not consistent for now); here the format is the CSV of section 4, the same CSV as the other lists of the platform. Clearance on the import follows the rule the manual create already applies (D14): a row above the caller's clearance is skipped with the reason `INSUFFICIENT_ACCESS`. The export mirrors the list (`search`) and adds no clearance narrowing of its own (D12).
 
 ## 2) Decisions
 
@@ -207,6 +207,7 @@ To change:
 - After a successful import the list reloads (`onImported`, already wired to `setReloadContentCount`).
 - i18n: every new string through `t()`, keys in English, added to the language files that the repo requires.
 - Flag and permission: the page is already masked when `MARKING` is off (`SecurityMenu`, `isFeatureEnabled('MARKING')`), the import button is inside `Can MANAGE` and the export button inside `Can ACCESS`.
+
 ## 8) Open points (not blocking the plan)
 
 Follow-up, separate issue: OpenCTI compatibility (file shape, columns). The `MarkingRow` boundary (D6) keeps that change local to the parser and `MarkingDefinitionCsvRow`.

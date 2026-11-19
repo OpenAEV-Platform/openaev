@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { skippedRowsOf, skippedRowsToJson } from '../../../../components/common/import/import-report-helpers';
-import { type ImportReport } from '../../../../components/common/import/import-report-types';
+import { skippedRowsOf, skippedRowsToCsv } from '../../../../components/common/import/import-report-helpers';
+import { type ImportReport } from '../../../../utils/api-types';
 
 // A report that has nothing to do with markings: other fields, other reason codes.
 const report: ImportReport = {
@@ -49,6 +49,15 @@ const report: ImportReport = {
   ],
 };
 
+const withRow = (values: Record<string, string>): ImportReport => ({
+  ...report,
+  import_rows: [{
+    import_row_position: 1,
+    import_row_status: 'SKIPPED',
+    import_row_values: values,
+  }],
+});
+
 describe('skippedRowsOf', () => {
   it('keeps only the skipped rows, not the created or ignored ones', () => {
     // Act
@@ -59,31 +68,18 @@ describe('skippedRowsOf', () => {
   });
 });
 
-describe('skippedRowsToJson', () => {
-  it('writes a JSON array of the values of the skipped rows only, with the report fields as keys', () => {
+describe('skippedRowsToCsv', () => {
+  it('writes the report fields as the header, then one line per skipped row only', () => {
     // Act
-    const json = JSON.parse(skippedRowsToJson(report));
+    const lines = skippedRowsToCsv(report).split('\r\n');
 
     // Assert
-    expect(json).toEqual([
-      {
-        name: 'broken',
-        url: 'nope',
-      },
-      {
-        name: '=SUM(A1)',
-        url: '',
-      },
+    expect(lines).toEqual([
+      'name,url',
+      'broken,nope',
+      '\'=SUM(A1),',
+      '',
     ]);
-  });
-
-  it('keeps a value as the user wrote it, and leaves a missing value as an empty string', () => {
-    // Act
-    const [, second] = JSON.parse(skippedRowsToJson(report));
-
-    // Assert
-    expect(second.name).toBe('=SUM(A1)');
-    expect(second.url).toBe('');
   });
 
   it('follows the order of the report fields, even when a row lists them differently', () => {
@@ -94,9 +90,62 @@ describe('skippedRowsToJson', () => {
     };
 
     // Act
-    const [first] = JSON.parse(skippedRowsToJson(reordered));
+    const [header, first] = skippedRowsToCsv(reordered).split('\r\n');
 
     // Assert
-    expect(Object.keys(first)).toEqual(['url', 'name']);
+    expect(header).toBe('url,name');
+    expect(first).toBe('nope,broken');
+  });
+
+  it('leaves a missing value as an empty cell', () => {
+    // Act
+    const [, line] = skippedRowsToCsv(withRow({ name: 'only-name' })).split('\r\n');
+
+    // Assert
+    expect(line).toBe('only-name,');
+  });
+
+  it('quotes a value holding the separator, a quote or a line break', () => {
+    // Act
+    const csv = skippedRowsToCsv(withRow({
+      name: 'a,b',
+      url: 'say "hi"\nnow',
+    }));
+
+    // Assert
+    expect(csv).toContain('"a,b","say ""hi""\nnow"');
+  });
+
+  it.each(['=', '+', '-', '@', '\t', '\r'])('neutralises a value starting with %j against spreadsheet formulas', (start) => {
+    // Act
+    const csv = skippedRowsToCsv(withRow({
+      name: `${start}x`,
+      url: 'safe',
+    }));
+
+    // Assert
+    expect(csv).toContain(`'${start}x`);
+  });
+
+  it('puts one more quote in front of a value that already starts with quotes before a formula start', () => {
+    // Act
+    const csv = skippedRowsToCsv(withRow({
+      name: '\'=x',
+      url: '\'TLP',
+    }));
+
+    // Assert
+    expect(csv).toContain('\'\'=x,\'TLP');
+  });
+
+  it('does not touch a value that cannot be read as a formula', () => {
+    // Act
+    const csv = skippedRowsToCsv(withRow({
+      name: 'TLP:AMBER',
+      url: '#ffc107',
+    }));
+
+    // Assert
+    expect(csv).toContain('TLP:AMBER,#ffc107');
   });
 });

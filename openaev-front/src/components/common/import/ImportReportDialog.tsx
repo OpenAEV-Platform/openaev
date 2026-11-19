@@ -3,11 +3,11 @@ import { Button, Chip } from '@filigran/design-system';
 import { Alert, Dialog, DialogActions, DialogContent, DialogTitle, useTheme } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
+import { type ImportReport } from '../../../utils/api-types';
 import { download } from '../../../utils/utils';
 import { useFormatter } from '../../i18n';
 import Transition from '../Transition';
-import { skippedRowsOf, skippedRowsToJson } from './import-report-helpers';
-import { type ImportReport } from './import-report-types';
+import { skippedRowsOf, skippedRowsToCsv } from './import-report-helpers';
 
 type ReasonSeverity = 'medium' | 'critical';
 
@@ -33,8 +33,6 @@ interface Props {
   // The report of a file that was read, or the message of a file-level failure. One of the two.
   report: ImportReport | null;
   fileError?: string | null;
-  // Optional info banner, for example to flag a mocked backend.
-  notice?: string;
   // Translated label of each field of a row, by field name. A field without label shows its name.
   columnLabels?: Record<string, string>;
   // Translated label of each reason code. A code without label shows the code.
@@ -51,7 +49,6 @@ const ImportReportDialog: FunctionComponent<Props> = ({
   title,
   report,
   fileError = null,
-  notice,
   columnLabels = {},
   reasonLabels = {},
   reasonSeverities = {},
@@ -81,10 +78,9 @@ const ImportReportDialog: FunctionComponent<Props> = ({
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         <div style={contentStyle}>
-          {notice && <Alert severity="info">{notice}</Alert>}
           {fileError && (
             <Alert severity="error">
-              {`${t('The file was not imported.')} ${fileError}`}
+              {`${t('The file was not imported.')} ${t(fileError)}`}
             </Alert>
           )}
           {report && (
@@ -149,7 +145,7 @@ const ImportReportDialog: FunctionComponent<Props> = ({
           <Button
             type="button"
             priority="secondary"
-            onClick={() => download(skippedRowsToJson(report), downloadFileName, 'application/json')}
+            onClick={() => download(skippedRowsToCsv(report), downloadFileName, 'text/csv')}
           >
             {t('Download skipped rows')}
           </Button>

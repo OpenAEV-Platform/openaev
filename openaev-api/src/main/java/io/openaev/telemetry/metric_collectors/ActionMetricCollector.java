@@ -123,6 +123,11 @@ public class ActionMetricCollector {
     log.info("Increment Marking Definition Created Counter");
   }
 
+  public void addMarkingDefinitionCreatedCount(int count) {
+    markingDefinitionCreatedCount.addAndGet(count);
+    log.info("Increment Marking Definition Created Counter by {}", count);
+  }
+
   public void addMarkingDefinitionUpdatedCount() {
     markingDefinitionUpdatedCount.incrementAndGet();
     log.info("Increment Marking Definition Updated Counter");

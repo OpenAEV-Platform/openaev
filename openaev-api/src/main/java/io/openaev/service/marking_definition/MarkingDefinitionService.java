@@ -4,10 +4,13 @@ import static io.openaev.database.specification.MarkingDefinitionSpecification.t
 import static io.openaev.database.specification.MarkingDefinitionSpecification.tenantSpecification;
 import static io.openaev.database.specification.MarkingDefinitionSpecification.typeSpecification;
 import static io.openaev.service.marking.MarkingEscalationValidator.assertCanDefineMarking;
+import static io.openaev.service.marking_definition.MarkingDefinitionFactory.buildEntity;
+import static io.openaev.service.marking_definition.MarkingDefinitionFactory.normalize;
+import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.annotation.AllowRawJdbc;
-import io.openaev.api.marking_definition.MarkingDefinitionMapper;
 import io.openaev.api.marking_definition.form.MarkingDefinitionInput;
 import io.openaev.config.AllTablesWithMarkingIds;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
@@ -15,23 +18,26 @@ import io.openaev.context.MarkingCtx;
 import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.MarkingDefinition;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.FileTooBigException;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.TenantGroupService;
+import io.openaev.service.import_report.ImportResult;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -40,6 +46,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
 @Service
 @RequiredArgsConstructor
@@ -53,6 +61,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
             + " another tenant's rows in the first place - the id itself is what scopes the update.")
 public class MarkingDefinitionService {
 
+  private static final long MAX_IMPORT_FILE_SIZE = 1024 * 1024;
+  private static final String IMPORT_FILE_EXTENSION = "csv";
+
   private final MarkingDefinitionRepository repository;
   private final ActionMetricCollector actionMetricCollector;
   private final AllTablesWithMarkingIds allTablesWithMarkingIds;
@@ -60,6 +71,7 @@ public class MarkingDefinitionService {
   private final MarkingScopeSupplier markingScopeSupplier;
   private final JdbcTemplate jdbcTemplate;
   private final TenantGroupService tenantGroupService;
+  private final PreviewFeatureService previewFeatureService;
 
   // -- SEARCH --
 
@@ -228,16 +240,96 @@ public class MarkingDefinitionService {
       assertWithinOwnClearance(tenantId, type, input.order(), userId);
     }
     validateUniqueOrThrow(type, definition, tenantId, null);
-    MarkingDefinition entity = MarkingDefinitionMapper.fromInput(input);
-    entity.setType(type);
-    entity.setDefinition(definition);
-    entity.setProtectedDefinition(false);
-    entity.setTenant(new Tenant(tenantId));
-    MarkingDefinition saved = repository.save(entity);
+    MarkingDefinition saved =
+        repository.save(buildEntity(tenantId, type, definition, input.color(), input.order()));
     tenantGroupService.grantToAutoNewMarkingGroups(saved);
     markingClearanceCacheManager.evictAll();
     runAfterCommit(actionMetricCollector::addMarkingDefinitionCreatedCount);
     return saved;
+  }
+
+  // -- EXPORT --
+
+  /**
+   * Lists the marking definitions of one tenant matching the filter and the text search of the
+   * input, without paging: what {@link #search} lists for the same input, sorted by type then
+   * order.
+   */
+  @Transactional(readOnly = true)
+  public List<MarkingDefinition> exportAll(
+      @NotBlank String tenantId, @NotNull SearchPaginationInput input) {
+    Specification<MarkingDefinition> filter = computeFilterGroupJpa(input.getFilterGroup());
+    Specification<MarkingDefinition> search = computeSearchJpa(input.getTextSearch());
+    return repository.findAll(
+        restrictedToTenants(Set.of(tenantId), filter.and(search)), Sort.by("type", "order"));
+  }
+
+  // -- IMPORT --
+
+  public void assertFeatureEnabled() {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)) {
+      throw new ElementNotFoundException("Marking definitions are not available");
+    }
+  }
+
+  public void validateUploadedFile(@NotNull MultipartFile file) {
+    if (!IMPORT_FILE_EXTENSION.equalsIgnoreCase(
+        FilenameUtils.getExtension(file.getOriginalFilename()))) {
+      throw new UnsupportedMediaTypeException(
+          "Only the following file type is accepted : " + IMPORT_FILE_EXTENSION);
+    }
+    if (file.getSize() > MAX_IMPORT_FILE_SIZE) {
+      throw new FileTooBigException("File size cannot be greater than 1 Mb");
+    }
+  }
+
+  /**
+   * Creates the valid rows of an imported file and reports what became of every row. A bad row
+   * never throws, so it cannot roll the batch back: it is skipped and listed in the result. Nothing
+   * is ever overwritten.
+   *
+   * <p>The clearance of the caller is the one of {@link #create}, read once before the batch: a
+   * marking created by the file never widens it.
+   *
+   * <p>Two imports of the same key at the same time can both pass the in-memory check; the second
+   * then fails on the unique index and its whole batch rolls back, leaving nothing half-written.
+   *
+   * @param userId the caller, whose clearance bounds the order of the rows
+   */
+  public ImportResult importAll(
+      @NotBlank String tenantId, @NotBlank String userId, @NotNull List<MarkingRow> rows) {
+    List<MarkingDefinition> existing = repository.findAllByTenantId(tenantId);
+    MarkingImportBatch batch =
+        new MarkingImportBatch(tenantId, existing, heldBy(tenantId, userId, existing));
+    ImportResult result = batch.importRows(rows);
+    saveCreated(batch.created());
+    return result;
+  }
+
+  // Null when the caller holds every level.
+  private List<MarkingDefinition> heldBy(
+      String tenantId, String userId, List<MarkingDefinition> existing) {
+    if (User.ADMIN_UUID.equals(userId)) {
+      return null;
+    }
+    return switch (markingClearanceCacheManager.findClearance(userId, tenantId)) {
+      case MarkingCtx.None ignored -> List.of();
+      case MarkingCtx.Restricted restricted -> {
+        Set<String> ids = Set.copyOf(restricted.markingIds());
+        yield existing.stream().filter(marking -> ids.contains(marking.getId())).toList();
+      }
+      case MarkingCtx.All ignored -> null;
+    };
+  }
+
+  private void saveCreated(List<MarkingDefinition> created) {
+    if (created.isEmpty()) {
+      return;
+    }
+    repository.saveAll(created);
+    tenantGroupService.grantToAutoNewMarkingGroups(created);
+    markingClearanceCacheManager.evictAll();
+    runAfterCommit(() -> actionMetricCollector.addMarkingDefinitionCreatedCount(created.size()));
   }
 
   // -- UPDATE --
@@ -385,13 +477,11 @@ public class MarkingDefinitionService {
     }
   }
 
-  /**
-   * Canonicalizes to upper-case so {@code type} is never compared case-sensitively downstream:
-   * {@link io.openaev.config.MarkingScopeResolver} groups a caller's clearance by {@code type} in a
-   * plain {@code HashMap}.
-   */
-  private static String normalize(String value) {
-    return value == null ? null : value.trim().toUpperCase(Locale.ROOT);
+  // The one restriction every list of marking definitions goes through, so what narrows `search`
+  // narrows the export with it.
+  private static Specification<MarkingDefinition> restrictedToTenants(
+      Set<String> tenantIds, Specification<MarkingDefinition> specification) {
+    return tenantSpecification(tenantIds).and(specification);
   }
 
   private Page<MarkingDefinition> findAllByTenantIds(
@@ -401,6 +491,6 @@ public class MarkingDefinitionService {
     if (tenantIds.isEmpty()) {
       return Page.empty(pageable);
     }
-    return repository.findAll(tenantSpecification(tenantIds).and(specification), pageable);
+    return repository.findAll(restrictedToTenants(tenantIds, specification), pageable);
   }
 }

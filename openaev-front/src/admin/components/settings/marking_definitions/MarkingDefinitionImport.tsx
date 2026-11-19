@@ -1,14 +1,12 @@
-import { Button } from '@filigran/design-system';
 import { type FunctionComponent, useState } from 'react';
 
-import { importMarkingDefinitions, USE_MOCK_IMPORT_EXPORT } from '../../../../actions/marking_definitions/marking-definition-actions';
-import { buildMockConflictSampleJson } from '../../../../actions/marking_definitions/marking-definition-import-mock';
+import { importMarkingDefinitions } from '../../../../actions/marking_definitions/marking-definition-actions';
 import { type MarkingDefinitionImportRowReason } from '../../../../actions/marking_definitions/marking-definition-import-types';
-import { ImportFileError, type ImportReport } from '../../../../components/common/import/import-report-types';
+import { ImportFileError } from '../../../../components/common/import/import-report-types';
 import ImportReportDialog from '../../../../components/common/import/ImportReportDialog';
 import ImportUploader from '../../../../components/common/ImportUploader';
 import { useFormatter } from '../../../../components/i18n';
-import { download } from '../../../../utils/utils';
+import { type ImportReport } from '../../../../utils/api-types';
 
 interface Props { onImported: () => void }
 
@@ -21,9 +19,11 @@ const MarkingDefinitionImport: FunctionComponent<Props> = ({ onImported }) => {
 
   const reasonLabels: Record<MarkingDefinitionImportRowReason, string> = {
     MISSING_FIELD: t('Missing value'),
+    VALUE_TOO_LONG: t('Value too long'),
     INVALID_COLOR: t('Invalid colour'),
     INVALID_ORDER: t('Invalid order'),
     CONFLICT: t('Conflict'),
+    INSUFFICIENT_ACCESS: t('Insufficient access'),
   };
 
   const handleUpload = (_formData: FormData, file: File) => {
@@ -39,8 +39,8 @@ const MarkingDefinitionImport: FunctionComponent<Props> = ({ onImported }) => {
         }
       })
       .catch((error: unknown) => {
-        // A file-level failure (invalid JSON, too big...) imports nothing: show it in the report
-        // dialog. Any other failure was already notified by the API layer.
+        // A file-level failure (empty file, missing column, too big...) imports nothing: show it in
+        // the report dialog. Any other failure was already notified by the API layer.
         if (error instanceof ImportFileError) {
           setFileError(error.message);
           setOpen(true);
@@ -51,19 +51,10 @@ const MarkingDefinitionImport: FunctionComponent<Props> = ({ onImported }) => {
 
   return (
     <>
-      {USE_MOCK_IMPORT_EXPORT && (
-        <Button
-          type="button"
-          priority="tertiary"
-          onClick={() => download(buildMockConflictSampleJson(), 'MarkingDefinitionsSampleWithConflicts.json', 'application/json')}
-        >
-          {t('Mock: sample file with conflicts')}
-        </Button>
-      )}
       <ImportUploader
         title={t('Import marking definitions')}
         handleUpload={handleUpload}
-        fileAccepted=".json"
+        fileAccepted=".csv"
         disabled={loading}
       />
       <ImportReportDialog
@@ -72,7 +63,6 @@ const MarkingDefinitionImport: FunctionComponent<Props> = ({ onImported }) => {
         title={t('Import marking definitions')}
         report={report}
         fileError={fileError}
-        notice={USE_MOCK_IMPORT_EXPORT ? t('Mock backend: the file was checked with the import rules, but nothing was saved.') : undefined}
         columnLabels={{
           type: t('Type'),
           definition: t('Definition'),
@@ -80,8 +70,11 @@ const MarkingDefinitionImport: FunctionComponent<Props> = ({ onImported }) => {
           order: t('Order'),
         }}
         reasonLabels={reasonLabels}
-        reasonSeverities={{ CONFLICT: 'medium' }}
-        downloadFileName="MarkingDefinitionsSkipped.json"
+        reasonSeverities={{
+          CONFLICT: 'medium',
+          INSUFFICIENT_ACCESS: 'medium',
+        }}
+        downloadFileName="MarkingDefinitionsSkipped.csv"
       />
     </>
   );

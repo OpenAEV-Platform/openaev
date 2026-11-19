@@ -352,6 +352,20 @@ public class TenantGroupService {
         .forEach(group -> grantMissingMarkings(group, List.of(marking)));
   }
 
+  /**
+   * Same as {@link #grantToAutoNewMarkingGroups(MarkingDefinition)} for a batch of markings of one
+   * tenant: one query for the groups, one grant per group.
+   */
+  public void grantToAutoNewMarkingGroups(@NotNull final Collection<MarkingDefinition> markings) {
+    if (markings.isEmpty()) {
+      return;
+    }
+    String tenantId = markings.iterator().next().getTenant().getId();
+    groupRepository
+        .findAllByTenantIdAndAutoNewMarkingTrue(tenantId)
+        .forEach(group -> grantMissingMarkings(group, markings));
+  }
+
   /** Makes the group receive every marking of its tenant, existing and future. */
   public void receiveEveryMarking(@NotBlank final String tenantId, @NotNull final Group group) {
     receiveEveryMarking(group, markingDefinitionRepository.findAllByTenantId(tenantId));
@@ -416,7 +430,7 @@ public class TenantGroupService {
         markingClearanceCacheManager.findClearance(user.getId(), tenantId), markings);
   }
 
-  private void grantMissingMarkings(Group group, List<MarkingDefinition> markings) {
+  private void grantMissingMarkings(Group group, Collection<MarkingDefinition> markings) {
     if (!group.getMarkings().addAll(markings)) {
       return;
     }

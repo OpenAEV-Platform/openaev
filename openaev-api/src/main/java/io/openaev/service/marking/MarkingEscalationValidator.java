@@ -68,13 +68,26 @@ public final class MarkingEscalationValidator {
    */
   public static void assertCanDefineMarking(
       Collection<MarkingDefinition> held, String type, int order) {
-    OptionalInt highestHeld =
-        held.stream()
-            .filter(definition -> type.equals(definition.getType()))
-            .mapToInt(MarkingDefinition::getOrder)
-            .max();
-    if (highestHeld.isEmpty() || order > highestHeld.getAsInt()) {
+    if (!isWithinClearance(held, type, order)) {
       throw new ForbiddenException("Cannot define a marking above your own clearance");
     }
+  }
+
+  /**
+   * The rule of {@link #assertCanDefineMarking} without the exception, for a caller that reports a
+   * refusal instead of failing: the order is at or below the highest order the caller holds on the
+   * type, and a caller holding none of the type is above it.
+   */
+  public static boolean isWithinClearance(
+      Collection<MarkingDefinition> held, String type, int order) {
+    return highestHeldOrder(held, type).stream().anyMatch(highest -> order <= highest);
+  }
+
+  /** The highest order held on the type, empty when none of it is held. */
+  public static OptionalInt highestHeldOrder(Collection<MarkingDefinition> held, String type) {
+    return held.stream()
+        .filter(definition -> type.equals(definition.getType()))
+        .mapToInt(MarkingDefinition::getOrder)
+        .max();
   }
 }

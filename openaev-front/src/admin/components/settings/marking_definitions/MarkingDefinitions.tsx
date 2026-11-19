@@ -190,7 +190,7 @@ const MarkingDefinitions = () => {
           topBarButtons={(
             <>
               <Can I={ACTIONS.ACCESS} a={SUBJECTS.MARKING_DEFINITION}>
-                <MarkingDefinitionExportButton disabled={markingDefinitions.length === 0} />
+                <MarkingDefinitionExportButton searchPaginationInput={searchPaginationInput} disabled={markingDefinitions.length === 0} />
               </Can>
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.MARKING_DEFINITION}>
                 <>

@@ -1,12 +1,16 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { type ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { type ImportReport } from '../../../../components/common/import/import-report-types';
 import ImportReportDialog from '../../../../components/common/import/ImportReportDialog';
+import { type ImportReport } from '../../../../utils/api-types';
+
+const { mockDownload } = vi.hoisted(() => ({ mockDownload: vi.fn() }));
 
 vi.mock('../../../../components/i18n', () => ({ useFormatter: () => ({ t: (value: string) => value }) }));
+
+vi.mock('../../../../utils/utils', () => ({ download: mockDownload }));
 
 // A report that has nothing to do with markings: other columns, other reason codes.
 const report: ImportReport = {
@@ -52,13 +56,16 @@ const dialog = (props: Partial<Parameters<typeof ImportReportDialog>[0]> = {}) =
     onClose={() => {}}
     title="Import things"
     report={report}
-    downloadFileName="skipped.json"
+    downloadFileName="skipped.csv"
     {...props}
   />
 );
 
 describe('ImportReportDialog', () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    mockDownload.mockClear();
+  });
 
   it('shows the counts, with the ignored one only when there is one', () => {
     // Act
@@ -128,5 +135,16 @@ describe('ImportReportDialog', () => {
     // Assert
     expect(screen.getByText('The file was not imported. The file is empty.')).toBeTruthy();
     expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('downloads only the skipped rows as a CSV file named by the caller', () => {
+    // Arrange
+    renderDialog(dialog());
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: 'Download skipped rows' }));
+
+    // Assert
+    expect(mockDownload).toHaveBeenCalledWith('name,url\r\nbroken-name,<b>nope</b>\r\n', 'skipped.csv', 'text/csv');
   });
 });
