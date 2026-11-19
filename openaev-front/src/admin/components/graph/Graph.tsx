@@ -132,6 +132,7 @@ const Graph = () => {
       initialLayout={layoutParam && LAYOUTS.includes(layoutParam) ? layoutParam : 'force'}
       onLayoutChange={onLayoutChange}
       fitMinZoom={fitMinZoom}
+      selectFocus={fitMinZoom === undefined}
     />
   );
 

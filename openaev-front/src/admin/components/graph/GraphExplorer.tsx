@@ -133,6 +133,12 @@ export interface GraphExplorerProps {
    * the first frame instead of shrinking to fit (#9447). The user still zooms out by hand.
    */
   fitMinZoom?: number;
+  /**
+   * Open the detail panel on the slice's focus node at the first frame (default). The landing story
+   * passes false: its focus only anchors the layout, and an open panel would hide a third of the
+   * story (#9447).
+   */
+  selectFocus?: boolean;
 }
 
 interface History { past: GraphState[] }
@@ -175,6 +181,7 @@ const GraphExplorerInner = ({
   initialLayout = 'force',
   onLayoutChange,
   fitMinZoom,
+  selectFocus = true,
 }: GraphExplorerProps) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -184,7 +191,7 @@ const GraphExplorerInner = ({
   const [history, setHistory] = useState<History>({ past: [] });
   const [filters, setFilters] = useState<GraphFilters>(DEFAULT_FILTERS);
   const [layout, setLayout] = useState<GraphLayout>(initialLayout);
-  const [selected, setSelected] = useState<string | null>(initial.graph_focus ?? null);
+  const [selected, setSelected] = useState<string | null>(selectFocus ? initial.graph_focus ?? null : null);
   const [pathFrom, setPathFrom] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -206,8 +213,8 @@ const GraphExplorerInner = ({
   useEffect(() => {
     setState(fromSlice(initial));
     setHistory({ past: [] });
-    setSelected(initial.graph_focus ?? null);
-  }, [initial]);
+    setSelected(selectFocus ? initial.graph_focus ?? null : null);
+  }, [initial, selectFocus]);
 
   const commit = useCallback((next: (s: GraphState) => GraphState) => {
     setState((current) => {
