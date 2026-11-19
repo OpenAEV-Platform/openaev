@@ -792,6 +792,36 @@ export interface AssetGroupTarget {
     | "SUCCESS";
 }
 
+export interface AssetLinkInput {
+  asset_link_type:
+    | "CONNECTS_TO"
+    | "DEPENDS_ON"
+    | "HOSTS"
+    | "LOGGED_ON"
+    | "RUNS_ON"
+    | "USES";
+  /** @minLength 1 */
+  linked_asset_id: string;
+}
+
+export interface AssetLinkOutput {
+  /** @format date-time */
+  asset_link_created_at?: string;
+  asset_link_source_id?: string;
+  asset_link_source_name?: string;
+  asset_link_source_type?: string;
+  asset_link_target_id?: string;
+  asset_link_target_name?: string;
+  asset_link_target_type?: string;
+  asset_link_type?:
+    | "CONNECTS_TO"
+    | "DEPENDS_ON"
+    | "HOSTS"
+    | "LOGGED_ON"
+    | "RUNS_ON"
+    | "USES";
+}
+
 export interface AssetMarkingsOutput {
   /**
    * Asset Id
@@ -6477,6 +6507,118 @@ export interface Grant {
     | "PAYLOAD"
     | "UNKNOWN";
   listened?: boolean;
+}
+
+export interface GraphEdgeOutput {
+  edge_id: string;
+  edge_result?: "SUCCESS" | "PENDING" | "FAILED";
+  edge_source: string;
+  edge_target: string;
+  edge_type:
+    | "MEMBER_OF"
+    | "FOUND_ON"
+    | "PRODUCED"
+    | "TARGETS"
+    | "PART_OF"
+    | "RUN_OF"
+    | "IDENTITY_OF"
+    | "WORKS_FOR"
+    | "IN_TEAM"
+    | "TEAM_OF"
+    | "LINKED_TO"
+    | "ATTACK_STEP";
+}
+
+export interface GraphNodeOutput {
+  /** @format date-time */
+  node_date?: string;
+  node_entity_id: string;
+  /** @format int64 */
+  node_failed_count?: number;
+  /** @format int64 */
+  node_finding_count?: number;
+  node_id: string;
+  node_label: string;
+  node_result?: "SUCCESS" | "PENDING" | "FAILED";
+  node_subtype?: string;
+  node_type:
+    | "ASSET"
+    | "ASSET_GROUP"
+    | "FINDING"
+    | "INJECT"
+    | "SIMULATION"
+    | "SCENARIO"
+    | "PERSON"
+    | "ORGANIZATION"
+    | "TEAM";
+}
+
+export interface GraphOutput {
+  graph_edges: GraphEdgeOutput[];
+  graph_focus?: string;
+  graph_nodes: GraphNodeOutput[];
+  graph_path: string[];
+  graph_truncated?: boolean;
+}
+
+export interface GraphOverviewGroupOutput {
+  /** @format int64 */
+  group_asset_count?: number;
+  group_dynamic?: boolean;
+  /** @format int64 */
+  group_failed_count?: number;
+  /** @format double */
+  group_failure_rate?: number;
+  group_id: string;
+  group_name: string;
+  /** @format int64 */
+  group_scored_count?: number;
+  group_ungrouped?: boolean;
+}
+
+export interface GraphOverviewLinkOutput {
+  /** @format int64 */
+  link_failed_count?: number;
+  link_group_id: string;
+  link_result?: "SUCCESS" | "PENDING" | "FAILED";
+  link_simulation_id: string;
+  link_simulation_name: string;
+}
+
+export interface GraphOverviewOutput {
+  /** @format int64 */
+  overview_asset_count?: number;
+  overview_groups: GraphOverviewGroupOutput[];
+  overview_links: GraphOverviewLinkOutput[];
+  overview_truncated?: boolean;
+}
+
+export interface GraphStartingPointOutput {
+  point_entity_id: string;
+  point_kind:
+    | "EXPOSED_ASSET"
+    | "FAILING_GROUP"
+    | "LATEST_SIMULATION"
+    | "TOP_FINDING"
+    | "ATTACK_PATH"
+    | "EXPOSED_PERSON";
+  point_label: string;
+  point_node_type:
+    | "ASSET"
+    | "ASSET_GROUP"
+    | "FINDING"
+    | "INJECT"
+    | "SIMULATION"
+    | "SCENARIO"
+    | "PERSON"
+    | "ORGANIZATION"
+    | "TEAM";
+  /** @format int64 */
+  point_score?: number;
+}
+
+export interface GraphStartingPointsOutput {
+  starting_points: GraphStartingPointOutput[];
 }
 
 export interface Group {
