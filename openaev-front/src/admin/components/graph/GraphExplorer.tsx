@@ -78,6 +78,7 @@ import { OPENCTI_PRODUCT } from '../../../components/xtm/useCounterpart';
 import useCounterpartMatches, { type CounterpartRef, counterpartRefId } from '../../../components/xtm/useCounterpartMatches';
 import OpenCrqPivot, { OPENCRQ_PRODUCT, OpenCrqMark } from '../../../components/xtm/XtmOpenCrq';
 import OpenCtiPivot, { ProductMark } from '../../../components/xtm/XtmPivot';
+import { toHttpUrl } from '../../../utils/url-helper';
 import { NODE_LABEL_OFFSET, NODE_WIDTH } from './graph-edge-geometry';
 import { type GroupedNode, groupNeighbours, isGroupId, miniView } from './graph-grouping';
 import NODE_ICON from './graph-icons';
@@ -399,7 +400,8 @@ const GraphExplorerInner = ({
       return;
     }
     resolveCounterparts(ref.kind, ref.key).then((answers) => {
-      const url = answers.find(a => a.counterpart_product === product && a.counterpart_status === 'match')?.counterpart_url;
+      // Only an http(s) deep link is opened: a counterpart URL comes from another platform.
+      const url = toHttpUrl(answers.find(a => a.counterpart_product === product && a.counterpart_status === 'match')?.counterpart_url);
       if (url) {
         window.open(url, '_blank', 'noopener,noreferrer');
       }

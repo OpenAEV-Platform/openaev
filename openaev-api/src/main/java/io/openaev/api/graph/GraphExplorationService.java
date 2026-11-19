@@ -464,7 +464,7 @@ public class GraphExplorationService {
           linkedAssets(slice, tenantIds, id, here, cap);
         }
         if (want.test(GraphEdgeType.ATTACK_STEP)) {
-          steps(slice, tenantIds, "(x.sourceAssetId = :id OR x.targetAssetId = :id)", id, cap);
+          steps(slice, tenantIds, STEPS_OF_ASSET, id, cap);
         }
         if (want.test(GraphEdgeType.FOUND_ON)) {
           rows(
@@ -654,7 +654,7 @@ public class GraphExplorationService {
               });
         }
         if (want.test(GraphEdgeType.ATTACK_STEP)) {
-          steps(slice, tenantIds, "x.simulationId = :id", id, cap);
+          steps(slice, tenantIds, STEPS_OF_SIMULATION, id, cap);
         }
       }
       case PERSON -> {
@@ -878,25 +878,41 @@ public class GraphExplorationService {
     }
   }
 
+  /** The attack-path steps an asset takes part in, as source or target. */
+  static final String STEPS_OF_ASSET =
+      "SELECT x.simulationId, sa.id, sa.name, sa.type, ta.id, ta.name, ta.type,"
+          + " x.preventionStatus, x.detectionStatus"
+          + " FROM AttackPathExecution x, Asset sa, Asset ta"
+          + " WHERE (x.sourceAssetId = :id OR x.targetAssetId = :id)"
+          + " AND sa.id = x.sourceAssetId AND ta.id = x.targetAssetId"
+          + " AND x.tenant.id IN :tenantIds"
+          + " AND sa.tenant.id IN :tenantIds AND ta.tenant.id IN :tenantIds"
+          + " ORDER BY x.executedAt DESC";
+
+  /** The attack-path steps of one simulation. */
+  static final String STEPS_OF_SIMULATION =
+      "SELECT x.simulationId, sa.id, sa.name, sa.type, ta.id, ta.name, ta.type,"
+          + " x.preventionStatus, x.detectionStatus"
+          + " FROM AttackPathExecution x, Asset sa, Asset ta"
+          + " WHERE x.simulationId = :id"
+          + " AND sa.id = x.sourceAssetId AND ta.id = x.targetAssetId"
+          + " AND x.tenant.id IN :tenantIds"
+          + " AND sa.tenant.id IN :tenantIds AND ta.tenant.id IN :tenantIds"
+          + " ORDER BY x.executedAt DESC";
+
   /**
-   * Attack-path steps (#9447): source asset to target asset of the attack-path executions matching
-   * {@code predicate}, each pair carrying the worst verdict per simulation. Discovered targets (no
-   * asset) and injector sources (no asset) are not part of the estate graph and are skipped.
+   * Attack-path steps (#9447): source asset to target asset of the attack-path executions read by
+   * {@code query} (one of the two constant queries above, never a string built from input), each
+   * pair carrying the worst verdict per simulation. Discovered targets (no asset) and injector
+   * sources (no asset) are not part of the estate graph and are skipped.
    */
-  void steps(Slice slice, Collection<String> tenantIds, String predicate, String id, int cap) {
+  void steps(Slice slice, Collection<String> tenantIds, String query, String id, int cap) {
+    if (!STEPS_OF_ASSET.equals(query) && !STEPS_OF_SIMULATION.equals(query)) {
+      throw new IllegalArgumentException("Unknown attack-path step query");
+    }
     List<Object[]> rows =
         entityManager
-            .createQuery(
-                "SELECT x.simulationId, sa.id, sa.name, sa.type, ta.id, ta.name, ta.type,"
-                    + " x.preventionStatus, x.detectionStatus"
-                    + " FROM AttackPathExecution x, Asset sa, Asset ta"
-                    + " WHERE "
-                    + predicate
-                    + " AND sa.id = x.sourceAssetId AND ta.id = x.targetAssetId"
-                    + " AND x.tenant.id IN :tenantIds"
-                    + " AND sa.tenant.id IN :tenantIds AND ta.tenant.id IN :tenantIds"
-                    + " ORDER BY x.executedAt DESC",
-                Object[].class)
+            .createQuery(query, Object[].class)
             .setParameter("id", id)
             .setParameter("tenantIds", tenantIds)
             .setMaxResults(cap * 4 + 1)

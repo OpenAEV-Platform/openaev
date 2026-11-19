@@ -695,6 +695,11 @@ class GraphExplorationServiceTest extends IntegrationTest {
       public boolean canReadAtomicTesting(String injectId) {
         return atomicTestings;
       }
+
+      @Override
+      public boolean canReadPeople(GraphNodeType type) {
+        return true;
+      }
     };
   }
 
