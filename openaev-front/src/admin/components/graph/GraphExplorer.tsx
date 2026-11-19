@@ -128,6 +128,11 @@ export interface GraphExplorerProps {
   onOpen?: () => void;
   initialLayout?: GraphLayout;
   onLayoutChange?: (layout: GraphLayout) => void;
+  /**
+   * Page only: the fit never zooms out below this, so a landing story keeps its labels legible at
+   * the first frame instead of shrinking to fit (#9447). The user still zooms out by hand.
+   */
+  fitMinZoom?: number;
 }
 
 interface History { past: GraphState[] }
@@ -169,6 +174,7 @@ const GraphExplorerInner = ({
   onOpen,
   initialLayout = 'force',
   onLayoutChange,
+  fitMinZoom,
 }: GraphExplorerProps) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -192,7 +198,10 @@ const GraphExplorerInner = ({
         padding: 0.15,
         minZoom: MINI_MIN_ZOOM,
       }
-    : { padding: 0.15 }), [variant]);
+    : {
+        padding: 0.15,
+        ...(fitMinZoom ? { minZoom: fitMinZoom } : {}),
+      }), [variant, fitMinZoom]);
 
   useEffect(() => {
     setState(fromSlice(initial));
