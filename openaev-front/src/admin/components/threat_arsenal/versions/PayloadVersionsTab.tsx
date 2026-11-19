@@ -25,7 +25,7 @@ const PayloadVersion: FunctionComponent<VersionProps> = ({ version, usages }) =>
         <Text variant="content-base-bold">{`v${version.payload_version}`}</Text>
         {count !== null && (
           <Text variant="content-base" className="text-default-secondary">
-            {`(${t('{count, plural, one {# inject} other {# injects}}', { count })})`}
+            {`(${count === 1 ? t('1 inject') : t('{count} injects', { count: String(count) })})`}
           </Text>
         )}
         {version.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}

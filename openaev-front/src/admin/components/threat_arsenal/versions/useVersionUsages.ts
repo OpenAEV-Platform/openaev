@@ -19,11 +19,12 @@ const useVersionUsages = (actionId: string | undefined) => {
   const shown = usages?.payload_usages ?? [];
   const countOf = (type: string) => shown.filter(usage => usage.usage_type === type).length;
   const scenarioCount = new Set(shown.map(usage => usage.usage_scenario_id).filter(Boolean)).size;
+  const counted = (count: number, one: string, many: string) => (count === 1 ? t(one) : t(many, { count: String(count) }));
   const impact = [
-    scenarioCount > 0 ? t('{count, plural, one {# scenario} other {# scenarios}}', { count: scenarioCount }) : null,
-    countOf('inject') > 0 ? t('{count, plural, one {# scenario inject} other {# scenario injects}}', { count: countOf('inject') }) : null,
-    countOf('atomic_testing') > 0 ? t('{count, plural, one {# atomic test} other {# atomic tests}}', { count: countOf('atomic_testing') }) : null,
-    countOf('step') > 0 ? t('{count, plural, one {# chained step} other {# chained steps}}', { count: countOf('step') }) : null,
+    scenarioCount > 0 ? counted(scenarioCount, '1 scenario', '{count} scenarios') : null,
+    countOf('inject') > 0 ? counted(countOf('inject'), '1 scenario inject', '{count} scenario injects') : null,
+    countOf('atomic_testing') > 0 ? counted(countOf('atomic_testing'), '1 atomic test', '{count} atomic tests') : null,
+    countOf('step') > 0 ? counted(countOf('step'), '1 chained step', '{count} chained steps') : null,
   ].filter(Boolean).join(' · ');
 
   return {
