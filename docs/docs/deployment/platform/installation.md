@@ -83,7 +83,7 @@ If the OpenAEV container exits immediately after starting:
 
 1. Check the logs: `docker compose logs openaev`
 2. Verify all required environment variables are set in your `.env` file
-3. Ensure all dependency containers (PostgreSQL, ElasticSearch, RabbitMQ, Silo) are healthy:
+3. Ensure all dependency containers (PostgreSQL, ElasticSearch, RabbitMQ, RustFS) are healthy:
    ```bash
    docker compose ps
    ```
@@ -105,7 +105,7 @@ You may refer to [the official Docker documentation](https://docs.docker.com/ref
 
 Otherwise, you are responsible for providing the dependencies yourself by installing and running them.
 You need at least a Java Runtime, PostgreSQL (database), ElasticSearch (database), RabbitMQ (queue management), and 
-Silo or any other S3-compatible service (for object storage).
+RustFS or any other S3-compatible service (for object storage).
 
 !!! note "Supported dependency versions"
 
@@ -117,7 +117,7 @@ If you choose to install the dependencies manually, please refer to their respec
 * PostgreSQL: the [PostgreSQL documentation portal](https://www.postgresql.org/docs/)
 * ElasticSearch: the [ElasticSearch documentation portal](https://www.elastic.co/docs)
 * RabbitMQ: the [RabbitMQ documentation portal](https://www.rabbitmq.com/docs)
-* Silo (the community-maintained fork of MinIO): the [Silo documentation](https://silo.pgsty.com/docs/).
+* RustFS: the [RustFS documentation](https://docs.rustfs.com/). For a deployment that runs Silo or MinIO, see [Object storage, RustFS and the openaev.s3 configuration](../breaking-changes/MigrationVersion-s3-object-storage-rustfs.md).
 
 #### Download the application files
 
@@ -151,7 +151,7 @@ See the relevant Configuration sections for more details:
 - [PostgreSQL](../../reference/deployment/configuration.md#postgresql)
 - [ElasticSearch](../../reference/deployment/configuration.md#engine)
 - [RabbitMQ](../../reference/deployment/configuration.md#rabbitmq)
-- [S3 bucket / Silo](../../reference/deployment/configuration.md#s3-bucket)
+- [S3 bucket / RustFS](../../reference/deployment/configuration.md#s3-bucket)
 
 #### Start the application
 

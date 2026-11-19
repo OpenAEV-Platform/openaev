@@ -37,7 +37,7 @@ Collectors connect to security systems such as SIEM (Security Information and Ev
 | PostgreSQL    | ≥ 17.0                          | 2 cores | ≥ 8GB   | SSD       | ≥ 16GB     |
 | ElasticSearch | ≥ 8.19                          | 2 cores | ≥ 8GB   | SSD       | ≥ 16GB     |
 | RabbitMQ      | >= 4.3                          | 1 core  | ≥ 512MB | Standard  | ≥ 2GB      |
-| S3 / Silo     | latest (Silo is a MinIO fork)   | 1 core  | ≥ 128MB | SSD       | ≥ 16GB     |
+| S3 (RustFS, MinIO...) | RustFS ≥ 1.0.4      | 1 core  | ≥ 256MB | SSD       | ≥ 16GB     |
 
 Please note that while the versions of these dependencies are the recommended ones, OpenAEV may still function with
 earlier versions. However, we will not provide support for versions prior to the recommended ones.

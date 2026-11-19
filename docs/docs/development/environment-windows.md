@@ -34,7 +34,7 @@ mvn -version
 
 ### Docker Desktop
 
-Docker Desktop is required to run the development services (PostgreSQL, Elasticsearch, RabbitMQ, Silo).
+Docker Desktop is required to run the development services (PostgreSQL, Elasticsearch, RabbitMQ, RustFS).
 
 1. Download and install [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/).
 2. Enable the WSL 2 backend for better performance (recommended).

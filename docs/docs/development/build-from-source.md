@@ -51,7 +51,7 @@ first start.
 
 #### Start the development services
 
-Preconfigured containers for the support services (PostgreSQL, Silo, RabbitMQ, Elasticsearch)
+Preconfigured containers for the support services (PostgreSQL, RustFS, RabbitMQ, Elasticsearch)
 live in `./openaev-dev`. Copy the example environment file, then start the four required services:
 
 ```bash
@@ -64,7 +64,7 @@ cd ..
 | Service | Port | Description |
 |---|---|---|
 | PostgreSQL | 5432 | Database |
-| Silo | 10000, 10001 | S3-compatible object storage |
+| RustFS | 10000, 10001 | S3-compatible object storage |
 | Elasticsearch | 9200, 9300 | Search engine |
 | RabbitMQ | 5672, 15672 | Message broker (`guest` / `guest`) |
 
@@ -75,7 +75,7 @@ cd ..
 The values in `.env.example` work for local development. See `./openaev-dev/README.md` for optional
 services (pgAdmin, Kibana, OpenSearch).
 
-The example `application-dev.properties` already points to these services (PostgreSQL, Silo, RabbitMQ,
+The example `application-dev.properties` already points to these services (PostgreSQL, RustFS, RabbitMQ,
 Elasticsearch). All settings are listed in the [Configuration documentation](../reference/deployment/configuration.md#dependencies).
 
 ### Building and running
