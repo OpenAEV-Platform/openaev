@@ -78,7 +78,7 @@ const GraphOverview = ({ overview, onUnfoldGroup, onOpenUngrouped, onOpenSimulat
       }}
     >
       <div className="flex flex-wrap items-center gap-4">
-        <Text variant="content-base-bold">{`${n(overview.overview_asset_count ?? 0)} ${t('Assets')}`}</Text>
+        <Text variant="content-base-bold">{`${n(overview.overview_asset_count ?? 0)} ${(overview.overview_asset_count ?? 0) === 1 ? t('Asset') : t('Assets')}`}</Text>
         <span className="flex flex-wrap items-center gap-2" aria-label={t('Legend')}>
           {([['FAILED', 'Failure rate 20% or more'], ['PENDING', 'Some failures'], ['SUCCESS', 'No failure'], [null, 'Not tested yet']] as [GraphResult | null, string][]).map(([result, label]) => (
             <span key={label} className="flex items-center gap-1">
