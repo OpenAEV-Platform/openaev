@@ -85,7 +85,6 @@ import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
-import ExploreInGraphButton from '../../graph/ExploreInGraphButton';
 import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
@@ -788,7 +787,6 @@ const ScenarioHeader = ({
                   <TooltipContent>{t('Preview challenges page')}</TooltipContent>
                 </Tooltip>
               )}
-              <ExploreInGraphButton type="SCENARIO" entityId={scenarioId} />
               {/* Entity-scoped reports - self-hides without the reporting
                   access capability. */}
               <EntityReportsPanel
