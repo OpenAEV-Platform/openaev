@@ -82,7 +82,7 @@ import { NODE_LABEL_OFFSET, NODE_WIDTH } from './graph-edge-geometry';
 import { type GroupedNode, groupNeighbours, isGroupId, miniView } from './graph-grouping';
 import NODE_ICON from './graph-icons';
 import { LASSO_MIN_LENGTH, nodesInLasso, pathLength } from './graph-lasso';
-import { entering, extendLayout, type GraphLayout, interpolate, layoutFrames, miniCardLayout, type Point } from './graph-layout';
+import { entering, extendLayout, type GraphLayout, interpolate, layoutFrames, MINI_CARD_PADDING, miniCardHeight, miniCardLayout, type Point } from './graph-layout';
 import {
   ALL_EDGE_TYPES,
   ALL_NODE_TYPES,
@@ -295,10 +295,13 @@ const GraphExplorerInner = ({
   const fitBesidePanel = interactive && Boolean(selected);
   // The mini graph never fits below MINI_MIN_ZOOM: its labels stay readable (10 px at zoom 1) and an
   // outer ring that does not fit is clipped by the card, the full graph being one click away.
+  // Its padding is a fixed margin in pixels, so the top and bottom rows never touch the card's edges
+  // (#9448, UX round 2 B3); the card itself is as tall as its layout needs at zoom 1.
   const fitOptions = useMemo(() => (variant === 'mini'
     ? {
-        padding: 0.15,
+        padding: `${MINI_CARD_PADDING}px` as const,
         minZoom: MINI_MIN_ZOOM,
+        maxZoom: MINI_MIN_ZOOM,
       }
     : {
         padding: fitBesidePanel
@@ -498,6 +501,17 @@ const GraphExplorerInner = ({
     raf = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(raf);
   }, [frames, target, drawnEdges, variant, frame]);
+  // The mini card frames its graph again when the window is resized (the card's width follows the
+  // page), so no node stays cut or off-centre after a resize (#9448, UX round 2 B3).
+  useEffect(() => {
+    if (variant !== 'mini') {
+      return undefined;
+    }
+    const refit = () => window.requestAnimationFrame(() => fitView(fitOptions));
+    window.addEventListener('resize', refit);
+    return () => window.removeEventListener('resize', refit);
+  }, [variant, fitView, fitOptions]);
+  const miniHeight = variant === 'mini' ? miniCardHeight(target, NODE_BOX_HEIGHT) : 0;
   // Hover dimming: the hovered node's first ring stays, the rest fades.
   const ring = useMemo(() => (hovered ? firstRing(hovered, drawnEdges) : null), [hovered, drawnEdges]);
 
@@ -1459,7 +1473,7 @@ const GraphExplorerInner = ({
         aria-label={focusNode ? `${t('Explore in graph')}: ${focusNode.node_label}` : t('Explore in graph')}
         sx={{
           'display': 'block',
-          height,
+          'height': miniHeight,
           'borderRadius': 1,
           'color': 'inherit',
           'textDecoration': 'none',

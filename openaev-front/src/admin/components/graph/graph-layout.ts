@@ -111,6 +111,25 @@ const radial = (nodes: GraphNodeOutput[], edges: GraphEdgeOutput[], focus?: stri
 export const MIN_NODE_DX = 150;
 export const MIN_NODE_DY = 90;
 
+/** Margin kept between the mini graph card's border and its nodes (#9448, UX round 2 B3). */
+export const MINI_CARD_PADDING = 24;
+/** The mini graph card never goes under this height. */
+export const MINI_CARD_MIN_HEIGHT = 240;
+
+/**
+ * Height of the mini graph card for a layout drawn at zoom 1: the vertical span of the node boxes
+ * (a position is a node's top-left corner, the box is `nodeBoxHeight` tall) plus the card margin
+ * above and below, so the top and bottom rows are never cut by the card's edges.
+ */
+export const miniCardHeight = (positions: Map<string, Point>, nodeBoxHeight: number): number => {
+  if (positions.size === 0) {
+    return MINI_CARD_MIN_HEIGHT;
+  }
+  const ys = [...positions.values()].map(p => p.y);
+  const span = Math.max(...ys) - Math.min(...ys) + nodeBoxHeight;
+  return Math.max(MINI_CARD_MIN_HEIGHT, Math.ceil(span + 2 * MINI_CARD_PADDING));
+};
+
 /** Half the vertical distance between the two rows of the mini layout. */
 const MINI_ROW = 60;
 

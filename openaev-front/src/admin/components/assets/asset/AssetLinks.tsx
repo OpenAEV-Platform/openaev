@@ -9,6 +9,7 @@ import {
   ComboboxInput,
   ComboboxLabel,
   ComboboxTrigger,
+  Icon,
   IconButton,
   Select,
   SelectContent,
@@ -21,7 +22,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@filigran/design-system';
-import { DeleteOutlined, InfoOutlined } from '@mui/icons-material';
+import { DeleteOutlined } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type AxiosResponse } from 'axios';
@@ -33,7 +34,7 @@ import { searchAssetsAsOption } from '../../../../actions/assets/endpoint-action
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type AssetLinkOutput, type AssetOptionOutput } from '../../../../utils/api-types';
-import { ASSET_LINK_TYPES, type AssetLinkRow, type AssetLinkType, assetLinkTypeLabel, isLinkCandidate, toAssetLinkRows } from './asset-links';
+import { ASSET_LINK_TYPES, type AssetLinkRow, type AssetLinkType, assetLinkTypeLabel, FIELD_LABEL_BLOCK_PX, isLinkCandidate, toAssetLinkRows } from './asset-links';
 
 interface Props {
   assetId: string;
@@ -151,16 +152,19 @@ const AssetLinks: FunctionComponent<Props> = ({ assetId, assetName, canManage, o
                   }}
                 >
                   {t('Link type')}
+                  {/* A focusable trigger, as PlayerForm's info bubble: the tooltip opens on keyboard
+                      focus too (#9448, UX round 2 B2). */}
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <InfoOutlined
+                      <span
+                        tabIndex={0}
+                        role="img"
                         aria-label={t('About link types')}
-                        sx={{
-                          fontSize: 14,
-                          color: theme.palette.text.secondary,
-                          cursor: 'help',
-                        }}
-                      />
+                        className="inline-flex text-icon-highlight"
+                        style={{ cursor: 'help' }}
+                      >
+                        <Icon name="info" size={16} aria-hidden />
+                      </span>
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
                       {t('A link records how two assets relate. It becomes a Linked to edge in the graph, so attack paths can follow it. Example: a web server depends on a domain controller.')}
@@ -212,8 +216,9 @@ const AssetLinks: FunctionComponent<Props> = ({ assetId, assetName, canManage, o
               <ComboboxHelperText>{t('Any asset of the inventory, searched by name.')}</ComboboxHelperText>
             </Combobox>
           </Box>
-          {/* Aligned with the field row: the top padding is the height of the labels above it. */}
-          <Box sx={{ pt: 3 }}>
+          {/* On the field row: the top padding is the DS label block above each field (label line
+              plus its gap, measured 26 px in the lab), not a spacing step (#9448, UX round 2 B1). */}
+          <Box sx={{ pt: `${FIELD_LABEL_BLOCK_PX}px` }} data-testid="asset-link-add">
             <Button type="button" onClick={handleAdd} disabled={!selected?.id || saving}>
               {t('Add link')}
             </Button>

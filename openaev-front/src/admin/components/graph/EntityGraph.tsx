@@ -7,6 +7,7 @@ import { fetchGraphNeighbourhood } from '../../../actions/graph/graph-actions';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
 import { EMBEDDED_GRAPH_MIN_HEIGHT, embeddedGraphHeight } from './entity-graph-height';
+import { MINI_CARD_MIN_HEIGHT } from './graph-layout';
 import { graphHref, type GraphNodeType, type GraphOutput } from './graph-model';
 import GraphExplorer from './GraphExplorer';
 
@@ -77,10 +78,18 @@ const EntityGraph = ({ type, entityId, variant, height }: Props) => {
       .catch(() => setError(true));
   }, [visible, type, entityId, variant]);
 
-  const resolvedHeight = height ?? (variant === 'mini' ? 240 : (fillHeight ?? EMBEDDED_GRAPH_MIN_HEIGHT));
+  // The mini card takes the height its layout needs (at least MINI_CARD_MIN_HEIGHT), so its top and
+  // bottom rows are never cut (#9448, UX round 2 B3); the Graph tab fills the window.
+  const resolvedHeight = height ?? (variant === 'mini' ? 'auto' : (fillHeight ?? EMBEDDED_GRAPH_MIN_HEIGHT));
 
   return (
-    <Box ref={anchor} sx={{ height: resolvedHeight }}>
+    <Box
+      ref={anchor}
+      sx={{
+        height: resolvedHeight,
+        minHeight: variant === 'mini' ? MINI_CARD_MIN_HEIGHT : undefined,
+      }}
+    >
       {error && <Alert severity="error" title={t('The graph could not be loaded')} />}
       {!error && !slice && <Loader variant="inElement" />}
       {slice && (

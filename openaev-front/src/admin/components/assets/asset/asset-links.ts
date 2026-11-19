@@ -2,6 +2,10 @@ import { type AssetLinkInput, type AssetLinkOutput } from '../../../../utils/api
 
 export type AssetLinkType = AssetLinkInput['asset_link_type'];
 
+// Height of a design-system field label and its gap above the field (measured in the lab: label top
+// 459 px, field top 485 px), so a button beside the fields sits on their row (#9448, UX round 2 B1).
+export const FIELD_LABEL_BLOCK_PX = 26;
+
 // The link types the backend accepts, with the i18n key of the verb read "source <verb> target"
 // and the i18n key of its one-line meaning, shown under each option of the picker.
 export const ASSET_LINK_TYPES: {
