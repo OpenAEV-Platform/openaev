@@ -2,8 +2,7 @@ package io.openaev.rest.payload;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Document;
@@ -26,8 +25,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -45,13 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("A payload upsert resolves its executable document in its own write tenant")
-class PayloadUpsertDocumentLinkTenantTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class PayloadUpsertDocumentLinkTenantTest extends ProductionTablesIntegrationTest {
 
   @Autowired private PayloadUpsertService payloadUpsertService;
   @Autowired private DocumentRepository documentRepository;
