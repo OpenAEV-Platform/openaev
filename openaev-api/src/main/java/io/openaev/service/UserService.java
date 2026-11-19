@@ -202,12 +202,7 @@ public class UserService {
             referenceResolver.resolve(tenantIds, Tenant.class, tenantRepository::countByIdIn)));
     String password = input.plainPassword();
     User createdUser;
-    // Widened to the tenants this creation attaches, whatever the caller's own tenant
-    // memberships (in particular a platform operator with none): createUser below reads the
-    // auto-assign groups of each one, and a tenant row of groups needs the scope to cover it. A
-    // platform group needs no scope (readable without one), so an empty tenantIds list is left
-    // alone. Captured and put back right after, so the organization assignment below keeps
-    // running under the caller's own ambient scope, not this one.
+    // Scope widened to the attached tenants for their auto-assign groups, then restored.
     try (TenantScopedTransaction.CapturedScope callerScope =
         tenantTx.captureScopeOfCurrentTransaction()) {
       if (!CollectionUtils.isEmpty(tenantIds)) {
@@ -335,16 +330,8 @@ public class UserService {
   private User applyUpdate(String userId, UserInput input) {
     // Check if new email is reserved
     ReservedKeyValidator.validateUserEmailPattern(input.email());
-    // The group part of this update can touch the tenants the user already belongs to (the eager
-    // User.groups load below, and a later revoke must see the rows it has to remove) and the
-    // tenants the input is about to attach (the auto-assign grant); a platform operator updating
-    // tenantIds has no request TxCtx of its own that covers them, in particular one with no
-    // tenant membership at all, so the scope is computed here instead of relying on the caller's
-    // own tenants - the same reasoning as the SSO login (SecurityService#userManagement). A
-    // projection, not existing.getTenants(), since the entity is not loaded yet. This scope is
-    // captured and put back around each of the two places that need it, never left set: the rest
-    // of this method (the tag replacement in particular) must keep running under the caller's own
-    // ambient scope, not this one.
+    // Group reads and writes cover the user's current and attached tenants, whatever the
+    // operator's own memberships (as the SSO login); set around each use, then restored.
     Set<String> groupScopeTenantIds =
         new LinkedHashSet<>(userRepository.findTenantIdsByUserId(userId));
     if (input.tenantIds() != null) {
@@ -385,10 +372,8 @@ public class UserService {
       if (!groupScopeTenantIds.isEmpty()) {
         tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenants(groupScopeTenantIds));
       }
-      // applyProfile's tag replacement refreshes `existing` under the ambient scope just
-      // restored above, which re-fetches the EAGER groups association too and can leave it
-      // empty under that narrower scope; revokeTenantGroups reads that very collection, so it is
-      // refreshed again here, under the scope just (re)widened, before the revoke reads it.
+      // Reloaded under the wider scope: the tag replacement reloaded its groups under the narrow
+      // one.
       entityManager.refresh(existing);
       assignAutoAssignGroups(existing, attachedTenantIds, false);
       revokeTenantGroups(existing, detachedTenantIds);
