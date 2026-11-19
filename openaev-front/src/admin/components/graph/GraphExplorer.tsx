@@ -806,6 +806,9 @@ const GraphExplorerInner = ({
                 style={{
                   opacity: on ? 1 : 0.4,
                   textDecoration: on ? 'none' : 'line-through',
+                  border: 0,
+                  background: 'transparent',
+                  color: 'inherit',
                 }}
               >
                 <Icon />
@@ -865,6 +868,11 @@ const GraphExplorerInner = ({
         aria-expanded={legendOpen}
         onClick={() => setLegendOpen(!legendOpen)}
         className="inline-flex items-center justify-between gap-2 px-2 py-1 hover:bg-[var(--background-default-secondary)]"
+        style={{
+          border: 0,
+          background: 'transparent',
+          color: 'inherit',
+        }}
       >
         <Text variant="content-caption">{t('Legend')}</Text>
         {legendOpen ? <ExpandMoreOutlined fontSize="small" /> : <ExpandLessOutlined fontSize="small" />}
@@ -987,10 +995,10 @@ const GraphExplorerInner = ({
     </Paper>
   );
 
-  // The graph actions, as OpenCTI's GraphToolbar: ONE icon bar on the canvas (bottom centre, left of
-  // the open side panel) opened by the count of entities shown. Each layout button runs its layout
-  // from scratch (a second click on the active one re-runs it), then the view is framed; every
-  // button says what it does on hover. The embedded graph keeps the count, the zoom and the fit.
+  // The graph actions, as OpenCTI's GraphToolbar: ONE icon bar on the canvas (bottom right, left of
+  // the open side panel, clear of the legend card) opened by the count of entities shown. Each
+  // layout button runs its layout from scratch (a second click on the active one re-runs it), then
+  // the view is framed; every button says what it does on hover. The embedded graph keeps the count, the zoom and the fit.
   const canvasToolbar = (offset: number) => (
     <div
       data-testid="graph-canvas-toolbar"
@@ -999,8 +1007,7 @@ const GraphExplorerInner = ({
       className="absolute flex items-center gap-0.5 rounded px-2"
       style={{
         bottom: 12,
-        left: `calc(50% - ${offset / 2}px)`,
-        transform: 'translateX(-50%)',
+        right: 12 + offset,
         zIndex: 4,
         background: theme.palette.background.paper,
         border: `1px solid ${theme.palette.divider}`,
