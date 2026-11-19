@@ -42,7 +42,7 @@ const GraphStartingPoints = ({ points, current, onSelect }: GraphStartingPointsP
       {sections.map(section => (
         <section key={section.kind} className="mt-4" aria-label={t(STARTING_POINT_KIND_LABEL[section.kind])}>
           <Text variant="content-caption" className="text-default-secondary">{t(STARTING_POINT_KIND_LABEL[section.kind])}</Text>
-          <ul className="mt-1 flex flex-col gap-0.5">
+          <ul className="mt-1 flex flex-col gap-1">
             {section.points.map((point) => {
               const Icon = NODE_ICON[point.point_node_type];
               const key = `${point.point_node_type.toLowerCase()}:${point.point_entity_id}`;
