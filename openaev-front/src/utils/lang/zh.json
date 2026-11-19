@@ -1843,6 +1843,7 @@
   "Focus on in-scope web applications and chain web vulns into deeper access.": "聚焦范围内的 Web 应用程序，串联 Web 漏洞以获取更深层的访问。",
   "Focus on map": "聚焦地图",
   "Focus your widget on injects detected by your security system": "将小部件聚焦于安全系统检测到的注入",
+  "Focus your widget on injects logged by your security system": "将小部件聚焦于安全系统记录的注入",
   "Focus your widget on injects prevented by your security system": "将小部件聚焦于安全系统阻止的注入",
   "Folder": "文件夹",
   "Folder name": "文件夹名称",

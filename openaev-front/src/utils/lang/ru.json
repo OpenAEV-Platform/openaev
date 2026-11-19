@@ -1843,6 +1843,7 @@
   "Focus on in-scope web applications and chain web vulns into deeper access.": "Сосредоточиться на веб-приложениях в пределах области и объединять веб-уязвимости в цепочки для получения более глубокого доступа.",
   "Focus on map": "Фокус на карте",
   "Focus your widget on injects detected by your security system": "Настроить виджет на отображение встраиваний, обнаруженных вашей системой безопасности",
+  "Focus your widget on injects logged by your security system": "Настроить виджет на отображение встраиваний, записанных в журнал вашей системой безопасности",
   "Focus your widget on injects prevented by your security system": "Настроить виджет на отображение встраиваний, предотвращённых вашей системой безопасности",
   "Folder": "Папка",
   "Folder name": "Имя папки",

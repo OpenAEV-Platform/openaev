@@ -109,6 +109,7 @@ const WidgetSecurityCoverageSeriesSelection: FunctionComponent<Props> = ({ value
       {visiblePerspectives.map((perspective) => {
         const isSelected = value.filter(v => v.filter?.filters?.find(f => f.values?.includes(perspective.type))).length > 0;
         const Icon = perspective.icon();
+        const title = t(perspective.title);
         return (
           <Card
             key={perspective.title}
@@ -118,12 +119,12 @@ const WidgetSecurityCoverageSeriesSelection: FunctionComponent<Props> = ({ value
           >
             <CardActionArea
               onClick={() => onChangeSeries(getSeries(perspective.type, simulationId))}
-              aria-label={t(perspective.title)}
+              aria-label={title}
             >
               <CardContent className={classes.content}>
                 <Icon color="primary" fontSize="large" />
-                <Typography variant="h5">{perspective.title}</Typography>
-                <Typography sx={{ textAlign: 'center' }}>{perspective.description}</Typography>
+                <Typography variant="h5">{title}</Typography>
+                <Typography sx={{ textAlign: 'center' }}>{t(perspective.description)}</Typography>
               </CardContent>
             </CardActionArea>
           </Card>

@@ -1843,6 +1843,7 @@
   "Focus on in-scope web applications and chain web vulns into deeper access.": "Sich auf Webanwendungen im Geltungsbereich konzentrieren und Web-Schwachstellen zu tieferem Zugriff verketten.",
   "Focus on map": "Auf Karte fokussieren",
   "Focus your widget on injects detected by your security system": "Richten Sie Ihr Widget auf die von Ihrem Sicherheitssystem erkannten Injects aus",
+  "Focus your widget on injects logged by your security system": "Richten Sie Ihr Widget auf die von Ihrem Sicherheitssystem protokollierten Injects aus",
   "Focus your widget on injects prevented by your security system": "Richten Sie Ihr Widget auf die von Ihrem Sicherheitssystem verhinderten Injects aus",
   "Folder": "Ordner",
   "Folder name": "Ordnername",

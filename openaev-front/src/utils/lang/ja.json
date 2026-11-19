@@ -1843,6 +1843,7 @@
   "Focus on in-scope web applications and chain web vulns into deeper access.": "対象範囲内のWebアプリケーションに注力し、Web脆弱性を連鎖させてより深いアクセスを得ます。",
   "Focus on map": "マップに焦点を合わせる",
   "Focus your widget on injects detected by your security system": "セキュリティシステムによって検知されたインジェクトにウィジェットを絞り込む",
+  "Focus your widget on injects logged by your security system": "セキュリティシステムによってログ記録されたインジェクトにウィジェットを絞り込む",
   "Focus your widget on injects prevented by your security system": "セキュリティシステムによって防御されたインジェクトにウィジェットを絞り込む",
   "Folder": "フォルダー",
   "Folder name": "フォルダー名",
