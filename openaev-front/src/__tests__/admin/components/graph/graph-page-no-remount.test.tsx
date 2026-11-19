@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { useEffect } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -57,8 +57,10 @@ describe('Graph page: expand in place never remounts the explorer', () => {
       </MemoryRouter>,
     );
     const button = await screen.findByTestId('expand');
-    expect(explorerMountSpy).toHaveBeenCalledTimes(1);
-    expect(neighbourhoodMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(explorerMountSpy).toHaveBeenCalledTimes(1);
+      expect(neighbourhoodMock).toHaveBeenCalledTimes(1);
+    });
 
     await act(async () => {
       button.click();
