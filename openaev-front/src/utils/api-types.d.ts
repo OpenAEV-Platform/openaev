@@ -12332,7 +12332,7 @@ export interface SettingsPlatformWhitemarkUpdateInput {
 
 export interface SettingsRuntimeUpdateInput {
   /** Runtime settings to store, by key (inject_execution_threshold_minutes, agent_max_simultaneous_jobs, agent_queue_threshold, agent_auto_update_enabled). A setting whose environment variable is set is refused */
-  settings: Record<string, object>;
+  settings: Record<string, any>;
 }
 
 export interface SettingsSessionsUpdateInput {

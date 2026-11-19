@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateRuntimeValue } from '../../../../admin/components/settings/RuntimeSettingsForm';
+import validateRuntimeValue from '../../../../admin/components/settings/runtimeSettingsValidation';
 import type { RuntimeSettingOutput } from '../../../../utils/api-types';
 
 const t = (key: string, values?: Record<string, string>) => Object.entries(values ?? {}).reduce((text, [k, v]) => text.replace(`{${k}}`, v), key);

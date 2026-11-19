@@ -7,6 +7,7 @@ import { useFormatter } from '../../../components/i18n';
 import type { RuntimeSettingOutput } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import validateRuntimeValue from './runtimeSettingsValidation';
 
 /** What each runtime setting reads as, in the order the card shows them. */
 const DESCRIPTORS: Record<string, {
@@ -35,7 +36,7 @@ const DESCRIPTORS: Record<string, {
   },
 };
 
-export const RUNTIME_SETTING_ORDER = Object.keys(DESCRIPTORS);
+const RUNTIME_SETTING_ORDER = Object.keys(DESCRIPTORS);
 
 interface RuntimeSettingsFormProps {
   settings: RuntimeSettingOutput[];
@@ -46,22 +47,6 @@ interface RuntimeSettingsFormProps {
 type Values = Record<string, string>;
 
 const toValues = (settings: RuntimeSettingOutput[]): Values => Object.fromEntries(settings.map(s => [s.key, s.value]));
-
-/** The validation message of one integer field, or undefined when the value is valid. */
-export const validateRuntimeValue = (setting: RuntimeSettingOutput, raw: string, t: (key: string, values?: Record<string, string>) => string): string | undefined => {
-  if (setting.type !== 'integer') {
-    return undefined;
-  }
-  const trimmed = raw.trim();
-  const value = Number(trimmed);
-  if (trimmed === '' || !Number.isInteger(value) || value < (setting.min ?? 0) || value > (setting.max ?? Number.MAX_SAFE_INTEGER)) {
-    return t('Must be an integer between {min} and {max}', {
-      min: String(setting.min ?? 0),
-      max: String(setting.max ?? ''),
-    });
-  }
-  return undefined;
-};
 
 const RuntimeSettingsForm: FunctionComponent<RuntimeSettingsFormProps> = ({ settings, onSubmit, canNotManage }) => {
   const { t } = useFormatter();
