@@ -3404,24 +3404,6 @@ export interface ContractOutputElementSimple {
     | "expectation_signature";
 }
 
-export interface CounterpartLookupInput {
-  /**
-   * @maxItems 200
-   * @minItems 0
-   */
-  counterpart_keys: string[];
-}
-
-export interface CounterpartOutput {
-  counterpart_entity_id?: string;
-  counterpart_entity_type?: string;
-  counterpart_key?: string;
-  counterpart_name?: string;
-  counterpart_product?: string;
-  counterpart_status?: string;
-  counterpart_url?: string;
-}
-
 export interface CreateConnectorInstanceInput {
   /** @minLength 1 */
   catalog_connector_id: string;
@@ -4566,8 +4548,6 @@ export interface EndpointOutput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   /** Asset external reference */
   asset_external_reference?: string;
-  /** Hostname, the key the XTM counterpart lookup matches on */
-  asset_hostname?: string;
   /**
    * Asset Id
    * @minLength 1
@@ -6134,11 +6114,6 @@ export interface ExportOptionsInput {
   with_variable_values?: boolean;
 }
 
-export interface FactOutput {
-  fact_key?: string;
-  fact_value?: string;
-}
-
 export interface FileDrop {
   file_drop_file: string;
   listened?: boolean;
@@ -6476,47 +6451,6 @@ export interface Grant {
     | "PAYLOAD"
     | "UNKNOWN";
   listened?: boolean;
-}
-
-export interface GraphEdgeOutput {
-  edge_id: string;
-  edge_result?: "SUCCESS" | "PENDING" | "FAILED";
-  edge_source: string;
-  edge_target: string;
-  edge_type:
-    | "MEMBER_OF"
-    | "FOUND_ON"
-    | "PRODUCED"
-    | "TARGETS"
-    | "PART_OF"
-    | "RUN_OF";
-}
-
-export interface GraphNodeOutput {
-  node_entity_id: string;
-  /** @format int64 */
-  node_failed_count?: number;
-  /** @format int64 */
-  node_finding_count?: number;
-  node_id: string;
-  node_label: string;
-  node_result?: "SUCCESS" | "PENDING" | "FAILED";
-  node_subtype?: string;
-  node_type:
-    | "ASSET"
-    | "ASSET_GROUP"
-    | "FINDING"
-    | "INJECT"
-    | "SIMULATION"
-    | "SCENARIO";
-}
-
-export interface GraphOutput {
-  graph_edges: GraphEdgeOutput[];
-  graph_focus?: string;
-  graph_nodes: GraphNodeOutput[];
-  graph_path: string[];
-  graph_truncated?: boolean;
 }
 
 export interface Group {
@@ -8262,15 +8196,6 @@ export type ListConfiguration = UtilRequiredKeys<
 export interface ListPerspective {
   filter?: FilterGroup;
   name?: string;
-}
-
-export interface LocalObjectOutput {
-  object_facts?: FactOutput[];
-  object_id?: string;
-  object_key?: string;
-  object_name?: string;
-  object_type?: string;
-  object_url?: string;
 }
 
 export interface Log {
@@ -14640,12 +14565,6 @@ export interface XtmComposerRegisterInput {
 export interface XtmComposerUpdateStatusInput {
   /** The connector instance current status */
   connector_instance_current_status: "started" | "stopped";
-}
-
-export interface XtmConnectionOutput {
-  xtm_connection_connected?: boolean;
-  xtm_connection_product?: string;
-  xtm_connection_url?: string;
 }
 
 export interface XtmHubContactUsInput {
