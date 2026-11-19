@@ -26,6 +26,7 @@ import ChatbotProvider from './components/ariane/ChatbotProvider';
 import { useChatbotContentMargin, useChatbotContentTransition } from './components/ariane/useChatbotHooks';
 import { GETTING_STARTED_LOCAL_STORAGE_KEY } from './components/getting_started/GettingStartedPage';
 import GettingStartedRoutes, { GETTING_STARTED_URI } from './components/getting_started/GettingStartedRoutes';
+import { ASSESSMENT_ACCESS_CHECKS } from './components/nav/config/assessment.config';
 import { SETTINGS_ACCESS_CHECKS } from './components/nav/config/settings.config';
 import LeftBar from './components/nav/LeftBar';
 import NewsFeedToastManager from './components/nav/NewsFeedToastManager';
@@ -183,6 +184,7 @@ const Index = () => {
             <Route path="profile/news-feed" element={errorWrapper(ProfileNewsFeed)({ tab: 'items' })} />
             <Route path="profile/news-feed/settings" element={errorWrapper(ProfileNewsFeed)({ tab: 'settings' })} />
             <Route path="profile/*" element={errorWrapper(IndexProfile)()} />
+            {/* Home guards itself: the capability depends on which home dashboard it resolves */}
             <Route path="" element={errorWrapper(Home)()} />
             <Route path="results" element={errorWrapper(DashboardResults)()} />
             <Route path="fulltextsearch" element={errorWrapper(FullTextSearch)()} />
@@ -210,7 +212,15 @@ const Index = () => {
                 />
               )}
             />
-            <Route path="simulations" element={errorWrapper(Exercises)()} />
+            <Route
+              path="simulations"
+              element={(
+                <ProtectedRoute
+                  checks={ASSESSMENT_ACCESS_CHECKS}
+                  Component={errorWrapper(Exercises)()}
+                />
+              )}
+            />
             {/* Inject creation is a full-page flow and MUST be declared before the
                 inject-detail route below: `injects/:injectId/*` would otherwise
                 capture `injects/create` (injectId="create") and mount the detail
@@ -280,7 +290,15 @@ const Index = () => {
                 />
               )}
             />
-            <Route path="atomic_testings" element={errorWrapper(AtomicTestings)()} />
+            <Route
+              path="atomic_testings"
+              element={(
+                <ProtectedRoute
+                  checks={ASSESSMENT_ACCESS_CHECKS}
+                  Component={errorWrapper(AtomicTestings)()}
+                />
+              )}
+            />
             {/* Creation requires the same Manage Assessment capability as the create button. */}
             <Route
               path="atomic_testings/create"
@@ -322,7 +340,15 @@ const Index = () => {
                 />
               )}
             />
-            <Route path="scenarios" element={errorWrapper(Scenarios)()} />
+            <Route
+              path="scenarios"
+              element={(
+                <ProtectedRoute
+                  checks={ASSESSMENT_ACCESS_CHECKS}
+                  Component={errorWrapper(Scenarios)()}
+                />
+              )}
+            />
             <Route
               path="autonomous/:runId"
               element={(
