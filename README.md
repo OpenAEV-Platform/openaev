@@ -132,9 +132,9 @@ OpenAEV follows an open core model:
 
 - **Community Edition**, licensed under the [Apache License 2.0](LICENSE): the whole validation workflow, from
   threat-informed scenarios to findings and dashboards.
-- **Enterprise Edition**, licensed under the [Enterprise Edition license](LICENSE): AI features, the autonomous attack
-  path, attack chaining, EDR executors, remediation guidance and multi-tenancy. Source files under this license carry
-  a header saying so.
+- **Enterprise Edition**, licensed under the [Enterprise Edition license](LICENSE). Source files under this license
+  carry a header saying so. What it adds is listed in the
+  [documentation](https://docs.openaev.io/latest/administration/enterprise/).
 
 Enable the Enterprise Edition in **Settings > Filigran Experience** with a license or a
 [trial license](https://filigran.io/enterprise-editions-trial/). A Filigran license of the XTM Platform, installed in
