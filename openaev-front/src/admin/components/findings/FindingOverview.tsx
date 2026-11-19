@@ -12,6 +12,7 @@ import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
+import OpenCrqPivot, { OpenCrqCard } from '../../../components/xtm/XtmOpenCrq';
 import OpenCtiPivot, { OpenCtiCard } from '../../../components/xtm/XtmPivot';
 import type { FindingOutput, FindingSummaryOutput } from '../../../utils/api-types';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
@@ -86,7 +87,12 @@ const FindingOverview = () => {
         iconNode={<FindingIcon findingType={finding.finding_type} />}
         overline={typeLabel}
         title={finding.finding_value}
-        action={isCVE ? <OpenCtiPivot kind="vulnerabilities" objectKey={finding.finding_value} /> : undefined}
+        action={isCVE ? (
+          <>
+            <OpenCtiPivot kind="vulnerabilities" objectKey={finding.finding_value} />
+            <OpenCrqPivot kind="vulnerabilities" objectKey={finding.finding_value} />
+          </>
+        ) : undefined}
         chips={cvssScore != null
           ? <Chip label={`CVSS ${cvssScore.toFixed(1)}`} severity="info" />
           : undefined}
@@ -156,6 +162,14 @@ const FindingOverview = () => {
       {isCVE && (
         <InformationGrid title={t('In OpenCTI')}>
           <OpenCtiCard kind="vulnerabilities" objectKey={finding.finding_value} />
+        </InformationGrid>
+      )}
+
+      {/* The same CVE in OpenCRQ: the risk scenarios it drives, their annual loss expectancy and the
+          loss avoided by fixing it, or the "Connect OpenCRQ" call to action. */}
+      {isCVE && (
+        <InformationGrid title={t('In OpenCRQ')}>
+          <OpenCrqCard kind="vulnerabilities" objectKey={finding.finding_value} />
         </InformationGrid>
       )}
 

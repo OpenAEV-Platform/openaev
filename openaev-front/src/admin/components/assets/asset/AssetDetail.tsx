@@ -26,6 +26,7 @@ import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PlatformIcon from '../../../../components/PlatformIcon';
+import OpenCrqPivot from '../../../../components/xtm/XtmOpenCrq';
 import OpenCtiPivot from '../../../../components/xtm/XtmPivot';
 import { useHelper } from '../../../../store';
 import {
@@ -209,6 +210,8 @@ const AssetDetail = () => {
         action={(
           <>
             {!isAiTarget && <OpenCtiPivot kind="assets" objectKey={counterpartKey} />}
+            {/* OpenCRQ keys its supporting assets by hostname only. */}
+            {!isAiTarget && <OpenCrqPivot kind="assets" objectKey={asset.asset_hostname} />}
             {/* Entity-scoped reports - self-hides without the reporting
                 access capability. */}
             <EntityReportsPanel

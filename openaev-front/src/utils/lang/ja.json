@@ -4701,5 +4701,15 @@
   "Hide this suggestion": "この提案を非表示",
   "Ask an administrator to connect OpenCTI to see this object there.": "このオブジェクトを OpenCTI で表示するには、管理者に OpenCTI の接続を依頼してください。",
   "This object is not known in the connected OpenCTI.": "このオブジェクトは接続された OpenCTI にありません。",
-  "Always on": "常時稼働"
+  "Always on": "常時稼働",
+  "Connect OpenCRQ": "OpenCRQ を接続",
+  "Open in OpenCRQ": "OpenCRQで開く",
+  "Not in OpenCRQ": "OpenCRQ にありません",
+  "OpenCRQ is unavailable": "OpenCRQ は利用できません",
+  "In OpenCRQ": "OpenCRQ 内",
+  "Ask an administrator to connect OpenCRQ to see this object there.": "このオブジェクトを OpenCRQ で表示するには、管理者に OpenCRQ の接続を依頼してください。",
+  "This object is not known in the connected OpenCRQ.": "このオブジェクトは接続された OpenCRQ にありません。",
+  "Risk scenarios": "リスクシナリオ",
+  "Annual loss expectancy": "年間予想損失額",
+  "Loss avoided by fixing": "修正により回避される損失"
 }

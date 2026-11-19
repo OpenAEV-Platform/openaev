@@ -4701,5 +4701,15 @@
   "Hide this suggestion": "Nascondi questo suggerimento",
   "Ask an administrator to connect OpenCTI to see this object there.": "Chiedi a un amministratore di connettere OpenCTI per vedere questo oggetto.",
   "This object is not known in the connected OpenCTI.": "Questo oggetto non è noto all'OpenCTI connesso.",
-  "Always on": "Sempre attivo"
+  "Always on": "Sempre attivo",
+  "Connect OpenCRQ": "Connetti OpenCRQ",
+  "Open in OpenCRQ": "Apri in OpenCRQ",
+  "Not in OpenCRQ": "Non presente in OpenCRQ",
+  "OpenCRQ is unavailable": "OpenCRQ non è disponibile",
+  "In OpenCRQ": "Presente in OpenCRQ",
+  "Ask an administrator to connect OpenCRQ to see this object there.": "Chiedi a un amministratore di connettere OpenCRQ per vedere questo oggetto.",
+  "This object is not known in the connected OpenCRQ.": "Questo oggetto non è noto all'OpenCRQ connesso.",
+  "Risk scenarios": "Scenari di rischio",
+  "Annual loss expectancy": "Perdita annua attesa",
+  "Loss avoided by fixing": "Perdita evitata con la correzione"
 }

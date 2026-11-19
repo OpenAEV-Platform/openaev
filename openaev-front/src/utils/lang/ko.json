@@ -4701,5 +4701,15 @@
   "Hide this suggestion": "이 제안 숨기기",
   "Ask an administrator to connect OpenCTI to see this object there.": "이 개체를 OpenCTI에서 보려면 관리자에게 OpenCTI 연결을 요청하세요.",
   "This object is not known in the connected OpenCTI.": "연결된 OpenCTI에 이 개체가 없습니다.",
-  "Always on": "항상 실행 중"
+  "Always on": "항상 실행 중",
+  "Connect OpenCRQ": "OpenCRQ 연결",
+  "Open in OpenCRQ": "OpenCRQ에서 열기",
+  "Not in OpenCRQ": "OpenCRQ에 없음",
+  "OpenCRQ is unavailable": "OpenCRQ를 사용할 수 없음",
+  "In OpenCRQ": "OpenCRQ에서",
+  "Ask an administrator to connect OpenCRQ to see this object there.": "이 개체를 OpenCRQ에서 보려면 관리자에게 OpenCRQ 연결을 요청하세요.",
+  "This object is not known in the connected OpenCRQ.": "연결된 OpenCRQ에 이 개체가 없습니다.",
+  "Risk scenarios": "위험 시나리오",
+  "Annual loss expectancy": "연간 예상 손실",
+  "Loss avoided by fixing": "수정으로 방지되는 손실"
 }

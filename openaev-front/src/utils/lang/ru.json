@@ -4701,5 +4701,15 @@
   "Hide this suggestion": "Скрыть это предложение",
   "Ask an administrator to connect OpenCTI to see this object there.": "Попросите администратора подключить OpenCTI, чтобы увидеть этот объект там.",
   "This object is not known in the connected OpenCTI.": "Этот объект не найден в подключенном OpenCTI.",
-  "Always on": "Всегда работает"
+  "Always on": "Всегда работает",
+  "Connect OpenCRQ": "Подключить OpenCRQ",
+  "Open in OpenCRQ": "Открыть в OpenCRQ",
+  "Not in OpenCRQ": "Нет в OpenCRQ",
+  "OpenCRQ is unavailable": "OpenCRQ недоступен",
+  "In OpenCRQ": "В OpenCRQ",
+  "Ask an administrator to connect OpenCRQ to see this object there.": "Попросите администратора подключить OpenCRQ, чтобы увидеть этот объект там.",
+  "This object is not known in the connected OpenCRQ.": "Этот объект не найден в подключенном OpenCRQ.",
+  "Risk scenarios": "Сценарии рисков",
+  "Annual loss expectancy": "Ожидаемые годовые потери",
+  "Loss avoided by fixing": "Потери, предотвращённые исправлением"
 }

@@ -17,9 +17,11 @@ export interface CounterpartAnswer {
   counterpart?: CounterpartOutput;
 }
 
+// One entry per kind and key holds the answers of EVERY connected product (OpenCTI, OpenCRQ), so a
+// second product never overwrites the first.
 interface Cached {
   at: number;
-  value: CounterpartOutput;
+  value: CounterpartOutput[];
 }
 
 const cache = new Map<string, Cached>();
@@ -61,17 +63,15 @@ const flush = (kind: CounterpartKindPath) => {
     lookupCounterparts(kind, batch)
       .then((answers) => {
         const now = Date.now();
-        answers.forEach((answer) => {
-          // An unavailable product is never cached: the next view retries.
-          if (answer.counterpart_key && answer.counterpart_status !== 'unavailable') {
-            cache.set(cacheKey(kind, answer.counterpart_key), {
-              at: now,
-              value: answer,
-            });
-          }
-        });
         batch.forEach((key) => {
           const forKey = answers.filter(a => a.counterpart_key === key);
+          // A key with an unavailable product is never cached: the next view retries.
+          if (forKey.length > 0 && forKey.every(a => a.counterpart_status !== 'unavailable')) {
+            cache.set(cacheKey(kind, key), {
+              at: now,
+              value: forKey,
+            });
+          }
           (waiting.get(key) ?? []).forEach(resolve => resolve(forKey));
         });
       })
@@ -88,7 +88,7 @@ const flush = (kind: CounterpartKindPath) => {
 export const resolveCounterparts = (kind: CounterpartKindPath, key: string): Promise<CounterpartOutput[]> => {
   const cached = cache.get(cacheKey(kind, key));
   if (cached && Date.now() - cached.at < TTL_MS) {
-    return Promise.resolve([cached.value]);
+    return Promise.resolve(cached.value);
   }
   return new Promise((resolve) => {
     let waiting = pending.get(kind);
