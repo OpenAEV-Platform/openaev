@@ -317,6 +317,7 @@ import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.mapper.VulnerabilityMapper;
+import io.openaev.xtm.counterpart.LocalObjectService;
 import io.openaev.xtmhub.XtmHubService;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -1622,6 +1623,9 @@ class TenantActiveTableAccessArchTest {
               FindingSearchApi.class,
               FindingService.class,
               FindingDistinctSearchService.class,
+              // Counterpart facts (finding counts per asset or CVE), reached only from the
+              // TxCtx-carrying CounterpartApi lookups, inside their scoped read-only transaction.
+              LocalObjectService.class,
               // Reached only from those handlers, inside their scoped transaction.
               FindingMapper.class,
               // REQUIRES_NEW, so each declares its own TxCtx and the aspect scopes the new
