@@ -108,7 +108,14 @@ public class CatalogItemMapper {
     return new CatalogScenarioOutput(latest.getExternalId(), latest.getVersion(), latest.getName());
   }
 
-  public CatalogPayloadOutput toOutput(CatalogPayload latest) {
-    return new CatalogPayloadOutput(latest.getExternalId(), latest.getVersion(), latest.getName());
+  public CatalogPayloadOutput toOutput(CatalogPayload version) {
+    return new CatalogPayloadOutput(
+        version.getExternalId(),
+        version.getVersion(),
+        version.getName(),
+        version.getDescription(),
+        version.getDomain(),
+        version.getPlatforms(),
+        version.getPublishedAt());
   }
 }

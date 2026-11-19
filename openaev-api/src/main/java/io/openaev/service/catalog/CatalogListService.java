@@ -1,7 +1,6 @@
 package io.openaev.service.catalog;
 
 import io.openaev.api.catalog.CatalogItemMapper;
-import io.openaev.api.catalog.dto.payload.CatalogPayloadOutput;
 import io.openaev.api.catalog.dto.scenario.CatalogScenarioOutput;
 import io.openaev.database.model.catalog.CatalogItem;
 import io.openaev.database.repository.CatalogItemRepository;
@@ -31,17 +30,19 @@ public class CatalogListService {
         .toList();
   }
 
-  @Transactional(readOnly = true)
-  public List<CatalogPayloadOutput> payloads() {
-    return latestVersions(catalogItemRepository.findAllPayloads()).stream()
-        .map(catalogItemMapper::toOutput)
-        .toList();
-  }
-
   /** The latest offered version of every catalogue item of a type. */
   @Transactional(readOnly = true)
   public <T extends CatalogItem> List<T> latestOffered(Class<T> type) {
     return latestVersions(catalogItemRepository.findAllOfType(type));
+  }
+
+  /** Every offered version of one catalogue item, newest first. */
+  @Transactional(readOnly = true)
+  public <T extends CatalogItem> List<T> offeredVersions(Class<T> type, String externalId) {
+    return catalogItemRepository.findAllVersions(type, externalId).stream()
+        .filter(CatalogListService::isOffered)
+        .sorted(Comparator.comparing(CatalogItem::getVersion, SemanticVersion.ORDER).reversed())
+        .toList();
   }
 
   /** A version the catalogue still offers; refused when it is unknown, deprecated or revoked. */

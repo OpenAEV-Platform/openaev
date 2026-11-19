@@ -1,17 +1,18 @@
-import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Checkbox, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { type FunctionComponent, type MouseEvent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import useBodyItemsStyles from '../../../components/common/queryable/style/style';
-import { useFormatter } from '../../../components/i18n';
-import ItemDomains from '../../../components/ItemDomains';
-import ItemTags from '../../../components/ItemTags';
-import PlatformIcon from '../../../components/PlatformIcon';
-import { type ThreatArsenalAction } from '../../../utils/api-types';
-import InjectIcon from '../common/injects/InjectIcon';
-import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
-import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
+import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
+import { useFormatter } from '../../../../components/i18n';
+import ItemDomains from '../../../../components/ItemDomains';
+import ItemTags from '../../../../components/ItemTags';
+import PlatformIcon from '../../../../components/PlatformIcon';
+import { type ThreatArsenalAction } from '../../../../utils/api-types';
+import { isFeatureEnabled } from '../../../../utils/utils';
+import InjectIcon from '../../common/injects/InjectIcon';
+import PayloadStatusComponent from '../../payloads/PayloadStatusComponent';
+import ThreatArsenalActionPopover from '../ThreatArsenalActionPopover';
 import { THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
 
 const useStyles = makeStyles()(() => ({ item: { height: 50 } }));
@@ -24,10 +25,6 @@ interface Props {
   onUpdate: (result: ThreatArsenalAction) => void;
   onDuplicate: (result: ThreatArsenalAction) => void;
   onDelete: () => void;
-  disableUpdate: boolean;
-  disableDuplicate: boolean;
-  disableJsonExport: boolean;
-  disableDelete: boolean;
 }
 
 const ThreatArsenalListRow: FunctionComponent<Props> = ({
@@ -38,13 +35,9 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
   onUpdate,
   onDuplicate,
   onDelete,
-  disableUpdate,
-  disableDuplicate,
-  disableJsonExport,
-  disableDelete,
 }) => {
   const { classes } = useStyles();
-  const { tPick, nsdt } = useFormatter();
+  const { t, tPick, nsdt } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
   const name = tPick(action.action_labels);
 
@@ -54,23 +47,15 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
       disablePadding
       secondaryAction={(
         <ThreatArsenalActionPopover
-          actionId={action.injector_contract_id}
-          payloadId={action.action_payload?.payload_id ?? ''}
-          grantResourceId={action.action_grant_resource_id}
-          name={name}
+          action={action}
           onUpdate={onUpdate}
           onDuplicate={onDuplicate}
           onDelete={onDelete}
-          disableUpdate={disableUpdate}
-          disableDuplicate={disableDuplicate}
-          disableJsonExport={disableJsonExport}
-          disableDelete={disableDelete}
         />
       )}
     >
       <ListItemButton classes={{ root: classes.item }} onClick={onSelect}>
         <ListItemIcon
-          style={{ minWidth: 38 }}
           onClick={(event) => {
             event.stopPropagation();
             onToggleEntity(event);
@@ -81,7 +66,7 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
             aria-label={name}
           />
         </ListItemIcon>
-        <ListItemIcon style={{ minWidth: 40 }}>
+        <ListItemIcon>
           <InjectIcon
             type={
               action.action_payload != null
@@ -143,7 +128,9 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
                 ...THREAT_ARSENAL_LIST_INLINE_STYLES.action_status,
               }}
               >
-                <PayloadStatusComponent status={action.action_payload?.payload_status} />
+                {isFeatureEnabled('CATALOG') && action.action_payload_revoked
+                  ? <Chip label={t('Revoked')} severity="critical" />
+                  : <PayloadStatusComponent status={action.action_payload?.payload_status} />}
               </div>
               <Typography
                 component="div"
