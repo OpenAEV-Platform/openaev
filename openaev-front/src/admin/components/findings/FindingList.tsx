@@ -4,6 +4,7 @@ import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
 
+import markingsColumn from '../../../components/common/list/markingsColumn';
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -17,6 +18,7 @@ import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import ContractOutputElementType from './ContractOutputElementType';
 
 interface Props {
@@ -34,6 +36,7 @@ const inlineStyles: Record<string, CSSProperties> = ({
   finding_type: { width: '13%' },
   finding_value: { width: '27%' },
   finding_assets: { width: '17%' },
+  finding_markings: { width: '12%' },
   finding_asset_groups: { width: '15%' },
   finding_created_at: { width: '14%' },
   finding_updated_at: { width: '14%' },
@@ -42,6 +45,7 @@ const inlineStyles: Record<string, CSSProperties> = ({
 const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false }: Props) => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
+  const markingEnabled = isFeatureEnabled('MARKING');
   const [loading, setLoading] = useState<boolean>(true);
 
   const availableFilterNames = [
@@ -150,6 +154,9 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
         />
       ),
     },
+    ...(markingEnabled
+      ? [markingsColumn('finding_markings', (finding: AggregatedFindingOutput) => (finding.finding_assets ?? []).flatMap(asset => asset.asset_markings ?? []))]
+      : []),
     {
       field: 'finding_asset_groups',
       label: 'Asset groups',
