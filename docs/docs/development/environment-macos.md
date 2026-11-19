@@ -133,6 +133,44 @@ npm install -g corepack
 corepack enable
 ```
 
+## Documentation check
+
+The backend build and `yarn check-docs-links` build the documentation to check that every
+documentation link of the application, listed in `docs/links.json`, points to an existing page and
+section. They need Python with its `venv` module, at least the version in `docs/.python-version`
+(3.11): on first use, they create a virtual environment in `docs/.venv` and install the pinned
+documentation dependencies in it.
+
+Install Python with Homebrew:
+
+```bash
+brew install python
+```
+
+Verify the installation, which must report the version in `docs/.python-version` (3.11) or later:
+
+```bash
+python3 --version
+```
+
+The checks use the first usable Python among `python3` and `python`, then `python3.N` from the newest
+version down: a Python is usable when it runs, has its `venv` module and is recent enough, so one without
+`venv` is skipped and the next one is tried. To choose one, set the `OPENAEV_DOCS_PYTHON` environment
+variable to its path, or pass `-Dopenaev.docs.python=<path>` to Maven. A Python chosen this way is never
+replaced by another one: when it is not usable, the check names it.
+
+
+!!! warning "IDE started from the Dock"
+
+    An application started from the Dock or the Finder does not get the `PATH` of your shell, so an IDE
+    running the Maven build finds Apple's `/usr/bin/python3` (3.9), which is too old, and not the Homebrew
+    one. Set `OPENAEV_DOCS_PYTHON` in the environment of the run configuration, or add
+    `-Dopenaev.docs.python=/opt/homebrew/bin/python3` (`/usr/local/bin/python3` on Intel Macs) to its Maven
+    command. Starting the IDE from a terminal (`idea .`, `code .`) also passes your `PATH`.
+
+Without a usable Python, the backend build prints a warning and goes on without the check, while
+`yarn check-docs-links` fails. Add `-Dopenaev.docs.check.skip=true` to the Maven command to skip the check.
+
 ## What's next?
 
 - [Build from source](build-from-source.md) -- Start the services, then build and run OpenAEV

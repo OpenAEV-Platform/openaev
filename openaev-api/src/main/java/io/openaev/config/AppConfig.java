@@ -2,6 +2,7 @@ package io.openaev.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.TxCtx;
+import io.openaev.docs.DocsLinks;
 import io.openaev.helper.ObjectMapperHelper;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.ExternalDocumentation;
@@ -81,9 +82,7 @@ public class AppConfig {
                         .type(SecurityScheme.Type.APIKEY)
                         .in(SecurityScheme.In.COOKIE)))
         .externalDocs(
-            new ExternalDocumentation()
-                .description("OpenAEV documentation")
-                .url("https://docs.openaev.io/"));
+            new ExternalDocumentation().description("OpenAEV documentation").url(DocsLinks.HOME));
   }
 
   static final String SORT_OBJECT_REF = "#/components/schemas/SortObject";

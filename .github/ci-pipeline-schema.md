@@ -2,7 +2,7 @@
 
 Both **Core CI** (`core-ci.yml`) and **Nightly CI** (`nightly-ci.yml`) are thin callers.
 All the work lives in one reusable workflow, `_ci-pipeline.yml`, and the callers differ
-only in two inputs: `api-matrix` and `e2e-matrix`.
+only in their inputs: `api-matrix`, `e2e-matrix`, `no-cache` and `docs-git-plugins`.
 
 ![OpenAEV CI pipeline — Core and Nightly](ci-pipeline-schema.svg)
 
@@ -39,8 +39,8 @@ itself, so their colour and dash pattern cannot drift from what they describe.
 
 ## The one thing to understand
 
-Almost nothing in this pipeline waits. Of the 19 job definitions in `_ci-pipeline.yml`,
-**13 launch at t = 0 with no `needs:` at all**; only 6 declare a dependency.
+Almost nothing in this pipeline waits. Of the 27 job definitions in `_ci-pipeline.yml`,
+**19 launch at t = 0 with no `needs:` at all**; only 8 declare a dependency.
 
 `needs:` waits for the *entire* upstream job to finish — including the artifact
 gzip / validate / upload tail, roughly 2.5 min the consumer never actually reads. So
@@ -52,7 +52,7 @@ The Docker handoff checks producer conclusions every 15 seconds and aborts on an
 terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 `skipped`, so consumers stop promptly instead of waiting for artifacts that cannot arrive.
 
-### The seven real `needs:` edges
+### The eight real `needs:` edges
 
 | Job | `needs:` | Why a hard dependency is correct |
 |-----|----------|----------------------------------|
@@ -62,7 +62,8 @@ terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 | **Backend Coverage Check** | API Tests | Builds the same report itself, next to the upload; pull requests with green API tests only |
 | **Coverage Upload (frontend)** | Frontend Quality | Uploads Vitest coverage as soon as unit tests finish |
 | **Coverage Upload (e2e)** | E2E Tests | Needs every E2E shard green; each shard's `lcov.info` uploaded |
-| **Pipeline Gate** | 20 jobs (see below) | Aggregates results; runs `if: always()` |
+| **Tenant shadow verdict** | API Tests | Nightly only; collects the shadow shards' pass or fail into one table |
+| **Pipeline Gate** | 22 jobs (see below) | Aggregates results; runs `if: always()` |
 
 ### The five polling waits
 
@@ -103,12 +104,19 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 
 | Job | `timeout-minutes` | Purpose |
 |-----|-------------------|---------|
+| 🔢 **ADR Numbering** | 5 min | A pull request must not add an ADR number main already has |
 | 🔎 **Migrations Guard** | 3 min | New DB migrations must be strictly appended after the last release tag |
+| 🔎 **OCSF Parser Generation Stability** | 3 min | Regenerated OCSF parser must leave no git diff |
 | 🔨 **Backend Compile** | 10 min | `mvn compile`; uploads `backend-compiled` and `api-build-output` |
 | 🎨 **Frontend Build** | 15 min | Yarn build of `openaev-front` |
 | 📦 **Prepare Bundled Assets** | 10 min | Agent/implant binaries from JFrog, patches `catalog-integrators.json`, uploads `release-assets` |
 | 🔍 **Spotless Check** | 10 min | Java formatting |
+| 🔎 **BOM Override Guard** | 15 min | Spring Boot BOM overrides tracked by Renovate and still effective. Advisory in the Gate |
 | 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + dependency-cruiser + knip + Vitest + coverage |
+| 🎨 **FDS Conformity** | 5 min | Design-system token bridge and migrated zones stay conformant |
+| 🎨 **FDS MUI Regression** | 5 min | Pull requests only: no MUI component re-enters where the design system replaces it |
+| 📖 **Docs Check** | 10 min | `docs/run.py test`, then `docs/run.py --offline check --force`, the check developers run: a strict build with the engine mike deploys with and the checks of `docs/hooks/checks.py`, so every page and image is in the built site and its search index, every link between docs pages and every key of `docs/links.json` resolves to a page and anchor. Git plugins on in Nightly only |
+| 🔎 **Docs URLs Guard** | 3 min | No `docs.openaev.io` URL in tracked code or config outside `docs/`, Markdown, `.github/`, the comments of `application.properties`, `DocsLinks.java` and the tests that hold the URLs they expect: the app opens the docs by key of `docs/links.json` |
 | 🐳 **Docker Build** ×4 | 25 min | `standard`/`ubi9` × `amd64`/`arm64`, native runners, no QEMU. `fail-fast: false` |
 | 🐳 **Merge Platforms** ×2 | 45 min | Multi-arch OCI index per variant, with artifact fallback when the registry is unavailable |
 | 🔍 **Aikido Image Scan** | 25 min | Aikido gate on both amd64 images, threshold `high`: issues added by a pull request, or open on `main`, post a red **Aikido Image Scan (advisory)** check. Skipped with a notice without the `AIKIDO_TOKEN` secret, except on `main` |
@@ -136,12 +144,12 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 ⚠️ **Required status check for branch protection.** Full name: `pipeline / ✅ Pipeline Gate`.
 If the caller's job key changes, the branch-protection rule must be updated.
 
-It `needs:` these 20 jobs:
+It `needs:` these 22 jobs:
 
 `adr-numbering`, `ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`,
 `prepare-bundled-assets`, `spotless-check`, `bom-override-guard`, `frontend-quality`, `fds-conformity`,
-`fds-mui-regression`, `api-tests`, `coverage-backend-gate`, `e2e-tests`, `api-types-check`, `backend-package`,
-`backend-package-musl`, `docker-build`, `docker-merge`, `aikido-image-scan`
+`fds-mui-regression`, `docs-check`, `docs-urls-guard`, `api-tests`, `coverage-backend-gate`, `e2e-tests`,
+`api-types-check`, `backend-package`, `backend-package-musl`, `docker-build`, `docker-merge`, `aikido-image-scan`
 
 **Advisory jobs.** `bom-override-guard`, `coverage-backend-gate` and `aikido-image-scan` show ⚠️ in the gate when they fail,
 and never fail it. A new check starts there so a false positive cannot block a merge; taking it out of
@@ -202,7 +210,7 @@ gate's advisory list makes it blocking.
 | | Core CI | Nightly CI |
 |-|---------|------------|
 | Triggers | `push` to `main` / `testing-xtm-one`, `push` of a `N.N.N` tag, `pull_request` → any branch | `schedule: cron "0 3 * * *"` (daily 03:00 UTC), `workflow_dispatch` |
-| Total expanded jobs | ≈ 36 | ≈ 59 |
+| Total expanded jobs | 44 on pull requests, 46 on push and tags | 114 |
 
 ### API Tests matrix
 
@@ -222,21 +230,21 @@ server it starts, with `search_engine`. Each value maps to a service of
 
 |                 | Core CI | Nightly CI             |
 |-----------------|---------|------------------------|
-| Elasticsearch 8 | 7 shards + `remaining` | 7 shards + `remaining` |
-| Elasticsearch 9 | ✗ | 7 shards + `remaining` |
-| OpenSearch      | ✗ | 7 shards + `remaining` |
-| **Total cells** | **8** | **24**                 |
+| Elasticsearch 8 | 9 shards + `remaining` | 9 shards + `remaining`, ×3: standard, `shadow-prod`, `shadow-all` |
+| Elasticsearch 9 | ✗ | 9 shards + `remaining`, ×2: standard, `shadow-prod` |
+| OpenSearch      | ✗ | 9 shards + `remaining` |
+| **Total cells** | **10** | **60**                 |
 
 ### E2E Tests matrix
 
 | | Core CI                                          | Nightly CI                                             |
 |-|--------------------------------------------------|--------------------------------------------------------|
-| Images | standard only (amd64 + arm64)                    | standard + ubi9, amd64 + arm64                         |
-| Browsers | chrome (amd64), chromium (arm64)                 | chrome, chromium, webkit, firefox, edge                |
+| Images | standard only: amd64 on pull requests, amd64 + arm64 on push | standard + ubi9, amd64 + arm64                         |
+| Browsers | chromium on pull requests; chrome (amd64), chromium (arm64) on push | chrome, chromium, webkit, firefox, edge                |
 | Search engines | Elasticsearch 9 only                             | Elasticsearch 9 + OpenSearch                           |
-| Sharding | `arsenals`, `multitenant`, `remaining` catch-all | unsharded full suites                                  |
-| Infra tests | 4 cells, `infra-chromium`                        | 7 cells across chrome, chromium, firefox, webkit, edge |
-| **Total cells** | **10**                                           | **25**                                                 |
+| Sharding | `arsenals`, `external-integrations`, `remaining` catch-all | unsharded full suites                                  |
+| Infra tests | 3 cells on pull requests, 5 on push, `infra-chromium` | 8 cells across chrome, chromium, firefox, webkit, edge |
+| **Total cells** | **6 on pull requests, 10 on push**               | **27**                                                 |
 
 `ubi9` and `webkit` are nightly-only: they exercise the same JAR and were doubling the
 critical path. `artifact_suffix` must stay unique per cell — the report artifact is named

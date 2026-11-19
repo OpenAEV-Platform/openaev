@@ -544,6 +544,18 @@
                             <goal>migration</goal>
                         </goals>
                     </execution>
+                    <!-- Checks docs/links.json against the built docs site (docs/run.py check, with the system Python).
+                         Bound to validate so it runs on every local build, including spring-boot:run, which
+                         forks the lifecycle up to test-compile. Fails the build only on docs problems: without a
+                         usable Python it warns and the build goes on. Skipped when the CI variable is set (the
+                         Docs Check job covers CI) or with -Dopenaev.docs.check.skip=true. -->
+                    <execution>
+                        <id>docs-check</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>docs-check</goal>
+                        </goals>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>

@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
 import { useFormatter } from '../../../../components/i18n';
+import docsUrl from '../../../../utils/docsUrl';
 import InjectFormSection from '../../common/injects/form/InjectFormSection';
 import ContractOutputElementCard from './ContractOutputElementCard';
 
@@ -33,7 +34,7 @@ const OutputFormTab = () => {
         {t('Define structured outputs by parsing the raw output of your action.')}
         {' '}
         <Link
-          href="https://docs.openaev.io/latest/usage/build/threat-arsenals/output-parsers/"
+          href={docsUrl('output_parsers')}
           target="_blank"
           rel="noreferrer"
           underline="always"

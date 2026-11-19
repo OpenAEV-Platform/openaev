@@ -11,6 +11,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
+import io.openaev.docs.DocsLinks;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.exception.ExecutorException;
@@ -40,8 +41,6 @@ public class MdeExecutorIntegration extends Integration {
   public static final String MDE_EXECUTOR_DEFAULT_ID = "f9c4a0e1-3b7d-4f8a-9e2c-1d5b6a0f8e3c";
   public static final String MDE_EXECUTOR_TYPE = "openaev_mde_executor";
   public static final String MDE_EXECUTOR_NAME = "Microsoft Defender for Endpoint";
-  private static final String MDE_EXECUTOR_DOCUMENTATION_LINK =
-      "https://docs.openaev.io/latest/deployment/ecosystem/executors/#microsoft-defender-for-endpoint";
   private static final String MDE_EXECUTOR_BACKGROUND_COLOR = "#0078D4";
 
   @QualifiedComponent(identifier = MdeExecutorContextService.SERVICE_NAME)
@@ -126,7 +125,7 @@ public class MdeExecutorIntegration extends Integration {
             executorId,
             MDE_EXECUTOR_TYPE,
             executorName,
-            MDE_EXECUTOR_DOCUMENTATION_LINK,
+            DocsLinks.EXECUTORS_MDE,
             MDE_EXECUTOR_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-mde.png"),
             getClass().getResourceAsStream("/img/banner-mde.png"),
