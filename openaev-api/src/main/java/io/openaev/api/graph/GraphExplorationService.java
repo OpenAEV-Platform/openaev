@@ -482,7 +482,7 @@ public class GraphExplorationService {
               });
         }
         if (want.test(GraphEdgeType.TARGETS)) {
-          targets(slice, tenantIds, "e.asset.id = :id", id, cap);
+          targets(slice, tenantIds, TARGETS_OF_ASSET, id, cap);
         }
       }
       case ASSET_GROUP -> {
@@ -514,7 +514,7 @@ public class GraphExplorationService {
           dynamicMembersOf(slice, tenantIds, id, here, cap);
         }
         if (want.test(GraphEdgeType.TARGETS)) {
-          targets(slice, tenantIds, "e.assetGroup.id = :id", id, cap);
+          targets(slice, tenantIds, TARGETS_OF_ASSET_GROUP, id, cap);
         }
       }
       case FINDING -> {
@@ -576,7 +576,7 @@ public class GraphExplorationService {
         }
         final String here = focus;
         if (want.test(GraphEdgeType.TARGETS)) {
-          targets(slice, tenantIds, "i.id = :id", id, cap);
+          targets(slice, tenantIds, TARGETS_OF_INJECT, id, cap);
         }
         if (want.test(GraphEdgeType.PRODUCED)) {
           rows(
@@ -833,22 +833,40 @@ public class GraphExplorationService {
     return focus;
   }
 
-  /** Inject -> asset / asset group edges with the worst expectation result per pair. */
-  private void targets(
-      Slice slice, Collection<String> tenantIds, String predicate, String id, int cap) {
+  private static final String TARGETS_SELECT =
+      "SELECT i.id, i.title, a.id, a.name, a.type, g.id, g.name, e.score, e.expectedScore"
+          + " FROM TechnicalInjectExpectation e JOIN e.inject i"
+          + " LEFT JOIN e.asset a LEFT JOIN e.assetGroup g";
+
+  private static final String TARGETS_SCOPE =
+      " AND i.tenant.id IN :tenantIds"
+          + " AND (a IS NULL OR a.tenant.id IN :tenantIds)"
+          + " AND (g IS NULL OR g.tenant.id IN :tenantIds)"
+          + " ORDER BY e.createdAt DESC";
+
+  /** The expectations on one asset. */
+  static final String TARGETS_OF_ASSET = TARGETS_SELECT + " WHERE e.asset.id = :id" + TARGETS_SCOPE;
+
+  /** The expectations on one asset group. */
+  static final String TARGETS_OF_ASSET_GROUP =
+      TARGETS_SELECT + " WHERE e.assetGroup.id = :id" + TARGETS_SCOPE;
+
+  /** The expectations of one inject. */
+  static final String TARGETS_OF_INJECT = TARGETS_SELECT + " WHERE i.id = :id" + TARGETS_SCOPE;
+
+  /**
+   * Inject -> asset / asset group edges with the worst expectation result per pair, read by {@code
+   * query} (one of the three constant queries above, never a string built from input).
+   */
+  void targets(Slice slice, Collection<String> tenantIds, String query, String id, int cap) {
+    if (!TARGETS_OF_ASSET.equals(query)
+        && !TARGETS_OF_ASSET_GROUP.equals(query)
+        && !TARGETS_OF_INJECT.equals(query)) {
+      throw new IllegalArgumentException("Unknown target query");
+    }
     List<Object[]> rows =
         entityManager
-            .createQuery(
-                "SELECT i.id, i.title, a.id, a.name, a.type, g.id, g.name, e.score, e.expectedScore"
-                    + " FROM TechnicalInjectExpectation e JOIN e.inject i"
-                    + " LEFT JOIN e.asset a LEFT JOIN e.assetGroup g"
-                    + " WHERE "
-                    + predicate
-                    + " AND i.tenant.id IN :tenantIds"
-                    + " AND (a IS NULL OR a.tenant.id IN :tenantIds)"
-                    + " AND (g IS NULL OR g.tenant.id IN :tenantIds)"
-                    + " ORDER BY e.createdAt DESC",
-                Object[].class)
+            .createQuery(query, Object[].class)
             .setParameter("id", id)
             .setParameter("tenantIds", tenantIds)
             .setMaxResults(cap * 4 + 1)
