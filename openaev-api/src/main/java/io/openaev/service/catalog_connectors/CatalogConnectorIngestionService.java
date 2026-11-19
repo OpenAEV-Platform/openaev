@@ -33,6 +33,7 @@ public class CatalogConnectorIngestionService {
   private final ConnectorInstanceService connectorInstanceService;
   private final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   private final TenantScopedTransaction tenantScopedTransaction;
+  private final CatalogConnectorInjectorContractSync injectorContractSync;
 
   public List<CatalogConnector> extractCatalog(JsonNode rootNode) {
     JsonNode contracts = rootNode.get("contracts");
@@ -72,7 +73,7 @@ public class CatalogConnectorIngestionService {
   public CatalogConnector buildCatalogConnector(JsonNode contract) {
     CatalogConnector connector =
         catalogConnectorService
-            .findBySlug(contract.path("slug").asText())
+            .findBySlugWithConfigurationsAndInjectorContracts(contract.path("slug").asText())
             .orElseGet(CatalogConnector::new);
 
     List<String> useCases = new ArrayList<>();
@@ -124,6 +125,8 @@ public class CatalogConnectorIngestionService {
     } else {
       log.warn("container_type is null or empty");
     }
+
+    injectorContractSync.syncFromManifest(connector, contract);
 
     Set<CatalogConnectorConfiguration> conf = buildConnectorConfigurations(contract, connector);
     connector.getCatalogConnectorConfigurations().clear();

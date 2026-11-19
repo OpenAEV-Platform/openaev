@@ -13,6 +13,7 @@
   "{count} actions installed": "{count} azioni installate",
   "{name} v{version} installed": "{name} v{version} installata",
   "A payload with this name already exists": "Esiste già un payload con questo nome",
+  "Deploy this integration to use this action.": "Distribuisci questa integrazione per usare questa azione.",
   "Every catalog action is installed": "Tutte le azioni del catalogo sono installate",
   "Filigran license": "Licenza Filigran",
   "Filigran license (through XTM One)": "Licenza Filigran (tramite XTM One)",

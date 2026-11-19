@@ -47,10 +47,14 @@ public class CatalogItemMapper {
     target.setArchiveName(version.file().name());
   }
 
-  // Same rule as the Threat Arsenal sections: the first domain by name.
   private static String primaryDomain(JsonNode file) {
     List<String> names = new ArrayList<>();
     file.path("payload_domains").forEach(domain -> names.add(domain.path("domain_name").asText()));
+    return primaryDomain(names);
+  }
+
+  // Same rule as the Threat Arsenal sections: the first domain by name.
+  static String primaryDomain(List<String> names) {
     return names.stream()
         .filter(name -> !name.isBlank() && !DomainService.TO_CLASSIFY.equals(name))
         .sorted()

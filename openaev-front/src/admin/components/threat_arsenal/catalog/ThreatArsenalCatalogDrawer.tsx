@@ -4,32 +4,32 @@ import { type FunctionComponent, useEffect, useState } from 'react';
 import { fetchCatalogPayloadVersions, installCatalogPayload } from '../../../../actions/catalog/payload-catalog-actions';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import { type CatalogPayloadOutput } from '../../../../utils/api-types';
+import { type AvailablePayloadActionOutput, type CatalogPayloadOutput } from '../../../../utils/api-types';
 import CatalogPayloadVersionPreview from './CatalogPayloadVersionPreview';
 
 interface Props {
-  payload: CatalogPayloadOutput | null;
+  action: AvailablePayloadActionOutput | null;
   canInstall: boolean;
   onClose: () => void;
-  onInstalled: (version: CatalogPayloadOutput) => void;
+  onInstalled: (version: string) => void;
 }
 
 // A payload of the Available tab: its latest version first, any other offered version on demand.
-const ThreatArsenalCatalogDrawer: FunctionComponent<Props> = ({ payload, canInstall, onClose, onInstalled }) => {
+const ThreatArsenalCatalogDrawer: FunctionComponent<Props> = ({ action, canInstall, onClose, onInstalled }) => {
   const { t } = useFormatter();
   const [versions, setVersions] = useState<CatalogPayloadOutput[]>([]);
   const [shownVersion, setShownVersion] = useState('');
   const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
-    setVersions(payload ? [payload] : []);
-    setShownVersion(payload?.catalog_payload_version ?? '');
-    if (payload) {
-      fetchCatalogPayloadVersions(payload.catalog_payload_external_id)
+    setVersions([]);
+    setShownVersion(action?.action_payload_version ?? '');
+    if (action) {
+      fetchCatalogPayloadVersions(action.action_id)
         .then(setVersions)
         .catch(() => undefined);
     }
-  }, [payload]);
+  }, [action]);
 
   const shown = versions.find(version => version.catalog_payload_version === shownVersion);
 
@@ -38,7 +38,7 @@ const ThreatArsenalCatalogDrawer: FunctionComponent<Props> = ({ payload, canInst
     setInstalling(true);
     installCatalogPayload(shown.catalog_payload_external_id, shown.catalog_payload_version)
       .then(() => {
-        onInstalled(shown);
+        onInstalled(shown.catalog_payload_version);
         onClose();
       })
       .catch(() => undefined)
@@ -47,14 +47,14 @@ const ThreatArsenalCatalogDrawer: FunctionComponent<Props> = ({ payload, canInst
 
   return (
     <Drawer
-      open={payload !== null}
+      open={action !== null}
       handleClose={onClose}
       title={t('Action information')}
       headerActions={canInstall && shown && (
         <Button loading={installing} onClick={install}>{t('Install this version')}</Button>
       )}
     >
-      {payload && (
+      {action && (
         <div style={{
           display: 'flex',
           flexDirection: 'column',

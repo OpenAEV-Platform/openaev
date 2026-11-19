@@ -1,9 +1,9 @@
 import { Button, Switch } from '@filigran/design-system';
 import { CategoryOutlined } from '@mui/icons-material';
-import { useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 
 import {
-  fetchCatalogPayloads,
+  fetchAvailableActions,
   fetchCatalogSettings,
   installAllCatalogPayloads,
   installCatalogPayload,
@@ -16,7 +16,7 @@ import MarketplaceSortSelect from '../../../../components/common/marketplace/too
 import { type SortHelpers } from '../../../../components/common/queryable/sort/SortHelpers';
 import { useFormatter } from '../../../../components/i18n';
 import SearchFilter from '../../../../components/SearchFilter';
-import { type CatalogPayloadOutput, type CatalogSettingsOutput } from '../../../../utils/api-types';
+import { type AvailableActionOutput, type AvailablePayloadActionOutput, type CatalogSettingsOutput } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -25,60 +25,64 @@ import ThreatArsenalHero from '../page/ThreatArsenalHero';
 import ThreatArsenalTabs from '../page/ThreatArsenalTabs';
 import ThreatArsenalEmptyState from '../ThreatArsenalEmptyState';
 import {
-  type CatalogPayloadFilters,
-  type CatalogPayloadSort,
+  type AvailableActionFilters,
+  type AvailableActionSort,
+  byKind,
   type FacetKey,
-  filterPayloads,
+  filterActions,
   hasFilters,
   NO_FILTERS,
   type SortField,
-} from './catalogPayloadFilters';
+  useActionName,
+} from './availableActions';
 import ThreatArsenalCatalogCard from './ThreatArsenalCatalogCard';
 import ThreatArsenalCatalogDrawer from './ThreatArsenalCatalogDrawer';
 import ThreatArsenalCatalogSidebar from './ThreatArsenalCatalogSidebar';
+import ThreatArsenalContractCatalogCard from './ThreatArsenalContractCatalogCard';
 
 const SORT_OPTIONS = [
   {
-    field: 'catalog_payload_name',
+    field: 'name',
     label: 'Name',
   },
   {
-    field: 'catalog_payload_published_at',
+    field: 'publishedAt',
     label: 'Published',
   },
 ];
 
-// The catalogue payloads the tenant has not installed, filtered and sorted in memory: the catalogue is small.
+// The catalogue actions the tenant does not have yet, filtered and sorted in memory: the catalogue is small.
 const ThreatArsenalAvailable = () => {
   const { t } = useFormatter();
+  const nameOf = useActionName();
   const ability = useAbility();
   const canInstall = ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
   const canChangeSettings = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
-  const [payloads, setPayloads] = useState<CatalogPayloadOutput[]>([]);
+  const [actions, setActions] = useState<AvailableActionOutput[]>([]);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<CatalogSettingsOutput | null>(null);
-  const [filters, setFilters] = useState<CatalogPayloadFilters>(NO_FILTERS);
-  const [sort, setSort] = useState<CatalogPayloadSort>({
-    field: 'catalog_payload_name',
+  const [filters, setFilters] = useState<AvailableActionFilters>(NO_FILTERS);
+  const [sort, setSort] = useState<AvailableActionSort>({
+    field: 'name',
     asc: true,
   });
   const [installedIds, setInstalledIds] = useState<Set<string>>(new Set());
   const [installingIds, setInstallingIds] = useState<Set<string>>(new Set());
   const [installingAll, setInstallingAll] = useState(false);
-  const [opened, setOpened] = useState<CatalogPayloadOutput | null>(null);
+  const [opened, setOpened] = useState<AvailablePayloadActionOutput | null>(null);
 
-  const loadPayloads = useCallback(() => fetchCatalogPayloads()
+  const loadActions = useCallback(() => fetchAvailableActions()
     .then((loaded) => {
-      setPayloads(loaded);
+      setActions(loaded);
       setInstalledIds(new Set());
     })
     .catch(() => undefined)
     .finally(() => setLoading(false)), []);
 
   useEffect(() => {
-    loadPayloads();
+    loadActions();
     fetchCatalogSettings().then(setSettings).catch(() => undefined);
-  }, [loadPayloads]);
+  }, [loadActions]);
 
   const sortHelpers: SortHelpers = {
     getSortBy: () => sort.field,
@@ -96,20 +100,20 @@ const ThreatArsenalAvailable = () => {
     ...previous,
     [key]: previous[key].includes(value) ? previous[key].filter(v => v !== value) : [...previous[key], value],
   }));
-  const shown = filterPayloads(payloads, filters, sort);
 
-  const markInstalled = (version: CatalogPayloadOutput) => {
-    setInstalledIds(previous => new Set([...previous, version.catalog_payload_external_id]));
+  const markInstalled = (action: AvailablePayloadActionOutput, version: string) => {
+    setInstalledIds(previous => new Set([...previous, action.action_id]));
     MESSAGING$.notifySuccess(t('{name} v{version} installed', {
-      name: version.catalog_payload_name ?? version.catalog_payload_external_id,
-      version: version.catalog_payload_version,
+      name: nameOf(action),
+      version,
     }));
   };
-  const install = (payload: CatalogPayloadOutput) => {
-    const id = payload.catalog_payload_external_id;
+  const install = (action: AvailablePayloadActionOutput) => {
+    const id = action.action_id;
+    const version = action.action_payload_version;
     setInstallingIds(previous => new Set([...previous, id]));
-    installCatalogPayload(id, payload.catalog_payload_version)
-      .then(() => markInstalled(payload))
+    installCatalogPayload(id, version)
+      .then(() => markInstalled(action, version))
       .catch(() => undefined)
       .finally(() => setInstallingIds(previous => new Set([...previous].filter(other => other !== id))));
   };
@@ -118,11 +122,33 @@ const ThreatArsenalAvailable = () => {
     installAllCatalogPayloads()
       .then(({ installed_ids }) => {
         MESSAGING$.notifySuccess(t('{count} actions installed', { count: installed_ids?.length ?? 0 }));
-        return loadPayloads();
+        return loadActions();
       })
       .catch(() => undefined)
       .finally(() => setInstallingAll(false));
   };
+  const card = byKind<ReactNode>({
+    PAYLOAD: action => (
+      <ThreatArsenalCatalogCard
+        key={`${action.action_kind}-${action.action_id}`}
+        action={action}
+        name={nameOf(action)}
+        installed={installedIds.has(action.action_id)}
+        installing={installingIds.has(action.action_id)}
+        canInstall={canInstall}
+        onInstall={() => install(action)}
+        onOpen={() => setOpened(action)}
+      />
+    ),
+    INTEGRATION: action => (
+      <ThreatArsenalContractCatalogCard
+        key={`${action.action_kind}-${action.action_id}`}
+        action={action}
+        name={nameOf(action)}
+      />
+    ),
+  });
+  const shown = filterActions(actions, filters, sort, nameOf);
   const changeAutoInstall = (payloadAutoInstall: boolean) => settings && updateCatalogSettings({
     payload_auto_install: payloadAutoInstall,
     scenario_auto_install: settings.scenario_auto_install,
@@ -152,7 +178,7 @@ const ThreatArsenalAvailable = () => {
           />
         )}
         tabs={<ThreatArsenalTabs active="available" />}
-        sidebar={<ThreatArsenalCatalogSidebar payloads={payloads} filters={filters} onToggle={toggleFacet} />}
+        sidebar={<ThreatArsenalCatalogSidebar actions={actions} filters={filters} onToggle={toggleFacet} />}
         toolbar={(
           <div style={{
             display: 'flex',
@@ -169,7 +195,7 @@ const ThreatArsenalAvailable = () => {
                 keyword: keyword ?? '',
               }))}
             />
-            <MarketplaceSortSelect sortHelpers={sortHelpers} options={SORT_OPTIONS} descendingFields={['catalog_payload_published_at']} />
+            <MarketplaceSortSelect sortHelpers={sortHelpers} options={SORT_OPTIONS} descendingFields={['publishedAt']} />
             <div style={{ marginLeft: 'auto' }}>
               <MarketplaceResultsCount count={shown.length} />
             </div>
@@ -180,7 +206,7 @@ const ThreatArsenalAvailable = () => {
           items={shown}
           loading={loading}
           sections={{
-            sectionKey: payload => payload.catalog_payload_domain,
+            sectionKey: action => action.action_domain,
             sectionLabel: domain => (domain ? t(domain) : t('Other')),
             sectionIcon: domain => (domain && DOMAIN_ICON_MAP[domain]?.()) || <CategoryOutlined />,
           }}
@@ -194,24 +220,14 @@ const ThreatArsenalAvailable = () => {
               }}
             />
           )}
-          renderItem={payload => (
-            <ThreatArsenalCatalogCard
-              key={payload.catalog_payload_external_id}
-              payload={payload}
-              installed={installedIds.has(payload.catalog_payload_external_id)}
-              installing={installingIds.has(payload.catalog_payload_external_id)}
-              canInstall={canInstall}
-              onInstall={() => install(payload)}
-              onOpen={() => setOpened(payload)}
-            />
-          )}
+          renderItem={card}
         />
       </MarketplaceBrowser>
       <ThreatArsenalCatalogDrawer
-        payload={opened}
-        canInstall={canInstall && !(opened && installedIds.has(opened.catalog_payload_external_id))}
+        action={opened}
+        canInstall={canInstall && !(opened && installedIds.has(opened.action_id))}
         onClose={() => setOpened(null)}
-        onInstalled={markInstalled}
+        onInstalled={version => opened && markInstalled(opened, version)}
       />
     </>
   );

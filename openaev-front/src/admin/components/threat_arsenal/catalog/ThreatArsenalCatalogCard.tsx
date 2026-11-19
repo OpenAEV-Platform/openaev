@@ -5,10 +5,11 @@ import { type FunctionComponent } from 'react';
 import MarketplaceCard from '../../../../components/common/marketplace/card/MarketplaceCard';
 import { useFormatter } from '../../../../components/i18n';
 import PlatformIcon from '../../../../components/PlatformIcon';
-import { type CatalogPayloadOutput } from '../../../../utils/api-types';
+import { type AvailablePayloadActionOutput } from '../../../../utils/api-types';
 
 interface Props {
-  payload: CatalogPayloadOutput;
+  action: AvailablePayloadActionOutput;
+  name: string;
   installed: boolean;
   installing: boolean;
   canInstall: boolean;
@@ -16,25 +17,25 @@ interface Props {
   onOpen: () => void;
 }
 
-const ThreatArsenalCatalogCard: FunctionComponent<Props> = ({ payload, installed, installing, canInstall, onInstall, onOpen }) => {
+const ThreatArsenalCatalogCard: FunctionComponent<Props> = ({ action, name, installed, installing, canInstall, onInstall, onOpen }) => {
   const { t, nsd } = useFormatter();
 
   return (
     <MarketplaceCard
       testId="threat-arsenal-catalog-card"
       icon={<TerminalOutlined color="primary" />}
-      title={payload.catalog_payload_name ?? payload.catalog_payload_external_id}
-      overline={payload.catalog_payload_domain ? t(payload.catalog_payload_domain) : undefined}
-      description={payload.catalog_payload_description}
+      title={name}
+      overline={action.action_domain ? t(action.action_domain) : undefined}
+      description={action.action_payload_description}
       onClick={onOpen}
       info={[
         {
           label: t('Version'),
-          value: `v${payload.catalog_payload_version}`,
+          value: `v${action.action_payload_version}`,
         },
         {
           label: t('Published'),
-          value: payload.catalog_payload_published_at ? nsd(payload.catalog_payload_published_at) : '–',
+          value: action.action_payload_published_at ? nsd(action.action_payload_published_at) : '–',
         },
       ]}
       footerStart={(
@@ -44,7 +45,7 @@ const ThreatArsenalCatalogCard: FunctionComponent<Props> = ({ payload, installed
           gap: 4,
         }}
         >
-          {payload.catalog_payload_platforms.map(platform => <PlatformIcon key={platform} width={16} platform={platform} tooltip />)}
+          {action.action_platforms.map(platform => <PlatformIcon key={platform} width={16} platform={platform} tooltip />)}
         </div>
       )}
       action={installed
