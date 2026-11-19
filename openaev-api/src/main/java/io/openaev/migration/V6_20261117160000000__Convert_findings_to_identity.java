@@ -18,6 +18,7 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -34,7 +35,15 @@ import org.springframework.stereotype.Component;
 public class V6_20261117160000000__Convert_findings_to_identity extends BaseJavaMigration {
 
   private static final int BATCH_SIZE = 1000;
+
+  /**
+   * The writes of a batch grow with the locations of its rows (one finding, its occurrences, tags
+   * and links per location), not with the rows read: a batch stops before this many locations.
+   */
+  static final int MAX_LOCATIONS_PER_BATCH = 1000;
+
   private static final String FINDING_MODEL = "finding";
+  private static final String UNCONVERTED_INDEX = "idx_findings_unconverted";
 
   /** An old-shape row and what it is linked to. */
   private record OldFinding(
@@ -79,25 +88,42 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     boolean autoCommit = connection.getAutoCommit();
     connection.setAutoCommit(false);
     try {
-      try (Statement statement = connection.createStatement()) {
-        statement.execute("ALTER TABLE findings DROP CONSTRAINT IF EXISTS finding_inject_id_fk");
-        statement.execute(
-            "ALTER TABLE findings ADD CONSTRAINT finding_inject_id_fk"
-                + " FOREIGN KEY (finding_inject_id) REFERENCES injects (inject_id) ON DELETE SET NULL");
-        statement.execute(
-            "ALTER TABLE finding_locations ALTER COLUMN finding_location_key"
-                + " DROP EXPRESSION IF EXISTS");
-        statement.execute("ALTER TABLE findings DROP COLUMN IF EXISTS finding_labels");
-        statement.execute(
-            "ALTER TABLE findings DROP CONSTRAINT IF EXISTS unique_finding_constraint");
-      }
-      connection.commit();
+      // Catalog-only changes, each committed at once: their ACCESS EXCLUSIVE lock lasts
+      // milliseconds instead of the whole schema step
+      executeAndCommit(
+          connection,
+          "ALTER TABLE finding_locations ALTER COLUMN finding_location_key"
+              + " DROP EXPRESSION IF EXISTS");
+      executeAndCommit(connection, "ALTER TABLE findings DROP COLUMN IF EXISTS finding_labels");
+      executeAndCommit(
+          connection, "ALTER TABLE findings DROP CONSTRAINT IF EXISTS unique_finding_constraint");
+      // NOT VALID checks no existing row, so the swap is instant; the validation then scans the
+      // table under a lock that lets reads and writes through, on findings and on injects
+      executeAndCommit(
+          connection,
+          "ALTER TABLE findings DROP CONSTRAINT IF EXISTS finding_inject_id_fk",
+          "ALTER TABLE findings ADD CONSTRAINT finding_inject_id_fk"
+              + " FOREIGN KEY (finding_inject_id) REFERENCES injects (inject_id)"
+              + " ON DELETE SET NULL NOT VALID");
+      executeAndCommit(connection, "ALTER TABLE findings VALIDATE CONSTRAINT finding_inject_id_fk");
+      // Each batch reads the first rows left without a hash: without this index it would scan the
+      // rows already converted again. Built without blocking writes; a leftover of an interrupted
+      // run can be invalid, so it is rebuilt.
+      executeOutsideTransaction(
+          connection, "DROP INDEX CONCURRENTLY IF EXISTS " + UNCONVERTED_INDEX);
+      executeOutsideTransaction(
+          connection,
+          "CREATE INDEX CONCURRENTLY "
+              + UNCONVERTED_INDEX
+              + " ON findings (finding_id) WHERE finding_value_hash IS NULL");
 
-      String lastId = "";
-      while ((lastId = convertNextBatch(connection, lastId)) != null) {
+      while (convertNextBatch(connection)) {
         connection.commit();
       }
 
+      try (Statement statement = connection.createStatement()) {
+        statement.execute("DROP INDEX IF EXISTS " + UNCONVERTED_INDEX);
+      }
       requestReindex(connection);
       connection.commit();
     } catch (Exception e) {
@@ -110,21 +136,45 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
   }
 
   /**
-   * Converts the next batch of old-shape rows after {@code lastId}, without committing. Each step
-   * runs once for the whole batch: the identities are computed in Java, the writes are set-based.
+   * Converts the first batch of old-shape rows left, without committing. Each step runs once for
+   * the whole batch: the identities are computed in Java, the writes are set-based. Every row taken
+   * is deleted, converted or not, so the next call takes the rows left: those over the budget of
+   * this batch, and those written meanwhile by a pod of the previous version.
    *
-   * @return the last id of the batch, or {@code null} when no row is left
+   * @return false when no row is left
    */
-  String convertNextBatch(Connection connection, String lastId) throws SQLException {
-    List<OldFinding> batch = readBatch(connection, lastId);
-    if (batch.isEmpty()) {
-      return null;
+  boolean convertNextBatch(Connection connection) throws SQLException {
+    List<OldFinding> read = readBatch(connection);
+    if (read.isEmpty()) {
+      return false;
     }
+    List<OldFinding> batch = withinBudget(read);
     List<Conversion> conversions = conversions(batch);
     if (!conversions.isEmpty()) {
       convert(connection, conversions);
     }
-    return batch.getLast().id();
+    Set<String> convertedIds = new HashSet<>();
+    conversions.forEach(conversion -> convertedIds.add(conversion.row().id()));
+    List<String> unconvertedIds =
+        batch.stream().map(OldFinding::id).filter(id -> !convertedIds.contains(id)).toList();
+    if (!unconvertedIds.isEmpty()) {
+      deleteFindings(connection, unconvertedIds);
+    }
+    return true;
+  }
+
+  // A row is converted whole: one alone over the budget makes a batch of its own
+  private static List<OldFinding> withinBudget(List<OldFinding> rows) {
+    List<OldFinding> batch = new ArrayList<>();
+    int locations = 0;
+    for (OldFinding row : rows) {
+      locations += row.locations().size();
+      if (!batch.isEmpty() && locations > MAX_LOCATIONS_PER_BATCH) {
+        break;
+      }
+      batch.add(row);
+    }
+    return batch;
   }
 
   private static void convert(Connection connection, List<Conversion> conversions)
@@ -178,16 +228,14 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
 
   // -- READ --
 
-  private List<OldFinding> readBatch(Connection connection, String lastId) throws SQLException {
+  private List<OldFinding> readBatch(Connection connection) throws SQLException {
     Map<String, Object[]> rows = new LinkedHashMap<>();
     try (PreparedStatement statement =
         connection.prepareStatement(
             "SELECT finding_id, tenant_id, finding_type, finding_value, finding_value_display,"
                 + " finding_name, finding_created_at, finding_updated_at FROM findings"
-                + " WHERE finding_value_hash IS NULL AND finding_id > ?"
-                + " ORDER BY finding_id LIMIT "
+                + " WHERE finding_value_hash IS NULL ORDER BY finding_id LIMIT "
                 + BATCH_SIZE)) {
-      statement.setString(1, lastId);
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
           rows.put(
@@ -312,7 +360,7 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     }
   }
 
-  // A row whose type or value cannot be hashed is left as it is, before anything is written
+  // A row whose type or value cannot be hashed is left out, before anything is written
   private static List<Conversion> conversions(List<OldFinding> batch) {
     List<Conversion> conversions = new ArrayList<>();
     for (OldFinding row : batch) {
@@ -329,7 +377,7 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
         }
         conversions.addAll(ofRow);
       } catch (IllegalArgumentException e) {
-        log.warn("Finding {} left unconverted: {}", row.id(), e.getMessage());
+        log.warn("Finding {} deleted, it cannot be converted: {}", row.id(), e.getMessage());
       }
     }
     return conversions;
@@ -524,6 +572,36 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
   }
 
   // A phishing result follows the row to its first finding, and to its occurrence there
+  private static void executeAndCommit(Connection connection, String... statements)
+      throws SQLException {
+    try (Statement statement = connection.createStatement()) {
+      for (String sql : statements) {
+        statement.execute(sql);
+      }
+    }
+    connection.commit();
+  }
+
+  // CONCURRENTLY refuses to run inside a transaction block
+  private static void executeOutsideTransaction(Connection connection, String sql)
+      throws SQLException {
+    connection.setAutoCommit(true);
+    try (Statement statement = connection.createStatement()) {
+      statement.execute(sql);
+    } finally {
+      connection.setAutoCommit(false);
+    }
+  }
+
+  private static void deleteFindings(Connection connection, List<String> findingIds)
+      throws SQLException {
+    try (PreparedStatement delete =
+        connection.prepareStatement("DELETE FROM findings WHERE finding_id = ANY (?)")) {
+      delete.setArray(1, varchars(connection, findingIds));
+      delete.executeUpdate();
+    }
+  }
+
   private static void moveAndDelete(Connection connection, Map<String, String> firstTargetByRow)
       throws SQLException {
     Array oldIds = varchars(connection, firstTargetByRow.keySet());
