@@ -204,6 +204,16 @@ export const buildHumanResponseProbeConfig = (timeRange: DefaultTimeRange): Widg
   ], timeRange, 100);
 
 /**
+ * Widths of the gauges sharing the 12-column row: an even split, with the remainder given
+ * to the first gauges so the row stays full (3 -> 4/4/4, 4 -> 3/3/3/3, 5 -> 3/3/2/2/2).
+ */
+export const gaugeRowWidths = (count: number): number[] => {
+  const base = Math.floor(12 / count);
+  const remainder = 12 % count;
+  return Array.from({ length: count }, (_, index) => base + (index < remainder ? 1 : 0));
+};
+
+/**
  * @param includeHumanResponse whether the "Human Response" gauge is mounted. It is
  *   only shown when human-driven expectations exist in range (see
  *   {@link buildHumanResponseProbeConfig}). The gauge row is fully responsive: the
@@ -215,17 +225,21 @@ export const buildHumanResponseProbeConfig = (timeRange: DefaultTimeRange): Widg
  *   width and strand Human Response on a second row. To keep every load
  *   single-mount, the caller defers the FIRST grid mount until the presence
  *   probe has resolved instead of remounting on the fly (#7599).
+ * @param includeLogging whether the "Logging" gauge is mounted, while the Logging
+ *   preview feature is on. Like Human Response, the caller remounts the grid when it
+ *   flips (the grid key carries it).
  */
 export const buildDefaultHomeWidgets = (
   timeRange: DefaultTimeRange,
   t: Translate = key => key,
   includeHumanResponse = false,
+  includeLogging = false,
 ): Widget[] => {
   // -- EXPECTATION RESULTS --
-  // Resilience donuts dividing the 12-column row evenly. The three core
-  // security-control gauges are always shown; "Human Response" (MANUAL/ARTICLE/
-  // CHALLENGE, e.g. phishing) is appended only when it has data. Three gauges fill
-  // the row at w=4; four fill it at w=3. No empty slot in either state.
+  // Resilience donuts sharing the 12-column row. The core security-control gauges
+  // are always shown, Logging joins them while its preview feature is on, and
+  // "Human Response" (MANUAL/ARTICLE/CHALLENGE, e.g. phishing) is appended only
+  // when it has data. The widths always fill the row (see gaugeRowWidths).
   const gaugeDefs: {
     id: string;
     title: string;
@@ -241,6 +255,13 @@ export const buildDefaultHomeWidgets = (
       title: 'Detection',
       types: ['DETECTION'],
     },
+    ...(includeLogging
+      ? [{
+          id: 'default-logging',
+          title: 'Logging',
+          types: ['LOGGING'],
+        }]
+      : []),
     {
       id: 'default-vulnerability',
       title: 'Vulnerability',
@@ -254,15 +275,14 @@ export const buildDefaultHomeWidgets = (
       types: HUMAN_EXPECTATION_TYPES,
     });
   }
-  // Evenly divide the 12-column row: 3 gauges -> w=4, 4 gauges -> w=3.
-  const gaugeWidth = 12 / gaugeDefs.length;
+  const gaugeWidths = gaugeRowWidths(gaugeDefs.length);
   const gaugeWidgets = gaugeDefs.map((gauge, index) => widget(
     gauge.id,
     'resilience-gauge',
     structural(t(gauge.title), 'inject_expectation_status', [
       series('', ...expectation([filter('inject_expectation_type', gauge.types)])),
     ], timeRange, 100),
-    layout(index * gaugeWidth, 6, gaugeWidth, 4),
+    layout(gaugeWidths.slice(0, index).reduce((acc, width) => acc + width, 0), 6, gaugeWidths[index], 4),
   ));
 
   return [

@@ -307,6 +307,12 @@ public class Scenario extends ModelBehaviour
       name = "organization",
       joinColumns = @JoinColumn(name = "scenario_author_organization"))
   @JsonIgnore
+  @JsonProperty("scenario_author")
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      paths = {"author.user.id", "author.organization.id"},
+      clazz = String.class)
   private Authorship author;
 
   // -- CATALOGUE --
@@ -610,6 +616,23 @@ public class Scenario extends ModelBehaviour
             inject -> inject.getInjectorContract().map(InjectorContract::getPlatforms).stream())
         .flatMap(Arrays::stream)
         .filter(Objects::nonNull)
+        .distinct()
+        .toList();
+  }
+
+  // -- DOMAINS --
+  // Filter only: the search rows carry the domains, so a response never loads the injects for them.
+  @JsonIgnore
+  @JsonProperty("scenario_domains")
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      path = "injects.injectorContract.domains.id",
+      clazz = String[].class)
+  public List<Domain> getDomains() {
+    return getInjects().stream()
+        .flatMap(inject -> inject.getInjectorContract().stream())
+        .flatMap(contract -> contract.getDomains().stream())
         .distinct()
         .toList();
   }

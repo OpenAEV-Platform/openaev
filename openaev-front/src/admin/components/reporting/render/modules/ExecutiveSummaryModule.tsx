@@ -7,7 +7,7 @@ import { type ModuleDataState, type PostureData } from '../useReportingRenderDat
 import { ModuleEmpty, ModuleError } from './ModuleSection';
 
 /**
- * Executive summary: posture score, prevention / detection rates, injects
+ * Executive summary: posture score, prevention / detection / logging rates, injects
  * executed, and a plain-language verdict paragraph.
  */
 
@@ -84,8 +84,10 @@ const ExecutiveSummaryModule: FunctionComponent<Props> = ({ posture, injectCount
   const globalScore = rate(success, failed);
   const prevention = breakdown.find(entry => entry.type === 'PREVENTION');
   const detection = breakdown.find(entry => entry.type === 'DETECTION');
+  const logging = breakdown.find(entry => entry.type === 'LOGGING');
   const preventionRate = prevention ? rate(prevention.success, prevention.failed) : null;
   const detectionRate = detection ? rate(detection.success, detection.failed) : null;
+  const loggingRate = logging ? rate(logging.success, logging.failed) : null;
 
   let verdictKey = 'No conclusion can be drawn from the available results.';
   if (globalScore !== null) {
@@ -122,6 +124,14 @@ const ExecutiveSummaryModule: FunctionComponent<Props> = ({ posture, injectCount
           value={detectionRate !== null ? `${detectionRate}%` : '-'}
           accent={scoreColor(theme, detectionRate)}
         />
+        {/* Shown only when the period has Logging results: reports without Logging do not change. */}
+        {loggingRate !== null && (
+          <Kpi
+            label={t('Logging rate')}
+            value={`${loggingRate}%`}
+            accent={scoreColor(theme, loggingRate)}
+          />
+        )}
         <Kpi
           label={t('Expectations tested')}
           value={n(tested)}

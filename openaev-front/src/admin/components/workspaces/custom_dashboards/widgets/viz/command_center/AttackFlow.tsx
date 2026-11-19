@@ -53,6 +53,7 @@ const FALLBACK_COLORS = ['#38bdf8', '#818cf8', '#c084fc', '#22d3ee', '#a855f7'];
 const OUTCOME_LABELS: Record<string, string> = {
   PREVENTION: 'prevented',
   DETECTION: 'detected',
+  LOGGING: 'logged',
   VULNERABILITY: 'not vulnerable',
   MANUAL: 'validated',
   CHALLENGE: 'validated',
