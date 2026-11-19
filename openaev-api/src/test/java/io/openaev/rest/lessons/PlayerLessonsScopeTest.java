@@ -10,7 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,6 +71,7 @@ class PlayerLessonsScopeTest extends IntegrationTest {
       """;
 
   @Autowired private MockMvc mvc;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
 
   // Simulation A: two players, a category, a question, one answer per player.
   private String simulationA;
@@ -330,6 +333,62 @@ class PlayerLessonsScopeTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName(
+      "a caller who launches a simulation of another tenant through a group of that tenant")
+  class LauncherThroughAGroupOfAnotherTenant {
+
+    private String tenantB;
+    private String simulationOfB;
+
+    @BeforeEach
+    void grantLaunchThroughAGroupOfTenantB() throws Exception {
+      tenantB = tenantHelper.createTenantWithCurrentUser("player-lessons-b").getId();
+      simulationOfB = seedSimulation(tenantB);
+      String groupOfB = seedGroup(tenantB);
+      update(
+          "INSERT INTO users_groups (user_id, group_id) VALUES (:user, :group)",
+          "user",
+          caller,
+          "group",
+          groupOfB);
+      update(
+          "INSERT INTO grants (grant_id, grant_name, grant_group, grant_resource, grant_resource_type)"
+              + " VALUES (:id, 'LAUNCHER', :group, :resource, 'SIMULATION')",
+          "id",
+          UUID.randomUUID().toString(),
+          "group",
+          groupOfB,
+          "resource",
+          simulationOfB);
+    }
+
+    @Test
+    @DisplayName(
+        "given a launch grant held through a group of tenant B when the lessons of a simulation of"
+            + " B are read on the plain route then they are served")
+    void given_launchGrantInTenantB_should_serveTheLessonsOfASimulationOfB() throws Exception {
+      // Arrange: a player route carries no tenant, so the ambient tenant is the default one.
+      assertEquals(Tenant.DEFAULT_TENANT_UUID, TenantContext.getCurrentTenant());
+
+      // Act + Assert
+      mvc.perform(get(QUESTIONS, simulationOfB)).andExpect(status().isOk());
+      mvc.perform(get(ANSWERS, simulationOfB)).andExpect(status().isOk());
+      mvc.perform(get(CATEGORIES, simulationOfB).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName(
+        "given a launch grant held through a group of tenant B when the lessons of a simulation of"
+            + " the default tenant are read then they are refused")
+    void given_launchGrantInTenantB_should_notServeASimulationOfTheDefaultTenant()
+        throws Exception {
+      // Act + Assert: the grant names the simulation of B only.
+      mvc.perform(get(QUESTIONS, simulationA)).andExpect(status().isUnauthorized());
+    }
+  }
+
   // -- HTTP --
 
   private ResultActions postAnswer(String simulation, String category, String question)
@@ -377,6 +436,23 @@ class PlayerLessonsScopeTest extends IntegrationTest {
   // -- SEEDING --
 
   private String seedSimulation() {
+    return seedSimulation(Tenant.DEFAULT_TENANT_UUID);
+  }
+
+  private String seedGroup(String tenantId) {
+    String id = UUID.randomUUID().toString();
+    update(
+        "INSERT INTO groups (group_id, group_name, tenant_id) VALUES (:id, :name, :tenant)",
+        "id",
+        id,
+        "name",
+        "player-lessons-" + id,
+        "tenant",
+        tenantId);
+    return id;
+  }
+
+  private String seedSimulation(String tenantId) {
     String id = UUID.randomUUID().toString();
     update(
         "INSERT INTO exercises (exercise_id, exercise_name, tenant_id) VALUES (:id, :name, :tenant)",
@@ -385,7 +461,7 @@ class PlayerLessonsScopeTest extends IntegrationTest {
         "name",
         "player-lessons-" + id,
         "tenant",
-        Tenant.DEFAULT_TENANT_UUID);
+        tenantId);
     return id;
   }
 

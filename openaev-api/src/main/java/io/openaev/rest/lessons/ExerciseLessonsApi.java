@@ -591,8 +591,13 @@ public class ExerciseLessonsApi extends RestBehavior {
     return exercise;
   }
 
-  /** An administrator, or a user holding a read grant on the simulation, launcher included. */
+  /**
+   * An administrator, or a user holding a read grant on the simulation, launcher included. A player
+   * route carries no tenant, so the user's scoped tenant is the default one: the grant is read in
+   * the tenant of the simulation, where the group that holds it lives.
+   */
   private boolean canReadSimulation(Exercise exercise, User user) {
-    return user.isAdmin() || grantService.hasReadGrant(exercise.getId(), user);
+    return user.isAdmin()
+        || grantService.hasReadGrantInTenant(exercise.getId(), user, exercise.getTenant().getId());
   }
 }
