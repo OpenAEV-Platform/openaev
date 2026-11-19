@@ -70,6 +70,7 @@ class IndexingRegressionTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AssetGroupComposer assetGroupComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private AgentComposer agentComposer;
   @Autowired private CollectorComposer collectorComposer;
@@ -91,6 +92,7 @@ class IndexingRegressionTest extends IntegrationTest {
     exerciseComposer.reset();
     injectComposer.reset();
     endpointComposer.reset();
+    assetGroupComposer.reset();
     injectExpectationComposer.reset();
     agentComposer.reset();
     collectorComposer.reset();
@@ -1119,6 +1121,93 @@ class IndexingRegressionTest extends IntegrationTest {
           .containsExactlyInAnyOrder(ownInject.get().getId(), otherInject.get().getId());
       assertThat(indexed.getBase_simulation_side())
           .containsExactlyInAnyOrder(ownSimulation.getId(), otherSimulation.getId());
+    }
+
+    @Test
+    @DisplayName(
+        "Every side of a finding is aggregated once, however its occurrences, assets and asset"
+            + " groups combine")
+    void given_occurrencesAssetsAndOverlappingAssetGroups_should_indexEachSideOnce() {
+      // Arrange: two occurrences, two assets, and asset groups shared between the two injects -
+      // the combination the indexing query used to multiply into one row per (occurrence,
+      // scenario, asset, asset group)
+      EndpointComposer.Composer endpointOne =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      EndpointComposer.Composer endpointTwo =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      AssetGroupComposer.Composer groupOwnOnly =
+          assetGroupComposer.forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("own only"));
+      AssetGroupComposer.Composer groupShared =
+          assetGroupComposer.forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("shared"));
+      AssetGroupComposer.Composer groupOtherOnly =
+          assetGroupComposer.forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("other only"));
+      FindingComposer.Composer findingWrapper =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
+              .withEndpoint(endpointOne)
+              .withEndpoint(endpointTwo);
+      InjectComposer.Composer ownInject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withFinding(findingWrapper)
+              .withAssetGroup(groupOwnOnly)
+              .withAssetGroup(groupShared);
+      ExerciseComposer.Composer ownSimulation =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(ownInject);
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+              .withSimulation(ownSimulation)
+              .persist()
+              .get();
+      InjectComposer.Composer otherInject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withAssetGroup(groupShared)
+              .withAssetGroup(groupOtherOnly);
+      Exercise otherSimulation =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(otherInject)
+              .persist()
+              .get();
+      findingOccurrenceComposer
+          .forOccurrence(
+              FindingOccurrenceFixture.createOccurrence(
+                  findingWrapper.get(),
+                  otherInject.get(),
+                  Instant.now(),
+                  FindingOccurrenceFixture.OTHER_FIELD))
+          .persist();
+      entityManager.flush();
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingWrapper.get().getId());
+
+      // Assert
+      assertThat(indexed.getBase_asset_groups_side())
+          .containsExactlyInAnyOrder(
+              groupOwnOnly.get().getId(), groupShared.get().getId(), groupOtherOnly.get().getId());
+      assertThat(indexed.getBase_endpoint_side())
+          .containsExactlyInAnyOrder(endpointOne.get().getId(), endpointTwo.get().getId());
+      assertThat(indexed.getBase_inject_side())
+          .containsExactlyInAnyOrder(ownInject.get().getId(), otherInject.get().getId());
+      assertThat(indexed.getBase_simulation_side())
+          .containsExactlyInAnyOrder(ownSimulation.get().getId(), otherSimulation.getId());
+      assertThat(indexed.getBase_scenario_side()).containsExactly(scenario.getId());
+      assertThat(indexed.getFinding_field())
+          .containsExactlyInAnyOrder(
+              findingWrapper.get().getField(), FindingOccurrenceFixture.OTHER_FIELD);
+      assertThat(indexed.getBase_dependencies())
+          .as("the own inject, its simulation and scenario, and the assets delete the finding")
+          .containsExactlyInAnyOrder(
+              ownInject.get().getId(),
+              ownSimulation.get().getId(),
+              scenario.getId(),
+              endpointOne.get().getId(),
+              endpointTwo.get().getId());
     }
 
     private String persistFindingInSimulation(Finding finding) {
