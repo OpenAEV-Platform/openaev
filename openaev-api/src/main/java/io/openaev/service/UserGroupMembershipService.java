@@ -32,7 +32,7 @@ public class UserGroupMembershipService {
 
   private static final String INSERT_MEMBERSHIP =
       "INSERT INTO users_groups (user_id, group_id) VALUES (:userId, :groupId) "
-          + "ON CONFLICT ON CONSTRAINT users_groups_pkey DO NOTHING";
+          + "ON CONFLICT (group_id, user_id) DO NOTHING";
   private static final String DELETE_MEMBERSHIP =
       "DELETE FROM users_groups WHERE user_id = :userId AND group_id = :groupId";
 
@@ -90,14 +90,13 @@ public class UserGroupMembershipService {
 
   /**
    * Runs {@code write} with {@code app.platform_write} set, then puts back whatever value the
-   * transaction carried before: unlike {@code
-   * TenantScopedTransaction#setPlatformWriteOnCurrentTransaction}, which leaves the marker set for
-   * the rest of the transaction, this call's effect does not outlive the one write it guards.
-   * Mirrors the flush-set-flush-clear shape of {@code
-   * TenantScopeTransactionAspect#proceedAsPlatformWrite}; no flush is needed here since the write
-   * itself is a native statement, executed synchronously, not deferred to a later flush.
+   * transaction carried before, so the marker does not outlive the one statement it guards. Pending
+   * changes are flushed first, as in {@code TenantScopeTransactionAspect#proceedAsPlatformWrite}:
+   * the native statement auto-flushes, and a pending edit of a platform group must not be written
+   * under the marker.
    */
   private int withPlatformWriteMarker(Supplier<Integer> write) {
+    entityManager.flush();
     String previous = currentPlatformWrite();
     setPlatformWrite("true");
     try {
