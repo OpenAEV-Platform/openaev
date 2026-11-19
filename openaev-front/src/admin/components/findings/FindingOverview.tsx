@@ -7,7 +7,7 @@ import { useParams } from 'react-router';
 
 import { fetchFinding, fetchFindingSummary, searchFindings } from '../../../actions/findings/finding-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
-import { DetailHero, Field, HeroStat, InformationGrid, SectionBlock } from '../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, Field, HeroStat, InformationGrid } from '../../../components/common/detail/EntityDetailCommon';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
@@ -16,8 +16,6 @@ import type { FindingOutput, FindingSummaryOutput } from '../../../utils/api-typ
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { emptyFilled } from '../../../utils/String';
-import EntityGraph from '../graph/EntityGraph';
-import ExploreInGraphButton from '../graph/ExploreInGraphButton';
 import ContractOutputElementType from './ContractOutputElementType';
 import FindingImpactSections from './FindingImpactSections';
 import { IMPACTED_ASSETS_ANCHOR } from './FindingImpactUtils';
@@ -87,7 +85,6 @@ const FindingOverview = () => {
         iconNode={<FindingIcon findingType={finding.finding_type} />}
         overline={typeLabel}
         title={finding.finding_value}
-        action={<ExploreInGraphButton type="FINDING" entityId={findingId} />}
         chips={cvssScore != null
           ? <Chip label={`CVSS ${cvssScore.toFixed(1)}`} severity="info" />
           : undefined}
@@ -142,12 +139,6 @@ const FindingOverview = () => {
           <ItemTags variant="list" tags={finding.finding_tags ?? []} />
         </Field>
       </InformationGrid>
-
-      {/* Mini graph: every asset this finding was found on and the injects that produced it;
-          a click opens the Graph page focused on the finding to pivot further. */}
-      <SectionBlock title={t('Graph')}>
-        <EntityGraph type="FINDING" entityId={findingId} variant="mini" />
-      </SectionBlock>
 
       {/* CVE context: everything known about the vulnerability (identity,
           description, remediation, weaknesses, references) in ONE paper. */}

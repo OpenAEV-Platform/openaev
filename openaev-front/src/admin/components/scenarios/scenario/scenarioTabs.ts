@@ -18,7 +18,6 @@ export default function buildScenarioTabs(params: {
       ['/execution', t('Execution')],
       ['/findings', t('Findings')],
       ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
-      ['/graph', t('Graph')],
       ['/statistics', t('Statistics')],
     ];
   }
@@ -30,7 +29,6 @@ export default function buildScenarioTabs(params: {
     ['/execution', t('Execution')],
     ['/findings', t('Findings')],
     ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
-    ['/graph', t('Graph')],
     ['/statistics', t('Statistics')],
   ];
 }
