@@ -109,7 +109,8 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
         <Box sx={{
           display: 'flex',
           alignItems: 'center',
-          gap: 1,
+          // 4 px between the value chip and its OpenCTI mark, as on every chip followed by a mark.
+          gap: 0.5,
         }}
         >
           <Tooltip>

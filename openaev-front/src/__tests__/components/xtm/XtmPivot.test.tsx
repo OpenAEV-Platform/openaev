@@ -4,9 +4,14 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConnectOpenCtiCta, OpenCtiPivotView } from '../../../components/xtm/XtmPivot';
+import { ConnectOpenCtiCta, OpenCtiPivotView, OpenCtiRowMark } from '../../../components/xtm/XtmPivot';
 
 const can = vi.fn();
+const useCounterpartMock = vi.fn();
+vi.mock('../../../components/xtm/useCounterpart', () => ({
+  default: (...args: unknown[]) => useCounterpartMock(...args),
+  OPENCTI_PRODUCT: 'opencti',
+}));
 vi.mock('../../../components/i18n', () => ({ useFormatter: () => ({ t: (s: string) => s }) }));
 vi.mock('../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can }) }));
 vi.mock('../../../actions/xtm/counterpart-actions', () => ({
@@ -112,5 +117,55 @@ describe('OpenCtiPivotView', () => {
     cleanup();
     renderPivot(<ConnectOpenCtiCta />);
     expect(screen.queryByTestId('xtm-connect-cta')).toBeNull();
+  });
+});
+
+describe('OpenCtiRowMark', () => {
+  afterEach(cleanup);
+
+  const match = {
+    state: 'match',
+    product: 'opencti',
+    counterpart: {
+      counterpart_url: 'https://octi.example/dashboard/id/alert',
+      counterpart_name: 'Incident 1',
+    },
+  };
+
+  it('given a match with a reserved slot should render the mark inside a fixed-width slot', () => {
+    useCounterpartMock.mockReturnValue(match);
+    renderPivot(<OpenCtiRowMark kind="alerts" objectKey="https://edr/1" label="Investigate in OpenCTI" reserveSlot />);
+    const slot = screen.getByTestId('xtm-row-mark-slot');
+    expect(slot.querySelector('[data-testid="xtm-row-mark"]')).toBeTruthy();
+  });
+
+  it('given no match with a reserved slot should keep an empty slot so the row controls stay aligned', () => {
+    useCounterpartMock.mockReturnValue({
+      state: 'no_match',
+      product: 'opencti',
+    });
+    renderPivot(<OpenCtiRowMark kind="alerts" objectKey="https://edr/2" reserveSlot />);
+    const slot = screen.getByTestId('xtm-row-mark-slot');
+    expect(slot.children.length).toBe(0);
+    expect(screen.queryByTestId('xtm-row-mark')).toBeNull();
+  });
+
+  it('given not connected with a reserved slot should render nothing', () => {
+    useCounterpartMock.mockReturnValue({
+      state: 'not_connected',
+      product: 'opencti',
+    });
+    renderPivot(<OpenCtiRowMark kind="alerts" objectKey="https://edr/3" reserveSlot />);
+    expect(screen.queryByTestId('xtm-row-mark-slot')).toBeNull();
+  });
+
+  it('given no match without a reserved slot should render nothing', () => {
+    useCounterpartMock.mockReturnValue({
+      state: 'no_match',
+      product: 'opencti',
+    });
+    renderPivot(<OpenCtiRowMark kind="vulnerabilities" objectKey="CVE-2023-99999" />);
+    expect(screen.queryByTestId('xtm-row-mark-slot')).toBeNull();
+    expect(screen.queryByTestId('xtm-row-mark')).toBeNull();
   });
 });

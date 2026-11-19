@@ -357,7 +357,8 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
                   );
 
               // The same alert known in OpenCTI (an incident or sighting carrying its link as an
-              // external reference): "Investigate in OpenCTI" beside the row, nothing otherwise.
+              // external reference): "Investigate in OpenCTI" beside the row. Every linked row keeps
+              // the mark's slot, so the open-link icons stay in one column.
               return (
                 <Box
                   key={expectationTrace.inject_expectation_trace_id}
@@ -368,7 +369,7 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
                   }}
                 >
                   {row}
-                  {alertLink && <OpenCtiRowMark kind="alerts" objectKey={alertLink} label="Investigate in OpenCTI" />}
+                  {alertLink && <OpenCtiRowMark kind="alerts" objectKey={alertLink} label="Investigate in OpenCTI" reserveSlot />}
                 </Box>
               );
             })}

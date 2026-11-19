@@ -65,7 +65,10 @@ const PayloadInfoPaper = ({ payloadOutput }: Props) => {
                 sx={{
                   display: 'inline-flex',
                   alignItems: 'center',
+                  // The mark sits 4 px from its own chip; 12 px separate one chip group from the
+                  // next, so a mark never reads as belonging to the following chip.
                   gap: 0.5,
+                  marginInlineEnd: 1.5,
                 }}
               >
                 <AttackPatternChip attackPattern={attackPattern}></AttackPatternChip>

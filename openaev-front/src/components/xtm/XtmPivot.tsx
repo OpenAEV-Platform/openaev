@@ -172,18 +172,44 @@ const OpenCtiPivot: FunctionComponent<PivotProps & { size?: PivotSize }> = ({ ki
   return <OpenCtiPivotView answer={answer} size={size} />;
 };
 
+// Width of the mark slot a row keeps when its siblings may carry a mark, so the controls after it
+// stay in one column whether this row matches or not.
+export const ROW_MARK_SLOT_WIDTH = 24;
+
+interface RowMarkProps extends PivotProps {
+  label?: string;
+  reserveSlot?: boolean;
+}
+
 /**
  * List-row chip: the product mark linking to the counterpart, nothing otherwise. The label names
  * the action ("Investigate in OpenCTI" on a collected alert), "Open in OpenCTI" by default.
+ * With reserveSlot, a row of a connected tenant keeps an empty slot of the mark's width when it
+ * has no counterpart, so controls placed after the mark line up on every row.
  */
-export const OpenCtiRowMark: FunctionComponent<PivotProps & { label?: string }> = ({ kind, objectKey, label = 'Open in OpenCTI' }) => {
+export const OpenCtiRowMark: FunctionComponent<RowMarkProps> = ({ kind, objectKey, label = 'Open in OpenCTI', reserveSlot = false }) => {
   const { t } = useFormatter();
   const answer = useCounterpart(kind, objectKey, OPENCTI_PRODUCT);
+  const slot = (content: ReactNode) => (
+    <Box
+      component="span"
+      data-testid="xtm-row-mark-slot"
+      sx={{
+        display: 'inline-flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: ROW_MARK_SLOT_WIDTH,
+        flexShrink: 0,
+      }}
+    >
+      {content}
+    </Box>
+  );
   if (answer.state !== 'match') {
-    return null;
+    return reserveSlot && answer.state !== 'not_connected' ? slot(null) : null;
   }
   const text = answer.counterpart?.counterpart_name ? `${t(label)}: ${answer.counterpart.counterpart_name}` : t(label);
-  return (
+  const mark = (
     <Tooltip>
       <TooltipTrigger asChild>
         <a
@@ -201,6 +227,7 @@ export const OpenCtiRowMark: FunctionComponent<PivotProps & { label?: string }> 
       <TooltipContent>{text}</TooltipContent>
     </Tooltip>
   );
+  return reserveSlot ? slot(mark) : mark;
 };
 
 /** Overview card: "In OpenCTI" with the counterpart's name and type, or the CTA. */
