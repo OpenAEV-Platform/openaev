@@ -26,6 +26,7 @@ import EEChip from '../common/entreprise_edition/EEChip';
 import { SETTINGS_LABEL } from '../nav/config/settings.config';
 import PlatformInfoPanel from './PlatformInfoPanel';
 import RuntimeSettingsForm from './RuntimeSettingsForm';
+import StarterPackDashboardsRestore from './StarterPackDashboardsRestore';
 import TenantParametersForm from './TenantParametersForm';
 import ThemeForm from './ThemeForm';
 import ToolsPanel from './ToolsPanel';
@@ -151,6 +152,14 @@ const TenantParameters = () => {
               canNotManage={cannotManage}
             />
           </Paper>
+          {!cannotManage && ability.can(ACTIONS.MANAGE, SUBJECTS.DASHBOARDS) && (
+            <div style={{ marginTop: theme.spacing(3) }}>
+              <SectionLabel>{t('Starter pack dashboards')}</SectionLabel>
+              <Paper padding={16}>
+                <StarterPackDashboardsRestore onRestored={() => dispatch(fetchTenantSettings())} />
+              </Paper>
+            </div>
+          )}
         </div>
         <div style={{
           ...cell(6),
