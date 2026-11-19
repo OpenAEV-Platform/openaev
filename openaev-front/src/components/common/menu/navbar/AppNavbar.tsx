@@ -28,11 +28,8 @@ import useNavbarState from './useNavbarState';
  * Highlight the exact page and any sub-route (e.g. /admin/integrations/deployed).
  * Home ('/admin') is a prefix of every route, so it stays exact-only.
  */
-const isPathCurrent = (pathname: string, path: string): boolean => pathname === path
+const isItemCurrent = (pathname: string, path: string): boolean => pathname === path
   || (path !== '/admin' && pathname.startsWith(`${path}/`));
-
-const isItemCurrent = (pathname: string, item: Pick<NavMenuItem, 'path' | 'matchPaths'>): boolean => [item.path, ...(item.matchPaths ?? [])]
-  .some(path => isPathCurrent(pathname, path));
 
 const isSubItemCurrent = (pathname: string, subItem: NavMenuSubItem): boolean => (subItem.exact
   ? pathname === subItem.link
@@ -66,7 +63,7 @@ const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerEleme
       <Link
         to={item.path}
         aria-label={t(item.label)}
-        aria-current={isItemCurrent(location.pathname, item) ? 'page' : undefined}
+        aria-current={isItemCurrent(location.pathname, item.path) ? 'page' : undefined}
       >
         <NavbarItemContent icon={item.icon()} label={t(item.label)} collapsed={collapsed} />
       </Link>

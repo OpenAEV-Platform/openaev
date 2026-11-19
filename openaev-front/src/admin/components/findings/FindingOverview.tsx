@@ -7,16 +7,18 @@ import { useParams } from 'react-router';
 
 import { fetchFinding, fetchFindingSummary, searchFindings } from '../../../actions/findings/finding-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
-import { DetailHero, Field, HeroStat, InformationGrid, SectionBlock } from '../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, Field, HeroStat, InformationGrid } from '../../../components/common/detail/EntityDetailCommon';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
 import type { FindingOutput, FindingSummaryOutput } from '../../../utils/api-types';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { emptyFilled } from '../../../utils/String';
-import EntityGraph from '../graph/EntityGraph';
-import ExploreInGraphButton from '../graph/ExploreInGraphButton';
 import ContractOutputElementType from './ContractOutputElementType';
+import FindingImpactSections from './FindingImpactSections';
+import { IMPACTED_ASSETS_ANCHOR } from './FindingImpactUtils';
 import FindingOccurrences from './FindingOccurrences';
 import FindingVulnerabilityPanel from './FindingVulnerabilityPanel';
 
@@ -26,6 +28,7 @@ import FindingVulnerabilityPanel from './FindingVulnerabilityPanel';
 const FindingOverview = () => {
   const { t, fldt } = useFormatter();
   const theme = useTheme();
+  const ability = useAbility();
   const { findingId } = useParams() as { findingId: string };
 
   const [finding, setFinding] = useState<FindingOutput | null>(null);
@@ -50,6 +53,10 @@ const FindingOverview = () => {
   }
 
   const isCVE = finding.finding_type === 'cve';
+  // The counter pivots to the impacted assets section only when there is something to open.
+  const impactedAssetsLink = (summary?.finding_assets_count ?? 0) > 0 && ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)
+    ? `#${IMPACTED_ASSETS_ANCHOR}`
+    : undefined;
 
   return (
     <Box sx={{
@@ -78,14 +85,13 @@ const FindingOverview = () => {
         iconNode={<FindingIcon findingType={finding.finding_type} />}
         overline={typeLabel}
         title={finding.finding_value}
-        action={<ExploreInGraphButton type="FINDING" entityId={findingId} />}
         chips={cvssScore != null
           ? <Chip label={`CVSS ${cvssScore.toFixed(1)}`} severity="info" />
           : undefined}
         stats={(
           <>
             <HeroStat icon={FormatListNumberedOutlined} label={t('Occurrences')} value={summary?.finding_occurrences ?? '-'} />
-            <HeroStat icon={DevicesOutlined} label={t('Impacted assets')} value={summary?.finding_assets_count ?? '-'} color={theme.palette.primary.main} />
+            <HeroStat icon={DevicesOutlined} label={t('Impacted assets')} value={summary?.finding_assets_count ?? '-'} color={theme.palette.primary.main} to={impactedAssetsLink} />
             {/* Team / person spread only shows when the finding actually touched people
                 (e.g. phishing credentials): machine findings keep a compact stat row. */}
             {(summary?.finding_teams_count ?? 0) > 0 && (
@@ -134,12 +140,6 @@ const FindingOverview = () => {
         </Field>
       </InformationGrid>
 
-      {/* Mini graph: every asset this finding was found on and the injects that produced it;
-          a click opens the Graph page focused on the finding to pivot further. */}
-      <SectionBlock title={t('Graph')}>
-        <EntityGraph type="FINDING" entityId={findingId} variant="mini" />
-      </SectionBlock>
-
       {/* CVE context: everything known about the vulnerability (identity,
           description, remediation, weaknesses, references) in ONE paper. */}
       {isCVE && (
@@ -148,6 +148,10 @@ const FindingOverview = () => {
           onCvssScore={setCvssScore}
         />
       )}
+
+      {/* Pivots: the impacted assets and asset groups, and the scenarios and simulations the
+          finding was produced in, across all its occurrences. */}
+      <FindingImpactSections searchFindings={searchFindings} finding={finding} />
 
       {/* Occurrence timeline: one entry per inject that produced this finding,
           as a table or a horizontal time strip. */}
