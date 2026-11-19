@@ -9,6 +9,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Finding;
 import io.openaev.database.repository.FindingOccurrenceRepository;
 import io.openaev.database.repository.FindingRepository;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
@@ -122,8 +123,11 @@ class FindingOccurrenceTenantIsolationTest extends IntegrationTest {
           TxCtx.forTenant(tenantA),
           () -> {
             Finding finding = findingRepository.findById(findingA).orElseThrow();
-            findingOccurrenceService.recordOccurrencesByInject(
-                finding.getInject(), List.of(finding));
+            findingOccurrenceService.recordOccurrences(
+                finding.getInject(),
+                FindingOccurrenceService.occurrenceDate(finding.getInject()),
+                List.of(finding),
+                Collections.singletonMap(finding.getId(), finding.getField()));
           });
 
       // Assert

@@ -1240,7 +1240,8 @@ class TenantStatementInspectorTest {
 
   // --- findings activation (#6420): the ES indexing query --------------------
   //
-  // findForIndexing groups on f.finding_id and projects seven more columns of findings, relying on
+  // findForIndexing groups on f.finding_id and projects eight more columns, of findings and of its
+  // location, relying on
   // PostgreSQL's functional-dependency rule. That rule applies to BASE TABLES only, and the
   // inspector rewrites "FROM findings f" into a derived table, so activating findings makes the
   // query invalid SQL and search indexing fails outright. The query is read reflectively from the
@@ -1267,7 +1268,8 @@ class TenantStatementInspectorTest {
           "f.finding_value",
           "f.finding_value_display",
           "f.finding_type",
-          "f.finding_inject_id",
+          "fl.finding_location_asset_id",
+          "fl.finding_location_user_id",
           "f.finding_created_at",
           "f.finding_updated_at",
           "f.tenant_id"
