@@ -119,6 +119,24 @@ public class FileService {
   }
 
   /**
+   * Uploads a stream under an explicitly named tenant path rather than the ambient {@link
+   * io.openaev.context.TenantContext}, and returns the tenant-prefixed key, self-describing so a
+   * later read resolves the right tenant whatever the ambient scope is at that time.
+   *
+   * @param tenantId the tenant whose path the object is written under
+   * @param path the directory path within the bucket
+   * @param name the filename
+   * @param data the input stream containing the file data
+   * @return the tenant-prefixed key of the uploaded file
+   * @throws Exception if the upload fails
+   */
+  public String uploadStream(String tenantId, String path, String name, InputStream data)
+      throws Exception {
+    String file = path.endsWith("/") ? path + name : path + "/" + name;
+    return minioService.uploadStreamForTenant(tenantId, file, name, data);
+  }
+
+  /**
    * Uploads a catalog asset (e.g. connector logo) to the platform-level MinIO path, shared across
    * all tenants. Use this instead of {@link #uploadStream} for catalog logos written by {@code
    * insertCatalogEntry()} or the catalog ingestion service.
@@ -332,6 +350,29 @@ public class FileService {
    */
   public Optional<FileContainer> getFileContainer(String fileTarget) {
     return minioService.getFileContainerInTenant(fileTarget);
+  }
+
+  /**
+   * Retrieves a communication attachment written by {@link #uploadStream(String, String, String,
+   * InputStream)}, recognising its self-describing key, or a legacy key written before that
+   * overload existed (always under the ambient default tenant, the only one the IMAP background
+   * thread ran as at the time).
+   *
+   * <p>A legacy key starts with {@code "/"} and carries no tenant of its own: the caller passes the
+   * tenant it resolved for the owning row by its own means (never a caller-supplied one), so the
+   * object is read back under the tenant it actually belongs to, from the path it was actually
+   * written under.
+   *
+   * @param key the stored attachment key, self-describing or legacy
+   * @param ownerTenantId the tenant the owning row was resolved to belong to
+   * @return an Optional containing the FileContainer, or empty if not found
+   */
+  public Optional<FileContainer> getCommunicationAttachment(String key, String ownerTenantId) {
+    if (key.startsWith("/")) {
+      return minioService.getFileContainerForTenant(Tenant.DEFAULT_TENANT_UUID, key);
+    }
+    return minioService.getFileContainerForTenant(
+        ownerTenantId, key.substring(ownerTenantId.length()));
   }
 
   // -- PLATFORM FILES: shared by every tenant --

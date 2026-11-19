@@ -287,7 +287,7 @@ public class ImapService extends ExternalServiceBase {
                         ? "/" + exerciseId + "/communications/" + recorded.communicationId()
                         : "/communications/" + recorded.communicationId();
                 String uploadName =
-                    fileService.uploadStream(path, fileName, dataSource.getInputStream());
+                    fileService.uploadStream(tenantId, path, fileName, dataSource.getInputStream());
                 uploads.add(uploadName);
               }
               // Add attachment in the communication

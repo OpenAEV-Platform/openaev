@@ -90,6 +90,7 @@ public class ExerciseApi extends RestBehavior {
 
   public static final String EXERCISE_URI = "/api/exercises";
   public static final String TENANT_EXERCISE_URI = TENANT_PREFIX + "/exercises";
+  public static final String COMMUNICATION_ATTACHMENT_URI = "/api/communications/attachment";
 
   // region repositories
   private final LogRepository logRepository;
@@ -1014,14 +1015,22 @@ public class ExerciseApi extends RestBehavior {
     return communications;
   }
 
-  @GetMapping("/api/communications/attachment")
+  @GetMapping(COMMUNICATION_ATTACHMENT_URI)
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
-  //
+  // The key names no tenant of its own (#7961): the tenant that owns it is read off the
+  // communication's inject, which is why the TxCtx scope has to cover that lookup rather than
+  // only the fileService read below.
   public void downloadAttachment(TxCtx ctx, @RequestParam String file, HttpServletResponse response)
       throws IOException {
+    String ownerTenantId =
+        communicationRepository
+            .findTenantIdByAttachment(file)
+            .orElseThrow(ElementNotFoundException::new);
     FileContainer fileContainer =
-        fileService.getFileContainer(file).orElseThrow(ElementNotFoundException::new);
+        fileService
+            .getCommunicationAttachment(file, ownerTenantId)
+            .orElseThrow(ElementNotFoundException::new);
     response.addHeader(
         HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileContainer.getName());
     response.addHeader(HttpHeaders.CONTENT_TYPE, fileContainer.getContentType());

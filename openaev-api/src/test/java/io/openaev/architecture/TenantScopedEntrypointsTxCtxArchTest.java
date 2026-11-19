@@ -552,6 +552,9 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.exercise.ExerciseApi#deleteDocument",
           "io.openaev.rest.exercise.ExerciseApi#exerciseExport",
           "io.openaev.rest.exercise.ExerciseApi#scenarioFromSimulation",
+          // communications: the attachment's owning tenant is read off its communication's
+          // inject (#7961)
+          "io.openaev.rest.exercise.ExerciseApi#downloadAttachment",
           // injects: inject_kill_chain_phases on the entity-returning handlers
           "io.openaev.rest.inject.InjectApi#inject",
           "io.openaev.rest.inject.InjectApi#injectExecutionReception",

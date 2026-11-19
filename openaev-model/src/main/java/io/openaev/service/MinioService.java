@@ -112,6 +112,33 @@ public class MinioService implements DependenciesManager {
   }
 
   /**
+   * Uploads a stream under an explicitly named tenant path rather than the ambient {@link
+   * TenantContext}, returning the tenant-prefixed key so the caller can store a self-describing
+   * reference to it. Use this when the write tenant is resolved from the request or job scope, so
+   * the object lands under the same tenant the owning row is attributed to, whatever the ambient
+   * thread-local is.
+   *
+   * @param tenantId the tenant whose path the object is written under
+   * @param fileName the target file path/name in the bucket
+   * @param name the original filename stored as metadata
+   * @param data the input stream containing the file data
+   * @return the full tenant-prefixed path of the uploaded file
+   * @throws Exception if the upload fails
+   */
+  public String uploadStreamForTenant(
+      String tenantId, String fileName, String name, InputStream data) throws Exception {
+    String objectKey = getPathForTenant(tenantId, fileName);
+    minioClient.putObject(
+        PutObjectArgs.builder()
+            .bucket(bucket())
+            .object(objectKey)
+            .userMetadata(Map.of("filename", name))
+            .stream(data, -1, 10 * 1024 * 1024)
+            .build());
+    return objectKey;
+  }
+
+  /**
    * Uploads a stream to the platform-level path (no tenant prefix). Use for assets that are shared
    * across all tenants, such as catalog connector logos.
    *
@@ -197,6 +224,29 @@ public class MinioService implements DependenciesManager {
       StatObjectResponse response = objectExists(getTenantPath(fileTarget));
       String filename = response.userMetadata().get("filename");
       Optional<InputStream> inputStream = getFilePathInTenant(fileTarget);
+      FileContainer fileContainer =
+          new FileContainer(filename, response.contentType(), inputStream.orElseThrow());
+      return Optional.of(fileContainer);
+    } catch (Exception e) {
+      log.error("Error during file container access", e);
+      return Optional.empty();
+    }
+  }
+
+  /**
+   * Retrieves a file with its metadata under an explicitly named tenant path rather than the
+   * ambient {@link TenantContext}. The read-side counterpart of {@link #uploadStreamForTenant}.
+   *
+   * @param tenantId the tenant whose path the object is read from
+   * @param fileTarget the target file path within that tenant
+   * @return an Optional containing the FileContainer with filename, content type, and stream, or
+   *     empty if not found
+   */
+  public Optional<FileContainer> getFileContainerForTenant(String tenantId, String fileTarget) {
+    try {
+      StatObjectResponse response = objectExists(getPathForTenant(tenantId, fileTarget));
+      String filename = response.userMetadata().get("filename");
+      Optional<InputStream> inputStream = getFilePathForTenant(tenantId, fileTarget);
       FileContainer fileContainer =
           new FileContainer(filename, response.contentType(), inputStream.orElseThrow());
       return Optional.of(fileContainer);
