@@ -103,8 +103,8 @@ class SecurityPlatformLogoDocumentLinkTenantTest extends IntegrationTest {
   @DisplayName(
       "given a security platform of the default tenant when its logos are updated with a"
           + " document of another tenant, named through the header route, then the logos are"
-          + " left null")
-  void given_bodyNamingTheOtherTenant_should_setNullLogosThroughHeader() throws Exception {
+          + " refused and the logos stay unset")
+  void given_bodyNamingTheOtherTenant_should_refuseThroughHeader() throws Exception {
     // -- Act & Assert --
     mvc.perform(
             put(SECURITY_PLATFORM_URI + "/{securityPlatformId}", platformId)
@@ -112,7 +112,7 @@ class SecurityPlatformLogoDocumentLinkTenantTest extends IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(JsonTestUtils.asJsonString(inputWithLogos(documentInOther)))
                 .with(csrf()))
-        .andExpect(status().isOk());
+        .andExpect(status().isNotFound());
     assertThat(logoColumn(LOGO_DARK)).containsExactly((String) null);
     assertThat(logoColumn(LOGO_LIGHT)).containsExactly((String) null);
   }

@@ -92,8 +92,8 @@ class ExerciseLogoDocumentLinkTenantTest extends IntegrationTest {
   @Test
   @DisplayName(
       "given a simulation of the default tenant when its logos are set to a document of another"
-          + " tenant, named through the header route, then the logos are left null")
-  void given_bodyNamingTheOtherTenant_should_setNullLogosThroughHeader() throws Exception {
+          + " tenant, named through the header route, then the request is refused and the logos stay unset")
+  void given_bodyNamingTheOtherTenant_should_refuseThroughHeader() throws Exception {
     // -- Act & Assert --
     mvc.perform(
             put(EXERCISE_URI + "/{exerciseId}/logos", exercise)
@@ -101,7 +101,7 @@ class ExerciseLogoDocumentLinkTenantTest extends IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(logosBody(documentInOther))
                 .with(csrf()))
-        .andExpect(status().isOk());
+        .andExpect(status().isNotFound());
     assertThat(logoColumn(EXERCISE_LOGO_DARK)).containsExactly((String) null);
     assertThat(logoColumn(EXERCISE_LOGO_LIGHT)).containsExactly((String) null);
   }
@@ -126,15 +126,15 @@ class ExerciseLogoDocumentLinkTenantTest extends IntegrationTest {
   @Test
   @DisplayName(
       "given a simulation of the default tenant when its logos are set to a document of another"
-          + " tenant, named under its own tenant path, then the logos are left null")
-  void given_bodyNamingTheOtherTenant_should_setNullLogosOnTenantRoute() throws Exception {
+          + " tenant, named under its own tenant path, then the request is refused and the logos stay unset")
+  void given_bodyNamingTheOtherTenant_should_refuseOnTenantRoute() throws Exception {
     // -- Act & Assert --
     mvc.perform(
             put(TENANT_EXERCISE_URI + "/{exerciseId}/logos", Tenant.DEFAULT_TENANT_UUID, exercise)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(logosBody(documentInOther))
                 .with(csrf()))
-        .andExpect(status().isOk());
+        .andExpect(status().isNotFound());
     assertThat(logoColumn(EXERCISE_LOGO_DARK)).containsExactly((String) null);
     assertThat(logoColumn(EXERCISE_LOGO_LIGHT)).containsExactly((String) null);
   }
