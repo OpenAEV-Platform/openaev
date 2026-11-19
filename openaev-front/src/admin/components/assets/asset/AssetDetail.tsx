@@ -26,6 +26,7 @@ import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PlatformIcon from '../../../../components/PlatformIcon';
+import OpenCtiPivot from '../../../../components/xtm/XtmPivot';
 import { useHelper } from '../../../../store';
 import {
   type EndpointOverviewOutput,
@@ -153,6 +154,12 @@ const AssetDetail = () => {
   }
 
   const isAiTarget = asset.asset_category === 'AI_TARGET';
+  // The OpenCTI counterpart is matched on a real identifier: the hostname (an OpenCTI System or
+  // Hostname), else the first IP or MAC address (an observable).
+  const counterpartKey = asset.asset_hostname
+    || asset.asset_ips?.[0]
+    || asset.asset_mac_addresses?.[0]
+    || null;
 
   let internetFacingLabel = '-';
   if (asset.asset_internet_facing != null) {
@@ -201,6 +208,7 @@ const AssetDetail = () => {
         title={asset.asset_name}
         action={(
           <>
+            {!isAiTarget && <OpenCtiPivot kind="assets" objectKey={counterpartKey} />}
             {/* Entity-scoped reports - self-hides without the reporting
                 access capability. */}
             <EntityReportsPanel
