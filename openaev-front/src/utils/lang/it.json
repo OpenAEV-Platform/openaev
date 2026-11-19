@@ -4806,5 +4806,7 @@
   "Remove the selection from the view": "Rimuovi la selezione dalla vista",
   "Select an area": "Seleziona un'area",
   "Lasso selection: draw around nodes to select them": "Selezione a lazo: traccia un contorno attorno ai nodi per selezionarli",
-  "Add a node to the selection": "Aggiungi un nodo alla selezione"
+  "Add a node to the selection": "Aggiungi un nodo alla selezione",
+  "Start of the time range": "Inizio dell'intervallo di tempo",
+  "End of the time range": "Fine dell'intervallo di tempo"
 }

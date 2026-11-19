@@ -16,6 +16,8 @@ export interface GraphNodeOutput {
   node_result?: GraphResult | null;
   node_failed_count: number;
   node_finding_count: number;
+  /** When the entity happened (a simulation's start, a finding's last update), else absent: the time range filters on it. */
+  node_date?: string | null;
 }
 
 export interface GraphEdgeOutput {

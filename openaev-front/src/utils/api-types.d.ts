@@ -6504,6 +6504,8 @@ export interface GraphEdgeOutput {
 }
 
 export interface GraphNodeOutput {
+  /** @format date-time */
+  node_date?: string;
   node_entity_id: string;
   /** @format int64 */
   node_failed_count?: number;

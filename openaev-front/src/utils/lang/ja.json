@@ -4806,5 +4806,7 @@
   "Remove the selection from the view": "選択範囲をビューから削除",
   "Select an area": "範囲を選択",
   "Lasso selection: draw around nodes to select them": "なげなわ選択: ノードを囲んで選択します",
-  "Add a node to the selection": "ノードを選択に追加"
+  "Add a node to the selection": "ノードを選択に追加",
+  "Start of the time range": "期間の開始",
+  "End of the time range": "期間の終了"
 }

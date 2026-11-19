@@ -4806,5 +4806,7 @@
   "Remove the selection from the view": "从视图中移除所选项",
   "Select an area": "选择区域",
   "Lasso selection: draw around nodes to select them": "套索选择：圈住节点以选择它们",
-  "Add a node to the selection": "将节点添加到选择"
+  "Add a node to the selection": "将节点添加到选择",
+  "Start of the time range": "时间范围开始",
+  "End of the time range": "时间范围结束"
 }

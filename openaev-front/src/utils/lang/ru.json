@@ -4806,5 +4806,7 @@
   "Remove the selection from the view": "Убрать выделенное из представления",
   "Select an area": "Выделить область",
   "Lasso selection: draw around nodes to select them": "Выделение лассо: обведите узлы, чтобы выбрать их",
-  "Add a node to the selection": "Добавить узел к выделению"
+  "Add a node to the selection": "Добавить узел к выделению",
+  "Start of the time range": "Начало периода",
+  "End of the time range": "Конец периода"
 }

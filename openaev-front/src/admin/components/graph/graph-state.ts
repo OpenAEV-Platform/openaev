@@ -9,6 +9,7 @@ import {
   type GraphOutput,
   type GraphResult,
 } from './graph-model';
+import { inTimeRange, type TimeRange } from './graph-time-range';
 
 /** What the explorer holds: every slice loaded so far, merged, plus the user's view choices. */
 export interface GraphState {
@@ -30,6 +31,8 @@ export interface GraphFilters {
   search: string;
   /** Show only the focus and its direct neighbours. */
   focusMode: boolean;
+  /** Dated nodes outside it leave the view (see graph-time-range); null: no range. */
+  timeRange?: TimeRange | null;
 }
 
 export const EMPTY_STATE: GraphState = {
@@ -202,6 +205,7 @@ export const visibleGraph = (state: GraphState, filters: GraphFilters) => {
   let nodes = Object.values(state.nodes).filter(n => !hidden.has(n.node_id)
     && (pinned.has(n.node_id) || n.node_id === state.focus || (
       filters.nodeTypes.includes(n.node_type)
+      && inTimeRange(n, filters.timeRange)
       && (!n.node_result || filters.results.includes(n.node_result)))));
   let ids = new Set(nodes.map(n => n.node_id));
   let edges = Object.values(state.edges).filter(e => filters.edgeTypes.includes(e.edge_type)

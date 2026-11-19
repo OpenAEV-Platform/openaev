@@ -4806,5 +4806,7 @@
   "Remove the selection from the view": "Auswahl aus der Ansicht entfernen",
   "Select an area": "Bereich auswählen",
   "Lasso selection: draw around nodes to select them": "Lasso-Auswahl: Knoten umkreisen, um sie auszuwählen",
-  "Add a node to the selection": "Knoten zur Auswahl hinzufügen"
+  "Add a node to the selection": "Knoten zur Auswahl hinzufügen",
+  "Start of the time range": "Beginn des Zeitraums",
+  "End of the time range": "Ende des Zeitraums"
 }

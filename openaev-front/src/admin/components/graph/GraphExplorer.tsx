@@ -18,6 +18,7 @@ import {
   MenuTrigger,
   Paper,
   SearchField,
+  Slider,
   Spinner,
   Switch,
   Text,
@@ -109,6 +110,7 @@ import {
   ungroup,
   visibleGraph,
 } from './graph-state';
+import { dateBounds, followBounds, TIME_RANGE_STEP, type TimeRange } from './graph-time-range';
 import GraphEntityNode, { type GraphEntityNodeType } from './GraphEntityNode';
 import GraphFloatingEdge from './GraphFloatingEdge';
 
@@ -240,7 +242,7 @@ const GraphExplorerInner = ({
   selectFocus = true,
 }: GraphExplorerProps) => {
   const theme = useTheme();
-  const { t } = useFormatter();
+  const { t, fd } = useFormatter();
   const { fitView, screenToFlowPosition } = useReactFlow();
   const wrapper = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -301,6 +303,37 @@ const GraphExplorerInner = ({
       }
       setState(h.past[h.past.length - 1]);
       return { past: h.past.slice(0, -1) };
+    });
+  };
+
+  // The time range (OpenCTI's GraphToolbarTimeRange) spans the dates of every node loaded; a range the
+  // user never narrowed follows new dates as expansions bring them, a narrowed one is clamped to them.
+  const bounds = useMemo(() => dateBounds(Object.values(state.nodes)), [state.nodes]);
+  const previousBounds = useRef<TimeRange | undefined>(bounds);
+  useEffect(() => {
+    const previous = previousBounds.current;
+    previousBounds.current = bounds;
+    if (previous?.[0] === bounds?.[0] && previous?.[1] === bounds?.[1]) {
+      return;
+    }
+    setFilters((f) => {
+      if (!f.timeRange) {
+        return f;
+      }
+      return {
+        ...f,
+        timeRange: followBounds(f.timeRange, previous, bounds),
+      };
+    });
+  }, [bounds]);
+  const setTimeRange = (value: number[]) => {
+    if (!bounds || value.length !== 2) {
+      return;
+    }
+    const whole = value[0] <= bounds[0] && value[1] >= bounds[1];
+    setFilters({
+      ...filters,
+      timeRange: whole ? null : [value[0], value[1]],
     });
   };
 
@@ -828,6 +861,23 @@ const GraphExplorerInner = ({
           checked={showFailed}
           onCheckedChange={checked => setShowFailed(checked === true)}
         />
+        {bounds && (
+          <div style={{ width: 240 }} data-testid="graph-time-range">
+            <Slider
+              aria-label={t('Time range')}
+              thumbLabels={[t('Start of the time range'), t('End of the time range')]}
+              min={bounds[0]}
+              max={bounds[1]}
+              step={TIME_RANGE_STEP}
+              minStepsBetweenThumbs={0}
+              value={filters.timeRange ?? bounds}
+              onValueChange={setTimeRange}
+              showBounds
+              minLabel={fd((filters.timeRange ?? bounds)[0])}
+              maxLabel={fd((filters.timeRange ?? bounds)[1])}
+            />
+          </div>
+        )}
         <div style={{ flexGrow: 1 }} />
         {/* Each layout button runs its layout from scratch (a second click on the active one re-runs
             it, as OpenCTI's), then the view is framed; every button says what it does on hover. */}

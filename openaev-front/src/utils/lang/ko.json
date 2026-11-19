@@ -4806,5 +4806,7 @@
   "Remove the selection from the view": "선택 항목을 보기에서 제거",
   "Select an area": "영역 선택",
   "Lasso selection: draw around nodes to select them": "올가미 선택: 노드를 둘러싸 선택합니다",
-  "Add a node to the selection": "선택에 노드 추가"
+  "Add a node to the selection": "선택에 노드 추가",
+  "Start of the time range": "기간 시작",
+  "End of the time range": "기간 종료"
 }

@@ -8,6 +8,7 @@ import io.openaev.api.graph.dto.GraphNodeType;
 import io.openaev.api.graph.dto.GraphOutput;
 import io.openaev.api.graph.dto.GraphResult;
 import io.openaev.expectation.ExpectationType;
+import java.time.Instant;
 import java.util.List;
 import java.util.function.Predicate;
 import org.junit.jupiter.api.DisplayName;
@@ -97,6 +98,31 @@ class GraphSliceTest {
     assertThat(out.edges())
         .singleElement()
         .satisfies(e -> assertThat(e.result()).isEqualTo(GraphResult.FAILED));
+  }
+
+  @Test
+  @DisplayName("a node carries the latest date its rows give, and none without one")
+  void nodeDate() {
+    GraphExplorationService.Slice slice = new GraphExplorationService.Slice();
+    String s = slice.node(GraphNodeType.SIMULATION, "s", "Run 1", null);
+    String a = slice.node(GraphNodeType.ASSET, "a", "host-a", "Endpoint");
+    Instant older = Instant.parse("2026-10-01T00:00:00Z");
+    Instant newer = Instant.parse("2026-11-01T00:00:00Z");
+    slice.date(s, older);
+    slice.date(s, newer);
+    slice.date(s, older);
+    slice.date(a, null);
+
+    GraphOutput out = slice.build(null, n -> true, List.of());
+
+    assertThat(out.nodes())
+        .filteredOn(n -> n.nodeId().equals(s))
+        .singleElement()
+        .satisfies(n -> assertThat(n.date()).isEqualTo(newer));
+    assertThat(out.nodes())
+        .filteredOn(n -> n.nodeId().equals(a))
+        .singleElement()
+        .satisfies(n -> assertThat(n.date()).isNull());
   }
 
   @Test

@@ -4806,5 +4806,7 @@
   "Remove the selection from the view": "Remove the selection from the view",
   "Select an area": "Select an area",
   "Lasso selection: draw around nodes to select them": "Lasso selection: draw around nodes to select them",
-  "Add a node to the selection": "Add a node to the selection"
+  "Add a node to the selection": "Add a node to the selection",
+  "Start of the time range": "Start of the time range",
+  "End of the time range": "End of the time range"
 }

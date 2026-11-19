@@ -13,6 +13,7 @@ import io.openaev.service.AssetGroupService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
+import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -67,6 +68,9 @@ public class GraphExplorationService {
     final Map<String, Long> failed = new HashMap<>();
     final Map<String, Long> findings = new HashMap<>();
 
+    /** The date of a node where its entity has one (see {@link GraphNodeOutput#date()}). */
+    final Map<String, Instant> dates = new HashMap<>();
+
     /**
      * Attack-path steps (#9447): per edge, the worst verdict per simulation that drew it. A step is
      * only as visible as one of its simulations, and its verdict is the worst over the visible
@@ -80,8 +84,16 @@ public class GraphExplorationService {
       String nodeId = GraphNodeOutput.idOf(type, id);
       nodes.putIfAbsent(
           nodeId,
-          new GraphNodeOutput(nodeId, type, id, label == null ? id : label, subtype, null, 0, 0));
+          new GraphNodeOutput(
+              nodeId, type, id, label == null ? id : label, subtype, null, 0, 0, null));
       return nodeId;
+    }
+
+    /** Records a node's date; the latest wins when several rows carry one. */
+    void date(String nodeId, Object value) {
+      if (value instanceof Instant instant) {
+        dates.merge(nodeId, instant, (a, b) -> a.isAfter(b) ? a : b);
+      }
     }
 
     void edge(GraphEdgeType type, String source, String target, GraphResult result) {
@@ -127,7 +139,8 @@ public class GraphExplorationService {
                 n.subtype(),
                 nodeResults.get(n.nodeId()),
                 failed.getOrDefault(n.nodeId(), 0L),
-                findings.getOrDefault(n.nodeId(), 0L)));
+                findings.getOrDefault(n.nodeId(), 0L),
+                dates.get(n.nodeId())));
       }
       Set<String> ids = new java.util.HashSet<>();
       kept.forEach(n -> ids.add(n.nodeId()));
@@ -168,7 +181,8 @@ public class GraphExplorationService {
         null,
         null,
         0,
-        0);
+        0,
+        null);
   }
 
   /**
@@ -282,7 +296,9 @@ public class GraphExplorationService {
     Map<String, GraphNodeOutput> seen = new HashMap<>();
     Map<String, Integer> depth = new HashMap<>();
     Deque<GraphNodeOutput> queue = new ArrayDeque<>();
-    GraphNodeOutput first = new GraphNodeOutput(start, fromType, fromId, fromId, null, null, 0, 0);
+    GraphNodeOutput first =
+        new GraphNodeOutput(start, fromType, fromId, fromId, null, null, 0, 0, null);
+    Map<String, Instant> seenDates = new HashMap<>();
     seen.put(start, first);
     depth.put(start, 0);
     queue.add(first);
@@ -294,6 +310,7 @@ public class GraphExplorationService {
       }
       Slice ring = new Slice();
       expand(ring, tenantIds, current.nodeType(), current.entityId(), Set.of(), 50);
+      ring.dates.forEach(seenDates::putIfAbsent);
       for (GraphEdgeOutput e : ring.edges.values()) {
         String other = e.source().equals(current.nodeId()) ? e.target() : e.source();
         if (seen.containsKey(other)) {
@@ -323,6 +340,7 @@ public class GraphExplorationService {
       for (String id : path) {
         GraphNodeOutput n = seen.get(id);
         slice.node(n.nodeType(), n.entityId(), n.label(), n.subtype());
+        slice.date(id, seenDates.get(id));
         GraphEdgeOutput e = parentEdge.get(id);
         if (e != null) {
           slice.edge(e.edgeType(), e.source(), e.target(), e.result());
@@ -335,6 +353,7 @@ public class GraphExplorationService {
         GraphNodeOutput real = startRing.nodes.get(start);
         if (real != null) {
           slice.nodes.put(start, real);
+          slice.date(start, startRing.dates.get(start));
         }
       }
     }
@@ -450,7 +469,7 @@ public class GraphExplorationService {
         if (want.test(GraphEdgeType.FOUND_ON)) {
           rows(
               slice,
-              "SELECT f.id, f.valueDisplay, f.type FROM Finding f JOIN f.assets a"
+              "SELECT f.id, f.valueDisplay, f.type, f.updateDate FROM Finding f JOIN f.assets a"
                   + " WHERE a.id = :id AND f.tenant.id IN :tenantIds ORDER BY f.updateDate DESC",
               tenantIds,
               id,
@@ -458,6 +477,7 @@ public class GraphExplorationService {
               r -> {
                 String f =
                     slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2]));
+                slice.date(f, r[3]);
                 slice.edge(GraphEdgeType.FOUND_ON, f, here, null);
               });
         }
@@ -501,11 +521,16 @@ public class GraphExplorationService {
         focus =
             single(
                 slice,
-                "SELECT f.id, f.valueDisplay, f.type FROM Finding f"
+                "SELECT f.id, f.valueDisplay, f.type, f.updateDate FROM Finding f"
                     + " WHERE f.id = :id AND f.tenant.id IN :tenantIds",
                 tenantIds,
                 id,
-                r -> slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2])));
+                r -> {
+                  String f =
+                      slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2]));
+                  slice.date(f, r[3]);
+                  return f;
+                });
         if (focus == null) {
           return null;
         }
@@ -556,7 +581,7 @@ public class GraphExplorationService {
         if (want.test(GraphEdgeType.PRODUCED)) {
           rows(
               slice,
-              "SELECT DISTINCT f.id, f.valueDisplay, f.type"
+              "SELECT DISTINCT f.id, f.valueDisplay, f.type, f.updateDate"
                   + " FROM FindingOccurrence o JOIN o.finding f"
                   + " WHERE o.inject.id = :id AND f.tenant.id IN :tenantIds",
               tenantIds,
@@ -565,19 +590,21 @@ public class GraphExplorationService {
               r -> {
                 String f =
                     slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2]));
+                slice.date(f, r[3]);
                 slice.edge(GraphEdgeType.PRODUCED, here, f, null);
               });
         }
         if (want.test(GraphEdgeType.PART_OF)) {
           rows(
               slice,
-              "SELECT x.id, x.name FROM Inject i JOIN i.exercise x"
+              "SELECT x.id, x.name, x.start FROM Inject i JOIN i.exercise x"
                   + " WHERE i.id = :id AND x.tenant.id IN :tenantIds",
               tenantIds,
               id,
               1,
               r -> {
                 String s = slice.node(GraphNodeType.SIMULATION, (String) r[0], (String) r[1], null);
+                slice.date(s, r[2]);
                 slice.edge(GraphEdgeType.PART_OF, here, s, null);
               });
         }
@@ -586,11 +613,16 @@ public class GraphExplorationService {
         focus =
             single(
                 slice,
-                "SELECT x.id, x.name FROM Exercise x"
+                "SELECT x.id, x.name, x.start FROM Exercise x"
                     + " WHERE x.id = :id AND x.tenant.id IN :tenantIds",
                 tenantIds,
                 id,
-                r -> slice.node(GraphNodeType.SIMULATION, (String) r[0], (String) r[1], null));
+                r -> {
+                  String s =
+                      slice.node(GraphNodeType.SIMULATION, (String) r[0], (String) r[1], null);
+                  slice.date(s, r[2]);
+                  return s;
+                });
         if (focus == null) {
           return null;
         }
@@ -772,7 +804,7 @@ public class GraphExplorationService {
         List<Object[]> runs =
             entityManager
                 .createQuery(
-                    "SELECT x.id, x.name, s.name FROM Exercise x JOIN x.scenario s"
+                    "SELECT x.id, x.name, s.name, x.start FROM Exercise x JOIN x.scenario s"
                         + " WHERE s.id = :id AND x.tenant.id IN :tenantIds"
                         + " ORDER BY x.start DESC NULLS LAST",
                     Object[].class)
@@ -791,6 +823,7 @@ public class GraphExplorationService {
         if (want.test(GraphEdgeType.RUN_OF)) {
           for (Object[] r : runs) {
             String s = slice.node(GraphNodeType.SIMULATION, (String) r[0], (String) r[1], null);
+            slice.date(s, r[3]);
             slice.edge(GraphEdgeType.RUN_OF, s, focus, null);
           }
         }
