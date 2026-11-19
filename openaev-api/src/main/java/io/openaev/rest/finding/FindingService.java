@@ -65,17 +65,6 @@ public class FindingService {
   }
 
   /**
-   * Marking ids of every asset this finding's own {@code findings_assets} link carries, one array
-   * per asset - not the occurrences path, since markings are only ever written against the direct
-   * link. Feeds notification-recipient clearance narrowing (OR across them, the same permissive
-   * reading {@link io.openaev.config.MarkingDimension}'s link-rows predicate uses for reads).
-   */
-  @Transactional(readOnly = true)
-  public List<String[]> findAssetMarkingIds(@NotBlank final String findingId) {
-    return findingRepository.findAssetMarkingIdsByFindingId(findingId);
-  }
-
-  /**
    * Resolves the group-wide data backing the summary of a finding - the group being every
    * occurrence sharing its (type, value) in the tenant - and delegates the assembly of the output
    * to the mapper.

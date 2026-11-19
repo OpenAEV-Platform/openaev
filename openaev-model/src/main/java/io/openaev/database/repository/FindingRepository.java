@@ -43,14 +43,6 @@ public interface FindingRepository
       @Param("displayValue") String displayValue,
       @Param("tenantId") String tenantId);
 
-  /**
-   * Marking ids of every asset linked through this finding's own {@code findings_assets} join
-   * table, one array per asset - not the occurrences path, since markings are only ever written
-   * against the direct link.
-   */
-  @Query("SELECT a.markingIds FROM Finding f JOIN f.assets a WHERE f.id = :findingId")
-  List<String[]> findAssetMarkingIdsByFindingId(@Param("findingId") String findingId);
-
   @Query(
       "SELECT COUNT(DISTINCT a.id) FROM Finding f JOIN f.assets a"
           + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")

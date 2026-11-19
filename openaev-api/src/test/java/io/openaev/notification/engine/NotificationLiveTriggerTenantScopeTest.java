@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.NotificationTriggerEventType;
+import io.openaev.service.stream.StreamVisibility;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.UUID;
@@ -117,7 +118,8 @@ class NotificationLiveTriggerTenantScopeTest extends IntegrationTest {
         endpointId,
         tenantId,
         NotificationTriggerEventType.CREATE,
-        endpointName);
+        endpointName,
+        StreamVisibility.UNFILTERED);
 
     // Ground truth through raw JDBC: a scoped read could not see the row either, so it would agree
     // with a broken re-check for the wrong reason.
@@ -142,7 +144,8 @@ class NotificationLiveTriggerTenantScopeTest extends IntegrationTest {
         endpointId,
         UUID.randomUUID().toString(),
         NotificationTriggerEventType.CREATE,
-        endpointName);
+        endpointName,
+        StreamVisibility.UNFILTERED);
 
     Long records =
         jdbc.queryForObject(

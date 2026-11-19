@@ -24,6 +24,7 @@ import io.openaev.notification.engine.NotificationResourceCatalog;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.service.stream.StreamVisibility;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.InjectExpectationResultUtils.ResultDistribution;
 import java.time.Instant;
@@ -138,7 +139,8 @@ class ScenarioNotificationEventHandlerTest {
               eq(SCENARIO_ID),
               eq(TENANT_ID),
               eq(NotificationTriggerEventType.SCORE_DEGRADATION),
-              anyString());
+              anyString(),
+              eq(StreamVisibility.UNFILTERED));
     }
 
     @Test
@@ -178,7 +180,7 @@ class ScenarioNotificationEventHandlerTest {
       // -- ASSERT --
       ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
       verify(notificationEngineService)
-          .handleEventWithMessage(any(), anyString(), anyString(), any(), message.capture());
+          .handleEventWithMessage(any(), anyString(), anyString(), any(), message.capture(), any());
       assertThat(message.getValue())
           .contains(
               withLogging
@@ -208,7 +210,7 @@ class ScenarioNotificationEventHandlerTest {
 
       // -- ASSERT --
       verify(notificationEngineService, never())
-          .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString());
+          .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString(), any());
     }
   }
 
@@ -228,7 +230,7 @@ class ScenarioNotificationEventHandlerTest {
 
       // -- ASSERT --
       verify(notificationEngineService, never())
-          .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString());
+          .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString(), any());
     }
 
     @Test
@@ -248,7 +250,7 @@ class ScenarioNotificationEventHandlerTest {
       // -- ASSERT --
       verify(exerciseService, never()).isThereAScoreDegradation(anyMap(), anyMap());
       verify(notificationEngineService, never())
-          .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString());
+          .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString(), any());
     }
   }
 }

@@ -14,6 +14,7 @@ import io.openaev.notification.catalog.CatalogEvents.CatalogReleaseRefused;
 import io.openaev.notification.catalog.CatalogEvents.RefusedVersion;
 import io.openaev.notification.engine.NotificationEngineService;
 import io.openaev.notification.engine.NotificationResourceCatalog;
+import io.openaev.service.stream.StreamVisibility;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -42,7 +43,8 @@ class CatalogNotificationListenerTest {
             eq(release),
             eq(TENANT),
             eq(SYNC_BLOCKED),
-            message.capture());
+            message.capture(),
+            eq(StreamVisibility.UNFILTERED));
     return message.getValue();
   }
 
@@ -71,7 +73,7 @@ class CatalogNotificationListenerTest {
 
     // Assert
     verify(engine, never())
-        .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString());
+        .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString(), any());
   }
 
   @Test
