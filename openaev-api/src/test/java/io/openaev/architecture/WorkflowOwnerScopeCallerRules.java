@@ -26,6 +26,7 @@ import io.openaev.search.FullTextSearchService;
 import io.openaev.service.GrantService;
 import io.openaev.service.PermissionService;
 import io.openaev.service.ScenarioToExerciseService;
+import io.openaev.service.UserService;
 import io.openaev.service.account.CallerRightsInTenant;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.WorkflowOwnerScope;
@@ -129,7 +130,13 @@ final class WorkflowOwnerScopeCallerRules {
                   + " tenant, the tenants a configured group mapping names, and the tenants the"
                   + " user already belongs to, read before any mapping runs, so a revoke sees the"
                   + " rows it must remove; the login has no request TxCtx of its own to carry the"
-                  + " scope"));
+                  + " scope"),
+          Map.entry(
+              UserService.class,
+              "a platform operator's create or update of a user's tenantIds: widens the group"
+                  + " part to the tenants attached, detached, or already held, read before the"
+                  + " eager groups load or the auto-assign grant runs, whatever the operator's"
+                  + " own tenant memberships are - in particular a platform admin with none"));
 
   /**
    * The classes allowed to call {@link WorkflowOwnerScope}, each with how the simulation, scenario
