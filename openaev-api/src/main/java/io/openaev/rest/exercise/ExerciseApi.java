@@ -708,8 +708,11 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @Valid @RequestBody ExerciseUpdateLogoInput input) {
     Exercise exercise = exerciseService.exercise(ctx, exerciseId);
-    exercise.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
-    exercise.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
+    String tenantId = exercise.getTenant().getId();
+    exercise.setLogoDark(
+        documentRepository.findByIdAndTenantId(input.getLogoDark(), tenantId).orElse(null));
+    exercise.setLogoLight(
+        documentRepository.findByIdAndTenantId(input.getLogoLight(), tenantId).orElse(null));
     return hydrateForResponse(
         exerciseService.withDocumentLinksInitialized(exerciseRepository.save(exercise)));
   }

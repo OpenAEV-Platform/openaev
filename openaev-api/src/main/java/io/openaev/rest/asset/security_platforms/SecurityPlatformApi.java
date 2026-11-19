@@ -106,12 +106,14 @@ public class SecurityPlatformApi {
     securityPlatform.setUpdateAttributes(input);
     securityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
     if (input.getLogoDark() != null) {
-      securityPlatform.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
+      securityPlatform.setLogoDark(
+          documentRepository.findByIdAndTenantId(input.getLogoDark(), tenantId).orElse(null));
     } else {
       securityPlatform.setLogoDark(null);
     }
     if (input.getLogoLight() != null) {
-      securityPlatform.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
+      securityPlatform.setLogoLight(
+          documentRepository.findByIdAndTenantId(input.getLogoLight(), tenantId).orElse(null));
     } else {
       securityPlatform.setLogoLight(null);
     }
@@ -146,20 +148,25 @@ public class SecurityPlatformApi {
     }
     securityPlatform.setUpdateAttributes(input);
     securityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
+    String platformTenantId = securityPlatform.getTenant().getId();
     if (input.getLogoDark() != null) {
-      securityPlatform.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
+      securityPlatform.setLogoDark(
+          documentRepository
+              .findByIdAndTenantId(input.getLogoDark(), platformTenantId)
+              .orElse(null));
     } else {
       securityPlatform.setLogoDark(null);
     }
     if (input.getLogoLight() != null) {
-      securityPlatform.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
+      securityPlatform.setLogoLight(
+          documentRepository
+              .findByIdAndTenantId(input.getLogoLight(), platformTenantId)
+              .orElse(null));
     } else {
       securityPlatform.setLogoLight(null);
     }
     securityPlatform.setTags(
-        iterableToSet(
-            this.tagRepository.findAllByIdInTenant(
-                input.getTagIds(), securityPlatform.getTenant().getId())));
+        iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), platformTenantId)));
     // Initialized before the link below is written, so the response carries the stored links
     // plus the one this request adds.
     SecurityPlatform saved =
@@ -250,20 +257,25 @@ public class SecurityPlatformApi {
     SecurityPlatform securityPlatform =
         this.securityPlatformRepository.findById(securityPlatformId).orElseThrow();
     securityPlatform.setUpdateAttributes(input);
+    String platformTenantId = securityPlatform.getTenant().getId();
     if (input.getLogoDark() != null) {
-      securityPlatform.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
+      securityPlatform.setLogoDark(
+          documentRepository
+              .findByIdAndTenantId(input.getLogoDark(), platformTenantId)
+              .orElse(null));
     } else {
       securityPlatform.setLogoDark(null);
     }
     if (input.getLogoLight() != null) {
-      securityPlatform.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
+      securityPlatform.setLogoLight(
+          documentRepository
+              .findByIdAndTenantId(input.getLogoLight(), platformTenantId)
+              .orElse(null));
     } else {
       securityPlatform.setLogoLight(null);
     }
     securityPlatform.setTags(
-        iterableToSet(
-            this.tagRepository.findAllByIdInTenant(
-                input.getTagIds(), securityPlatform.getTenant().getId())));
+        iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), platformTenantId)));
     return withManagerLinksInitialized(this.securityPlatformRepository.save(securityPlatform));
   }
 
