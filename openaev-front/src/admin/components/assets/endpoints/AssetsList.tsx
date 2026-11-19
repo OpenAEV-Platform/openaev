@@ -69,9 +69,9 @@ const AssetsList = <T extends AssetOutput>({
   const inlineStyles: Record<string, CSSProperties> = {
     asset_name: { width: compact ? '40%' : '30%' },
     asset_platform: { width: compact ? '10%' : '20%' },
-    asset_markings: { width: '15%' },
-    asset_tags: { width: markingEnabled ? '15%' : '30%' },
-    asset_type: { width: '20%' },
+    asset_markings: { width: '25%' },
+    asset_tags: { width: markingEnabled ? '10%' : '30%' },
+    asset_type: { width: markingEnabled ? '15%' : '20%' },
   };
 
   const headers = [
