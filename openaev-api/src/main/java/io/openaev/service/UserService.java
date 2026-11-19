@@ -378,6 +378,8 @@ public class UserService {
       assignAutoAssignGroups(existing, attachedTenantIds, false);
       revokeTenantGroups(existing, detachedTenantIds);
     }
+    // The refresh left the streamed associations lazy again; load them in the caller's scope.
+    loadStreamedAssociations(existing);
     User savedUser = userRepository.save(existing);
     // Evict cache for old tenants (removed memberships) and new tenants (added memberships)
     List<String> newTenantIds = input.tenantIds() != null ? input.tenantIds() : List.of();
