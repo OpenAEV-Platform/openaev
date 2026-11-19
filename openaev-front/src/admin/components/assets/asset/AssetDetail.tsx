@@ -36,15 +36,11 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
-import { useAbility } from '../../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { emptyFilled, formatIp, formatMacAddress } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
-import EntityGraph from '../../graph/EntityGraph';
-import ExploreInGraphButton from '../../graph/ExploreInGraphButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
@@ -55,7 +51,6 @@ import PostureScore from '../PostureScore';
 import InjectsPlayedOverTimeChart from '../statistics/InjectsPlayedOverTimeChart';
 import PostureScoreOverTimeChart from '../statistics/PostureScoreOverTimeChart';
 import useExpectationPosture from '../useExpectationPosture';
-import AssetLinks from './AssetLinks';
 
 // The backend's EndpointOverviewOutput now also carries the AI target connection metadata and the
 // asset's markings; until the API types are regenerated (needs a backend restart) they are
@@ -85,9 +80,6 @@ const AssetDetail = () => {
 
   const [asset, setAsset] = useState<AssetOverview | null>(null);
   const [loading, setLoading] = useState(true);
-  // Bumped when a link is added or removed so the mini graph re-reads the LINKED_TO pivots.
-  const [linksVersion, setLinksVersion] = useState(0);
-  const ability = useAbility();
 
   const loadAsset = useCallback(() => {
     setLoading(true);
@@ -146,7 +138,7 @@ const AssetDetail = () => {
   // charts without eating vertical space on the main tab. Tabs are routed
   // (/admin/assets/:id[/statistics]) so they can be deep-linked like the
   // atomic testing and scenario tabs.
-  const { currentTab, handleChangeTab } = useRoutedTabs(['overview', 'graph', 'statistics'], 'overview');
+  const { currentTab, handleChangeTab } = useRoutedTabs(['overview', 'statistics'], 'overview');
 
   if (loading && !asset) {
     return <Loader />;
@@ -209,7 +201,6 @@ const AssetDetail = () => {
         title={asset.asset_name}
         action={(
           <>
-            <ExploreInGraphButton type="ASSET" entityId={id} />
             {/* Entity-scoped reports - self-hides without the reporting
                 access capability. */}
             <EntityReportsPanel
@@ -251,10 +242,6 @@ const AssetDetail = () => {
             label: t('Overview'),
           },
           {
-            key: 'graph',
-            label: t('Graph'),
-          },
-          {
             key: 'statistics',
             label: t('Statistics'),
           },
@@ -262,8 +249,6 @@ const AssetDetail = () => {
         currentTab={currentTab}
         onChange={handleChangeTab}
       />
-
-      {currentTab === 'graph' && <EntityGraph type="ASSET" entityId={id} variant="embedded" />}
 
       {currentTab === 'statistics' && (
         // Two simple 50/50 time series: the posture-score evolution (same
@@ -433,23 +418,6 @@ const AssetDetail = () => {
                   )}
             </SectionBlock>
           </DetailSections>
-
-          {/* Asset-to-asset links (hosts, uses, logged on...), both directions; each one is a
-              LINKED_TO pivot of the graph below. */}
-          <SectionBlock title={t('Linked assets')}>
-            <AssetLinks
-              assetId={id}
-              assetName={asset.asset_name}
-              canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS)}
-              onChange={() => setLinksVersion(version => version + 1)}
-            />
-          </SectionBlock>
-
-          {/* Mini graph: the asset, its groups, findings and the injects that targeted it, result
-              coloured; a click opens the Graph page focused on the asset. */}
-          <SectionBlock title={t('Graph')}>
-            <EntityGraph key={linksVersion} type="ASSET" entityId={id} variant="mini" />
-          </SectionBlock>
 
           {hasAgents && (
             <SectionBlock title={t('Agents')}>
