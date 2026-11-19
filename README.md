@@ -36,7 +36,7 @@ The result is a list of exposures backed by evidence, with the detection and rem
     <source media="(prefers-color-scheme: dark)" srcset="./.github/img/openaev-graph-dark.png">
     <img src="./.github/img/openaev-graph-light.png" alt="OpenAEV exploration graph: an asset group expanded into its endpoints, with entity and relation filters, the time range and the outcome legend" width="100%">
   </picture>
-  <br/><sub>The exploration graph (coming in the next release, <a href="https://github.com/OpenAEV-Platform/openaev/pull/9448">#9448</a>).</sub>
+  <br/><sub>The exploration graph: simulations, scenarios, endpoints, asset groups, findings and attack patterns in one view.</sub>
 </p>
 
 ## Table of contents
@@ -68,23 +68,26 @@ controls stop the techniques the adversaries that target them actually use. Open
 
 ## Capabilities
 
-| Capability | What it does | Status |
-|---|---|---|
-| **Threat-informed scenarios from OpenCTI** | Generate scenarios from OpenCTI security coverage (reports, intrusion sets, campaigns, incidents): attack patterns are mapped to compatible actions of your threat arsenal and scheduled for execution. Results flow back to OpenCTI. | Released |
-| **Breach and attack simulation** | Execute payloads on Windows, Linux and macOS through the OpenAEV agent, Caldera, or the EDR executors (CrowdStrike Falcon, SentinelOne, Microsoft Defender for Endpoint, Tanium, Palo Alto Cortex). | Released (EDR executors: EE) |
-| **Threat arsenal** | MITRE ATT&CK-mapped actions, payloads (commands, executables, files, DNS), output parsers and a library of injectors, importable from the XTM Hub. | Released |
-| **Prevention and detection validation** | Expectations per action (prevention, detection, vulnerability, manual), scored automatically by collectors that read your security platforms. | Released |
-| **Atomic testing** | Run a single technique against a single target to validate one control in minutes. | Released |
-| **Attack chaining** | Chain actions with conditions on their outputs into a logic graph, and read how the attack actually propagated on the attack path map: endpoints reached, findings produced, chokepoints. | Released, EE, preview flag |
-| **Findings and exposure** | CVEs, open ports, credentials, shares and Active Directory weaknesses extracted from execution output, deduplicated across runs, enriched with CVSS, sensitive values masked. | Released |
-| **Remediation** | Detection remediation on threat arsenal actions and injects, remediation on CVEs, so every gap comes with the rule or fix that closes it. | Released, EE |
-| **Dashboards** | The exposure command center on the home page (assets at risk, prevention, detection and vulnerability scores, gaps to remediate), custom dashboards and widgets over simulations, findings and coverage; usage shown before a dashboard is deleted and starter-pack dashboards restored (coming in the next release, [#9420](https://github.com/OpenAEV-Platform/openaev/pull/9420)). | Released |
-| **Exploration graph** | One graph across simulations, scenarios, endpoints, asset groups, findings, attack patterns, persons and organizations, with time range and attack paths. | Coming in the next release ([#9448](https://github.com/OpenAEV-Platform/openaev/pull/9448)) |
-| **OpenCTI and OpenCRQ pivots** | See the OpenCTI counterpart of an asset, attack pattern, vulnerability or threat, and its OpenCRQ risk, from the OpenAEV screen you are on. | Coming in the next release ([#9393](https://github.com/OpenAEV-Platform/openaev/pull/9393)) |
-| **Generative AI** | Generate content and scenarios with AI, through your own AI provider or XTM One. | Released, EE |
-| **Autonomous attack path** | Describe an objective in plain language; an AI orchestrator in [XTM One](https://github.com/XTM-One-Platform/xtm-one) plans, executes and adapts a chained attack against your authorized scope, streams its decisions and records proof of exploitation and capability gaps. | Preview, EE, requires XTM One |
-| **Multi-tenancy** | Isolated tenants on one platform. | Released, EE |
-| **Human-centric exercises** | Phishing campaigns and tabletop injects (email, media pressure, challenges) for the human side of exposure. | Released |
+| Capability | What it does |
+|---|---|
+| **Threat-informed scenarios from OpenCTI** | Generate scenarios from OpenCTI security coverage (reports, intrusion sets, campaigns, incidents): attack patterns are mapped to compatible actions of your threat arsenal and scheduled for execution. Results flow back to OpenCTI. |
+| **Breach and attack simulation** | Execute payloads on Windows, Linux and macOS through the OpenAEV agent and implant, Caldera, or the EDR executors (CrowdStrike Falcon, SentinelOne, Microsoft Defender for Endpoint, Tanium, Palo Alto Cortex). |
+| **Threat arsenal** | MITRE ATT&CK-mapped actions, payloads (commands, executables, files, DNS), output parsers and a library of injectors, importable from the XTM Hub. |
+| **Prevention and detection validation** | Expectations per action (prevention, detection, vulnerability, manual), scored automatically by collectors that read your EDR, SIEM and XDR. |
+| **Atomic testing** | Run a single technique against a single target to validate one control in minutes. |
+| **Attack chaining** | Chain actions with conditions on their outputs into a logic graph, and read how the attack propagated on the attack path map: endpoints reached, findings produced, chokepoints. |
+| **Findings and exposure** | CVEs, open ports, credentials, shares and Active Directory weaknesses extracted from execution output, deduplicated across runs, enriched with CVSS, sensitive values masked. |
+| **Remediation** | Detection remediation on threat arsenal actions and injects, remediation on CVEs, so every gap comes with the rule or fix that closes it. |
+| **Dashboards** | The exposure command center on the home page (assets at risk, prevention, detection and vulnerability scores, gaps to remediate), custom dashboards and widgets over simulations, findings and coverage, starter-pack dashboards, and the usage of a dashboard shown before it is deleted. |
+| **Exploration graph** | One graph across simulations, scenarios, endpoints, asset groups, findings, attack patterns, persons and organizations, with a time range and attack paths. |
+| **OpenCTI and OpenCRQ pivots** | See the OpenCTI counterpart of an asset, attack pattern, vulnerability or threat, and its OpenCRQ risk, from the OpenAEV screen you are on. |
+| **Generative AI** | Generate content and scenarios with AI, through your own AI provider or XTM One. |
+| **Autonomous attack path** | Describe an objective in plain language; an AI orchestrator in [XTM One](https://github.com/XTM-One-Platform/xtm-one) plans, executes and adapts a chained attack against your authorized scope, streams its decisions and records proof of exploitation and capability gaps. |
+| **Multi-tenancy** | Isolated tenants on one platform. |
+| **Human-centric exercises** | Phishing campaigns and tabletop injects (email, media pressure, challenges) for the human side of exposure. |
+
+Which capabilities belong to the Enterprise Edition is listed in the
+[documentation](https://docs.openaev.io/latest/administration/enterprise/).
 
 <p align="center">
   <picture>
