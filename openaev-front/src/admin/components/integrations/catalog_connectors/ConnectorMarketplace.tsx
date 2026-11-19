@@ -1,30 +1,30 @@
-import { Box } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Key, OnlinePredictionOutlined, SmartButtonOutlined, TerminalOutlined } from '@mui/icons-material';
 import { type ReactNode, useMemo, useState } from 'react';
 
-import CardGrid from '../../../../components/common/card/CardGrid';
+import MarketplaceBrowser from '../../../../components/common/marketplace/page/MarketplaceBrowser';
+import MarketplaceSections from '../../../../components/common/marketplace/results/MarketplaceSections';
+import useMarketplaceView from '../../../../components/common/marketplace/toolbar/useMarketplaceView';
+import { useFormatter } from '../../../../components/i18n';
 import {
   CONNECTOR_TYPE_ORDER,
   type ConnectorItem,
+  type ConnectorItemType,
   filterConnectors,
   hasActiveFacetFilters,
   sortConnectors,
 } from './catalog-facets';
 import CatalogActiveFilters from './CatalogActiveFilters';
 import CatalogConnectorCard from './CatalogConnectorCard';
-import CatalogConnectorLine, { CatalogConnectorLinesHeader } from './CatalogConnectorLine';
 import CatalogEmptyState from './CatalogEmptyState';
 import CatalogSidebar from './CatalogSidebar';
-import CatalogToolbar, { type MarketplaceView } from './CatalogToolbar';
+import CatalogToolbar from './CatalogToolbar';
+import ConnectorList from './ConnectorList';
 import useCatalogFilters from './useCatalogFilters';
 
 interface Props {
   items: ConnectorItem[];
-  /** Right side of each card footer (deploy button, instance status...). */
-  /** The view is passed on: a card's footer shares its row with the use-case chips, a line's does not. */
-  renderFooterAction?: (item: ConnectorItem, view: 'card' | 'line') => ReactNode;
-  /** Left side of each card footer, before the support logo (health, last seen, status). */
-  renderFooterStatus?: (item: ConnectorItem) => ReactNode;
+  /** End of each card footer: deploy button, or instance status and migrate action. */
+  renderAction?: (item: ConnectorItem) => ReactNode;
   searchPlaceholder?: string;
 }
 
@@ -37,22 +37,14 @@ const VIEW_STORAGE_KEY = 'integrations_marketplace_view';
  * Filter state is persisted in the URL query string (per-tab, since each tab
  * has its own URL).
  */
-const ConnectorMarketplace = ({ items, renderFooterAction, renderFooterStatus, searchPlaceholder }: Props) => {
-  const theme = useTheme();
+const ConnectorMarketplace = ({ items, renderAction, searchPlaceholder }: Props) => {
+  const { t } = useFormatter();
 
-  const { filters, keyword, setKeyword, sort, setSort, onToggleFacet, onClearFacets } = useCatalogFilters();
+  const { filters, keyword, setKeyword, sort, sortHelpers, onToggleFacet, onClearFacets } = useCatalogFilters();
   // SearchFilter is uncontrolled; bumping this key remounts it to clear its value.
   const [searchResetKey, setSearchResetKey] = useState(0);
 
-  // Persisted so dense fleets keep the compact lines view across navigations
-  // (same behavior as the OpenCTI integrations marketplace).
-  const [view, setView] = useState<MarketplaceView>(
-    () => (localStorage.getItem(VIEW_STORAGE_KEY) === 'list' ? 'list' : 'cards'),
-  );
-  const onViewChange = (value: MarketplaceView) => {
-    localStorage.setItem(VIEW_STORAGE_KEY, value);
-    setView(value);
-  };
+  const { viewMode, handleViewModeChange } = useMarketplaceView(VIEW_STORAGE_KEY);
 
   const onResetAll = () => {
     onClearFacets();
@@ -60,107 +52,94 @@ const ConnectorMarketplace = ({ items, renderFooterAction, renderFooterStatus, s
     setSearchResetKey(prev => prev + 1);
   };
 
+  // One section per type: the chosen sort applies inside a type.
   const filteredItems = useMemo(
-    () => sortConnectors(filterConnectors(items, filters, keyword), sort),
+    () => sortConnectors(filterConnectors(items, filters, keyword), sort)
+      .sort((a, b) => CONNECTOR_TYPE_ORDER.indexOf(a.type) - CONNECTOR_TYPE_ORDER.indexOf(b.type)),
     [items, filters, keyword, sort],
   );
 
-  // No section headers: every connector in one grid, still grouped by type
-  // (collectors, injectors, executors, secrets providers), sorted within it.
-  const orderedItems = useMemo(
-    () => CONNECTOR_TYPE_ORDER.flatMap(type => filteredItems.filter(c => c.type === type)),
-    [filteredItems],
-  );
+  const typeMeta: Record<ConnectorItemType, {
+    label: string;
+    icon: ReactNode;
+  }> = {
+    COLLECTOR: {
+      label: t('Collectors'),
+      icon: <OnlinePredictionOutlined fontSize="small" />,
+    },
+    INJECTOR: {
+      label: t('Injectors'),
+      icon: <SmartButtonOutlined fontSize="small" />,
+    },
+    EXECUTOR: {
+      label: t('Executors'),
+      icon: <TerminalOutlined fontSize="small" />,
+    },
+    SECRETS_PROVIDER: {
+      label: t('Secrets Provider'),
+      icon: <Key fontSize="small" />,
+    },
+  };
+
+  const emptyState = (keyword !== '' || hasActiveFacetFilters(filters)) && <CatalogEmptyState onResetFilters={onResetAll} />;
 
   return (
-    // Below md the sidebar stacks full-width above the cards instead of
-    // squeezing them against a fixed 250px column.
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: {
-          xs: 'column',
-          md: 'row',
-        },
-        gap: 3,
-        alignItems: {
-          xs: 'stretch',
-          md: 'flex-start',
-        },
-      }}
-    >
-      <CatalogSidebar
-        connectors={items}
-        filters={filters}
-        keyword={keyword}
-        onToggleFacet={onToggleFacet}
-        onClearAll={onClearFacets}
-      />
-      <Box
-        component="main"
-        sx={{
-          flex: 1,
-          minWidth: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-        }}
-      >
+    <MarketplaceBrowser
+      sidebar={(
+        <CatalogSidebar
+          connectors={items}
+          filters={filters}
+          keyword={keyword}
+          onToggleFacet={onToggleFacet}
+          onClearAll={onClearFacets}
+        />
+      )}
+      toolbar={(
         <CatalogToolbar
           keyword={keyword}
           onSearch={value => setKeyword(value ?? '')}
           searchResetKey={searchResetKey}
-          sort={sort}
-          onSortChange={setSort}
+          sortHelpers={sortHelpers}
           resultCount={filteredItems.length}
           searchPlaceholder={searchPlaceholder}
-          view={view}
-          onViewChange={onViewChange}
+          view={viewMode}
+          onViewChange={handleViewModeChange}
         />
-        <CatalogActiveFilters
-          filters={filters}
-          onToggleFacet={onToggleFacet}
-          onClearAll={onClearFacets}
-        />
-        {orderedItems.length === 0 && (keyword !== '' || hasActiveFacetFilters(filters)) && (
-          <CatalogEmptyState onResetFilters={onResetAll} />
-        )}
-        {orderedItems.length > 0 && view === 'list' && (
-          <Box
-            sx={{
-              'borderRadius': 1,
-              'border': `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-              'backgroundColor': theme.palette.background.paper,
-              'overflow': 'hidden',
-              // Row dividers live here (not on the row's own sx) so they
-              // don't depend on adjacent rows sharing an emotion class.
-              '& [data-testid="connector-line"] + [data-testid="connector-line"]': { borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.05)}` },
-            }}
-          >
-            <CatalogConnectorLinesHeader />
-            {orderedItems.map(item => (
-              <CatalogConnectorLine
-                key={item.id}
-                connector={item}
-                footerAction={renderFooterAction?.(item, 'line')}
-              />
-            ))}
-          </Box>
-        )}
-        {orderedItems.length > 0 && view !== 'list' && (
-          <CardGrid>
-            {orderedItems.map(item => (
-              <CatalogConnectorCard
-                key={item.id}
-                connector={item}
-                footerAction={renderFooterAction?.(item, 'card')}
-                footerStatus={renderFooterStatus?.(item)}
-              />
-            ))}
-          </CardGrid>
-        )}
-      </Box>
-    </Box>
+      )}
+    >
+      <CatalogActiveFilters
+        filters={filters}
+        onToggleFacet={onToggleFacet}
+        onClearAll={onClearFacets}
+      />
+      {viewMode === 'list'
+        ? (
+            <ConnectorList
+              items={filteredItems}
+              sectionLabel={type => typeMeta[type].label}
+              sectionIcon={type => typeMeta[type].icon}
+              renderAction={renderAction}
+              sortHelpers={sortHelpers}
+              emptyState={emptyState}
+            />
+          )
+        : (
+            <MarketplaceSections
+              items={filteredItems}
+              sectionKey={item => item.type}
+              sectionLabel={type => typeMeta[type as ConnectorItemType].label}
+              sectionIcon={type => typeMeta[type as ConnectorItemType].icon}
+              renderItem={item => (
+                <CatalogConnectorCard
+                  key={item.id}
+                  connector={item}
+                  action={renderAction?.(item)}
+                />
+              )}
+              emptyState={emptyState}
+            />
+          )}
+    </MarketplaceBrowser>
   );
 };
 

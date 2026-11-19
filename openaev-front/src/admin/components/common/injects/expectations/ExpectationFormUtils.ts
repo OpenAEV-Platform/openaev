@@ -18,7 +18,7 @@ export const infoMessage = (type: string, t: (key: string) => string) => {
 export const formProps = (initialValues: ExpectationInputForm, t: (key: string) => string): UseFormProps<ExpectationInputForm> => ({
   mode: 'onTouched',
   resolver: zodResolver(zodImplement<ExpectationInputForm>().with({
-    expectation_type: z.string(),
+    expectation_type: z.enum(['ARTICLE', 'CHALLENGE', 'MANUAL', 'PREVENTION', 'DETECTION', 'LOGGING', 'VULNERABILITY']),
     expectation_name: z.string().min(1, { message: t('Should not be empty') }),
     expectation_description: z.string().optional(),
     expectation_score: z.number({ error: t('Score must be a valid number') }).min(1, t('Score must be greater than 0')).max(100, t('Score must be less than or equal to 100')).int(t('Score must be a whole number')),

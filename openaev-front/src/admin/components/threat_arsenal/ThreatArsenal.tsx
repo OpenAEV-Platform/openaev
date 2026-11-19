@@ -20,6 +20,7 @@ import CardGrid from '../../../components/common/card/CardGrid';
 import DialogDelete from '../../../components/common/DialogDelete';
 import ExportButton from '../../../components/common/ExportButton';
 import { useAuthorFacetOptions } from '../../../components/common/facets/ContractFacets';
+import MarketplaceSortSelect from '../../../components/common/marketplace/toolbar/MarketplaceSortSelect';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -42,12 +43,11 @@ import ThreatArsenalCard from './ThreatArsenalCard';
 import ThreatArsenalEmptyState from './ThreatArsenalEmptyState';
 import ThreatArsenalHero from './ThreatArsenalHero';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
-import { THREAT_ARSENAL_LIST_HEADERS, THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
+import { THREAT_ARSENAL_LIST_HEADERS, THREAT_ARSENAL_LIST_INLINE_STYLES, THREAT_ARSENAL_SORT_OPTIONS } from './threatArsenalListConfig';
 import ThreatArsenalListRow from './ThreatArsenalListRow';
 import { hasOrphanedScopeFilters, toggleOrphanedScope } from './threatArsenalOrphanedScopeUtils';
 import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
 import ThreatArsenalSidebar from './ThreatArsenalSidebar';
-import ThreatArsenalSortSelect from './ThreatArsenalSortSelect';
 import useThreatArsenalFacetCounts from './useThreatArsenalFacetCounts';
 
 type ViewMode = 'grid' | 'list';
@@ -474,7 +474,7 @@ const ThreatArsenal = () => {
                       // List view sorts via its column headers; the select is grid-only.
                       // Sits at the end of the filter row (after the clear-filters icon),
                       // matching the OpenCTI card-view sort placement.
-                      <ThreatArsenalSortSelect sortHelpers={queryableHelpers.sortHelpers} />
+                      <MarketplaceSortSelect sortHelpers={queryableHelpers.sortHelpers} options={THREAT_ARSENAL_SORT_OPTIONS} descendingFields={['action_updated_at']} />
                     )
                   : null}
                 leftSlot={(

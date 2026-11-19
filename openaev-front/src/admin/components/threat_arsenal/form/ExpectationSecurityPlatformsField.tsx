@@ -15,6 +15,7 @@ import { Controller, useFormContext, useWatch } from 'react-hook-form';
 
 import { useFormatter } from '../../../../components/i18n';
 import ItemSecurityPlatformType from '../../../../components/ItemSecurityPlatformType';
+import { type ThreatArsenalActionCreateInput } from '../../../../utils/api-types';
 import { ExpectationType, expectationTypeLabelKey, SECURITY_PLATFORM_TYPES } from '../../common/injects/expectations/Expectation';
 import { isTechnicalExpectation } from '../../common/injects/expectations/ExpectationUtils';
 
@@ -36,7 +37,7 @@ const ExpectationSecurityPlatformsField = () => {
   const expectations = (useWatch({
     control,
     name: 'action_expectations',
-  }) ?? []) as string[];
+  }) ?? []) as ThreatArsenalActionCreateInput['action_expectations'];
   const detectionPlatforms = useWatch({
     control,
     name: DETECTION_PLATFORMS,

@@ -10,11 +10,20 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface PayloadRevocationRepository extends JpaRepository<PayloadRevocation, String> {
 
+  // -- ONE VERSION --
+
   boolean existsByTenantIdAndPayloadId(String tenantId, String payloadId);
 
   Optional<PayloadRevocation> findByTenantIdAndPayloadId(String tenantId, String payloadId);
 
-  List<PayloadRevocation> findAllByTenantId(String tenantId);
+  // -- SEVERAL VERSIONS --
 
   boolean existsByTenantIdAndPayloadIdIn(String tenantId, Collection<String> payloadIds);
+
+  List<PayloadRevocation> findAllByTenantIdAndPayloadIdIn(
+      String tenantId, Collection<String> payloadIds);
+
+  // -- WHOLE TENANT --
+
+  List<PayloadRevocation> findAllByTenantId(String tenantId);
 }

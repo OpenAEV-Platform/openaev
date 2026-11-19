@@ -56,4 +56,10 @@ public class EsFinding extends EsTenantBase {
   @Queryable(label = "endpoint", filterable = true, dynamicValues = true, clazz = String.class)
   @EsQueryable(keyword = true)
   private Set<String> base_endpoint_side; // Must finish by _side
+
+  // The asset groups targeted by the injects of the finding's occurrences, so that findings can be
+  // counted per asset group. Same name as on the inject, simulation and scenario documents.
+  @Queryable(label = "asset groups", filterable = true, dynamicValues = true, clazz = String.class)
+  @EsQueryable(keyword = true)
+  private Set<String> base_asset_groups_side; // Must finish by _side
 }

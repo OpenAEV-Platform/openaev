@@ -100,4 +100,11 @@ public interface RawFindingIndexing extends RawTenant {
    * @return the asset IDs
    */
   Set<String> getAsset_ids();
+
+  /**
+   * Returns the IDs of the asset groups targeted by the injects where this finding occurred.
+   *
+   * @return the asset group IDs
+   */
+  Set<String> getAsset_group_ids();
 }

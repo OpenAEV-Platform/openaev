@@ -135,6 +135,27 @@ public class DashboardApi extends RestBehavior {
     return this.dashboardService.baseEntities();
   }
 
+  @GetMapping("/group-by-fields")
+  @Transactional
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.DASHBOARD)
+  @Operation(
+      summary = "List the valid group-by fields of a structural histogram, per base_entity",
+      description =
+          "A structural histogram groups by a field of the search document of its base_entity."
+              + " Every widget analytics endpoint answers 400 when the group-by field of a"
+              + " structural histogram is not in the list of a base_entity its series name; the"
+              + " message names the indexed equivalent of a known SQL-only list filter, for"
+              + " instance finding_assets -> base_endpoint_side.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "The valid group-by fields, keyed by base_entity")
+      })
+  public Map<String, List<String>> groupByFields(TxCtx ctx) {
+    return this.dashboardService.groupByFields();
+  }
+
   @GetMapping("/search/{search}")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)

@@ -57,6 +57,7 @@ import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.servlet.http.HttpServletResponse;
@@ -374,13 +375,21 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SCENARIO)
-  public void deleteScenario(TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
+  public void deleteScenario(
+      TxCtx ctx,
+      @PathVariable @NotBlank final String scenarioId,
+      @Parameter(
+              description =
+                  "True keeps the findings produced by the scenario's injects, detached from them."
+                      + " False (the default) deletes them with the scenario.")
+          @RequestParam(name = "keep_findings", required = false, defaultValue = "false")
+          final boolean keepFindings) {
     // Tear down the autonomous run's coordination first (409 if it is still active), then delete
     // the scenario. Finished simulations are NOT deleted - they detach and remain as history, like
     // any chained simulation. No-op for manual scenarios.
     this.scenarioService.existsInScope(ctx, scenarioId);
     this.autonomousRunService.deleteForScenario(scenarioId);
-    this.scenarioService.deleteScenario(ctx, scenarioId);
+    this.scenarioService.deleteScenario(ctx, scenarioId, keepFindings);
   }
 
   @Operation(
