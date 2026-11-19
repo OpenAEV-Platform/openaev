@@ -4698,5 +4698,8 @@
   "Browse and version the actions your simulations run.": "Sfoglia e gestisci le versioni delle azioni eseguite dalle tue simulazioni.",
   "Revoked": "Revocato",
   "Filigran": "Filigran",
-  "Local": "Locale"
+  "Local": "Locale",
+  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "Gli agenti non riceveranno i suoi job in sospeso e terminerà in errore. I comandi già avviati da un agente non vengono interrotti.",
+  "Do you want to stop this atomic testing: {title}?": "Vuoi interrompere questo test atomico: {title}?",
+  "Stop execution": "Interrompi l'esecuzione"
 }
