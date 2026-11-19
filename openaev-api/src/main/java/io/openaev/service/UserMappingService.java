@@ -20,6 +20,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -114,6 +115,18 @@ public class UserMappingService {
     if (changed) {
       markingClearanceCacheManager.evictForUser(user.getId());
     }
+  }
+
+  /**
+   * The tenant ids a group-mapping config names, for a caller that must read or write those
+   * tenants' groups before it has run any mapping (the SSO login's scope setup). A mapping with no
+   * tenant targets a platform group and contributes nothing here.
+   */
+  public Set<String> configuredMappingTenantIds(String property) {
+    return safeParseMappings(property).stream()
+        .map(GroupMapping::getTenantId)
+        .filter(tenantId -> hasText(tenantId))
+        .collect(Collectors.toCollection(LinkedHashSet::new));
   }
 
   private static List<GroupMapping> safeParseMappings(String json) {

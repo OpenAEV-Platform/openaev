@@ -10,6 +10,7 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.config.security.SecurityService;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.integration.ManagerCreator;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorPrivilegeService;
@@ -58,7 +59,10 @@ import java.util.function.Predicate;
  *       caller are not followed.
  *   <li>{@link TenantScopedTransaction#setScopeOnCurrentTransaction} sets the scope for the rest of
  *       the transaction. Its direct callers are a baseline, each with the scope it sets and where
- *       that scope comes from. The baseline may only shrink.
+ *       that scope comes from. The baseline shrinks when a caller is converted off it, and grows
+ *       only for a reviewed, deliberate new need to widen an ambient transaction the caller does
+ *       not own (e.g. a security-filter callback with no request {@code TxCtx} of its own); the
+ *       frozen size moves with it, in the same change.
  * </ul>
  *
  * A new caller of any of them is a deliberate change to its list, reviewed as such.
@@ -79,37 +83,53 @@ final class WorkflowOwnerScopeCallerRules {
 
   /**
    * The classes allowed to call {@link TenantScopedTransaction#setScopeOnCurrentTransaction}, each
-   * with the scope it sets and where it comes from. Every entry must still call it, and the list
-   * may only shrink: its size is frozen in {@link WorkflowOwnerScopeCallerArchTest}.
+   * with the scope it sets and where it comes from. Every entry must still call it; its size is
+   * frozen in {@link WorkflowOwnerScopeCallerArchTest} and moves only with a reviewed change here.
    */
   static final Map<Class<?>, String> SCOPE_SETTERS =
-      Map.of(
-          ScenarioToExerciseService.class,
-          "copies a scenario into a simulation in the scenario's own tenant, read from the scenario"
-              + " it is given",
-          AutonomousRunService.class,
-          "narrows the create to one tenant: the seed scenario's, checked within the request"
-              + " scope, or the tenant the request writes to",
-          ConnectorInstanceService.class,
-          "widens the XTM Composer reads to every tenant: one composer manages the connector"
-              + " instances of every tenant",
-          XtmHubService.class,
-          "contactUs reads the default tenant's own registration, whatever the caller's tenant",
-          OpenCTIConnectorPrivilegeService.class,
-          "background (OpenCTI connector register and ping job): the connector's own tenant",
-          QueueChainingJob.class,
-          "background: moves its one transaction to each popped entry's tenant, read from the"
-              + " entry's simulation or scenario",
-          TenantScopedJobRunner.class,
-          "runInCurrentTenantTransaction forwards a tenant its caller supplies; its callers are"
-              + " not followed",
-          ManagerCreator.class,
-          "createManager re-asserts the tenant it is given on the transaction it joins; its"
-              + " callers are not followed",
-          MigrationProcessor.class,
-          "tenant onboarding: joins the create-tenant transaction, scoped to the new tenant",
-          InitAdminCommandLineRunner.class,
-          "startup: provisions the default tenant");
+      Map.ofEntries(
+          Map.entry(
+              ScenarioToExerciseService.class,
+              "copies a scenario into a simulation in the scenario's own tenant, read from the"
+                  + " scenario it is given"),
+          Map.entry(
+              AutonomousRunService.class,
+              "narrows the create to one tenant: the seed scenario's, checked within the request"
+                  + " scope, or the tenant the request writes to"),
+          Map.entry(
+              ConnectorInstanceService.class,
+              "widens the XTM Composer reads to every tenant: one composer manages the connector"
+                  + " instances of every tenant"),
+          Map.entry(
+              XtmHubService.class,
+              "contactUs reads the default tenant's own registration, whatever the caller's"
+                  + " tenant"),
+          Map.entry(
+              OpenCTIConnectorPrivilegeService.class,
+              "background (OpenCTI connector register and ping job): the connector's own tenant"),
+          Map.entry(
+              QueueChainingJob.class,
+              "background: moves its one transaction to each popped entry's tenant, read from the"
+                  + " entry's simulation or scenario"),
+          Map.entry(
+              TenantScopedJobRunner.class,
+              "runInCurrentTenantTransaction forwards a tenant its caller supplies; its callers"
+                  + " are not followed"),
+          Map.entry(
+              ManagerCreator.class,
+              "createManager re-asserts the tenant it is given on the transaction it joins; its"
+                  + " callers are not followed"),
+          Map.entry(
+              MigrationProcessor.class,
+              "tenant onboarding: joins the create-tenant transaction, scoped to the new tenant"),
+          Map.entry(InitAdminCommandLineRunner.class, "startup: provisions the default tenant"),
+          Map.entry(
+              SecurityService.class,
+              "SSO login success handler: widens the group part of the login to the provider's"
+                  + " tenant, the tenants a configured group mapping names, and the tenants the"
+                  + " user already belongs to, read before any mapping runs, so a revoke sees the"
+                  + " rows it must remove; the login has no request TxCtx of its own to carry the"
+                  + " scope"));
 
   /**
    * The classes allowed to call {@link WorkflowOwnerScope}, each with how the simulation, scenario
