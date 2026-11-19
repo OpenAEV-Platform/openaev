@@ -33,16 +33,18 @@ The result is a list of exposures backed by evidence, with the detection and rem
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./.github/img/openaev-graph-dark.png">
-    <img src="./.github/img/openaev-graph-light.png" alt="OpenAEV exploration graph: an asset group expanded into its endpoints, with entity and relation filters, the time range and the outcome legend" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset="./.github/img/openaev-home-dark.png">
+    <img src="./.github/img/openaev-home-light.png" alt="OpenAEV home: the exposure command center with assets at risk, the adversary, vulnerability, prevention, detection and breached stages and their scores, and the prevention, detection and vulnerability results" width="100%">
   </picture>
-  <br/><sub>The exploration graph: simulations, scenarios, endpoints, asset groups, findings and attack patterns in one view.</sub>
+  <br/><sub>Home: the exposure command center, from the adversary to what got through (sample data).</sub>
 </p>
 
 ## Table of contents
 
 - [Why OpenAEV](#why-openaev)
 - [Capabilities](#capabilities)
+- [Gallery](#gallery)
+- [How OpenAEV works](#how-openaev-works)
 - [OpenAEV in the XTM Platform](#openaev-in-the-xtm-platform)
 - [Editions](#editions)
 - [Quick start](#quick-start)
@@ -78,9 +80,7 @@ controls stop the techniques the adversaries that target them actually use. Open
 | **Attack chaining** | Chain actions with conditions on their outputs into a logic graph, and read how the attack propagated on the attack path map: endpoints reached, findings produced, chokepoints. |
 | **Findings and exposure** | CVEs, open ports, credentials, shares and Active Directory weaknesses extracted from execution output, deduplicated across runs, enriched with CVSS, sensitive values masked. |
 | **Remediation** | Detection remediation on threat arsenal actions and injects, remediation on CVEs, so every gap comes with the rule or fix that closes it. |
-| **Dashboards** | The exposure command center on the home page (assets at risk, prevention, detection and vulnerability scores, gaps to remediate), custom dashboards and widgets over simulations, findings and coverage, starter-pack dashboards, and the usage of a dashboard shown before it is deleted. |
-| **Exploration graph** | One graph across simulations, scenarios, endpoints, asset groups, findings, attack patterns, persons and organizations, with a time range and attack paths. |
-| **OpenCTI and OpenCRQ pivots** | See the OpenCTI counterpart of an asset, attack pattern, vulnerability or threat, and its OpenCRQ risk, from the OpenAEV screen you are on. |
+| **Dashboards** | The exposure command center on the home page (assets at risk, prevention, detection and vulnerability scores, gaps to remediate), and custom dashboards and widgets over simulations, findings and coverage. |
 | **Generative AI** | Generate content and scenarios with AI, through your own AI provider or XTM One. |
 | **Autonomous attack path** | Describe an objective in plain language; an AI orchestrator in [XTM One](https://github.com/XTM-One-Platform/xtm-one) plans, executes and adapts a chained attack against your authorized scope, streams its decisions and records proof of exploitation and capability gaps. |
 | **Multi-tenancy** | Isolated tenants on one platform. |
@@ -89,42 +89,125 @@ controls stop the techniques the adversaries that target them actually use. Open
 Which capabilities belong to the Enterprise Edition is listed in the
 [documentation](https://docs.openaev.io/latest/administration/enterprise/).
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./.github/img/openaev-dashboard-dark.png">
-    <img src="./.github/img/openaev-dashboard-light.png" alt="OpenAEV exposure command center: assets at risk, and the adversary, vulnerability, prevention, detection and breached stages of the attack with their scores" width="100%">
-  </picture>
-  <br/><sub>Home: the exposure command center (sample data).</sub>
-</p>
+## Gallery
 
-<p align="center">
-  <img src="./.github/img/openaev-attack-path.png" alt="OpenAEV attack path map of a chained simulation: injectors, endpoint clusters and findings such as port scans, SMB shares and captured credentials, colored by prevention and detection outcome" width="100%">
-  <br/><sub>Attack path map of a chained simulation.</sub>
-</p>
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./.github/img/openaev-scenario-injects-dark.png">
+        <img src="./.github/img/openaev-scenario-injects-light.png" alt="A CVE and TTP validation scenario with its injects: Nuclei CVE scans on the network and payloads on endpoints" width="100%">
+      </picture>
+      <br/><sub><b>Scenarios.</b> Injects on network and endpoints, built from the techniques and CVEs of a threat.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./.github/img/openaev-threat-arsenal-dark.png">
+        <img src="./.github/img/openaev-threat-arsenal-light.png" alt="The threat arsenal: MITRE ATT&CK-mapped actions filtered by domain, platform and status" width="100%">
+      </picture>
+      <br/><sub><b>Threat arsenal.</b> MITRE ATT&amp;CK-mapped actions by domain and platform, ready to run as a test.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./.github/img/openaev-integrations-dark.png">
+        <img src="./.github/img/openaev-integrations-light.png" alt="The integrations catalog: collectors, injectors and executors by use case, deployed from the platform" width="100%">
+      </picture>
+      <br/><sub><b>Integrations.</b> Collectors, injectors and executors from the XTM ecosystem, deployed from the platform.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./.github/img/openaev-custom-dashboard-dark.png">
+        <img src="./.github/img/openaev-custom-dashboard-light.png" alt="A custom dashboard: the exposure command center widget with prevention, detection, vulnerability and recommended action breakdowns" width="100%">
+      </picture>
+      <br/><sub><b>Custom dashboards.</b> Widgets over simulations, findings and coverage, for each audience.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
+      <img src="./.github/img/openaev-attack-path.png" alt="Attack path map of a chained simulation: injectors, endpoint clusters and findings such as port scans, SMB shares and captured credentials, colored by prevention and detection outcome" width="100%">
+      <br/><sub><b>Attack path map.</b> How a chained simulation propagated: endpoints reached, findings produced, prevention and detection outcome.</sub>
+    </td>
+  </tr>
+</table>
 
-## OpenAEV in the XTM Platform
-
-CTEM is a loop: scope, discover, prioritize, validate, mobilize. OpenAEV is the validation stage, connected to the
-other modules of the XTM Platform:
+## How OpenAEV works
 
 ```mermaid
 flowchart LR
-  OCTI["OpenCTI<br/>threat intelligence"] -- "threats, attack patterns,<br/>security coverage" --> OAEV["OpenAEV<br/>adversarial exposure validation"]
-  OAEV -- "validation results,<br/>coverage" --> OCTI
-  OAEV -- "validated exposure" --> OCRQ["OpenCRQ<br/>cyber risk quantification"]
-  XO["XTM One<br/>agentic core"] -- "autonomous attack path,<br/>AI agents, MCP" --> OAEV
-  OAEV -- "telemetry and alerts" --- SEC["Your EDR, SIEM, XDR<br/>(collectors)"]
-  OAEV -- "payloads" --> EP["Your endpoints and cloud<br/>(agents, implants, injectors)"]
+    subgraph intel["Threat intelligence"]
+        octi["OpenCTI<br/>reports, intrusion sets,<br/>attack patterns"]
+        hub["XTM Hub<br/>scenarios and integrations"]
+    end
+    subgraph aev["OpenAEV"]
+        scen["Scenarios and<br/>atomic tests"]
+        arsenal["Threat arsenal<br/>actions and payloads"]
+        score["Expectations<br/>prevention, detection,<br/>vulnerability"]
+        out["Findings, scores,<br/>remediation, dashboards"]
+    end
+    subgraph env["Your environment"]
+        exec["Agent, implant, Caldera,<br/>EDR executors"]
+        assets["Endpoints, cloud,<br/>network, people"]
+        stack["EDR, SIEM, XDR"]
+    end
+    octi --> scen
+    hub --> arsenal
+    arsenal --> scen
+    scen --> exec --> assets
+    assets -. telemetry .-> stack
+    stack -- collectors --> score
+    exec -- execution output --> out
+    score --> out
+    out -- security coverage --> octi
+    out -. validated exposure .-> crq["OpenCRQ"]
+    out -. remediation .-> one["XTM One"]
+```
+
+- **Threat in**: scenarios come from OpenCTI security coverage and from the XTM Hub scenarios library.
+- **Execution**: injects run through the OpenAEV [agent](https://github.com/OpenAEV-Platform/agent) and
+  [implant](https://github.com/OpenAEV-Platform/implant), Caldera, or the EDR executors (CrowdStrike Falcon, SentinelOne,
+  Microsoft Defender for Endpoint, Tanium, Palo Alto Cortex); [injectors](https://github.com/OpenAEV-Platform/injectors)
+  reach the network, cloud, web and email.
+- **Scoring**: [collectors](https://github.com/OpenAEV-Platform/collectors) read your security stack and score every
+  prevention and detection expectation.
+- **Result**: findings, scores and remediation, sent back to OpenCTI as security coverage.
+
+## OpenAEV in the XTM Platform
+
+The XTM Platform runs the five stages of Continuous Threat Exposure Management (CTEM). OpenAEV is the validation stage.
+
+```mermaid
+flowchart LR
+    subgraph platform["XTM Platform"]
+        direction TB
+        one["XTM One<br/>core and agentic layer"]
+        cti["OpenCTI<br/>threat intelligence"]
+        aev["OpenAEV<br/>adversarial exposure validation"]
+        crq["OpenCRQ<br/>cyber risk quantification"]
+        hub["XTM Hub<br/>tradecraft library and gateway"]
+        one --- cti
+        one --- aev
+        one --- crq
+        hub -. one-click deploy .-> cti
+        hub -. one-click deploy .-> aev
+    end
+    scoping(["1. Scoping"]) --> discovery(["2. Discovery"]) --> prioritization(["3. Prioritization"]) --> validation(["4. Validation"]) --> mobilization(["5. Mobilization"])
+    mobilization -. continuous loop .-> scoping
+    cti -. know the adversary .-> scoping
+    cti -. map the exposure .-> discovery
+    crq -. quantify the risk .-> prioritization
+    aev -. prove the defenses .-> validation
+    one -. get the fix done .-> mobilization
 ```
 
 - **[OpenCTI](https://github.com/OpenCTI-Platform/opencti)**: the threat knowledge behind every scenario, and where
   validation results land as security coverage.
-- **[XTM One](https://github.com/XTM-One-Platform/xtm-one)**: the agentic core of the XTM Platform. It hosts the
-  autonomous attack path orchestrator and the AI agents that work across OpenCTI, OpenAEV and OpenCRQ.
-- **[OpenCRQ](https://filigran.io)**: turns validated exposure into business risk.
-- **Integrations**: injectors, collectors and executors are listed in the
-  [OpenAEV ecosystem](https://docs.openaev.io/latest/development/injectors/) and on the
-  [XTM Hub](https://hub.filigran.io).
+- **[XTM One](https://github.com/XTM-One-Platform/xtm-one)**: the core and agentic layer of the XTM Platform. It hosts
+  the autonomous attack path orchestrator and the AI agents that work across OpenCTI, OpenAEV and OpenCRQ.
+- **[OpenCRQ](https://filigran.io/products/opencrq)**: turns validated exposure into business risk.
+- **[XTM Hub](https://github.com/XTM-Hub/xtm-hub)**: the [OpenAEV scenarios library](https://hub.filigran.io/cybersecurity-solutions/openaev-scenarios)
+  and integrations, deployed in one click.
 
 ## Editions
 
@@ -156,16 +239,21 @@ docker compose -p openaev -f docker-compose.yml up -d
 
 Then open the URL set by `OPENAEV_HOST` and `OPENAEV_PORT` in `.env`, install an agent on a test endpoint, and launch
 your first atomic test. The full guide covers manual installation, production sizing and every setting:
-[installation](https://docs.openaev.io/latest/deployment/installation/).
+[installation](https://docs.openaev.io/latest/deployment/platform/installation/).
 
-Releases are published on the [GitHub releases page](https://github.com/OpenAEV-Platform/openaev/releases); a
-[rolling release](https://releases.openaev.io) is built from `main`.
+- **Images**: [openaev/platform on Docker Hub](https://hub.docker.com/r/openaev/platform).
+- **Kubernetes**: the community [Helm chart](https://github.com/devops-ia/helm-openaev) the installation guide points to.
+- **The whole XTM Platform**: [FiligranHQ/xtm-docker](https://github.com/FiligranHQ/xtm-docker) starts OpenCTI, OpenAEV
+  and XTM One together.
+- **Releases**: the [GitHub releases page](https://github.com/OpenAEV-Platform/openaev/releases).
 
 ## Documentation and demo
 
 - [Documentation](https://docs.openaev.io): getting started, scenarios, attack chaining, findings, dashboards,
   integrations, administration.
-- [Live demo](https://demo.openaev.io): open to everyone, reset every night on reference data.
+- [Live demo](https://demo.openaev.io).
+- [Filigran Academy](https://academy.filigran.io): free OpenAEV courses and badges.
+- [OpenAEV product page](https://filigran.io/products/openaev).
 
 ## Contributing
 
@@ -180,6 +268,10 @@ Releases are published on the [GitHub releases page](https://github.com/OpenAEV-
 ## Community
 
 - **Issues**: bugs and feature requests on [GitHub issues](https://github.com/OpenAEV-Platform/openaev/issues).
+- **Ecosystem repositories**: [agent](https://github.com/OpenAEV-Platform/agent),
+  [implant](https://github.com/OpenAEV-Platform/implant), [injectors](https://github.com/OpenAEV-Platform/injectors),
+  [collectors](https://github.com/OpenAEV-Platform/collectors), [payloads](https://github.com/OpenAEV-Platform/payloads),
+  [Python client](https://github.com/OpenAEV-Platform/client-python), [docker](https://github.com/OpenAEV-Platform/docker).
 - **Slack**: questions, integrations and PR discussions on the
   [Filigran Community Slack](https://community.filigran.io/?utm_medium=community&utm_source=github).
 - **Star the project**: a [star](https://github.com/OpenAEV-Platform/openaev/stargazers) helps other security teams find
@@ -198,9 +290,9 @@ Report a vulnerability as described in the [security policy](SECURITY.md). Do no
 
 ## About
 
-OpenAEV is designed and developed by [Filigran](https://filigran.io), with the products
-[OpenCTI](https://github.com/OpenCTI-Platform/opencti), [OpenCRQ](https://filigran.io) and
-[XTM One](https://github.com/XTM-One-Platform/xtm-one).
+OpenAEV is designed and developed by [Filigran](https://filigran.io), with the other products of the XTM Platform:
+[XTM One](https://github.com/XTM-One-Platform/xtm-one), [OpenCTI](https://github.com/OpenCTI-Platform/opencti),
+[OpenCRQ](https://filigran.io/products/opencrq) and [XTM Hub](https://github.com/XTM-Hub/xtm-hub).
 
 <a href="https://filigran.io"><img src="./.github/img/logo_filigran.png" alt="Filigran" width="300" /></a>
 
