@@ -7,7 +7,8 @@ import jakarta.validation.constraints.NotNull;
  * One bubble of the aggregated estate overview (#9447): an asset group with its member count and
  * its failure rate, or the bucket of the assets in no group ({@code ungrouped}).
  *
- * @param assetCount static members (a dynamic group is flagged and unfolded on demand)
+ * @param assetCount members, static ones and the ones its dynamic filter matches (a dynamic group
+ *     is flagged)
  * @param scoredCount expectations with a result on the members
  * @param failedCount of those, the ones that failed
  * @param failureRate failedCount / scoredCount, 0 when nothing was scored

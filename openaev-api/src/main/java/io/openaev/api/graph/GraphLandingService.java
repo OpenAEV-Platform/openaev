@@ -64,6 +64,17 @@ public class GraphLandingService {
   /** Simulations linked to one bubble at most. */
   static final int OVERVIEW_LINKS_PER_GROUP = 3;
 
+  /**
+   * Dynamic groups whose filter the overview resolves at most; past it a dynamic group keeps its
+   * static count and the overview says it was truncated.
+   */
+  static final int OVERVIEW_DYNAMIC_GROUPS = GraphExplorationService.MAX_DYNAMIC_GROUPS;
+
+  /** Ids per IN list of a batched read. */
+  private static final int ID_BATCH = 1000;
+
+  private static final long[] ZERO = {0, 0};
+
   /** Entries per section of the starting-points rail. */
   static final int RAIL_SIZE = 5;
 
@@ -212,64 +223,82 @@ public class GraphLandingService {
   }
 
   private OverviewData readOverview(Collection<String> tenantIds) {
-    List<Object[]> groupRows =
+    // Every group of the scope with its static member count: a group row is a few bytes, and the
+    // dynamic groups need their filter resolved before the ranking, else a filter-defined group
+    // such as "All endpoints" ranks and reads as empty.
+    List<AssetGroup> scopeGroups =
         entityManager
             .createQuery(
-                "SELECT g.id, g.name, COUNT(a.id) FROM AssetGroup g LEFT JOIN g.assets a"
-                    + " WHERE g.tenant.id IN :tenantIds"
-                    + " GROUP BY g.id, g.name ORDER BY COUNT(a.id) DESC, g.name ASC",
+                "SELECT g FROM AssetGroup g WHERE g.tenant.id IN :tenantIds ORDER BY g.name",
+                AssetGroup.class)
+            .setParameter("tenantIds", tenantIds)
+            .getResultList();
+    Map<String, Long> staticCounts = new HashMap<>();
+    for (Object[] r :
+        entityManager
+            .createQuery(
+                "SELECT g.id, COUNT(a.id) FROM AssetGroup g JOIN g.assets a"
+                    + " WHERE g.tenant.id IN :tenantIds AND a.tenant.id IN :tenantIds"
+                    + " GROUP BY g.id",
                 Object[].class)
             .setParameter("tenantIds", tenantIds)
-            .setMaxResults(OVERVIEW_GROUPS + 1)
-            .getResultList();
-    boolean truncated = groupRows.size() > OVERVIEW_GROUPS;
-    if (truncated) {
-      groupRows = groupRows.subList(0, OVERVIEW_GROUPS);
+            .getResultList()) {
+      staticCounts.put((String) r[0], number(r[1]));
     }
-    List<String> ids = groupRows.stream().map(r -> (String) r[0]).toList();
-    Map<String, long[]> scores = new HashMap<>();
-    Set<String> dynamic = new HashSet<>();
-    if (!ids.isEmpty()) {
-      for (Object[] r :
-          entityManager
-              .createQuery(
-                  "SELECT g.id, COUNT(e),"
-                      + " SUM(CASE WHEN e.score < COALESCE(e.expectedScore, 100) THEN 1 ELSE 0 END)"
-                      + " FROM TechnicalInjectExpectation e JOIN e.asset a, AssetGroup g"
-                      + " JOIN g.assets ga"
-                      + " WHERE ga.id = a.id AND g.id IN :ids AND e.score IS NOT NULL"
-                      + " AND a.tenant.id IN :tenantIds GROUP BY g.id",
-                  Object[].class)
-              .setParameter("ids", ids)
-              .setParameter("tenantIds", tenantIds)
-              .getResultList()) {
-        scores.put((String) r[0], new long[] {number(r[1]), number(r[2])});
+    boolean truncated = false;
+    int resolved = 0;
+    Map<String, Set<String>> dynamicMembers = new HashMap<>();
+    Set<String> dynamicIds = new HashSet<>();
+    for (AssetGroup g : scopeGroups) {
+      if (Filters.isEmptyFilterGroup(g.getDynamicFilter())) {
+        continue;
       }
-      for (AssetGroup g :
-          entityManager
-              .createQuery("SELECT g FROM AssetGroup g WHERE g.id IN :ids", AssetGroup.class)
-              .setParameter("ids", ids)
-              .getResultList()) {
-        if (!Filters.isEmptyFilterGroup(g.getDynamicFilter())) {
-          dynamic.add(g.getId());
-        }
+      if (++resolved > OVERVIEW_DYNAMIC_GROUPS) {
+        truncated = true;
+        dynamicMembers.put(g.getId(), null);
+        continue;
+      }
+      Set<String> members = new HashSet<>(inScope(explorer.dynamicMemberIds(g), tenantIds));
+      members.addAll(staticMemberIds(g.getId(), tenantIds));
+      dynamicMembers.put(g.getId(), members);
+      dynamicIds.addAll(members);
+    }
+    List<GraphOverviewGroupOutput> ranked = new ArrayList<>();
+    List<String> staticIds = new ArrayList<>();
+    for (AssetGroup g : scopeGroups) {
+      if (!dynamicMembers.containsKey(g.getId()) || dynamicMembers.get(g.getId()) == null) {
+        staticIds.add(g.getId());
       }
     }
-    List<GraphOverviewGroupOutput> groups = new ArrayList<>();
-    for (Object[] r : groupRows) {
-      String id = (String) r[0];
-      long[] s = scores.getOrDefault(id, new long[] {0, 0});
-      groups.add(
+    Map<String, long[]> scores = staticScores(staticIds, tenantIds);
+    for (AssetGroup g : scopeGroups) {
+      boolean isDynamic = dynamicMembers.containsKey(g.getId());
+      Set<String> members = dynamicMembers.get(g.getId());
+      long count = members != null ? members.size() : staticCounts.getOrDefault(g.getId(), 0L);
+      long[] s =
+          members != null ? scoresOf(members, tenantIds) : scores.getOrDefault(g.getId(), ZERO);
+      ranked.add(
           new GraphOverviewGroupOutput(
-              id,
-              (String) r[1],
-              number(r[2]),
+              g.getId(),
+              g.getName(),
+              count,
               s[0],
               s[1],
               GraphOverviewGroupOutput.rate(s[1], s[0]),
-              dynamic.contains(id),
+              isDynamic,
               false));
     }
+    ranked.sort(
+        (a, b) ->
+            a.assetCount() != b.assetCount()
+                ? Long.compare(b.assetCount(), a.assetCount())
+                : a.groupName().compareTo(b.groupName()));
+    if (ranked.size() > OVERVIEW_GROUPS) {
+      truncated = true;
+      ranked = ranked.subList(0, OVERVIEW_GROUPS);
+    }
+    List<GraphOverviewGroupOutput> groups = new ArrayList<>(ranked);
+    List<String> ids = groups.stream().map(GraphOverviewGroupOutput::groupId).toList();
     long assetCount =
         number(
             entityManager
@@ -286,7 +315,9 @@ public class GraphLandingService {
                     Long.class)
                 .setParameter("tenantIds", tenantIds)
                 .getSingleResult());
-    long ungrouped = Math.max(assetCount - grouped, 0);
+    // Assets only a dynamic filter groups: out of the ungrouped bucket, count and scores.
+    List<String> dynamicOnly = notStaticallyGrouped(dynamicIds, tenantIds);
+    long ungrouped = Math.max(assetCount - grouped - dynamicOnly.size(), 0);
     if (ungrouped > 0) {
       Object[] u =
           entityManager
@@ -300,8 +331,9 @@ public class GraphLandingService {
                   Object[].class)
               .setParameter("tenantIds", tenantIds)
               .getSingleResult();
-      long scored = number(u[0]);
-      long failed = number(u[1]);
+      long[] dynamicOnlyScores = scoresOf(dynamicOnly, tenantIds);
+      long scored = Math.max(number(u[0]) - dynamicOnlyScores[0], 0);
+      long failed = Math.max(number(u[1]) - dynamicOnlyScores[1], 0);
       groups.add(
           new GraphOverviewGroupOutput(
               GraphOverviewGroupOutput.UNGROUPED_ID,
@@ -335,6 +367,108 @@ public class GraphLandingService {
                 .setMaxResults(OVERVIEW_GROUPS * OVERVIEW_LINKS_PER_GROUP * 2)
                 .getResultList();
     return new OverviewData(List.copyOf(groups), List.copyOf(links), assetCount, truncated);
+  }
+
+  /** Expectation scores per static group: scored count and failed count, batched by group id. */
+  private Map<String, long[]> staticScores(List<String> groupIds, Collection<String> tenantIds) {
+    Map<String, long[]> scores = new HashMap<>();
+    for (List<String> batch : batches(groupIds)) {
+      for (Object[] r :
+          entityManager
+              .createQuery(
+                  "SELECT g.id, COUNT(e),"
+                      + " SUM(CASE WHEN e.score < COALESCE(e.expectedScore, 100) THEN 1 ELSE 0 END)"
+                      + " FROM TechnicalInjectExpectation e JOIN e.asset a, AssetGroup g"
+                      + " JOIN g.assets ga"
+                      + " WHERE ga.id = a.id AND g.id IN :ids AND e.score IS NOT NULL"
+                      + " AND a.tenant.id IN :tenantIds GROUP BY g.id",
+                  Object[].class)
+              .setParameter("ids", batch)
+              .setParameter("tenantIds", tenantIds)
+              .getResultList()) {
+        scores.put((String) r[0], new long[] {number(r[1]), number(r[2])});
+      }
+    }
+    return scores;
+  }
+
+  /** The static members of one group, inside the scope. */
+  private List<String> staticMemberIds(String groupId, Collection<String> tenantIds) {
+    return entityManager
+        .createQuery(
+            "SELECT a.id FROM AssetGroup g JOIN g.assets a"
+                + " WHERE g.id = :id AND a.tenant.id IN :tenantIds",
+            String.class)
+        .setParameter("id", groupId)
+        .setParameter("tenantIds", tenantIds)
+        .getResultList();
+  }
+
+  /** Scored and failed expectations of a set of assets, batched by asset id. */
+  private long[] scoresOf(Collection<String> assetIds, Collection<String> tenantIds) {
+    long[] total = {0, 0};
+    for (List<String> batch : batches(assetIds)) {
+      Object[] r =
+          entityManager
+              .createQuery(
+                  "SELECT COUNT(e),"
+                      + " SUM(CASE WHEN e.score < COALESCE(e.expectedScore, 100) THEN 1 ELSE 0 END)"
+                      + " FROM TechnicalInjectExpectation e JOIN e.asset a"
+                      + " WHERE a.id IN :ids AND a.tenant.id IN :tenantIds"
+                      + " AND e.score IS NOT NULL",
+                  Object[].class)
+              .setParameter("ids", batch)
+              .setParameter("tenantIds", tenantIds)
+              .getSingleResult();
+      total[0] += number(r[0]);
+      total[1] += number(r[1]);
+    }
+    return total;
+  }
+
+  /** The assets among the given ones that belong to the scope. */
+  private List<String> inScope(Collection<String> assetIds, Collection<String> tenantIds) {
+    List<String> out = new ArrayList<>();
+    for (List<String> batch : batches(assetIds)) {
+      out.addAll(
+          entityManager
+              .createQuery(
+                  "SELECT a.id FROM Asset a WHERE a.id IN :ids AND a.tenant.id IN :tenantIds",
+                  String.class)
+              .setParameter("ids", batch)
+              .setParameter("tenantIds", tenantIds)
+              .getResultList());
+    }
+    return out;
+  }
+
+  /** The assets among the given ones that no group holds statically. */
+  private List<String> notStaticallyGrouped(
+      Collection<String> assetIds, Collection<String> tenantIds) {
+    List<String> out = new ArrayList<>();
+    for (List<String> batch : batches(assetIds)) {
+      out.addAll(
+          entityManager
+              .createQuery(
+                  "SELECT a.id FROM Asset a WHERE a.id IN :ids AND a.tenant.id IN :tenantIds"
+                      + " AND NOT EXISTS (SELECT 1 FROM AssetGroup g JOIN g.assets ga"
+                      + " WHERE ga.id = a.id)",
+                  String.class)
+              .setParameter("ids", batch)
+              .setParameter("tenantIds", tenantIds)
+              .getResultList());
+    }
+    return out;
+  }
+
+  /** Ids cut in lists of {@value #ID_BATCH}, under the driver's bind-parameter limit. */
+  private static List<List<String>> batches(Collection<String> ids) {
+    List<String> all = new ArrayList<>(ids);
+    List<List<String>> out = new ArrayList<>();
+    for (int i = 0; i < all.size(); i += ID_BATCH) {
+      out.add(all.subList(i, Math.min(i + ID_BATCH, all.size())));
+    }
+    return out;
   }
 
   // -- Starting points --

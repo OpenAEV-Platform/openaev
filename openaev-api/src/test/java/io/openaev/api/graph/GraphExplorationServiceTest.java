@@ -18,6 +18,7 @@ import io.openaev.api.graph.dto.GraphEdgeType;
 import io.openaev.api.graph.dto.GraphNodeOutput;
 import io.openaev.api.graph.dto.GraphNodeType;
 import io.openaev.api.graph.dto.GraphOutput;
+import io.openaev.api.graph.dto.GraphOverviewGroupOutput;
 import io.openaev.api.graph.dto.GraphOverviewOutput;
 import io.openaev.api.graph.dto.GraphResult;
 import io.openaev.api.graph.dto.GraphStartingPointOutput;
@@ -779,6 +780,34 @@ class GraphExplorationServiceTest extends IntegrationTest {
               assertThat(link.simulationId()).isEqualTo(x.getId());
               assertThat(link.result()).isEqualTo(GraphResult.SUCCESS);
             });
+  }
+
+  @Test
+  @DisplayName("the overview counts the members a dynamic group filter matches, out of ungrouped")
+  void overviewCountsDynamicGroupMembers() {
+    scopeToAmbientTenant();
+    long ungroupedBefore = ungroupedCount(landing.overview(scope, GraphVisibility.ALL));
+    AssetGroup dyn = dynamicGroupOnPlatformOf(e2);
+    scopeToAmbientTenant();
+    landingCache.clear();
+
+    GraphOverviewOutput out = landing.overview(scope, GraphVisibility.ALL);
+
+    assertThat(out.groups())
+        .anySatisfy(
+            group -> {
+              assertThat(group.groupId()).isEqualTo(dyn.getId());
+              assertThat(group.dynamic()).isTrue();
+              assertThat(group.assetCount()).isGreaterThanOrEqualTo(1);
+            });
+    assertThat(ungroupedCount(out)).isLessThan(ungroupedBefore);
+  }
+
+  private static long ungroupedCount(GraphOverviewOutput out) {
+    return out.groups().stream()
+        .filter(GraphOverviewGroupOutput::ungrouped)
+        .mapToLong(GraphOverviewGroupOutput::assetCount)
+        .sum();
   }
 
   @Test
