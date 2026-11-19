@@ -22,8 +22,9 @@ import org.springframework.stereotype.Component;
  *   <li>walk {@code injects_expectations} in physical order, one committed transaction per range of
  *       pages, so each page is read once; no {@code VACUUM};
  *   <li>after each batch, pause, and wait while WAL archiving or a replica is too far behind;
- *   <li>a catch-up pass fills any row the page walk could not have covered: added after the size
- *       was measured, or moved behind the cursor by a concurrent non-HOT update;
+ *   <li>a catch-up pass fills any row the page walk could not have covered (added after the size
+ *       was measured, or moved behind the cursor by a concurrent non-HOT update), in committed,
+ *       paced batches of about {@link #TARGET_ROWS_PER_BATCH} expectations;
  *   <li>drop the JSON column, with a bounded lock wait and retry.
  * </ol>
  *
@@ -161,15 +162,29 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
   static final String RANGE_INSERT = BACKFILL.formatted("ie.ctid >= ?::tid AND ie.ctid < ?::tid");
 
   /**
-   * A full read of the source table that writes only the rows the walk missed, through the lookup
-   * index: an expectation with any row already present is skipped before its JSON is even unnested.
+   * An expectation with at least one result and no row in the results table yet; the {@code CASE}
+   * keeps {@code json_array_length} away from a non-array value. Once filled, an expectation leaves
+   * this set, and one with an empty array never enters it.
    */
+  private static final String MISSING =
+      "CASE WHEN json_typeof(ie.inject_expectation_results) = 'array'"
+          + " THEN json_array_length(ie.inject_expectation_results) ELSE 0 END > 0"
+          + " AND NOT EXISTS (SELECT 1 FROM "
+          + RESULTS_TABLE
+          + " r WHERE r.inject_expectation_result_inject_expectation_id ="
+          + " ie.inject_expectation_id)";
+
+  /** The last id and the size of the next batch of missing expectations after a cursor. */
+  private static final String NEXT_MISSING =
+      "SELECT max(id), count(*) FROM (SELECT ie.inject_expectation_id AS id"
+          + " FROM injects_expectations ie WHERE ie.inject_expectation_id > ? AND "
+          + MISSING
+          + " ORDER BY ie.inject_expectation_id LIMIT ?) batch";
+
+  /** The batch {@link #NEXT_MISSING} picked: ids after the cursor, up to the last one it named. */
   private static final String CATCH_UP_INSERT =
       BACKFILL.formatted(
-          "NOT EXISTS (SELECT 1 FROM "
-              + RESULTS_TABLE
-              + " r WHERE r.inject_expectation_result_inject_expectation_id ="
-              + " ie.inject_expectation_id)");
+          "ie.inject_expectation_id > ? AND ie.inject_expectation_id <= ? AND " + MISSING);
 
   /**
    * The WAL not yet archived or replayed, in bytes. Copied from {@code
@@ -203,6 +218,7 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
   private final Long pagesPerBatchOverride;
   private final int pauseMillis;
   private final long walLagBoundBytes;
+  private final int catchUpRowsPerBatch;
 
   public V6_20261023184049806__Add_expectation_results_table() {
     this(null, PAUSE_MILLIS, WAL_LAG_BOUND_BYTES);
@@ -210,9 +226,15 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
 
   V6_20261023184049806__Add_expectation_results_table(
       Long pagesPerBatchOverride, int pauseMillis, long walLagBoundBytes) {
+    this(pagesPerBatchOverride, pauseMillis, walLagBoundBytes, TARGET_ROWS_PER_BATCH);
+  }
+
+  V6_20261023184049806__Add_expectation_results_table(
+      Long pagesPerBatchOverride, int pauseMillis, long walLagBoundBytes, int catchUpRowsPerBatch) {
     this.pagesPerBatchOverride = pagesPerBatchOverride;
     this.pauseMillis = pauseMillis;
     this.walLagBoundBytes = walLagBoundBytes;
+    this.catchUpRowsPerBatch = catchUpRowsPerBatch;
   }
 
   /** {@link #UNKNOWN_DENSITY_PAGES_PER_BATCH} when the table has no statistics yet. */
@@ -257,7 +279,7 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
       logInactiveSlots(connection);
       WalGuard walGuard = new WalGuard(currentWalFile(connection));
       written = walk(connection, walGuard);
-      written += catchUp(connection);
+      written += catchUp(connection, walGuard);
       withLockRetry(
           connection,
           "dropping the JSON column",
@@ -329,13 +351,45 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
     return written;
   }
 
-  /** A full read of the source table that writes only the rows the walk missed. */
-  private long catchUp(Connection connection) throws SQLException {
-    try (PreparedStatement insert = connection.prepareStatement(CATCH_UP_INSERT)) {
-      long written = runRetrying(insert, "the catch-up pass");
-      log.info("{}: {} row(s) filled by the catch-up pass", RESULTS_TABLE, written);
-      return written;
+  /**
+   * Fills the rows the walk missed, in committed batches of {@link #catchUpRowsPerBatch}
+   * expectations, each followed by the walk's pacing and the same retry. A pass is a keyset scan
+   * over the expectation ids and a filled expectation never comes back, so it ends whatever is
+   * inserted meanwhile; another pass starts only while the last one found a full batch, so the
+   * catch-up runs forever only if every pass finds a batch of new rows.
+   */
+  long catchUp(Connection connection, WalGuard walGuard) throws SQLException {
+    long written = 0;
+    long picked;
+    try (PreparedStatement next = connection.prepareStatement(NEXT_MISSING);
+        PreparedStatement insert = connection.prepareStatement(CATCH_UP_INSERT)) {
+      do {
+        picked = 0;
+        String cursor = "";
+        while (true) {
+          next.setString(1, cursor);
+          next.setInt(2, catchUpRowsPerBatch);
+          String last;
+          long size;
+          try (ResultSet batch = next.executeQuery()) {
+            batch.next();
+            last = batch.getString(1);
+            size = batch.getLong(2);
+          }
+          if (size == 0) {
+            break;
+          }
+          insert.setString(1, cursor);
+          insert.setString(2, last);
+          written += runRetrying(insert, "the catch-up batch after '" + cursor + "'");
+          picked += size;
+          cursor = last;
+          pace(connection, walGuard);
+        }
+      } while (picked >= catchUpRowsPerBatch);
     }
+    log.info("{}: {} row(s) filled by the catch-up pass", RESULTS_TABLE, written);
+    return written;
   }
 
   /**
@@ -500,7 +554,7 @@ public class V6_20261023184049806__Add_expectation_results_table extends BaseJav
       long nextLogAt = System.nanoTime();
       while (lag > walLagBoundBytes) {
         if (System.nanoTime() - nextLogAt >= 0) {
-          log.info(
+          log.warn(
               "{}: waiting for WAL archiving or replicas, {} MB behind (bound {} MB)",
               RESULTS_TABLE,
               lag / MEGABYTE,

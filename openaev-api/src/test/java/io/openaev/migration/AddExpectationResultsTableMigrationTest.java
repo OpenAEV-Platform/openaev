@@ -13,6 +13,10 @@ import static io.openaev.migration.V6_20261023184049806__Add_expectation_results
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import io.openaev.IntegrationTest;
 import io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.TableSize;
 import io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.WalGuard;
@@ -40,6 +44,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
@@ -435,6 +440,107 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
       }
       assertFullSchema();
     }
+
+    @Test
+    @DisplayName(
+        "More missing rows than one batch are filled in several batches, each committed and paced")
+    void given_moreMissingRowsThanABatch_should_commitAndPaceEachBatch() throws SQLException {
+      // Arrange: five expectations, two per batch; each pace reads the committed count from a
+      // second connection, so a batch that is not committed before its pace shows as a short count
+      makePending();
+      execute(CREATE_TABLE);
+      List<String> expectations = new ArrayList<>();
+      for (int i = 0; i < 5; i++) {
+        expectations.add(seedExpectation(inject, "[{\"result\":\"SUCCESS\"}]"));
+      }
+      List<Long> committedAtPace = new ArrayList<>();
+      V6_20261023184049806__Scripted_batches batches =
+          new V6_20261023184049806__Scripted_batches(
+              2,
+              () -> {
+                committedAtPace.add(committedResults(expectations));
+                return 0;
+              });
+
+      // Act
+      long written = batches.catchUp(connection, new WalGuard(null));
+
+      // Assert
+      assertThat(written).isEqualTo(5);
+      assertThat(committedAtPace).hasSizeGreaterThanOrEqualTo(3);
+      assertThat(committedAtPace).isSorted();
+      assertThat(committedAtPace).anyMatch(committed -> committed > 0 && committed < 5);
+      assertThat(committedAtPace.getLast()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName(
+        "The catch-up leaves alone an expectation that already has results, an empty array and a"
+            + " non-array value")
+    void given_filledEmptyAndNonArrayRows_should_beSkippedByTheCatchUp() throws SQLException {
+      // Arrange: the filled one holds two results in its JSON but one row in the table
+      makePending();
+      execute(CREATE_TABLE);
+      String filled = seedExpectation(inject, "[{\"result\":\"A\"},{\"result\":\"B\"}]");
+      execute(
+          "INSERT INTO "
+              + RESULTS_TABLE
+              + " (inject_expectation_result_id, inject_expectation_result_inject_expectation_id)"
+              + " VALUES ('"
+              + UUID.randomUUID()
+              + "', '"
+              + filled
+              + "')");
+      String empty = seedExpectation(inject, "[]");
+      String nonArray = seedExpectation(inject, "{\"result\":\"A\"}");
+      String missing = seedExpectation(inject, "[{\"result\":\"C\"},{\"result\":\"D\"}]");
+
+      // Act
+      small.catchUp(connection, new WalGuard(null));
+
+      // Assert
+      assertThat(resultsOf(filled)).hasSize(1);
+      assertThat(resultsOf(empty)).isEmpty();
+      assertThat(resultsOf(nonArray)).isEmpty();
+      assertThat(resultsOf(missing)).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("The catch-up ends when rows are added during it, and fills them")
+    void given_rowsAddedDuringTheCatchUp_should_endAndFillThem() throws SQLException {
+      // Arrange: one expectation a batch; the first pace adds one row after every id and one
+      // before every id, as a concurrent writer could
+      makePending();
+      execute(CREATE_TABLE);
+      List<String> expectations = new ArrayList<>();
+      for (int i = 0; i < 3; i++) {
+        expectations.add(seedExpectation(inject, "[{\"result\":\"SUCCESS\"}]"));
+      }
+      String ahead = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+      String behind = "00000000-0000-0000-0000-000000000000";
+      AtomicInteger paces = new AtomicInteger();
+      V6_20261023184049806__Scripted_batches batches =
+          new V6_20261023184049806__Scripted_batches(
+              1,
+              () -> {
+                if (paces.getAndIncrement() == 0) {
+                  seedExpectation(ahead, inject, "[{\"result\":\"SUCCESS\"}]");
+                  seedExpectation(behind, inject, "[{\"result\":\"SUCCESS\"}]");
+                }
+                return 0;
+              });
+
+      // Act
+      batches.catchUp(connection, new WalGuard(null));
+
+      // Assert: it returned; the row ahead is read by the first pass, the one behind by the next
+      assertThat(paces.get()).isGreaterThanOrEqualTo(5);
+      for (String expectation : expectations) {
+        assertThat(resultsOf(expectation)).hasSize(1);
+      }
+      assertThat(resultsOf(ahead)).hasSize(1);
+      assertThat(resultsOf(behind)).hasSize(1);
+    }
   }
 
   @Nested
@@ -520,6 +626,45 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
       assertThat(reads).hasValue(3);
       assertThat(lags).isEmpty();
       assertThat(resultsOf(expectation)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("The wait for the WAL logs at WARN, so a WARN log level shows it")
+    void given_lagAboveTheBound_should_logTheWaitAtWarn() throws SQLException {
+      // Arrange
+      makePending();
+      execute(CREATE_TABLE);
+      seedExpectation(inject, "[{\"result\":\"SUCCESS\"}]");
+      Deque<Long> lags = new ArrayDeque<>(List.of(500L, 0L));
+      V6_20261023184049806__Add_expectation_results_table migration =
+          new V6_20261023184049806__Scripted_lag(
+              () -> {
+                Long lag = lags.poll();
+                return lag == null ? 0 : lag;
+              });
+      Logger logger =
+          (Logger)
+              LoggerFactory.getLogger(V6_20261023184049806__Add_expectation_results_table.class);
+      Level previousLevel = logger.getLevel();
+      logger.setLevel(Level.WARN);
+      ListAppender<ILoggingEvent> appender = new ListAppender<>();
+      appender.start();
+      logger.addAppender(appender);
+
+      // Act: at WARN, the level an INFO message does not reach
+      try {
+        migration.walk(connection, new WalGuard(null));
+      } finally {
+        logger.detachAppender(appender);
+        logger.setLevel(previousLevel);
+      }
+
+      // Assert
+      assertThat(appender.list)
+          .anyMatch(
+              event ->
+                  event.getLevel() == Level.WARN
+                      && event.getFormattedMessage().contains("waiting for WAL"));
     }
 
     @Test
@@ -766,6 +911,23 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
     }
   }
 
+  /** Catch-up batches of a given size and no pause; {@code atPace} runs at each pace. */
+  private static final class V6_20261023184049806__Scripted_batches
+      extends V6_20261023184049806__Add_expectation_results_table {
+
+    private final LagReadings atPace;
+
+    V6_20261023184049806__Scripted_batches(int rowsPerBatch, LagReadings atPace) {
+      super(1L, 0, Long.MAX_VALUE, rowsPerBatch);
+      this.atPace = atPace;
+    }
+
+    @Override
+    long walLagBytes(Connection ignored, String startWalFile) throws SQLException {
+      return atPace.next();
+    }
+  }
+
   /** The first attempt to drop the JSON column times out on a lock; the retry succeeds. */
   private static final class V6_20261023184049806__Scripted_lock
       extends V6_20261023184049806__Add_expectation_results_table {
@@ -974,7 +1136,10 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
   }
 
   private String seedExpectation(String inject, String resultsJson) throws SQLException {
-    String id = UUID.randomUUID().toString();
+    return seedExpectation(UUID.randomUUID().toString(), inject, resultsJson);
+  }
+
+  private String seedExpectation(String id, String inject, String resultsJson) throws SQLException {
     execute(
         "INSERT INTO injects_expectations (inject_expectation_id, inject_expectation_type,"
             + " inject_id, inject_expectation_expected_score, inject_expiration_time,"
@@ -1050,6 +1215,23 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
   private void execute(String sql) throws SQLException {
     try (Statement statement = connection.createStatement()) {
       statement.execute(sql);
+    }
+  }
+
+  /** Counted on a second connection: only what is committed. */
+  private long committedResults(List<String> expectations) throws SQLException {
+    try (Connection other = dataSource.getConnection()) {
+      try (PreparedStatement statement =
+          other.prepareStatement(
+              "SELECT count(*) FROM "
+                  + RESULTS_TABLE
+                  + " WHERE inject_expectation_result_inject_expectation_id = ANY (?)")) {
+        statement.setArray(1, other.createArrayOf("varchar", expectations.toArray()));
+        try (ResultSet resultSet = statement.executeQuery()) {
+          resultSet.next();
+          return resultSet.getLong(1);
+        }
+      }
     }
   }
 
