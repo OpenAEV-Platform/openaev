@@ -44,16 +44,20 @@ vi.mock(import('../../../../utils/Environment'), async (importOriginal) => {
   };
 });
 vi.mock('../../../../utils/error/errorHandlerUtil', () => ({ notifyErrorHandler: mockNotifyErrorHandler }));
-const { mockListMounted } = vi.hoisted(() => ({ mockListMounted: vi.fn() }));
-vi.mock('../../../../admin/components/profile/news_feed/NewsFeedList', async () => {
+const { mockBlogPostsMounted, mockUnreadCount } = vi.hoisted(() => ({
+  mockBlogPostsMounted: vi.fn(),
+  mockUnreadCount: vi.fn(),
+}));
+vi.mock('../../../../admin/components/profile/news_feed/NewsFeedBlogPosts', async () => {
   const { useEffect } = await import('react');
   return {
     default: () => {
-      useEffect(() => mockListMounted(), []);
-      return <div data-testid="news-feed-list" />;
+      useEffect(() => mockBlogPostsMounted(), []);
+      return <div data-testid="news-feed-blog-posts" />;
     },
   };
 });
+vi.mock('../../../../admin/components/nav/useNewsFeedUnreadCount', () => ({ default: mockUnreadCount }));
 vi.mock('../../../../components/NotFound', () => ({ default: () => <div data-testid="not-found" /> }));
 
 const { default: NewsFeed } = await import('../../../../admin/components/profile/news_feed/NewsFeed');
@@ -67,10 +71,13 @@ const buildSettings = (overrides: Partial<NewsFeedSettingsOutput> = {}): NewsFee
   news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO'],
   news_feed_settings_hub_registered: true,
   news_feed_settings_hub_connected: true,
+  news_feed_settings_available_types: ['RESOURCE_SCENARIO', 'BLOG_POST'],
   ...overrides,
 });
 
-const renderPage = (tab: 'items' | 'settings') => render(
+const WITHOUT_BLOG_POSTS = buildSettings({ news_feed_settings_available_types: ['RESOURCE_SCENARIO'] });
+
+const renderPage = (tab: 'blog_posts' | 'settings') => render(
   <MemoryRouter>
     <IntlProvider locale="en" onError={() => {}}>
       <ThemeProvider theme={createTheme()}>
@@ -88,6 +95,7 @@ describe('NewsFeed page', () => {
     xtmHubReachable = true;
     mockFetchSettings.mockResolvedValue({ data: buildSettings() });
     mockMarkAllRead.mockResolvedValue({});
+    mockUnreadCount.mockReturnValue(0);
     mockUpdateSettings.mockImplementation(async input => ({ data: buildSettings({ news_feed_settings_subscribed_types: input.news_feed_settings_subscribed_types }) }));
   });
 
@@ -100,30 +108,45 @@ describe('NewsFeed page', () => {
   describe('route guard', () => {
     it('is not reachable when the feature is disabled', () => {
       enabled = false;
-      renderPage('items');
+      renderPage('blog_posts');
       expect(screen.getByTestId('not-found')).toBeInTheDocument();
-      expect(screen.queryByTestId('news-feed-list')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('news-feed-blog-posts')).not.toBeInTheDocument();
       expect(mockFetchSettings).not.toHaveBeenCalled();
     });
   });
 
   describe('unread items', () => {
-    it('marks all the items read once under the News feed tab, then refreshes the counter', async () => {
+    it('marks only the blogposts read once under the Blogpost tab, then refreshes the counter', async () => {
       const refreshCounter = vi.fn();
       const subscription = MESSAGING$.refreshNewsFeedUnreadCount.subscribe(refreshCounter);
-      renderPage('items');
+      renderPage('blog_posts');
       await waitFor(() => expect(refreshCounter).toHaveBeenCalledTimes(1));
       expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
+      expect(mockMarkAllRead).toHaveBeenCalledWith('BLOG_POST');
       subscription.unsubscribe();
     });
 
-    it('marks the items read and reloads the list again when the user navigates to the page already shown', async () => {
-      renderPage('items');
+    it('marks every item read, whatever its category, when XTM Hub provisions no blogpost', async () => {
+      mockFetchSettings.mockResolvedValue({ data: WITHOUT_BLOG_POSTS });
+      renderPage('blog_posts');
       await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(1));
-      expect(mockListMounted).toHaveBeenCalledTimes(1);
+      expect(mockMarkAllRead).toHaveBeenCalledWith(undefined);
+    });
+
+    it('marks nothing read before it knows whether XTM Hub provisions blogposts', async () => {
+      mockFetchSettings.mockRejectedValue(new Error('boom'));
+      renderPage('blog_posts');
+      await screen.findByText('Error');
+      expect(mockMarkAllRead).not.toHaveBeenCalled();
+    });
+
+    it('marks the blogposts read and reloads them again when the user navigates to the page already shown', async () => {
+      renderPage('blog_posts');
+      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(1));
+      expect(mockBlogPostsMounted).toHaveBeenCalledTimes(1);
       fireEvent.click(screen.getByRole('link', { name: TOP_BAR_LINK }));
       await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(2));
-      expect(mockListMounted).toHaveBeenCalledTimes(2);
+      expect(mockBlogPostsMounted).toHaveBeenCalledTimes(2);
     });
 
     it('does not mark anything read when navigating to the page under the Settings tab', async () => {
@@ -142,7 +165,7 @@ describe('NewsFeed page', () => {
 
     it('does not mark anything read when the feature is disabled', () => {
       enabled = false;
-      renderPage('items');
+      renderPage('blog_posts');
       expect(mockMarkAllRead).not.toHaveBeenCalled();
     });
 
@@ -150,9 +173,9 @@ describe('NewsFeed page', () => {
       mockMarkAllRead.mockRejectedValue(new Error('unavailable'));
       const refreshCounter = vi.fn();
       const subscription = MESSAGING$.refreshNewsFeedUnreadCount.subscribe(refreshCounter);
-      renderPage('items');
+      renderPage('blog_posts');
       await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(1));
-      expect(screen.getByTestId('news-feed-list')).toBeInTheDocument();
+      expect(screen.getByTestId('news-feed-blog-posts')).toBeInTheDocument();
       expect(refreshCounter).not.toHaveBeenCalled();
       expect(mockNotifyError).not.toHaveBeenCalled();
       expect(mockNotifyErrorHandler).not.toHaveBeenCalled();
@@ -162,12 +185,12 @@ describe('NewsFeed page', () => {
 
   describe('header', () => {
     it('is titled XTM Hub News Feed in the breadcrumbs', () => {
-      renderPage('items');
+      renderPage('blog_posts');
       expect(within(screen.getByRole('navigation')).getByText('XTM Hub News Feed')).toBeInTheDocument();
     });
 
     it('shows the XTM Hub News Feed title over the tabs', () => {
-      renderPage('items');
+      renderPage('blog_posts');
       expect(screen.getByRole('heading', {
         level: 1,
         name: 'XTM Hub News Feed',
@@ -191,29 +214,55 @@ describe('NewsFeed page', () => {
   });
 
   describe('tabs', () => {
-    it('shows the list under the News feed tab', () => {
-      renderPage('items');
-      expect(screen.getByTestId('news-feed-list')).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'News feed' })).toHaveAttribute('aria-current', 'page');
+    it('shows the blogposts under the Blogpost tab, and no tab of the resources', async () => {
+      renderPage('blog_posts');
+      expect(await screen.findByTestId('news-feed-blog-posts')).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Blogpost/ })).toHaveAttribute('aria-current', 'page');
       expect(screen.getByRole('tab', { name: 'Settings' })).not.toHaveAttribute('aria-current');
+      expect(screen.queryByRole('tab', { name: 'News feed' })).not.toBeInTheDocument();
     });
 
-    it('links both tabs to their route', () => {
-      renderPage('items');
-      expect(screen.getByRole('tab', { name: 'News feed' })).toHaveAttribute('href', '/admin/profile/news-feed');
+    it('links both tabs to their route', async () => {
+      renderPage('blog_posts');
+      expect(await screen.findByRole('tab', { name: /Blogpost/ })).toHaveAttribute('href', '/admin/profile/news-feed');
       expect(screen.getByRole('tab', { name: 'Settings' })).toHaveAttribute('href', '/admin/profile/news-feed/settings');
     });
 
-    it('shows the settings, not the list, under the Settings tab', async () => {
+    it('shows the unread blogposts on the Blogpost tab', async () => {
+      mockUnreadCount.mockReturnValue(4);
+      renderPage('settings');
+      const tab = await screen.findByRole('tab', { name: /Blogpost/ });
+      expect(within(tab).getByText('4')).toBeInTheDocument();
+      expect(mockUnreadCount).toHaveBeenCalledWith('BLOG_POST');
+    });
+
+    it('falls back to the settings, without a Blogpost tab, when XTM Hub provisions no blogpost', async () => {
+      mockFetchSettings.mockResolvedValue({ data: WITHOUT_BLOG_POSTS });
+      renderPage('blog_posts');
+      expect(await screen.findByRole('switch', { name: ENABLE_ALL })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: /Blogpost/ })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('news-feed-blog-posts')).not.toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('shows no panel while it does not know whether XTM Hub provisions blogposts', () => {
+      mockFetchSettings.mockReturnValue(new Promise(() => {}));
+      renderPage('blog_posts');
+      expect(screen.queryByTestId('news-feed-blog-posts')).not.toBeInTheDocument();
+      expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Settings' })).not.toHaveAttribute('aria-current');
+    });
+
+    it('shows the settings, not the blogposts, under the Settings tab', async () => {
       renderPage('settings');
       expect(await screen.findByRole('switch', { name: ENABLE_ALL })).toBeInTheDocument();
-      expect(screen.queryByTestId('news-feed-list')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('news-feed-blog-posts')).not.toBeInTheDocument();
       expect(screen.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-current', 'page');
     });
   });
 
   describe('XTM Hub banner', () => {
-    it.each(['items', 'settings'] as const)('invites to connect the product on the %s tab when the tenant is not registered', async (tab) => {
+    it.each(['blog_posts', 'settings'] as const)('invites to connect the product on the %s tab when the tenant is not registered', async (tab) => {
       mockFetchSettings.mockResolvedValue({
         data: buildSettings({
           news_feed_settings_hub_registered: false,
@@ -225,7 +274,7 @@ describe('NewsFeed page', () => {
       expect(screen.getByRole('link', { name: 'Connect product to XTM Hub' })).toHaveAttribute('href', '/redirect/connect-xtm-hub');
     });
 
-    it.each(['items', 'settings'] as const)('asks a user who cannot connect XTM Hub to ask an administrator, with no way to connect, on the %s tab', async (tab) => {
+    it.each(['blog_posts', 'settings'] as const)('asks a user who cannot connect XTM Hub to ask an administrator, with no way to connect, on the %s tab', async (tab) => {
       canManageTenantSettings = false;
       mockFetchSettings.mockResolvedValue({
         data: buildSettings({
@@ -239,7 +288,7 @@ describe('NewsFeed page', () => {
       expect(screen.queryByRole('link', { name: 'Connect product to XTM Hub' })).not.toBeInTheDocument();
     });
 
-    it.each(['items', 'settings'] as const)('invites to reconnect on the %s tab when the platform lost its connectivity', async (tab) => {
+    it.each(['blog_posts', 'settings'] as const)('invites to reconnect on the %s tab when the platform lost its connectivity', async (tab) => {
       // still registered, so the news feed keeps being served, but no longer connected
       mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_hub_connected: false }) });
       renderPage(tab);
@@ -247,7 +296,7 @@ describe('NewsFeed page', () => {
       expect(screen.getByRole('link', { name: 'Connect product to XTM Hub' })).toBeInTheDocument();
     });
 
-    it.each(['items', 'settings'] as const)('says XTM Hub is unreachable, with no way to connect, on the %s tab', async (tab) => {
+    it.each(['blog_posts', 'settings'] as const)('says XTM Hub is unreachable, with no way to connect, on the %s tab', async (tab) => {
       xtmHubReachable = false;
       renderPage(tab);
       expect(await screen.findByText(DISCONNECTED)).toBeInTheDocument();
@@ -258,22 +307,21 @@ describe('NewsFeed page', () => {
     it('says XTM Hub is unreachable to a user who cannot connect XTM Hub too', async () => {
       xtmHubReachable = false;
       canManageTenantSettings = false;
-      renderPage('items');
+      renderPage('blog_posts');
       expect(await screen.findByText('XTM Hub is unreachable and connection can\'t be established')).toBeInTheDocument();
     });
 
     it('is not shown when the tenant is registered', async () => {
-      renderPage('items');
+      renderPage('blog_posts');
       await waitFor(() => expect(mockFetchSettings).toHaveBeenCalled());
       expect(screen.queryByText(DISCONNECTED)).not.toBeInTheDocument();
     });
 
     it('is not shown while the settings are loading or when they fail to load', async () => {
       mockFetchSettings.mockRejectedValue(new Error('boom'));
-      renderPage('items');
-      await waitFor(() => expect(mockFetchSettings).toHaveBeenCalled());
+      renderPage('blog_posts');
+      expect(await screen.findByText('Error')).toBeInTheDocument();
       expect(screen.queryByText(DISCONNECTED)).not.toBeInTheDocument();
-      expect(screen.getByTestId('news-feed-list')).toBeInTheDocument();
     });
   });
 
@@ -281,7 +329,21 @@ describe('NewsFeed page', () => {
     it('shows the type the user is subscribed to as enabled', async () => {
       renderPage('settings');
       expect(await screen.findByRole('switch', { name: 'Scenario' })).toBeChecked();
+      expect(screen.getByRole('switch', { name: 'Blogpost' })).not.toBeChecked();
       expect(screen.getByRole('switch', { name: ENABLE_ALL })).toBeChecked();
+    });
+
+    it('lists only the types XTM Hub provisions', async () => {
+      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_available_types: ['BLOG_POST'] }) });
+      renderPage('settings');
+      expect(await screen.findByRole('switch', { name: 'Blogpost' })).toBeInTheDocument();
+      expect(screen.queryByRole('switch', { name: 'Scenario' })).not.toBeInTheDocument();
+    });
+
+    it('subscribes to the blogposts when their switch is turned on', async () => {
+      renderPage('settings');
+      fireEvent.click(await screen.findByRole('switch', { name: 'Blogpost' }));
+      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO', 'BLOG_POST'] }, false));
     });
 
     it('shows nothing as enabled when the user unsubscribed from everything', async () => {
@@ -330,7 +392,7 @@ describe('NewsFeed page', () => {
       mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_subscribed_types: [] }) });
       renderPage('settings');
       fireEvent.click(await screen.findByRole('switch', { name: ENABLE_ALL }));
-      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO'] }, false));
+      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO', 'BLOG_POST'] }, false));
     });
 
     it('keeps the previous state when the save fails', async () => {

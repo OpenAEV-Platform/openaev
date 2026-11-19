@@ -11,7 +11,7 @@ import { computeBannerSettings } from '../../../public/components/systembanners/
 import useAuth from '../../../utils/hooks/useAuth';
 import { subscribeStreamEvent } from '../../../utils/hooks/useDataLoader';
 import { isFeatureEnabled } from '../../../utils/utils';
-import { buildConfiguredHubUrl } from '../profile/news_feed/newsFeedUtils';
+import { buildConfiguredHubUrl, buildNewsFeedBlogSeeAllUrl, NEWS_FEED_BLOG_POST_TYPE } from '../profile/news_feed/newsFeedUtils';
 import { NEWS_FEED_STREAM_BATCH_MS, parseNewsFeedItemStreamEvent } from './newsFeedStream';
 import NewsFeedToastItem, { type NewsFeedToastData } from './NewsFeedToastItem';
 import { useNewsFeedToastStyles } from './newsFeedToastSurface';
@@ -76,8 +76,22 @@ const NewsFeedToastManager: FunctionComponent = () => {
   }
 
   const { bannerHeightNumber } = computeBannerSettings(settings);
-  const hiddenCount = toasts.length - MAX_VISIBLE_TOASTS;
-  const hubLibraryUrl = buildConfiguredHubUrl('/app', settings.xtm_hub_url);
+  const hiddenToasts = toasts.slice(MAX_VISIBLE_TOASTS);
+  const hiddenCount = hiddenToasts.length;
+  const isOnlyBlogPostHidden = hiddenCount > 0 && hiddenToasts.every(toast => toast.news_feed_item_type === NEWS_FEED_BLOG_POST_TYPE);
+  const isOnlyResourceHidden = hiddenToasts.every(toast => toast.news_feed_item_type !== NEWS_FEED_BLOG_POST_TYPE);
+  // The blogposts live on the Filigran blog, the resources on XTM Hub.
+  let overflowUrl = buildConfiguredHubUrl('/app', settings.xtm_hub_url);
+  let overflowMessage = t('(+{count}) Click to view all the new items', { count: String(hiddenCount) });
+  let overflowLinkLabel = t('View all');
+  if (isOnlyBlogPostHidden) {
+    overflowUrl = buildNewsFeedBlogSeeAllUrl(settings.platform_id, settings.xtm_hub_url);
+    overflowMessage = t('(+{count}) Click to view all the new blogposts', { count: String(hiddenCount) });
+    overflowLinkLabel = t('See all');
+  } else if (isOnlyResourceHidden) {
+    overflowMessage = t('(+{count}) Click to view all the new resources on the Hub', { count: String(hiddenCount) });
+    overflowLinkLabel = t('View all on XTM Hub');
+  }
 
   // The live region stays mounted, empty, so that the toasts inserted in it are announced.
   return (
@@ -125,7 +139,7 @@ const NewsFeedToastManager: FunctionComponent = () => {
         {toasts.slice(0, MAX_VISIBLE_TOASTS).map(toast => (
           <NewsFeedToastItem key={toast.news_feed_item_id} item={toast} />
         ))}
-        {hiddenCount > 0 && hubLibraryUrl && (
+        {hiddenCount > 0 && overflowUrl && (
           <div style={card}>
             <Text
               variant="content-compact-bold"
@@ -135,7 +149,7 @@ const NewsFeedToastManager: FunctionComponent = () => {
                 color: theme.palette.primary.main,
               }}
             >
-              {t('(+{count}) Click to view all the new resources on the Hub', { count: hiddenCount })}
+              {overflowMessage}
             </Text>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -143,13 +157,13 @@ const NewsFeedToastManager: FunctionComponent = () => {
                   asChild
                   priority="tertiary"
                   size="sm"
-                  aria-label={t('View all on XTM Hub')}
+                  aria-label={overflowLinkLabel}
                   icon={<OpenInNewOutlined fontSize="small" />}
                 >
-                  <a href={hubLibraryUrl} target="_blank" rel="noopener noreferrer" />
+                  <a href={overflowUrl} target="_blank" rel="noopener noreferrer" />
                 </IconButton>
               </TooltipTrigger>
-              <TooltipContent>{t('View all on XTM Hub')}</TooltipContent>
+              <TooltipContent>{overflowLinkLabel}</TooltipContent>
             </Tooltip>
           </div>
         )}

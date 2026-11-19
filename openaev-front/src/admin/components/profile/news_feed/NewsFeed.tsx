@@ -7,10 +7,12 @@ import useAuth from '../../../../utils/hooks/useAuth';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../utils/utils';
+import useNewsFeedUnreadCount from '../../nav/useNewsFeedUnreadCount';
+import NewsFeedBlogPosts from './NewsFeedBlogPosts';
 import NewsFeedHubBanner, { type NewsFeedHubBannerVariant } from './NewsFeedHubBanner';
-import NewsFeedList from './NewsFeedList';
 import NewsFeedSettings from './NewsFeedSettings';
 import NewsFeedTabs, { type NewsFeedTab } from './NewsFeedTabs';
+import { NEWS_FEED_BLOG_POST_TYPE } from './newsFeedUtils';
 import useMarkNewsFeedItemsRead from './useMarkNewsFeedItemsRead';
 import useNewsFeedSettings from './useNewsFeedSettings';
 import useNewsFeedVisitKey from './useNewsFeedVisitKey';
@@ -18,9 +20,12 @@ import useNewsFeedVisitKey from './useNewsFeedVisitKey';
 interface Props { tab: NewsFeedTab }
 
 /**
- * The settings are loaded for both tabs: they tell whether the banner inviting to connect XTM Hub shows.
- * As on OpenCTI, a platform that lost its connectivity gets the banner too. One that cannot reach XTM Hub,
- * and a user who cannot connect it, get it without the way to connect.
+ * The settings are loaded for both tabs: they tell whether XTM Hub provisions blogposts, and whether the banner
+ * inviting to connect XTM Hub shows. As on OpenCTI, a platform that lost its connectivity gets the banner too. One
+ * that cannot reach XTM Hub, and a user who cannot connect it, get it without the way to connect.
+ *
+ * The page of the news feed itself shows the blogposts. When XTM Hub provisions none, it falls back to the settings,
+ * and a visit marks every item read, since no tab shows them.
  */
 const NewsFeedPage = ({ tab }: Props) => {
   const { t } = useFormatter();
@@ -38,8 +43,16 @@ const NewsFeedPage = ({ tab }: Props) => {
     saving,
     updateSubscribedTypes,
   } = useNewsFeedSettings();
-  // Only the items view marks them read: the settings tab shows none.
-  useMarkNewsFeedItemsRead(tab === 'items', visitKey);
+  const unreadBlogPostsCount = useNewsFeedUnreadCount('BLOG_POST');
+
+  const isBlogPostAvailable = settings?.news_feed_settings_available_types.includes(NEWS_FEED_BLOG_POST_TYPE) ?? false;
+  let displayedTab: NewsFeedTab | undefined = tab;
+  if (tab === 'blog_posts' && !isBlogPostAvailable) {
+    // Until the settings tell, no tab is shown as current; without blogposts, the page is the settings.
+    displayedTab = settings || failed ? 'settings' : undefined;
+  }
+  // Only the visit of the page of the news feed marks the items read, once it knows what it shows.
+  useMarkNewsFeedItemsRead(tab === 'blog_posts' && settings !== null, visitKey, isBlogPostAvailable ? 'BLOG_POST' : undefined);
 
   let bannerVariant: NewsFeedHubBannerVariant | null = null;
   if (isXtmHubUnreachable) {
@@ -59,19 +72,18 @@ const NewsFeedPage = ({ tab }: Props) => {
       />
       <Text variant="title-xl" as="h1" style={{ margin: '24px 0' }}>{t('XTM Hub News Feed')}</Text>
       {bannerVariant && <NewsFeedHubBanner variant={bannerVariant} />}
-      <NewsFeedTabs current={tab} />
+      <NewsFeedTabs current={displayedTab} blogPostsAvailable={isBlogPostAvailable} unreadBlogPostsCount={unreadBlogPostsCount} />
       <div style={{ marginTop: 20 }}>
-        {/* The list is keyed on the visit: coming back to the page reloads it, so a new item shows up. */}
-        {tab === 'items'
-          ? <NewsFeedList key={visitKey} />
-          : (
-              <NewsFeedSettings
-                settings={settings}
-                failed={failed}
-                saving={saving}
-                onChange={updateSubscribedTypes}
-              />
-            )}
+        {/* The blogposts are keyed on the visit: coming back to the page reloads them, so a new one shows up. */}
+        {displayedTab === 'blog_posts' && <NewsFeedBlogPosts key={visitKey} />}
+        {displayedTab === 'settings' && (
+          <NewsFeedSettings
+            settings={settings}
+            failed={failed}
+            saving={saving}
+            onChange={updateSubscribedTypes}
+          />
+        )}
       </div>
     </>
   );

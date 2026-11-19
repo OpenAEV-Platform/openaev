@@ -1,5 +1,5 @@
 import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { CampaignOutlined, OpenInNewOutlined, RouteOutlined } from '@mui/icons-material';
+import { ArticleOutlined, CampaignOutlined, OpenInNewOutlined, RouteOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useEffect, useRef, useState } from 'react';
 
@@ -18,7 +18,7 @@ import { type NewsFeedItemOutput, type SearchPaginationInput } from '../../../..
 import { XTM_HUB_DEFAULT_URL } from '../../../../utils/Environment';
 import useAuth from '../../../../utils/hooks/useAuth';
 import TopBarIconLink from '../../nav/TopBarIconLink';
-import { buildHubUrl } from './newsFeedUtils';
+import { buildHubUrl, NEWS_FEED_BLOG_POST_TYPE } from './newsFeedUtils';
 import useNewsFeedStreamRefresh from './useNewsFeedStreamRefresh';
 
 const MAX_DISPLAYED_TAGS = 3;
@@ -31,6 +31,7 @@ const inlineStyles: Record<string, CSSProperties> = {
   news_feed_item_hub_action: { width: '8%' },
 };
 
+/** The resources of the news feed: the blogposts have their own tab. */
 const NewsFeedList = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, fldt } = useFormatter();
@@ -69,7 +70,7 @@ const NewsFeedList = () => {
       return;
     }
     const requestId = ++latestRequest.current;
-    searchMyNewsFeedItems(searchPaginationInput, false)
+    searchMyNewsFeedItems(searchPaginationInput, false, 'RESOURCE')
       .then(({ data }) => {
         if (!mounted.current || requestId !== latestRequest.current) {
           return;
@@ -92,7 +93,7 @@ const NewsFeedList = () => {
     const requestId = ++latestRequest.current;
     loadsInFlight.current += 1;
     setFailed(false);
-    return searchMyNewsFeedItems(input)
+    return searchMyNewsFeedItems(input, true, 'RESOURCE')
       .catch((error) => {
         if (requestId === latestRequest.current) {
           setItems([]);
@@ -126,9 +127,12 @@ const NewsFeedList = () => {
       : null
   );
 
-  const typeLabel = (item: NewsFeedItemOutput) => (
-    item.news_feed_item_type === 'RESOURCE_SCENARIO' ? t('Scenario') : t('Unsupported type')
-  );
+  const typeLabel = (item: NewsFeedItemOutput) => {
+    if (item.news_feed_item_type === NEWS_FEED_BLOG_POST_TYPE) {
+      return t('Blogpost');
+    }
+    return item.news_feed_item_type === 'RESOURCE_SCENARIO' ? t('Scenario') : t('Unsupported type');
+  };
 
   const headers = [
     {
@@ -234,30 +238,33 @@ const NewsFeedList = () => {
         {loading && <PaginatedListLoader Icon={CampaignOutlined} headers={headers} headerStyles={inlineStyles} />}
         {!loading && failed && <SimpleError />}
         {!loading && !failed && items.length === 0 && <Empty message={t('No news feed items')} icon={CampaignOutlined} />}
-        {!loading && !failed && items.map(item => (
-          <ListItem key={item.news_feed_item_id} divider sx={{ height: 50 }}>
-            <ListItemIcon style={{ minWidth: 40 }}>
-              <RouteOutlined fontSize="small" color="primary" />
-            </ListItemIcon>
-            <ListItemText
-              primary={(
-                <div style={bodyItemsStyles.bodyItems}>
-                  {headers.map(header => (
-                    <div
-                      key={header.field}
-                      style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles[header.field],
-                      }}
-                    >
-                      {header.value(item)}
-                    </div>
-                  ))}
-                </div>
-              )}
-            />
-          </ListItem>
-        ))}
+        {!loading && !failed && items.map((item) => {
+          const TypeIcon = item.news_feed_item_type === NEWS_FEED_BLOG_POST_TYPE ? ArticleOutlined : RouteOutlined;
+          return (
+            <ListItem key={item.news_feed_item_id} divider sx={{ height: 50 }}>
+              <ListItemIcon style={{ minWidth: 40 }}>
+                <TypeIcon fontSize="small" color="primary" />
+              </ListItemIcon>
+              <ListItemText
+                primary={(
+                  <div style={bodyItemsStyles.bodyItems}>
+                    {headers.map(header => (
+                      <div
+                        key={header.field}
+                        style={{
+                          ...bodyItemsStyles.bodyItem,
+                          ...inlineStyles[header.field],
+                        }}
+                      >
+                        {header.value(item)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              />
+            </ListItem>
+          );
+        })}
       </List>
     </>
   );

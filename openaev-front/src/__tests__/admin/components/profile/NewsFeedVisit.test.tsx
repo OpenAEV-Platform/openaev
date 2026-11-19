@@ -10,16 +10,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type NewsFeedItemOutput, type PlatformSettings, type User } from '../../../../utils/api-types';
 import { UserContext } from '../../../../utils/hooks/useAuth';
 
-// The router, the queryable state (local storage and URL) and the list are the real ones: the page
-// loops on their interplay. Only the network and what the list does not use are replaced.
+// The router and the blogposts are the real ones: a visit must load them and mark them read once, not in a loop.
+// Only the network is replaced.
 const {
   mockSearchMyNewsFeedItems,
   mockMarkAllRead,
   mockFetchSettings,
+  mockFetchUnreadCount,
 } = vi.hoisted(() => ({
   mockSearchMyNewsFeedItems: vi.fn(),
   mockMarkAllRead: vi.fn(),
   mockFetchSettings: vi.fn(),
+  mockFetchUnreadCount: vi.fn(),
 }));
 
 vi.mock('../../../../utils/utils', async importOriginal => ({
@@ -31,19 +33,8 @@ vi.mock('../../../../actions/news_feed/news-feed-actions', () => ({
   searchMyNewsFeedItems: mockSearchMyNewsFeedItems,
   markAllMyNewsFeedItemsRead: mockMarkAllRead,
   fetchMyNewsFeedSettings: mockFetchSettings,
+  fetchMyUnreadNewsFeedCount: mockFetchUnreadCount,
   updateMyNewsFeedSettings: vi.fn(),
-}));
-vi.mock('../../../../actions/schema/schema-action', () => ({
-  filterableProperties: () => Promise.resolve({ data: [] }),
-  engineSchemas: () => Promise.resolve({ data: [] }),
-}));
-vi.mock('../../../../components/Empty', () => ({ default: ({ message }: { message: string }) => <p>{message}</p> }));
-vi.mock('../../../../admin/components/common/filters/useKillChains', () => ({
-  default: () => ({
-    killChains: [],
-    activeKillChain: undefined,
-    selectKillChain: () => {},
-  }),
 }));
 
 const { default: NewsFeed } = await import('../../../../admin/components/profile/news_feed/NewsFeed');
@@ -54,17 +45,19 @@ const TOP_BAR_LINK = 'Top bar icon';
 const OTHER_PAGE_LINK = 'Other page';
 const OTHER_PAGE_TEXT = 'Another page';
 const SETTLE_MS = 400;
-// A page that settles navigates once (the initial location): the default state of the list is not written to the URL
+// A page that settles navigates once (the initial location)
 const MAX_NAVIGATIONS = 40;
+const BLOG_POST_TITLE = 'Ransomware double extortion';
 
 const buildItem = (): NewsFeedItemOutput => ({
   news_feed_item_id: 'item-1',
   news_feed_item_hub_id: 'hub-1',
   news_feed_item_is_read: false,
-  news_feed_item_type: 'RESOURCE_SCENARIO',
-  news_feed_item_title: 'Ransomware double extortion',
+  news_feed_item_type: 'BLOG_POST',
+  news_feed_item_title: BLOG_POST_TITLE,
   news_feed_item_creation_date: '2026-03-15T12:00:00Z',
   news_feed_item_tags: [],
+  news_feed_item_metadata: [],
 });
 
 const navigations: string[] = [];
@@ -109,7 +102,7 @@ const renderPage = (initialEntry = PAGE) => render(
             <Link to={OTHER_PAGE}>{OTHER_PAGE_LINK}</Link>
             <NavigationLog />
             <Routes>
-              <Route path={PAGE} element={<NewsFeed tab="items" />} />
+              <Route path={PAGE} element={<NewsFeed tab="blog_posts" />} />
               <Route path={OTHER_PAGE} element={<p>{OTHER_PAGE_TEXT}</p>} />
             </Routes>
           </UserContext.Provider>
@@ -128,22 +121,16 @@ const settle = async () => {
 
 describe('NewsFeed page visit', () => {
   beforeEach(() => {
-    localStorage.clear();
     navigations.length = 0;
-    mockSearchMyNewsFeedItems.mockResolvedValue({
-      data: {
-        content: [buildItem()],
-        totalElements: 1,
-        totalPages: 1,
-        pageable: { pageNumber: 0 },
-      },
-    });
+    mockSearchMyNewsFeedItems.mockResolvedValue({ data: { content: [buildItem()] } });
     mockMarkAllRead.mockResolvedValue({});
+    mockFetchUnreadCount.mockResolvedValue({ data: 0 });
     mockFetchSettings.mockResolvedValue({
       data: {
-        news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO'],
+        news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO', 'BLOG_POST'],
         news_feed_settings_hub_registered: true,
         news_feed_settings_hub_connected: true,
+        news_feed_settings_available_types: ['RESOURCE_SCENARIO', 'BLOG_POST'],
       },
     });
   });
@@ -154,57 +141,26 @@ describe('NewsFeed page visit', () => {
   });
 
   describe('opening the page', () => {
-    it('settles: the list loads and marks the items read once, and the default list state is not written to the URL', async () => {
+    it('settles: the blogposts load and are marked read once, and the page does not navigate', async () => {
       // Act
       renderPage();
-      await screen.findByText('Ransomware double extortion');
+      await screen.findByText(BLOG_POST_TITLE);
       await settle();
 
-      // Assert: a remount per URL write would repeat these calls without end
+      // Assert: a remount per navigation would repeat these calls without end
       expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
+      expect(mockMarkAllRead).toHaveBeenCalledWith('BLOG_POST');
       expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(1);
-      // The initial location only: a URL pins what the user changed, not the default state of the list
       expect(navigations).toHaveLength(1);
       expect(screen.getByTestId('search')).toBeEmptyDOMElement();
-    });
-
-    it('settles when the page is opened on a URL that already holds the query of the list', async () => {
-      // Arrange: the user sorts, which pins the state of the list in the URL
-      renderPage();
-      await screen.findByText('Ransomware double extortion');
-      fireEvent.click(screen.getByText('Title'));
-      await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?query='));
-      await settle();
-      const storedSearch = screen.getByTestId('search').textContent as string;
-      cleanup();
-      vi.clearAllMocks();
-      navigations.length = 0;
-      mockSearchMyNewsFeedItems.mockResolvedValue({
-        data: {
-          content: [buildItem()],
-          totalElements: 1,
-          totalPages: 1,
-          pageable: { pageNumber: 0 },
-        },
-      });
-      mockMarkAllRead.mockResolvedValue({});
-
-      // Act
-      renderPage(`${PAGE}${storedSearch}`);
-      await screen.findByText('Ransomware double extortion');
-      await settle();
-
-      // Assert
-      expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
-      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('visiting the page again', () => {
-    it('reloads the list and marks the items read again when the page is clicked while shown', async () => {
+    it('reloads the blogposts and marks them read again when the page is clicked while shown', async () => {
       // Arrange
       renderPage();
-      await screen.findByText('Ransomware double extortion');
+      await screen.findByText(BLOG_POST_TITLE);
       await settle();
       expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
 
@@ -218,10 +174,10 @@ describe('NewsFeed page visit', () => {
       expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(2);
     });
 
-    it('reloads the list and marks the items read again when the user comes back from another page', async () => {
+    it('reloads the blogposts and marks them read again when the user comes back from another page', async () => {
       // Arrange
       renderPage();
-      await screen.findByText('Ransomware double extortion');
+      await screen.findByText(BLOG_POST_TITLE);
       await settle();
       fireEvent.click(screen.getByRole('link', { name: OTHER_PAGE_LINK }));
       await settle();
@@ -234,77 +190,6 @@ describe('NewsFeed page visit', () => {
       // Assert
       expect(mockMarkAllRead).toHaveBeenCalledTimes(2);
       expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  describe('using the list', () => {
-    it('sorts, written once to the URL, without reloading the page nor marking the items read again', async () => {
-      // Arrange
-      renderPage();
-      await screen.findByText('Ransomware double extortion');
-      await settle();
-      const searchBefore = screen.getByTestId('search').textContent;
-      mockSearchMyNewsFeedItems.mockClear();
-
-      // Act
-      fireEvent.click(screen.getByText('Title'));
-      await waitFor(() => expect(mockSearchMyNewsFeedItems).toHaveBeenCalled());
-      await settle();
-
-      // Assert
-      expect(mockSearchMyNewsFeedItems.mock.calls.at(-1)![0].sorts).toEqual([{
-        property: 'news_feed_item_title',
-        direction: 'ASC',
-      }]);
-      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(1);
-      expect(screen.getByTestId('search').textContent).not.toBe(searchBefore);
-      expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
-    });
-
-    it('goes back to the default sort, removed from the URL, without reloading the page nor marking the items read again', async () => {
-      // Arrange: the user sorts on the creation date the other way round, then back
-      renderPage();
-      await screen.findByText('Ransomware double extortion');
-      await settle();
-      fireEvent.click(screen.getByText('Creation date'));
-      await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?query='));
-      await settle();
-      mockSearchMyNewsFeedItems.mockClear();
-
-      // Act
-      fireEvent.click(screen.getByText('Creation date'));
-      await waitFor(() => expect(screen.getByTestId('search')).toBeEmptyDOMElement());
-      await settle();
-
-      // Assert
-      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(1);
-      expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
-    });
-
-    it('goes to the next page, written to the URL, without reloading the page', async () => {
-      // Arrange
-      mockSearchMyNewsFeedItems.mockResolvedValue({
-        data: {
-          content: [buildItem()],
-          totalElements: 120,
-          totalPages: 6,
-          pageable: { pageNumber: 0 },
-        },
-      });
-      renderPage();
-      await screen.findByText('Ransomware double extortion');
-      await settle();
-      mockSearchMyNewsFeedItems.mockClear();
-
-      // Act
-      fireEvent.click(await screen.findByRole('button', { name: /next page/i }));
-      await waitFor(() => expect(mockSearchMyNewsFeedItems).toHaveBeenCalled());
-      await settle();
-
-      // Assert
-      expect(mockSearchMyNewsFeedItems.mock.calls.at(-1)![0].page).toBe(1);
-      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(1);
-      expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
     });
   });
 });

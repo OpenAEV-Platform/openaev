@@ -184,6 +184,32 @@ describe('NewsFeedList', () => {
       expect(screen.queryByText(NO_ITEMS)).not.toBeInTheDocument();
     });
 
+    it('lists only the resources: the blogposts have their own tab', async () => {
+      // Arrange
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem()]));
+
+      // Act
+      renderList();
+      await screen.findByText('Ransomware double extortion');
+
+      // Assert
+      expect(mockSearchMyNewsFeedItems.mock.calls.at(-1)![2]).toBe('RESOURCE');
+    });
+
+    it('labels a blogpost as such, not as unsupported', async () => {
+      // Arrange
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem({ news_feed_item_type: 'BLOG_POST' })]));
+
+      // Act
+      renderList();
+
+      // Assert
+      await screen.findByText('Ransomware double extortion');
+      const row = rowOf('Ransomware double extortion');
+      expect(within(row).getByText('Blogpost')).toBeInTheDocument();
+      expect(within(row).queryByText('Unsupported type')).not.toBeInTheDocument();
+    });
+
     it('labels an item type it does not know as unsupported', async () => {
       // Arrange
       mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([
@@ -658,6 +684,7 @@ describe('NewsFeedList', () => {
         direction: 'DESC',
       }]);
       expect(mockSearchMyNewsFeedItems.mock.calls.at(-1)![1]).toBe(false);
+      expect(mockSearchMyNewsFeedItems.mock.calls.at(-1)![2]).toBe('RESOURCE');
 
       // Cleanup: let the request settle
       await act(async () => {
