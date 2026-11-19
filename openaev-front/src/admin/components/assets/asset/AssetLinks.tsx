@@ -181,7 +181,7 @@ const AssetLinks: FunctionComponent<Props> = ({ assetId, assetName, canManage, o
                   <SelectItem key={type.value} value={type.value}>
                     <span>
                       <Text variant="content-base" as="div">{t(type.label)}</Text>
-                      <Text variant="content-caption" as="div" className="whitespace-normal text-default-secondary">
+                      <Text variant="content-caption" as="div" className="text-default-secondary" style={{ whiteSpace: 'normal' }}>
                         {t(type.description)}
                       </Text>
                     </span>
