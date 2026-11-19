@@ -16,6 +16,7 @@ import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
+import { OpenCrqRowMark } from '../../../components/xtm/XtmOpenCrq';
 import { OpenCtiRowMark } from '../../../components/xtm/XtmPivot';
 import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
 import ContractOutputElementType from './ContractOutputElementType';
@@ -138,9 +139,12 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
             </TooltipTrigger>
             {finding.finding_value && <TooltipContent>{finding.finding_value}</TooltipContent>}
           </Tooltip>
-          {/* A CVE finding also known in OpenCTI carries the product mark linking to it. */}
+          {/* A CVE finding also known in OpenCTI or OpenCRQ carries the product mark linking to it. */}
           {finding.finding_type === 'cve' && (
-            <OpenCtiRowMark kind="vulnerabilities" objectKey={finding.finding_value} />
+            <>
+              <OpenCtiRowMark kind="vulnerabilities" objectKey={finding.finding_value} />
+              <OpenCrqRowMark kind="vulnerabilities" objectKey={finding.finding_value} />
+            </>
           )}
         </Box>
       ),

@@ -5,10 +5,11 @@ import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { orderedFacts } from '../../../components/xtm/counterpartFacts';
-import { ConnectOpenCrqCta, OpenCrqCardView, OpenCrqPivotView } from '../../../components/xtm/XtmOpenCrq';
+import { ConnectOpenCrqCta, OpenCrqCardView, OpenCrqPivotView, OpenCrqRowMark } from '../../../components/xtm/XtmOpenCrq';
 
 const can = vi.fn();
-vi.mock('../../../components/xtm/useCounterpart', () => ({ default: vi.fn() }));
+const useCounterpartMock = vi.fn();
+vi.mock('../../../components/xtm/useCounterpart', () => ({ default: (...args: unknown[]) => useCounterpartMock(...args) }));
 vi.mock('../../../components/i18n', () => ({
   useFormatter: () => ({
     t: (s: string) => s,
@@ -145,6 +146,39 @@ describe('OpenCrqCardView', () => {
       />,
     );
     expect(container.textContent).toBe('');
+  });
+});
+
+describe('OpenCrqRowMark', () => {
+  afterEach(cleanup);
+
+  it('given a match should link the OpenCRQ mark to the object', () => {
+    useCounterpartMock.mockReturnValue(MATCH);
+    renderView(<OpenCrqRowMark kind="vulnerabilities" objectKey="CVE-2024-0001" />);
+    expect(screen.getByTestId('xtm-crq-row-mark').getAttribute('href')).toBe('https://ocrq.example/cve/CVE-2024-0001');
+    expect(useCounterpartMock).toHaveBeenCalledWith('vulnerabilities', 'CVE-2024-0001', 'opencrq');
+  });
+
+  it('given connected without a match should keep an empty slot only when asked', () => {
+    useCounterpartMock.mockReturnValue({
+      state: 'no_match',
+      product: 'opencrq',
+    });
+    renderView(<OpenCrqRowMark kind="assets" objectKey="host-1" reserveSlot />);
+    expect(screen.getByTestId('xtm-crq-row-mark-slot')).toBeTruthy();
+    expect(screen.queryByTestId('xtm-crq-row-mark')).toBeNull();
+    cleanup();
+    const { container } = renderView(<OpenCrqRowMark kind="assets" objectKey="host-1" />);
+    expect(container.textContent).toBe('');
+  });
+
+  it('given not connected should render nothing, even with a reserved slot', () => {
+    useCounterpartMock.mockReturnValue({
+      state: 'not_connected',
+      product: 'opencrq',
+    });
+    renderView(<OpenCrqRowMark kind="assets" objectKey="host-1" reserveSlot />);
+    expect(screen.queryByTestId('xtm-crq-row-mark-slot')).toBeNull();
   });
 });
 

@@ -17,6 +17,7 @@ import { type Header } from '../../../../components/common/SortHeadersList';
 import CVSSBadge from '../../../../components/CvssBadge';
 import { useFormatter } from '../../../../components/i18n';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
+import { OpenCrqCard, OpenCrqRowMark } from '../../../../components/xtm/XtmOpenCrq';
 import { OpenCtiCard, OpenCtiRowMark } from '../../../../components/xtm/XtmPivot';
 import { type SearchPaginationInput, type VulnerabilitySimple } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
@@ -78,6 +79,7 @@ const Vulnerabilities = () => {
         >
           {vulnerability.vulnerability_external_id}
           <OpenCtiRowMark kind="vulnerabilities" objectKey={vulnerability.vulnerability_external_id} />
+          <OpenCrqRowMark kind="vulnerabilities" objectKey={vulnerability.vulnerability_external_id} />
         </span>
       ),
     },
@@ -201,6 +203,7 @@ const Vulnerabilities = () => {
           {selectedVulnerability && (
             <>
               <OpenCtiCard kind="vulnerabilities" objectKey={selectedVulnerability.vulnerability_external_id} />
+              <OpenCrqCard kind="vulnerabilities" objectKey={selectedVulnerability.vulnerability_external_id} />
               <VulnerabilityDetail
                 selectedVulnerability={selectedVulnerability}
               />

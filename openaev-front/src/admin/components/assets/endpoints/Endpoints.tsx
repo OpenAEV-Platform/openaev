@@ -23,6 +23,7 @@ import ItemCriticality from '../../../../components/ItemCriticality';
 import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
+import { OpenCrqRowMark } from '../../../../components/xtm/XtmOpenCrq';
 import { OpenCtiRowMark } from '../../../../components/xtm/XtmPivot';
 import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
@@ -204,7 +205,10 @@ const Endpoints = () => {
         >
           {endpoint.asset_name}
           {endpoint.asset_category !== 'AI_TARGET' && (
-            <OpenCtiRowMark kind="assets" objectKey={endpoint.asset_hostname} />
+            <>
+              <OpenCtiRowMark kind="assets" objectKey={endpoint.asset_hostname} />
+              <OpenCrqRowMark kind="assets" objectKey={endpoint.asset_hostname} />
+            </>
           )}
         </span>
       ),

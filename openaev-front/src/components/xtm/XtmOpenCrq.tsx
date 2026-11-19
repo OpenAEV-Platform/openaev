@@ -1,7 +1,8 @@
 import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CloseOutlined, LinkOffOutlined } from '@mui/icons-material';
 import { Box } from '@mui/material';
-import { type FunctionComponent, useState } from 'react';
+import { useTheme } from '@mui/material/styles';
+import { type FunctionComponent, type MouseEvent, type ReactNode, useState } from 'react';
 
 import { type CounterpartKindPath } from '../../actions/xtm/counterpart-actions';
 import ocrqMark from '../../static/images/xtm/ocrq.svg';
@@ -12,7 +13,7 @@ import { useFormatter } from '../i18n';
 import { FACT_LABELS, MONEY_FACTS, orderedFacts } from './counterpartFacts';
 import { type CounterpartAnswer } from './counterpartStore';
 import useCounterpart from './useCounterpart';
-import { CONNECT_OPENCTI_DOC_URL } from './XtmPivot';
+import { CONNECT_OPENCTI_DOC_URL, ROW_MARK_SLOT_WIDTH } from './XtmPivot';
 
 // The OpenCRQ side of the cross-platform pivots: same visual language and wording as the OpenCTI
 // ones (XtmPivot), the OpenCRQ mark, and the risk OpenCRQ quantifies for the object (the risk
@@ -187,6 +188,75 @@ interface PivotProps {
 const OpenCrqPivot: FunctionComponent<PivotProps & { size?: 'sm' | 'md' }> = ({ kind, objectKey, size }) => {
   const answer = useCounterpart(kind, objectKey, OPENCRQ_PRODUCT);
   return <OpenCrqPivotView answer={answer} size={size} />;
+};
+
+interface RowMarkProps extends PivotProps {
+  label?: string;
+  reserveSlot?: boolean;
+}
+
+/**
+ * List-row chip: the OpenCRQ mark linking to the counterpart, nothing otherwise (same contract as
+ * OpenCtiRowMark). The tooltip names the action and the counterpart.
+ * With reserveSlot, a row of a connected tenant keeps an empty slot of the mark's width.
+ */
+export const OpenCrqRowMark: FunctionComponent<RowMarkProps> = ({
+  kind,
+  objectKey,
+  label = 'Open in OpenCRQ',
+  reserveSlot = false,
+}) => {
+  const { t } = useFormatter();
+  const theme = useTheme();
+  const answer = useCounterpart(kind, objectKey, OPENCRQ_PRODUCT);
+  const slot = (content: ReactNode) => (
+    <Box
+      component="span"
+      data-testid="xtm-crq-row-mark-slot"
+      sx={{
+        display: 'inline-flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: ROW_MARK_SLOT_WIDTH,
+        flexShrink: 0,
+      }}
+    >
+      {content}
+    </Box>
+  );
+  if (answer.state !== 'match') {
+    return reserveSlot && answer.state !== 'not_connected' ? slot(null) : null;
+  }
+  const name = answer.counterpart?.counterpart_name;
+  const text = name ? `${t(label)}: ${name}` : t(label);
+  const mark = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Box
+          component="a"
+          href={answer.counterpart?.counterpart_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={t(label)}
+          onClick={(e: MouseEvent) => e.stopPropagation()}
+          data-testid="xtm-crq-row-mark"
+          sx={{
+            'display': 'inline-flex',
+            'borderRadius': '2px',
+            // The OpenAEV global :focus reset removes the outline: a keyboard user still sees the mark.
+            '&:focus-visible': {
+              outline: `2px solid ${theme.palette.primary.main}`,
+              outlineOffset: '2px',
+            },
+          }}
+        >
+          <OpenCrqMark size={16} />
+        </Box>
+      </TooltipTrigger>
+      <TooltipContent>{text}</TooltipContent>
+    </Tooltip>
+  );
+  return reserveSlot ? slot(mark) : mark;
 };
 
 /** Overview card: "In OpenCRQ" with the risk OpenCRQ quantifies for the object, or the CTA. */
