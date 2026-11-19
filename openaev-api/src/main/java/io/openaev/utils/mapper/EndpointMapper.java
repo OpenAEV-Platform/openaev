@@ -152,6 +152,7 @@ public class EndpointMapper {
             endpoint != null && endpoint.getPlatform() != null
                 ? endpoint.getPlatform().name()
                 : null)
+        .markings(markingIds(asset))
         .build();
   }
 
