@@ -13,6 +13,7 @@
   "{count} actions installed": "{count}개 작업 설치됨",
   "{name} v{version} installed": "{name} v{version} 설치됨",
   "A payload with this name already exists": "이 이름의 페이로드가 이미 존재합니다",
+  "Deploy this integration to use this action.": "이 작업을 사용하려면 이 통합을 배포하세요.",
   "Every catalog action is installed": "카탈로그의 모든 작업이 설치되었습니다",
   "Filigran license": "Filigran 라이선스",
   "Filigran license (through XTM One)": "Filigran 라이선스 (XTM One 경유)",

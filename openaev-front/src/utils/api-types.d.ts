@@ -1965,6 +1965,45 @@ export interface AutonomousTriggerFilter {
   value?: string;
 }
 
+export type AvailableActionOutput = BaseAvailableActionOutput &
+  (
+    | BaseAvailableActionOutputActionKindMapping<
+        "PAYLOAD",
+        AvailablePayloadActionOutput
+      >
+    | BaseAvailableActionOutputActionKindMapping<
+        "INTEGRATION",
+        AvailableIntegrationActionOutput
+      >
+  );
+
+export type AvailableIntegrationActionOutput = BaseAvailableActionOutput & {
+  action_attack_patterns: string[];
+  action_domain?: string;
+  /** @minLength 1 */
+  action_id: string;
+  /** @minLength 1 */
+  action_integration_id: string;
+  action_integration_logo_url?: string;
+  /** @minLength 1 */
+  action_integration_title: string;
+  action_labels: Record<string, string>;
+  action_platforms: string[];
+};
+
+export type AvailablePayloadActionOutput = BaseAvailableActionOutput & {
+  action_domain?: string;
+  /** @minLength 1 */
+  action_id: string;
+  action_labels: Record<string, string>;
+  action_payload_description?: string;
+  /** @format date-time */
+  action_payload_published_at?: string;
+  /** @minLength 1 */
+  action_payload_version: string;
+  action_platforms: string[];
+};
+
 export type AverageConfiguration = UtilRequiredKeys<
   WidgetConfiguration,
   "widget_configuration_type" | "time_range" | "date_attribute"
@@ -2083,6 +2122,14 @@ export type AzureServicePrincipal = Value & {
   azure_subscription_id?: string;
   azure_tenant_id?: string;
 };
+
+interface BaseAvailableActionOutput {
+  action_kind: string;
+}
+
+type BaseAvailableActionOutputActionKindMapping<Key, Type> = {
+  action_kind: Key;
+} & Type;
 
 interface BaseEsBase {
   /** @format date-time */

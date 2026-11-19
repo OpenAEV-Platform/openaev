@@ -3,23 +3,23 @@ import { type FunctionComponent } from 'react';
 import { type FacetSection, FacetSidebar } from '../../../../components/common/facets/FacetFilters';
 import { useFormatter } from '../../../../components/i18n';
 import PlatformIcon from '../../../../components/PlatformIcon';
-import { type CatalogPayloadOutput } from '../../../../utils/api-types';
+import { type AvailableActionOutput } from '../../../../utils/api-types';
 import { DOMAIN_ICON_MAP } from '../../common/domains/DomainsIcons';
-import { type CatalogPayloadFilters, facetCounts, type FacetKey } from './catalogPayloadFilters';
+import { type AvailableActionFilters, facetCounts, type FacetKey } from './availableActions';
 
 const PLATFORMS = ['Windows', 'Linux', 'MacOS'];
 
 interface Props {
-  payloads: CatalogPayloadOutput[];
-  filters: CatalogPayloadFilters;
+  actions: AvailableActionOutput[];
+  filters: AvailableActionFilters;
   onToggle: (key: FacetKey, value: string) => void;
 }
 
-const ThreatArsenalCatalogSidebar: FunctionComponent<Props> = ({ payloads, filters, onToggle }) => {
+const ThreatArsenalCatalogSidebar: FunctionComponent<Props> = ({ actions, filters, onToggle }) => {
   const { t } = useFormatter();
-  const domainCounts = facetCounts(payloads, filters, 'domains');
-  const platformCounts = facetCounts(payloads, filters, 'platforms');
-  const domains = [...new Set(payloads.flatMap(payload => (payload.catalog_payload_domain ? [payload.catalog_payload_domain] : [])))].sort();
+  const domainCounts = facetCounts(actions, filters, 'domains');
+  const platformCounts = facetCounts(actions, filters, 'platforms');
+  const domains = [...new Set(actions.flatMap(action => (action.action_domain ? [action.action_domain] : [])))].sort();
 
   const sections: FacetSection[] = [
     {

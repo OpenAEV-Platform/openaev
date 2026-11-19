@@ -8,6 +8,7 @@ import static io.openaev.database.model.payload.PayloadRevocation.REVOKED_BY_FIL
 import static io.openaev.rest.payload.PayloadApi.TENANT_PAYLOAD_URI;
 import static io.openaev.service.catalog.payload.CatalogPayloadService.OTHER_TYPE_REFUSED;
 import static io.openaev.service.payload.PayloadRevocationService.LIFT_REFUSED;
+import static io.openaev.utils.fixtures.CatalogConnectorFixture.createCatalogInjectorWithContract;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.PAYLOAD_ID;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.manifest;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadFileName;
@@ -19,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -37,7 +39,9 @@ import io.openaev.api.catalog.CatalogItemMapper;
 import io.openaev.api.catalog.dto.CatalogSettingsInput;
 import io.openaev.api.payload.dto.PayloadRevocationInput;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.DetectionRemediation;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.SecurityPlatform;
@@ -48,6 +52,7 @@ import io.openaev.database.repository.CatalogHistoryRepository;
 import io.openaev.database.repository.DetectionRemediationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.PayloadRevocationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
@@ -60,6 +65,7 @@ import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
+import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.Arrays;
@@ -102,6 +108,8 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private CatalogHistoryRepository catalogHistoryRepository;
   @Autowired private InjectorFixture injectorFixture;
+  @Autowired private InjectorRepository injectorRepository;
+  @Autowired private CatalogConnectorComposer catalogConnectorComposer;
   @Autowired private CatalogPayloadInstaller catalogPayloadInstaller;
   @Autowired private SecurityPlatformRepository securityPlatformRepository;
   @Autowired private DetectionRemediationRepository detectionRemediationRepository;
@@ -441,8 +449,43 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
   @DisplayName("Browsing the catalogue")
   class Browsing {
 
+    private static final String PAYLOAD_IDS = "$[?(@.action_kind == 'PAYLOAD')].action_id";
+    private static final String INTEGRATION_IDS = "$[?(@.action_kind == 'INTEGRATION')].action_id";
+
     private ResultActions read(String uri, Object... variables) throws Exception {
       return mvc.perform(get(TENANT_CATALOG_URI + uri, variables));
+    }
+
+    @BeforeEach
+    void resetComposers() {
+      catalogConnectorComposer.reset();
+    }
+
+    @Test
+    @DisplayName("lists the contracts of the catalogue injectors the tenant does not run")
+    void given_catalogInjectors_should_listContractsOfUnregisteredOnesOnly() throws Exception {
+      // Arrange
+      CatalogConnector registered =
+          catalogConnectorComposer
+              .forCatalogConnector(
+                  createCatalogInjectorWithContract("Registered catalog injector", "registered"))
+              .persist()
+              .get();
+      catalogConnectorComposer
+          .forCatalogConnector(
+              createCatalogInjectorWithContract("Unregistered catalog injector", "unregistered"))
+          .persist();
+      Injector injector = InjectorFixture.createDefaultInjector(registered.getTitle());
+      injector.setTenantId(DEFAULT_TENANT_UUID);
+      injectorRepository.save(injector);
+
+      // Act
+      ResultActions result = read("/actions", DEFAULT_TENANT_UUID);
+
+      // Assert
+      result
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(INTEGRATION_IDS, contains("unregistered")));
     }
 
     static Stream<Arguments> payloadStates() {
@@ -469,13 +512,13 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
       }
 
       // Act
-      ResultActions result = read("/payloads", DEFAULT_TENANT_UUID);
+      ResultActions result = read("/actions", DEFAULT_TENANT_UUID);
 
       // Assert
       result
           .andExpect(status().isOk())
-          .andExpect(jsonPath("$.length()").value(listed))
-          .andExpect(jsonPath("$[*].catalog_payload_external_id", everyItem(is(PAYLOAD_ID))));
+          .andExpect(jsonPath(PAYLOAD_IDS, hasSize(listed)))
+          .andExpect(jsonPath(PAYLOAD_IDS, everyItem(is(PAYLOAD_ID))));
     }
 
     @Test

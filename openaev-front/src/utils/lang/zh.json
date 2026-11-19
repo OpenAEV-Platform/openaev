@@ -13,6 +13,7 @@
   "{count} actions installed": "已安装 {count} 个操作",
   "{name} v{version} installed": "已安装 {name} v{version}",
   "A payload with this name already exists": "已存在同名载荷",
+  "Deploy this integration to use this action.": "部署此集成以使用此操作。",
   "Every catalog action is installed": "目录中的所有操作均已安装",
   "Filigran license": "Filigran 许可证",
   "Filigran license (through XTM One)": "Filigran 许可证（通过 XTM One）",
