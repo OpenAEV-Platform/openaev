@@ -2,19 +2,34 @@ package io.openaev.opencrq.counterpart;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.opencrq.config.OpenCRQConfig;
 import io.openaev.opencti.config.XtmConfig;
 import io.openaev.xtm.counterpart.Counterpart;
 import io.openaev.xtm.counterpart.CounterpartKind;
 import io.openaev.xtm.counterpart.CounterpartUnavailableException;
+import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.ClassicHttpRequest;
+import org.apache.hc.core5.http.HttpHeaders;
+import org.apache.hc.core5.http.io.HttpClientResponseHandler;
+import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class OpenCRQCounterpartProviderTest {
 
@@ -25,6 +40,125 @@ class OpenCRQCounterpartProviderTest {
     org.springframework.test.util.ReflectionTestUtils.setField(config, "mapper", mapper);
     config.setOpencrq(opencrq);
     return new OpenCRQCounterpartProvider(config, null, mapper);
+  }
+
+  private static final Map<String, Object> CONNECTED =
+      Map.of("t", Map.of("enable", true, "url", "https://ocrq/", "token", "ogrc_secret"));
+
+  private final HttpClientFactory httpClientFactory = mock(HttpClientFactory.class);
+  private final CloseableHttpClient httpClient = mock(CloseableHttpClient.class);
+
+  private OpenCRQCounterpartProvider connected() {
+    XtmConfig config = new XtmConfig();
+    org.springframework.test.util.ReflectionTestUtils.setField(config, "mapper", mapper);
+    config.setOpencrq(CONNECTED);
+    return new OpenCRQCounterpartProvider(config, httpClientFactory, mapper);
+  }
+
+  /** OpenCRQ answers {@code status} with {@code body} to the next lookup. */
+  @SuppressWarnings("unchecked")
+  private ArgumentCaptor<ClassicHttpRequest> answers(int status, String body) throws IOException {
+    ArgumentCaptor<ClassicHttpRequest> request = ArgumentCaptor.forClass(ClassicHttpRequest.class);
+    when(httpClientFactory.httpClientNoRetry(any())).thenReturn(httpClient);
+    when(httpClient.execute(request.capture(), (HttpClientResponseHandler<Integer>) any()))
+        .thenAnswer(
+            invocation -> {
+              BasicClassicHttpResponse response = new BasicClassicHttpResponse(status);
+              response.setEntity(new StringEntity(body));
+              return ((HttpClientResponseHandler<Integer>) invocation.getArgument(1))
+                  .handleResponse(response);
+            });
+    return request;
+  }
+
+  @Test
+  @DisplayName("the product is opencrq and a counterpart without facts carries an empty list")
+  void product() {
+    assertThat(provider(Map.of()).product()).isEqualTo("opencrq");
+    assertThat(new Counterpart("k", "opencrq", "i", "t", "n", "u", null).facts()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("a connected tenant is looked up with its service-account token, server side")
+  void resolve() throws Exception {
+    ArgumentCaptor<ClassicHttpRequest> request =
+        answers(
+            200,
+            """
+            {"result":{"data":[{"object_key":"cve-2024-1","object_id":"v1",
+              "object_url":"https://ocrq/v1","object_facts":[{"key":"fix_value","value":"9"},
+              {"key":"annual_loss"}]}]}}
+            """);
+
+    Map<String, Counterpart> found =
+        connected().resolve("t", CounterpartKind.VULNERABILITY, List.of("CVE-2024-1"));
+
+    assertThat(found).containsOnlyKeys("CVE-2024-1");
+    Counterpart c = found.get("CVE-2024-1");
+    assertThat(c.entityType()).isEqualTo("vulnerability");
+    assertThat(c.name()).isEqualTo("cve-2024-1");
+    assertThat(c.facts()).containsExactly(new Counterpart.Fact("fix_value", "9"));
+    HttpGet get = (HttpGet) request.getValue();
+    assertThat(get.getUri().toString()).startsWith("https://ocrq/trpc/xtm.lookup?input=");
+    assertThat(get.getFirstHeader(HttpHeaders.AUTHORIZATION).getValue())
+        .isEqualTo("Bearer ogrc_secret");
+  }
+
+  @Test
+  @DisplayName("no key or an unsupported kind answers nothing without calling OpenCRQ")
+  void resolveNothingToAsk() throws Exception {
+    OpenCRQCounterpartProvider p = connected();
+
+    assertThat(p.resolve("t", CounterpartKind.ASSET, List.of())).isEmpty();
+    assertThat(p.resolve("t", CounterpartKind.ATTACK_PATTERN, List.of("T1059"))).isEmpty();
+    verifyNoInteractions(httpClientFactory);
+  }
+
+  @Test
+  @DisplayName("a refused lookup makes OpenCRQ unavailable")
+  void resolveRefused() throws Exception {
+    answers(401, "{\"error\":{}}");
+
+    assertThatThrownBy(() -> connected().resolve("t", CounterpartKind.ASSET, List.of("host")))
+        .isInstanceOf(CounterpartUnavailableException.class)
+        .hasMessageContaining("401");
+  }
+
+  @Test
+  @DisplayName("an unreadable answer makes OpenCRQ unavailable")
+  void resolveUnreadable() throws Exception {
+    answers(200, "not json {");
+
+    assertThatThrownBy(() -> connected().resolve("t", CounterpartKind.THREAT, List.of("x")))
+        .isInstanceOf(CounterpartUnavailableException.class)
+        .hasCauseInstanceOf(IOException.class);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  @DisplayName("an unreachable OpenCRQ is unavailable")
+  void resolveUnreachable() throws Exception {
+    when(httpClientFactory.httpClientNoRetry(any())).thenReturn(httpClient);
+    when(httpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<Integer>) any()))
+        .thenThrow(new IOException("connection refused"));
+
+    assertThatThrownBy(() -> connected().resolve("t", CounterpartKind.ASSET, List.of("host")))
+        .isInstanceOf(CounterpartUnavailableException.class)
+        .hasMessage("OpenCRQ cannot be reached");
+  }
+
+  @Test
+  @DisplayName("the tRPC base is api-url when set, else {url}/trpc, and none without a url")
+  void apiUrl() {
+    OpenCRQConfig config = new OpenCRQConfig();
+    assertThat(config.getApiUrl()).isNull();
+    config.setUrl("https://ocrq/");
+    assertThat(config.getApiUrl()).isEqualTo("https://ocrq/trpc");
+    assertThat(config.getFormattedUrl()).isEqualTo("https://ocrq/");
+    config.setApiUrl("http://opencrq-back:4000/trpc/");
+    assertThat(config.getApiUrl()).isEqualTo("http://opencrq-back:4000/trpc");
+    config.setUrl("https://ocrq");
+    assertThat(config.getFormattedUrl()).isEqualTo("https://ocrq/");
   }
 
   @Test
