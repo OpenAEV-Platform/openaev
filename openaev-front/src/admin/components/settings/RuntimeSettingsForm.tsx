@@ -91,7 +91,7 @@ const RuntimeSettingsForm: FunctionComponent<RuntimeSettingsFormProps> = ({ sett
         <span
           tabIndex={0}
           aria-label={`${t('Information')}: ${label}`}
-          className="text-icon-highlight inline-flex rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+          className="text-icon-highlight inline-flex rounded-sm focus-visible:outline-none focus-visible:ring-2 ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-focus"
         >
           <Icon name="info" size={16} aria-hidden />
         </span>
@@ -106,7 +106,7 @@ const RuntimeSettingsForm: FunctionComponent<RuntimeSettingsFormProps> = ({ sett
         <span
           tabIndex={0}
           aria-label={t('Set by the environment variable {name}, read-only', { name: setting.env_var })}
-          className="inline-flex rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+          className="inline-flex rounded-sm focus-visible:outline-none focus-visible:ring-2 ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-focus"
           data-testid={`runtime-setting-env-${setting.key}`}
         >
           <Chip label="env" size="sm" severity="info" />
