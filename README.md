@@ -1,5 +1,5 @@
 <h1 align="center">
-  <a href="https://openaev.io"><img src="./.github/img/logo_openaev.png" alt="OpenAEV" width="420"></a>
+  <a href="https://filigran.io/products/openaev"><img src="./.github/img/logo_openaev.png" alt="OpenAEV" width="420"></a>
 </h1>
 
 <p align="center"><b>Adversarial exposure validation for Continuous Threat Exposure Management (CTEM).</b><br/>
@@ -15,7 +15,7 @@ Prove your defenses against the techniques of the adversaries that target you, f
 </p>
 
 <p align="center">
-  <a href="https://openaev.io">Website</a> ·
+  <a href="https://filigran.io/products/openaev">Website</a> ·
   <a href="https://docs.openaev.io">Documentation</a> ·
   <a href="https://demo.openaev.io">Live demo</a> ·
   <a href="https://github.com/OpenAEV-Platform/openaev/releases">Releases</a> ·
@@ -223,7 +223,7 @@ Enable the Enterprise Edition in **Settings > Filigran Experience** with a licen
 [trial license](https://filigran.io/enterprise-editions-trial/). A Filigran license of the XTM Platform, installed in
 OpenAEV or received through a registered XTM One, also enables it. Details:
 [Enterprise Edition](https://docs.openaev.io/latest/administration/enterprise/) and
-[offering](https://filigran.io/offering/subscribe).
+[contact Filigran](https://filigran.io/contact).
 
 ## Quick start
 
@@ -260,8 +260,6 @@ your first atomic test. The full guide covers manual installation, production si
 - [Contributing guide](CONTRIBUTING.md): development process, how to propose fixes and improvements, how to build and
   test.
 - [Code of Conduct](CODE_OF_CONDUCT.md).
-- [Good first issues](https://github.com/OpenAEV-Platform/openaev/labels/good%20first%20issue) to get started.
-- [Development environment](https://docs.openaev.io/latest/development/environment_ubuntu/).
 - Writing an injector or a collector: start from the
   [ecosystem documentation](https://docs.openaev.io/latest/development/injectors/).
 
