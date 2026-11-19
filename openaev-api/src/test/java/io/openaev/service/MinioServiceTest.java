@@ -53,6 +53,23 @@ class MinioServiceTest extends IntegrationTest {
     assertDoesNotThrow(() -> minioService.objectExists(fullPath));
   }
 
+  @Test
+  void should_upload_stream_for_an_explicit_tenant_and_return_its_prefixed_key() throws Exception {
+    // -- ARRANGE --
+    String explicitTenant = UUID.randomUUID().toString();
+    String file = "streams/stream-uuid-002";
+    String originalName = "incident-report.xlsx";
+    InputStream data = new ByteArrayInputStream(TEST_CONTENT);
+
+    // -- ACT --
+    String key = minioService.uploadStreamForTenant(explicitTenant, file, originalName, data);
+
+    // -- ASSERT: the returned key carries the explicit tenant, not the ambient one, and the
+    // object is physically reachable under it.
+    assertThat(key).isEqualTo(explicitTenant + "/" + file);
+    assertDoesNotThrow(() -> minioService.objectExists(key));
+  }
+
   // -- READ --
 
   @Test
@@ -105,6 +122,36 @@ class MinioServiceTest extends IntegrationTest {
     // -- ACT --
     Optional<FileContainer> result =
         minioService.getFileContainerInTenant("nonexistent/missing-doc");
+
+    // -- ASSERT --
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void should_get_file_container_for_an_explicit_tenant_regardless_of_the_ambient_one()
+      throws Exception {
+    // -- ARRANGE --
+    String explicitTenant = UUID.randomUUID().toString();
+    String file = "containers/doc-uuid-43";
+    String originalName = "incident.docx";
+    InputStream data = new ByteArrayInputStream(TEST_CONTENT);
+    minioService.uploadStreamForTenant(explicitTenant, file, originalName, data);
+
+    // -- ACT --
+    Optional<FileContainer> result = minioService.getFileContainerForTenant(explicitTenant, file);
+
+    // -- ASSERT --
+    assertThat(result).isPresent();
+    FileContainer container = result.get();
+    assertThat(container.getName()).isEqualTo(originalName);
+    assertThat(container.getInputStream().readAllBytes()).isEqualTo(TEST_CONTENT);
+  }
+
+  @Test
+  void should_return_empty_file_container_for_tenant_when_file_does_not_exist() {
+    // -- ACT --
+    Optional<FileContainer> result =
+        minioService.getFileContainerForTenant(UUID.randomUUID().toString(), "missing/doc");
 
     // -- ASSERT --
     assertThat(result).isEmpty();

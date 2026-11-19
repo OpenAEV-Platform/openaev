@@ -8,15 +8,20 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.User;
+import io.openaev.service.MinioService;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.activation.DataHandler;
 import jakarta.mail.Message;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMultipart;
+import jakarta.mail.util.ByteArrayDataSource;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -58,6 +63,7 @@ class ImapServiceInjectsScopeTest extends IntegrationTest {
   @Autowired private InjectComposer injectComposer;
   @Autowired private UserComposer userComposer;
   @Autowired private DataSource dataSource;
+  @Autowired private MinioService minioService;
 
   private JdbcTemplate jdbc;
   private TenantSeed tenantA;
@@ -120,6 +126,7 @@ class ImapServiceInjectsScopeTest extends IntegrationTest {
       jdbc.update("DELETE FROM users WHERE user_id = ?", tenant.participant().getId());
       jdbc.update("DELETE FROM injects WHERE tenant_id = ?", tenant.id());
       jdbc.update("DELETE FROM tenants WHERE tenant_id = ?", tenant.id());
+      minioService.deleteDirectoryForTenant(tenant.id(), "/communications");
     }
   }
 
@@ -146,6 +153,43 @@ class ImapServiceInjectsScopeTest extends IntegrationTest {
     return message;
   }
 
+  private static MimeMessage replyWithAttachment(TenantSeed tenant, String fileName, byte[] content)
+      throws Exception {
+    String messageId = "<" + UUID.randomUUID() + "@unittests.invalid>";
+    Date receivedAt = new Date();
+    MimeMessage message =
+        new MimeMessage(Session.getInstance(new Properties())) {
+          @Override
+          public String getMessageID() {
+            return messageId;
+          }
+
+          @Override
+          public Date getReceivedDate() {
+            return receivedAt;
+          }
+        };
+    message.setFrom(new InternetAddress(tenant.participant().getEmail()));
+    message.setRecipients(Message.RecipientType.TO, "mailbox@unittests.invalid");
+    message.setSubject("Re: inject");
+    message.setSentDate(receivedAt);
+
+    MimeBodyPart textPart = new MimeBodyPart();
+    textPart.setText("Acknowledged.\n[inject_id=" + tenant.injectId() + "]");
+
+    MimeBodyPart attachmentPart = new MimeBodyPart();
+    attachmentPart.setDataHandler(new DataHandler(new ByteArrayDataSource(content, "text/plain")));
+    attachmentPart.setFileName(fileName);
+    attachmentPart.setDisposition(MimeBodyPart.ATTACHMENT);
+
+    MimeMultipart multipart = new MimeMultipart();
+    multipart.addBodyPart(textPart);
+    multipart.addBodyPart(attachmentPart);
+    message.setContent(multipart);
+    message.saveChanges();
+    return message;
+  }
+
   private void parseOnThePollerThread(Message... messages) {
     // The poller thread carries no ambient tenant; fixtures leave one on the test thread.
     TenantContext.clearCurrentTenant();
@@ -169,6 +213,13 @@ class ImapServiceInjectsScopeTest extends IntegrationTest {
             Timestamp.class,
             tenant.injectId())
         .toInstant();
+  }
+
+  private String[] communicationAttachmentsOf(TenantSeed tenant) {
+    return jdbc.queryForObject(
+        "SELECT communication_attachments FROM communications WHERE communication_inject = ?",
+        (rs, rowNum) -> (String[]) rs.getArray("communication_attachments").getArray(),
+        tenant.injectId());
   }
 
   @Nested
@@ -226,6 +277,37 @@ class ImapServiceInjectsScopeTest extends IntegrationTest {
 
       // Assert
       assertEquals(List.of(tenantB.participant().getId()), communicationUsersOf(tenantB));
+    }
+  }
+
+  @Nested
+  @DisplayName("Attachment stored under the replying inject's own tenant (#7961)")
+  class AttachmentTenantAttribution {
+
+    @Test
+    @DisplayName(
+        "given a reply with an attachment to tenant B's inject, should store it under tenant B,"
+            + " not the ambient default tenant the poller thread carries no scope for")
+    void given_replyWithAttachmentToTenantBsInject_should_storeItUnderTenantB() throws Exception {
+      // Arrange
+      byte[] content = "attachment-bytes".getBytes();
+      MimeMessage replyToB = replyWithAttachment(tenantB, "report.txt", content);
+
+      // Act
+      parseOnThePollerThread(replyToB);
+
+      // Assert
+      String[] attachments = communicationAttachmentsOf(tenantB);
+      assertEquals(1, attachments.length, "exactly one attachment must be recorded");
+      String key = attachments[0];
+      assertTrue(
+          key.startsWith(tenantB.id() + "/"),
+          "the stored key must be prefixed with the replying inject's own tenant: " + key);
+      assertTrue(
+          minioService
+              .getFileContainerForTenant(tenantB.id(), key.substring(tenantB.id().length()))
+              .isPresent(),
+          "the bytes must be reachable under tenant B's own path");
     }
   }
 }
