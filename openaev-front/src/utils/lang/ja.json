@@ -2090,6 +2090,8 @@
   "in {duration}": "あと{duration}",
   "In autonomous mode an AI orchestrator drives the run live and adapts in real time - reacting to findings, adding steps and consulting specialist agents to pursue the objective. Set an objective, pick the specialist agents it may consult, and optionally scope the perimeter with the allow / deny lists - or skip scoping and the AI will ask you which targets are in scope.": "自律モードでは、AIオーケストレーターが実行をライブで操作し、リアルタイムに適応します。ファインディングに反応し、ステップを追加し、専門エージェントに問い合わせて目標を追求します。目標を設定し、問い合わせ可能な専門エージェントを選び、必要に応じて許可リスト／拒否リストでスコープを限定します。スコープ指定を省略した場合は、どのターゲットが対象かをAIが確認します。",
   "In flight": "実行中",
+  "In OpenCTI": "OpenCTI 内",
+  "Investigate in OpenCTI": "OpenCTI で調査",
   "In preview mode, attempts are not counted and results are not recorded.": "プレビューモードでは、試行はカウントされず、結果も記録されません。",
   "In scope": "スコープ内",
   "in the documentation": "ドキュメントの中で",
@@ -4693,5 +4695,11 @@
   "ZIP must contain a json file": "ZIPファイルにはjsonファイルが含まれている必要があります",
   "Zoom in": "ズームイン",
   "Zoom out": "ズームアウト",
+  "Connect OpenCTI": "OpenCTI を接続",
+  "Not in OpenCTI": "OpenCTI にありません",
+  "OpenCTI is unavailable": "OpenCTI は利用できません",
+  "Hide this suggestion": "この提案を非表示",
+  "Ask an administrator to connect OpenCTI to see this object there.": "このオブジェクトを OpenCTI で表示するには、管理者に OpenCTI の接続を依頼してください。",
+  "This object is not known in the connected OpenCTI.": "このオブジェクトは接続された OpenCTI にありません。",
   "Always on": "常時稼働"
 }

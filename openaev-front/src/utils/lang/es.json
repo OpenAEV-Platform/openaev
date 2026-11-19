@@ -2090,6 +2090,8 @@
   "in {duration}": "en {duration}",
   "In autonomous mode an AI orchestrator drives the run live and adapts in real time - reacting to findings, adding steps and consulting specialist agents to pursue the objective. Set an objective, pick the specialist agents it may consult, and optionally scope the perimeter with the allow / deny lists - or skip scoping and the AI will ask you which targets are in scope.": "En modo autónomo, un orquestador de IA dirige la ejecución en vivo y se adapta en tiempo real: reacciona a los hallazgos, añade pasos y consulta a agentes especialistas para alcanzar el objetivo. Defina un objetivo, elija los agentes especialistas que puede consultar y, opcionalmente, delimite el perímetro con la lista de permitidos / lista de bloqueo, u omita la delimitación y la IA le preguntará qué objetivos están dentro del ámbito.",
   "In flight": "En curso",
+  "In OpenCTI": "En OpenCTI",
+  "Investigate in OpenCTI": "Investigar en OpenCTI",
   "In preview mode, attempts are not counted and results are not recorded.": "En modo de vista previa, los intentos no se cuentan y los resultados no se registran.",
   "In scope": "Dentro del ámbito",
   "in the documentation": "en la documentación",
@@ -4693,5 +4695,11 @@
   "ZIP must contain a json file": "El archivo ZIP debe contener un archivo JSON",
   "Zoom in": "Acercar",
   "Zoom out": "Alejar",
+  "Connect OpenCTI": "Conectar OpenCTI",
+  "Not in OpenCTI": "No está en OpenCTI",
+  "OpenCTI is unavailable": "OpenCTI no está disponible",
+  "Hide this suggestion": "Ocultar esta sugerencia",
+  "Ask an administrator to connect OpenCTI to see this object there.": "Pida a un administrador que conecte OpenCTI para ver este objeto allí.",
+  "This object is not known in the connected OpenCTI.": "Este objeto no existe en el OpenCTI conectado.",
   "Always on": "Siempre activo"
 }

@@ -2090,6 +2090,8 @@
   "in {duration}": "{duration}后",
   "In autonomous mode an AI orchestrator drives the run live and adapts in real time - reacting to findings, adding steps and consulting specialist agents to pursue the objective. Set an objective, pick the specialist agents it may consult, and optionally scope the perimeter with the allow / deny lists - or skip scoping and the AI will ask you which targets are in scope.": "在自主模式下，AI 编排器实时驱动运行并进行调整 - 对发现做出反应、添加步骤并咨询专家 Agent 以追求目标。设定目标，选择其可咨询的专家 Agent，并可选地使用允许 / 拒绝列表限定范围 - 或跳过范围设定，AI 将询问您哪些目标在范围内。",
   "In flight": "执行中",
+  "In OpenCTI": "在 OpenCTI 中",
+  "Investigate in OpenCTI": "在 OpenCTI 中调查",
   "In preview mode, attempts are not counted and results are not recorded.": "在预览模式下，尝试次数不会被计入，结果也不会被记录。",
   "In scope": "范围",
   "in the documentation": "参见文档",
@@ -4693,5 +4695,11 @@
   "ZIP must contain a json file": "ZIP 文件必须包含一个 JSON 文件",
   "Zoom in": "放大",
   "Zoom out": "缩小",
+  "Connect OpenCTI": "连接 OpenCTI",
+  "Not in OpenCTI": "不在 OpenCTI 中",
+  "OpenCTI is unavailable": "OpenCTI 不可用",
+  "Hide this suggestion": "隐藏此建议",
+  "Ask an administrator to connect OpenCTI to see this object there.": "请管理员连接 OpenCTI 以在其中查看此对象。",
+  "This object is not known in the connected OpenCTI.": "已连接的 OpenCTI 中没有此对象。",
   "Always on": "始终运行"
 }
