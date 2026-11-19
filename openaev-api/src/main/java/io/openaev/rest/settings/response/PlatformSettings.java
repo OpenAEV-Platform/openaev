@@ -223,4 +223,12 @@ public class PlatformSettings extends PublicPlatformSettings {
   @JsonProperty("platform_session_max_concurrent")
   @Schema(description = "Maximum number of concurrent sessions per user (0 = unlimited)")
   private Integer platformSessionMaxConcurrent;
+
+  // RUNTIME SETTINGS
+  @JsonProperty("runtime_settings")
+  @Schema(
+      description =
+          "Settings an administrator may change at runtime, each with its value in force and its"
+              + " source: env (environment variable, read-only), ui or default")
+  private java.util.List<RuntimeSettingOutput> runtimeSettings;
 }
