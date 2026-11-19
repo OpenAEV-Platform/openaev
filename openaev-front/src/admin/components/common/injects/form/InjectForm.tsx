@@ -154,6 +154,20 @@ const InjectForm = ({
     return initialValues;
   };
 
+  // Another version of the action keeps what the user typed: only its own arguments, new ones with their default.
+  const withTypedValues = (initialValues: Record<string, FieldValue>, typed: InjectInputForm): Record<string, FieldValue> => {
+    const keys = new Set(injectorContractContent?.fields.map(field => field.key));
+    const content = {
+      ...(initialValues.inject_content as Record<string, FieldValue>),
+      ...(typed.inject_content as Record<string, FieldValue> | undefined),
+    };
+    return {
+      ...initialValues,
+      ...(typed as Record<string, FieldValue>),
+      inject_content: Object.fromEntries(Object.entries(content).filter(([key]) => keys.has(key))),
+    };
+  };
+
   const formatInjectContentData = (content: Record<string, FieldValue>): object | null => {
     const formattedContent = { ...content };
     injectorContractContent?.fields
@@ -471,10 +485,18 @@ const InjectForm = ({
   useEffect(() => {
     if (isCreation) {
       const initialValues = getInitialValues();
-      reset(initialValues);
-      setDefaultValues(initialValues);
+      const values = Object.keys(defaultValues).length > 0 ? withTypedValues(initialValues, getValues()) : initialValues;
+      reset(values);
+      setDefaultValues(values);
     }
   }, [injectorContractContent, isCreation]);
+
+  // Update mode, another version of the action chosen: its fields replace the old ones, the typed values stay.
+  useEffect(() => {
+    if (!isCreation && Object.keys(defaultValues).length > 0) {
+      reset(withTypedValues(getInitialValues(), getValues()));
+    }
+  }, [injectorContractContent]);
 
   if (Object.keys(defaultValues).length === 0) {
     return <Loader variant="inElement" />;
