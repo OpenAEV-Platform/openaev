@@ -4140,7 +4140,7 @@
   "The inject will only be sent to you.": "인젝트는 사용자에게만 전송됩니다.",
   "The insights below are a sample preview. Launch a simulation to populate them with your real posture.": "아래 인사이트는 샘플 미리보기입니다. 시뮬레이션을 실행하여 실제 상태로 채우세요.",
   "The main command executed successfully, but the cleanup step failed. Check cleanup prerequisites and logs on the target.": "메인 명령은 성공적으로 실행되었으나, 정리 단계에서 오류가 발생했습니다. 대상 시스템의 정리 전제 조건과 로그를 확인하십시오.",
-  "The most critical chain of the estate: the attack path with the most failed steps, or the asset with the most failed expectations, with its findings, asset groups and identity. Double-click a node to expand it.": "자산 전체에서 가장 중요한 체인: 실패한 단계가 가장 많은 공격 경로 또는 실패한 기대치가 가장 많은 자산과 그 발견 사항, 자산 그룹, ID. 노드를 두 번 클릭하면 확장됩니다.",
+  "The most critical chain of the estate: the attack path with the most failed steps, or the asset with the most failed expectations, with its findings, asset groups and identity. Double-click a node to expand it.": "자산 전체에서 가장 중요한 체인: 실패한 단계가 가장 많은 Attack path 또는 실패한 기대치가 가장 많은 자산과 그 발견 사항, 자산 그룹, ID. 노드를 두 번 클릭하면 확장됩니다.",
   "The new users will automatically be assigned to this group.": "새 사용자는 이 그룹에 자동으로 할당됩니다.",
   "The OpenAEV API relies on the REST standard. The token must be passed into the HTTP header": "OpenAEV API는 REST 표준을 따릅니다. 토큰은 HTTP 헤더에 전달되어야 합니다.",
   "The orchestrator is always active - it plans and drives the attack and cannot be disabled.": "오케스트레이터는 항상 활성 상태입니다. 공격을 계획하고 주도하므로 비활성화할 수 없습니다.",

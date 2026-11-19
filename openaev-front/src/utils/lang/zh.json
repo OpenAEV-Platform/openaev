@@ -4140,7 +4140,7 @@
   "The inject will only be sent to you.": "注入只会发送给你.",
   "The insights below are a sample preview. Launch a simulation to populate them with your real posture.": "以下洞察为示例预览。请运行一次模拟以填充真实态势。",
   "The main command executed successfully, but the cleanup step failed. Check cleanup prerequisites and logs on the target.": "主命令已成功执行，但清理步骤失败。请检查目标端上的清理先决条件和日志。",
-  "The most critical chain of the estate: the attack path with the most failed steps, or the asset with the most failed expectations, with its findings, asset groups and identity. Double-click a node to expand it.": "资产中最关键的链：失败步骤最多的攻击路径，或失败预期最多的资产，以及其发现、资产组和身份。双击节点可将其展开。",
+  "The most critical chain of the estate: the attack path with the most failed steps, or the asset with the most failed expectations, with its findings, asset groups and identity. Double-click a node to expand it.": "资产中最关键的链：失败步骤最多的 Attack path，或失败预期最多的资产，以及其发现、资产组和身份。双击节点可将其展开。",
   "The new users will automatically be assigned to this group.": "新用户会自动分配到这个组.",
   "The OpenAEV API relies on the REST standard. The token must be passed into the HTTP header": "OpenAEV API 基于 REST 标准。令牌必须传递到 HTTP 头中",
   "The orchestrator is always active - it plans and drives the attack and cannot be disabled.": "协调器始终处于活动状态——它负责规划和驱动攻击，无法被禁用。",

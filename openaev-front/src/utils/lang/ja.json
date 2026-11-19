@@ -4140,7 +4140,7 @@
   "The inject will only be sent to you.": "インジェクトはあなたにのみ送信されます。",
   "The insights below are a sample preview. Launch a simulation to populate them with your real posture.": "以下の分析はサンプルプレビューです。シミュレーションを実行して実際の状態を反映してください。",
   "The main command executed successfully, but the cleanup step failed. Check cleanup prerequisites and logs on the target.": "メインコマンドは正常に実行されましたが、クリーンアップステップが失敗しました。ターゲット上のクリーンアップの前提条件とログを確認してください。",
-  "The most critical chain of the estate: the attack path with the most failed steps, or the asset with the most failed expectations, with its findings, asset groups and identity. Double-click a node to expand it.": "資産全体で最も重要なチェーン：失敗したステップが最も多い攻撃パス、または失敗した期待値が最も多いアセットと、その検出結果、アセットグループ、アイデンティティ。ノードをダブルクリックすると展開します。",
+  "The most critical chain of the estate: the attack path with the most failed steps, or the asset with the most failed expectations, with its findings, asset groups and identity. Double-click a node to expand it.": "資産全体で最も重要なチェーン：失敗したステップが最も多い Attack path、または失敗した期待値が最も多いアセットと、その検出結果、アセットグループ、アイデンティティ。ノードをダブルクリックすると展開します。",
   "The new users will automatically be assigned to this group.": "新しいユーザーは自動的にこのグループに割り当てられます。",
   "The OpenAEV API relies on the REST standard. The token must be passed into the HTTP header": "OpenAEV APIはREST標準に基づいています。トークンはHTTPヘッダーに指定する必要があります。",
   "The orchestrator is always active - it plans and drives the attack and cannot be disabled.": "オーケストレーターは常にアクティブです。攻撃の計画と実行を担っており、無効化することはできません。",
