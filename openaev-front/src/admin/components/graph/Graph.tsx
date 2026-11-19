@@ -1,6 +1,6 @@
 import { Alert, Button } from '@filigran/design-system';
 import { Box, Stack } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
 import {
@@ -53,6 +53,12 @@ const Graph = () => {
   const [overview, setOverview] = useState<GraphOverviewOutput | null>(null);
   const [points, setPoints] = useState<GraphStartingPointOutput[] | null>(null);
   const [error, setError] = useState(false);
+  // The focus the explorer itself wrote in the URL (an expand in place): the page keeps the graph on
+  // screen instead of loading that focus again, which would remount the explorer and lose the
+  // investigation (Sam, 19 Nov 2026: pivoting is expanding, never a full re-render).
+  const ownFocus = useRef<string | null>(null);
+  // The explorer opened on the landing story keeps the story's framing once the user expands from it.
+  const [fromStory, setFromStory] = useState(false);
 
   // The rail is the same on every view: loaded once per page visit.
   useEffect(() => {
@@ -64,8 +70,15 @@ const Graph = () => {
   // A focused view: the entity's first ring.
   useEffect(() => {
     if (!focusParam) {
+      ownFocus.current = null;
+      setFromStory(false);
       return;
     }
+    if (focusParam === ownFocus.current) {
+      return;
+    }
+    ownFocus.current = null;
+    setFromStory(false);
     setSlice(null);
     setError(false);
     const [rawType, ...rest] = focusParam.split(':');
@@ -108,7 +121,19 @@ const Graph = () => {
     setParams(next, { replace: true });
   };
 
-  const onFocusChange = (focus: string | null) => setParam({ focus: encodeFocus(focus) ?? null });
+  const onFocusChange = (focus: string | null) => {
+    const encoded = encodeFocus(focus) ?? null;
+    if (!encoded) {
+      return;
+    }
+    ownFocus.current = encoded;
+    // An expand from the landing story: the story becomes the explored slice, same props, no remount.
+    if (isLanding && story) {
+      setSlice(story);
+      setFromStory(true);
+    }
+    setParam({ focus: encoded });
+  };
   const onLayoutChange = (layout: GraphLayout) => setParam({ layout });
   const focusOn = (type: GraphNodeType, entityId: string) => setParams((current) => {
     const next = new URLSearchParams(current);
@@ -140,7 +165,7 @@ const Graph = () => {
   if (error) {
     canvas = <Alert severity="error" title={t('The graph could not be loaded')} />;
   } else if (!isLanding && slice) {
-    canvas = explorer(slice);
+    canvas = explorer(slice, fromStory ? STORY_MIN_ZOOM : undefined);
   } else if (isLanding && view === 'story' && story) {
     canvas = storyHasContent(story)
       ? explorer(story, STORY_MIN_ZOOM)
