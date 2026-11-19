@@ -32,15 +32,14 @@ const useStyles = makeStyles()(theme => ({
     gap: theme.spacing(1.5, 2),
   },
   group: {
-    margin: theme.spacing(2, 0, 1),
-    fontSize: 12,
-    fontWeight: 600,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    opacity: 0.7,
+    'margin': theme.spacing(2, 0, 1),
+    '&:first-of-type': { marginTop: 0 },
   },
   field: {},
 }));
+
+// Group headings: the library's title text style and secondary ink, sentence case.
+const GROUP_HEADING_CLASS = 'font-title-xs text-title-xs text-default-secondary';
 
 /** Every field this form owns, empty: what "default" means for a theme. */
 const EMPTY_THEME: ThemeInput = {
@@ -129,6 +128,7 @@ const ThemeForm: FunctionComponent<Props> = ({
 
   return (
     <form id={`themeForm-${mode}`} onSubmit={handleSubmit(onSubmit)}>
+      <h3 className={`${classes.group} ${GROUP_HEADING_CLASS}`}>{t('Colors')}</h3>
       <div className={classes.grid}>
         <ColorPickerField
           className={classes.field}
@@ -190,7 +190,7 @@ const ThemeForm: FunctionComponent<Props> = ({
           helperText={warnings.text !== undefined ? belowFloor(warnings.text) : undefined}
         />
       </div>
-      <div className={classes.group}>{t('Logos')}</div>
+      <h3 className={`${classes.group} ${GROUP_HEADING_CLASS}`}>{t('Logos')}</h3>
       <div className={classes.grid}>
         <TextFieldFds
           className={classes.field}
@@ -225,7 +225,7 @@ const ThemeForm: FunctionComponent<Props> = ({
       </div>
       {/* Login page aside customization (aligned with OpenCTI):
           priority is image > gradient > color > default Filigran gradient. */}
-      <div className={classes.group}>{t('Login page')}</div>
+      <h3 className={`${classes.group} ${GROUP_HEADING_CLASS}`}>{t('Login page')}</h3>
       <div className={classes.grid}>
         <ColorPickerField
           className={classes.field}

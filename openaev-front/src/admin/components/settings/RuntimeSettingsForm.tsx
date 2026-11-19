@@ -5,9 +5,14 @@ import { type FunctionComponent, type ReactNode, type SyntheticEvent, useEffect,
 import TextFieldFds from '../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../components/i18n';
 import type { RuntimeSettingOutput } from '../../../utils/api-types';
+import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import EEChip from '../common/entreprise_edition/EEChip';
 import validateRuntimeValue from './runtimeSettingsValidation';
+
+// The library label style, so a switch row reads like the field labels above it.
+const LABEL_CLASS = 'font-sans-plex font-medium text-2 text-input-label';
 
 /** What each runtime setting reads as, in the order the card shows them. */
 const DESCRIPTORS: Record<string, {
@@ -51,6 +56,7 @@ const toValues = (settings: RuntimeSettingOutput[]): Values => Object.fromEntrie
 const RuntimeSettingsForm: FunctionComponent<RuntimeSettingsFormProps> = ({ settings, onSubmit, canNotManage }) => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const ordered = useMemo(
     () => [...settings]
       .filter(s => DESCRIPTORS[s.key])
@@ -131,8 +137,18 @@ const RuntimeSettingsForm: FunctionComponent<RuntimeSettingsFormProps> = ({ sett
       >
         {ordered.map((setting) => {
           const descriptor = DESCRIPTORS[setting.key];
-          const readOnly = canNotManage || setting.locked;
-          const label = t(descriptor.label);
+          const eeMissing = setting.enterprise_only && !isEnterpriseEdition;
+          const readOnly = canNotManage || setting.locked || eeMissing;
+          // The unit sits in the label: the library drops endText on a number field (LIBRARY-FEEDBACK #70).
+          const label = descriptor.unit ? `${t(descriptor.label)} (${t(descriptor.unit)})` : t(descriptor.label);
+          // Info icon, then the EE and env markers, all in the label row so every field keeps the full width.
+          const labelAdornments = (
+            <span className="inline-flex items-center gap-2">
+              {infoTooltip(descriptor.help, label)}
+              {eeMissing && <EEChip clickable />}
+              {setting.locked && envTile(setting)}
+            </span>
+          );
           if (setting.type === 'boolean') {
             return (
               <div
@@ -151,14 +167,13 @@ const RuntimeSettingsForm: FunctionComponent<RuntimeSettingsFormProps> = ({ sett
                   gap: theme.spacing(1),
                 }}
                 >
-                  <span id={`runtime-setting-label-${setting.key}`} style={{ fontSize: 14 }}>{label}</span>
-                  {infoTooltip(descriptor.help, label)}
-                  {setting.locked && envTile(setting)}
+                  <span id={`runtime-setting-label-${setting.key}`} className={LABEL_CLASS}>{label}</span>
+                  {labelAdornments}
                 </span>
                 <Switch
                   aria-labelledby={`runtime-setting-label-${setting.key}`}
                   disabled={readOnly}
-                  checked={values[setting.key] === 'true'}
+                  checked={!eeMissing && values[setting.key] === 'true'}
                   onCheckedChange={checked => setValues(v => ({
                     ...v,
                     [setting.key]: String(checked === true),
@@ -168,36 +183,26 @@ const RuntimeSettingsForm: FunctionComponent<RuntimeSettingsFormProps> = ({ sett
             );
           }
           return (
-            <div
+            <TextFieldFds
               key={setting.key}
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: theme.spacing(1),
-              }}
-            >
-              <TextFieldFds
-                className="w-full"
-                type="number"
-                min={setting.min}
-                max={setting.max}
-                step={1}
-                name={setting.key}
-                label={label}
-                endText={descriptor.unit ? t(descriptor.unit) : undefined}
-                infoTooltip={infoTooltip(descriptor.help, label)}
-                value={values[setting.key] ?? ''}
-                readOnly={readOnly}
-                disabled={canNotManage}
-                error={!!errors[setting.key]}
-                helperText={errors[setting.key] ?? (setting.source === 'default' ? t('Default value') : undefined)}
-                onChange={e => setValues(v => ({
-                  ...v,
-                  [setting.key]: e.target.value,
-                }))}
-              />
-              {setting.locked && <div style={{ paddingTop: 26 }}>{envTile(setting)}</div>}
-            </div>
+              // A read-only value shows no stepper: it is a number field only while it can be edited.
+              type={readOnly ? 'text' : 'number'}
+              min={setting.min}
+              max={setting.max}
+              step={1}
+              name={setting.key}
+              label={label}
+              infoTooltip={labelAdornments}
+              value={values[setting.key] ?? ''}
+              readOnly={readOnly}
+              disabled={canNotManage}
+              error={!!errors[setting.key]}
+              helperText={errors[setting.key] ?? (setting.source === 'default' ? t('Default value') : undefined)}
+              onChange={e => setValues(v => ({
+                ...v,
+                [setting.key]: e.target.value,
+              }))}
+            />
           );
         })}
         <div style={{
