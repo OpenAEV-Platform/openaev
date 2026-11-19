@@ -41,8 +41,6 @@ import { isFeatureEnabled } from '../../../../utils/utils';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
-import EntityGraph from '../../graph/EntityGraph';
-import ExploreInGraphButton from '../../graph/ExploreInGraphButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
@@ -140,7 +138,7 @@ const AssetDetail = () => {
   // charts without eating vertical space on the main tab. Tabs are routed
   // (/admin/assets/:id[/statistics]) so they can be deep-linked like the
   // atomic testing and scenario tabs.
-  const { currentTab, handleChangeTab } = useRoutedTabs(['overview', 'graph', 'statistics'], 'overview');
+  const { currentTab, handleChangeTab } = useRoutedTabs(['overview', 'statistics'], 'overview');
 
   if (loading && !asset) {
     return <Loader />;
@@ -203,7 +201,6 @@ const AssetDetail = () => {
         title={asset.asset_name}
         action={(
           <>
-            <ExploreInGraphButton type="ASSET" entityId={id} />
             {/* Entity-scoped reports - self-hides without the reporting
                 access capability. */}
             <EntityReportsPanel
@@ -245,10 +242,6 @@ const AssetDetail = () => {
             label: t('Overview'),
           },
           {
-            key: 'graph',
-            label: t('Graph'),
-          },
-          {
             key: 'statistics',
             label: t('Statistics'),
           },
@@ -256,8 +249,6 @@ const AssetDetail = () => {
         currentTab={currentTab}
         onChange={handleChangeTab}
       />
-
-      {currentTab === 'graph' && <EntityGraph type="ASSET" entityId={id} variant="embedded" />}
 
       {currentTab === 'statistics' && (
         // Two simple 50/50 time series: the posture-score evolution (same
@@ -427,12 +418,6 @@ const AssetDetail = () => {
                   )}
             </SectionBlock>
           </DetailSections>
-
-          {/* Mini graph: the asset, its groups, findings and the injects that targeted it, result
-              coloured; a click opens the Graph page focused on the asset. */}
-          <SectionBlock title={t('Graph')}>
-            <EntityGraph type="ASSET" entityId={id} variant="mini" />
-          </SectionBlock>
 
           {hasAgents && (
             <SectionBlock title={t('Agents')}>
