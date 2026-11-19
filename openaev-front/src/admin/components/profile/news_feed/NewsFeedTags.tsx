@@ -42,7 +42,9 @@ const NewsFeedTags = ({ tags }: Props) => {
       })}
       {/* Always rendered so that its width is reserved; only shown when chips are hidden. */}
       <div
-        ref={overflowRef}
+        ref={(element) => {
+          overflowRef.current = element;
+        }}
         style={{
           flexShrink: 0,
           visibility: hiddenCount > 0 ? 'visible' : 'hidden',

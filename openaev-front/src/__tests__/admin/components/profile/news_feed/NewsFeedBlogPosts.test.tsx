@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../../../actions/news_feed/news-feed-actions', () => ({ searchMyNewsFeedItems: mocks.searchMyNewsFeedItems }));
+// The tests resolve the empty, legacy Empty.jsx before Empty.tsx, as in the other news feed tests
+vi.mock('../../../../../components/Empty', () => ({ default: ({ message }: { message: string }) => <p>{message}</p> }));
 vi.mock('../../../../../utils/hooks/useDataLoader', () => ({
   subscribeStreamEvent: (type: string, handler: (event: MessageEvent) => void) => {
     mocks.streamHandlers.set(type, handler);
