@@ -4421,6 +4421,9 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.attackpath.AttackPathCausalSeedService.class,
               io.openaev.service.autonomous.AutonomousRunService.class,
               io.openaev.service.chaining.WorkflowEndService.class,
+              // Reverse counterpart lookup behind CounterpartApi (TxCtx-carrying HTTP), reading
+              // the simulation counts of the matched scenarios in the request's scope:
+              io.openaev.xtm.counterpart.LocalObjectService.class,
               // Import paths, under the TxCtx the import receives:
               io.openaev.importer.V1_DataImporter.class,
               io.openaev.service.InjectImportService.class,
@@ -4465,6 +4468,9 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.GrantService.class,
               io.openaev.service.scenario.ScenarioService.class,
               io.openaev.service.stix.SecurityCoverageService.class,
+              // Reverse counterpart lookup behind CounterpartApi (TxCtx-carrying HTTP), reading
+              // the scenarios matching the caller's keys in the request's scope:
+              io.openaev.xtm.counterpart.LocalObjectService.class,
               // Import path, under the TxCtx the import receives:
               io.openaev.service.InjectImportService.class,
               // Background: the scheduled start reads the scenario name inside its per-tenant
