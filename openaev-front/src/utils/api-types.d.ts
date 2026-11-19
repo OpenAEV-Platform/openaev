@@ -5307,6 +5307,8 @@ export interface EsEntities {
 }
 
 export interface EsFinding {
+  /** @uniqueItems true */
+  base_asset_groups_side?: string[];
   /** @format date-time */
   base_created_at?: string;
   base_dependencies?: string[];
@@ -5965,6 +5967,7 @@ export interface Exercise {
 export interface ExerciseBulkProcessingInput {
   exercise_ids_to_ignore?: string[];
   exercise_ids_to_process?: string[];
+  keep_findings?: boolean;
   search_pagination_input?: SearchPaginationInput;
 }
 
@@ -6732,6 +6735,14 @@ export interface InjectAuthorisation {
   /** @format date-time */
   inject_authorisation_issued_at?: string;
   inject_id?: string;
+}
+
+export interface InjectBulkDeleteInput {
+  inject_ids_to_ignore?: string[];
+  inject_ids_to_process?: string[];
+  keep_findings?: boolean;
+  search_pagination_input?: SearchPaginationInput;
+  simulation_or_scenario_id?: string;
 }
 
 export interface InjectBulkProcessingInput {
@@ -10205,6 +10216,43 @@ export interface PayloadUpsertInput {
   payload_type: string;
 }
 
+export interface PayloadUsageOutput {
+  /** @minLength 1 */
+  usage_id: string;
+  usage_name?: string;
+  usage_scenario_id?: string;
+  usage_scenario_name?: string;
+  /** @minLength 1 */
+  usage_type: "inject" | "atomic_testing" | "step";
+}
+
+export interface PayloadUsagesOutput {
+  payload_usages: PayloadUsageOutput[];
+  /** @format int32 */
+  payload_usages_hidden_count?: number;
+}
+
+export interface PayloadVersionOutput {
+  /**
+   * The Threat Arsenal action of this version
+   * @minLength 1
+   */
+  payload_action_id: string;
+  /** @minLength 1 */
+  payload_id: string;
+  payload_is_latest: boolean;
+  payload_revocation_reason?: string;
+  payload_revoked: boolean;
+  /** @format date-time */
+  payload_revoked_at?: string;
+  /** The admin who revoked it; empty when revoked by the catalogue */
+  payload_revoked_by?: string;
+  /** Revoked by the catalogue: the tenant cannot lift it */
+  payload_revoked_by_catalogue: boolean;
+  /** @minLength 1 */
+  payload_version: string;
+}
+
 export interface PayloadsDeprecateInput {
   collector_id: string;
   payload_external_ids: string[];
@@ -11499,6 +11547,7 @@ export interface ScenarioAndInjectorContractsInputs {
 }
 
 export interface ScenarioBulkProcessingInput {
+  keep_findings?: boolean;
   scenario_ids_to_ignore?: string[];
   scenario_ids_to_process?: string[];
   search_pagination_input?: SearchPaginationInput;
@@ -13093,6 +13142,12 @@ export interface ThreatArsenalAction {
   action_labels?: Record<string, string>;
   /** Payload attached */
   action_payload?: PayloadSimple;
+  /** The attached payload comes from the Filigran catalogue */
+  action_payload_managed?: boolean;
+  /** The attached payload version is revoked in the tenant */
+  action_payload_revoked?: boolean;
+  /** Version of the attached payload */
+  action_payload_version?: string;
   /** Platforms */
   action_platforms?: (
     | "Linux"

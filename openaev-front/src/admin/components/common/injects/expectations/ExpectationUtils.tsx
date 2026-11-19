@@ -5,7 +5,7 @@ import { ExpectationType, HUMAN_EXPECTATION_TYPES, type InjectExpectationsStore,
 export const FAILED = 'Failed';
 export const SUCCESS = 'Successful';
 
-const AUTOMATIC_EXPECTATION_TYPES: string[] = [
+const AUTOMATIC_EXPECTATION_TYPES: InjectExpectationOutput['inject_expectation_type'][] = [
   ExpectationType.ARTICLE,
   ExpectationType.PREVENTION,
   ExpectationType.DETECTION,
@@ -13,14 +13,14 @@ const AUTOMATIC_EXPECTATION_TYPES: string[] = [
   ExpectationType.VULNERABILITY,
 ];
 
-export const isAutomatic = (type: string) => AUTOMATIC_EXPECTATION_TYPES.includes(type);
+export const isAutomatic = (type: InjectExpectationOutput['inject_expectation_type']) => AUTOMATIC_EXPECTATION_TYPES.includes(type);
 
 // Single source of truth for expectation-type icons (shared coherent set).
 export const typeIcon = (type: string) => expectationIconByType(type);
 
-export const isTechnicalExpectation = (type: string) => TECHNICAL_EXPECTATION_TYPES.includes(type);
+export const isTechnicalExpectation = (type: InjectExpectationOutput['inject_expectation_type']) => TECHNICAL_EXPECTATION_TYPES.includes(type);
 
-export const isManualExpectation = (type: string) => HUMAN_EXPECTATION_TYPES.includes(type);
+export const isManualExpectation = (type: InjectExpectationOutput['inject_expectation_type']) => HUMAN_EXPECTATION_TYPES.includes(type);
 
 // A contract keeps the Logging expectation it was synchronised with while the preview feature was
 // on: new content must not take it from the contract once the feature is off.

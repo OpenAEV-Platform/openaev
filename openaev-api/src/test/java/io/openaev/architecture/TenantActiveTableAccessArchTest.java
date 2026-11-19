@@ -1642,7 +1642,11 @@ class TenantActiveTableAccessArchTest {
               ProductInventoryMetricCollector.class,
               // One pass after an upgrade over every tenant's findings, each batch in
               // TxCtx.allTenants() (FindingValueDisplayBackfillTest).
-              FindingValueDisplayBackfill.class)
+              FindingValueDisplayBackfill.class,
+              // Opt-in keep_findings on delete: Propagation.MANDATORY, so it only joins the
+              // tenant-scoped transaction of the delete entry point that calls it (pinned by
+              // DeleteKeepFindingsApiTest).
+              io.openaev.service.finding.FindingDetachService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(FindingRepository.class)

@@ -138,9 +138,23 @@ public class SimulationInjectService {
       @NotNull final TxCtx ctx,
       @NotBlank final String simulationId,
       @NotBlank final String injectId) {
+    deleteInject(ctx, simulationId, injectId, false);
+  }
+
+  /**
+   * Deletes an inject that belongs to the given simulation.
+   *
+   * @param keepFindings true keeps the findings it produced, detached from it; false (the default)
+   *     deletes them with the inject
+   */
+  public void deleteInject(
+      @NotNull final TxCtx ctx,
+      @NotBlank final String simulationId,
+      @NotBlank final String injectId,
+      final boolean keepFindings) {
     checkInjectForSimulation(simulationId, injectId);
     Exercise exercise = this.exerciseService.exercise(ctx, simulationId);
-    injectService.delete(injectId);
+    injectService.delete(injectId, keepFindings);
     this.exerciseService.updateExercise(exercise);
   }
 

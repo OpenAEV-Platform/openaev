@@ -25,4 +25,11 @@ public class ScenarioBulkProcessingInput {
   /** The list of scenarios to ignore from the search input */
   @JsonProperty("scenario_ids_to_ignore")
   private List<String> scenarioIdsToIgnore;
+
+  /**
+   * Delete only: true keeps the findings the scenarios' injects produced, detached from them. False
+   * (the default) deletes them with the scenarios.
+   */
+  @JsonProperty("keep_findings")
+  private boolean keepFindings = false;
 }

@@ -1,46 +1,38 @@
-import { ButtonGroup, ButtonGroupItem, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 
+import MarketplaceResultsCount from '../../../../components/common/marketplace/toolbar/MarketplaceResultsCount';
+import MarketplaceSortSelect from '../../../../components/common/marketplace/toolbar/MarketplaceSortSelect';
+import MarketplaceViewToggle from '../../../../components/common/marketplace/toolbar/MarketplaceViewToggle';
+import { type ViewMode } from '../../../../components/common/marketplace/toolbar/useMarketplaceView';
+import { type SortHelpers } from '../../../../components/common/queryable/sort/SortHelpers';
 import { useFormatter } from '../../../../components/i18n';
 import SearchFilter from '../../../../components/SearchFilter';
-import { type CatalogSort } from './catalog-facets';
 
-export type MarketplaceView = 'cards' | 'list';
+const CATALOG_SORT_OPTIONS = [
+  {
+    field: 'name',
+    label: 'Name',
+  },
+  {
+    field: 'deployed',
+    label: 'Deployments',
+  },
+];
 
 interface Props {
   keyword: string;
   onSearch: (value?: string) => void;
   searchResetKey: number;
-  sort: CatalogSort;
-  onSortChange: (sort: CatalogSort) => void;
+  sortHelpers: SortHelpers;
   resultCount: number;
   searchPlaceholder?: string;
-  view: MarketplaceView;
-  onViewChange: (view: MarketplaceView) => void;
+  view: ViewMode;
+  onViewChange: (view: string) => void;
 }
 
-const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange, resultCount, searchPlaceholder, view, onViewChange }: Props) => {
+const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sortHelpers, resultCount, searchPlaceholder, view, onViewChange }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
-
-  const sortOptions: {
-    value: CatalogSort;
-    label: string;
-  }[] = [
-    {
-      value: 'name_asc',
-      label: t('Name (A-Z)'),
-    },
-    {
-      value: 'name_desc',
-      label: t('Name (Z-A)'),
-    },
-    {
-      value: 'deployed_desc',
-      label: t('Most deployed'),
-    },
-  ];
 
   return (
     // Wraps like OpenCTI's marketplace toolbar so the fixed-width search and
@@ -59,62 +51,21 @@ const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange,
         keyword={keyword}
         placeholder={searchPlaceholder ?? `${t('Search the catalog')}...`}
       />
-      <Select
-        value={sort}
-        onValueChange={next => onSortChange(next as CatalogSort)}
-      >
-        <SelectLabel>{t('Sort by')}</SelectLabel>
-        <SelectTrigger style={{ width: 200 }}>
-          <SelectValue placeholder={t('Sort by')} />
-        </SelectTrigger>
-        <SelectContent>
-          {sortOptions.map(option => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <span style={{
-        marginLeft: 'auto',
-        padding: theme.spacing(0.5, 1.25),
-        borderRadius: theme.shape.borderRadius,
-        backgroundColor: alpha(theme.palette.text.primary, 0.06),
-        fontSize: 13,
-        fontWeight: 500,
-        fontVariantNumeric: 'tabular-nums',
-        color: theme.palette.text.secondary,
-      }}
-      >
-        {(() => {
-          if (resultCount === 1) return t('1 result');
-          return t('{count} results', { count: resultCount });
-        })()}
-      </span>
-      <ButtonGroup
+      {/* The list sorts from its column headers. */}
+      {view === 'grid' && (
+        <MarketplaceSortSelect
+          sortHelpers={sortHelpers}
+          options={CATALOG_SORT_OPTIONS}
+          descendingFields={['deployed']}
+        />
+      )}
+      <div style={{ marginLeft: 'auto' }}>
+        <MarketplaceResultsCount count={resultCount} />
+      </div>
+      <MarketplaceViewToggle
         value={view}
-        size="md"
-        usecase="isolated"
-        onValueChange={(next) => {
-          const value = next as MarketplaceView;
-          if (value) onViewChange(value);
-        }}
-        aria-label={t('View mode')}
-        style={{ backgroundColor: theme.palette.background.paper }}
-      >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <ButtonGroupItem value="cards" aria-label={t('Cards view')} data-testid="marketplace-view-cards" icon={<GridViewOutlined fontSize="small" />} />
-          </TooltipTrigger>
-          <TooltipContent>{t('Cards view')}</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <ButtonGroupItem value="list" aria-label={t('List view')} data-testid="marketplace-view-list" icon={<ViewListOutlined fontSize="small" />} />
-          </TooltipTrigger>
-          <TooltipContent>{t('List view')}</TooltipContent>
-        </Tooltip>
-      </ButtonGroup>
+        onChange={onViewChange}
+      />
     </div>
   );
 };

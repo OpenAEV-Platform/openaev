@@ -93,6 +93,16 @@ The response wraps results in a page object:
 
 The `filterGroup` field combines filters with `and` or `or`. For the format and the list of operators, see [Filters](filters.md).
 
+### Dashboard widget analytics
+
+The dashboard widget endpoints (`/api/dashboards/count`, `average`, `series`, `entities`, `entities-runtime`, `attack-paths` and their `/api/dashboards/adhoc/*` variants) select the data with a `base_entity` filter in each series or list perspective. `GET /api/dashboards/base-entities` returns the valid values, for example `asset`, `finding` or `scenario`.
+
+A `base_entity` value outside that list answers `400` with a `message` that names the value and lists the valid ones, instead of a count of `0`. A retired value says what replaced it: `endpoint` became `asset`.
+
+A structural histogram (`widget_configuration_type` `structural-histogram`) groups by a `field` of the search document of its `base_entity`. `GET /api/dashboards/group-by-fields` returns the valid fields, keyed by `base_entity`. A field outside that list answers `400` instead of an empty series, with a `message` that names the field and lists the valid ones. Some filters of the findings list run on the database and are not indexed: the message names their indexed equivalent, `finding_assets` becomes `base_endpoint_side` and `finding_asset_groups` becomes `base_asset_groups_side`.
+
+Findings can be grouped by asset group with `base_asset_groups_side`: the asset groups the injects of the finding's occurrences target. A finding found through several asset groups counts in each of them.
+
 ### Error responses
 
 | Code | Meaning |

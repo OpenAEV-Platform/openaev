@@ -14,6 +14,7 @@ import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.output.InjectTestStatusOutput;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.mapper.InjectStatusMapper;
@@ -21,6 +22,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -194,7 +196,40 @@ public class InjectTestStatusService {
     return this.injectTestStatusRepository.save(injectTestStatus);
   }
 
-  public void deleteInjectTest(String testId) {
-    injectTestStatusRepository.deleteById(testId);
+  /**
+   * @throws ElementNotFoundException when the test status does not exist or its inject is not in
+   *     the given simulation
+   */
+  public void deleteInjectTestOfSimulation(String simulationId, String testId) {
+    deleteInjectTestOfParent(simulationId, testId, Inject::getExercise);
+  }
+
+  /**
+   * @throws ElementNotFoundException when the test status does not exist or its inject is not in
+   *     the given scenario
+   */
+  public void deleteInjectTestOfScenario(String scenarioId, String testId) {
+    deleteInjectTestOfParent(scenarioId, testId, Inject::getScenario);
+  }
+
+  private void deleteInjectTestOfParent(
+      String parentId, String testId, Function<Inject, ? extends Base> parentOf) {
+    InjectTestStatus injectTestStatus = findInjectTestStatus(testId);
+    Base parent = parentOf.apply(injectTestStatus.getInject());
+    if (parent == null || !parentId.equals(parent.getId())) {
+      throw injectTestNotFound(testId);
+    }
+    injectTestStatusRepository.delete(injectTestStatus);
+  }
+
+  private InjectTestStatus findInjectTestStatus(String testId) {
+    return injectTestStatusRepository
+        .findById(testId)
+        .orElseThrow(() -> injectTestNotFound(testId));
+  }
+
+  /** Same error for an unknown test and a test outside the parent, so both look alike. */
+  private static ElementNotFoundException injectTestNotFound(String testId) {
+    return new ElementNotFoundException("Inject test not found with id: " + testId);
   }
 }
