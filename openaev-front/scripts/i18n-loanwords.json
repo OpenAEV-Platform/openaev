@@ -155,7 +155,6 @@
     "Port",
     "Ports",
     "Proxy",
-    "Radial",
     "Regex",
     "Region",
     "Router",
@@ -226,11 +225,11 @@
     "Phishing",
     "PowerPoint (editable)",
     "Proxy",
-    "Radial",
     "Tenants",
     "total",
     "Variables",
-    "Vulnerable"
+    "Vulnerable",
+    "Local"
   ],
   "fr": [
     "{count} / page",
@@ -334,7 +333,6 @@
     "Questionnaire",
     "Questions",
     "Quota",
-    "Relations",
     "Scope",
     "Score",
     "score",
@@ -366,7 +364,8 @@
     "Variables",
     "Version",
     "Vision",
-    "~{count} injects"
+    "~{count} injects",
+    "Local"
   ],
   "it": [
     "Asset",
