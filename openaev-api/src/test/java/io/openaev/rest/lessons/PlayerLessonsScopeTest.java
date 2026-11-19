@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.UUID;
@@ -18,6 +19,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,11 +36,20 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>an answer is written on a question of the simulation and the category named in the path,
  *       otherwise the question is not found and no row is written.
  * </ul>
+ *
+ * <p>The class arms the production active tables and gives the caller its default-tenant
+ * membership, so teams resolve in the request scope as they do in production.
  */
 @Transactional
-@WithMockUser
+@WithMockUser(autoJoinDefaultTenant = true)
 @DisplayName("Player lessons routes resolve within the caller's membership of the simulation")
 class PlayerLessonsScopeTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   private static final String ANSWERS = "/api/player/lessons/exercise/{exerciseId}/lessons_answers";
   private static final String CATEGORIES =
@@ -271,6 +283,50 @@ class PlayerLessonsScopeTest extends IntegrationTest {
       mvc.perform(get(CATEGORIES, simulationA).accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$", hasSize(2)));
+    }
+  }
+
+  @Nested
+  @DisplayName("a caller who launches the simulation through a grant")
+  class LauncherOfTheSimulation {
+
+    @BeforeEach
+    void grantLaunchOnSimulationA() {
+      // A launch grant includes read access, as GrantService#hasReadGrant treats it.
+      addGrantToCurrentUser(
+          io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION,
+          io.openaev.database.model.Grant.GRANT_TYPE.LAUNCHER,
+          simulationA);
+    }
+
+    @Test
+    @DisplayName("the questions are returned")
+    void questionsAreReturned() throws Exception {
+      mvc.perform(get(QUESTIONS, simulationA)).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("the answers are returned")
+    void answersAreReturned() throws Exception {
+      mvc.perform(get(ANSWERS, simulationA)).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("a launcher sees every category, whatever the team links")
+    void launcherSeesEveryCategory() throws Exception {
+      seedCategoryTeam(categoryA, teamA);
+
+      mvc.perform(get(CATEGORIES, simulationA).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(2)));
+    }
+
+    @Test
+    @DisplayName("an answer is saved")
+    void answerIsSaved() throws Exception {
+      postAnswer(simulationA, categoryA, questionA).andExpect(status().isOk());
+
+      assertEquals(1, countAnswersOnQuestion(questionA, caller));
     }
   }
 

@@ -20,6 +20,7 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.lessons.form.*;
 import io.openaev.security.error.AuthenticationError;
+import io.openaev.service.GrantService;
 import io.openaev.service.MailingService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -36,6 +37,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   private static final String TENANT_EXERCISE_URL = TENANT_PREFIX + "/exercises/";
 
   private final ExerciseService exerciseService;
+  private final GrantService grantService;
   private final TeamRepository teamRepository;
   private final LessonsTemplateRepository lessonsTemplateRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
@@ -427,7 +429,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       throws AuthenticationError {
     final User user = impersonateUser(userRepository, userId);
     final Exercise exercise = playerExercise(ctx, exerciseId, user);
-    final boolean seesEveryCategory = exercise.isUserHasAccess(user);
+    final boolean seesEveryCategory = canReadSimulation(exercise, user);
     // Hydrate the lazy lessons_category_teams inside the transaction. When seesEveryCategory is
     // true the filter never walks getTeams(), so without this the teams and users arrays serialize
     // empty through open-in-view once the request scope is gone, as in the other handlers.
@@ -572,19 +574,25 @@ public class ExerciseLessonsApi extends RestBehavior {
 
   /**
    * Resolves the simulation of a player route within the request's tenant scope. A classically
-   * authenticated caller must be a player of the simulation or hold a grant on it, as {@code
-   * DocumentApi#playerDocuments} requires; an anonymous caller is already bound to the simulation
-   * by its url access token, so the token carries the authorization.
+   * authenticated caller must be a player of the simulation or hold a read grant on it (observer or
+   * higher, so a launcher too), as {@code DocumentApi#playerDocuments} requires; an anonymous
+   * caller is already bound to the simulation by its url access token, so the token carries the
+   * authorization.
    */
   private Exercise playerExercise(TxCtx ctx, String exerciseId, User user)
       throws AuthenticationError {
     Exercise exercise =
         exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     if (!ANONYMOUS.equals(currentUser().getId())
-        && !exercise.isUserHasAccess(user)
+        && !canReadSimulation(exercise, user)
         && !exercise.getUsers().contains(user)) {
       throw new AuthenticationError("The given player is not in this exercise");
     }
     return exercise;
+  }
+
+  /** An administrator, or a user holding a read grant on the simulation, launcher included. */
+  private boolean canReadSimulation(Exercise exercise, User user) {
+    return user.isAdmin() || grantService.hasReadGrant(exercise.getId(), user);
   }
 }
