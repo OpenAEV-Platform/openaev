@@ -20,6 +20,8 @@ import { generateFilterId } from '../../../../components/common/queryable/filter
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
+import Tabs from '../../../../components/common/tabs/Tabs';
+import useRoutedTabs from '../../../../components/common/tabs/useRoutedTabs';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
@@ -39,6 +41,8 @@ import { emptyFilled } from '../../../../utils/String';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
+import EntityGraph from '../../graph/EntityGraph';
+import ExploreInGraphButton from '../../graph/ExploreInGraphButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import PlayerPopover from '../players/PlayerPopover';
 
@@ -60,6 +64,9 @@ const withFilter = (input: SearchPaginationInput, key: string, values: string[])
   };
 };
 
+// Routed tabs (/admin/persons/:id[/graph]): the Graph tab of #9447 sits beside the overview.
+const PERSON_TABS = ['overview', 'graph'];
+
 // Business-side person (player) overview: identity, organization + teams
 // pivots, the injects the person played (through their teams) and the findings
 // linked to them. Compact and grid-based, mirroring the asset overview.
@@ -69,6 +76,7 @@ const PersonDetail = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { userId } = useParams() as { userId: string };
+  const { currentTab, handleChangeTab } = useRoutedTabs(PERSON_TABS, 'overview');
 
   const { usersMap, teamsMap, organizationsMap } = useHelper((helper: UserHelper & TeamsHelper & OrganizationHelper & TagHelper) => ({
     usersMap: helper.getUsersMap(),
@@ -158,6 +166,7 @@ const PersonDetail = () => {
         )}
         action={(
           <>
+            <ExploreInGraphButton type="PERSON" entityId={userId} />
             {/* Entity-scoped reports - self-hides without the reporting
                 access capability. */}
             <EntityReportsPanel
@@ -181,60 +190,87 @@ const PersonDetail = () => {
         )}
       />
 
-      {/* Identity + teams side by side: both sections are short, so sharing
+      <Tabs
+        entries={[
+          {
+            key: 'overview',
+            label: t('Overview'),
+          },
+          {
+            key: 'graph',
+            label: t('Graph'),
+          },
+        ]}
+        currentTab={currentTab}
+        onChange={handleChangeTab}
+      />
+
+      {currentTab === 'graph' && <EntityGraph type="PERSON" entityId={userId} variant="embedded" />}
+
+      {currentTab === 'overview' && (
+        <>
+          {/* Identity + teams side by side: both sections are short, so sharing
           one grid row keeps the overview compact (they stack automatically on
           narrow viewports). */}
-      <DetailSections>
-        <InformationGrid title={t('Information')}>
-          <Field label={t('Email address')}>{user.user_email}</Field>
-          <Field label={t('First name')}>{emptyFilled(user.user_firstname)}</Field>
-          <Field label={t('Last name')}>{emptyFilled(user.user_lastname)}</Field>
-          <Field label={t('Organization')}>
-            {user.user_organization
-              ? <Link to={`${ORGANIZATION_BASE_URL}/${user.user_organization}`}>{organizationName || user.user_organization}</Link>
-              : '-'}
-          </Field>
-          <Field label={t('Phone number')}>{emptyFilled(user.user_phone)}</Field>
-          <Field label={t('Country')}>{emptyFilled(user.user_country)}</Field>
-          <Field label={t('Tags')}>
-            <ItemTags variant="list" tags={user.user_tags ?? []} />
-          </Field>
-        </InformationGrid>
-        <Section title={t('Teams')}>
-          {teams.length === 0
-            ? <Empty message={t('This person is not part of any team.')} />
-            : (
-                <List disablePadding>
-                  {teams.map((team: Team) => (
-                    <ListItem key={team.team_id} divider disablePadding>
-                      <ListItemButton component={Link} to={`${TEAM_BASE_URL}/${team.team_id}`}>
-                        <ListItemIcon sx={{ minWidth: 36 }}><GroupsOutlined color="primary" /></ListItemIcon>
-                        <ListItemText primary={team.team_name} secondary={team.team_organization ? organizationsMap[team.team_organization]?.organization_name : undefined} />
-                      </ListItemButton>
-                    </ListItem>
-                  ))}
-                </List>
-              )}
-        </Section>
-      </DetailSections>
+          <DetailSections>
+            <InformationGrid title={t('Information')}>
+              <Field label={t('Email address')}>{user.user_email}</Field>
+              <Field label={t('First name')}>{emptyFilled(user.user_firstname)}</Field>
+              <Field label={t('Last name')}>{emptyFilled(user.user_lastname)}</Field>
+              <Field label={t('Organization')}>
+                {user.user_organization
+                  ? <Link to={`${ORGANIZATION_BASE_URL}/${user.user_organization}`}>{organizationName || user.user_organization}</Link>
+                  : '-'}
+              </Field>
+              <Field label={t('Phone number')}>{emptyFilled(user.user_phone)}</Field>
+              <Field label={t('Country')}>{emptyFilled(user.user_country)}</Field>
+              <Field label={t('Tags')}>
+                <ItemTags variant="list" tags={user.user_tags ?? []} />
+              </Field>
+            </InformationGrid>
+            <Section title={t('Teams')}>
+              {teams.length === 0
+                ? <Empty message={t('This person is not part of any team.')} />
+                : (
+                    <List disablePadding>
+                      {teams.map((team: Team) => (
+                        <ListItem key={team.team_id} divider disablePadding>
+                          <ListItemButton component={Link} to={`${TEAM_BASE_URL}/${team.team_id}`}>
+                            <ListItemIcon sx={{ minWidth: 36 }}><GroupsOutlined color="primary" /></ListItemIcon>
+                            <ListItemText primary={team.team_name} secondary={team.team_organization ? organizationsMap[team.team_organization]?.organization_name : undefined} />
+                          </ListItemButton>
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+            </Section>
+          </DetailSections>
 
-      <SectionBlock title={t('Findings')}>
-        <FindingList
-          filterLocalStorageKey="person-findings"
-          searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_users', [userId]))}
-          contextId={userId}
-        />
-      </SectionBlock>
+          {/* Mini graph: the person, their identity assets, organization and teams; a click opens
+          the Graph page focused on them. */}
+          <SectionBlock title={t('Graph')}>
+            <EntityGraph type="PERSON" entityId={userId} variant="mini" />
+          </SectionBlock>
 
-      <SectionBlock title={t('Injects played')}>
-        <InjectResultList
-          fetchInjects={fetchInjectsPlayed}
-          goTo={injectResultDetailPath}
-          queryableHelpers={injectsHelpers}
-          searchPaginationInput={injectsInput}
-          contextId={userId}
-        />
-      </SectionBlock>
+          <SectionBlock title={t('Findings')}>
+            <FindingList
+              filterLocalStorageKey="person-findings"
+              searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_users', [userId]))}
+              contextId={userId}
+            />
+          </SectionBlock>
+
+          <SectionBlock title={t('Injects played')}>
+            <InjectResultList
+              fetchInjects={fetchInjectsPlayed}
+              goTo={injectResultDetailPath}
+              queryableHelpers={injectsHelpers}
+              searchPaginationInput={injectsInput}
+              contextId={userId}
+            />
+          </SectionBlock>
+        </>
+      )}
     </Box>
   );
 };

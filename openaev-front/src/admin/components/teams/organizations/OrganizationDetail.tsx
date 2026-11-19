@@ -23,6 +23,8 @@ import SortHeadersComponentV2 from '../../../../components/common/queryable/sort
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type Header } from '../../../../components/common/SortHeadersList';
+import Tabs from '../../../../components/common/tabs/Tabs';
+import useRoutedTabs from '../../../../components/common/tabs/useRoutedTabs';
 import Empty from '../../../../components/Empty';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
@@ -38,6 +40,8 @@ import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
+import EntityGraph from '../../graph/EntityGraph';
+import ExploreInGraphButton from '../../graph/ExploreInGraphButton';
 import OrganizationPopover from './OrganizationPopover';
 
 // Scoped `contains` filter for the hero count probes (array-valued keys such
@@ -60,6 +64,9 @@ const equals = (key: string, values: string[]): Filter => ({
   values,
 });
 
+// Routed tabs (/admin/organizations/:id[/graph]): the Graph tab of #9447 sits beside the overview.
+const ORGANIZATION_TABS = ['overview', 'graph'];
+
 // Business-side organization detail (left menu > Organizations). Deliberately
 // separated from the admin Settings > Security > Organizations detail: no
 // security right menu, business breadcrumbs, and members link to the Persons
@@ -71,6 +78,7 @@ const OrganizationDetailContent = () => {
   const navigate = useNavigate();
   const bodyItemsStyles = useBodyItemsStyles();
   const { organizationId } = useParams() as { organizationId: string };
+  const { currentTab, handleChangeTab } = useRoutedTabs(ORGANIZATION_TABS, 'overview');
 
   const [organization, setOrganization] = useState<Organization | null>(null);
   useEffect(() => {
@@ -237,13 +245,16 @@ const OrganizationDetailContent = () => {
           icon={DomainOutlined}
           title={organization.organization_name}
           action={(
-            <OrganizationPopover
-              variant="toggle"
-              organization={organization}
-              tagsMap={tagsMap}
-              onUpdate={(updated: Organization) => setOrganization(updated)}
-              onDelete={() => navigate(ORGANIZATION_BASE_URL)}
-            />
+            <>
+              <ExploreInGraphButton type="ORGANIZATION" entityId={organizationId} />
+              <OrganizationPopover
+                variant="toggle"
+                organization={organization}
+                tagsMap={tagsMap}
+                onUpdate={(updated: Organization) => setOrganization(updated)}
+                onDelete={() => navigate(ORGANIZATION_BASE_URL)}
+              />
+            </>
           )}
           stats={(
             <>
@@ -255,105 +266,132 @@ const OrganizationDetailContent = () => {
           )}
         />
 
-        <InformationGrid title={t('Information')}>
-          <Field label={t('Description')}>
-            <ExpandableMarkdown source={organization.organization_description ?? ''} limit={300} />
-          </Field>
-          <Field label={t('Tags')}>
-            <ItemTags variant="list" tags={organization.organization_tags ?? []} />
-          </Field>
-          <Field label={t('Creation date')}>{fldt(organization.organization_created_at)}</Field>
-          <Field label={t('Update date')}>{fldt(organization.organization_updated_at)}</Field>
-        </InformationGrid>
+        <Tabs
+          entries={[
+            {
+              key: 'overview',
+              label: t('Overview'),
+            },
+            {
+              key: 'graph',
+              label: t('Graph'),
+            },
+          ]}
+          currentTab={currentTab}
+          onChange={handleChangeTab}
+        />
 
-        <SectionBlock title={t('Members')}>
-          <PaginationComponentV2
-            fetch={fetchOrganizationMembers}
-            searchPaginationInput={membersInput}
-            setContent={setMemberRows}
-            setLoading={setMembersLoading}
-            entityPrefix="user"
-            availableFilterNames={['user_email', 'user_firstname', 'user_lastname', 'user_tags']}
-            queryableHelpers={membersHelpers}
-          />
-          <List>
-            <ListItem
-              divider={false}
-              style={{
-                paddingTop: 0,
-                textTransform: 'uppercase',
-              }}
-              secondaryAction={<>&nbsp;</>}
-            >
-              <ListItemIcon />
-              <ListItemText
-                primary={(
-                  <SortHeadersComponentV2
-                    headers={membersHeaders}
-                    inlineStylesHeaders={membersInlineStyles}
-                    sortHelpers={membersHelpers.sortHelpers}
-                  />
-                )}
+        {currentTab === 'graph' && <EntityGraph type="ORGANIZATION" entityId={organizationId} variant="embedded" />}
+
+        {currentTab === 'overview' && (
+          <>
+            <InformationGrid title={t('Information')}>
+              <Field label={t('Description')}>
+                <ExpandableMarkdown source={organization.organization_description ?? ''} limit={300} />
+              </Field>
+              <Field label={t('Tags')}>
+                <ItemTags variant="list" tags={organization.organization_tags ?? []} />
+              </Field>
+              <Field label={t('Creation date')}>{fldt(organization.organization_created_at)}</Field>
+              <Field label={t('Update date')}>{fldt(organization.organization_updated_at)}</Field>
+            </InformationGrid>
+
+            {/* Mini graph: the organization, its members and teams; a click opens the Graph page
+            focused on it. */}
+            <SectionBlock title={t('Graph')}>
+              <EntityGraph type="ORGANIZATION" entityId={organizationId} variant="mini" />
+            </SectionBlock>
+
+            <SectionBlock title={t('Members')}>
+              <PaginationComponentV2
+                fetch={fetchOrganizationMembers}
+                searchPaginationInput={membersInput}
+                setContent={setMemberRows}
+                setLoading={setMembersLoading}
+                entityPrefix="user"
+                availableFilterNames={['user_email', 'user_firstname', 'user_lastname', 'user_tags']}
+                queryableHelpers={membersHelpers}
               />
-            </ListItem>
-            {membersLoading
-              ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={membersHeaders} headerStyles={membersInlineStyles} />
-              : memberRows.map(member => (
-                  <ListItem
-                    key={member.user_id}
-                    divider
-                    disablePadding
-                    secondaryAction={<KeyboardArrowRight color="action" />}
-                  >
-                    <ListItemButton
-                      style={{ height: 50 }}
-                      component={Link}
-                      to={`${PERSON_BASE_URL}/${member.user_id}`}
-                    >
-                      <ListItemIcon>
-                        <PersonOutlined color="primary" />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={(
-                          <div style={bodyItemsStyles.bodyItems}>
-                            {membersHeaders.map(header => (
-                              <div
-                                key={header.field}
-                                style={{
-                                  ...bodyItemsStyles.bodyItem,
-                                  ...membersInlineStyles[header.field],
-                                }}
-                              >
-                                {header.value?.(member)}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+              <List>
+                <ListItem
+                  divider={false}
+                  style={{
+                    paddingTop: 0,
+                    textTransform: 'uppercase',
+                  }}
+                  secondaryAction={<>&nbsp;</>}
+                >
+                  <ListItemIcon />
+                  <ListItemText
+                    primary={(
+                      <SortHeadersComponentV2
+                        headers={membersHeaders}
+                        inlineStylesHeaders={membersInlineStyles}
+                        sortHelpers={membersHelpers.sortHelpers}
                       />
-                    </ListItemButton>
-                  </ListItem>
-                ))}
-            {!membersLoading && memberRows.length === 0 && <Empty message={t('No member in this organization.')} />}
-          </List>
-        </SectionBlock>
+                    )}
+                  />
+                </ListItem>
+                {membersLoading
+                  ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={membersHeaders} headerStyles={membersInlineStyles} />
+                  : memberRows.map(member => (
+                      <ListItem
+                        key={member.user_id}
+                        divider
+                        disablePadding
+                        secondaryAction={<KeyboardArrowRight color="action" />}
+                      >
+                        <ListItemButton
+                          style={{ height: 50 }}
+                          component={Link}
+                          to={`${PERSON_BASE_URL}/${member.user_id}`}
+                        >
+                          <ListItemIcon>
+                            <PersonOutlined color="primary" />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={(
+                              <div style={bodyItemsStyles.bodyItems}>
+                                {membersHeaders.map(header => (
+                                  <div
+                                    key={header.field}
+                                    style={{
+                                      ...bodyItemsStyles.bodyItem,
+                                      ...membersInlineStyles[header.field],
+                                    }}
+                                  >
+                                    {header.value?.(member)}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    ))}
+                {!membersLoading && memberRows.length === 0 && <Empty message={t('No member in this organization.')} />}
+              </List>
+            </SectionBlock>
 
-        <SectionBlock title={t('Findings')}>
-          <FindingList
-            filterLocalStorageKey="organization-findings"
-            searchDistinctFindings={fetchOrganizationFindings}
-            contextId={organizationId}
-          />
-        </SectionBlock>
+            <SectionBlock title={t('Findings')}>
+              <FindingList
+                filterLocalStorageKey="organization-findings"
+                searchDistinctFindings={fetchOrganizationFindings}
+                contextId={organizationId}
+              />
+            </SectionBlock>
 
-        <SectionBlock title={t('Injects played')}>
-          <InjectResultList
-            fetchInjects={fetchInjectsPlayed}
-            goTo={injectResultDetailPath}
-            queryableHelpers={injectsHelpers}
-            searchPaginationInput={injectsInput}
-            contextId={organizationId}
-          />
-        </SectionBlock>
+            <SectionBlock title={t('Injects played')}>
+              <InjectResultList
+                fetchInjects={fetchInjectsPlayed}
+                goTo={injectResultDetailPath}
+                queryableHelpers={injectsHelpers}
+                searchPaginationInput={injectsInput}
+                contextId={organizationId}
+              />
+            </SectionBlock>
+          </>
+        )}
       </Box>
     </>
   );

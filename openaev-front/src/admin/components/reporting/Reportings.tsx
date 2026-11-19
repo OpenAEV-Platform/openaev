@@ -18,6 +18,7 @@ import type { Header } from '../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../components/i18n';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import type { Reporting, SearchPaginationInput } from '../../../utils/api-types';
+import AnalyticsTabs from '../workspaces/AnalyticsTabs';
 import ReportingCard from './ReportingCard';
 import {
   latestGeneration,
@@ -189,11 +190,12 @@ const Reportings = () => {
     <>
       <Breadcrumbs
         variant="list"
-        elements={[{
+        elements={[{ label: t('Dashboards') }, {
           label: t('Reporting'),
           current: true,
         }]}
       />
+      <AnalyticsTabs current="reporting" />
       <PaginationComponentV2
         fetch={search}
         searchPaginationInput={searchPaginationInput}

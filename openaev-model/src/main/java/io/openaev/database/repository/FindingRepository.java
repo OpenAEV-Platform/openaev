@@ -6,6 +6,7 @@ import io.openaev.database.raw.RawFindingIndexing;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -335,4 +336,34 @@ public interface FindingRepository
               + " ON CONFLICT DO NOTHING",
       nativeQuery = true)
   void insertFindingTags(@Param("findingId") String findingId, @Param("tagIds") String[] tagIds);
+
+  // -- COUNTERPART FACTS (the key facts another XTM product shows next to its pivot) --
+
+  /** Findings recorded on each of the given assets, one row per asset holding at least one. */
+  @Query(
+      "SELECT a.id AS objectKey, COUNT(DISTINCT f.id) AS findings, 0L AS assets"
+          + " FROM Finding f JOIN f.assets a WHERE a.id IN :assetIds GROUP BY a.id")
+  List<FindingCountRow> countFindingsByAssetIdIn(@Param("assetIds") Collection<String> assetIds);
+
+  /**
+   * Findings of a type whose displayed value is one of the given values (compared upper-case, as
+   * CVE ids are), with the number of distinct assets they were found on; one row per value found.
+   * It reads the displayed value, never the cleartext one (ADR-017): a CVE id is displayed as
+   * stored.
+   */
+  @Query(
+      "SELECT UPPER(f.valueDisplay) AS objectKey, COUNT(DISTINCT f.id) AS findings,"
+          + " COUNT(DISTINCT a.id) AS assets FROM Finding f LEFT JOIN f.assets a"
+          + " WHERE f.type = :type AND UPPER(f.valueDisplay) IN :values"
+          + " GROUP BY UPPER(f.valueDisplay)")
+  List<FindingCountRow> countFindingsByTypeAndValueIn(
+      @Param("type") ContractOutputType type, @Param("values") Collection<String> values);
+
+  interface FindingCountRow {
+    String getObjectKey();
+
+    long getFindings();
+
+    long getAssets();
+  }
 }

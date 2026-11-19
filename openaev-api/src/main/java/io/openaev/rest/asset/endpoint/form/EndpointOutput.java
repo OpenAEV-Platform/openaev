@@ -41,6 +41,10 @@ public class EndpointOutput {
   @JsonProperty("asset_external_reference")
   private String externalReference;
 
+  @Schema(description = "Hostname, the key the XTM counterpart lookup matches on")
+  @JsonProperty("asset_hostname")
+  private String hostname;
+
   @Schema(description = "List of agents")
   @JsonProperty("asset_agents")
   @NotNull
