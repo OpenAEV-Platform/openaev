@@ -467,13 +467,13 @@ const Index = () => {
                 "teams" parent segment). Static back-compat aliases below rank
                 above the dynamic ":teamId" route in React Router. */}
             <Route path="persons" element={errorWrapper(Persons)()} />
-            <Route path="persons/:userId" element={errorWrapper(PersonDetail)()} />
+            <Route path="persons/:userId/*" element={errorWrapper(PersonDetail)()} />
             <Route path="teams" element={errorWrapper(TeamsList)()} />
             <Route path="teams/persons" element={<Navigate to="/admin/persons" replace={true} />} />
             <Route path="teams/players" element={<Navigate to="/admin/persons" replace={true} />} />
             <Route path="teams/teams" element={<Navigate to="/admin/teams" replace={true} />} />
             <Route path="teams/organizations" element={<Navigate to="/admin/organizations" replace={true} />} />
-            <Route path="teams/:teamId" element={errorWrapper(TeamDetail)()} />
+            <Route path="teams/:teamId/*" element={errorWrapper(TeamDetail)()} />
             <Route
               path="organizations"
               element={(
@@ -487,7 +487,7 @@ const Index = () => {
               )}
             />
             <Route
-              path="organizations/:organizationId"
+              path="organizations/:organizationId/*"
               element={(
                 <ProtectedRoute
                   checks={[{
