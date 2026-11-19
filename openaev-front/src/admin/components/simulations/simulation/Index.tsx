@@ -24,6 +24,7 @@ import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
 import useAutonomousRunForSimulation from '../../autonomous/useAutonomousRunForSimulation';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
+import EntityGraph from '../../graph/EntityGraph';
 import injectContextForExercise from './ExerciseContext';
 import SimulationShell from './SimulationShell';
 
@@ -150,6 +151,8 @@ const IndexComponent: FunctionComponent<{
                   {hasWorkflow && <Route path="attack-path" element={errorWrapper(SimulationAttackPath)()} />}
                   {/* Simulation-scoped custom dashboard, surfaced as the Statistics tab. */}
                   <Route path="statistics" element={errorWrapper(SimulationStatistics)()} />
+                  {/* The simulation's graph: its injects, their targets and the run's results. */}
+                  <Route path="graph" element={<EntityGraph type="SIMULATION" entityId={exercise.exercise_id} variant="embedded" />} />
                   {/* Statistics replaced the hero dashboard quick action and the old
                     Analysis tab; keep redirects for old links. */}
                   <Route path="dashboard" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />

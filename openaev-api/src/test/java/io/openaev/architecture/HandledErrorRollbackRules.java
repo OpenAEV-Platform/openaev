@@ -87,6 +87,9 @@ final class HandledErrorRollbackRules {
               "CatalogSyncService#sync -> CatalogService.apply",
               "rethrows after asking for the refusal alert, sent once the rollback is done"),
           entry(
+              "CustomDashboardService#restoreStarterPackDashboards -> TenantSettingsService.setSettingIfBlank",
+              "rethrows the IOException as IllegalStateException, so the restore fails whole"),
+          entry(
               "AutonomousRunService#convertToManual -> WorkflowService.copyScenarioChainingWorkflowAsManual",
               "rethrows as ResponseStatusException(400)"),
           entry(

@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.api.catalog.dto.action.AvailableActionOutput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.nio.charset.StandardCharsets;
@@ -140,6 +141,16 @@ class CatalogSyncApiTest extends IntegrationTest {
             .andExpect(status().isOk()));
   }
 
+  private List<String> availablePayloadIds() throws Exception {
+    List<String> ids = new ArrayList<>();
+    for (JsonNode action : list("actions")) {
+      if (AvailableActionOutput.PAYLOAD.equals(action.path("action_kind").asText())) {
+        ids.add(action.path("action_id").asText());
+      }
+    }
+    return ids;
+  }
+
   @Nested
   @DisplayName("Applying a release")
   class Applying {
@@ -164,8 +175,7 @@ class CatalogSyncApiTest extends IntegrationTest {
       assertThat(again.path("applied").asBoolean()).isFalse();
       assertThat(list("scenarios").findValuesAsText("catalog_scenario_version"))
           .containsExactly("1.1.0");
-      assertThat(list("payloads").findValuesAsText("catalog_payload_external_id"))
-          .containsExactly(PAYLOAD_ID);
+      assertThat(availablePayloadIds()).containsExactly(PAYLOAD_ID);
     }
 
     @Test
@@ -188,7 +198,7 @@ class CatalogSyncApiTest extends IntegrationTest {
       assertThat(output.path("added").asInt()).isZero();
       assertThat(list("scenarios").findValuesAsText("catalog_scenario_external_id"))
           .containsExactly(SCENARIO_ID);
-      assertThat(list("payloads").findValuesAsText("catalog_payload_external_id")).isEmpty();
+      assertThat(availablePayloadIds()).isEmpty();
     }
 
     @Test

@@ -568,6 +568,8 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#customDashboard",
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#updateCustomDashboard",
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#deleteCustomDashboard",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#customDashboardUsage",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#restoreStarterPackDashboards",
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#optionsByName",
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#optionsById",
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#optionsByResourceId",
@@ -677,6 +679,10 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installPayload",
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installAllPayloads",
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#uninstallPayload",
+          // catalog_items, payload_identities, injectors: the Available tab of the Threat Arsenal.
+          "io.openaev.api.catalog.CatalogApi#actions",
+          "io.openaev.api.catalog.CatalogApi#payloadVersions",
+          "io.openaev.api.catalog.CatalogApi#payloadVersionContent",
           // payload_revocations: a tenant admin revokes a payload version.
           "io.openaev.api.payload.PayloadRevocationApi#revoke",
           "io.openaev.api.payload.PayloadRevocationApi#lift");
