@@ -3404,25 +3404,6 @@ export interface ContractOutputElementSimple {
     | "expectation_signature";
 }
 
-export interface CounterpartLookupInput {
-  /**
-   * @maxItems 200
-   * @minItems 0
-   */
-  counterpart_keys: string[];
-}
-
-export interface CounterpartOutput {
-  counterpart_entity_id?: string;
-  counterpart_entity_type?: string;
-  counterpart_facts?: FactOutput[];
-  counterpart_key?: string;
-  counterpart_name?: string;
-  counterpart_product?: string;
-  counterpart_status?: string;
-  counterpart_url?: string;
-}
-
 export interface CreateConnectorInstanceInput {
   /** @minLength 1 */
   catalog_connector_id: string;
@@ -4567,8 +4548,6 @@ export interface EndpointOutput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   /** Asset external reference */
   asset_external_reference?: string;
-  /** Hostname, the key the XTM counterpart lookup matches on */
-  asset_hostname?: string;
   /**
    * Asset Id
    * @minLength 1
@@ -6133,11 +6112,6 @@ export interface ExportOptionsInput {
   with_players?: boolean;
   with_teams?: boolean;
   with_variable_values?: boolean;
-}
-
-export interface FactOutput {
-  fact_key?: string;
-  fact_value?: string;
 }
 
 export interface FileDrop {
@@ -7712,6 +7686,8 @@ export interface InjectorContractInput {
 export interface InjectorContractSearchPaginationInput {
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
+  /** Sort by primary domain first, so the results come in domain sections */
+  group_by_primary_domain?: boolean;
   /** Include the injector contract content on the returned object if set to true */
   include_content_details?: boolean;
   /** Allow the return of a full object if true, partial object if false */
@@ -8222,15 +8198,6 @@ export type ListConfiguration = UtilRequiredKeys<
 export interface ListPerspective {
   filter?: FilterGroup;
   name?: string;
-}
-
-export interface LocalObjectOutput {
-  object_facts?: FactOutput[];
-  object_id?: string;
-  object_key?: string;
-  object_name?: string;
-  object_type?: string;
-  object_url?: string;
 }
 
 export interface Log {
@@ -14600,12 +14567,6 @@ export interface XtmComposerRegisterInput {
 export interface XtmComposerUpdateStatusInput {
   /** The connector instance current status */
   connector_instance_current_status: "started" | "stopped";
-}
-
-export interface XtmConnectionOutput {
-  xtm_connection_connected?: boolean;
-  xtm_connection_product?: string;
-  xtm_connection_url?: string;
 }
 
 export interface XtmHubContactUsInput {
