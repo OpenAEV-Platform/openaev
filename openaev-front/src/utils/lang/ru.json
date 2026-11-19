@@ -4689,5 +4689,11 @@
   "YYYY": "ГГГГ",
   "ZIP must contain a json file": "Архив ZIP должен содержать файл JSON",
   "Zoom in": "Приблизить",
-  "Zoom out": "Отдалить"
+  "Zoom out": "Отдалить",
+  "Inject execution": "Выполнение инжектов",
+  "Inject execution threshold (minutes)": "Порог выполнения инжектов (минуты)",
+  "Time a pending inject waits for its result before it ends in error, in minutes (1 to 1440). Example: 60 for an Nmap scan of more than 100 hosts. Used by inject finalization and, at the next injector registration, by the implant timeout. While it is not set, the configured value applies.": "Время, в течение которого ожидающий инжект ждёт результата, прежде чем завершиться ошибкой, в минутах (от 1 до 1440). Пример: 60 для сканирования Nmap более 100 хостов. Используется при финализации инжектов и, при следующей регистрации инжектора, для тайм-аута имплантов. Пока значение не задано, применяется настроенное значение.",
+  "Configured value: {minutes} minutes": "Настроенное значение: {minutes} мин.",
+  "Must be between 1 and 1440 minutes": "Должно быть от 1 до 1440 минут",
+  "Pending injects past this delay end in error. Agent-based injects are waited on longer and implants are kept alive longer when it is raised.": "Ожидающие инжекты по истечении этого срока завершаются с ошибкой. При увеличении значения инжекты с агентами ожидаются дольше, а импланты дольше остаются активными."
 }

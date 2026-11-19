@@ -10477,6 +10477,16 @@ export interface PlatformSettings {
   filigran_chatbot_ai_cgu_status?: string;
   /** IMAP Service availability */
   imap_service_available?: string;
+  /**
+   * Minutes OpenAEV waits for an inject to report a terminal trace before it is finalized with a timeout: the platform setting when set, else the configured value
+   * @format int32
+   */
+  inject_execution_threshold_minutes?: number;
+  /**
+   * Threshold set by configuration (inject.execution.threshold.minutes), used while the platform setting is unset. Read-only
+   * @format int32
+   */
+  inject_execution_threshold_minutes_configured?: number;
   /** Current version of Java */
   java_version?: string;
   /** URL of the server containing the map tile with dark theme */
@@ -12275,6 +12285,16 @@ export interface SettingsChatbotAiCguUpdateInput {
 export interface SettingsEnterpriseEditionUpdateInput {
   /** cert of enterprise edition */
   platform_enterprise_license?: string;
+}
+
+export interface SettingsInjectExecutionUpdateInput {
+  /**
+   * Minutes OpenAEV waits for an inject to report a terminal trace before it is finalized with a timeout (1 to 1440)
+   * @format int32
+   * @min 1
+   * @max 1440
+   */
+  inject_execution_threshold_minutes: number;
 }
 
 export interface SettingsPlatformWhitemarkUpdateInput {

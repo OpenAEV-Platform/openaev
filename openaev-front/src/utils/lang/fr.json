@@ -4689,5 +4689,11 @@
   "YYYY": "YYYY",
   "ZIP must contain a json file": "Le fichier ZIP doit contenir un fichier JSON",
   "Zoom in": "Zoom avant",
-  "Zoom out": "Zoom arrière"
+  "Zoom out": "Zoom arrière",
+  "Inject execution": "Exécution des injects",
+  "Inject execution threshold (minutes)": "Délai d’exécution des injects (minutes)",
+  "Time a pending inject waits for its result before it ends in error, in minutes (1 to 1440). Example: 60 for an Nmap scan of more than 100 hosts. Used by inject finalization and, at the next injector registration, by the implant timeout. While it is not set, the configured value applies.": "Temps pendant lequel un inject en attente attend son résultat avant de se terminer en erreur, en minutes (de 1 à 1440). Exemple : 60 pour un scan Nmap de plus de 100 hôtes. Utilisé par la finalisation des injects et, au prochain enregistrement d’un injecteur, par le délai d’expiration des implants. Tant qu’il n’est pas défini, la valeur configurée s’applique.",
+  "Configured value: {minutes} minutes": "Valeur configurée : {minutes} minutes",
+  "Must be between 1 and 1440 minutes": "Doit être compris entre 1 et 1440 minutes",
+  "Pending injects past this delay end in error. Agent-based injects are waited on longer and implants are kept alive longer when it is raised.": "Les injects en attente au-delà de ce délai se terminent en erreur. Un délai plus long fait attendre plus longtemps les injects avec agents et garde les implants actifs plus longtemps."
 }
