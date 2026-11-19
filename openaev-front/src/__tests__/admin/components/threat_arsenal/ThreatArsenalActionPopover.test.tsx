@@ -101,12 +101,14 @@ const SUBMIT_EDIT = 'Submit edit';
 // The form itself is not under test: a button submits a command edit like the real form does
 // (an exception from onSubmit is what the real form surfaced as an uncaught error).
 vi.mock('../../../../admin/components/threat_arsenal/ThreatArsenalActionForm', () => ({
-  default: ({ onSubmit, initialValues }: {
+  default: ({ onSubmit, initialValues, draft }: {
     onSubmit: (data: object) => Promise<void>;
     initialValues: { command_content?: string };
+    draft?: { publishLabel: string };
   }) => (
     <>
       <output data-testid="initial-command">{initialValues.command_content}</output>
+      <output data-testid="publish-label">{draft?.publishLabel}</output>
       <button
         type="button"
         onClick={() => {
@@ -181,9 +183,6 @@ const submitEdit = async () => {
   fireEvent.click(screen.getByRole('button', { name: SUBMIT_EDIT }));
 };
 
-const NOTE_FOR_AUTHOR = 'Sending for approval makes a new version that waits for an approver. Saving a draft changes no version.';
-const NOTE_FOR_APPROVER = 'Publishing makes a new version, usable at once. Saving a draft changes no version.';
-
 // The version on screen: the edit drawer starts a new draft from it.
 const onScreenVersion = {
   payload_id: 'payload-1',
@@ -232,7 +231,7 @@ describe('ThreatArsenalActionPopover: saving an action (payload versions and app
     expect(notifyError).not.toHaveBeenCalled();
   });
 
-  it('tells an author that a sent version waits for approval, and that a draft changes no version', async () => {
+  it('offers an author to send the version for approval, without an info message', async () => {
     // Arrange
     permissions.canApprove = false;
     responses.push(fetchedAction, fetchedAction);
@@ -243,10 +242,11 @@ describe('ThreatArsenalActionPopover: saving an action (payload versions and app
 
     // Assert
     expect(screen.getByTestId('initial-command').textContent).toBe('whoami');
-    expect(screen.getByText(NOTE_FOR_AUTHOR)).toBeTruthy();
+    expect(screen.getByTestId('publish-label').textContent).toBe('Send for approval');
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it('tells an approver that a published version is usable at once', async () => {
+  it('offers an approver to publish the version', async () => {
     // Arrange
     responses.push(fetchedAction, fetchedAction);
     renderPopover();
@@ -255,8 +255,7 @@ describe('ThreatArsenalActionPopover: saving an action (payload versions and app
     await openEdit();
 
     // Assert
-    expect(screen.queryByText(NOTE_FOR_AUTHOR)).toBeNull();
-    expect(screen.getByText(NOTE_FOR_APPROVER)).toBeTruthy();
+    expect(screen.getByTestId('publish-label').textContent).toBe('Publish version');
   });
 
   it('does not ask the author to move the injects of a version waiting for approval', async () => {

@@ -156,16 +156,6 @@ const ThreatArsenalDraftEditor: FunctionComponent<Props> = ({ actionId, initialS
     return <Spinner size="md" />;
   }
 
-  const rework = current.kind === 'rejected' || !!currentDraft?.draft_rework;
-  let note = canApprove
-    ? t('Publishing makes a new version, usable at once. Saving a draft changes no version.')
-    : t('Sending for approval makes a new version that waits for an approver. Saving a draft changes no version.');
-  if (rework) {
-    note = canApprove
-      ? t('This version was rejected. Publishing it keeps its number and approves it.')
-      : t('This version was rejected. Sending it for approval keeps its number.');
-  }
-
   return (
     <div style={{
       display: 'flex',
@@ -179,6 +169,7 @@ const ThreatArsenalDraftEditor: FunctionComponent<Props> = ({ actionId, initialS
         gap: 4,
       }}
       >
+        <Text variant="content-compact" className="text-default-secondary">{t('Editing')}</Text>
         <Select value={selection} onValueChange={select} disabled={!values}>
           <SelectTrigger aria-label={t('Editing')}>
             <SelectValue />
@@ -223,7 +214,6 @@ const ThreatArsenalDraftEditor: FunctionComponent<Props> = ({ actionId, initialS
           </Text>
         )}
       </div>
-      <Alert severity="info" title={note} />
       {values
         ? (
             <SnapshotRemediationProvider key={formKey}>
