@@ -2013,19 +2013,7 @@ public class V1_DataImporter implements Importer {
               "file_drop_file", baseIds.get(payloadNode.get("file_drop_file").textValue()).getId());
     }
 
-    if (payloadNode.has("payload_arguments")) {
-      for (JsonNode argNode : payloadNode.get("payload_arguments")) {
-        if (argNode.has("type") && "document".equals(argNode.get("type").asText())) {
-          JsonNode defaultValueNode = argNode.get("default_value");
-          if (defaultValueNode != null
-              && !defaultValueNode.asText().isBlank()
-              && baseIds.containsKey(defaultValueNode.asText())) {
-            ((ObjectNode) argNode)
-                .put("default_value", baseIds.get(defaultValueNode.asText()).getId());
-          }
-        }
-      }
-    }
+    remapDocumentArgumentDefaults(ctx, payloadNode, baseIds);
     PayloadCreateInput payloadCreateInput =
         buildPayloadCreateInput(ctx, baseIds, payloadNode, null);
 
@@ -2147,8 +2135,36 @@ public class V1_DataImporter implements Importer {
           .put(
               "file_drop_file", baseIds.get(payloadNode.get("file_drop_file").textValue()).getId());
     }
+    remapDocumentArgumentDefaults(ctx, payloadNode, baseIds);
 
     return buildPayloadCreateInput(ctx, baseIds, payloadNode, injectContractNode);
+  }
+
+  // The export ships no argument document: an id the zip does not map is kept only when it is a
+  // document of the write tenant, else dropped, as the payload creation refuses any other.
+  private void remapDocumentArgumentDefaults(
+      TxCtx ctx, JsonNode payloadNode, Map<String, Base> baseIds) {
+    if (!payloadNode.has("payload_arguments")) {
+      return;
+    }
+    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
+    for (JsonNode argNode : payloadNode.get("payload_arguments")) {
+      JsonNode defaultValueNode = argNode.get("default_value");
+      if (!"document".equals(argNode.path("type").asText())
+          || defaultValueNode == null
+          || defaultValueNode.asText().isBlank()) {
+        continue;
+      }
+      String exportedId = defaultValueNode.asText();
+      Base mapped = baseIds.get(exportedId);
+      String resolvedId =
+          mapped != null
+              ? mapped.getId()
+              : documentRepository.findByIdAndTenantId(exportedId, writeTenant).isPresent()
+                  ? exportedId
+                  : "";
+      ((ObjectNode) argNode).put("default_value", resolvedId);
+    }
   }
 
   // Several versions of one payload: the one the zip holds, else a local copy of its content.
