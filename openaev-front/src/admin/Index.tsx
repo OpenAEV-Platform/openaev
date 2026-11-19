@@ -70,6 +70,7 @@ const IndexCustomDashboard = lazy(() => import('./components/workspaces/custom_d
 const IndexReporting = lazy(() => import('./components/reporting/Index'));
 const IndexSettings = lazy(() => import('./components/settings/Index'));
 const ThreatArsenal = lazy(() => import('./components/threat_arsenal/ThreatArsenal'));
+const ThreatArsenalAvailable = lazy(() => import('./components/threat_arsenal/catalog/ThreatArsenalAvailable'));
 const Credentials = lazy(() => import('./components/assets/credentials/Credentials'));
 const CredentialDetail = lazy(() => import('./components/assets/credentials/CredentialDetailPage'));
 
@@ -116,6 +117,7 @@ const Index = () => {
   const chatbotMargin = useChatbotContentMargin();
   const chatbotTransition = useChatbotContentTransition(theme);
   const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+  const isCatalogEnabled = isFeatureEnabled('CATALOG');
 
   const { currentUserTenant } = useAuth();
 
@@ -527,6 +529,12 @@ const Index = () => {
               path="threat-arsenal"
               element={errorWrapper(ThreatArsenal)()}
             />
+            {isCatalogEnabled && (
+              <Route
+                path="threat-arsenal/available"
+                element={errorWrapper(ThreatArsenalAvailable)()}
+              />
+            )}
             <Route
               path="integrations/*"
               element={(

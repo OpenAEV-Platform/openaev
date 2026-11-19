@@ -37,11 +37,13 @@ import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import ThreatArsenalSelectAll from './bulk/ThreatArsenalSelectAll';
 import ThreatArsenalSelectionBar from './bulk/ThreatArsenalSelectionBar';
 import ThreatArsenalCard from './card/ThreatArsenalCard';
+import CreateThreatArsenalAction from './CreateThreatArsenalAction';
 import ThreatArsenalList from './list/ThreatArsenalList';
 import { THREAT_ARSENAL_SORT_OPTIONS } from './list/threatArsenalListConfig';
 import ThreatArsenalHeaderActions from './page/ThreatArsenalHeaderActions';
 import ThreatArsenalHero from './page/ThreatArsenalHero';
 import ThreatArsenalSidebar from './page/ThreatArsenalSidebar';
+import ThreatArsenalTabs from './page/ThreatArsenalTabs';
 import ThreatArsenalEmptyState from './ThreatArsenalEmptyState';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
 import { hasOrphanedScopeFilters, toggleOrphanedScope } from './threatArsenalOrphanedScopeUtils';
@@ -179,7 +181,15 @@ const ThreatArsenal = () => {
     }}
     >
       <MarketplaceBrowser
-        hero={<ThreatArsenalHero onCreate={result => prependActions([result])} />}
+        hero={(
+          <ThreatArsenalHero action={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
+              <CreateThreatArsenalAction onCreate={result => prependActions([result])} />
+            </Can>
+          )}
+          />
+        )}
+        tabs={<ThreatArsenalTabs active="active" />}
         sidebar={(
           <ThreatArsenalSidebar
             domainElements={iconBarOrderedDomains}
