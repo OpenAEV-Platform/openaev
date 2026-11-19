@@ -169,6 +169,23 @@ public class PayloadService {
     return injectorContractSaved;
   }
 
+  /**
+   * Saves the payload and rebuilds its contract, keeping the attack patterns, domains and tags of
+   * the contract. Empty when the payload has no contract, or no payload injector to rebuild it.
+   */
+  public Optional<InjectorContract> saveAndRebuildContract(Payload payload) {
+    Payload saved = payloadRepository.save(payload);
+    return injectorContractRepository
+        .findInjectorContractByPayload(saved)
+        .map(
+            contract ->
+                synchroniseInjectorContractBasedOnPayload(
+                    saved,
+                    contract.getAttackPatterns(),
+                    contract.getDomains(),
+                    contract.getTags()));
+  }
+
   private void setInjectorContractPropertyBasedOnPayload(
       @NotNull InjectorContract injectorContract,
       @NotNull Payload payload,
@@ -394,6 +411,10 @@ public class PayloadService {
     return payloadRepository
         .findByIdAndTenantId(payloadId, tenantId)
         .orElseThrow(() -> new ElementNotFoundException("Payload not found"));
+  }
+
+  public List<Payload> findAllBySource(String tenantId, Payload.PAYLOAD_SOURCE source) {
+    return payloadRepository.findAllByTenantIdAndIdentitySource(tenantId, source);
   }
 
   /** Every version of a payload in the tenant. */
