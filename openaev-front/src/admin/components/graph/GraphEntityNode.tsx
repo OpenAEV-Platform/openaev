@@ -5,6 +5,8 @@ import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
+import { OpenCrqMark } from '../../../components/xtm/XtmOpenCrq';
+import { ProductMark } from '../../../components/xtm/XtmPivot';
 import { LABEL_MARGIN, NODE_CIRCLE_SIZE, NODE_WIDTH } from './graph-edge-geometry';
 import NODE_ICON from './graph-icons';
 import { type GraphNodeOutput, NODE_TYPE_LABEL, NODE_TYPE_PLURAL } from './graph-model';
@@ -19,6 +21,9 @@ export interface GraphEntityNodeData extends Record<string, unknown> {
   truncated: boolean;
   /** A group node (same-type neighbours folded, as OpenCTI's graph collapse): how many it stands for. */
   groupCount?: number;
+  /** The node has a counterpart in the connected OpenCTI / OpenCRQ: the product mark of the list rows on its circle. */
+  inOpenCti?: boolean;
+  inOpenCrq?: boolean;
 }
 
 export type GraphEntityNodeType = Node<GraphEntityNodeData, 'entity'>;
@@ -28,7 +33,23 @@ const SIZE = NODE_CIRCLE_SIZE;
 const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const { node, focused, pinned, matched, dimmed, highlighted, truncated, groupCount } = data;
+  const { node, focused, pinned, matched, dimmed, highlighted, truncated, groupCount, inOpenCti, inOpenCrq } = data;
+  const marks = [
+    ...(inOpenCti
+      ? [{
+          key: 'opencti',
+          label: t('In OpenCTI'),
+          mark: <ProductMark size={14} />,
+        }]
+      : []),
+    ...(inOpenCrq
+      ? [{
+          key: 'opencrq',
+          label: t('In OpenCRQ'),
+          mark: <OpenCrqMark size={14} />,
+        }]
+      : []),
+  ];
   const label = groupCount ? `+${groupCount} ${t(NODE_TYPE_PLURAL[node.node_type])}` : node.node_label;
   let ring = theme.palette.divider;
   if (node.node_result === 'FAILED') {
@@ -64,6 +85,7 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
                 width: SIZE,
                 height: SIZE,
                 borderRadius: '50%',
+                position: 'relative',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -76,6 +98,33 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
               }}
             >
               <Icon />
+              {marks.length > 0 && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: -6,
+                    left: -6,
+                    display: 'flex',
+                    gap: '2px',
+                  }}
+                >
+                  {marks.map(m => (
+                    <Box
+                      key={m.key}
+                      data-testid={`graph-node-${m.key}-${node.node_id}`}
+                      aria-label={m.label}
+                      sx={{
+                        display: 'flex',
+                        borderRadius: '50%',
+                        backgroundColor: theme.palette.background.paper,
+                        border: `1px solid ${theme.palette.divider}`,
+                      }}
+                    >
+                      {m.mark}
+                    </Box>
+                  ))}
+                </Box>
+              )}
             </Box>
           </Badge>
           <Text
@@ -104,6 +153,7 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
         {groupCount ? label : `${t(NODE_TYPE_LABEL[node.node_type])}: ${node.node_label}`}
         {node.node_failed_count > 0 ? ` · ${t('Failed expectations')}: ${node.node_failed_count}` : ''}
         {node.node_finding_count > 0 ? ` · ${t('Findings')}: ${node.node_finding_count}` : ''}
+        {marks.map(m => ` · ${m.label}`).join('')}
       </TooltipContent>
     </Tooltip>
   );

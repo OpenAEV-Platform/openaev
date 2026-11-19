@@ -70,6 +70,11 @@ import { Link, useNavigate } from 'react-router';
 
 import { fetchGraphNeighbourhood, fetchGraphPath } from '../../../actions/graph/graph-actions';
 import { useFormatter } from '../../../components/i18n';
+import { resolveCounterparts } from '../../../components/xtm/counterpartStore';
+import { OPENCTI_PRODUCT } from '../../../components/xtm/useCounterpart';
+import useCounterpartMatches, { type CounterpartRef, counterpartRefId } from '../../../components/xtm/useCounterpartMatches';
+import OpenCrqPivot, { OPENCRQ_PRODUCT, OpenCrqMark } from '../../../components/xtm/XtmOpenCrq';
+import OpenCtiPivot, { ProductMark } from '../../../components/xtm/XtmPivot';
 import { NODE_LABEL_OFFSET, NODE_WIDTH } from './graph-edge-geometry';
 import { type GroupedNode, groupNeighbours, isGroupId, miniView } from './graph-grouping';
 import NODE_ICON from './graph-icons';
@@ -89,6 +94,7 @@ import {
   type GraphResult,
   NODE_TYPE_LABEL,
   NODE_TYPE_PLURAL,
+  nodeCounterpart,
   nodeHref,
   RESULT_LABEL,
 } from './graph-model';
@@ -114,6 +120,11 @@ import {
 import { dateBounds, followBounds, TIME_RANGE_STEP, type TimeRange } from './graph-time-range';
 import GraphEntityNode, { type GraphEntityNodeType } from './GraphEntityNode';
 import GraphFloatingEdge from './GraphFloatingEdge';
+
+/** The ids of the nodes whose counterpart key is among the matched ones of a product. */
+const matchedNodeIds = (refs: Map<string, CounterpartRef>, found: Set<string>) => new Set(Array.from(refs.entries())
+  .filter(([, ref]) => found.has(counterpartRefId(ref)))
+  .map(([nodeId]) => nodeId));
 
 const NODE_BOX_HEIGHT = NODE_LABEL_OFFSET + 20;
 const PANEL_WIDTH = 340;
@@ -351,6 +362,39 @@ const GraphExplorerInner = ({
   };
 
   const { nodes: shownNodes, edges: shownEdges, matches } = useMemo(() => visibleGraph(state, filters), [state, filters]);
+  // Cross-platform marks, as on the list rows: the shown nodes that carry a real identifier (CVE
+  // findings) are looked up in one batch per kind and per connected product (nothing is asked of a
+  // product that is not connected); the mini graph card skips it.
+  const counterpartRefs = useMemo(() => {
+    const refs = new Map<string, CounterpartRef>();
+    if (interactive) {
+      shownNodes.forEach((n) => {
+        const ref = nodeCounterpart(n);
+        if (ref) {
+          refs.set(n.node_id, ref);
+        }
+      });
+    }
+    return refs;
+  }, [interactive, shownNodes]);
+  const counterpartRefList = useMemo(() => Array.from(counterpartRefs.values()), [counterpartRefs]);
+  const openCtiMatches = useCounterpartMatches(counterpartRefList, OPENCTI_PRODUCT);
+  const openCrqMatches = useCounterpartMatches(counterpartRefList, OPENCRQ_PRODUCT);
+  const inOpenCti = useMemo(() => matchedNodeIds(counterpartRefs, openCtiMatches), [counterpartRefs, openCtiMatches]);
+  const inOpenCrq = useMemo(() => matchedNodeIds(counterpartRefs, openCrqMatches), [counterpartRefs, openCrqMatches]);
+  // The context menu pivot: the counterpart's deep link, read from the cache the marks just filled.
+  const openCounterpart = (node: GraphNodeOutput, product: string) => {
+    const ref = nodeCounterpart(node);
+    if (!ref) {
+      return;
+    }
+    resolveCounterparts(ref.kind, ref.key).then((answers) => {
+      const url = answers.find(a => a.counterpart_product === product && a.counterpart_status === 'match')?.counterpart_url;
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    });
+  };
   const failed = useMemo(() => {
     if (!showFailed) {
       return NO_HIGHLIGHT;
@@ -473,6 +517,8 @@ const GraphExplorerInner = ({
       highlighted: (failed.nodeIds.has(n.node_id) || (showFailed && Boolean(n.node_group_members) && n.node_result === 'FAILED')) && n.node_type !== 'INJECT',
       truncated: state.truncatedAt.includes(n.node_id),
       groupCount: n.node_group_members?.length,
+      inOpenCti: inOpenCti.has(n.node_id),
+      inOpenCrq: inOpenCrq.has(n.node_id),
     },
   }));
 
@@ -917,6 +963,7 @@ const GraphExplorerInner = ({
   );
 
   const panelOpen = Boolean(selectedNode && interactive);
+  const selectedCounterpart = selectedNode ? nodeCounterpart(selectedNode) : null;
 
   const panel = selectedNode && interactive && (
     <Drawer
@@ -955,6 +1002,10 @@ const GraphExplorerInner = ({
         <Chip label={`${t('Findings')}: ${selectedNode.node_finding_count}`} />
       </div>
       <div className="mt-4 flex flex-col gap-2">
+        {/* The node's counterparts, as on the entity's own screen: "Open in", "Not in" or the
+            connect call to action, per product. */}
+        {selectedCounterpart && <OpenCtiPivot kind={selectedCounterpart.kind} objectKey={selectedCounterpart.key} size="md" />}
+        {selectedCounterpart && <OpenCrqPivot kind={selectedCounterpart.kind} objectKey={selectedCounterpart.key} size="md" />}
         {nodeHref(selectedNode) && (
           <Button asChild priority="secondary">
             <Link to={nodeHref(selectedNode) as string}>
@@ -1074,6 +1125,8 @@ const GraphExplorerInner = ({
       menuItem('neighbours', t('Select neighbours'), <SelectAllOutlined fontSize="small" />, () => selectNeighbours([node.node_id])),
       menuItem('remove', t('Remove from view'), <DeleteOutlined fontSize="small" />, () => removeFromView([node.node_id]), node.node_id === state.focus),
       ...(href ? [menuItem('open', t('Open'), <OpenInNewOutlined fontSize="small" />, () => navigate(href))] : []),
+      ...(inOpenCti.has(node.node_id) ? [menuItem('opencti', t('Open in OpenCTI'), <ProductMark size={16} />, () => openCounterpart(node, OPENCTI_PRODUCT))] : []),
+      ...(inOpenCrq.has(node.node_id) ? [menuItem('opencrq', t('Open in OpenCRQ'), <OpenCrqMark size={16} />, () => openCounterpart(node, OPENCRQ_PRODUCT))] : []),
       menuItem('copy-link', t('Copy a link to this view'), <LinkOutlined fontSize="small" />, () => copyLink(node)),
       ...nodeActions.filter(a => a.appliesTo(node)).map(a => menuItem(a.key, a.label, a.icon, () => a.onClick(node))),
     ];

@@ -1,5 +1,7 @@
 // Types of the exploration graph API (#9388), mirroring io.openaev.api.graph.dto.
 
+import { type CounterpartKindPath } from '../../../actions/xtm/counterpart-actions';
+
 export type GraphNodeType = 'ASSET' | 'ASSET_GROUP' | 'FINDING' | 'INJECT' | 'SIMULATION' | 'SCENARIO' | 'PERSON' | 'ORGANIZATION' | 'TEAM';
 
 export type GraphEdgeType = 'MEMBER_OF' | 'FOUND_ON' | 'PRODUCED' | 'TARGETS' | 'PART_OF' | 'RUN_OF'
@@ -143,6 +145,30 @@ export const nodeHref = (node: Pick<GraphNodeOutput, 'node_type' | 'node_entity_
     default:
       return undefined;
   }
+};
+
+export interface NodeCounterpartKey {
+  kind: CounterpartKindPath;
+  key: string;
+}
+
+/**
+ * The key a node is matched on in a connected product (OpenCTI, OpenCRQ), or null when the graph
+ * does not carry a real identifier for it. A CVE finding is matched on its CVE id (its label, the
+ * finding value; its subtype is the finding type, the enum name CVE), the key the list rows and the
+ * finding hero use. Assets are not: the graph carries their name, not their hostname or addresses,
+ * so their pivot stays on the asset screen.
+ */
+export const nodeCounterpart = (
+  node: Pick<GraphNodeOutput, 'node_type' | 'node_subtype' | 'node_label'>,
+): NodeCounterpartKey | null => {
+  if (node.node_type === 'FINDING' && node.node_subtype?.toLowerCase() === 'cve' && node.node_label) {
+    return {
+      kind: 'vulnerabilities',
+      key: node.node_label,
+    };
+  }
+  return null;
 };
 
 /** The graph page focused on one entity: the target of every "Explore in graph" button. */
