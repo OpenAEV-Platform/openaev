@@ -153,14 +153,14 @@ const AssetLinks: FunctionComponent<Props> = ({ assetId, assetName, canManage, o
                 >
                   {t('Link type')}
                   {/* A focusable trigger, as PlayerForm's info bubble: the tooltip opens on keyboard
-                      focus too (#9448, UX round 2 B2). */}
+                      focus too, with the DS focus ring of RuntimeSettingsForm (#9448, UX rounds 2 B2 and 3 B1). */}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span
                         tabIndex={0}
                         role="img"
                         aria-label={t('About link types')}
-                        className="inline-flex text-icon-highlight"
+                        className="inline-flex rounded-sm text-icon-highlight focus-visible:outline-none focus-visible:ring-2 ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-focus"
                         style={{ cursor: 'help' }}
                       >
                         <Icon name="info" size={16} aria-hidden />
