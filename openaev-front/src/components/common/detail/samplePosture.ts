@@ -81,4 +81,26 @@ const SAMPLE_POSTURE: ExpectationResultsByType[] = [
   },
 ];
 
-export default SAMPLE_POSTURE;
+const LOGGING_SAMPLE: ExpectationResultsByType = {
+  type: 'LOGGING',
+  avgResult: 'SUCCESS',
+  distribution: [
+    {
+      id: 'LOGGED',
+      label: 'Logged',
+      value: 44,
+    },
+    {
+      id: 'FAILED',
+      label: 'Failed',
+      value: 3,
+    },
+  ],
+};
+
+// The sample posture, with a Logging gauge after Detection while the Logging preview feature is on.
+const samplePosture = (isLoggingEnabled: boolean): ExpectationResultsByType[] => (isLoggingEnabled
+  ? SAMPLE_POSTURE.flatMap(entry => (entry.type === 'DETECTION' ? [entry, LOGGING_SAMPLE] : [entry]))
+  : SAMPLE_POSTURE);
+
+export default samplePosture;
