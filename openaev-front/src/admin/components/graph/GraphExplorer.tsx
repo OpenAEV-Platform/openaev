@@ -393,20 +393,38 @@ const GraphExplorerInner = ({
   const openCrqMatches = useCounterpartMatches(counterpartRefList, OPENCRQ_PRODUCT);
   const inOpenCti = useMemo(() => matchedNodeIds(counterpartRefs, openCtiMatches), [counterpartRefs, openCtiMatches]);
   const inOpenCrq = useMemo(() => matchedNodeIds(counterpartRefs, openCrqMatches), [counterpartRefs, openCrqMatches]);
-  // The context menu pivot: the counterpart's deep link, read from the cache the marks just filled.
-  const openCounterpart = (node: GraphNodeOutput, product: string) => {
-    const ref = nodeCounterpart(node);
-    if (!ref) {
-      return;
+  // The context menu pivots: the deep links of the node under the menu, read from the cache the
+  // marks just filled, rendered as links (never a scripted navigation). Only an http(s) URL is kept:
+  // a counterpart URL comes from another platform.
+  const [menuLinks, setMenuLinks] = useState<Record<string, string>>({});
+  const menuNode = menu?.nodeId ? state.nodes[menu.nodeId] : undefined;
+  const menuRef = menuNode ? nodeCounterpart(menuNode) : null;
+  const menuRefId = menuRef ? counterpartRefId(menuRef) : '';
+  useEffect(() => {
+    setMenuLinks({});
+    if (!menuRef) {
+      return undefined;
     }
-    resolveCounterparts(ref.kind, ref.key).then((answers) => {
-      // Only an http(s) deep link is opened: a counterpart URL comes from another platform.
-      const url = toHttpUrl(answers.find(a => a.counterpart_product === product && a.counterpart_status === 'match')?.counterpart_url);
-      if (url) {
-        window.open(url, '_blank', 'noopener,noreferrer');
+    let alive = true;
+    resolveCounterparts(menuRef.kind, menuRef.key).then((answers) => {
+      if (!alive) {
+        return;
       }
+      const links: Record<string, string> = {};
+      answers.forEach((a) => {
+        const url = a.counterpart_status === 'match' ? toHttpUrl(a.counterpart_url) : undefined;
+        if (url && a.counterpart_product) {
+          links[a.counterpart_product] = url;
+        }
+      });
+      setMenuLinks(links);
+    }).catch(() => {
+      // A hint only: no link, no pivot item.
     });
-  };
+    return () => {
+      alive = false;
+    };
+  }, [menuRefId]);
   const failed = useMemo(() => {
     if (!showFailed) {
       return NO_HIGHLIGHT;
@@ -1188,6 +1206,16 @@ const GraphExplorerInner = ({
   const menuItem = (key: string, label: string, icon: ReactNode, onSelect: () => void, disabled = false) => (
     <MenuItem key={key} startIcon={icon} disabled={disabled} onSelect={onSelect}>{label}</MenuItem>
   );
+  const linkItem = (key: string, label: string, icon: ReactNode, href: string | undefined) => {
+    if (!href) {
+      return [];
+    }
+    return [(
+      <MenuItem key={key} startIcon={icon} asChild>
+        <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
+      </MenuItem>
+    )];
+  };
   const nodeMenu = (node: GraphNodeOutput) => {
     const href = nodeHref(node);
     const present = ALL_NODE_TYPES.filter(type => type !== node.node_type);
@@ -1217,8 +1245,8 @@ const GraphExplorerInner = ({
       menuItem('neighbours', t('Select neighbours'), <SelectAllOutlined fontSize="small" />, () => selectNeighbours([node.node_id])),
       menuItem('remove', t('Remove from view'), <DeleteOutlined fontSize="small" />, () => removeFromView([node.node_id]), node.node_id === state.focus),
       ...(href ? [menuItem('open', t('Open'), <OpenInNewOutlined fontSize="small" />, () => navigate(href))] : []),
-      ...(inOpenCti.has(node.node_id) ? [menuItem('opencti', t('Open in OpenCTI'), <ProductMark size={16} />, () => openCounterpart(node, OPENCTI_PRODUCT))] : []),
-      ...(inOpenCrq.has(node.node_id) ? [menuItem('opencrq', t('Open in OpenCRQ'), <OpenCrqMark size={16} />, () => openCounterpart(node, OPENCRQ_PRODUCT))] : []),
+      ...(inOpenCti.has(node.node_id) ? linkItem('opencti', t('Open in OpenCTI'), <ProductMark size={16} />, menuLinks[OPENCTI_PRODUCT]) : []),
+      ...(inOpenCrq.has(node.node_id) ? linkItem('opencrq', t('Open in OpenCRQ'), <OpenCrqMark size={16} />, menuLinks[OPENCRQ_PRODUCT]) : []),
       menuItem('copy-link', t('Copy a link to this view'), <LinkOutlined fontSize="small" />, () => copyLink(node)),
       ...nodeActions.filter(a => a.appliesTo(node)).map(a => menuItem(a.key, a.label, a.icon, () => a.onClick(node))),
     ];
