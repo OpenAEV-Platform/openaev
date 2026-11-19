@@ -187,9 +187,9 @@ class ExecutableInjectServiceTest {
             "tenant-1");
 
     // Assert: the document does not resolve inside the inject's own tenant, so it is treated
-    // like an unknown id, the same as an id that resolves nowhere at all (the raw value is left
-    // in place rather than the resolved file name), never a foreign file's name.
-    assertThat(result).isEqualTo("cat document-id");
+    // like an unknown id: the argument is missing, so neither the raw id nor a foreign file's
+    // name is sent.
+    assertThat(result).isEqualTo("cat ");
   }
 
   private static PayloadArgument payloadArgument(String key, String defaultValue) {

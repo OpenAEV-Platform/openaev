@@ -224,6 +224,8 @@ public class ExecutableInjectService {
         missing = false;
       } catch (ElementNotFoundException e) {
         log.error("Payload argument target unexisting document", e);
+        value = "";
+        missing = true;
       }
     }
     return new ResolvedArgument(value, missing, mandatory);
