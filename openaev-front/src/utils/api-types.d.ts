@@ -2586,9 +2586,14 @@ export interface CatalogInstallOutput {
 }
 
 export interface CatalogPayloadOutput {
+  catalog_payload_description?: string;
+  catalog_payload_domain?: string;
   /** @minLength 1 */
   catalog_payload_external_id: string;
   catalog_payload_name?: string;
+  catalog_payload_platforms: string[];
+  /** @format date-time */
+  catalog_payload_published_at?: string;
   /** @minLength 1 */
   catalog_payload_version: string;
 }
@@ -3835,27 +3840,6 @@ export interface CustomDashboardParametersInput {
     | "startDate"
     | "endDate"
     | "scenario";
-}
-
-/** Scenarios, simulations and tenant defaults that use a custom dashboard */
-export interface CustomDashboardUsageOutput {
-  custom_dashboard_id: string;
-  /** The dashboard is the tenant default home dashboard (delete refused) */
-  default_home_dashboard: boolean;
-  /** The dashboard is the tenant default scenario dashboard */
-  default_scenario_dashboard: boolean;
-  /** The dashboard is the tenant default simulation dashboard */
-  default_simulation_dashboard: boolean;
-  /**
-   * Scenarios that show this dashboard in their Analysis tab
-   * @format int64
-   */
-  scenarios_count: number;
-  /**
-   * Simulations that show this dashboard in their Analysis tab
-   * @format int64
-   */
-  simulations_count: number;
 }
 
 export interface CustomDomain {
@@ -7707,6 +7691,8 @@ export interface InjectorContractInput {
 export interface InjectorContractSearchPaginationInput {
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
+  /** Sort by primary domain first, so the results come in domain sections */
+  group_by_primary_domain?: boolean;
   /** Include the injector contract content on the returned object if set to true */
   include_content_details?: boolean;
   /** Allow the return of a full object if true, partial object if false */
@@ -10574,6 +10560,8 @@ export interface PlatformSettings {
   postgre_version?: string;
   /** Current version of RabbitMQ */
   rabbitmq_version?: string;
+  /** Settings an administrator may change at runtime, each with its value in force and its source: env (environment variable, read-only), ui or default */
+  runtime_settings?: RuntimeSettingOutput[];
   /** SMTP Service availability */
   smtp_service_available?: string;
   /** True if telemetry manager enable */
@@ -10937,9 +10925,14 @@ export interface RawPaginationImportMapper {
 }
 
 export interface RawPaginationScenario {
+  scenario_author_name?: string;
   scenario_category?: string;
   scenario_description?: string;
+  /** @uniqueItems true */
+  scenario_domains?: string[];
   scenario_id?: string;
+  /** @format date-time */
+  scenario_last_run_at?: string;
   scenario_name?: string;
   /** @uniqueItems true */
   scenario_platforms?: string[];
@@ -10949,6 +10942,7 @@ export interface RawPaginationScenario {
   scenario_tags?: string[];
   /** @format date-time */
   scenario_updated_at?: string;
+  scenario_version?: string;
   scenario_workflow_id?: string;
 }
 
@@ -11484,6 +11478,49 @@ export interface RuleAttributeUpdateInput {
   rule_attribute_id?: string;
   /** @minLength 1 */
   rule_attribute_name: string;
+}
+
+/** A platform setting an administrator may change unless its env var is set */
+export interface RuntimeSettingOutput {
+  /** Only effective with an Enterprise Edition license */
+  enterprise_only: boolean;
+  /**
+   * Environment variable that pins the setting when set
+   * @minLength 1
+   */
+  env_var: string;
+  /**
+   * Setting key
+   * @minLength 1
+   */
+  key: string;
+  /** True when the environment variable is set: the UI is read-only */
+  locked: boolean;
+  /**
+   * Highest value, for an integer
+   * @format int32
+   */
+  max?: number;
+  /**
+   * Lowest value, for an integer
+   * @format int32
+   */
+  min?: number;
+  /**
+   * Where the value comes from: env (environment variable, read-only), ui (set by an administrator) or default (configuration default)
+   * @minLength 1
+   */
+  source: "env" | "ui" | "default";
+  /**
+   * Value type
+   * @minLength 1
+   */
+  type: "integer" | "boolean";
+  /**
+   * Value in force, as text
+   * @minLength 1
+   */
+  value: string;
 }
 
 export interface Scenario {
@@ -12306,6 +12343,11 @@ export interface SettingsPlatformWhitemarkUpdateInput {
   platform_whitemark: string;
 }
 
+export interface SettingsRuntimeUpdateInput {
+  /** Runtime settings to store, by key (inject_execution_threshold_minutes, agent_max_simultaneous_jobs, agent_queue_threshold, agent_auto_update_enabled). A setting whose environment variable is set is refused */
+  settings: Record<string, any>;
+}
+
 export interface SettingsSessionsUpdateInput {
   /**
    * Maximum number of concurrent sessions per user (0 = unlimited)
@@ -12470,16 +12512,6 @@ export interface SortObject {
   empty?: boolean;
   sorted?: boolean;
   unsorted?: boolean;
-}
-
-/** Starter-pack dashboards restored and tenant defaults set back */
-export interface StarterPackDashboardsRestoreOutput {
-  /** Tenant default dashboard settings that were empty and are set back */
-  defaults_set: string[];
-  /** Names of the starter-pack dashboards that already existed */
-  existing_dashboards: string[];
-  /** Names of the dashboards created by this restore */
-  restored_dashboards: string[];
 }
 
 export interface StatusPayload {
