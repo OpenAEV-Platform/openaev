@@ -1,4 +1,5 @@
 import { Chip, Text } from '@filigran/design-system';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -12,6 +13,7 @@ interface Props {
 // One line answering "what runs, from whom, can it run": version, source and revocation.
 const PayloadTrustLine: FunctionComponent<Props> = ({ action, updatedAt }) => {
   const { t, nsd } = useFormatter();
+  const theme = useTheme();
   if (!action.action_payload) {
     return null;
   }
@@ -22,7 +24,7 @@ const PayloadTrustLine: FunctionComponent<Props> = ({ action, updatedAt }) => {
         display: 'flex',
         alignItems: 'center',
         flexWrap: 'wrap',
-        gap: 8,
+        gap: theme.spacing(1),
       }}
     >
       {action.action_payload_version && <Chip label={`v${action.action_payload_version}`} />}

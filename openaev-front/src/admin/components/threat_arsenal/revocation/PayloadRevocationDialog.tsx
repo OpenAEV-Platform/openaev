@@ -1,15 +1,15 @@
 import { Button, Spinner, Text, Textarea } from '@filigran/design-system';
 import { OpenInNewOutlined } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
-import { type FunctionComponent, useEffect, useState } from 'react';
+import { useTheme } from '@mui/material/styles';
+import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
 
-import { liftPayloadRevocation, revokePayload } from '../../../../actions/payloads/payload-revocation-actions';
-import { fetchThreatArsenalUsages } from '../../../../actions/threat_arsenals/threatArsenal-version-actions';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
-import { type PayloadUsagesOutput, type PayloadVersionOutput } from '../../../../utils/api-types';
+import { type PayloadVersionOutput } from '../../../../utils/api-types';
 import PayloadVersionSelect from '../versions/PayloadVersionSelect';
+import useRevocationForm from './useRevocationForm';
 
 interface Props {
   open: boolean;
@@ -26,53 +26,17 @@ interface Props {
 
 const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, lift, versions, currentPayloadId, actionId, onClose, onDone }) => {
   const { t } = useFormatter();
-  const [selected, setSelected] = useState('');
-  const [usages, setUsages] = useState<PayloadUsagesOutput | null>(null);
-  const [reason, setReason] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setReason('');
-      setSelected(versions.some(v => v.payload_id === currentPayloadId) ? currentPayloadId : versions[0]?.payload_id ?? '');
-    }
-  }, [open, versions, currentPayloadId]);
-
-  const version = versions.find(v => v.payload_id === selected);
-  useEffect(() => {
-    setUsages(null);
-    if (open && version) {
-      fetchThreatArsenalUsages(version.payload_action_id).then(response => setUsages(response.data as PayloadUsagesOutput));
-    }
-  }, [open, version?.payload_action_id]);
-
-  const shown = usages?.payload_usages ?? [];
-  const usageCount = shown.length + (usages?.payload_usages_hidden_count ?? 0);
-  const scenarioCount = new Set(shown.map(usage => usage.usage_scenario_id).filter(Boolean)).size;
-  const countOf = (type: string) => shown.filter(usage => usage.usage_type === type).length;
-  const impact = [
-    scenarioCount > 0 ? t('{count, plural, one {# scenario} other {# scenarios}}', { count: scenarioCount }) : null,
-    countOf('inject') > 0 ? t('{count, plural, one {# scenario inject} other {# scenario injects}}', { count: countOf('inject') }) : null,
-    countOf('atomic_testing') > 0 ? t('{count, plural, one {# atomic test} other {# atomic tests}}', { count: countOf('atomic_testing') }) : null,
-    countOf('step') > 0 ? t('{count, plural, one {# chained step} other {# chained steps}}', { count: countOf('step') }) : null,
-  ].filter(Boolean).join(' · ');
+  const theme = useTheme();
+  const { selected, setSelected, version, usages, reason, setReason, canSubmit, submitting, submit } = useRevocationForm({
+    open,
+    lift,
+    versions,
+    currentPayloadId,
+    onDone,
+  });
+  const { loaded, usageCount, impact } = usages;
 
   const submitLabel = lift ? t('Lift revocation') : t('Revoke');
-
-  const submit = async () => {
-    if (!version) return;
-    setSubmitting(true);
-    try {
-      if (lift) {
-        await liftPayloadRevocation(version.payload_id);
-      } else {
-        await revokePayload(version.payload_id, { payload_revocation_reason: reason.trim() });
-      }
-      onDone(version);
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   return (
     <Dialog
@@ -85,7 +49,7 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, lift, v
     >
       <DialogTitle>{`${submitLabel} ${name}`}</DialogTitle>
       <DialogContent>
-        <DialogContentText style={{ marginBottom: 12 }}>
+        <DialogContentText style={{ marginBottom: theme.spacing(1.5) }}>
           {lift
             ? t('The chosen version runs again in this tenant.')
             : t('Revoked versions don\'t run. Anything using this version will fail until you lift the revocation.')}
@@ -93,12 +57,12 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, lift, v
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 12,
-          marginBottom: 16,
+          gap: theme.spacing(1.5),
+          marginBottom: theme.spacing(2),
         }}
         >
           <PayloadVersionSelect value={selected} versions={versions} onChange={setSelected} />
-          {usages && (
+          {loaded && (
             <Text variant="content-caption">
               {usageCount === 1 ? t('Used by 1 inject') : t('Used by {count} injects', { count: String(usageCount) })}
             </Text>
@@ -107,20 +71,20 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, lift, v
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 8,
-          marginBottom: 16,
+          gap: theme.spacing(1),
+          marginBottom: theme.spacing(2),
         }}
         >
           <Text variant="content-base-bold">{lift ? t('Runs again in:') : t('What will fail:')}</Text>
-          {usages === null && <Spinner size="sm" />}
-          {usages && usageCount === 0 && (
+          {!loaded && <Spinner size="sm" />}
+          {loaded && usageCount === 0 && (
             <Text variant="content-base">{t('Nothing fails: v{version} isn\'t used.', { version: version?.payload_version ?? '' })}</Text>
           )}
-          {usages && usageCount > 0 && (
+          {loaded && usageCount > 0 && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
+              gap: theme.spacing(1.5),
               flexWrap: 'wrap',
             }}
             >
@@ -133,7 +97,7 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, lift, v
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 4,
+                    gap: theme.spacing(0.5),
                   }}
                 >
                   {t('See where it is used')}
@@ -158,7 +122,7 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, lift, v
         <Button
           type="button"
           variant={lift ? undefined : 'destructive'}
-          disabled={!version || submitting || (!lift && reason.trim() === '')}
+          disabled={!canSubmit}
           onClick={submit}
         >
           {submitting ? <Spinner size="sm" /> : submitLabel}

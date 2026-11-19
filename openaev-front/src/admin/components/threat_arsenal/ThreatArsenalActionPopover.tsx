@@ -25,8 +25,8 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
-import usePayloadRevocation from './hook/usePayloadRevocation';
 import PayloadRevocationDialog from './revocation/PayloadRevocationDialog';
+import usePayloadRevocation from './revocation/usePayloadRevocation';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 

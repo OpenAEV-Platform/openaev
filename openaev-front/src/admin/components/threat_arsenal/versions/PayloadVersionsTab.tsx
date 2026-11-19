@@ -1,13 +1,13 @@
 import { Chip, Skeleton, Text } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { Alert, Collapse } from '@mui/material';
-import { type FunctionComponent, useEffect, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 
-import { fetchThreatArsenalUsages, fetchThreatArsenalVersions } from '../../../../actions/threat_arsenals/threatArsenal-version-actions';
 import { FDS_GROUP_ROW_STYLE, FDS_TABLE_FRAME_STYLE } from '../../../../components/common/fdsTableSpec';
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadUsagesOutput, type PayloadVersionOutput } from '../../../../utils/api-types';
 import PayloadUsagesTable from './PayloadUsagesTable';
+import usePayloadVersions from './usePayloadVersions';
 
 interface VersionProps {
   version: PayloadVersionOutput;
@@ -45,21 +45,7 @@ const PayloadVersion: FunctionComponent<VersionProps> = ({ version, usages }) =>
 interface Props { actionId: string }
 
 const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId }) => {
-  const [versions, setVersions] = useState<PayloadVersionOutput[] | null>(null);
-  const [usages, setUsages] = useState<Record<string, PayloadUsagesOutput>>({});
-
-  useEffect(() => {
-    setVersions(null);
-    setUsages({});
-    fetchThreatArsenalVersions(actionId).then((response) => {
-      const loaded = response.data as PayloadVersionOutput[];
-      setVersions(loaded);
-      loaded.forEach(version => fetchThreatArsenalUsages(version.payload_action_id).then(result => setUsages(previous => ({
-        ...previous,
-        [version.payload_id]: result.data as PayloadUsagesOutput,
-      }))));
-    });
-  }, [actionId]);
+  const { versions, usages } = usePayloadVersions(actionId);
 
   if (versions === null) {
     return <Skeleton className="h-24" />;

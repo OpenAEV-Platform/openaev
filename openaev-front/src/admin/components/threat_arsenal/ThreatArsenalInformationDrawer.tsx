@@ -1,4 +1,5 @@
 import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { fetchThreatArsenalAction } from '../../../actions/threat_arsenals/threatArsenal-actions';
@@ -60,6 +61,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   initialTab,
 }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
 
   const [loading, setLoading] = useState(false);
   const [fullOutput, setFullOutput] = useState<ThreatArsenalActionFullOutput | null>(null);
@@ -136,13 +138,13 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
               </TabsList>
             </Tabs>
           )}
-          <div style={{ marginTop: showVersions ? 16 : 0 }}>
+          <div style={{ marginTop: showVersions ? theme.spacing(2) : 0 }}>
             {tab === 'versions' && showVersions
               ? <PayloadVersionsTab actionId={threatArsenalAction.injector_contract_id} />
               : (
                   <>
                     {shownVersion?.payload_revoked && (
-                      <div style={{ marginBottom: 16 }}>
+                      <div style={{ marginBottom: theme.spacing(2) }}>
                         <PayloadRevocationBanner version={shownVersion} />
                       </div>
                     )}
