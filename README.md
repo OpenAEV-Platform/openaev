@@ -1,127 +1,214 @@
 <h1 align="center">
-  <a href="https://openaev.io"><img src="./.github/img/logo_openaev.png" alt="OpenAEV"></a>
+  <a href="https://openaev.io"><img src="./.github/img/logo_openaev.png" alt="OpenAEV" width="420"></a>
 </h1>
+
+<p align="center"><b>Adversarial exposure validation for Continuous Threat Exposure Management (CTEM).</b><br/>
+Prove your defenses against the techniques of the adversaries that target you, find the exposures that matter, and get them fixed.</p>
+
 <p align="center">
-  <a href="https://openaev.io" alt="Website"><img src="https://img.shields.io/badge/website-openaev.io-blue.svg" /></a>
-  <a href="https://docs.openaev.io" alt="Documentation"><img src="https://img.shields.io/badge/documentation-latest-orange.svg" /></a>
-  <a href="https://community.filigran.io" alt="Slack"><img src="https://img.shields.io/badge/slack-6K%2B%20members-4A154B" /></a>
-  <a href="https://codecov.io/gh/OpenAEV-Platform/openaev"><img src="https://codecov.io/gh/OpenAEV-Platform/openaev/graph/badge.svg" /></a>
-  <a href="https://deepscan.io/dashboard#view=project&tid=11710&pid=14631&bid=276803"><img src="https://deepscan.io/api/teams/11710/projects/14631/branches/276803/badge/grade.svg" alt="DeepScan grade"></a>
-  <a href="https://hub.docker.com/u/openaev" alt="Docker pulls"><img src="https://img.shields.io/docker/pulls/openaev/platform" /></a>
+  <a href="https://github.com/OpenAEV-Platform/openaev/stargazers"><img src="https://img.shields.io/github/stars/OpenAEV-Platform/openaev?style=flat&logo=github&label=stars" alt="GitHub stars" /></a>
+  <a href="https://github.com/OpenAEV-Platform/openaev/releases/latest"><img src="https://img.shields.io/github/v/release/OpenAEV-Platform/openaev?label=release" alt="Latest release" /></a>
+  <a href="https://hub.docker.com/r/openaev/platform"><img src="https://img.shields.io/docker/pulls/openaev/platform?label=docker%20pulls" alt="Docker pulls" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0%20%2B%20EE-blue" alt="License: Apache 2.0 (Community Edition) and Enterprise Edition" /></a>
+  <a href="https://docs.openaev.io"><img src="https://img.shields.io/badge/docs-docs.openaev.io-orange" alt="Documentation" /></a>
+  <a href="https://community.filigran.io"><img src="https://img.shields.io/badge/slack-Filigran%20community-4A154B?logo=slack" alt="Filigran community Slack" /></a>
 </p>
 
-> [!NOTE]
-> Writing injectors or collectors, contributing to the platform, or running adversary
-> simulations in production? Join us on the
-> [Filigran Community Slack](https://community.filigran.io/?utm_medium=community&utm_source=github).
-> It's the best place to ask questions, talk through a PR before you open it, or compare notes on integrations and more.
+<p align="center">
+  <a href="https://openaev.io">Website</a> ·
+  <a href="https://docs.openaev.io">Documentation</a> ·
+  <a href="https://demo.openaev.io">Live demo</a> ·
+  <a href="https://github.com/OpenAEV-Platform/openaev/releases">Releases</a> ·
+  <a href="https://community.filigran.io">Community</a>
+</p>
 
-## Introduction
+OpenAEV is the open source adversarial exposure validation platform of the [XTM Platform](https://filigran.io), Filigran's
+platform for Continuous Threat Exposure Management (CTEM). It turns threat intelligence from
+[OpenCTI](https://github.com/OpenCTI-Platform/opencti) into attack scenarios, runs them against your real endpoints,
+cloud and security stack, and tells you which techniques were prevented, which were detected and which got through.
+The result is a list of exposures backed by evidence, with the detection and remediation work to close them.
 
-OpenAEV is an open source platform allowing organizations to plan, schedule and conduct cyber adversary simulation
-campaigns and tests.
+> If OpenAEV helps your security team, **[star the repository](https://github.com/OpenAEV-Platform/openaev/stargazers)**.
+> It is the simplest way to support the project and help other defenders find it.
 
-![Screenshot](./.github/img/screenshot.png "Screenshot")
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./.github/img/openaev-graph-dark.png">
+    <img src="./.github/img/openaev-graph-light.png" alt="OpenAEV exploration graph: a simulation linked to the endpoints it reached, the attack patterns it executed and the findings it produced, with prevention and detection outcomes on every edge" width="100%">
+  </picture>
+  <br/><sub>The exploration graph (coming in the next release, <a href="https://github.com/OpenAEV-Platform/openaev/pull/9448">#9448</a>).</sub>
+</p>
 
-## Objective
+## Table of contents
 
-The goal is to create a powerful, reliable and open source tool to effectively plan and play all types of simulations,
-training and exercises from the technical level to the strategic one. Also, the platform is able to give you a proper
-overview of any security gaps regarding actual threats with knowledge coming from
-the [OpenCTI platform](https://opencti.io).
+- [Why OpenAEV](#why-openaev)
+- [Capabilities](#capabilities)
+- [OpenAEV in the XTM Platform](#openaev-in-the-xtm-platform)
+- [Editions](#editions)
+- [Quick start](#quick-start)
+- [Documentation and demo](#documentation-and-demo)
+- [Contributing](#contributing)
+- [Community](#community)
+- [Security](#security)
+- [About](#about)
 
-OpenAEV aims to respond to these issues, which not only concern state services but also many private organizations. With
-different modules (scenarios, teams, simulations, verification of means of communication, encryption, etc.), the
-platform offers advantages such as collaborative work, real-time monitoring, statistics or the management of feedback.
+## Why OpenAEV
 
-Finally, OpenAEV supports different types of inject, allowing the tool to be integrated with emails, SMS platforms,
-social medias, alarm systems, etc. All currently supported integration can be found in
-the [OpenAEV ecosystem](https://docs.openaev.io/latest/development/injectors/).
+Most security teams know their vulnerabilities and their threat landscape. Few can say, with evidence, whether their
+controls stop the techniques the adversaries that target them actually use. OpenAEV answers that question continuously:
 
-## Editions of the platform
+- **Threat-informed.** Scenarios come from the intrusion sets, campaigns, reports and attack patterns in OpenCTI, not
+  from a generic checklist.
+- **Real execution, safe by design.** Payloads run through agents and implants on your own endpoints, inside the scope
+  you define.
+- **Outcome per control.** Every action expects a prevention and a detection; collectors read your EDR, SIEM and XDR to
+  score each expectation.
+- **Exposure you can act on.** Results become findings and gaps with detection and remediation guidance, tracked from
+  one run to the next.
 
-OpenAEV platform has 2 different editions: Community (CE) and Enterprise (EE). The purpose of the Enterprise Edition is
-to provide [additional and powerful features](https://filigran.io/offering/subscribe) which require specific investments
-in research and development. You can enable the Enterprise Edition directly in the settings of the platform.
+## Capabilities
 
-* OpenAEV Community Edition, licensed under the [Apache 2, Version 2.0 license](LICENSE).
-* OpenAEV Enterprise Edition, licensed under the [Enterprise Edition license](LICENSE).
+| Capability | What it does | Status |
+|---|---|---|
+| **Threat-informed scenarios from OpenCTI** | Generate scenarios from OpenCTI security coverage (reports, intrusion sets, campaigns, incidents): attack patterns are mapped to compatible actions of your threat arsenal and scheduled for execution. Results flow back to OpenCTI. | Released |
+| **Breach and attack simulation** | Execute payloads on Windows, Linux and macOS through the OpenAEV agent, Caldera, or the EDR executors (CrowdStrike Falcon, SentinelOne, Microsoft Defender for Endpoint, Tanium, Palo Alto Cortex). | Released (EDR executors: EE) |
+| **Threat arsenal** | MITRE ATT&CK-mapped actions, payloads (commands, executables, files, DNS), output parsers and a library of injectors, importable from the XTM Hub. | Released |
+| **Prevention and detection validation** | Expectations per action (prevention, detection, vulnerability, manual), scored automatically by collectors that read your security platforms. | Released |
+| **Atomic testing** | Run a single technique against a single target to validate one control in minutes. | Released |
+| **Attack chaining** | Chain actions with conditions on their outputs into a logic graph, and read how the attack actually propagated on the attack path map: endpoints reached, findings produced, chokepoints. | Released, EE, preview flag |
+| **Findings and exposure** | CVEs, open ports, credentials, shares and Active Directory weaknesses extracted from execution output, deduplicated across runs, enriched with CVSS, sensitive values masked. | Released |
+| **Remediation** | Detection remediation on threat arsenal actions and injects, remediation on CVEs, so every gap comes with the rule or fix that closes it. | Released, EE |
+| **Dashboards** | Custom dashboards and widgets over simulations, findings and coverage; a default home dashboard; usage shown before a dashboard is deleted and starter-pack dashboards restored (coming in the next release, [#9420](https://github.com/OpenAEV-Platform/openaev/pull/9420)). | Released |
+| **Exploration graph** | One graph across simulations, scenarios, endpoints, asset groups, findings, attack patterns, persons and organizations, with time range and attack paths. | Coming in the next release ([#9448](https://github.com/OpenAEV-Platform/openaev/pull/9448)) |
+| **OpenCTI and OpenCRQ pivots** | See the OpenCTI counterpart of an asset, attack pattern, vulnerability or threat, and its OpenCRQ risk, from the OpenAEV screen you are on. | Coming in the next release ([#9393](https://github.com/OpenAEV-Platform/openaev/pull/9393)) |
+| **Generative AI** | Generate content and scenarios with AI, through your own AI provider or XTM One. | Released, EE |
+| **Autonomous attack path** | Describe an objective in plain language; an AI orchestrator in [XTM One](https://github.com/XTM-One-Platform/xtm-one) plans, executes and adapts a chained attack against your authorized scope, streams its decisions and records proof of exploitation and capability gaps. | Preview, EE, requires XTM One |
+| **Multi-tenancy** | Isolated tenants on one platform. | Released, EE |
+| **Human-centric exercises** | Phishing campaigns and tabletop injects (email, media pressure, challenges) for the human side of exposure. | Released |
 
-To understand what OpenAEV Enterprise Edition brings in terms of features, just check
-the [Enterprise Editions page](https://filigran.io/offering/subscribe) on the Filigran website. You can also try this
-edition by enabling it in the settings of the platform.
+<table>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./.github/img/openaev-dashboard-dark.png">
+        <img src="./.github/img/openaev-dashboard-light.png" alt="OpenAEV home dashboard with prevention, detection and vulnerability scores, simulations over time and the latest findings">
+      </picture>
+      <p align="center"><sub>Home dashboard</sub></p>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./.github/img/openaev-findings-dark.png">
+        <img src="./.github/img/openaev-findings-light.png" alt="OpenAEV findings list with type, value, affected endpoints and the simulations that produced them">
+      </picture>
+      <p align="center"><sub>Findings</sub></p>
+    </td>
+  </tr>
+</table>
 
-## Documentation and demonstration
+## OpenAEV in the XTM Platform
 
-If you want to know more on OpenAEV, you can read the [documentation on the tool](https://docs.openaev.io). If you wish
-to discover how the OpenAEV platform is working, a [demonstration instance](https://demo.openaev.io) is available and
-open to everyone. This instance is reset every night and is based on reference data maintained by the OpenAEV
-developers.
+CTEM is a loop: scope, discover, prioritize, validate, mobilize. OpenAEV is the validation stage, connected to the
+other modules of the XTM Platform:
 
-## Releases download
+```mermaid
+flowchart LR
+  OCTI["OpenCTI<br/>threat intelligence"] -- "threats, attack patterns,<br/>security coverage" --> OAEV["OpenAEV<br/>adversarial exposure validation"]
+  OAEV -- "validation results,<br/>coverage" --> OCTI
+  OAEV -- "validated exposure" --> OCRQ["OpenCRQ<br/>cyber risk quantification"]
+  XO["XTM One<br/>agentic core"] -- "autonomous attack path,<br/>AI agents, MCP" --> OAEV
+  OAEV -- "telemetry and alerts" --- SEC["Your EDR, SIEM, XDR<br/>(collectors)"]
+  OAEV -- "payloads" --> EP["Your endpoints and cloud<br/>(agents, implants, injectors)"]
+```
 
-The releases are available on the [Github releases page](https://github.com/OpenAEV-Platform/openaev/releases). You can
-also access the [rolling release package](https://releases.openaev.io) generated from the main branch of the
-repository.
+- **[OpenCTI](https://github.com/OpenCTI-Platform/opencti)**: the threat knowledge behind every scenario, and where
+  validation results land as security coverage.
+- **[XTM One](https://github.com/XTM-One-Platform/xtm-one)**: the agentic core of the XTM Platform. It hosts the
+  autonomous attack path orchestrator and the AI agents that work across OpenCTI, OpenAEV and OpenCRQ.
+- **[OpenCRQ](https://filigran.io)**: turns validated exposure into business risk.
+- **Integrations**: injectors, collectors and executors are listed in the
+  [OpenAEV ecosystem](https://docs.openaev.io/latest/development/injectors/) and on the
+  [XTM Hub](https://hub.filigran.io).
 
-## Installation
+## Editions
 
-All you need to install the OpenAEV platform can be found in
-the [official documentation](https://docs.openaev.io/latest/deployment/installation/). For installation, you can:
+OpenAEV follows an open core model:
 
-* [Use Docker](https://docs.openaev.io/latest/deployment/installation/#using-docker)
-* [Install manually](https://docs.openaev.io/latest/deployment/installation/#manual-installation)
+- **Community Edition**, licensed under the [Apache License 2.0](LICENSE): the whole validation workflow, from
+  threat-informed scenarios to findings and dashboards.
+- **Enterprise Edition**, licensed under the [Enterprise Edition license](LICENSE): AI features, the autonomous attack
+  path, attack chaining, EDR executors, remediation guidance and multi-tenancy. Source files under this license carry
+  a header saying so.
+
+Enable the Enterprise Edition in **Settings > Filigran Experience** with a license or a
+[trial license](https://filigran.io/enterprise-editions-trial/). A Filigran license of the XTM Platform, installed in
+OpenAEV or received through a registered XTM One, also enables it. Details:
+[Enterprise Edition](https://docs.openaev.io/latest/administration/enterprise/) and
+[offering](https://filigran.io/offering/subscribe).
+
+## Quick start
+
+OpenAEV runs with Docker Compose from the [OpenAEV-Platform/docker](https://github.com/OpenAEV-Platform/docker)
+repository, which also starts XTM One next to it:
+
+```bash
+git clone https://github.com/OpenAEV-Platform/docker.git openaev-docker
+cd openaev-docker
+cp .env.sample .env   # set the admin credentials, tokens and passwords
+docker compose -p openaev -f docker-compose.yml up -d
+```
+
+Then open the URL set by `OPENAEV_HOST` and `OPENAEV_PORT` in `.env`, install an agent on a test endpoint, and launch
+your first atomic test. The full guide covers manual installation, production sizing and every setting:
+[installation](https://docs.openaev.io/latest/deployment/installation/).
+
+Releases are published on the [GitHub releases page](https://github.com/OpenAEV-Platform/openaev/releases); a
+[rolling release](https://releases.openaev.io) is built from `main`.
+
+## Documentation and demo
+
+- [Documentation](https://docs.openaev.io): getting started, scenarios, attack chaining, findings, dashboards,
+  integrations, administration.
+- [Live demo](https://demo.openaev.io): open to everyone, reset every night on reference data.
 
 ## Contributing
 
-### Code of Conduct
-
-OpenAEV has adopted a [Code of Conduct](CODE_OF_CONDUCT.md) that we expect project participants to adhere to. Please
-read the [full text](CODE_OF_CONDUCT.md) so that you can understand what actions will and will not be tolerated.
-
-### Contributing Guide
-
-Read our [contributing guide](CONTRIBUTING.md) to learn about our development process, how to propose bugfixes and
-improvements, and how to build and test your changes to OpenAEV.
-
-### Beginner friendly issues
-
-To help you get you familiar with our contribution process, we have a list
-of [beginner friendly issues](https://github.com/OpenAEV-Platform/openaev/labels/good%20first%20issue) which are
-fairly easy to implement. This is a great place to get started.
-
-### Development
-
-If you want to actively help OpenAEV, we created
-a [dedicated documentation](https://docs.openaev.io/latest/development/environment_ubuntu/) about the
-deployment of a development environment and how to start the source code modification.
+- [Contributing guide](CONTRIBUTING.md): development process, how to propose fixes and improvements, how to build and
+  test.
+- [Code of Conduct](CODE_OF_CONDUCT.md).
+- [Good first issues](https://github.com/OpenAEV-Platform/openaev/labels/good%20first%20issue) to get started.
+- [Development environment](https://docs.openaev.io/latest/development/environment_ubuntu/).
+- Writing an injector or a collector: start from the
+  [ecosystem documentation](https://docs.openaev.io/latest/development/injectors/).
 
 ## Community
 
-### Status & bugs
+- **Issues**: bugs and feature requests on [GitHub issues](https://github.com/OpenAEV-Platform/openaev/issues).
+- **Slack**: questions, integrations and PR discussions on the
+  [Filigran Community Slack](https://community.filigran.io/?utm_medium=community&utm_source=github).
+- **Star the project**: a [star](https://github.com/OpenAEV-Platform/openaev/stargazers) helps other security teams find
+  OpenAEV.
 
-Currently OpenAEV is under heavy development, if you wish to report bugs or ask for new features, you can directly use
-the [Github issues module](https://github.com/OpenAEV-Platform/openaev/issues).
+<a href="https://star-history.com/#OpenAEV-Platform/openaev&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=OpenAEV-Platform/openaev&type=Date&theme=dark" />
+    <img alt="Star history of OpenAEV" src="https://api.star-history.com/svg?repos=OpenAEV-Platform/openaev&type=Date" width="600" />
+  </picture>
+</a>
 
-### Discussion
+## Security
 
-If you need support or you wish to engage a discussion about the OpenAEV platform, feel free to join us on
-our [Slack channel](https://community.filigran.io). You can also send us an email to contact@filigran.io.
+Report a vulnerability as described in the [security policy](SECURITY.md). Do not open a public issue for it.
 
 ## About
 
-### Authors
+OpenAEV is designed and developed by [Filigran](https://filigran.io), with the products
+[OpenCTI](https://github.com/OpenCTI-Platform/opencti), [OpenCRQ](https://filigran.io) and
+[XTM One](https://github.com/XTM-One-Platform/xtm-one).
 
-OpenAEV is a product designed and developed by the company [Filigran](https://filigran.io).
+<a href="https://filigran.io"><img src="./.github/img/logo_filigran.png" alt="Filigran" width="300" /></a>
 
-<a href="https://filigran.io" alt="Filigran"><img src="./.github/img/logo_filigran.png" width="300" /></a>
+### Usage telemetry
 
-### Data Collection
-
-#### Usage telemetry
-
-To improve the features and the performances of OpenAEV, the platform collects anonymous statistical data related to its
-usage and health.
-
-You can find all the details on collected data and associated usage in
-the [usage telemetry documentation](https://docs.openaev.io/latest/reference/deployment/telemetry/).
+To improve its features and performance, OpenAEV collects anonymous statistical data about its usage and health.
+Details on the data collected and how it is used:
+[usage telemetry](https://docs.openaev.io/latest/reference/deployment/telemetry/).
