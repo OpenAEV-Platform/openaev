@@ -3594,6 +3594,8 @@
   "Scenario planner": "シナリオプランナー",
   "scenario_category": "カテゴリー",
   "scenario_dependencies": "依存関係",
+  "scenario_author": "作成者",
+  "scenario_domains": "ドメイン",
   "scenario_kill_chain_phases": "キルチェーンフェーズ",
   "scenario_name": "名前",
   "scenario_platforms": "プラットフォーム",
@@ -4827,5 +4829,9 @@
   "Loss avoided by fixing": "修正により回避される損失",
   "Open in OpenCRQ": "OpenCRQで開く",
   "Annual loss expectancy": "年間予想損失額",
-  "Risk scenarios": "リスクシナリオ"
+  "Risk scenarios": "リスクシナリオ",
+  "Browse and version ready-to-use scenarios.": "すぐに使えるシナリオを参照し、バージョンを管理します。",
+  "No scenario matches these filters.": "これらのフィルターに一致するシナリオはありません。",
+  "Last run": "最終実行",
+  "Never": "なし"
 }

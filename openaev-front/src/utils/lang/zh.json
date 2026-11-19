@@ -3594,6 +3594,8 @@
   "Scenario planner": "场景规划器",
   "scenario_category": "类别",
   "scenario_dependencies": "依赖项",
+  "scenario_author": "作者",
+  "scenario_domains": "领域",
   "scenario_kill_chain_phases": "杀伤链阶段",
   "scenario_name": "名称",
   "scenario_platforms": "平台",
@@ -4827,5 +4829,9 @@
   "Loss avoided by fixing": "修复可避免的损失",
   "Open in OpenCRQ": "在 OpenCRQ 中打开",
   "Annual loss expectancy": "年度预期损失",
-  "Risk scenarios": "风险场景"
+  "Risk scenarios": "风险场景",
+  "Browse and version ready-to-use scenarios.": "浏览并管理即用型场景的版本。",
+  "No scenario matches these filters.": "没有符合这些筛选条件的场景。",
+  "Last run": "上次运行",
+  "Never": "从未"
 }

@@ -3594,6 +3594,8 @@
   "Scenario planner": "Планировщик сценария",
   "scenario_category": "Категория",
   "scenario_dependencies": "Зависимости",
+  "scenario_author": "Автор",
+  "scenario_domains": "Домены",
   "scenario_kill_chain_phases": "Фаза цепочки убийств",
   "scenario_name": "Имя",
   "scenario_platforms": "Платформы",
@@ -4827,5 +4829,9 @@
   "Loss avoided by fixing": "Потери, предотвращённые исправлением",
   "Open in OpenCRQ": "Открыть в OpenCRQ",
   "Annual loss expectancy": "Ожидаемые годовые потери",
-  "Risk scenarios": "Сценарии рисков"
+  "Risk scenarios": "Сценарии рисков",
+  "Browse and version ready-to-use scenarios.": "Просматривайте готовые сценарии и управляйте их версиями.",
+  "No scenario matches these filters.": "Нет сценариев, соответствующих этим фильтрам.",
+  "Last run": "Последний запуск",
+  "Never": "Никогда"
 }

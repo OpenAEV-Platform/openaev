@@ -44,3 +44,8 @@ export const buildDomainAutocompleteState = (
     })),
   };
 };
+
+// "To classify" left out, in name order: the first one is the primary domain.
+export const domainsOf = (ids: string[] | undefined, allDomains: Domain[]): Domain[] => allDomains
+  .filter(domain => ids?.includes(domain.domain_id) && domain.domain_name !== TO_CLASSIFY)
+  .sort((a, b) => a.domain_name.localeCompare(b.domain_name));

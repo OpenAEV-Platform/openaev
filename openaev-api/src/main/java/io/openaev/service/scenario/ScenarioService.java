@@ -79,6 +79,7 @@ import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TeamOutputVisibilityUtils;
 import io.openaev.utils.TxCtxScopeUtils;
+import io.openaev.utils.author.AuthorJoins;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -324,22 +325,30 @@ public class ScenarioService {
           TxCtx ctx,
           UnaryOperator<Specification<Scenario>> deepFilterSpecification,
           Map<String, Join<Base, Base>> joinMap) {
-    User currentUser = userService.currentUser();
-    Specification<Scenario> readable =
-        permissionServiceProvider
-            .getObject()
-            .filterInEachTenant(
-                ctx,
-                () -> canAccessEveryScenario(currentUser),
-                accessRight ->
-                    SpecificationUtils.hasGrantAccess(
-                        currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
+    Specification<Scenario> readable = readable(ctx);
     return (specification, specificationCount, pageable) ->
         this.findAllWithCriteriaBuilder(
             readable.and(deepFilterSpecification.apply(specification)),
             readable.and(deepFilterSpecification.apply(specificationCount)),
             pageable,
             joinMap);
+  }
+
+  private Specification<Scenario> readable(TxCtx ctx) {
+    User currentUser = userService.currentUser();
+    return permissionServiceProvider
+        .getObject()
+        .filterInEachTenant(
+            ctx,
+            () -> canAccessEveryScenario(currentUser),
+            accessRight ->
+                SpecificationUtils.hasGrantAccess(
+                    currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
+  }
+
+  /** Authors of the scenarios the user can read, for the author filter. */
+  public List<FilterUtilsJpa.Option> authorOptions(@NotNull final TxCtx ctx) {
+    return authorService.options(Scenario.class, readable(ctx));
   }
 
   private Page<RawPaginationScenario> findAllWithCriteriaBuilder(
@@ -387,6 +396,8 @@ public class ScenarioService {
             .when(cb.isNotNull(workflowSubquery), workflowPlatformsSubquery)
             .otherwise(timeBasedPlatformExpression);
 
+    AuthorJoins author = AuthorJoins.of(scenarioRoot);
+
     // SELECT
     cq.multiselect(
             scenarioRoot.get("id").alias("scenario_id"),
@@ -398,7 +409,12 @@ public class ScenarioService {
             scenarioRoot.get("updatedAt").alias("scenario_updated_at"),
             tagIdsExpression.alias("scenario_tags"),
             platformExpression.alias("scenario_platforms"),
-            workflowSubquery.alias("scenario_workflow_id"))
+            buildDomainsSubquery(cq, cb, scenarioRoot).alias("scenario_domains"),
+            workflowSubquery.alias("scenario_workflow_id"),
+            // One author per scenario: the aggregate only lets the grouped query read it.
+            cb.greatest(author.name(cb)).alias("scenario_author_name"),
+            scenarioRoot.get("catalogVersion").alias("scenario_version"),
+            buildLastRunSubquery(cq, cb, scenarioRoot).alias("scenario_last_run_at"))
         .distinct(true);
     // Group By
     cq.groupBy(scenarioRoot.get("id"));
@@ -437,13 +453,36 @@ public class ScenarioService {
                         tuple.get("scenario_updated_at", Instant.class),
                         tuple.get("scenario_tags", String[].class),
                         tuple.get("scenario_platforms", String[].class),
-                        tuple.get("scenario_workflow_id", String.class)))
+                        tuple.get("scenario_domains", String[].class),
+                        tuple.get("scenario_workflow_id", String.class),
+                        tuple.get("scenario_author_name", String.class),
+                        tuple.get("scenario_version", String.class),
+                        tuple.get("scenario_last_run_at", Instant.class)))
             .toList();
 
     // -- Count Query --
     Long total = countQuery(cb, this.entityManager, Scenario.class, specificationCount);
 
     return new PageImpl<>(scenarios, pageable, total);
+  }
+
+  private Subquery<String[]> buildDomainsSubquery(
+      CriteriaQuery<Tuple> cq, CriteriaBuilder cb, Root<Scenario> scenarioRoot) {
+    Subquery<String[]> domainsSubquery = cq.subquery(String[].class);
+    Root<Inject> injectRoot = domainsSubquery.from(Inject.class);
+    Join<?, Domain> domainsJoin = injectRoot.join("injectorContract").join("domains");
+    return domainsSubquery
+        .select(((HibernateCriteriaBuilder) cb).arrayAgg(null, domainsJoin.<String>get("id")))
+        .where(cb.equal(injectRoot.get("scenario").get("id"), scenarioRoot.get("id")));
+  }
+
+  private Subquery<Instant> buildLastRunSubquery(
+      CriteriaQuery<Tuple> cq, CriteriaBuilder cb, Root<Scenario> scenarioRoot) {
+    Subquery<Instant> lastRunSubquery = cq.subquery(Instant.class);
+    Root<Exercise> exerciseRoot = lastRunSubquery.from(Exercise.class);
+    return lastRunSubquery
+        .select(cb.greatest(exerciseRoot.<Instant>get("start")))
+        .where(cb.equal(exerciseRoot.get("scenario").get("id"), scenarioRoot.get("id")));
   }
 
   private Subquery<String[]> buildWorkflowPlatformsSubquery(

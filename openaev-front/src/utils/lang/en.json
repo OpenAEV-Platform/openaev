@@ -3594,6 +3594,8 @@
   "Scenario planner": "Scenario planner",
   "scenario_category": "Category",
   "scenario_dependencies": "Dependencies",
+  "scenario_author": "Author",
+  "scenario_domains": "Domains",
   "scenario_kill_chain_phases": "Kill chain phase",
   "scenario_name": "Name",
   "scenario_platforms": "Platforms",
@@ -4827,5 +4829,9 @@
   "Loss avoided by fixing": "Loss avoided by fixing",
   "Open in OpenCRQ": "Open in OpenCRQ",
   "Annual loss expectancy": "Annual loss expectancy",
-  "Risk scenarios": "Risk scenarios"
+  "Risk scenarios": "Risk scenarios",
+  "Browse and version ready-to-use scenarios.": "Browse and version ready-to-use scenarios.",
+  "No scenario matches these filters.": "No scenario matches these filters.",
+  "Last run": "Last run",
+  "Never": "Never"
 }
