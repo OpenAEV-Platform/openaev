@@ -227,14 +227,18 @@ const Graph = () => {
         >
           {canvas}
         </Box>
-        <Box sx={{
-          width: RAIL_WIDTH,
-          flexShrink: 0,
-          minHeight: 0,
-        }}
-        >
-          {points ? <GraphStartingPoints points={points} current={focusParam} onSelect={onSelectPoint} /> : <Loader variant="inElement" />}
-        </Box>
+        {/* Once the user explores, the canvas takes the whole width, as an OpenCTI investigation does;
+            the starting points come back with Back to the landing. */}
+        {isLanding && (
+          <Box sx={{
+            width: RAIL_WIDTH,
+            flexShrink: 0,
+            minHeight: 0,
+          }}
+          >
+            {points ? <GraphStartingPoints points={points} current={focusParam} onSelect={onSelectPoint} /> : <Loader variant="inElement" />}
+          </Box>
+        )}
       </Box>
     </Stack>
   );

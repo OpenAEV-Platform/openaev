@@ -116,6 +116,8 @@ import GraphFloatingEdge from './GraphFloatingEdge';
 
 const NODE_BOX_HEIGHT = NODE_LABEL_OFFSET + 20;
 const PANEL_WIDTH = 340;
+/** Below this many nodes the whole graph fits on screen: the mini-map would only hide part of it. */
+const MINI_MAP_MIN_NODES = 40;
 /** A static layout glides to its place in this time; the force layout plays its frames in about twice it. */
 const MOVE_MS = 400;
 const FRAME_MS = 24;
@@ -270,6 +272,9 @@ const GraphExplorerInner = ({
   // every other change (an expand, a hide, a group opened) extends the layout on screen in place.
   const [layoutRun, setLayoutRun] = useState(0);
   const interactive = variant !== 'mini';
+  // On the page and the embedded graph the open side panel covers the right of the canvas: the fit
+  // keeps the graph left of it, so the focus never lands under the panel.
+  const fitBesidePanel = interactive && Boolean(selected);
   // The mini graph never fits below MINI_MIN_ZOOM: its labels stay readable (10 px at zoom 1) and an
   // outer ring that does not fit is clipped by the card, the full graph being one click away.
   const fitOptions = useMemo(() => (variant === 'mini'
@@ -278,9 +283,16 @@ const GraphExplorerInner = ({
         minZoom: MINI_MIN_ZOOM,
       }
     : {
-        padding: 0.15,
+        padding: fitBesidePanel
+          ? {
+              top: '10%' as const,
+              bottom: '10%' as const,
+              left: '10%' as const,
+              right: `${PANEL_WIDTH + 48}px` as const,
+            }
+          : 0.15,
         ...(fitMinZoom ? { minZoom: fitMinZoom } : {}),
-      }), [variant, fitMinZoom]);
+      }), [variant, fitMinZoom, fitBesidePanel]);
 
   useEffect(() => {
     setState(fromSlice(initial));
@@ -1281,7 +1293,7 @@ const GraphExplorerInner = ({
         >
           <Background />
           {interactive && <Controls showInteractive={false} style={{ marginLeft: 8 }} />}
-          {variant === 'page' && (
+          {variant === 'page' && drawnNodes.length > MINI_MAP_MIN_NODES && (
             <MiniMap
               pannable
               zoomable
