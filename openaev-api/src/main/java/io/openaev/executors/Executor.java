@@ -218,29 +218,11 @@ public class Executor {
   }
 
   /**
-   * All three phases in one call, for a caller that does not own its transaction boundary (the
-   * manual API launch, the chaining engine step): phase 1 runs in the caller's active transaction.
-   *
-   * <p>With no transaction active, the publish runs inline and the trace follows its real outcome,
-   * exactly like {@link io.openaev.scheduler.jobs.InjectsExecutionJob}'s own phase 2/3.
-   *
-   * <p>With the caller's transaction still open (the normal case for both callers above), the
-   * publish is deferred to {@code afterCommit()}, exactly as {@code main} did before #6968's split:
-   * the network call never runs while a rollback could still undo the inject it targets, so a
-   * chaining-engine retry (on {@link io.openaev.rest.exception.ChainingException}) can never
-   * re-publish a message the first attempt already sent. The trade-off, also carried over unchanged
-   * from {@code main} and out of scope here, is that the "published and waiting" trace is written
-   * before the publish is attempted, not after: recording the real outcome needs a transaction, and
-   * {@link io.openaev.context.TenantScopedTransaction} refuses to open one while this caller's is
-   * still active, including from inside {@code afterCommit()} itself (Spring does not clear {@code
-   * isActualTransactionActive()} until every synchronization has run). Giving these two callers the
-   * same after-the-fact trace the job path has would mean restructuring their own
-   * {@code @Transactional} boundary, a materially larger and riskier change than this task asks
-   * for; #6968 targets the job path only (see {@link
-   * io.openaev.scheduler.jobs.InjectsExecutionJob#completeExternalPublish}). A deferred publish
-   * that fails is logged, never rethrown: by the time it runs, the caller's transaction has already
-   * committed and its method has already returned, so nothing is left to catch it (this is also why
-   * the caller can never see the same failure twice, unlike a synchronous one).
+   * All three phases in one call, for the manual launch and the chaining step. With no transaction
+   * active, the trace follows the publish outcome. Inside the caller's transaction, the publish
+   * waits for {@code afterCommit()}, as before #6968, so a rollback or a chaining retry never
+   * leaves a message for an inject that does not exist; the trace is then written before the
+   * publish, and a failed deferred publish is logged.
    */
   public InjectStatus execute(ExecutableInject executableInject) throws Exception {
     ExecutionPhase1Result phase1 = executePhase1(executableInject);
@@ -256,12 +238,7 @@ public class Executor {
               try {
                 publish(pending);
               } catch (Exception e) {
-                log.error(
-                    "Failed to publish inject {} after its caller's transaction committed; its"
-                        + " trace already claims it was published and waiting (#6968 targets the"
-                        + " job path only)",
-                    pending.injectId(),
-                    e);
+                log.error("Failed to publish inject {} after commit", pending.injectId(), e);
               }
             }
           });

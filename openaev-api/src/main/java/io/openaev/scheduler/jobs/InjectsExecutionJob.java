@@ -494,10 +494,7 @@ public class InjectsExecutionJob implements Job {
    * inject, the same safety net the single enclosing try/catch gave every failure before this split
    * (see {@link #executeInTenant}).
    *
-   * <p>Phase 3 itself (the {@code runInTenant} calls below) is wrapped the same way: a failure
-   * recording the outcome must never escape onto the batch's {@code parallelStream} either, or it
-   * aborts every other inject of the batch and the exercise's own {@code updateExercise} along with
-   * it, over a problem local to this one inject.
+   * <p>Phase 3 is wrapped the same way, so a failure recording one outcome never aborts the batch.
    */
   private void completeExternalPublish(String tenantId, Executor.ExternalPublish pending) {
     try {
@@ -510,19 +507,12 @@ public class InjectsExecutionJob implements Job {
     try {
       tenantScopedJobRunner.runInTenant(tenantId, () -> executor.recordPublishSuccess(pending));
     } catch (Exception e) {
-      // The message was actually published: never turn this into an ERROR status, which would
-      // claim a publish that did not happen. Log only; the inject's status is left as whatever
-      // phase 1 set it to.
+      // Published: never record an ERROR for it.
       log.warn(e.getMessage(), e);
     }
   }
 
-  /**
-   * Best-effort recording of a failed publish: tries the normal failure trace first, and if
-   * recording it also fails (the short transaction itself could not commit), falls back to a second
-   * attempt at the plain ERROR status, the same fallback {@link #executeInTenant} uses when its own
-   * execution transaction cannot commit.
-   */
+  /** Records a failed publish, falling back to a plain ERROR status if that write fails. */
   private void recordPublishFailureBestEffort(
       String tenantId, Executor.ExternalPublish pending, Exception cause) {
     try {
