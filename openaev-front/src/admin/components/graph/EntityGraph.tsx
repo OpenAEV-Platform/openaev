@@ -1,11 +1,12 @@
 import { Alert } from '@filigran/design-system';
 import { Box } from '@mui/material';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { fetchGraphNeighbourhood } from '../../../actions/graph/graph-actions';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
+import { EMBEDDED_GRAPH_MIN_HEIGHT, embeddedGraphHeight } from './entity-graph-height';
 import { graphHref, type GraphNodeType, type GraphOutput } from './graph-model';
 import GraphExplorer from './GraphExplorer';
 
@@ -30,6 +31,24 @@ const EntityGraph = ({ type, entityId, variant, height }: Props) => {
   const [visible, setVisible] = useState(false);
   const [slice, setSlice] = useState<GraphOutput | null>(null);
   const [error, setError] = useState(false);
+  const [fillHeight, setFillHeight] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (variant !== 'embedded' || height !== undefined) {
+      return undefined;
+    }
+    const measure = () => {
+      const element = anchor.current;
+      if (!element) {
+        return;
+      }
+      const top = element.getBoundingClientRect().top + window.scrollY;
+      setFillHeight(embeddedGraphHeight(top, window.innerHeight));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [variant, height]);
 
   useEffect(() => {
     const element = anchor.current;
@@ -58,7 +77,7 @@ const EntityGraph = ({ type, entityId, variant, height }: Props) => {
       .catch(() => setError(true));
   }, [visible, type, entityId, variant]);
 
-  const resolvedHeight = height ?? (variant === 'mini' ? 240 : 'calc(100dvh - 360px)');
+  const resolvedHeight = height ?? (variant === 'mini' ? 240 : (fillHeight ?? EMBEDDED_GRAPH_MIN_HEIGHT));
 
   return (
     <Box ref={anchor} sx={{ height: resolvedHeight }}>

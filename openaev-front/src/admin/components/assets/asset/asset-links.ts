@@ -2,34 +2,42 @@ import { type AssetLinkInput, type AssetLinkOutput } from '../../../../utils/api
 
 export type AssetLinkType = AssetLinkInput['asset_link_type'];
 
-// The link types the backend accepts, with the i18n key of the verb read "source <verb> target".
+// The link types the backend accepts, with the i18n key of the verb read "source <verb> target"
+// and the i18n key of its one-line meaning, shown under each option of the picker.
 export const ASSET_LINK_TYPES: {
   value: AssetLinkType;
   label: string;
+  description: string;
 }[] = [
   {
     value: 'CONNECTS_TO',
     label: 'Connects to',
+    description: 'Reaches the linked asset over the network',
   },
   {
     value: 'DEPENDS_ON',
     label: 'Depends on',
+    description: 'Needs the linked asset to work',
   },
   {
     value: 'HOSTS',
     label: 'Hosts',
+    description: 'Runs the linked asset on its own hardware or hypervisor',
   },
   {
     value: 'LOGGED_ON',
     label: 'Logged on',
+    description: 'Has a user session open on the linked asset',
   },
   {
     value: 'RUNS_ON',
     label: 'Runs on',
+    description: 'Is installed and executed on the linked asset',
   },
   {
     value: 'USES',
     label: 'Uses',
+    description: 'Calls a service the linked asset provides',
   },
 ];
 

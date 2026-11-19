@@ -4870,5 +4870,15 @@
   "Browse and version ready-to-use scenarios.": "Explore y versione escenarios listos para usar.",
   "No scenario matches these filters.": "Ningún escenario coincide con estos filtros.",
   "Last run": "Última ejecución",
-  "Never": "Nunca"
+  "Never": "Nunca",
+  "About link types": "Acerca de los tipos de vínculo",
+  "A link records how two assets relate. It becomes a Linked to edge in the graph, so attack paths can follow it. Example: a web server depends on a domain controller.": "Un vínculo describe cómo se relacionan dos activos. Se convierte en una arista Vinculado a en el grafo, que las rutas de ataque pueden seguir. Ejemplo: un servidor web depende de un controlador de dominio.",
+  "How this asset relates to the asset you pick next.": "Cómo se relaciona este activo con el activo que elija a continuación.",
+  "Any asset of the inventory, searched by name.": "Cualquier activo del inventario, buscado por nombre.",
+  "Reaches the linked asset over the network": "Alcanza el activo vinculado a través de la red",
+  "Needs the linked asset to work": "Necesita el activo vinculado para funcionar",
+  "Runs the linked asset on its own hardware or hypervisor": "Ejecuta el activo vinculado en su propio hardware o hipervisor",
+  "Has a user session open on the linked asset": "Tiene una sesión de usuario abierta en el activo vinculado",
+  "Is installed and executed on the linked asset": "Está instalado y se ejecuta en el activo vinculado",
+  "Calls a service the linked asset provides": "Llama a un servicio que ofrece el activo vinculado"
 }

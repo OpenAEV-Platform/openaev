@@ -4870,5 +4870,15 @@
   "Browse and version ready-to-use scenarios.": "浏览并管理即用型场景的版本。",
   "No scenario matches these filters.": "没有符合这些筛选条件的场景。",
   "Last run": "上次运行",
-  "Never": "从未"
+  "Never": "从未",
+  "About link types": "关于链接类型",
+  "A link records how two assets relate. It becomes a Linked to edge in the graph, so attack paths can follow it. Example: a web server depends on a domain controller.": "链接记录两个资产之间的关系。它在图中成为一条“链接到”边，攻击路径可以沿其延伸。示例：Web 服务器依赖于域控制器。",
+  "How this asset relates to the asset you pick next.": "此资产与您接下来选择的资产之间的关系。",
+  "Any asset of the inventory, searched by name.": "清单中的任意资产，按名称搜索。",
+  "Reaches the linked asset over the network": "通过网络访问链接的资产",
+  "Needs the linked asset to work": "需要链接的资产才能运行",
+  "Runs the linked asset on its own hardware or hypervisor": "在自身硬件或虚拟机管理程序上运行链接的资产",
+  "Has a user session open on the linked asset": "在链接的资产上打开了用户会话",
+  "Is installed and executed on the linked asset": "安装并运行在链接的资产上",
+  "Calls a service the linked asset provides": "调用链接的资产提供的服务"
 }

@@ -5,22 +5,23 @@ import {
   ComboboxContent,
   ComboboxControls,
   ComboboxField,
+  ComboboxHelperText,
   ComboboxInput,
   ComboboxLabel,
   ComboboxTrigger,
   IconButton,
   Select,
   SelectContent,
+  SelectHelperText,
   SelectItem,
   SelectLabel,
   SelectTrigger,
-  SelectValue,
   Text,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@filigran/design-system';
-import { DeleteOutlined } from '@mui/icons-material';
+import { DeleteOutlined, InfoOutlined } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type AxiosResponse } from 'axios';
@@ -131,47 +132,92 @@ const AssetLinks: FunctionComponent<Props> = ({ assetId, assetName, canManage, o
       {canManage && (
         <Box sx={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(160px, 1fr) minmax(240px, 2fr) auto',
+          gridTemplateColumns: 'minmax(200px, 1fr) minmax(280px, 2fr) auto',
           gap: 2,
-          alignItems: 'end',
+          alignItems: 'start',
         }}
         >
-          <Select value={linkType} onValueChange={next => setLinkType(next as AssetLinkType)}>
-            <SelectLabel>{t('Link type')}</SelectLabel>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ASSET_LINK_TYPES.map(type => (
-                <SelectItem key={type.value} value={type.value}>{t(type.label)}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Combobox<AssetOptionOutput>
-            options={candidates}
-            value={selected}
-            getOptionLabel={option => option.label ?? ''}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            inputValue={inputValue}
-            onInputChange={(search, meta) => {
-              if (meta.cause === 'type') {
-                setInputValue(search ?? '');
-              }
-            }}
-            onValueChange={next => setSelected((next as AssetOptionOutput | null) ?? null)}
-          >
-            <ComboboxLabel>{t('Linked asset')}</ComboboxLabel>
-            <ComboboxField>
-              <ComboboxInput />
-              <ComboboxControls>
-                <ComboboxTrigger />
-              </ComboboxControls>
-            </ComboboxField>
-            <ComboboxContent emptyMessage={t('No available options')} />
-          </Combobox>
-          <Button type="button" onClick={handleAdd} disabled={!selected?.id || saving}>
-            {t('Add link')}
-          </Button>
+          {/* One container per field: the DS label stays above its own field instead of taking a
+              grid cell of its own (#9448, UX round 1 B2). */}
+          <Box sx={{ minWidth: 0 }} data-testid="asset-link-type-field">
+            <Select value={linkType} onValueChange={next => setLinkType(next as AssetLinkType)}>
+              <SelectLabel>
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                  }}
+                >
+                  {t('Link type')}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <InfoOutlined
+                        aria-label={t('About link types')}
+                        sx={{
+                          fontSize: 14,
+                          color: theme.palette.text.secondary,
+                          cursor: 'help',
+                        }}
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      {t('A link records how two assets relate. It becomes a Linked to edge in the graph, so attack paths can follow it. Example: a web server depends on a domain controller.')}
+                    </TooltipContent>
+                  </Tooltip>
+                </Box>
+              </SelectLabel>
+              {/* The trigger shows the short label; the options carry their one-line meaning. */}
+              <SelectTrigger className="w-full" aria-label={t('Link type')}>
+                <span>{t(assetLinkTypeLabel(linkType))}</span>
+              </SelectTrigger>
+              <SelectContent style={{ maxWidth: 360 }}>
+                {ASSET_LINK_TYPES.map(type => (
+                  <SelectItem key={type.value} value={type.value}>
+                    <span>
+                      <Text variant="content-base" as="div">{t(type.label)}</Text>
+                      <Text variant="content-caption" as="div" className="whitespace-normal text-default-secondary">
+                        {t(type.description)}
+                      </Text>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+              <SelectHelperText>{t('How this asset relates to the asset you pick next.')}</SelectHelperText>
+            </Select>
+          </Box>
+          <Box sx={{ minWidth: 0 }} data-testid="asset-link-target-field">
+            <Combobox<AssetOptionOutput>
+              options={candidates}
+              value={selected}
+              getOptionLabel={option => option.label ?? ''}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              inputValue={inputValue}
+              onInputChange={(search, meta) => {
+                if (meta.cause === 'type') {
+                  setInputValue(search ?? '');
+                }
+              }}
+              onValueChange={next => setSelected((next as AssetOptionOutput | null) ?? null)}
+            >
+              <ComboboxLabel>{t('Linked asset')}</ComboboxLabel>
+              <ComboboxField>
+                <ComboboxInput />
+                <ComboboxControls>
+                  <ComboboxTrigger />
+                </ComboboxControls>
+              </ComboboxField>
+              <ComboboxContent emptyMessage={t('No available options')} />
+              <ComboboxHelperText>{t('Any asset of the inventory, searched by name.')}</ComboboxHelperText>
+            </Combobox>
+          </Box>
+          {/* Aligned with the field row: the top padding is the height of the labels above it. */}
+          <Box sx={{ pt: 3 }}>
+            <Button type="button" onClick={handleAdd} disabled={!selected?.id || saving}>
+              {t('Add link')}
+            </Button>
+          </Box>
         </Box>
       )}
 

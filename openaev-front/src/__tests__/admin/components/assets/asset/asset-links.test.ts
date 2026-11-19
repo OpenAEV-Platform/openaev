@@ -33,6 +33,14 @@ describe('asset-links', () => {
     expect(assetLinkTypeLabel(undefined)).toBe('-');
   });
 
+  it('gives every link type a one-line meaning distinct from its label', () => {
+    ASSET_LINK_TYPES.forEach((type) => {
+      expect(type.description.length).toBeGreaterThan(0);
+      expect(type.description).not.toBe(type.label);
+    });
+    expect(new Set(ASSET_LINK_TYPES.map(type => type.description)).size).toBe(ASSET_LINK_TYPES.length);
+  });
+
   it('builds outgoing and incoming rows seen from the asset', () => {
     const rows = toAssetLinkRows(links, 'host');
     expect(rows).toHaveLength(2);

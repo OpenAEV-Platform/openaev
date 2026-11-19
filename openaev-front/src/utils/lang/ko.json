@@ -4870,5 +4870,15 @@
   "Browse and version ready-to-use scenarios.": "바로 사용할 수 있는 시나리오를 살펴보고 버전을 관리하세요.",
   "No scenario matches these filters.": "이 필터와 일치하는 시나리오가 없습니다.",
   "Last run": "마지막 실행",
-  "Never": "없음"
+  "Never": "없음",
+  "About link types": "링크 유형 정보",
+  "A link records how two assets relate. It becomes a Linked to edge in the graph, so attack paths can follow it. Example: a web server depends on a domain controller.": "링크는 두 자산의 관계를 기록합니다. 그래프에서 연결 대상 엣지가 되어 공격 경로가 따라갈 수 있습니다. 예: 웹 서버가 도메인 컨트롤러에 의존합니다.",
+  "How this asset relates to the asset you pick next.": "이 자산과 다음에 선택할 자산의 관계입니다.",
+  "Any asset of the inventory, searched by name.": "인벤토리의 모든 자산을 이름으로 검색합니다.",
+  "Reaches the linked asset over the network": "네트워크를 통해 연결된 자산에 접근합니다",
+  "Needs the linked asset to work": "작동하려면 연결된 자산이 필요합니다",
+  "Runs the linked asset on its own hardware or hypervisor": "자체 하드웨어 또는 하이퍼바이저에서 연결된 자산을 실행합니다",
+  "Has a user session open on the linked asset": "연결된 자산에 사용자 세션이 열려 있습니다",
+  "Is installed and executed on the linked asset": "연결된 자산에 설치되어 실행됩니다",
+  "Calls a service the linked asset provides": "연결된 자산이 제공하는 서비스를 호출합니다"
 }
