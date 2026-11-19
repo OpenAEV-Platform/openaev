@@ -638,15 +638,14 @@ public class GraphLandingService {
 
   /**
    * The marking clearance of the current transaction ({@code app.current_markings}, set by {@code
-   * TenantScopedTransaction} from the caller's groups), as the key half the landing cache needs: the
-   * cached rows were read through the marking inspector under exactly this clearance. Empty when no
-   * clearance is set.
+   * TenantScopedTransaction} from the caller's groups), as the key half the landing cache needs:
+   * the cached rows were read through the marking inspector under exactly this clearance. Empty
+   * when no clearance is set.
    */
   List<String> clearance() {
     Object value =
         entityManager
-            .createNativeQuery(
-                "SELECT COALESCE(current_setting('app.current_markings', true), '')")
+            .createNativeQuery("SELECT COALESCE(current_setting('app.current_markings', true), '')")
             .setFlushMode(FlushModeType.COMMIT)
             .getSingleResult();
     String guc = value == null ? "" : value.toString();
