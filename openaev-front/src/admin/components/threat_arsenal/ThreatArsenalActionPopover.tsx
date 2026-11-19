@@ -292,6 +292,7 @@ const ThreatArsenalActionPopover = ({
         lift={revocation === 'lift'}
         versions={revocation === 'lift' ? liftable : revocable}
         currentPayloadId={payloadId}
+        actionId={actionId}
         onClose={closeRevocation}
         onDone={revocationDone}
       />

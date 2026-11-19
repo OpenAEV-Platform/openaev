@@ -18,11 +18,13 @@ interface Props {
   // The versions this dialog can revoke, or lift.
   versions: PayloadVersionOutput[];
   currentPayloadId: string;
+  // The action of the card: the list shows the latest version of each payload only.
+  actionId: string;
   onClose: () => void;
   onDone: (version: PayloadVersionOutput) => void;
 }
 
-const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, lift, versions, currentPayloadId, onClose, onDone }) => {
+const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, lift, versions, currentPayloadId, actionId, onClose, onDone }) => {
   const { t } = useFormatter();
   const [selected, setSelected] = useState('');
   const [usages, setUsages] = useState<PayloadUsagesOutput | null>(null);
@@ -125,7 +127,7 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, lift, v
               <Text variant="content-base">{impact}</Text>
               {version && (
                 <Link
-                  to={`/admin/threat-arsenal?action=${encodeURIComponent(version.payload_action_id)}&tab=versions`}
+                  to={`/admin/threat-arsenal?action=${encodeURIComponent(actionId)}&tab=versions`}
                   target="_blank"
                   rel="noopener"
                   style={{
