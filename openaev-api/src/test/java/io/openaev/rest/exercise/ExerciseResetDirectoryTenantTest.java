@@ -70,15 +70,15 @@ class ExerciseResetDirectoryTenantTest extends IntegrationTest {
   @DisplayName(
       "given a caller of both tenants and a cancelled simulation of the other one when the"
           + " non-prefixed route resets it then its storage directory is deleted under its own"
-          + " tenant, not the ambient fallback one")
+          + " tenant, and the earlier layout's default-tenant prefix is cleared too")
   void given_ambientFallsBackToDefault_should_deleteUnderTheSimulationsOwnTenant()
       throws Exception {
     // -- Arrange: a cancelled simulation of the other tenant, a file under its own tenant path
-    // and a decoy under the default tenant's path - what the pre-fix ambient-based delete
-    // targeted, since the non-prefixed route never sets the v1 ambient tenant, which then falls
-    // back to the default one.
+    // and a file under the default tenant's path, the earlier storage layout and what an
+    // ambient-based delete would target, since the non-prefixed route never sets the v1 ambient
+    // tenant, which then falls back to the default one. The reset clears both layouts.
     String exerciseId = saveCanceledExercise(otherTenant);
-    uploadDecoyAndOwnFile(exerciseId);
+    uploadFileUnderBothLayouts(exerciseId);
 
     ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
     input.setStatus(ExerciseStatus.SCHEDULED);
@@ -98,8 +98,9 @@ class ExerciseResetDirectoryTenantTest extends IntegrationTest {
           .as("deleted under the simulation's own tenant")
           .isZero();
       assertThat(minioService.countObjects(Tenant.DEFAULT_TENANT_UUID + "/" + exerciseId))
-          .as("the decoy under the ambient fallback tenant is untouched")
-          .isEqualTo(1);
+          .as(
+              "the earlier layout's default-tenant prefix is cleared during the compatibility period")
+          .isZero();
     } finally {
       exerciseRepository.deleteById(exerciseId);
       minioService.deleteDirectoryForTenant(otherTenant, exerciseId);
@@ -115,7 +116,7 @@ class ExerciseResetDirectoryTenantTest extends IntegrationTest {
     return exerciseRepository.save(exercise).getId();
   }
 
-  private void uploadDecoyAndOwnFile(String exerciseId) throws Exception {
+  private void uploadFileUnderBothLayouts(String exerciseId) throws Exception {
     fileService.uploadFile(
         otherTenant,
         exerciseId + "/communications/c1/file.txt",
