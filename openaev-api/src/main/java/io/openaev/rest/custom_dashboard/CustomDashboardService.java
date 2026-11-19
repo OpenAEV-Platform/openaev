@@ -18,8 +18,11 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.engine.query.*;
 import io.openaev.rest.custom_dashboard.form.CustomDashboardOutput;
+import io.openaev.rest.custom_dashboard.form.CustomDashboardUsageOutput;
+import io.openaev.rest.custom_dashboard.form.StarterPackDashboardsRestoreOutput;
 import io.openaev.rest.dashboard.DashboardService;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.service.ZipJsonService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TxCtxScopeUtils;
@@ -32,7 +35,11 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,16 +48,36 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CustomDashboardService {
+
+  /** The dashboards the starter pack installs, bundled in the API jar. */
+  public static final String STARTER_PACK_DASHBOARDS_PATTERN =
+      "classpath:starterpack/dashboards/*.zip";
+
+  /**
+   * A bundled dashboard whose file name starts with one of these prefixes is the tenant default for
+   * the setting it maps to (same convention as the starter pack import).
+   */
+  private static final Map<String, TenantSettingKeys> STARTER_PACK_DEFAULT_PREFIXES =
+      Map.of(
+          "default_home", TenantSettingKeys.TENANT_HOME_DASHBOARD,
+          "default_scenario", TenantSettingKeys.TENANT_SCENARIO_DASHBOARD,
+          "default_simulation", TenantSettingKeys.TENANT_SIMULATION_DASHBOARD);
+
+  private static final String DASHBOARD_NAME_ATTRIBUTE = "custom_dashboard_name";
 
   private final CustomDashboardRepository customDashboardRepository;
   private final CustomDashboardMapper customDashboardMapper;
@@ -58,6 +85,8 @@ public class CustomDashboardService {
   private final DashboardService dashboardService;
   private final ScenarioRepository scenarioRepository;
   private final ExerciseRepository exerciseRepository;
+  private final ZipJsonService<CustomDashboard> zipJsonService;
+  private final ResourcePatternResolver resourcePatternResolver;
 
   // -- CRUD --
 
@@ -196,6 +225,121 @@ public class CustomDashboardService {
       throw new EntityNotFoundException("Custom dashboard not found with id: " + id);
     }
     this.customDashboardRepository.deleteByIdNative(id);
+  }
+
+  // -- USAGE --
+
+  /**
+   * What deleting this dashboard would change: the scenarios and simulations that show it in their
+   * Analysis tab, and the tenant default settings that name it. The delete is not refused for these
+   * (the references are cleared), so clients read this first and ask for confirmation.
+   *
+   * @param id the dashboard id
+   * @throws EntityNotFoundException if no dashboard is found with the given ID
+   */
+  @Transactional(readOnly = true)
+  public CustomDashboardUsageOutput customDashboardUsage(@NotNull final String id) {
+    CustomDashboard customDashboard =
+        this.customDashboardRepository
+            .findById(id)
+            .orElseThrow(
+                () -> new EntityNotFoundException("Custom dashboard not found with id: " + id));
+    String tenantId = customDashboard.getTenant().getId();
+    return new CustomDashboardUsageOutput(
+        id,
+        this.customDashboardRepository.countScenariosUsing(id),
+        this.customDashboardRepository.countSimulationsUsing(id),
+        isTenantSetting(tenantId, TENANT_HOME_DASHBOARD, id),
+        isTenantSetting(tenantId, TenantSettingKeys.TENANT_SCENARIO_DASHBOARD, id),
+        isTenantSetting(tenantId, TenantSettingKeys.TENANT_SIMULATION_DASHBOARD, id));
+  }
+
+  private boolean isTenantSetting(
+      final String tenantId, final TenantSettingKeys key, final String dashboardId) {
+    return this.tenantSettingsService
+        .findSetting(tenantId, key.key())
+        .map(Setting::getValue)
+        .filter(dashboardId::equals)
+        .isPresent();
+  }
+
+  // -- STARTER PACK RESTORE --
+
+  /**
+   * Re-creates the starter-pack dashboards the tenant no longer has, from the archives bundled in
+   * the API, under their original names, and sets the tenant default home, scenario and simulation
+   * dashboards back when they are empty. Idempotent: a dashboard whose name still exists is kept as
+   * it is, and a default that holds a value is never overwritten.
+   *
+   * @param tenantId the tenant to restore the dashboards for
+   * @return the dashboards created, the ones that already existed and the defaults set back
+   */
+  @Transactional
+  public StarterPackDashboardsRestoreOutput restoreStarterPackDashboards(
+      @NotBlank final String tenantId) {
+    List<String> restored = new ArrayList<>();
+    List<String> existing = new ArrayList<>();
+    List<String> defaultsSet = new ArrayList<>();
+    for (Resource resource : starterPackDashboardResources()) {
+      String filename = Optional.ofNullable(resource.getFilename()).orElse("");
+      try {
+        byte[] bytes = resource.getContentAsByteArray();
+        Object name = this.zipJsonService.readRootAttribute(bytes, DASHBOARD_NAME_ATTRIBUTE);
+        if (!(name instanceof String dashboardName) || dashboardName.isBlank()) {
+          log.warn("Starter pack dashboard file without a name, skipped: {}", filename);
+          continue;
+        }
+        Optional<CustomDashboard> present =
+            this.customDashboardRepository.findFirstByNameAndTenantIdOrderByCreationDateAsc(
+                dashboardName, tenantId);
+        String dashboardId;
+        if (present.isPresent()) {
+          dashboardId = present.get().getId();
+          existing.add(dashboardName);
+        } else {
+          dashboardId =
+              this.zipJsonService
+                  .handleImport(
+                      bytes,
+                      DASHBOARD_NAME_ATTRIBUTE,
+                      null,
+                      customDashboard -> prepareForTenantWrite(customDashboard, tenantId),
+                      "",
+                      tenantId)
+                  .persistedData()
+                  .getId();
+          restored.add(dashboardName);
+        }
+        TenantSettingKeys defaultKey = starterPackDefaultKey(filename);
+        if (defaultKey != null
+            && this.tenantSettingsService.setSettingIfBlank(
+                tenantId, defaultKey.key(), dashboardId)) {
+          defaultsSet.add(defaultKey.key());
+        }
+      } catch (IOException e) {
+        throw new IllegalStateException("Failed to read starter pack dashboard " + filename, e);
+      }
+    }
+    return new StarterPackDashboardsRestoreOutput(restored, existing, defaultsSet);
+  }
+
+  private List<Resource> starterPackDashboardResources() {
+    try {
+      return Arrays.stream(
+              this.resourcePatternResolver.getResources(STARTER_PACK_DASHBOARDS_PATTERN))
+          .sorted(Comparator.comparing(r -> Optional.ofNullable(r.getFilename()).orElse("")))
+          .toList();
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to list the starter pack dashboards", e);
+    }
+  }
+
+  static TenantSettingKeys starterPackDefaultKey(final String filename) {
+    return STARTER_PACK_DEFAULT_PREFIXES.entrySet().stream()
+        .filter(entry -> filename.startsWith(entry.getKey()))
+        .map(Map.Entry::getValue)
+        .findFirst()
+        .orElse(null);
   }
 
   // -- OPTION --

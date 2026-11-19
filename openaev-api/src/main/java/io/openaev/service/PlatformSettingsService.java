@@ -31,7 +31,10 @@ import io.openaev.rest.settings.form.*;
 import io.openaev.rest.settings.response.OAuthProvider;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.rest.settings.response.PublicPlatformSettings;
+import io.openaev.rest.settings.response.RuntimeSettingOutput;
 import io.openaev.rest.stream.ai.AiConfig;
+import io.openaev.service.settings.RuntimeSetting;
+import io.openaev.service.settings.RuntimeSettingsService;
 import io.openaev.service.settings.ThemeAssetUrlValidator;
 import io.openaev.utils.InstanceCreationDate;
 import io.openaev.xtmhub.XtmHubConnectivityService;
@@ -86,6 +89,7 @@ public class PlatformSettingsService {
   private final XtmOneIdentity xtmOneIdentity;
   private final OpenTelemetry openTelemetry;
   private final ThemeAssetUrlValidator themeAssetUrlValidator;
+  private final RuntimeSettingsService runtimeSettingsService;
 
   @Value("${server.servlet.session.timeout:1440m}")
   private java.time.Duration sessionTimeout;
@@ -373,6 +377,27 @@ public class PlatformSettingsService {
             .map(Setting::getValue)
             .map(Integer::parseInt)
             .orElse(Integer.parseInt(PLATFORM_SESSION_MAX_CONCURRENT.defaultValue())));
+
+    // RUNTIME SETTINGS: env var > value set in the UI > configured default
+    platformSettings.setRuntimeSettings(
+        runtimeSettingsService.resolveAll().stream()
+            .map(
+                resolved ->
+                    new RuntimeSettingOutput(
+                        resolved.setting().key(),
+                        resolved.value(),
+                        resolved.source().label(),
+                        resolved.envVar(),
+                        resolved.locked(),
+                        resolved.setting().type().name().toLowerCase(java.util.Locale.ROOT),
+                        resolved.setting().type() == RuntimeSetting.Type.INTEGER
+                            ? resolved.setting().min()
+                            : null,
+                        resolved.setting().type() == RuntimeSetting.Type.INTEGER
+                            ? resolved.setting().max()
+                            : null,
+                        resolved.setting().enterpriseOnly()))
+            .toList());
     return platformSettings;
   }
 
@@ -497,6 +522,11 @@ public class PlatformSettingsService {
             PLATFORM_SESSION_MAX_CONCURRENT.key(),
             String.valueOf(input.getPlatformSessionMaxConcurrent())));
     settingRepository.saveAll(settingsToSave);
+    return findSettings();
+  }
+
+  public PlatformSettings updateSettingsRuntime(SettingsRuntimeUpdateInput input) {
+    runtimeSettingsService.update(input.getSettings());
     return findSettings();
   }
 

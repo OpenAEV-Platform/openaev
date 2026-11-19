@@ -51,9 +51,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * failure this pins. Seeding goes through an auto-committing {@link JdbcTemplate} and is removed on
  * teardown.
  *
- * <p>On the non-prefixed route the parent simulation is looked up in the ambient tenant, the
- * default one on that route until exercises are tenant-active, so the header-route cases seed in
- * the default tenant and select it through {@code X-Tenant-Ids}.
+ * <p>On the non-prefixed route the parent simulation is looked up in the request's tenant scope, so
+ * the header-route cases seed in the default tenant and select it through {@code X-Tenant-Ids}.
  */
 @TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)

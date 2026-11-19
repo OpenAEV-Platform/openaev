@@ -3,6 +3,7 @@ package io.openaev.service.catalog.payload;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.service.catalog.CatalogFileService;
 import io.openaev.service.catalog.CatalogInstaller;
 import io.openaev.service.catalog.CatalogOffer;
@@ -25,6 +26,13 @@ public class CatalogPayloadInstaller extends CatalogInstaller<InstallablePayload
         tenantId,
         catalogPayloadOfferService.installable(ctx, externalId, version),
         CatalogHistory.Mode.MANUAL);
+  }
+
+  /** What installing a released version would add, read from its file. */
+  public PayloadUpsertInput releasedContent(TxCtx ctx, String externalId, String version) {
+    InstallablePayloadVersion released =
+        catalogPayloadOfferService.installable(ctx, externalId, version);
+    return catalogPayloadService.read(catalogFileService.storedFile(released.fileHash()));
   }
 
   @Override

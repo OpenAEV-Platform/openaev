@@ -1,16 +1,17 @@
 import { type FunctionComponent, useCallback, useState } from 'react';
 
-import { deleteCustomDashboard, exportCustomDashboard, updateCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
+import { deleteCustomDashboard, exportCustomDashboard, fetchCustomDashboardUsage, updateCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
 import type { LoggedHelper } from '../../../../actions/helper';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
-import { type CustomDashboard, type TenantSettingsOutput } from '../../../../utils/api-types';
+import { type CustomDashboard, type CustomDashboardUsageOutput, type TenantSettingsOutput } from '../../../../utils/api-types';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { download } from '../../../../utils/utils';
+import CustomDashboardDeleteUsage from './CustomDashboardDeleteUsage';
 import CustomDashboardForm, { type CustomDashboardFormType } from './CustomDashboardForm';
 
 interface Props {
@@ -35,6 +36,15 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
 
   const [modal, setModal] = useState<'edit' | 'delete' | null>(null);
   const toggleModal = (type: 'edit' | 'delete' | null) => setModal(type);
+  // What the delete would change, read when the dialog opens; null while it loads or if it failed.
+  const [usage, setUsage] = useState<CustomDashboardUsageOutput | null>(null);
+  const openDelete = () => {
+    setUsage(null);
+    toggleModal('delete');
+    fetchCustomDashboardUsage(customDashboard.custom_dashboard_id)
+      .then(({ data }: { data: CustomDashboardUsageOutput }) => setUsage(data))
+      .catch(() => setUsage(null));
+  };
 
   const onSubmitEdit = useCallback(
     async (data: CustomDashboardFormType) => {
@@ -77,7 +87,7 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
     },
     {
       label: 'Delete',
-      action: () => toggleModal('delete'),
+      action: openDelete,
       userRight: ability.can(ACTIONS.DELETE, SUBJECTS.DASHBOARDS) && settings.platform_home_dashboard !== customDashboard.custom_dashboard_id,
     },
   ];
@@ -102,6 +112,7 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
         handleClose={() => toggleModal(null)}
         handleSubmit={submitDelete}
         text={t('Do you want to delete this custom dashboard?')}
+        extraContent={usage && <CustomDashboardDeleteUsage usage={usage} />}
       />
     </>
   );

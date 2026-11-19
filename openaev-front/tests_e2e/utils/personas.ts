@@ -20,6 +20,12 @@ export const PERSONAS = {
     firstname: 'E2E Observer',
     groupName: 'Observer',
   },
+  noright: {
+    email: 'e2e-no-right@openaev.io',
+    password: 'e2e-no-right',
+    firstname: 'E2E No Right',
+    groupName: null,
+  },
 } as const;
 
 export type Persona = keyof typeof PERSONAS;

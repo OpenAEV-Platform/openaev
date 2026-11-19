@@ -5,6 +5,7 @@ import {
   DomainOutlined,
   ExtensionOutlined,
   GroupsOutlined,
+  HubOutlined,
   InsertChartOutlined,
   KeyOutlined,
   LayersOutlined,
@@ -17,7 +18,6 @@ import {
 } from '@mui/icons-material';
 import {
   Binoculars,
-  FileChartOutline,
   NewspaperVariantMultipleOutline,
   PostOutline,
   SecurityNetwork,
@@ -27,11 +27,14 @@ import {
 
 import AppNavbar from '../../../components/common/menu/navbar/AppNavbar';
 import { type NavMenuEntries } from '../../../components/common/menu/navbar/nav-menu-model';
+import { DASHBOARD_BASE_URL } from '../../../constants/BaseUrls';
 import useAuth from '../../../utils/hooks/useAuth';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
+import useAnalyticsTabs, { analyticsEntryPath, REPORTING_BASE_URL } from '../workspaces/useAnalyticsTabs';
+import { ASSESSMENT_ACCESS_CHECKS } from './config/assessment.config';
 import settingsEntries from './config/settings.config';
 import LeftBarHeader from './LeftBarHeader';
 import TenantSwitcher from './LeftBarTenantSwitcher';
@@ -44,6 +47,9 @@ const LeftBar = () => {
   // clean and avoids an orphan divider above the first entry (Home).
   const hasTenantSwitcher = (userTenants ?? []).length > 1;
   const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+  const analyticsTabs = useAnalyticsTabs();
+  // Same checks as the list routes: users with grants only still reach what is granted to them
+  const canAccessAssessments = ASSESSMENT_ACCESS_CHECKS.some(({ action, subject }) => ability.can(action, subject));
 
   const entries: NavMenuEntries[] = [
     {
@@ -56,16 +62,19 @@ const LeftBar = () => {
           userRight: true,
         },
         {
-          path: `/admin/workspaces/custom_dashboards`,
-          icon: () => (<InsertChartOutlined />),
-          label: 'Dashboards',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DASHBOARDS),
+          path: '/admin/graph',
+          icon: () => (<HubOutlined />),
+          label: 'Graph',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
         },
         {
-          path: `/admin/reporting`,
-          icon: () => (<FileChartOutline />),
-          label: 'Reporting',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.REPORTINGS),
+          // One entry, two tabs (Custom dashboards | Reporting): it lands on the
+          // first tab the user can open and stays current on both routes.
+          path: analyticsEntryPath(analyticsTabs),
+          matchPaths: [DASHBOARD_BASE_URL, REPORTING_BASE_URL],
+          icon: () => (<InsertChartOutlined />),
+          label: 'Dashboards',
+          userRight: analyticsTabs.length > 0,
         },
         {
           path: '/admin/findings',
@@ -82,19 +91,19 @@ const LeftBar = () => {
           path: `/admin/scenarios`,
           icon: () => (<RouteOutlined />),
           label: 'Scenarios',
-          userRight: true,
+          userRight: canAccessAssessments,
         },
         {
           path: `/admin/simulations`,
           icon: () => (<PlayCircleOutlineOutlined />),
           label: 'Simulations',
-          userRight: true,
+          userRight: canAccessAssessments,
         },
         {
           path: `/admin/atomic_testings`,
           icon: () => (<Target />),
           label: 'Atomic testings',
-          userRight: true,
+          userRight: canAccessAssessments,
         },
         {
           path: `/admin/threat-arsenal`,

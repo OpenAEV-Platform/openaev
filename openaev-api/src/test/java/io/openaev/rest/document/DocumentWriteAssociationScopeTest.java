@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.assertj.core.api.SoftAssertions;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,12 +61,12 @@ import org.springframework.transaction.annotation.Transactional;
  * scenarios, tags) in the same tenant as the document they write.
  *
  * <p>On the non-prefixed route the write tenant comes from {@code X-Tenant-Ids} while the ambient
- * {@link TenantContext} stays on the default tenant, and simulations and scenarios are still scoped
- * by the ambient tenant. A lookup left on the ambient tenant would drop the associations of the
- * write tenant and attach parents of the default tenant to a document that belongs to another one.
- * The links are read from the join tables through raw JDBC, which the statement inspector never
- * rewrites. The class arms the production list, so once simulations and scenarios are activated the
- * same assertions hold with the inspector scoping the lookup instead of the ambient tenant.
+ * {@link TenantContext} stays on the default tenant. Simulations and scenarios are v2: a lookup of
+ * their ids follows the request scope, which holds every tenant the header names, so the update
+ * keeps only the parents of the tenant of the document; the create paths are pinned with a header
+ * that names the write tenant alone. The links are read from the join tables through plain JDBC,
+ * which the statement inspector never rewrites. The class arms the production list, so the
+ * assertions hold with the inspector scoping the lookup.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
@@ -367,6 +368,47 @@ class DocumentWriteAssociationScopeTest extends IntegrationTest {
       assertThat(linked("scenarios_documents", "scenario_id", documentId))
           .containsExactly(scenarioInB);
       assertThat(linked("documents_tags", "tag_id", documentId)).containsExactly(tagInB);
+    }
+  }
+
+  @Nested
+  @DisplayName("Update of a document of B by a caller scoped to several tenants")
+  class UpdateDocumentOnSeveralTenantScope {
+
+    @Test
+    @DisplayName(
+        "given a header naming the default tenant and B when it names a simulation and a scenario"
+            + " of each then the document links only those of its own tenant")
+    void given_parentsOfTwoTenants_should_linkOnlyTheParentsOfTheDocumentTenant() throws Exception {
+      // -- Arrange --
+      String documentId =
+          saveDocumentInB(target(randomContent()), randomName(), exerciseInB, scenarioInB);
+      Map<String, Object> input =
+          Map.of(
+              "document_exercises", List.of(exerciseInB, exerciseInDefault),
+              "document_scenarios", List.of(scenarioInB, scenarioInDefault),
+              "document_tags", List.of());
+
+      // -- Act --
+      mvc.perform(
+              put(DOCUMENT_API + "/" + documentId)
+                  .header(TENANT_HEADER, Tenant.DEFAULT_TENANT_UUID + "," + tenantB)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(objectMapper.writeValueAsString(input))
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      // -- Assert --
+      SoftAssertions softly = new SoftAssertions();
+      softly
+          .assertThat(linked("exercises_documents", "exercise_id", documentId))
+          .as("simulations linked to the document")
+          .containsExactly(exerciseInB);
+      softly
+          .assertThat(linked("scenarios_documents", "scenario_id", documentId))
+          .as("scenarios linked to the document")
+          .containsExactly(scenarioInB);
+      softly.assertAll();
     }
   }
 
