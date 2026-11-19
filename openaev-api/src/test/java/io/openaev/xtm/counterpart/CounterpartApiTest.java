@@ -85,8 +85,16 @@ class CounterpartApiTest {
     assertThat(patterns)
         .containsExactly(
             new CounterpartOutput(
-                "T1059", "opencti", "match", "id-1", "Attack-Pattern", "Command", "https://octi/x"),
-            new CounterpartOutput("T9999", "opencti", "no_match", null, null, null, null));
+                "T1059",
+                "opencti",
+                "match",
+                "id-1",
+                "Attack-Pattern",
+                "Command",
+                "https://octi/x",
+                List.of()),
+            new CounterpartOutput(
+                "T9999", "opencti", "no_match", null, null, null, null, List.of()));
 
     assertThat(api.assets(null, "t", new CounterpartLookupInput(List.of("host-1"))))
         .extracting(CounterpartOutput::status)
