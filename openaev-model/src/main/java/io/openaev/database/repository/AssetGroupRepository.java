@@ -149,7 +149,8 @@ public interface AssetGroupRepository
     FROM asset_groups ag
     WHERE ag.asset_group_id IN (
         SELECT DISTINCT aga.asset_group_id
-        FROM findings_assets fa
+        FROM findings f
+        INNER JOIN findings_assets fa ON fa.finding_id = f.finding_id
         INNER JOIN asset_groups_assets aga ON aga.asset_id = fa.asset_id
     ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
     """,
