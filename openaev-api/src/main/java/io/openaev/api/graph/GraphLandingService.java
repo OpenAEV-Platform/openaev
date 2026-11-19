@@ -119,7 +119,8 @@ public class GraphLandingService {
         continue;
       }
       Slice slice = new Slice();
-      explorer.steps(slice, tenantIds, "x.simulationId = :id", path.id(), STORY_STEPS);
+      explorer.steps(
+          slice, tenantIds, GraphExplorationService.STEPS_OF_SIMULATION, path.id(), STORY_STEPS);
       if (slice.edges.isEmpty()) {
         continue;
       }
