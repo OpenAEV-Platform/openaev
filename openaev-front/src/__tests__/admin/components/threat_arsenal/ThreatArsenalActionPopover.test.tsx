@@ -34,6 +34,16 @@ vi.mock('../../../../network', async (importOriginal) => {
       instance.defaults.adapter = async (config: InternalAxiosRequestConfig) => {
         requests.push(config);
         // The version list the popover and its dialogs load: none unless a test sets some.
+        // Payload drafts: the edit drawer lists them, none unless a test sets some.
+        if (config.url?.endsWith('/drafts') && config.method === 'get') {
+          return {
+            status: 200,
+            data: [],
+            statusText: '',
+            headers: {},
+            config,
+          };
+        }
         if (config.url?.endsWith('/versions')) {
           return {
             status: 200,
@@ -171,7 +181,20 @@ const submitEdit = async () => {
   fireEvent.click(screen.getByRole('button', { name: SUBMIT_EDIT }));
 };
 
-const NOTE_FOR_AUTHOR = 'Changes to what this action runs create a new version that waits for approval. Injects keep running their current version until an approver approves the new one.';
+const NOTE_FOR_AUTHOR = 'Sending for approval makes a new version that waits for an approver. Saving a draft changes no version.';
+const NOTE_FOR_APPROVER = 'Publishing makes a new version, usable at once. Saving a draft changes no version.';
+
+// The version on screen: the edit drawer starts a new draft from it.
+const onScreenVersion = {
+  payload_id: 'payload-1',
+  payload_action_id: 'action-1',
+  payload_version: '1.0.0',
+  payload_is_latest: true,
+  payload_installed: true,
+  payload_revoked: false,
+  payload_usage_count: 0,
+  payload_approval_status: 'APPROVED',
+};
 
 describe('ThreatArsenalActionPopover: saving an action (payload versions and approval)', () => {
   beforeEach(() => {
@@ -179,6 +202,8 @@ describe('ThreatArsenalActionPopover: saving an action (payload versions and app
     responses.length = 0;
     submitErrors.length = 0;
     permissions.canApprove = true;
+    versionList.length = 0;
+    versionList.push(onScreenVersion);
     notifyError.mockReset();
     setNotifyErrorHandler(notifyError);
     document.cookie = 'XSRF-TOKEN=test-token';
@@ -186,11 +211,13 @@ describe('ThreatArsenalActionPopover: saving an action (payload versions and app
 
   afterEach(() => {
     cleanup();
+    versionList.length = 0;
   });
 
-  it('saves with a single update, without any approval impact check, and closes', async () => {
+  // The popover reads the action, then the drawer reads the version it starts a draft from.
+  it('publishes straight from the version on screen with a single update, and closes', async () => {
     // Arrange
-    responses.push(fetchedAction, updatedAction);
+    responses.push(fetchedAction, fetchedAction, updatedAction);
     const onUpdate = renderPopover();
 
     // Act
@@ -205,10 +232,10 @@ describe('ThreatArsenalActionPopover: saving an action (payload versions and app
     expect(notifyError).not.toHaveBeenCalled();
   });
 
-  it('tells an author that a saved version waits for approval before injects use it', async () => {
+  it('tells an author that a sent version waits for approval, and that a draft changes no version', async () => {
     // Arrange
     permissions.canApprove = false;
-    responses.push(fetchedAction);
+    responses.push(fetchedAction, fetchedAction);
     renderPopover();
 
     // Act
@@ -219,9 +246,9 @@ describe('ThreatArsenalActionPopover: saving an action (payload versions and app
     expect(screen.getByText(NOTE_FOR_AUTHOR)).toBeTruthy();
   });
 
-  it('shows no note to an approver: their version is approved at once', async () => {
+  it('tells an approver that a published version is usable at once', async () => {
     // Arrange
-    responses.push(fetchedAction);
+    responses.push(fetchedAction, fetchedAction);
     renderPopover();
 
     // Act
@@ -229,12 +256,13 @@ describe('ThreatArsenalActionPopover: saving an action (payload versions and app
 
     // Assert
     expect(screen.queryByText(NOTE_FOR_AUTHOR)).toBeNull();
+    expect(screen.getByText(NOTE_FOR_APPROVER)).toBeTruthy();
   });
 
   it('does not ask the author to move the injects of a version waiting for approval', async () => {
     // Arrange
     permissions.canApprove = false;
-    responses.push(fetchedAction, savedPendingVersion);
+    responses.push(fetchedAction, fetchedAction, savedPendingVersion);
     const onUpdate = renderPopover();
 
     // Act

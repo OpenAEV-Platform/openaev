@@ -33,6 +33,7 @@ import io.openaev.schema.SchemaUtils;
 import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.service.UserService;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
+import io.openaev.service.payload.PayloadDraftService;
 import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.payload_approval.PayloadApprovalService;
@@ -84,6 +85,7 @@ public class ThreatArsenalService {
   private final UserService userService;
   private final PayloadUsageService payloadUsageService;
   private final PayloadVersionService payloadVersionService;
+  private final PayloadDraftService payloadDraftService;
 
   /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
   public static final List<String> TABLETOP_INJECTOR_TYPES =
@@ -306,6 +308,16 @@ public class ThreatArsenalService {
    */
   @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction update(String actionId, ThreatArsenalActionUpdateInput actionInput) {
+    return update(actionId, actionInput, false);
+  }
+
+  /**
+   * Saves the action's version as its next version.
+   *
+   * @param fromDraft the content comes from a draft started from this version (payload drafts)
+   */
+  public ThreatArsenalAction update(
+      String actionId, ThreatArsenalActionUpdateInput actionInput, boolean fromDraft) {
     // resolve the payload ID from the injector contract
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
 
@@ -313,27 +325,51 @@ public class ThreatArsenalService {
       return updateActionNotPayloadBased(injectorContract, actionInput);
     }
 
-    return updateActionPayloadBased(injectorContract, actionInput);
+    return updateActionPayloadBased(injectorContract, actionInput, fromDraft);
   }
 
-  private ThreatArsenalAction updateActionPayloadBased(
-      InjectorContract injectorContract, ThreatArsenalActionUpdateInput actionInput) {
-    // Missing required fields are a client mistake, not a server fault: raise the domain
-    // BadRequestException (400) so the caller gets an actionable message it can auto-correct,
-    // instead of leaning on the catch-all IllegalArgumentException mapper.
+  /**
+   * Payload drafts: rewrites the action's rejected version with the content fixed in its draft,
+   * keeping its number, and sends it for approval again.
+   */
+  public ThreatArsenalAction rework(String actionId, ThreatArsenalActionUpdateInput actionInput) {
+    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
+    if (injectorContract.getPayload() == null) {
+      throw new BadRequestException("Action " + actionId + " has no payload version to fix.");
+    }
+    requirePayloadFields(actionInput);
+    payloadService.assertNameAvailable(actionInput.name(), injectorContract.getPayload().getId());
+    PayloadUpdateService.PayloadSaveResult result =
+        payloadUpdateService.rework(
+            injectorContract.getPayload().getId(),
+            getPayloadUpdateInputFromCommonActionInput(actionInput));
+    return describeAction(threatArsenalMapper.toThreatArsenalAction(result.injectorContract()));
+  }
+
+  private static void requirePayloadFields(ThreatArsenalActionUpdateInput actionInput) {
     if (actionInput.executionArch() == null) {
       throw new BadRequestException("action_execution_arch is required for payload-based actions");
     }
     if (actionInput.expectations() == null) {
       throw new BadRequestException("action_expectations is required for payload-based actions");
     }
+  }
+
+  private ThreatArsenalAction updateActionPayloadBased(
+      InjectorContract injectorContract,
+      ThreatArsenalActionUpdateInput actionInput,
+      boolean fromDraft) {
+    // Missing required fields are a client mistake, not a server fault: raise the domain
+    // BadRequestException (400) so the caller gets an actionable message it can auto-correct,
+    // instead of leaning on the catch-all IllegalArgumentException mapper.
+    requirePayloadFields(actionInput);
     payloadService.assertNameAvailable(actionInput.name(), injectorContract.getPayload().getId());
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);
     // update payload using the resolved payload ID
     PayloadUpdateService.PayloadSaveResult result =
         this.payloadUpdateService.updatePayload(
-            injectorContract.getPayload().getId(), payloadInput);
+            injectorContract.getPayload().getId(), payloadInput, fromDraft);
     ThreatArsenalAction action =
         describeAction(threatArsenalMapper.toThreatArsenalAction(result.injectorContract()));
     if (result.newVersion()) {
@@ -661,9 +697,10 @@ public class ThreatArsenalService {
                 .filter(Payload::isLatest)
                 .map(p -> p.getIdentity().getId())
                 .collect(Collectors.toSet()));
-    Map<String, Long> installedVersions =
-        payloadVersionService.countInstalledVersions(
-            entities.stream().map(p -> p.getIdentity().getId()).collect(Collectors.toSet()));
+    Set<String> identityIds =
+        entities.stream().map(p -> p.getIdentity().getId()).collect(Collectors.toSet());
+    Map<String, Long> installedVersions = payloadVersionService.countInstalledVersions(identityIds);
+    Map<String, Long> drafts = payloadDraftService.countByIdentityIds(identityIds);
     payloads.forEach(
         payload -> {
           Payload entity = byId.get(payload.getId());
@@ -678,6 +715,7 @@ public class ThreatArsenalService {
             }
             String identityId = entity.getIdentity().getId();
             payload.setInstalledVersions(installedVersions.getOrDefault(identityId, 0L));
+            payload.setDraftsCount(drafts.getOrDefault(identityId, 0L));
             // Payload approval: injects can only move to an approved latest version.
             if (entity.isLatest()
                 && entity.getApprovalStatus() == Payload.PAYLOAD_APPROVAL_STATUS.APPROVED) {

@@ -3429,7 +3429,10 @@ export interface ContentHistoryOutput {
     | "CUSTOMIZE"
     | "OVERRIDE"
     | "REBASE"
-    | "CONFLICT";
+    | "CONFLICT"
+    | "DRAFT_CREATE"
+    | "DRAFT_DISCARD"
+    | "REWORK";
   content_history_automatic?: boolean;
   /** @format int32 */
   content_history_count?: number;
@@ -10091,6 +10094,24 @@ export type PayloadCreateInput = BasePayloadCreateInput &
     | BasePayloadCreateInputPayloadTypeMapping<"NetworkTraffic", NetworkTraffic>
   );
 
+export interface PayloadDraftInput {
+  draft_content: JsonNode;
+}
+
+export interface PayloadDraftOutput {
+  draft_content: JsonNode;
+  /** @format date-time */
+  draft_created_at: string;
+  /** @minLength 1 */
+  draft_id: string;
+  draft_rework?: boolean;
+  draft_source_action_id?: string;
+  draft_source_version?: string;
+  /** @format date-time */
+  draft_updated_at: string;
+  draft_updated_by?: string;
+}
+
 export interface PayloadInput {
   agent_slug?: string;
   command_content?: string | null;
@@ -10313,6 +10334,8 @@ export interface PayloadSimple {
   payload_collector_type?: string;
   payload_conflict?: boolean;
   payload_description?: string;
+  /** @format int64 */
+  payload_drafts_count?: number;
   payload_id?: string;
   payload_identity_id?: string;
   /** @format int64 */

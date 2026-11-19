@@ -114,6 +114,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   // status stays in the footer. Same card on every Threat Arsenal tab.
   // The status of the version listed (each version is decided on its own).
   const approvalStatus = action.action_payload?.payload_approval_status;
+  const draftsCount = action.action_payload?.payload_drafts_count ?? 0;
   const approvalNeedsAttention = approvalStatus === 'PENDING' || approvalStatus === 'REJECTED' || approvalStatus === 'SUPERSEDED';
   // New version only when an earlier version was approved (it keeps running); otherwise a new action,
   // even after several saves (a superseded save was never approved).
@@ -237,10 +238,22 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       chips={null}
       // Approval just above the strip, bottom left, only when it needs attention: the strip keeps
       // the DS layout (one status and the platforms), so nothing truncates.
-      statusRow={approvalNeedsAttention && (
+      statusRow={(approvalNeedsAttention || draftsCount > 0) && (
         <>
-          <HintChip label={approvalKind} hint={kindHint} maxWidth={140} />
-          <HintChip label={approvalState} hint={stateHint} severity={approvalStatus ? approvalStatusSeverity(approvalStatus) : undefined} maxWidth={120} />
+          {approvalNeedsAttention && (
+            <>
+              <HintChip label={approvalKind} hint={kindHint} maxWidth={140} />
+              <HintChip label={approvalState} hint={stateHint} severity={approvalStatus ? approvalStatusSeverity(approvalStatus) : undefined} maxWidth={120} />
+            </>
+          )}
+          {/* Payload drafts: not published, not usable; the card still shows the version in use. */}
+          {draftsCount > 0 && (
+            <HintChip
+              label={draftsCount > 1 ? t('{count} drafts', { count: String(draftsCount) }) : t('Draft')}
+              hint={t('Not published yet: open Update or the Versions tab to continue it.')}
+              maxWidth={96}
+            />
+          )}
         </>
       )}
       platforms={action.action_targets_teams ? [] : action.action_platforms ?? []}

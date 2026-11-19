@@ -1,4 +1,4 @@
-import { type ThreatArsenalActionFullOutput } from '../../../utils/api-types';
+import { type ThreatArsenalActionFullOutput, type ThreatArsenalActionUpdateInput } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 
@@ -57,3 +57,24 @@ export const handleCleanupExecutorValue = (executor: string, command: string): s
   if (executor !== '' && handleCleanupCommandValue(command) !== null) return executor;
   return null;
 };
+
+/** What the edit form sends to save a version: the cleanup and the remediations in API shape. */
+export const toActionUpdateInput = (data: ThreatArsenalActionCreateCustomInput): ThreatArsenalActionUpdateInput => ({
+  ...data,
+  action_cleanup_executor: handleCleanupExecutorValue(
+    data.action_cleanup_executor as string ?? '',
+    data.action_cleanup_command as string ?? '',
+  ),
+  action_cleanup_command: handleCleanupCommandValue(data.action_cleanup_command as string ?? ''),
+  action_detection_remediations: Object.entries(data.remediations ?? {})
+    .filter(([, value]) => value)
+    .map(([key, value]) => {
+      const remediation = value as unknown as DetectionRemediationForm;
+      return {
+        detection_remediation_security_platform: key,
+        detection_remediation_values: remediation.content,
+        detection_remediation_id: remediation.remediationId,
+        author_rule: remediation.author_rule,
+      };
+    }),
+} as ThreatArsenalActionUpdateInput);

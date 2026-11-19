@@ -5,26 +5,35 @@ import { Alert, Box, Collapse, Skeleton, Table, TableBody, TableCell, TableHead,
 import { type FunctionComponent, type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { installCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
+import { fetchThreatArsenalAction } from '../../../actions/threat_arsenals/threatArsenal-actions';
+import { createThreatArsenalDraft, discardThreatArsenalDraft, fetchThreatArsenalDrafts } from '../../../actions/threat_arsenals/threatArsenal-draft-actions';
 import {
   changeThreatArsenalVersion,
   fetchThreatArsenalUsages,
   fetchThreatArsenalVersions,
 } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
 import { SkeletonRows } from '../../../components/common/content_versions/ContentVersionsTable';
+import Drawer from '../../../components/common/Drawer';
 import { FDS_GROUP_ROW_STYLE, FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../../../components/common/fdsTableSpec';
 import FdsPagination from '../../../components/common/pagination/FdsPagination';
 import { useFormatter } from '../../../components/i18n';
 import {
+  type PayloadDraftOutput,
   type PayloadUsageOutput,
   type PayloadVersionChangeOutput,
   type PayloadVersionOutput,
+  type ThreatArsenalActionFullOutput,
   type ThreatArsenalApprovalDecisionOutput,
 } from '../../../utils/api-types';
+import { MESSAGING$ } from '../../../utils/Environment';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { buildInitialValues } from './actionFormValues';
 import ApprovalStatusChip from './approval/ApprovalStatusChip';
 import RejectedVersionPanel from './approval/RejectedVersionPanel';
 import VersionApprovalPanel from './approval/VersionApprovalPanel';
+import PayloadDraftRows from './drafts/PayloadDraftRows';
+import ThreatArsenalDraftEditor from './drafts/ThreatArsenalDraftEditor';
 import { USAGE_TYPE_LABELS } from './payloadUsageLabels';
 import PayloadVersionSelect from './PayloadVersionSelect';
 
@@ -47,6 +56,8 @@ interface UsagesProps {
   canMigrate: boolean;
   loading: boolean;
   installAction?: ReactNode;
+  // Payload drafts: start a draft from this version (fix it, when it is rejected).
+  draftAction?: ReactNode;
   /** The newest approved version older than this one, which a pending version is compared with. */
   baseline?: PayloadVersionOutput;
   onDecided: (decision: ThreatArsenalApprovalDecisionOutput) => void;
@@ -66,6 +77,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
   canMigrate,
   loading,
   installAction,
+  draftAction,
   baseline,
   onDecided,
   focus = false,
@@ -159,6 +171,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
         {source.payload_approval_status && source.payload_approval_status !== 'APPROVED' && <ApprovalStatusChip status={source.payload_approval_status} />}
         <Box sx={{ flex: 1 }} />
         {!source.payload_installed && <span onClick={event => event.stopPropagation()}>{installAction}</span>}
+        {source.payload_installed && draftAction && <span onClick={event => event.stopPropagation()}>{draftAction}</span>}
         {/* On the right, as the MUI Accordion and the DS Accordion, and as the History rows. */}
         {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
       </Box>
@@ -302,7 +315,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
 
 // F7: every version of the payload, installed or only in the catalogue, with the injects on each one.
 const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onDecided, focusMigration = false }) => {
-  const { t } = useFormatter();
+  const { t, tPick } = useFormatter();
   // Installing and moving usages both need to manage the arsenal, as the API requires.
   const canManage = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
   const [versions, setVersions] = useState<PayloadVersionOutput[]>([]);
@@ -312,6 +325,10 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onD
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [installing, setInstalling] = useState<string | null>(null);
+  // Payload drafts: null when the action cannot have drafts (catalogue or customized content).
+  const [drafts, setDrafts] = useState<PayloadDraftOutput[] | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [duplicating, setDuplicating] = useState<string | null>(null);
 
   const listed = versions.filter(v => !!v.payload_version);
   // From a card's Migrate link: the older installed versions something still runs.
@@ -346,11 +363,42 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onD
       return loaded;
     })
     .finally(() => setLoading(false));
+  const loadDrafts = () => fetchThreatArsenalDrafts(actionId)
+    .then((response: { data: PayloadDraftOutput[] }) => setDrafts(response.data))
+    .catch(() => setDrafts(null));
   useEffect(() => {
     setLoading(true);
     setPage(1);
     load();
+    if (canManage) loadDrafts();
   }, [actionId]);
+
+  // A draft starts with the content of the version; a rejected version is fixed in it.
+  const duplicateToDraft = async (version: PayloadVersionOutput) => {
+    if (!version.payload_action_id) return;
+    setDuplicating(version.payload_action_id);
+    try {
+      const full = (await fetchThreatArsenalAction(version.payload_action_id)).data as ThreatArsenalActionFullOutput;
+      const values = {
+        ...buildInitialValues(full, tPick(full.action_labels)),
+        payload_id: full.action_payload_id,
+      };
+      const created = (await createThreatArsenalDraft(version.payload_action_id, { draft_content: values as unknown as Record<string, unknown> })).data as PayloadDraftOutput;
+      await loadDrafts();
+      setEditing(`draft:${created.draft_id}`);
+    } finally {
+      setDuplicating(null);
+    }
+  };
+  const fixedInDraft = (version: PayloadVersionOutput) => (drafts ?? [])
+    .some(draft => draft.draft_rework && draft.draft_source_action_id === version.payload_action_id);
+  const draftButton = (version: PayloadVersionOutput) => drafts !== null && !fixedInDraft(version) && (
+    <Button size="sm" priority="tertiary" disabled={duplicating !== null} onClick={() => duplicateToDraft(version)}>
+      {duplicating === version.payload_action_id
+        ? <Spinner size="sm" />
+        : t(version.payload_approval_status === 'REJECTED' ? 'Fix in a draft' : 'Duplicate to draft')}
+    </Button>
+  );
 
   useEffect(() => {
     if (firstFocused) setPage(Math.floor(listed.indexOf(firstFocused) / VERSIONS_PER_PAGE) + 1);
@@ -404,6 +452,15 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onD
     }}
     >
       {loading && versions.length === 0 && [0, 1].map(key => <Skeleton key={key} variant="rounded" height={96} />)}
+      <PayloadDraftRows
+        drafts={drafts ?? []}
+        canEdit={canManage}
+        onEdit={draft => setEditing(`draft:${draft.draft_id}`)}
+        onDiscard={draft => discardThreatArsenalDraft(actionId, draft.draft_id).then(() => {
+          MESSAGING$.notifySuccess(t('Draft discarded'));
+          return loadDrafts();
+        })}
+      />
       {/* One DS table: each version a group row, its injects the rows under it. */}
       {pageVersions.length > 0 && (
         <div style={FDS_TABLE_FRAME_STYLE}>
@@ -419,6 +476,7 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onD
               canMigrate={canManage}
               loading={!!source.payload_action_id && (loadingUsages.has(source.payload_action_id) || (!usages[source.payload_action_id] && (source.payload_usage_count ?? 0) > 0))}
               installAction={installButton(source)}
+              draftAction={draftButton(source)}
               focus={isFocused(source)}
               folded={!!firstFocused && !isFocused(source)}
               scrollIntoView={source === firstFocused}
@@ -447,6 +505,25 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onD
           />
         </div>
       )}
+      <Drawer open={editing !== null} handleClose={() => setEditing(null)} title={t('Edit draft')}>
+        {editing !== null
+          ? (
+              <ThreatArsenalDraftEditor
+                actionId={actionId}
+                initialSelection={editing}
+                onClose={() => {
+                  setEditing(null);
+                  loadDrafts();
+                }}
+                onPublished={() => {
+                  setEditing(null);
+                  loadDrafts();
+                  reload();
+                }}
+              />
+            )
+          : <></>}
+      </Drawer>
     </div>
   );
 };
