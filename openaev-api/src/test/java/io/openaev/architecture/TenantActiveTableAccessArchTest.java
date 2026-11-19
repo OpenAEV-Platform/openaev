@@ -311,6 +311,7 @@ import io.openaev.service.notification.NotificationService;
 import io.openaev.service.notification.NotificationTriggerService;
 import io.openaev.service.notification.NotifierService;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.phishing.PhishingLandingPagePublicLookupService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.SecurityCoverageInjectService;
@@ -4560,7 +4561,10 @@ class TenantActiveTableAccessArchTest {
               // Telemetry gauge, counted under TxCtx.allTenants() through countAcrossAllTenants:
               ProductInventoryMetricCollector.class,
               // Background indexing fetch path, under the sweep's allTenants() scope:
-              InjectHandler.class)
+              InjectHandler.class,
+              // Reached only from the threat arsenal usages endpoint, a read-only transaction
+              // that carries a TxCtx and passes the one tenant of its scope to the query:
+              PayloadVersionService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(InjectRepository.class)
