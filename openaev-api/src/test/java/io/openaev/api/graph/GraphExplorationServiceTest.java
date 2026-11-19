@@ -902,6 +902,82 @@ class GraphExplorationServiceTest extends IntegrationTest {
             });
   }
 
+  // -- Marking clearance (ADR-009): the landing cache never crosses clearances --
+
+  private void setClearance(String clearance) {
+    entityManager
+        .createNativeQuery("SELECT set_config('app.current_markings', :scope, true)")
+        .setParameter("scope", clearance)
+        .getSingleResult();
+  }
+
+  private List<String> exposedAssetIds() {
+    return landing.startingPoints(scope, GraphVisibility.ALL).points().stream()
+        .filter(p -> p.kind() == GraphStartingPointOutput.Kind.EXPOSED_ASSET)
+        .map(GraphStartingPointOutput::entityId)
+        .toList();
+  }
+
+  @Test
+  @DisplayName(
+      "two readers of different marking clearance get different landings, within the cache TTL")
+  void landingCacheIsKeyedByClearance() {
+    scopeToAmbientTenant();
+    String red = "graph-landing-tlp-red-" + UUID.randomUUID();
+    // Cleared for the marking first, so the write predicate lets the marking through.
+    setClearance(red);
+    entityManager
+        .createNativeQuery("UPDATE assets SET marking_ids = :m WHERE asset_id = :a")
+        .setParameter("m", new String[] {red})
+        .setParameter("a", e2.getId())
+        .executeUpdate();
+    landingCache.clear();
+
+    // A reader cleared for the marking fills the cache with both exposed assets.
+    assertThat(exposedAssetIds()).contains(e1.getId(), e2.getId());
+    assertThat(landing.clearance()).containsExactly(red);
+
+    // Same tenant, same TTL window: a reader without the marking does not get the cached rows.
+    setClearance("");
+    assertThat(landing.clearance()).isEmpty();
+    assertThat(exposedAssetIds()).contains(e1.getId()).doesNotContain(e2.getId());
+
+    // And back: the cleared reader still sees the marked asset.
+    setClearance(red);
+    assertThat(exposedAssetIds()).contains(e2.getId());
+  }
+
+  @Test
+  @DisplayName("a TLP-marked asset drops its asset links and attack-path steps from the slices")
+  void markedAssetDropsItsLinksAndSteps() {
+    scopeToAmbientTenant();
+    String red = "graph-slice-tlp-red-" + UUID.randomUUID();
+    setClearance(red);
+    linkAssets(e2.getId(), e1.getId(), "RUNS_ON");
+    insertStep(e2.getId(), e1.getId(), "Not Prevented");
+    entityManager
+        .createNativeQuery("UPDATE assets SET marking_ids = :m WHERE asset_id = :a")
+        .setParameter("m", new String[] {red})
+        .setParameter("a", e2.getId())
+        .executeUpdate();
+    landingCache.clear();
+    String hidden = id(GraphNodeType.ASSET, e2.getId());
+
+    // Cleared: the link and the step to the marked asset are there.
+    assertThat(nodeIds(ring(GraphNodeType.ASSET, e1.getId()))).contains(hidden);
+
+    // Not cleared: neither the link nor the step reveals the marked asset, and the attack-path
+    // ranking of the landing no longer counts the step.
+    setClearance("");
+    GraphOutput out = ring(GraphNodeType.ASSET, e1.getId());
+    assertThat(nodeIds(out)).doesNotContain(hidden);
+    assertThat(out.edges())
+        .noneSatisfy(e -> assertThat(List.of(e.source(), e.target())).contains(hidden));
+    assertThat(landing.startingPoints(scope, GraphVisibility.ALL).points())
+        .noneSatisfy(
+            p -> assertThat(p.kind()).isEqualTo(GraphStartingPointOutput.Kind.ATTACK_PATH));
+  }
+
   /** Every node of a story but its focus is reached by at least one edge: never a scatter. */
   private static void assertConnected(GraphOutput out) {
     Set<String> touched = new java.util.HashSet<>();

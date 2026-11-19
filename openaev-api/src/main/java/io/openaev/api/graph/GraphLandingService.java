@@ -16,6 +16,7 @@ import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Filters;
 import io.openaev.expectation.ExpectationType;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.FlushModeType;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -199,7 +200,8 @@ public class GraphLandingService {
 
   /** The aggregated estate: asset-group bubbles and the simulations that targeted them. */
   public GraphOverviewOutput overview(Collection<String> tenantIds, GraphVisibility visibility) {
-    OverviewData data = cache.get("overview", tenantIds, () -> readOverview(tenantIds));
+    OverviewData data =
+        cache.get("overview", tenantIds, clearance(), () -> readOverview(tenantIds));
     Map<String, Boolean> readable = new HashMap<>();
     Map<String, Integer> perGroup = new HashMap<>();
     List<GraphOverviewLinkOutput> links = new ArrayList<>();
@@ -536,6 +538,7 @@ public class GraphLandingService {
     return cache.get(
         "exposed-assets",
         tenantIds,
+        clearance(),
         () ->
             ranked(
                 "SELECT a.id, a.name, a.type, COUNT(e) FROM TechnicalInjectExpectation e"
@@ -552,13 +555,16 @@ public class GraphLandingService {
     return cache.get(
         "attack-paths",
         tenantIds,
+        clearance(),
         () ->
             ranked(
                 "SELECT x.simulationId, s.name, s.name, COUNT(x)"
-                    + " FROM AttackPathExecution x, Exercise s"
+                    // Both ends joined: the marking inspector drops a step whose source or
+                    // target asset the reader cannot see (ADR-009), as the graph slices do.
+                    + " FROM AttackPathExecution x, Exercise s, Asset sa, Asset ta"
                     + " WHERE s.id = x.simulationId AND x.tenant.id IN :tenantIds"
                     + " AND s.tenant.id IN :tenantIds"
-                    + " AND x.sourceAssetId IS NOT NULL AND x.targetAssetId IS NOT NULL AND "
+                    + " AND sa.id = x.sourceAssetId AND ta.id = x.targetAssetId AND "
                     + FAILED_STEP
                     + " GROUP BY x.simulationId, s.name ORDER BY COUNT(x) DESC, s.name ASC",
                 tenantIds,
@@ -570,6 +576,7 @@ public class GraphLandingService {
     return cache.get(
         "top-findings",
         tenantIds,
+        clearance(),
         () ->
             ranked(
                 "SELECT f.id, f.valueDisplay, f.type, COUNT(a.id)"
@@ -585,6 +592,7 @@ public class GraphLandingService {
     return cache.get(
         "exposed-persons",
         tenantIds,
+        clearance(),
         () -> {
           List<Ranked> out = new ArrayList<>();
           for (Object[] r :
@@ -626,6 +634,23 @@ public class GraphLandingService {
           (String) r[0], new Ranked((String) r[0], (String) r[1], subtype, number(r[3])));
     }
     return List.copyOf(out.values());
+  }
+
+  /**
+   * The marking clearance of the current transaction ({@code app.current_markings}, set by {@code
+   * TenantScopedTransaction} from the caller's groups), as the key half the landing cache needs: the
+   * cached rows were read through the marking inspector under exactly this clearance. Empty when no
+   * clearance is set.
+   */
+  List<String> clearance() {
+    Object value =
+        entityManager
+            .createNativeQuery(
+                "SELECT COALESCE(current_setting('app.current_markings', true), '')")
+            .setFlushMode(FlushModeType.COMMIT)
+            .getSingleResult();
+    String guc = value == null ? "" : value.toString();
+    return guc.isBlank() ? List.of() : List.of(guc.split(","));
   }
 
   private static long number(Object value) {

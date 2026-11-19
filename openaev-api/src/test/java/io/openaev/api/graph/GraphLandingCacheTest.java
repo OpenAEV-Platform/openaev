@@ -11,8 +11,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("Graph landing cache: per tenant scope, time-bounded")
+@DisplayName("Graph landing cache: per tenant scope and marking clearance, time-bounded")
 class GraphLandingCacheTest {
+
+  private static final List<String> NONE = List.of();
 
   private final AtomicLong now = new AtomicLong(1_000_000L);
 
@@ -40,11 +42,11 @@ class GraphLandingCacheTest {
     GraphLandingCache cache = new GraphLandingCache(clock);
     AtomicInteger reads = new AtomicInteger();
 
-    assertThat(cache.get("k", List.of("b", "a"), reads::incrementAndGet)).isEqualTo(1);
-    assertThat(cache.get("k", List.of("a", "b"), reads::incrementAndGet)).isEqualTo(1);
+    assertThat(cache.get("k", List.of("b", "a"), NONE, reads::incrementAndGet)).isEqualTo(1);
+    assertThat(cache.get("k", List.of("a", "b"), NONE, reads::incrementAndGet)).isEqualTo(1);
     now.addAndGet(GraphLandingCache.TTL_MILLIS);
 
-    assertThat(cache.get("k", List.of("a", "b"), reads::incrementAndGet)).isEqualTo(2);
+    assertThat(cache.get("k", List.of("a", "b"), NONE, reads::incrementAndGet)).isEqualTo(2);
   }
 
   @Test
@@ -52,9 +54,29 @@ class GraphLandingCacheTest {
   void keyedByKindAndScope() {
     GraphLandingCache cache = new GraphLandingCache(clock);
 
-    assertThat(cache.get("k", List.of("a"), () -> "a")).isEqualTo("a");
-    assertThat(cache.get("k", List.of("b"), () -> "b")).isEqualTo("b");
-    assertThat(cache.get("other", List.of("a"), () -> "other")).isEqualTo("other");
+    assertThat(cache.get("k", List.of("a"), NONE, () -> "a")).isEqualTo("a");
+    assertThat(cache.get("k", List.of("b"), NONE, () -> "b")).isEqualTo("b");
+    assertThat(cache.get("other", List.of("a"), NONE, () -> "other")).isEqualTo("other");
+    assertThat(cache.size()).isEqualTo(3);
+  }
+
+  @Test
+  @DisplayName("rows read under one marking clearance are never served to another clearance")
+  void keyedByClearance() {
+    GraphLandingCache cache = new GraphLandingCache(clock);
+
+    // A reader cleared for TLP:GREEN and TLP:RED fills the entry first.
+    assertThat(cache.get("k", List.of("a"), List.of("tlp_red", "tlp_green"), () -> "red"))
+        .isEqualTo("red");
+
+    // Same tenant, within the TTL: a TLP:GREEN reader and a reader with no clearance read again.
+    assertThat(cache.get("k", List.of("a"), List.of("tlp_green"), () -> "green"))
+        .isEqualTo("green");
+    assertThat(cache.get("k", List.of("a"), NONE, () -> "none")).isEqualTo("none");
+    assertThat(cache.get("k", List.of("a"), null, () -> "null")).isEqualTo("none");
+    // The same clearance in another order is the same entry.
+    assertThat(cache.get("k", List.of("a"), List.of("tlp_green", "tlp_red"), () -> "other"))
+        .isEqualTo("red");
     assertThat(cache.size()).isEqualTo(3);
   }
 
@@ -64,13 +86,14 @@ class GraphLandingCacheTest {
     GraphLandingCache cache = new GraphLandingCache(clock);
     for (int i = 0; i < GraphLandingCache.MAX_ENTRIES + 10; i++) {
       String tenant = "t" + i;
-      cache.get("k", List.of(tenant), () -> tenant);
+      cache.get("k", List.of(tenant), NONE, () -> tenant);
     }
     assertThat(cache.size()).isLessThanOrEqualTo(GraphLandingCache.MAX_ENTRIES);
 
     cache.clear();
 
     assertThat(cache.size()).isZero();
-    assertThat(new GraphLandingCache().get("k", List.of("a"), () -> "fresh")).isEqualTo("fresh");
+    assertThat(new GraphLandingCache().get("k", List.of("a"), NONE, () -> "fresh"))
+        .isEqualTo("fresh");
   }
 }

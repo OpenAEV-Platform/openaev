@@ -2,6 +2,7 @@ package io.openaev.api.graph;
 
 import java.time.Clock;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,9 +14,11 @@ import org.springframework.stereotype.Component;
  * overview and the top findings are tenant-wide GROUP BY reads, so they are computed at most once
  * per {@link #TTL_MILLIS} per tenant scope instead of at every page load.
  *
- * <p>Only tenant-scoped raw rows are cached, keyed by the sorted tenant ids of the request scope;
- * the resource gate of the caller (simulations, people) is applied on every request after the
- * cache, so a cached entry never carries one user's visibility to another.
+ * <p>Only tenant-scoped raw rows are cached, keyed by the sorted tenant ids of the request scope
+ * AND the caller's marking clearance ({@code app.current_markings}, ADR-009): the rows are read
+ * through the marking inspector, so rows computed under one clearance are never served to a reader
+ * holding another. The resource gate of the caller (simulations, people) is applied on every
+ * request after the cache, so a cached entry never carries one user's visibility to another.
  */
 @Component
 public class GraphLandingCache {
@@ -39,10 +42,22 @@ public class GraphLandingCache {
     this.clock = clock;
   }
 
-  /** The cached value of {@code kind} for the scope, computed by {@code read} when stale. */
+  /**
+   * The cached value of {@code kind} for the tenant scope and the marking clearance, computed by
+   * {@code read} when stale.
+   *
+   * @param clearance the marking ids the reader is cleared for, in any order; {@code null} or empty
+   *     for no clearance
+   */
   @SuppressWarnings("unchecked")
-  public <T> T get(String kind, Collection<String> tenantIds, Supplier<T> read) {
-    String key = kind + "|" + String.join(",", new TreeSet<>(tenantIds));
+  public <T> T get(
+      String kind, Collection<String> tenantIds, Collection<String> clearance, Supplier<T> read) {
+    String key =
+        kind
+            + "|"
+            + String.join(",", new TreeSet<>(tenantIds))
+            + "|"
+            + String.join(",", new TreeSet<>(clearance == null ? List.of() : clearance));
     long now = clock.millis();
     Entry hit = entries.get(key);
     if (hit != null && now - hit.at() < TTL_MILLIS) {
