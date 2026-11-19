@@ -27,4 +27,8 @@ public class InjectorContractSearchPaginationInput extends SearchPaginationInput
   @Schema(description = "List of all the ids to include on the search")
   @JsonProperty("injector_contract_ids_to_process")
   private List<String> injectorContractIdsToProcess;
+
+  @Schema(description = "Sort by primary domain first, so the results come in domain sections")
+  @JsonProperty("group_by_primary_domain")
+  private boolean groupByPrimaryDomain = false;
 }

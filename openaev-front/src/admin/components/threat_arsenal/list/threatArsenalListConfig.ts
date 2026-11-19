@@ -1,6 +1,6 @@
 import { type CSSProperties } from 'react';
 
-import { type Header } from '../../../components/common/SortHeadersList';
+import { type Header } from '../../../../components/common/SortHeadersList';
 
 // Shared column widths so the header row and the body rows line up. Percentages
 // keep the list fluid, matching the standard platform list pages.

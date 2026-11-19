@@ -392,7 +392,8 @@ public class ThreatArsenalService {
                 pageable,
                 mode,
                 input.getInjectorContractIdsToIgnore(),
-                input.getInjectorContractIdsToProcess()),
+                input.getInjectorContractIdsToProcess(),
+                input.isGroupByPrimaryDomain()),
         providingFilterContext.searchInput(),
         InjectorContract.class);
   }
@@ -430,7 +431,8 @@ public class ThreatArsenalService {
                 pageable,
                 mode,
                 input.getInjectorContractIdsToIgnore(),
-                input.getInjectorContractIdsToProcess()),
+                input.getInjectorContractIdsToProcess(),
+                input.isGroupByPrimaryDomain()),
         providingFilterContext.searchInput(),
         InjectorContract.class);
   }

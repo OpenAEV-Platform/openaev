@@ -4693,5 +4693,10 @@
   "ZIP must contain a json file": "ZIPファイルにはjsonファイルが含まれている必要があります",
   "Zoom in": "ズームイン",
   "Zoom out": "ズームアウト",
-  "Always on": "常時稼働"
+  "Always on": "常時稼働",
+  "Revoked: injects using it fail": "取り消し済み：使用するインジェクトは失敗します",
+  "Browse and version the actions your simulations run.": "シミュレーションが実行するアクションを参照し、バージョンを管理します。",
+  "Revoked": "失効済み",
+  "Filigran": "Filigran",
+  "Local": "ローカル"
 }
