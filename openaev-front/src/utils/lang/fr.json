@@ -4872,7 +4872,7 @@
   "Last run": "Dernier lancement",
   "Never": "Jamais",
   "About link types": "À propos des types de lien",
-  "A link records how two assets relate. It becomes a Linked to edge in the graph, so attack paths can follow it. Example: a web server depends on a domain controller.": "Un lien décrit la relation entre deux actifs. Il devient une arête Lié à dans le graphe, que les chemins d'attaque peuvent suivre. Exemple : un serveur web dépend d'un contrôleur de domaine.",
+  "A link records how two assets relate. It becomes a Linked to edge in the graph, so attack paths can follow it. Example: a web server depends on a domain controller.": "Un lien décrit la relation entre deux actifs. Il devient une arête Lié à dans le graphe, que les attack paths peuvent suivre. Exemple : un serveur web dépend d'un contrôleur de domaine.",
   "How this asset relates to the asset you pick next.": "La relation entre cet actif et l'actif choisi ensuite.",
   "Any asset of the inventory, searched by name.": "Tout actif de l'inventaire, recherché par nom.",
   "Reaches the linked asset over the network": "Joint l'actif lié par le réseau",

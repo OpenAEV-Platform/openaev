@@ -4872,7 +4872,7 @@
   "Last run": "最終実行",
   "Never": "なし",
   "About link types": "リンクの種類について",
-  "A link records how two assets relate. It becomes a Linked to edge in the graph, so attack paths can follow it. Example: a web server depends on a domain controller.": "リンクは2つのアセットの関係を記録します。グラフでは「リンク先」エッジになり、攻撃パスがたどれます。例: Webサーバーがドメインコントローラーに依存する。",
+  "A link records how two assets relate. It becomes a Linked to edge in the graph, so attack paths can follow it. Example: a web server depends on a domain controller.": "リンクは2つのアセットの関係を記録します。グラフでは「リンク先」エッジになり、Attack pathがたどれます。例: Webサーバーがドメインコントローラーに依存する。",
   "How this asset relates to the asset you pick next.": "このアセットと次に選ぶアセットの関係。",
   "Any asset of the inventory, searched by name.": "インベントリ内の任意のアセットを名前で検索します。",
   "Reaches the linked asset over the network": "ネットワーク経由でリンク先アセットに到達する",

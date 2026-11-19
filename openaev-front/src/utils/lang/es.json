@@ -4872,7 +4872,7 @@
   "Last run": "Última ejecución",
   "Never": "Nunca",
   "About link types": "Acerca de los tipos de vínculo",
-  "A link records how two assets relate. It becomes a Linked to edge in the graph, so attack paths can follow it. Example: a web server depends on a domain controller.": "Un vínculo describe cómo se relacionan dos activos. Se convierte en una arista Vinculado a en el grafo, que las rutas de ataque pueden seguir. Ejemplo: un servidor web depende de un controlador de dominio.",
+  "A link records how two assets relate. It becomes a Linked to edge in the graph, so attack paths can follow it. Example: a web server depends on a domain controller.": "Un vínculo describe cómo se relacionan dos activos. Se convierte en una arista Vinculado a en el grafo, que los attack paths pueden seguir. Ejemplo: un servidor web depende de un controlador de dominio.",
   "How this asset relates to the asset you pick next.": "Cómo se relaciona este activo con el activo que elija a continuación.",
   "Any asset of the inventory, searched by name.": "Cualquier activo del inventario, buscado por nombre.",
   "Reaches the linked asset over the network": "Alcanza el activo vinculado a través de la red",
