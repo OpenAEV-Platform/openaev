@@ -182,18 +182,8 @@ const Index = () => {
             <Route path="profile/news-feed" element={errorWrapper(ProfileNewsFeed)({ tab: 'items' })} />
             <Route path="profile/news-feed/settings" element={errorWrapper(ProfileNewsFeed)({ tab: 'settings' })} />
             <Route path="profile/*" element={errorWrapper(IndexProfile)()} />
-            <Route
-              path=""
-              element={(
-                <ProtectedRoute
-                  checks={[{
-                    action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.DASHBOARDS,
-                  }]}
-                  Component={errorWrapper(Home)()}
-                />
-              )}
-            />
+            {/* Home guards itself: the capability depends on which home dashboard it resolves */}
+            <Route path="" element={errorWrapper(Home)()} />
             <Route path="results" element={errorWrapper(DashboardResults)()} />
             <Route path="fulltextsearch" element={errorWrapper(FullTextSearch)()} />
             <Route
