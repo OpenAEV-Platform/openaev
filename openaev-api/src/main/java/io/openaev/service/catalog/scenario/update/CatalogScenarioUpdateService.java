@@ -5,14 +5,18 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.VariableService;
+import io.openaev.service.catalog.CatalogListService;
 import io.openaev.service.catalog.event.CatalogChangePublisher;
 import io.openaev.service.catalog.payload.CatalogPayloadService;
 import io.openaev.service.catalog.payload.InstallablePayloadVersion;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.catalog.SemanticVersion;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +36,7 @@ public class CatalogScenarioUpdateService {
   public static final String CONFLICT_LEFT = "Choose a side for each conflict";
 
   private final ScenarioService scenarioService;
+  private final CatalogListService catalogListService;
   private final InjectService injectService;
   private final VariableService variableService;
   private final CatalogPayloadService catalogPayloadService;
@@ -53,6 +58,17 @@ public class CatalogScenarioUpdateService {
         scenario.getTenant().getId(),
         scenario.getCatalogExternalId(),
         scenario.getCatalogVersion());
+  }
+
+  /** The versions the catalogue offers after the installed one, newest first. */
+  @Transactional(readOnly = true)
+  public List<CatalogScenario> newerVersions(TxCtx ctx, String scenarioId) {
+    InstalledScenario installed = installed(ctx, scenarioId);
+    return catalogListService
+        .offeredVersions(CatalogScenario.class, installed.externalId())
+        .stream()
+        .filter(item -> SemanticVersion.ORDER.compare(item.getVersion(), installed.version()) > 0)
+        .toList();
   }
 
   /** What the content changes, and its conflicts, none of them chosen yet. */

@@ -70,6 +70,8 @@ public interface RawScenario {
    */
   String getScenario_external_url();
 
+  String getScenario_catalog_version();
+
   /**
    * Returns whether lessons learned responses should be anonymized.
    *

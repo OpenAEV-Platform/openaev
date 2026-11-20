@@ -18,6 +18,7 @@ import static io.openaev.utils.fixtures.CatalogReleaseFixture.syncRequest;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.hamcrest.Matchers.contains;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -224,6 +225,26 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   @Nested
   @DisplayName("Updating")
   class Updating {
+
+    @Test
+    @DisplayName("lists the versions offered after the installed one, newest first")
+    void given_installedScenario_should_listNewerVersions() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+
+      // Act & Assert
+      committed(get(TENANT_SCENARIO_URI + "/{scenarioId}", DEFAULT_TENANT_UUID, scenario.getId()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.scenario_version").value(INSTALLED));
+      committed(
+              get(
+                  TENANT_SCENARIO_URI + "/{scenarioId}/newer-versions",
+                  DEFAULT_TENANT_UUID,
+                  scenario.getId()))
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$[*].catalog_scenario_version").value(contains(NEWER, SAME_CONTENT)));
+    }
 
     @Test
     @DisplayName("shows nothing to change for a version with the same content")
