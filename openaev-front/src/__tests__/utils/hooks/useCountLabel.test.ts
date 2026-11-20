@@ -4,7 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import useCountLabel from '../../../utils/hooks/useCountLabel';
 
 vi.mock('../../../components/i18n', () => ({
-  useFormatter: () => ({ t: (key: string, values?: Record<string, string>) => (values ? key.replace('{count}', values.count) : `tr:${key}`) }),
+  useFormatter: () => ({
+    t: (key: string, values?: Record<string, string>) => (values
+      ? key.replace('{count}', values.count)
+      : `tr:${key}`),
+  }),
 }));
 
 describe('useCountLabel', () => {
