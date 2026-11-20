@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { liftPayloadRevocation, revokePayload } from '../../../../actions/payloads/payload-revocation-actions';
 import { type PayloadVersionOutput } from '../../../../utils/api-types';
-import useVersionUsages from '../versions/useVersionUsages';
+import useVersionUsages from '../versions/usages/useVersionUsages';
 
 interface Options {
   open: boolean;

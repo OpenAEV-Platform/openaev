@@ -1,23 +1,21 @@
 import { Text } from '@filigran/design-system';
+// fds:keep-mui the library has no Table yet; dressed to its spec by FDS_TABLE_SX
 import { Table, TableBody, TableCell, TableHead, TablePagination, TableRow } from '@mui/material';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
-import { FDS_TABLE_SECTION_STYLE, FDS_TABLE_SX } from '../../../../components/common/fdsTableSpec';
-import { useFormatter } from '../../../../components/i18n';
-import { type PayloadUsagesOutput } from '../../../../utils/api-types';
+import { FDS_TABLE_SECTION_STYLE, FDS_TABLE_SX } from '../../../../../components/common/fdsTableSpec';
+import { useFormatter } from '../../../../../components/i18n';
+import { type PayloadUsagesOutput } from '../../../../../utils/api-types';
+import useCountLabel from '../../../../../utils/hooks/useCountLabel';
+import { USAGE_TYPES } from './usageTypes';
 
 const USAGES_PER_PAGE = 10;
-
-const USAGE_TYPE_LABELS: Record<string, string> = {
-  inject: 'Inject',
-  atomic_testing: 'Atomic testing',
-  step: 'Chained step',
-};
 
 interface Props { usages: PayloadUsagesOutput }
 
 const PayloadUsagesTable: FunctionComponent<Props> = ({ usages }) => {
   const { t } = useFormatter();
+  const counted = useCountLabel();
   const [page, setPage] = useState(0);
   useEffect(() => setPage(0), [usages]);
 
@@ -44,7 +42,7 @@ const PayloadUsagesTable: FunctionComponent<Props> = ({ usages }) => {
               <TableRow key={usage.usage_id}>
                 <TableCell>{usage.usage_name ?? usage.usage_id}</TableCell>
                 <TableCell>{usage.usage_scenario_name ?? '-'}</TableCell>
-                <TableCell>{t(USAGE_TYPE_LABELS[usage.usage_type] ?? usage.usage_type)}</TableCell>
+                <TableCell>{t(USAGE_TYPES[usage.usage_type].label)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -63,7 +61,7 @@ const PayloadUsagesTable: FunctionComponent<Props> = ({ usages }) => {
       {hidden > 0 && (
         <div style={FDS_TABLE_SECTION_STYLE}>
           <Text variant="content-compact" className="text-default-secondary">
-            {t('{count} other injects you cannot see', { count: String(hidden) })}
+            {counted(hidden, '1 other inject you cannot see', '{count} other injects you cannot see')}
           </Text>
         </div>
       )}
