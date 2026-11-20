@@ -6,7 +6,8 @@ import java.util.Map;
 
 /**
  * A news feed item as provisioned by XTM Hub; {@code type} is kept raw as the Hub sends it, and
- * {@code metadata} holds the other details it sends as key/value pairs (all but the URL path).
+ * {@code metadata} holds the other details it sends as key/value pairs, but the URL path (its own
+ * field) and the keys only XTM Hub uses ({@code blog_post_slug}).
  */
 public record ProvisionedNewsFeedItem(
     String id,

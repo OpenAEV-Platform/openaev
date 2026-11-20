@@ -1613,6 +1613,86 @@ class XtmHubServiceTest {
     }
 
     @Test
+    @DisplayName("Given the same types in another order, should not rewrite the registration")
+    void given_sameTypesInAnotherOrder_should_notRewriteTheRegistration() {
+      // Arrange
+      TenantXtmHubRegistration registration =
+          registered("tenant-a", FIRST_TOKEN, now.minusDays(10));
+      registration.setAvailableNewsFeedTypes(new String[] {"BLOG_POST", "RESOURCE_SCENARIO"});
+      givenRegistrations(registration);
+      givenHubAnswers(
+          FIRST_TOKEN,
+          200,
+          "{\"data\":{\"consumeProvisionedNewsFeedItems\":{\"news_feed_items\":[],"
+              + "\"available_news_feed_types\":[\"RESOURCE_SCENARIO\",\"BLOG_POST\"]}}}");
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      verify(tenantXtmHubRegistrationRepository, never()).findByTenantId(any());
+      verify(tenantXtmHubRegistrationRepository, never()).save(any());
+      verify(newsFeedItemService).applyProvisionedItems(List.of(), Set.of("tenant-a"));
+    }
+
+    @Test
+    @DisplayName("Given a Hub that lists no type, should store that it provisions none")
+    void given_hubListingNoType_should_storeNoType() {
+      // Arrange
+      TenantXtmHubRegistration registration =
+          registered("tenant-a", FIRST_TOKEN, now.minusDays(10));
+      registration.setAvailableNewsFeedTypes(new String[] {"BLOG_POST"});
+      givenRegistrations(registration);
+      when(tenantXtmHubRegistrationRepository.findByTenantId("tenant-a"))
+          .thenReturn(Optional.of(registration));
+      givenHubAnswers(
+          FIRST_TOKEN,
+          200,
+          "{\"data\":{\"consumeProvisionedNewsFeedItems\":{\"news_feed_items\":[]}}}");
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      assertThat(registration.getAvailableNewsFeedTypes()).isEmpty();
+      verify(tenantXtmHubRegistrationRepository).save(registration);
+    }
+
+    @Test
+    @DisplayName(
+        "Given a registration that cannot be written, should still store the others and the items")
+    void given_registrationThatCannotBeWritten_should_stillStoreOthersAndItems() {
+      // Arrange
+      TenantXtmHubRegistration failing = registered("tenant-a", FIRST_TOKEN, now.minusDays(10));
+      TenantXtmHubRegistration other = registered("tenant-b", SECOND_TOKEN, now.minusDays(1));
+      givenRegistrations(failing, other);
+      when(tenantXtmHubRegistrationRepository.findByTenantId("tenant-b"))
+          .thenReturn(Optional.of(other));
+      doThrow(new IllegalStateException("boom"))
+          .when(tenantTx)
+          .execute(
+              argThat(
+                  ctx ->
+                      ctx instanceof TxCtx.Restricted restricted
+                          && restricted.tenantIds().equals(List.of("tenant-a"))),
+              ArgumentMatchers.<Runnable>any());
+      givenHubAnswers(
+          FIRST_TOKEN,
+          200,
+          "{\"data\":{\"consumeProvisionedNewsFeedItems\":{\"news_feed_items\":[],"
+              + "\"available_news_feed_types\":[\"BLOG_POST\"]}}}");
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      assertThat(failing.getAvailableNewsFeedTypes()).isEmpty();
+      assertThat(other.getAvailableNewsFeedTypes()).containsExactly("BLOG_POST");
+      verify(tenantXtmHubRegistrationRepository).save(other);
+      verify(newsFeedItemService).applyProvisionedItems(List.of(), Set.of("tenant-a", "tenant-b"));
+    }
+
+    @Test
     @DisplayName("Given a registration without date, should try it after the dated ones")
     void given_registrationWithoutDate_should_tryItLast() {
       // Arrange

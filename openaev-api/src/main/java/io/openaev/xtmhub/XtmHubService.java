@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -429,8 +430,10 @@ public class XtmHubService {
   private void saveAvailableNewsFeedTypes(
       List<TenantXtmHubRegistration> registrations, List<String> availableTypes) {
     String[] types = availableTypes.toArray(String[]::new);
+    // As a set: the order the Hub lists them in means nothing, a reordered list is not a change.
+    Set<String> typeSet = new HashSet<>(availableTypes);
     for (TenantXtmHubRegistration registration : registrations) {
-      if (Arrays.equals(availableTypesOf(registration), types)) {
+      if (new HashSet<>(Arrays.asList(availableTypesOf(registration))).equals(typeSet)) {
         continue;
       }
       String tenantId = registration.getTenant().getId();

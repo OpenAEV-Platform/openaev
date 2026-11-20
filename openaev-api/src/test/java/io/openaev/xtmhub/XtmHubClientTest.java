@@ -397,6 +397,17 @@ class XtmHubClientTest {
       }
 
       @Test
+      @DisplayName("Given an answer without the types, should return no type")
+      void given_answerWithoutTypes_should_returnNoType() throws Exception {
+        // Arrange
+        givenHubAnswers(
+            200, "{\"data\":{\"consumeProvisionedNewsFeedItems\":{\"news_feed_items\":[]}}}");
+
+        // Act & Assert
+        assertThat(fetched().availableTypes()).isEmpty();
+      }
+
+      @Test
       @DisplayName("Given types that are not a list, should return no type")
       void given_typesNotAList_should_returnNoType() throws Exception {
         // Arrange
