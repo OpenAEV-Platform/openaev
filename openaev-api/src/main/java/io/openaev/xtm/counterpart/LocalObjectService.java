@@ -1,0 +1,248 @@
+package io.openaev.xtm.counterpart;
+
+import io.openaev.config.OpenAEVConfig;
+import io.openaev.database.model.Asset;
+import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.ContractOutputType;
+import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Vulnerability;
+import io.openaev.database.repository.AssetRepository;
+import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.ExerciseRepository.ScenarioSimulationsRow;
+import io.openaev.database.repository.FindingRepository;
+import io.openaev.database.repository.FindingRepository.FindingCountRow;
+import io.openaev.database.repository.InjectExpectationTraceRepository;
+import io.openaev.database.repository.InjectExpectationTraceRepository.AlertInjectRow;
+import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.rest.attack_pattern.service.AttackPatternService;
+import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+/**
+ * The reverse lookup of the counterpart contract: which of the given keys THIS OpenAEV holds, with
+ * the deep link that opens each object. OpenCTI (and any other XTM product) calls it to show "Open
+ * in OpenAEV" on its own objects, with the same keys {@link CounterpartKind} normalises.
+ *
+ * <p>Reads go through the request's transaction, so the statement inspector restricts the rows to
+ * the caller's tenant scope and markings: a product connected with a user token sees what that user
+ * sees, nothing more. Attack patterns and vulnerabilities are tenant-active tables: they are read
+ * through their reviewed services (TenantActiveTableAccessArchTest), never their repositories.
+ */
+@Service
+@RequiredArgsConstructor
+public class LocalObjectService {
+
+  /**
+   * One key fact of a matched object, shown next to the pivot by the product that asked: a stable
+   * key the caller translates (findings, affected_assets, simulations, last_simulation) and its
+   * value as text (a count, or an ISO-8601 instant).
+   */
+  public record Fact(String key, String value) {}
+
+  /** One object of this OpenAEV matching a key, with its key facts. */
+  public record LocalObject(
+      String key, String id, String type, String name, String url, List<Fact> facts) {
+
+    public LocalObject(String key, String id, String type, String name, String url) {
+      this(key, id, type, name, url, List.of());
+    }
+  }
+
+  static final String FACT_FINDINGS = "findings";
+  static final String FACT_AFFECTED_ASSETS = "affected_assets";
+  static final String FACT_SIMULATIONS = "simulations";
+  static final String FACT_LAST_SIMULATION = "last_simulation";
+
+  private final OpenAEVConfig openAEVConfig;
+  private final AssetRepository assetRepository;
+  private final AttackPatternService attackPatternService;
+  private final VulnerabilityService vulnerabilityService;
+  private final ScenarioRepository scenarioRepository;
+  private final InjectExpectationTraceRepository injectExpectationTraceRepository;
+  private final FindingRepository findingRepository;
+  private final ExerciseRepository exerciseRepository;
+
+  public List<LocalObject> find(CounterpartKind kind, Collection<String> keys) {
+    Set<String> normalised = normalise(kind, keys);
+    if (normalised.isEmpty()) {
+      return List.of();
+    }
+    return switch (kind) {
+      case ASSET -> assets(normalised);
+      case ATTACK_PATTERN -> attackPatterns(normalised);
+      case VULNERABILITY -> vulnerabilities(normalised);
+      case THREAT -> scenarios(normalised);
+      case ALERT -> alerts(normalised);
+    };
+  }
+
+  static Set<String> normalise(CounterpartKind kind, Collection<String> keys) {
+    Set<String> out = new LinkedHashSet<>();
+    for (String key : keys) {
+      String n = kind.normalise(key);
+      if (n != null) {
+        out.add(n);
+      }
+      if (out.size() >= CounterpartService.MAX_KEYS) {
+        break;
+      }
+    }
+    return out;
+  }
+
+  private List<LocalObject> assets(Set<String> hostnames) {
+    // Hostnames are stored lower-case (Asset#setHostname), the ASSET kind normalises the same way.
+    Map<String, Asset> byKey = new LinkedHashMap<>();
+    for (Asset asset : assetRepository.findAllByHostnameIn(hostnames)) {
+      byKey.putIfAbsent(asset.getHostname(), asset);
+    }
+    if (byKey.isEmpty()) {
+      return List.of();
+    }
+    // One grouped read for the findings of every matched asset.
+    Map<String, Long> findings = new HashMap<>();
+    for (FindingCountRow row :
+        findingRepository.countFindingsByAssetIdIn(
+            byKey.values().stream().map(Asset::getId).toList())) {
+      findings.put(row.getObjectKey(), row.getFindings());
+    }
+    List<LocalObject> out = new ArrayList<>();
+    for (Asset asset : byKey.values()) {
+      out.add(
+          new LocalObject(
+              asset.getHostname(),
+              asset.getId(),
+              "asset",
+              asset.getName(),
+              link("/admin/assets/" + asset.getId()),
+              List.of(
+                  new Fact(
+                      FACT_FINDINGS, String.valueOf(findings.getOrDefault(asset.getId(), 0L))))));
+    }
+    return out;
+  }
+
+  private List<LocalObject> attackPatterns(Set<String> mitreIds) {
+    Map<String, LocalObject> byKey = new LinkedHashMap<>();
+    for (AttackPattern ap : attackPatternService.getAttackPatternsByExternalIds(mitreIds)) {
+      String key = ap.getExternalId().toUpperCase(Locale.ROOT);
+      byKey.putIfAbsent(
+          key,
+          new LocalObject(
+              key,
+              ap.getId(),
+              "attack_pattern",
+              ap.getName(),
+              link("/admin/settings/taxonomies/attack_patterns")));
+    }
+    return new ArrayList<>(byKey.values());
+  }
+
+  private List<LocalObject> vulnerabilities(Set<String> cves) {
+    Map<String, Vulnerability> byKey = new LinkedHashMap<>();
+    for (Vulnerability v : vulnerabilityService.getVulnerabilitiesByExternalIds(cves)) {
+      byKey.putIfAbsent(v.getExternalId().toUpperCase(Locale.ROOT), v);
+    }
+    if (byKey.isEmpty()) {
+      return List.of();
+    }
+    // One grouped read: the CVE findings of the simulations, and the assets they were found on.
+    Map<String, FindingCountRow> findings = new HashMap<>();
+    for (FindingCountRow row :
+        findingRepository.countFindingsByTypeAndValueIn(ContractOutputType.CVE, byKey.keySet())) {
+      findings.put(row.getObjectKey(), row);
+    }
+    List<LocalObject> out = new ArrayList<>();
+    byKey.forEach(
+        (key, v) -> {
+          FindingCountRow row = findings.get(key);
+          out.add(
+              new LocalObject(
+                  key,
+                  v.getId(),
+                  "vulnerability",
+                  v.getExternalId(),
+                  link("/admin/settings/taxonomies/vulnerabilities"),
+                  List.of(
+                      new Fact(FACT_FINDINGS, String.valueOf(row == null ? 0 : row.getFindings())),
+                      new Fact(
+                          FACT_AFFECTED_ASSETS,
+                          String.valueOf(row == null ? 0 : row.getAssets())))));
+        });
+    return out;
+  }
+
+  private List<LocalObject> scenarios(Set<String> stixIds) {
+    // A scenario generated from OpenCTI knowledge keeps the STIX id it came from as its external
+    // reference; several scenarios may share it, the first (most recent) one is the pivot.
+    Map<String, Scenario> byKey = new LinkedHashMap<>();
+    for (Scenario s :
+        scenarioRepository.findAllByExternalReferenceInOrderByUpdatedAtDesc(stixIds)) {
+      byKey.putIfAbsent(s.getExternalReference(), s);
+    }
+    if (byKey.isEmpty()) {
+      return List.of();
+    }
+    // One grouped read: how many simulations each pivot scenario ran, and when the latest started.
+    Map<String, ScenarioSimulationsRow> runs = new HashMap<>();
+    for (ScenarioSimulationsRow row :
+        exerciseRepository.countSimulationsByScenarioIdIn(
+            byKey.values().stream().map(Scenario::getId).toList())) {
+      runs.put(row.getScenarioId(), row);
+    }
+    List<LocalObject> out = new ArrayList<>();
+    for (Scenario s : byKey.values()) {
+      ScenarioSimulationsRow row = runs.get(s.getId());
+      List<Fact> facts = new ArrayList<>();
+      facts.add(new Fact(FACT_SIMULATIONS, String.valueOf(row == null ? 0 : row.getSimulations())));
+      if (row != null && row.getLastStart() != null) {
+        facts.add(new Fact(FACT_LAST_SIMULATION, row.getLastStart().toString()));
+      }
+      out.add(
+          new LocalObject(
+              s.getExternalReference(),
+              s.getId(),
+              "scenario",
+              s.getName(),
+              link("/admin/scenarios/" + s.getId()),
+              List.copyOf(facts)));
+    }
+    return out;
+  }
+
+  private List<LocalObject> alerts(Set<String> alertLinks) {
+    // A collected alert answered an inject expectation: the pivot is that inject, in its
+    // simulation or as an atomic testing. Rows come newest alert first; the first per link wins.
+    Map<String, LocalObject> byKey = new LinkedHashMap<>();
+    for (AlertInjectRow row :
+        injectExpectationTraceRepository.findAlertInjectsByAlertLinkIn(alertLinks)) {
+      String path =
+          row.getExerciseId() == null
+              ? "/admin/atomic_testings/" + row.getInjectId()
+              : "/admin/simulations/" + row.getExerciseId() + "/injects/" + row.getInjectId();
+      byKey.putIfAbsent(
+          row.getAlertLink(),
+          new LocalObject(
+              row.getAlertLink(), row.getInjectId(), "inject", row.getInjectTitle(), link(path)));
+    }
+    return new ArrayList<>(byKey.values());
+  }
+
+  private String link(String path) {
+    String base = openAEVConfig.getBaseUrl();
+    if (base == null || base.isBlank()) {
+      return path;
+    }
+    return base.endsWith("/") ? base.substring(0, base.length() - 1) + path : base + path;
+  }
+}
