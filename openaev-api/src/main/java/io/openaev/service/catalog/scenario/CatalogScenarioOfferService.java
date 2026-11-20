@@ -52,10 +52,7 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   /** The latest version of every catalogue scenario the tenant does not show. */
   @Transactional(readOnly = true)
   public List<OfferedScenario> notInstalled(String tenantId) {
-    Set<String> installed =
-        scenarioIdentityRepository.findAllInstalledByTenantId(tenantId).stream()
-            .map(CatalogOffer::key)
-            .collect(Collectors.toSet());
+    Set<String> installed = installedKeys(tenantId);
     return catalogListService.latestOffered(CatalogScenario.class).stream()
         .filter(
             item ->
@@ -63,6 +60,13 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
                     CatalogOffer.key(item.getRelease().getRepository(), item.getExternalId())))
         .map(item -> new OfferedScenario(item, catalogScenarioRequirements.missing(item)))
         .toList();
+  }
+
+  /** The catalogue scenarios the tenant shows, by {@link CatalogOffer#key}. */
+  public Set<String> installedKeys(String tenantId) {
+    return scenarioIdentityRepository.findAllInstalledByTenantId(tenantId).stream()
+        .map(CatalogOffer::key)
+        .collect(Collectors.toSet());
   }
 
   /**

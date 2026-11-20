@@ -20,11 +20,14 @@ import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.utils.catalog.SemanticVersion;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -107,6 +110,20 @@ public class PayloadVersionService {
                                 Action.READ)))
             .toList();
     return new PayloadUsagesOutput(visible, usages.size() - visible.size());
+  }
+
+  /** The scenario injects and steps running these versions, by scenario id. */
+  public Map<String, List<PayloadUsageOutput>> scenarioUsages(
+      String tenantId, Collection<Payload> versions) {
+    return injectorContractService
+        .injectorContractsOfPayloads(tenantId, versions.stream().map(Payload::getId).toList())
+        .values()
+        .stream()
+        .flatMap(action -> usages(tenantId, action).stream())
+        .filter(usage -> usage.scenarioId() != null)
+        .collect(
+            Collectors.groupingBy(
+                PayloadUsageOutput::scenarioId, LinkedHashMap::new, Collectors.toList()));
   }
 
   private List<PayloadUsageOutput> usages(String tenantId, InjectorContract action) {
