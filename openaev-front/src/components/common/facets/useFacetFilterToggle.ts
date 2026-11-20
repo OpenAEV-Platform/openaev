@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { type Filter, type Option, type SearchPaginationInput } from '../../../utils/api-types';
+import { type Filter, type SearchPaginationInput } from '../../../utils/api-types';
 import { type FilterHelpers } from '../queryable/filter/FilterHelpers';
 import { generateFilterId } from '../queryable/filter/FilterUtils';
 
@@ -68,26 +68,10 @@ const useFacetFilterToggle = (searchPaginationInput: SearchPaginationInput, filt
     [setFilterValues],
   );
 
-  const toggleAndTranslateOptionWithCurrent = useCallback(
-    (key: string, current: string[], selectedOption: Option, options: Option[]) => {
-      if (selectedOption.id && selectedOption.label) {
-        const next = current.includes(selectedOption.label)
-          ? current.filter(v => v !== selectedOption.label)
-          : [...current, selectedOption.label];
-        const translatedNext: string[] = options
-          .filter(option => next.includes(option.label!))
-          .map(option => option.id!);
-        setFilterValues(key, translatedNext);
-      }
-    },
-    [setFilterValues],
-  );
-
   return {
     valuesOf,
     toggle,
     toggleValueWithCurrent,
-    toggleAndTranslateOptionWithCurrent,
     setFilterValues,
   };
 };

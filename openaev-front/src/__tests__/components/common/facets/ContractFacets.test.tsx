@@ -89,7 +89,7 @@ describe('buildAssetRows', () => {
     // Act
     const rows = buildAssetRows({
       assetOptions: options,
-      statusValues: [],
+      selectedIds: [],
       toggle,
     });
 
@@ -100,11 +100,11 @@ describe('buildAssetRows', () => {
     ]);
   });
 
-  it('should check the rows whose label is selected and toggle the clicked option', () => {
+  it('should check the rows whose id is selected and toggle the clicked id', () => {
     // Arrange
     const rows = buildAssetRows({
       assetOptions: options,
-      statusValues: ['Beta'],
+      selectedIds: ['asset-b'],
       toggle,
     });
 
@@ -112,15 +112,39 @@ describe('buildAssetRows', () => {
     rows.find(row => row.label === 'Alpha')?.onToggle();
 
     // Assert
-    expect(rows.filter(row => row.checked).map(row => row.label)).toEqual(['Beta']);
-    expect(toggle).toHaveBeenCalledWith(options[1]);
+    expect(rows.filter(row => row.checked).map(row => row.value)).toEqual(['asset-b']);
+    expect(toggle).toHaveBeenCalledWith('asset-a');
+  });
+
+  it('should tell apart two assets sharing the same label', () => {
+    // Arrange
+    const homonyms: Option[] = [
+      {
+        id: 'asset-1',
+        label: 'localhost',
+      },
+      {
+        id: 'asset-2',
+        label: 'localhost',
+      },
+    ];
+
+    // Act
+    const rows = buildAssetRows({
+      assetOptions: homonyms,
+      selectedIds: ['asset-2'],
+      toggle,
+    });
+
+    // Assert
+    expect(rows.filter(row => row.checked).map(row => row.value)).toEqual(['asset-2']);
   });
 
   it('should return no row when there is no option', () => {
     // Act
     const rows = buildAssetRows({
       assetOptions: [],
-      statusValues: [],
+      selectedIds: [],
       toggle,
     });
 
