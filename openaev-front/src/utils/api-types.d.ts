@@ -10889,6 +10889,8 @@ export interface PayloadVersionOutput {
   /** @minLength 1 */
   payload_id: string;
   payload_is_latest: boolean;
+  /** Its injects on older versions are kept there until a newer version */
+  payload_older_versions_kept: boolean;
   payload_revocation_reason?: string;
   payload_revoked: boolean;
   /** @format date-time */
@@ -14145,6 +14147,10 @@ export interface ThreatArsenalActionFullOutput {
 export interface ThreatArsenalActionIdOutput {
   /** @minLength 1 */
   action_id: string;
+}
+
+export interface ThreatArsenalActionIdsInput {
+  action_ids: string[];
 }
 
 export interface ThreatArsenalActionUpdateInput {

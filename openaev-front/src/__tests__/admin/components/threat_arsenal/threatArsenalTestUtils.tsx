@@ -30,6 +30,7 @@ export const aVersion = (overrides: Partial<PayloadVersionOutput> = {}): Payload
   payload_action_id: 'action-v1',
   payload_id: 'payload-v1',
   payload_is_latest: false,
+  payload_older_versions_kept: false,
   payload_revoked: false,
   payload_revoked_by_catalogue: false,
   payload_version: '1',

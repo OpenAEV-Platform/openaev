@@ -1,4 +1,4 @@
-import { Button, CardBanner, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Box } from '@mui/material';
 import { type FunctionComponent, useMemo } from 'react';
 
@@ -16,9 +16,11 @@ import InjectIcon from '../../common/injects/InjectIcon';
 import ThreatArsenalActionPopover from '../ThreatArsenalActionPopover';
 import actionDomains from '../utils/actionDomains';
 import { getActionStatus, getPayloadSourceLabel, getStatusLabel, isShownRevoked, type PayloadStatus, STATUS_CHIP_SEVERITY } from '../utils/threatArsenalStatusUtils';
+import useThreatArsenalCardBanner from './useThreatArsenalCardBanner';
 
 interface Props {
   action: ThreatArsenalAction;
+  olderVersionsInUse: boolean;
   onSelect: () => void;
   onUpdate: (result: ThreatArsenalAction, replacedId?: string) => void;
   onDuplicate: (result: ThreatArsenalAction) => void;
@@ -29,6 +31,7 @@ interface Props {
 
 const ThreatArsenalCard: FunctionComponent<Props> = ({
   action,
+  olderVersionsInUse,
   onSelect,
   onUpdate,
   onDuplicate,
@@ -51,6 +54,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const status = getActionStatus(action);
   const statusLabel = getStatusLabel(status);
   const platforms = action.action_platforms ?? [];
+  const banner = useThreatArsenalCardBanner(action, olderVersionsInUse, onShowVersions);
 
   return (
     <MarketplaceCard
@@ -70,22 +74,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       overline={primaryDomain ? t(primaryDomain.domain_name) : undefined}
       subtitle={action.action_author_name ? `${t('by')} ${action.action_author_name}` : undefined}
       onClick={onSelect}
-      banner={revoked && (
-        <CardBanner
-          severity="error"
-          icon="ban"
-          action={{
-            label: t('Versions'),
-            onClick: (event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onShowVersions(action);
-            },
-          }}
-        >
-          {t('Revoked: injects using it fail')}
-        </CardBanner>
-      )}
+      banner={banner}
       chips={techniques.length > 0 && (
         <Tooltip>
           <TooltipTrigger asChild>

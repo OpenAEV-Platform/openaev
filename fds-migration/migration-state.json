@@ -880,7 +880,8 @@
         "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateBanner.tsx",
         "openaev-front/src/admin/components/threat_arsenal/customization/RevertToFiligran.tsx",
         "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalInformationDrawer.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/OlderVersionsAlert.tsx"
       ]
     },
     {
@@ -963,7 +964,8 @@
         "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx",
         "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateBanner.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalInformationDrawer.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalInformationDrawer.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/OlderVersionsAlert.tsx"
       ]
     },
     {
@@ -1032,6 +1034,17 @@
       "reason": "The actions menu of a Threat Arsenal action: trigger, items and separator.",
       "files": [
         "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalActionPopover.tsx"
+      ]
+    },
+    {
+      "component": "CardBanner",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The one banner of a Threat Arsenal card, a direct child of the library Card: a revoked version, or injects left on an older version.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/card/useThreatArsenalCardBanner.tsx"
       ]
     }
   ],

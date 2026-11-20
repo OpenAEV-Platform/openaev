@@ -3,7 +3,7 @@ import type { Dispatch } from 'redux';
 import { getReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import type {
   InjectorContractSearchPaginationInput, PayloadCustomizationUpdateInput, PayloadUsageMoveInput, SearchPaginationInput,
-  ThreatArsenalActionCreateInput, ThreatArsenalActionUpdateInput,
+  ThreatArsenalActionCreateInput, ThreatArsenalActionIdsInput, ThreatArsenalActionUpdateInput,
 } from '../../utils/api-types';
 import { arrayOfSecurityPlatforms } from '../assets/asset-schema';
 
@@ -45,6 +45,12 @@ export const customizeThreatArsenalAction = (actionId: string) => simplePostCall
 export const fetchThreatArsenalCustomization = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/customization`);
 
 export const updateThreatArsenalCustomization = (actionId: string, input: PayloadCustomizationUpdateInput) => simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/customization/update`, input);
+
+export const fetchThreatArsenalOlderVersionsInUse = (input: ThreatArsenalActionIdsInput) => simplePostCall(`${THREAT_ARSENAL_URI}/older-versions-in-use`, input);
+
+export const keepThreatArsenalOlderVersions = (actionId: string) => simplePutCall(`${THREAT_ARSENAL_URI}/${actionId}/older-versions-kept`, undefined, undefined, true, false);
+
+export const showThreatArsenalOlderVersions = (actionId: string) => simpleDelCall(`${THREAT_ARSENAL_URI}/${actionId}/older-versions-kept`, undefined, true, false);
 
 export const duplicateThreatArsenalAction = (actionId: string) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}/duplicate`;

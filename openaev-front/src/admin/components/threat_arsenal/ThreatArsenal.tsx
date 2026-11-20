@@ -9,9 +9,10 @@ import MarketplaceSections from '../../../components/common/marketplace/results/
 import MarketplaceSortSelect from '../../../components/common/marketplace/toolbar/MarketplaceSortSelect';
 import MarketplaceViewToggle from '../../../components/common/marketplace/toolbar/MarketplaceViewToggle';
 import useMarketplaceView from '../../../components/common/marketplace/toolbar/useMarketplaceView';
+import { type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../components/i18n';
-import { type ThreatArsenalAction } from '../../../utils/api-types';
+import { type SearchPaginationInput, type ThreatArsenalAction } from '../../../utils/api-types';
 import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { DOMAIN_ICON_MAP } from '../common/domains/DomainsIcons';
@@ -23,6 +24,7 @@ import CreateThreatArsenalAction from './CreateThreatArsenalAction';
 import useActiveActions, { ACTIVE_FILTER_NAMES } from './hook/useActiveActions';
 import useActiveFacets from './hook/useActiveFacets';
 import useActiveSelection from './hook/useActiveSelection';
+import useOlderVersionsInUse from './hook/useOlderVersionsInUse';
 import useOpenedAction from './hook/useOpenedAction';
 import ThreatArsenalList from './list/ThreatArsenalList';
 import { THREAT_ARSENAL_SORT_OPTIONS } from './list/threatArsenalListConfig';
@@ -45,11 +47,22 @@ const ThreatArsenal = () => {
   const { threatArsenalActions, queryableHelpers, searchPaginationInput, totalElements, loading } = active;
   const facets = useActiveFacets(searchPaginationInput, queryableHelpers);
   const selection = useActiveSelection(threatArsenalActions, totalElements, searchPaginationInput, queryableHelpers.filterHelpers);
+  const olderVersions = useOlderVersionsInUse();
+  const fetchActions = (input: SearchPaginationInput) => active.fetchActions(input)
+    .then((response: { data: Page<ThreatArsenalAction> }) => {
+      olderVersions.load(response.data.content);
+      return response;
+    });
 
   const { openedAction, openedTab, openAction, showVersions, closeAction } = useOpenedAction(
     threatArsenalActions,
     queryableHelpers.textSearchHelpers.handleTextSearch,
   );
+  // A move or a keep in the drawer changes the banner of its card.
+  const closeDrawer = () => {
+    if (openedAction) olderVersions.load([openedAction]);
+    closeAction();
+  };
 
   const sections = {
     sectionKey: (action: ThreatArsenalAction) => actionDomains(action, facets.domainOptions)[0]?.domain_name,
@@ -106,7 +119,7 @@ const ThreatArsenal = () => {
                 <MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />
               </Box>
             )}
-            fetch={active.fetchActions}
+            fetch={fetchActions}
             searchPaginationInput={searchPaginationInput}
             setContent={active.setThreatArsenalActions}
             entityPrefix="threat_arsenal"
@@ -142,6 +155,7 @@ const ThreatArsenal = () => {
                   <ThreatArsenalCard
                     key={action.injector_contract_id}
                     action={action}
+                    olderVersionsInUse={olderVersions.isInUse(action.injector_contract_id)}
                     onSelect={() => openAction(action)}
                     onUpdate={active.replaceAction}
                     onDuplicate={active.addAction}
@@ -179,7 +193,7 @@ const ThreatArsenal = () => {
       {openedAction !== null && (
         <ThreatArsenalInformationDrawer
           open
-          onClose={closeAction}
+          onClose={closeDrawer}
           threatArsenalAction={openedAction}
           initialTab={openedTab}
           onRunTest={setRunTestAction}

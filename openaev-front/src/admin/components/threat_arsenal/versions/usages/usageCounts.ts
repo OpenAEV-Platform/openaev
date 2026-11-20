@@ -21,3 +21,7 @@ export const olderVersionsInUse = (versions: PayloadVersionOutput[], usages: Rec
     usages: usages[version.payload_id],
   }))
   .filter(older => older.usages && usageCount(older.usages) > 0);
+/** Every usage of the versions other than the latest. */
+export const olderUsageCount = (versions: PayloadVersionOutput[], latest: PayloadVersionOutput | undefined, usages: Record<string, PayloadUsagesOutput>) => versions
+  .filter(version => version.payload_id !== latest?.payload_id && usages[version.payload_id])
+  .reduce((sum, version) => sum + usageCount(usages[version.payload_id]), 0);
