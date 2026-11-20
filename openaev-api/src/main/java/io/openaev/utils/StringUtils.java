@@ -27,6 +27,8 @@ public class StringUtils {
   /** Suffix appended to duplicated entity names. */
   public static final String DUPLICATE_SUFFIX = " (duplicate)";
 
+  public static final String CUSTOMIZED_SUFFIX = " (customized)";
+
   /**
    * Creates a duplicate name by appending a suffix to the original name.
    *
@@ -38,11 +40,20 @@ public class StringUtils {
    * @throws IllegalArgumentException if originName is blank
    */
   public static String duplicateString(@NotBlank final String originName) {
-    String newName = originName + DUPLICATE_SUFFIX;
+    return suffixed(originName, DUPLICATE_SUFFIX);
+  }
+
+  /** The name of a customized copy, truncated as a duplicate name is. */
+  public static String customizedString(@NotBlank final String originName) {
+    return suffixed(originName, CUSTOMIZED_SUFFIX);
+  }
+
+  private static String suffixed(String originName, String suffix) {
+    String newName = originName + suffix;
     if (newName.length() > MAX_SIZE_OF_STRING) {
       // Truncate the original name to fit within MAX_SIZE_OF_STRING including the suffix
-      int maxOriginalLength = MAX_SIZE_OF_STRING - DUPLICATE_SUFFIX.length();
-      newName = originName.substring(0, maxOriginalLength) + DUPLICATE_SUFFIX;
+      int maxOriginalLength = MAX_SIZE_OF_STRING - suffix.length();
+      newName = originName.substring(0, maxOriginalLength) + suffix;
     }
     return newName;
   }

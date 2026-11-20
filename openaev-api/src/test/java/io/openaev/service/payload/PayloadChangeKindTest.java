@@ -69,7 +69,7 @@ class PayloadChangeKindTest {
   }
 
   private Optional<Change> changeTo(Payload after) {
-    return changeKind.of(command(), after, List.of());
+    return changeKind.of(command(), after, List.of()).kind();
   }
 
   @Test
@@ -118,8 +118,9 @@ class PayloadChangeKindTest {
 
       // Act
       Optional<Change> change =
-          changeKind.of(
-              before, command(), List.of(attackPattern("T1003"), attackPattern("T1003.001")));
+          changeKind
+              .of(before, command(), List.of(attackPattern("T1003"), attackPattern("T1003.001")))
+              .kind();
 
       // Assert
       assertThat(change).contains(Change.PATCH);
@@ -149,7 +150,7 @@ class PayloadChangeKindTest {
       after.setDetectionRemediations(List.of(remediation("rule one, tuned")));
 
       // Act & Assert
-      assertThat(changeKind.of(before, after, List.of())).contains(Change.MINOR);
+      assertThat(changeKind.of(before, after, List.of()).kind()).contains(Change.MINOR);
     }
   }
 
@@ -240,7 +241,7 @@ class PayloadChangeKindTest {
       after.setExpectations(new EXPECTATION_TYPE[] {EXPECTATION_TYPE.PREVENTION});
 
       // Act & Assert
-      assertThat(changeKind.of(before, after, List.of())).contains(Change.MAJOR);
+      assertThat(changeKind.of(before, after, List.of()).kind()).contains(Change.MAJOR);
     }
 
     @Test
@@ -252,7 +253,7 @@ class PayloadChangeKindTest {
       after.setDetectionRemediations(List.of(remediation("rule one")));
 
       // Act & Assert
-      assertThat(changeKind.of(before, after, List.of())).contains(Change.MAJOR);
+      assertThat(changeKind.of(before, after, List.of()).kind()).contains(Change.MAJOR);
     }
 
     @Test
@@ -265,7 +266,7 @@ class PayloadChangeKindTest {
           .thenReturn(Optional.of(contract));
 
       // Act & Assert
-      assertThat(changeKind.of(before, command(), List.of())).contains(Change.MAJOR);
+      assertThat(changeKind.of(before, command(), List.of()).kind()).contains(Change.MAJOR);
     }
   }
 
@@ -297,7 +298,7 @@ class PayloadChangeKindTest {
           .thenReturn(Optional.of("second-hash"));
 
       // Act & Assert
-      assertThat(changeKind.of(executable(document()), executable(document()), List.of()))
+      assertThat(changeKind.of(executable(document()), executable(document()), List.of()).kind())
           .contains(Change.MINOR);
     }
 
@@ -308,7 +309,7 @@ class PayloadChangeKindTest {
       when(documentService.contentHash(any())).thenReturn(Optional.empty());
 
       // Act & Assert
-      assertThat(changeKind.of(executable(file), executable(file), List.of())).isEmpty();
+      assertThat(changeKind.of(executable(file), executable(file), List.of()).kind()).isEmpty();
     }
 
     @Test
@@ -317,7 +318,7 @@ class PayloadChangeKindTest {
       when(documentService.contentHash(any())).thenReturn(Optional.empty());
 
       // Act & Assert
-      assertThat(changeKind.of(executable(document()), executable(document()), List.of()))
+      assertThat(changeKind.of(executable(document()), executable(document()), List.of()).kind())
           .contains(Change.MINOR);
     }
   }

@@ -68,10 +68,14 @@ public class PayloadVersionService {
   /** Refused when the version is not another version of the payload, or is revoked. */
   public InjectorContract otherVersionAction(String tenantId, Payload payload, String versionId) {
     refuseUnlessOtherVersion(tenantId, payload, versionId);
+    return versionAction(tenantId, versionId);
+  }
+
+  public InjectorContract versionAction(String tenantId, String payloadId) {
     return Optional.ofNullable(
             injectorContractService
-                .injectorContractsOfPayloads(tenantId, List.of(versionId))
-                .get(versionId))
+                .injectorContractsOfPayloads(tenantId, List.of(payloadId))
+                .get(payloadId))
         .orElseThrow(() -> new ElementNotFoundException(NO_PAYLOAD));
   }
 
