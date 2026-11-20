@@ -444,7 +444,7 @@ public interface StepRepository extends JpaRepository<Step, String> {
         WHERE s.step_status = 'TEMPLATE'
           AND s.step_template_id IS NULL
           AND COALESCE(sc.tenant_id, e.tenant_id) = :tenantId
-          AND """
+          AND \s"""
               + STEP_CONTRACT_ID
               + " IN (:injectorContractIds)",
       nativeQuery = true)

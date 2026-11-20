@@ -54,7 +54,7 @@ public interface PayloadIdentityRepository extends JpaRepository<PayloadIdentity
                 AND v.payload_id <> p.payload_id
                 AND (
                   EXISTS (SELECT 1 FROM injects i WHERE i.tenant_id = :tenantId
-                    AND i.inject_injector_contract = vc.injector_contract_id AND """
+                    AND i.inject_injector_contract = vc.injector_contract_id AND \s"""
               + InjectRepository.OUTSIDE_SIMULATIONS
               + ") OR EXISTS (SELECT 1 "
               + StepRepository.SCENARIO_STEP_TEMPLATES
