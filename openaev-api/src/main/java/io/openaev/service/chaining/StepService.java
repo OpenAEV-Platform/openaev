@@ -1142,6 +1142,15 @@ public class StepService {
         .toList();
   }
 
+  /** Points a step template at another injector contract, with a fresh copy of it in its data. */
+  @Transactional(rollbackFor = Exception.class)
+  public Step updateStepTemplateInjectorContract(Step stepTemplate, InjectorContract contract) {
+    WorkflowEditability.assertLogicMapEditable(stepTemplate.getWorkflow());
+    stepTemplate.setData(
+        injectExecutionStep.withInjectorContract(stepTemplate.getData(), contract));
+    return saveStep(stepTemplate);
+  }
+
   /** The title of the inject this step creates. */
   public String injectTitle(Step step) {
     JsonElement data = JsonParser.parseString(step.getData());
