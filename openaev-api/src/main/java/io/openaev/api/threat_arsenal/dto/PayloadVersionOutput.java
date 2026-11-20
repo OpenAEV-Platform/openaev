@@ -15,6 +15,10 @@ public record PayloadVersionOutput(
         String actionId,
     @JsonProperty("payload_version") @NotBlank String version,
     @JsonProperty("payload_is_latest") @NotNull boolean latest,
+    @Schema(description = "Its injects on older versions are kept there until a newer version")
+        @JsonProperty("payload_older_versions_kept")
+        @NotNull
+        boolean olderVersionsKept,
     @JsonProperty("payload_revoked") @NotNull boolean revoked,
     @Schema(description = "Revoked by the catalogue: the tenant cannot lift it")
         @JsonProperty("payload_revoked_by_catalogue")

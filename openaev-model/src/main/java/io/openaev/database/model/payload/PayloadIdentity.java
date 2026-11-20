@@ -74,6 +74,13 @@ public class PayloadIdentity implements CatalogIdentity, Auditable {
     return isManaged() && latestVersion == null;
   }
 
+  // -- OLDER VERSIONS --
+
+  /** The version shown when the injects on older versions were kept there; a newer one ends it. */
+  @Column(name = "payload_identity_older_versions_kept_for")
+  @JsonIgnore
+  private String olderVersionsKeptFor;
+
   // -- AUDIT --
 
   @Column(name = "payload_identity_created_at", updatable = false)
