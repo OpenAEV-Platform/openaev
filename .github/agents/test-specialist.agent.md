@@ -83,10 +83,12 @@ the refusal and error cases, data in fixtures.
 ## Coverage Requirements
 
 - **Changed lines**: a PR covers at least 80% of the backend lines it changes. CI checks it in the
-  `coverage-backend-gate` job (advisory in the Pipeline Gate for now), counting lines like Codecov: a
+  `coverage-backend-gate` job (blocking in the Pipeline Gate), counting lines like Codecov: a
   line where only some branches ran is partial, and does not count as covered.
 - **Project**: a PR does not drop backend line coverage by more than 0.1 point against its base commit.
   The same job checks it.
+- **Waiver**: a `Coverage exempt: <why>` line in the PR description waives both rules. Never add it
+  yourself: write the tests, or tell the author which lines you could not cover and why.
 - **Check it locally** after `mvn test`, which writes `openaev-api/target/site/jacoco/jacoco.xml`:
   `python3 .github/scripts/check-patch-coverage.py --report openaev-api/target/site/jacoco/jacoco.xml --base origin/main --fail-under 80`
 

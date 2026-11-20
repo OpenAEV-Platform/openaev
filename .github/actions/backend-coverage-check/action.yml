@@ -6,10 +6,11 @@ description: >
   against the latest report of the last commit of main (check-coverage-drop.py). Both count
   lines the way Codecov does, so a line where only some branches ran is not covered, and the
   results match Codecov's once the branch is up to date with main. Both rules run to the end. When
-  one fails, a "Backend Coverage (advisory)" check explains why, posted with the PR checks app
-  like the PR title check, and the step stays green: that check carries the result. When the
-  explanation check cannot be posted (pull requests from forks get no app token, or the post
-  fails), the step fails itself, so that a broken rule is never silent.
+  one fails, a "Backend Coverage" check explains why, posted with the PR checks app like the PR
+  title check (pull requests from forks get no app token, so only the job log explains it), and
+  the last step fails, which blocks the merge through the Pipeline Gate. A pull request waives the
+  rules with a "Coverage exempt: <why>" line in its description (coverage-exemption.py): the
+  check then shows the failed rules as neutral, with the reason, and the step stays green.
   Expects a checkout of the pull request's merge commit with at least its first parent, and the
   report at openaev-api/target/site/jacoco/jacoco.xml. Requires the job to set GH_TOKEN, which
   reads the reports of main.
@@ -65,6 +66,18 @@ runs:
           --target-sha "$(git rev-parse HEAD^1)" \
           --max-drop "$MAX_DROP" | tee "$RUNNER_TEMP/project-coverage.txt"
 
+    # Read only when a rule failed, through the API rather than from the event, so that a re-run
+    # sees a line added to the description since the first run.
+    - name: Look for a coverage exemption
+      id: exempt
+      if: ${{ steps.patch.outcome != 'success' || steps.project.outcome != 'success' }}
+      shell: bash
+      env:
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        reason=$(python3 "$GITHUB_WORKSPACE/.github/scripts/coverage-exemption.py" --pr "$PR_NUMBER")
+        echo "reason=$reason" >> "$GITHUB_OUTPUT"
+
     # A passing pull request gets no extra check, unless an earlier run on the same commit posted a
     # failure: the script then replaces it with a passing one.
     - name: Explain the failure in a check
@@ -79,6 +92,7 @@ runs:
         MAX_DROP: ${{ inputs.max-drop }}
         PATCH_OUTCOME: ${{ steps.patch.outcome }}
         PROJECT_OUTCOME: ${{ steps.project.outcome }}
+        EXEMPT_REASON: ${{ steps.exempt.outputs.reason }}
       run: |
         python3 "$GITHUB_WORKSPACE/.github/scripts/post-coverage-check.py" \
           --sha "$HEAD_SHA" \
@@ -87,16 +101,24 @@ runs:
           --patch-outcome "$PATCH_OUTCOME" \
           --patch-log "$RUNNER_TEMP/patch-coverage.txt" \
           --project-outcome "$PROJECT_OUTCOME" \
-          --project-log "$RUNNER_TEMP/project-coverage.txt"
+          --project-log "$RUNNER_TEMP/project-coverage.txt" \
+          --exempt-reason "$EXEMPT_REASON"
 
-    # The explanation check reports the broken rule when it was posted; otherwise this step does.
-    - name: Fail on a broken coverage rule nobody was told about
-      if: ${{ (steps.patch.outcome != 'success' || steps.project.outcome != 'success') && steps.explain.outcome != 'success' }}
+    # The rules block the merge through the Pipeline Gate, unless the pull request waives them.
+    - name: Fail on a broken coverage rule
+      if: ${{ steps.patch.outcome != 'success' || steps.project.outcome != 'success' }}
       shell: bash
       env:
         PATCH_OUTCOME: ${{ steps.patch.outcome }}
         PROJECT_OUTCOME: ${{ steps.project.outcome }}
+        EXEMPT_REASON: ${{ steps.exempt.outputs.reason }}
       run: |
         echo "Backend coverage rules: changed lines $PATCH_OUTCOME, whole backend $PROJECT_OUTCOME."
-        echo "The explanation check was not posted (fork pull request, or the post failed)."
+        if [ -n "$EXEMPT_REASON" ]; then
+          echo "Waived by the pull request description: $EXEMPT_REASON"
+          exit 0
+        fi
+        echo "The steps above list the lines to cover. A change that cannot be tested can waive the"
+        echo "rules: write 'Coverage exempt: <why>' in the pull request description, then re-run the"
+        echo "failed jobs."
         exit 1
