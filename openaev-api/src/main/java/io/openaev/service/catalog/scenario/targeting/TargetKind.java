@@ -20,7 +20,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /** A kind of target an inject takes, through a contract field or its target selector. */
-enum TargetKind {
+public enum TargetKind {
   ASSETS(CONTRACT_ELEMENT_CONTENT_KEY_ASSETS, "assets") {
     @Override
     boolean isChosenIn(ChosenTargets chosen) {
@@ -30,6 +30,11 @@ enum TargetKind {
     @Override
     void addTo(Inject inject, ChosenTargets chosen) {
       inject.setAssets(union(inject.getAssets(), chosen.assets()));
+    }
+
+    @Override
+    boolean isSetOn(Inject inject) {
+      return !inject.getAssets().isEmpty();
     }
   },
   ASSET_GROUPS(CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS, "asset-groups") {
@@ -41,6 +46,11 @@ enum TargetKind {
     @Override
     void addTo(Inject inject, ChosenTargets chosen) {
       inject.setAssetGroups(union(inject.getAssetGroups(), chosen.assetGroups()));
+    }
+
+    @Override
+    boolean isSetOn(Inject inject) {
+      return !inject.getAssetGroups().isEmpty();
     }
   },
   TEAMS(CONTRACT_ELEMENT_CONTENT_KEY_TEAMS, null) {
@@ -54,6 +64,11 @@ enum TargetKind {
     void addTo(Inject inject, ChosenTargets chosen) {
       inject.setAllTeams(false);
       inject.setTeams(union(inject.getTeams(), chosen.teams()));
+    }
+
+    @Override
+    boolean isSetOn(Inject inject) {
+      return inject.isAllTeams() || !inject.getTeams().isEmpty();
     }
   },
   HOSTS(MANUAL_TARGETS_CONTENT_KEY, MANUAL_TARGET_SELECTOR) {
@@ -69,6 +84,11 @@ enum TargetKind {
       hosts.addAll(chosen.hosts());
       content.put(MANUAL_TARGETS_CONTENT_KEY, String.join(",", hosts));
       inject.setContent(content);
+    }
+
+    @Override
+    boolean isSetOn(Inject inject) {
+      return !contentManualTargets(contentOf(inject)).isEmpty();
     }
   };
 
@@ -89,6 +109,8 @@ enum TargetKind {
   abstract boolean isChosenIn(ChosenTargets chosen);
 
   abstract void addTo(Inject inject, ChosenTargets chosen);
+
+  abstract boolean isSetOn(Inject inject);
 
   String field() {
     return field;

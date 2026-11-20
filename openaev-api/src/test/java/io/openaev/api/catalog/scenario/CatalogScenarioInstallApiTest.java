@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -54,8 +55,10 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.model.catalog.ContentType;
 import io.openaev.database.repository.CatalogHistoryRepository;
+import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioIdentityRepository;
@@ -63,6 +66,7 @@ import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.catalog.scenario.CatalogScenarioInstaller;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CatalogReleaseFixture.ReleasedPayload;
 import io.openaev.utils.fixtures.EndpointFixture;
@@ -124,6 +128,8 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private DataSource dataSource;
+  @Autowired private CatalogItemRepository catalogItemRepository;
+  @Autowired private PayloadRevocationService payloadRevocationService;
 
   @BeforeEach
   void attachToDefaultTenant() {
@@ -609,12 +615,38 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
           .andExpect(jsonPath("$[0].catalog_scenario_changelog").value("Adds a discovery step"))
           .andExpect(jsonPath("$[0].catalog_scenario_main_focus").value("incident-response"))
           .andExpect(jsonPath("$[0].catalog_scenario_severity").value("high"))
-          .andExpect(jsonPath("$[0].catalog_scenario_injects_count").value(3))
+          .andExpect(jsonPath("$[0].catalog_scenario_injects_count").value(3));
+    }
+
+    @Test
+    @DisplayName("lists a scenario with its facts and the payload versions its release names")
+    void given_releasedScenario_should_listItsFactsAndPayloads() throws Exception {
+      // Arrange
+      publish(
+          Map.of(
+              "changelog", "Adds a discovery step",
+              "main_focus", "incident-response",
+              "severity", "high",
+              "injects_count", 3));
+
+      // Act
+      ResultActions result = available();
+
+      // Assert
+      result
+          .andExpect(status().isOk())
           .andExpect(
-              jsonPath("$[0].catalog_scenario_payloads[0].catalog_payload_external_id")
+              jsonPath("$.content[0].catalog_scenario_changelog").value("Adds a discovery step"))
+          .andExpect(
+              jsonPath("$.content[0].catalog_scenario_main_focus").value("incident-response"))
+          .andExpect(jsonPath("$.content[0].catalog_scenario_severity").value("high"))
+          .andExpect(jsonPath("$.content[0].catalog_scenario_injects_count").value(3))
+          .andExpect(
+              jsonPath("$.content[0].catalog_scenario_payloads[0].catalog_payload_external_id")
                   .value(PAYLOAD_ID))
           .andExpect(
-              jsonPath("$[0].catalog_scenario_payloads[0].catalog_payload_version").value(VERSION));
+              jsonPath("$.content[0].catalog_scenario_payloads[0].catalog_payload_version")
+                  .value(VERSION));
     }
   }
 
@@ -703,6 +735,114 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
                   String.class,
                   simulationId))
           .containsExactly(visible.getId());
+    }
+  }
+
+  // -- LAUNCH CHECK --
+
+  @Nested
+  @DisplayName("Checking a launch")
+  class CheckingLaunch {
+
+    private ResultActions launchCheck(Scenario scenario) throws Exception {
+      entityManager.flush();
+      return mvc.perform(
+          get(
+              TENANT_SCENARIO_URI + "/{scenarioId}/launch-check",
+              DEFAULT_TENANT_UUID,
+              scenario.getId()));
+    }
+
+    @Test
+    @DisplayName("lists an inject that takes targets and has none")
+    void given_injectWithoutTarget_should_listItAsUntargeted() throws Exception {
+      // Arrange
+      publish(Map.of());
+      Scenario scenario = installedScenario(install().andExpect(status().isCreated()));
+
+      // Act
+      ResultActions result = launchCheck(scenario);
+
+      // Assert
+      result
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.launch_check_injects.length()").value(1))
+          .andExpect(
+              jsonPath("$.launch_check_injects[0].inject_id")
+                  .value(injectsOf(scenario).getFirst().getId()))
+          .andExpect(jsonPath("$.launch_check_injects[0].inject_target_kinds", hasItem("ASSETS")))
+          .andExpect(jsonPath("$.launch_check_injects[0].inject_targeted").value(false))
+          .andExpect(jsonPath("$.launch_check_revoked_injects").isEmpty())
+          .andExpect(jsonPath("$.launch_check_missing_requirements").isEmpty());
+    }
+
+    @Test
+    @DisplayName("tells an inject has a target once it has one")
+    void given_targetedInject_should_sayItIsTargeted() throws Exception {
+      // Arrange
+      publish(Map.of());
+      Endpoint endpoint = endpointRepository.save(EndpointFixture.createEndpoint());
+      Scenario scenario =
+          installedScenario(
+              install(timeBased(List.of(endpoint.getId()))).andExpect(status().isCreated()));
+
+      // Act
+      ResultActions result = launchCheck(scenario);
+
+      // Assert
+      result
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.launch_check_injects[0].inject_targeted").value(true));
+    }
+
+    @Test
+    @DisplayName("lists the injects running a revoked payload version, with their action")
+    void given_revokedPayload_should_listItsInjects() throws Exception {
+      // Arrange
+      publish(Map.of());
+      Scenario scenario = installedScenario(install().andExpect(status().isCreated()));
+      Inject inject = injectsOf(scenario).getFirst();
+      payloadRevocationService.revoke(
+          TxCtx.forTenant(DEFAULT_TENANT_UUID),
+          DEFAULT_TENANT_UUID,
+          inject.getInjectorContract().orElseThrow().getPayload().getId(),
+          "Unsafe");
+
+      // Act
+      ResultActions result = launchCheck(scenario);
+
+      // Assert
+      result
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.launch_check_revoked_injects[0].inject_id").value(inject.getId()))
+          .andExpect(
+              jsonPath("$.launch_check_revoked_injects[0].inject_action_id")
+                  .value(inject.getInjectorContract().orElseThrow().getId()));
+    }
+
+    @Test
+    @DisplayName("names what the platform lacks to run an installed catalogue scenario")
+    void given_requirementMissingSinceInstall_should_nameIt() throws Exception {
+      // Arrange
+      publish(Map.of());
+      Scenario scenario = installedScenario(install().andExpect(status().isCreated()));
+      catalogItemRepository
+          .findVersion(CatalogScenario.class, SCENARIO_ID, VERSION)
+          .orElseThrow()
+          .setRequires(mapper.writeValueAsString(Map.of("injectors", List.of("openaev_gone"))));
+
+      // Act
+      ResultActions result = launchCheck(scenario);
+
+      // Assert
+      result
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.launch_check_missing_requirements[0].requirement_label")
+                  .value("Injector openaev_gone"))
+          .andExpect(
+              jsonPath("$.launch_check_missing_requirements[0].requirement_status")
+                  .value("NOT_DEPLOYED"));
     }
   }
 

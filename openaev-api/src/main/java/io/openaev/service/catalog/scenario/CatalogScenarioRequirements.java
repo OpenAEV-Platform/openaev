@@ -36,31 +36,53 @@ public class CatalogScenarioRequirements {
 
   /** Checks scenarios to install against what this platform has, read once. */
   public Checker checker() {
-    return new Checker(integrationId -> null);
-  }
-
-  /** Checks scenarios to list, also telling whether each missing integration is deployed. */
-  public Checker checkerWithStatus() {
-    Set<String> deployed = catalogConnectorService.deployedInstanceCounts().keySet();
     return new Checker(
-        integrationId -> Status.of(integrationId != null && deployed.contains(integrationId)));
+        mapper,
+        platformSettingsService.getPlatformVersion(),
+        injectorTypes(),
+        integrationsBySlug());
   }
 
-  public class Checker {
-    private final String platformVersion = platformSettingsService.getPlatformVersion();
-    private final Set<String> injectors =
-        injectorService.findAll().stream().map(Injector::getType).collect(Collectors.toSet());
-    // An injector is enabled from the catalogue integration of the same slug, when there is one.
-    private final Map<String, CatalogConnector> integrationsBySlug =
-        catalogConnectorService.findAll().stream()
-            .filter(connector -> connector.getSlug() != null)
-            .collect(
-                Collectors.toMap(
-                    CatalogConnector::getSlug, Function.identity(), (first, other) -> first));
-    private final Function<String, Status> integrationStatus;
+  /** Checks scenarios to show, also telling whether each missing integration is deployed. */
+  public Checker checkerWithStatus() {
+    return new StatusChecker(
+        mapper,
+        platformSettingsService.getPlatformVersion(),
+        injectorTypes(),
+        integrationsBySlug(),
+        catalogConnectorService.deployedInstanceCounts().keySet());
+  }
 
-    private Checker(Function<String, Status> integrationStatus) {
-      this.integrationStatus = integrationStatus;
+  private Set<String> injectorTypes() {
+    return injectorService.findAll().stream().map(Injector::getType).collect(Collectors.toSet());
+  }
+
+  // An injector is enabled from the catalogue integration of the same slug, when there is one.
+  private Map<String, CatalogConnector> integrationsBySlug() {
+    return catalogConnectorService.findAll().stream()
+        .filter(connector -> connector.getSlug() != null)
+        .collect(
+            Collectors.toMap(
+                CatalogConnector::getSlug, Function.identity(), (first, other) -> first));
+  }
+
+  /** What each scenario lacks on this platform. */
+  public static class Checker {
+
+    private final ObjectMapper mapper;
+    private final String platformVersion;
+    private final Set<String> injectors;
+    private final Map<String, CatalogConnector> integrationsBySlug;
+
+    Checker(
+        ObjectMapper mapper,
+        String platformVersion,
+        Set<String> injectors,
+        Map<String, CatalogConnector> integrationsBySlug) {
+      this.mapper = mapper;
+      this.platformVersion = platformVersion;
+      this.injectors = injectors;
+      this.integrationsBySlug = integrationsBySlug;
     }
 
     public List<MissingRequirement> missing(CatalogScenario item) {
@@ -80,6 +102,11 @@ public class CatalogScenarioRequirements {
       return missing;
     }
 
+    /** Where the integration bringing a missing injector stands; unknown to a plain checker. */
+    Optional<Status> status(String integrationId) {
+      return Optional.empty();
+    }
+
     private MissingRequirement injector(String type) {
       String label = "Injector " + type;
       Optional<CatalogConnector> integration = Optional.ofNullable(integrationsBySlug.get(type));
@@ -91,18 +118,38 @@ public class CatalogScenarioRequirements {
               .filter(title -> !title.isBlank())
               .orElse(label),
           integrationId,
-          integrationStatus.apply(integrationId));
+          status(integrationId).orElse(null));
+    }
+
+    private Requires read(CatalogScenario item) {
+      if (item.getRequires() == null) {
+        return null;
+      }
+      try {
+        return mapper.readValue(item.getRequires(), Requires.class);
+      } catch (IOException e) {
+        throw new IllegalStateException("Unreadable requirements", e);
+      }
     }
   }
 
-  private Requires read(CatalogScenario item) {
-    if (item.getRequires() == null) {
-      return null;
+  static class StatusChecker extends Checker {
+
+    private final Set<String> deployed;
+
+    StatusChecker(
+        ObjectMapper mapper,
+        String platformVersion,
+        Set<String> injectors,
+        Map<String, CatalogConnector> integrationsBySlug,
+        Set<String> deployed) {
+      super(mapper, platformVersion, injectors, integrationsBySlug);
+      this.deployed = deployed;
     }
-    try {
-      return mapper.readValue(item.getRequires(), Requires.class);
-    } catch (IOException e) {
-      throw new IllegalStateException("Unreadable requirements", e);
+
+    @Override
+    Optional<Status> status(String integrationId) {
+      return Optional.of(Status.of(integrationId != null && deployed.contains(integrationId)));
     }
   }
 }
