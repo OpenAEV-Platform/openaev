@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20261120100000000__Scenario_revisions extends BaseJavaMigration {
+public class V6_20261120170000000__Scenario_revisions extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
