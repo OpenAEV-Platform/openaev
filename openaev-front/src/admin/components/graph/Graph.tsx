@@ -1,4 +1,5 @@
-import { Alert, Button } from '@filigran/design-system';
+import { Alert, Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { InfoOutlined } from '@mui/icons-material';
 import { Box, Stack } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -9,7 +10,7 @@ import {
   fetchGraphStartingPoints,
   fetchGraphStory,
 } from '../../../actions/graph/graph-actions';
-import Breadcrumbs from '../../../components/Breadcrumbs';
+import Breadcrumbs, { type BreadcrumbsElement } from '../../../components/Breadcrumbs';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
 import { type GraphOverviewGroupOutput, type GraphOverviewOutput, type GraphStartingPointOutput } from '../../../utils/api-types';
@@ -144,7 +145,6 @@ const Graph = () => {
     view: next,
     focus: null,
   });
-  const backToLanding = () => setParam({ focus: null });
 
   const onSelectPoint = (point: GraphStartingPointOutput) => focusOn(point.point_node_type, point.point_entity_id);
   const onUnfoldGroup = (group: GraphOverviewGroupOutput) => focusOn('ASSET_GROUP', group.group_id);
@@ -181,38 +181,55 @@ const Graph = () => {
     );
   }
 
+  // One header row (UX header budget, Sam 20 Nov 2026: no space lost above the canvas): the breadcrumb
+  // carries the way back to the landing, the view switch sits on the same line and its explanation
+  // lives in a tooltip, never in a band of its own.
+  const viewHelp = view === 'story'
+    ? t('The most critical chain of the estate: the attack path with the most failed steps, or the asset with the most failed expectations, with its findings, asset groups and identity. Double-click a node to expand it.')
+    : t('Asset groups sized by asset count and coloured by failure rate, with the simulations that target them. Double-click a group to unfold its assets.');
+
+  const crumbs: BreadcrumbsElement[] = [{
+    label: t('Graph'),
+    link: isLanding ? undefined : '/admin/graph',
+    current: isLanding,
+  }];
+  if (!isLanding) {
+    crumbs.push({
+      label: t('Exploration'),
+      current: true,
+    });
+  }
+
   return (
-    <Stack spacing={1.5} sx={{ height: 'calc(100dvh - 140px)' }}>
-      <Breadcrumbs
-        variant="list"
-        elements={[{
-          label: t('Graph'),
-          current: true,
-        }]}
-      />
-      <div className="flex flex-wrap items-center gap-2">
-        {isLanding ? (
-          <>
+    <Stack spacing={1} sx={{ height: 'calc(100dvh - 140px)' }}>
+      <div className="flex flex-wrap items-center gap-2" data-testid="graph-header">
+        <Breadcrumbs
+          variant="list"
+          style={{
+            marginTop: 0,
+            marginBottom: 0,
+          }}
+          elements={crumbs}
+        />
+        {isLanding && view && (
+          <div className="ml-auto flex items-center gap-1" role="group" aria-label={t('Graph view')}>
             <Button type="button" size="sm" priority={view === 'story' ? 'primary' : 'secondary'} aria-pressed={view === 'story'} onClick={() => showView('story')}>
               {t('Top exposure story')}
             </Button>
             <Button type="button" size="sm" priority={view === 'overview' ? 'primary' : 'secondary'} aria-pressed={view === 'overview'} onClick={() => showView('overview')}>
               {t('Estate overview')}
             </Button>
-          </>
-        ) : (
-          <Button type="button" size="sm" priority="tertiary" onClick={backToLanding}>{t('Back to the landing')}</Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <IconButton priority="tertiary" icon={<InfoOutlined fontSize="small" />} aria-label={viewHelp} />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{viewHelp}</TooltipContent>
+            </Tooltip>
+          </div>
         )}
       </div>
-      {isLanding && view && (
-        <Alert
-          severity="info"
-          title={view === 'story' ? t('Top exposure story') : t('Estate overview')}
-          description={view === 'story'
-            ? t('The most critical chain of the estate: the attack path with the most failed steps, or the asset with the most failed expectations, with its findings, asset groups and identity. Double-click a node to expand it.')
-            : t('Asset groups sized by asset count and coloured by failure rate, with the simulations that target them. Double-click a group to unfold its assets.')}
-        />
-      )}
       <Box sx={{
         flexGrow: 1,
         minHeight: 0,

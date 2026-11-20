@@ -231,6 +231,11 @@ test.describe('Exploration graph interactions', () => {
     await page.keyboard.press('g');
     await expect(legend).toBeVisible();
 
+    // One header row: no 'Back to the landing' row, the breadcrumb leads back to the landing.
+    await expect(page.getByRole('button', { name: 'Back to the landing' })).toHaveCount(0);
+    await page.getByTestId('graph-header').getByRole('link', { name: 'Graph' }).click();
+    await expect(page).not.toHaveURL(/focus=/);
+
     expect(problems).toEqual([]);
   });
 
