@@ -49,6 +49,21 @@ public class CatalogScenarioUpdateService {
 
   @Transactional(readOnly = true)
   public InstalledScenario installed(TxCtx ctx, String scenarioId) {
+    return installedScenario(ctx, scenarioId);
+  }
+
+  /** The versions the catalogue offers after the installed one, newest first. */
+  @Transactional(readOnly = true)
+  public List<CatalogScenario> newerVersions(TxCtx ctx, String scenarioId) {
+    InstalledScenario installed = installedScenario(ctx, scenarioId);
+    return catalogListService
+        .offeredVersions(CatalogScenario.class, installed.externalId())
+        .stream()
+        .filter(item -> SemanticVersion.ORDER.compare(item.getVersion(), installed.version()) > 0)
+        .toList();
+  }
+
+  private InstalledScenario installedScenario(TxCtx ctx, String scenarioId) {
     Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     if (scenario.getCatalogIdentity() == null) {
       throw new BadRequestException(NOT_INSTALLED);
@@ -58,17 +73,6 @@ public class CatalogScenarioUpdateService {
         scenario.getTenant().getId(),
         scenario.getCatalogExternalId(),
         scenario.getCatalogVersion());
-  }
-
-  /** The versions the catalogue offers after the installed one, newest first. */
-  @Transactional(readOnly = true)
-  public List<CatalogScenario> newerVersions(TxCtx ctx, String scenarioId) {
-    InstalledScenario installed = installed(ctx, scenarioId);
-    return catalogListService
-        .offeredVersions(CatalogScenario.class, installed.externalId())
-        .stream()
-        .filter(item -> SemanticVersion.ORDER.compare(item.getVersion(), installed.version()) > 0)
-        .toList();
   }
 
   /** What the content changes, and its conflicts, none of them chosen yet. */
