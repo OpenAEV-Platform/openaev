@@ -12,6 +12,6 @@ public record PayloadCustomizationUpdateInput(
         @JsonProperty("update_payload_id")
         @NotBlank
         String payloadId,
-    @Schema(description = "Filigran's or yours, for every conflicting block")
+    @Schema(description = "Keep mine or take Filigran's, for every conflicting block")
         @JsonProperty("update_choices")
         Map<CustomizableBlock, Choice> choices) {}

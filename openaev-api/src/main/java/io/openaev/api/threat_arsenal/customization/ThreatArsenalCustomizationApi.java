@@ -79,8 +79,8 @@ public class ThreatArsenalCustomizationApi {
   @Operation(
       summary = "Bring the newer Filigran version into a customized copy",
       description =
-          "Adds a version of the copy: its changes stay, Filigran's or its own value is kept on"
-              + " each conflicting field as chosen.")
+          "Adds a version of the copy: its changes stay, and each conflicting block keeps its own"
+              + " value or takes Filigran's, as chosen.")
   @PostMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/customization/update")
   @Transactional(rollbackFor = Exception.class)
   @AccessControl(
