@@ -1391,12 +1391,15 @@ class MarkingDefinitionApiTest extends IntegrationTest {
         throws Exception {
       // Arrange
       Tenant tenant = tenantWithManageAndAccess("marking-export-utf8");
+      // One type per row: the caller holds no marking, so a second definition of a type the file
+      // just created would be above its clearance.
+      List<String> types = List.of("ZZUTF8A", "ZZUTF8B");
       List<String> definitions = List.of("Confidentiel défense", "機密 секрет");
       List<MarkingDefinition> persisted = new ArrayList<>();
       for (int i = 0; i < definitions.size(); i++) {
         persisted.add(
             createPersistedMarkingDefinition(
-                tenant.getId(), "ZZUTF8", definitions.get(i), "#555555", i + 1, Instant.now()));
+                tenant.getId(), types.get(i), definitions.get(i), "#555555", 1, Instant.now()));
       }
 
       // Act
@@ -1408,10 +1411,11 @@ class MarkingDefinitionApiTest extends IntegrationTest {
           .andExpect(jsonPath("$.import_created").value(definitions.size()));
 
       // Assert
-      for (String definition : definitions) {
-        assertThat(exported).containsSequence(definition.getBytes(StandardCharsets.UTF_8));
+      for (int i = 0; i < definitions.size(); i++) {
+        assertThat(exported).containsSequence(definitions.get(i).getBytes(StandardCharsets.UTF_8));
         assertThat(
-                repository.findByTypeAndDefinitionAndTenantId("ZZUTF8", definition, tenant.getId()))
+                repository.findByTypeAndDefinitionAndTenantId(
+                    types.get(i), definitions.get(i), tenant.getId()))
             .isPresent();
       }
     }
