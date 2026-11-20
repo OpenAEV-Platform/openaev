@@ -18,5 +18,5 @@ public record CatalogScenarioOutput(
     @JsonProperty("catalog_scenario_platforms") @NotNull String[] platforms,
     @JsonProperty("catalog_scenario_published_at") Instant publishedAt,
     @JsonProperty("catalog_scenario_missing_requirements") @NotNull
-        List<String> missingRequirements,
+        List<CatalogScenarioRequirementOutput> missingRequirements,
     @JsonProperty("catalog_scenario_installed_scenario_id") String installedScenarioId) {}

@@ -7,6 +7,7 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.service.catalog.scenario.CatalogScenarioService.ALREADY_INSTALLED;
 import static io.openaev.service.catalog.scenario.CatalogScenarioService.OTHER_PAYLOAD_REFUSED;
 import static io.openaev.service.catalog.scenario.CatalogScenarioService.OTHER_TYPE_CHOICE_REFUSED;
+import static io.openaev.utils.fixtures.CatalogConnectorFixture.createDefaultCatalogConnectorManagedByXtmComposer;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.PAYLOAD_ID;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.SCENARIO_ID;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.chainedScenarioPackage;
@@ -43,6 +44,8 @@ import io.openaev.api.catalog.dto.scenario.TimeBasedScenarioInstallInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.scenario.dto.ScenarioTargetsInput;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Payload;
@@ -63,6 +66,7 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CatalogReleaseFixture.ReleasedPayload;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -115,11 +119,13 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
   @Autowired private CatalogScenarioInstaller catalogScenarioInstaller;
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
+  @Autowired private CatalogConnectorComposer catalogConnectorComposer;
   @Autowired private DataSource dataSource;
 
   @BeforeEach
   void attachToDefaultTenant() {
     markingDefinitionComposer.reset();
+    catalogConnectorComposer.reset();
     tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT_UUID);
     injectorFixture.getWellKnownOaevImplantInjector();
   }
@@ -497,8 +503,37 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.content[0].catalog_scenario_external_id").value(SCENARIO_ID))
           .andExpect(
-              jsonPath("$.content[0].catalog_scenario_missing_requirements[0]")
-                  .value("Injector openaev_unknown"));
+              jsonPath("$.content[0].catalog_scenario_missing_requirements[0].requirement_label")
+                  .value("Injector openaev_unknown"))
+          .andExpect(
+              jsonPath(
+                      "$.content[0].catalog_scenario_missing_requirements[0].requirement_integration_id")
+                  .doesNotExist());
+    }
+
+    @Test
+    @DisplayName("links a missing injector to the catalogue integration that brings it")
+    void given_missingInjectorInTheCatalogue_should_giveItsIntegration() throws Exception {
+      // Arrange
+      CatalogConnector integration =
+          catalogConnectorComposer
+              .forCatalogConnector(
+                  createDefaultCatalogConnectorManagedByXtmComposer(
+                      "openaev_missing", ConnectorType.INJECTOR))
+              .persist()
+              .get();
+      publish(Map.of("requires", Map.of("injectors", List.of("openaev_missing"))));
+
+      // Act
+      ResultActions result = available();
+
+      // Assert
+      result
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath(
+                      "$.content[0].catalog_scenario_missing_requirements[0].requirement_integration_id")
+                  .value(integration.getId()));
     }
 
     @Test
@@ -533,7 +568,12 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
           .andExpect(jsonPath("$[0].catalog_scenario_changelog").value("Adds a discovery step"))
           .andExpect(jsonPath("$[0].catalog_scenario_main_focus").value("incident-response"))
           .andExpect(jsonPath("$[0].catalog_scenario_severity").value("high"))
-          .andExpect(jsonPath("$[0].catalog_scenario_injects_count").value(3));
+          .andExpect(jsonPath("$[0].catalog_scenario_injects_count").value(3))
+          .andExpect(
+              jsonPath("$[0].catalog_scenario_payloads[0].catalog_payload_external_id")
+                  .value(PAYLOAD_ID))
+          .andExpect(
+              jsonPath("$[0].catalog_scenario_payloads[0].catalog_payload_version").value(VERSION));
     }
   }
 

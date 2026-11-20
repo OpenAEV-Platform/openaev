@@ -8,4 +8,6 @@ import java.util.List;
  * scenario installed from it, if any.
  */
 public record OfferedScenario(
-    CatalogScenario version, List<String> missingRequirements, String installedScenarioId) {}
+    CatalogScenario version,
+    List<MissingRequirement> missingRequirements,
+    String installedScenarioId) {}

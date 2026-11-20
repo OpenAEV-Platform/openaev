@@ -9,8 +9,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.catalog.dto.CatalogManifest.PayloadRef;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.catalog.CatalogItem;
+import io.openaev.database.model.catalog.CatalogPayload;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.model.catalog.ContentType;
+import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.database.specification.CatalogItemSpecification;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -26,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
@@ -47,6 +50,7 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   private final CatalogSettingsService catalogSettingsService;
   private final CatalogScenarioService catalogScenarioService;
   private final CatalogFacetCounter catalogFacetCounter;
+  private final CatalogItemRepository catalogItemRepository;
   private final ObjectMapper mapper;
 
   // -- LIST --
@@ -58,10 +62,11 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   @Transactional(readOnly = true)
   public InstallableScenarioVersion installable(TxCtx ctx, String externalId, String version) {
     CatalogScenario item = catalogListService.offered(CatalogScenario.class, externalId, version);
-    List<String> missing = catalogScenarioRequirements.missing(item);
+    List<MissingRequirement> missing = catalogScenarioRequirements.missing(item);
     if (!missing.isEmpty()) {
       throw new BadRequestException(
-          "Missing to install this scenario: " + String.join(", ", missing));
+          "Missing to install this scenario: "
+              + missing.stream().map(MissingRequirement::label).collect(Collectors.joining(", ")));
     }
     return toInstallable(ctx, item);
   }
@@ -73,6 +78,18 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
         catalogListService
             .version(CatalogScenario.class, externalId, version)
             .orElseThrow(() -> new ElementNotFoundException("Catalogue version not found")));
+  }
+
+  /** The catalogue payloads a scenario version runs, as its release names them. */
+  @Transactional(readOnly = true)
+  public List<CatalogPayload> payloads(CatalogScenario item) {
+    return payloadRefs(item).stream()
+        .flatMap(
+            ref ->
+                catalogItemRepository
+                    .findVersion(CatalogPayload.class, ref.externalId(), ref.version())
+                    .stream())
+        .toList();
   }
 
   /**
@@ -102,7 +119,8 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
     Page<CatalogScenario> page =
         catalogListService.search(
             CatalogScenario.class, latestOffered(tenantId), input, facets(tenantId));
-    Function<CatalogScenario, List<String>> missing = catalogScenarioRequirements.missingForEach();
+    Function<CatalogScenario, List<MissingRequirement>> missing =
+        catalogScenarioRequirements.missingForEach();
     Map<String, String> installed =
         catalogScenarioService.installedScenarioIds(
             tenantId, page.getContent().stream().map(CatalogItem::getExternalId).toList());
