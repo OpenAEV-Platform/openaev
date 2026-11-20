@@ -282,11 +282,16 @@ public class Finding implements TenantBase {
     return getSimulations().stream().map(Exercise::getScenario).filter(Objects::nonNull).toList();
   }
 
+  /**
+   * The asset groups that statically contain one of the finding's assets. Never the groups its
+   * injects targeted: those include groups the hit asset is not in. The API and the search index
+   * also add the dynamic groups, through {@link AssetGroupMembershipResolver}.
+   */
   @JsonProperty("finding_asset_groups")
-  @Queryable(filterable = true, dynamicValues = true, path = "occurrences.inject.assetGroups.id")
+  @Queryable(filterable = true, dynamicValues = true, path = "assets.assetGroups.id")
   public Set<AssetGroup> getAssetGroups() {
-    return getInjects().stream()
-        .flatMap(inject -> inject.getAssetGroups().stream())
+    return getAssets().stream()
+        .flatMap(asset -> asset.getAssetGroups().stream())
         .collect(Collectors.toSet());
   }
 }

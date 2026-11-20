@@ -1,13 +1,13 @@
-<h1 align="center">
-  <a href="https://openaev.io"><img src="./.github/img/logo_openaev.png" alt="OpenAEV"></a>
-</h1>
+<a href="https://filigran.io/products/openaev"><img src="./.github/img/readme/banner.svg" width="100%" alt="OpenAEV by Filigran"></a>
+
 <p align="center">
-  <a href="https://openaev.io" alt="Website"><img src="https://img.shields.io/badge/website-openaev.io-blue.svg" /></a>
-  <a href="https://docs.openaev.io" alt="Documentation"><img src="https://img.shields.io/badge/documentation-latest-orange.svg" /></a>
-  <a href="https://community.filigran.io" alt="Slack"><img src="https://img.shields.io/badge/slack-6K%2B%20members-4A154B" /></a>
-  <a href="https://codecov.io/gh/OpenAEV-Platform/openaev"><img src="https://codecov.io/gh/OpenAEV-Platform/openaev/graph/badge.svg" /></a>
-  <a href="https://deepscan.io/dashboard#view=project&tid=11710&pid=14631&bid=276803"><img src="https://deepscan.io/api/teams/11710/projects/14631/branches/276803/badge/grade.svg" alt="DeepScan grade"></a>
-  <a href="https://hub.docker.com/u/openaev" alt="Docker pulls"><img src="https://img.shields.io/docker/pulls/openaev/platform" /></a>
+  <a href="https://github.com/OpenAEV-Platform/openaev/stargazers"><img src="https://img.shields.io/github/stars/OpenAEV-Platform/openaev?style=flat-square&labelColor=0A0C1C&logo=github&logoColor=white&color=001BDA" alt="stars"></a>
+  <a href="https://github.com/OpenAEV-Platform/openaev/releases/latest"><img src="https://img.shields.io/github/v/release/OpenAEV-Platform/openaev?style=flat-square&labelColor=0A0C1C&color=001BDA" alt="release"></a>
+  <a href="https://hub.docker.com/r/openaev/platform"><img src="https://img.shields.io/docker/pulls/openaev/platform?style=flat-square&labelColor=0A0C1C&logo=docker&logoColor=white&color=001BDA" alt="docker pulls"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-001BDA?style=flat-square&labelColor=0A0C1C" alt="license"></a>
+  <a href="https://github.com/OpenAEV-Platform/openaev/actions/workflows/core-ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/OpenAEV-Platform/openaev/core-ci.yml?branch=main&label=CI&style=flat-square&labelColor=0A0C1C&logo=githubactions&logoColor=white&color=001BDA" alt="CI"></a>
+  <a href="https://docs.openaev.io"><img src="https://img.shields.io/badge/docs-read-001BDA?style=flat-square&labelColor=0A0C1C" alt="docs"></a>
+  <a href="https://community.filigran.io"><img src="https://img.shields.io/badge/community-slack-001BDA?style=flat-square&labelColor=0A0C1C&logo=slack&logoColor=white" alt="community"></a>
 </p>
 
 > **Community workshop:** Join us as Taylor Walton (of SOCFortress) walks through his working SOC stack: OpenCTI → OpenAEV → Wazuh → Velociraptor. Taylor will be joined by OpenAEV's product owner to cover what's coming next for OpenCTI and OpenAEV.
@@ -99,30 +99,36 @@ deployment of a development environment and how to start the source code modific
 
 ## Community
 
-### Status & bugs
+Star OpenAEV to follow it and to help other security teams find it.
 
-Currently OpenAEV is under heavy development, if you wish to report bugs or ask for new features, you can directly use
-the [Github issues module](https://github.com/OpenAEV-Platform/openaev/issues).
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./.github/img/readme/stars-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="./.github/img/readme/stars-light.svg">
+  <img alt="GitHub stars of OpenAEV over time" src="./.github/img/readme/stars-light.svg" width="100%">
+</picture>
 
-### Discussion
+- **Questions and discussion**: the Filigran [community Slack](https://community.filigran.io).
+- **Bugs and feature requests**: [GitHub issues](https://github.com/OpenAEV-Platform/openaev/issues).
+- **Learn**: free courses on [Filigran Academy](https://academy.filigran.io).
 
-If you need support or you wish to engage a discussion about the OpenAEV platform, feel free to join us on
-our [Slack channel](https://community.filigran.io). You can also send us an email to contact@filigran.io.
+## Contributing
 
-## About
+Read the [contributing guide](CONTRIBUTING.md) to set up a development environment and propose a change. OpenAEV has adopted a [Code of Conduct](CODE_OF_CONDUCT.md). First contribution: the [good first issues](https://github.com/OpenAEV-Platform/openaev/labels/good%20first%20issue).
 
-### Authors
+## Security
 
-OpenAEV is a product designed and developed by the company [Filigran](https://filigran.io).
+Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md), never in a public issue.
 
-<a href="https://filigran.io" alt="Filigran"><img src="./.github/img/logo_filigran.png" width="300" /></a>
+## License
 
-### Data Collection
+OpenAEV is open source under the [Apache 2.0 license](LICENSE); the Enterprise Edition features are under the OpenAEV Enterprise Edition License, as stated in [LICENSE](LICENSE) and in each source file header.
 
-#### Usage telemetry
+## About Filigran
 
-To improve the features and the performances of OpenAEV, the platform collects anonymous statistical data related to its
-usage and health.
+OpenAEV is designed and developed by [Filigran](https://filigran.io), the company behind the [XTM Platform](https://filigran.io) for Agentic CTEM.
 
-You can find all the details on collected data and associated usage in
-the [usage telemetry documentation](https://docs.openaev.io/latest/reference/deployment/telemetry/).
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./.github/img/readme/filigran-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="./.github/img/readme/filigran-light.svg">
+  <img alt="Filigran" src="./.github/img/readme/filigran-light.svg" width="240">
+</picture>

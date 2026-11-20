@@ -3,6 +3,7 @@ package io.openaev.rest.finding;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
@@ -40,6 +41,7 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
   @Autowired private FindingWriter findingWriter;
   @Autowired private FindingService findingService;
   @Autowired private DataSource dataSource;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   private JdbcTemplate jdbc;
   private String tenantId;
@@ -132,8 +134,10 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
       Finding first = finding("injector-" + UUID.randomUUID());
       Finding second = finding("injector-" + UUID.randomUUID());
 
-      // Act
-      findingService.createFindings(List.of(first, second), injectId);
+      // Act: in the inject's tenant, as the callback that writes them
+      tenantTx.execute(
+          TxCtx.forTenant(tenantId),
+          () -> findingService.createFindings(List.of(first, second), injectId));
 
       // Assert
       assertThat(singleOccurrenceOf(first.getId()).get("finding_occurrence_inject_id"))

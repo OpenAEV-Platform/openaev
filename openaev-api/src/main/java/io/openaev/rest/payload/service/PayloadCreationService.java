@@ -79,8 +79,8 @@ public class PayloadCreationService {
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = payloadType.getPayloadSupplier().get();
-    payloadUtils.copyProperties(input, payload);
     payload.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, explicitTenant)));
+    payloadUtils.copyProperties(input, payload);
     if (payload instanceof Executable executable) {
       executable.setExecutableFile(documentService.document(input.getExecutableFile()));
     } else if (payload instanceof FileDrop fileDrop) {

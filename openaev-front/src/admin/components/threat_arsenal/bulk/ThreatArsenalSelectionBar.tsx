@@ -5,6 +5,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
+import useCountLabel from '../../../../utils/hooks/useCountLabel';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
@@ -29,6 +30,7 @@ const ThreatArsenalSelectionBar: FunctionComponent<Props> = ({
 }) => {
   const canRunTest = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const { t } = useFormatter();
+  const counted = useCountLabel();
   const theme = useTheme();
   const open = count > 0 && !hidden;
 
@@ -64,7 +66,7 @@ const ThreatArsenalSelectionBar: FunctionComponent<Props> = ({
         }}
         >
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            {count === 1 ? t('1 action selected') : t('{count} actions selected', { count })}
+            {counted(count, '1 action selected', '{count} actions selected')}
           </Typography>
           {totalElements > 0 && (
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>

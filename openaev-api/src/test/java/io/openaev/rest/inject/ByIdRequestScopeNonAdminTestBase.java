@@ -34,9 +34,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Adds a caller who holds real tenant-scoped standing (a capability or a resource grant) instead of
  * platform-admin bypass, on top of the atomic-testing and plain-inject by-id seeding and routes of
- * {@link ByIdRequestScopeTestBase}.
+ * {@link ByIdRequestScopeTestBase}. It runs with the production list of isolated tables: with
+ * {@code injects} among them, the inspector alone refuses an inject of another tenant.
  */
-abstract class ByIdRequestScopeNonAdminTestBase extends ByIdRequestScopeTestBase {
+abstract class ByIdRequestScopeNonAdminTestBase extends ByIdRequestScopeProductionTablesTestBase {
 
   @Autowired private TestUserHolder testUserHolder;
   @Autowired private TenantGroupComposer tenantGroupComposer;

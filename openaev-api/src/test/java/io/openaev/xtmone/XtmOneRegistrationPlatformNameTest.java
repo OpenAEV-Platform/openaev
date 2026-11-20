@@ -70,7 +70,7 @@ class XtmOneRegistrationPlatformNameTest extends IntegrationTest {
           settingRepository.save(rename);
         });
     when(config.isConfigured()).thenReturn(true);
-    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
         .thenReturn(Map.of());
 
     // Act: the scheduled tick, with no scope
@@ -88,6 +88,7 @@ class XtmOneRegistrationPlatformNameTest extends IntegrationTest {
             any(),
             any(),
             eq("aev"),
+            any(),
             any());
     assertThat(name.getValue()).isEqualTo("Renamed by the default tenant");
   }

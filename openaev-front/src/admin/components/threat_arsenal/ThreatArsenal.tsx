@@ -38,6 +38,7 @@ import ThreatArsenalSelectAll from './bulk/ThreatArsenalSelectAll';
 import ThreatArsenalSelectionBar from './bulk/ThreatArsenalSelectionBar';
 import ThreatArsenalCard from './card/ThreatArsenalCard';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
+import useOpenedAction from './hook/useOpenedAction';
 import ThreatArsenalList from './list/ThreatArsenalList';
 import { THREAT_ARSENAL_SORT_OPTIONS } from './list/threatArsenalListConfig';
 import ThreatArsenalHeaderActions from './page/ThreatArsenalHeaderActions';
@@ -64,7 +65,6 @@ const AVAILABLE_FILTER_NAMES = [
 const ThreatArsenal = () => {
   const { t } = useFormatter();
   const canDelete = useAbility().can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS);
-  const [openedAction, setOpenedAction] = useState<ThreatArsenalAction | null>(null);
   const [isRunTestDrawerOpened, setRunTestDrawerOpened] = useState<boolean>(false);
   const [runTestAction, setRunTestAction] = useState<ThreatArsenalAction | null>(null);
   const [isBulkDeleteDialogOpened, setBulkDeleteDialogOpened] = useState<boolean>(false);
@@ -124,6 +124,11 @@ const ThreatArsenal = () => {
       label: row.author_name ?? row.author ?? '',
       type: row.author_type,
     }))));
+
+  const { openedAction, openedTab, openAction, showVersions, closeAction } = useOpenedAction(
+    threatArsenalActions,
+    queryableHelpers.textSearchHelpers.handleTextSearch,
+  );
 
   const hasActiveFilters = (searchPaginationInput.filterGroup?.filters?.length ?? 0) > 0
     || !!searchPaginationInput.textSearch;
@@ -256,11 +261,12 @@ const ThreatArsenal = () => {
                   <ThreatArsenalCard
                     key={action.injector_contract_id}
                     action={action}
-                    onSelect={() => setOpenedAction(action)}
+                    onSelect={() => openAction(action)}
                     onUpdate={updateAction}
                     onDuplicate={duplicateAction}
                     onDelete={() => deleteAction(action.injector_contract_id)}
                     onRunTest={() => setRunTestAction(action)}
+                    onShowVersions={showVersions}
                   />
                 )}
               />
@@ -273,11 +279,12 @@ const ThreatArsenal = () => {
                 {...sections}
                 sortHelpers={queryableHelpers.sortHelpers}
                 isChecked={isChecked}
-                onSelect={setOpenedAction}
+                onSelect={action => openAction(action)}
                 onToggle={onToggleEntity}
                 onUpdate={updateAction}
                 onDuplicate={duplicateAction}
                 onDelete={deleteAction}
+                onShowVersions={showVersions}
               />
             )}
         <MarketplaceLoadMore
@@ -291,8 +298,9 @@ const ThreatArsenal = () => {
       {openedAction !== null && (
         <ThreatArsenalInformationDrawer
           open
-          onClose={() => setOpenedAction(null)}
+          onClose={closeAction}
           threatArsenalAction={openedAction}
+          initialTab={openedTab}
         />
       )}
 

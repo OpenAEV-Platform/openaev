@@ -39,6 +39,7 @@ public record CredentialInput(
     @JsonProperty("azure_tenant_id") String azureTenantId,
     @JsonProperty("azure_subscription_id") String azureSubscriptionId,
     @JsonProperty("azure_authority_host_uri") @Size(max = 255) String azureAuthorityHostUri,
+    @JsonProperty("azure_scope") @Size(max = 255) String azureScope,
     @JsonProperty("gcp_scope") String gcpScope,
     @JsonProperty("gcp_project_id") String gcpProjectId,
     @JsonProperty("gcp_oauth_client_id") String gcpOauthClientId,
@@ -84,6 +85,7 @@ public record CredentialInput(
         null,
         null,
         // AZURE
+        null,
         null,
         null,
         null,

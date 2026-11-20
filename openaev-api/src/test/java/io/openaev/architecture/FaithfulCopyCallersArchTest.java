@@ -14,6 +14,7 @@ import io.openaev.rest.inject.ScenarioInjectApi;
 import io.openaev.rest.inject.SimulationInjectApi;
 import io.openaev.rest.scenario.ScenarioApi;
 import io.openaev.service.FaithfulCopyTransaction;
+import io.openaev.service.scenario.ScenarioLaunchService;
 
 /**
  * A faithful copy reads with every marking of the request's tenants, beyond the user's clearance.
@@ -33,6 +34,7 @@ class FaithfulCopyCallersArchTest {
                       FaithfulCopyTransaction.class,
                       AtomicTestingApi.class,
                       ScenarioApi.class,
+                      ScenarioLaunchService.class,
                       ExerciseApi.class,
                       ScenarioInjectApi.class,
                       SimulationInjectApi.class)))

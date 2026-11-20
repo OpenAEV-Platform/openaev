@@ -792,6 +792,36 @@ export interface AssetGroupTarget {
     | "SUCCESS";
 }
 
+export interface AssetLinkInput {
+  asset_link_type:
+    | "CONNECTS_TO"
+    | "DEPENDS_ON"
+    | "HOSTS"
+    | "LOGGED_ON"
+    | "RUNS_ON"
+    | "USES";
+  /** @minLength 1 */
+  linked_asset_id: string;
+}
+
+export interface AssetLinkOutput {
+  /** @format date-time */
+  asset_link_created_at?: string;
+  asset_link_source_id?: string;
+  asset_link_source_name?: string;
+  asset_link_source_type?: string;
+  asset_link_target_id?: string;
+  asset_link_target_name?: string;
+  asset_link_target_type?: string;
+  asset_link_type?:
+    | "CONNECTS_TO"
+    | "DEPENDS_ON"
+    | "HOSTS"
+    | "LOGGED_ON"
+    | "RUNS_ON"
+    | "USES";
+}
+
 export interface AssetMarkingsOutput {
   /**
    * Asset Id
@@ -2109,6 +2139,7 @@ export type AzureManagedIdentity = Value & {
   azure_environment?: string;
   /** @format byte */
   azure_requests_certificate?: Blob;
+  azure_scope?: string;
   azure_subscription_id?: string;
 };
 
@@ -2119,6 +2150,7 @@ export type AzureServicePrincipal = Value & {
   azure_environment?: string;
   /** @format byte */
   azure_requests_certificate?: Blob;
+  azure_scope?: string;
   azure_subscription_id?: string;
   azure_tenant_id?: string;
 };
@@ -2622,6 +2654,23 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
+export interface CatalogHistoryOutput {
+  catalog_history_action:
+    | "INSTALL"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION";
+  /** @format date-time */
+  catalog_history_created_at: string;
+  /** @minLength 1 */
+  catalog_history_id: string;
+  catalog_history_mode: "MANUAL" | "AUTO";
+  /** Who made the change; empty when the platform made it alone */
+  catalog_history_user?: string;
+  /** @minLength 1 */
+  catalog_history_version: string;
+}
+
 export interface CatalogInstallAllOutput {
   failed_external_ids?: string[];
   installed_ids?: string[];
@@ -2650,9 +2699,29 @@ export interface CatalogScenarioInstallInput {
 }
 
 export interface CatalogScenarioOutput {
+  catalog_scenario_author?: string;
+  catalog_scenario_category?: string;
+  catalog_scenario_description?: string;
   /** @minLength 1 */
   catalog_scenario_external_id: string;
+  catalog_scenario_missing_requirements: string[];
   catalog_scenario_name?: string;
+  catalog_scenario_platforms: string[];
+  /** @format date-time */
+  catalog_scenario_published_at?: string;
+  catalog_scenario_type: string;
+  /** @minLength 1 */
+  catalog_scenario_version: string;
+}
+
+export interface CatalogScenarioVersionOutput {
+  catalog_scenario_changelog?: string;
+  /** @format int32 */
+  catalog_scenario_injects_count?: number;
+  catalog_scenario_main_focus?: string;
+  /** @format date-time */
+  catalog_scenario_published_at?: string;
+  catalog_scenario_severity?: string;
   /** @minLength 1 */
   catalog_scenario_version: string;
 }
@@ -3266,10 +3335,24 @@ export interface ConnectorInstanceLogsInput {
 }
 
 export interface ConnectorInstanceOutput {
+  /** Container image the composer deploys (image:version), absent for a built-in instance */
+  connector_image?: string;
   connector_instance_current_status: "started" | "stopped";
   /** @minLength 1 */
   connector_instance_id: string;
+  /** Whether the container is in a reboot loop */
+  connector_instance_is_in_reboot_loop?: boolean;
   connector_instance_requested_status?: "starting" | "stopping";
+  /**
+   * Container restart count, as reported by the composer
+   * @format int32
+   */
+  connector_instance_restart_count?: number;
+  /**
+   * When the container last started, as reported by the composer
+   * @format date-time
+   */
+  connector_instance_started_at?: string;
 }
 
 export interface ConnectorInstancePersisted {
@@ -3407,6 +3490,8 @@ export interface ContractOutputElementInput {
 export interface ContractOutputElementSimple {
   /** @minLength 1 */
   contract_output_element_id: string;
+  /** True when the values extracted by this element are saved as findings. */
+  contract_output_element_is_finding: boolean;
   /**
    * Represents a unique key identifier.
    * @minLength 1
@@ -3454,6 +3539,25 @@ export interface ContractOutputElementSimple {
     | "asreproastable_account"
     | "kerberoastable_account"
     | "expectation_signature";
+}
+
+export interface CounterpartLookupInput {
+  /**
+   * @maxItems 200
+   * @minItems 0
+   */
+  counterpart_keys: string[];
+}
+
+export interface CounterpartOutput {
+  counterpart_entity_id?: string;
+  counterpart_entity_type?: string;
+  counterpart_facts?: FactOutput[];
+  counterpart_key?: string;
+  counterpart_name?: string;
+  counterpart_product?: string;
+  counterpart_status?: string;
+  counterpart_url?: string;
 }
 
 export interface CreateConnectorInstanceInput {
@@ -3611,6 +3715,8 @@ export interface CredentialFullOutput {
   credential_azure_environment?: string;
   /** Whether an Azure requests certificate is stored; the certificate itself is never returned */
   credential_azure_requests_certificate_defined?: boolean;
+  /** Azure scope */
+  credential_azure_scope?: string;
   /** Azure subscription id */
   credential_azure_subscription_id?: string;
   /** Azure tenant id */
@@ -3743,6 +3849,11 @@ export interface CredentialInput {
   azure_client_id?: string;
   azure_client_secret?: string;
   azure_environment?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  azure_scope?: string;
   azure_subscription_id?: string;
   azure_tenant_id?: string;
   credential_auth_method:
@@ -4621,6 +4732,8 @@ export interface EndpointOutput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   /** Asset external reference */
   asset_external_reference?: string;
+  /** Hostname, the key the XTM counterpart lookup matches on */
+  asset_hostname?: string;
   /**
    * Asset Id
    * @minLength 1
@@ -6187,6 +6300,11 @@ export interface ExportOptionsInput {
   with_variable_values?: boolean;
 }
 
+export interface FactOutput {
+  fact_key?: string;
+  fact_value?: string;
+}
+
 export interface FileDrop {
   file_drop_file: string;
   listened?: boolean;
@@ -6524,6 +6642,118 @@ export interface Grant {
     | "PAYLOAD"
     | "UNKNOWN";
   listened?: boolean;
+}
+
+export interface GraphEdgeOutput {
+  edge_id: string;
+  edge_result?: "SUCCESS" | "PENDING" | "FAILED";
+  edge_source: string;
+  edge_target: string;
+  edge_type:
+    | "MEMBER_OF"
+    | "FOUND_ON"
+    | "PRODUCED"
+    | "TARGETS"
+    | "PART_OF"
+    | "RUN_OF"
+    | "IDENTITY_OF"
+    | "WORKS_FOR"
+    | "IN_TEAM"
+    | "TEAM_OF"
+    | "LINKED_TO"
+    | "ATTACK_STEP";
+}
+
+export interface GraphNodeOutput {
+  /** @format date-time */
+  node_date?: string;
+  node_entity_id: string;
+  /** @format int64 */
+  node_failed_count?: number;
+  /** @format int64 */
+  node_finding_count?: number;
+  node_id: string;
+  node_label: string;
+  node_result?: "SUCCESS" | "PENDING" | "FAILED";
+  node_subtype?: string;
+  node_type:
+    | "ASSET"
+    | "ASSET_GROUP"
+    | "FINDING"
+    | "INJECT"
+    | "SIMULATION"
+    | "SCENARIO"
+    | "PERSON"
+    | "ORGANIZATION"
+    | "TEAM";
+}
+
+export interface GraphOutput {
+  graph_edges: GraphEdgeOutput[];
+  graph_focus?: string;
+  graph_nodes: GraphNodeOutput[];
+  graph_path: string[];
+  graph_truncated?: boolean;
+}
+
+export interface GraphOverviewGroupOutput {
+  /** @format int64 */
+  group_asset_count?: number;
+  group_dynamic?: boolean;
+  /** @format int64 */
+  group_failed_count?: number;
+  /** @format double */
+  group_failure_rate?: number;
+  group_id: string;
+  group_name: string;
+  /** @format int64 */
+  group_scored_count?: number;
+  group_ungrouped?: boolean;
+}
+
+export interface GraphOverviewLinkOutput {
+  /** @format int64 */
+  link_failed_count?: number;
+  link_group_id: string;
+  link_result?: "SUCCESS" | "PENDING" | "FAILED";
+  link_simulation_id: string;
+  link_simulation_name: string;
+}
+
+export interface GraphOverviewOutput {
+  /** @format int64 */
+  overview_asset_count?: number;
+  overview_groups: GraphOverviewGroupOutput[];
+  overview_links: GraphOverviewLinkOutput[];
+  overview_truncated?: boolean;
+}
+
+export interface GraphStartingPointOutput {
+  point_entity_id: string;
+  point_kind:
+    | "EXPOSED_ASSET"
+    | "FAILING_GROUP"
+    | "LATEST_SIMULATION"
+    | "TOP_FINDING"
+    | "ATTACK_PATH"
+    | "EXPOSED_PERSON";
+  point_label: string;
+  point_node_type:
+    | "ASSET"
+    | "ASSET_GROUP"
+    | "FINDING"
+    | "INJECT"
+    | "SIMULATION"
+    | "SCENARIO"
+    | "PERSON"
+    | "ORGANIZATION"
+    | "TEAM";
+  /** @format int64 */
+  point_score?: number;
+}
+
+export interface GraphStartingPointsOutput {
+  starting_points: GraphStartingPointOutput[];
 }
 
 export interface Group {
@@ -7362,6 +7592,8 @@ export interface InjectResultOverviewOutput {
   inject_injector_contract?: AtomicInjectorContractOutput;
   /** Kill chain phases */
   inject_kill_chain_phases?: KillChainPhaseSimple[];
+  /** User who launched this inject */
+  inject_launched_by_user?: UserSimple;
   /** Indicates whether the inject is ready for use */
   inject_ready?: boolean;
   /** Recurrence cron expression for scheduled relaunch */
@@ -7376,6 +7608,8 @@ export interface InjectResultOverviewOutput {
    * @format date-time
    */
   inject_recurrence_start?: string;
+  /** User who last configured this inject's recurrence */
+  inject_scheduled_by_user?: UserSimple;
   /** status */
   inject_status?: InjectStatusSimple;
   /**
@@ -7498,6 +7732,7 @@ export interface InjectUpdateStatusInput {
 
 export interface Injector {
   injector_category?: string;
+  injector_commit?: string;
   /** @format date-time */
   injector_created_at: string;
   injector_custom_contracts?: boolean;
@@ -7835,6 +8070,7 @@ export interface InjectorContractUpdateMappingInput {
 export interface InjectorCreateInput {
   injector_author?: string;
   injector_category?: string;
+  injector_commit?: string;
   injector_contracts?: InjectorContractInput[];
   injector_custom_contracts?: boolean;
   injector_executor_clear_commands?: Record<string, string>;
@@ -7854,6 +8090,7 @@ export interface InjectorOutput {
   catalog?: CatalogConnectorSimpleOutput;
   connector_instance?: ConnectorInstanceOutput;
   existing_injector?: boolean;
+  injector_commit?: string;
   injector_external?: boolean;
   /**
    * Injector id
@@ -8271,6 +8508,15 @@ export type ListConfiguration = UtilRequiredKeys<
 export interface ListPerspective {
   filter?: FilterGroup;
   name?: string;
+}
+
+export interface LocalObjectOutput {
+  object_facts?: FactOutput[];
+  object_id?: string;
+  object_key?: string;
+  object_name?: string;
+  object_type?: string;
+  object_url?: string;
 }
 
 export interface Log {
@@ -10291,6 +10537,17 @@ export interface PayloadUpsertInput {
   payload_type: string;
 }
 
+export interface PayloadUsageMoveInput {
+  /** @minLength 1 */
+  target_payload_id: string;
+  usage_ids: string[];
+}
+
+export interface PayloadUsageMoveOutput {
+  moved_ids: string[];
+  refused: PayloadUsageRefusal[];
+}
+
 export interface PayloadUsageOutput {
   /** @minLength 1 */
   usage_id: string;
@@ -10299,6 +10556,12 @@ export interface PayloadUsageOutput {
   usage_scenario_name?: string;
   /** @minLength 1 */
   usage_type: "inject" | "atomic_testing" | "step";
+}
+
+export interface PayloadUsageRefusal {
+  reason: "NOT_ON_THIS_VERSION" | "MISSING_RIGHT" | "NOT_COMPATIBLE";
+  /** @minLength 1 */
+  usage_id: string;
 }
 
 export interface PayloadUsagesOutput {
@@ -10505,6 +10768,7 @@ export interface PlatformSettings {
     | "XTM_HUB_NEWS_FEED"
     | "LOGGING_EXPECTATION"
     | "CATALOG"
+    | "EXPLORATION_GRAPH"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -10908,6 +11172,7 @@ export interface PublicPlatformSettings {
     | "XTM_HUB_NEWS_FEED"
     | "LOGGING_EXPECTATION"
     | "CATALOG"
+    | "EXPLORATION_GRAPH"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -11719,6 +11984,11 @@ export interface ScenarioInput {
   scenario_tags?: string[];
 }
 
+export interface ScenarioLaunchOutput {
+  /** @minLength 1 */
+  simulation_id: string;
+}
+
 export interface ScenarioOutput {
   /** Lesson anonymized state of the scenario */
   lessonsAnonymized?: boolean;
@@ -11786,6 +12056,8 @@ export interface ScenarioOutput {
    * @format date-time
    */
   scenario_recurrence_start?: string;
+  /** User who last configured the scenario's recurrence */
+  scenario_scheduled_by_user?: UserSimple;
   /** Severity of the scenario */
   scenario_severity?: string;
   /** Subtitle of the scenario */
@@ -11806,6 +12078,8 @@ export interface ScenarioOutput {
    * @format int64
    */
   scenario_users_number?: number;
+  /** Catalogue version installed, empty for a scenario of the tenant */
+  scenario_version?: string;
   /** Workflow ID associated with the scenario */
   scenario_workflow_id?: string;
 }
@@ -11827,6 +12101,13 @@ export interface ScenarioSimple {
 
 export interface ScenarioStatistic {
   simulations_results_latest: SimulationsResultsLatest;
+}
+
+export interface ScenarioTargetsInput {
+  asset_group_ids?: string[];
+  asset_ids?: string[];
+  manual_targets?: string[];
+  team_ids?: string[];
 }
 
 export interface ScenarioTeamPlayersEnableInput {
@@ -12448,6 +12729,8 @@ export interface SimulationDetails {
   /** @minLength 1 */
   exercise_id: string;
   exercise_kill_chain_phases?: KillChainPhase[];
+  /** User who launched this exercise, or who last scheduled it when created unattended */
+  exercise_launched_by_user?: UserSimple;
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;
@@ -13456,7 +13739,7 @@ export interface ThreatArsenalActionFullOutput {
    * Parsers used to process action outputs
    * @uniqueItems true
    */
-  action_output_parsers?: OutputParser[];
+  action_output_parsers?: OutputParserSimple[];
   /** Supported endpoint platforms for this action */
   action_platforms?: (
     | "Linux"
@@ -14002,6 +14285,13 @@ export interface UserOutput {
   /** @uniqueItems true */
   user_tags?: string[];
   user_tenants?: UserTenantOutput[];
+}
+
+export interface UserSimple {
+  user_email?: string;
+  /** @minLength 1 */
+  user_id: string;
+  user_name?: string;
 }
 
 export interface UserTenantOutput {
@@ -14706,6 +14996,12 @@ export interface XtmComposerRegisterInput {
 export interface XtmComposerUpdateStatusInput {
   /** The connector instance current status */
   connector_instance_current_status: "started" | "stopped";
+}
+
+export interface XtmConnectionOutput {
+  xtm_connection_connected?: boolean;
+  xtm_connection_product?: string;
+  xtm_connection_url?: string;
 }
 
 export interface XtmHubContactUsInput {

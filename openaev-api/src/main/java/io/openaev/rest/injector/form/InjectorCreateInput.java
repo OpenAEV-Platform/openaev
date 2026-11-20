@@ -47,6 +47,9 @@ public class InjectorCreateInput {
   @JsonProperty("injector_author")
   private String author;
 
+  @JsonProperty("injector_commit")
+  private String commit;
+
   public String getId() {
     return id;
   }
@@ -125,5 +128,13 @@ public class InjectorCreateInput {
 
   public void setAuthor(String author) {
     this.author = author;
+  }
+
+  public String getCommit() {
+    return commit;
+  }
+
+  public void setCommit(String commit) {
+    this.commit = commit;
   }
 }

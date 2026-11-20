@@ -25,18 +25,20 @@ import org.springframework.test.context.TestPropertySource;
 
 /**
  * The scheduler's cross-tenant sweeps over {@code exercises}, {@code injects} and {@code scenarios}
- * reach another tenant's rows. Those tables are still on the v1 filter, and the sweeps stay
- * cross-tenant because nothing arms that filter on a Quartz worker: no transaction is open there,
- * so no {@code HibernateFilterTransactionAspect} runs (see {@code TenantFilterToggleReachTest}).
+ * reach another tenant's rows. None of the three tables carries a v1 filter, so the statement
+ * inspector is their only isolation.
  *
  * <p>Each sweep runs on a bare thread, as a Quartz worker does: no transaction, no session, no
- * ambient tenant. A sweep narrowed to the default tenant, the way an armed filter would narrow it,
- * misses the second tenant's row and turns its test red. Not {@code @Transactional}: rows are
- * committed through JDBC in a tenant of their own and removed after each test. The active-tables
- * list is pinned so the statement inspector never scopes these tables here, whatever a shadow run
- * arms; once they are activated each sweep needs the primitive, and this class is where that shows.
+ * ambient tenant. Not {@code @Transactional}: rows are committed through JDBC in a tenant of their
+ * own and removed after each test. The active-tables list is pinned, so a shadow run does not
+ * change what this class arms. It arms {@code scenarios}: {@code ScenarioExecutionJob} reads each
+ * tenant's scenarios in that tenant's scope, so the second tenant's scenario is read and cleared in
+ * the second tenant's own pass, which the write-attribution gate checks. {@code exercises} and
+ * {@code injects} are not armed here: the job sweeps read them under {@code TxCtx.allTenants()},
+ * and the pending-inject read is called on a bare thread without the scope its caller, {@code
+ * InjectsFinalizationJob.handlePendingInject}, gives it.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers")
+@TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers,scenarios")
 @WithMockUser(isAdmin = true)
 @DisplayName("The scheduler's cross-tenant sweeps reach a second tenant's rows")
 class CrossTenantJobSweepTest extends IntegrationTest {

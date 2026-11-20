@@ -104,6 +104,7 @@
       ],
       "reason": "Form-field wave: the multiline branch of the same wrapper. `resize` is pinned to none on every site, as arbitrated; `rows` and autosize (`minRows`/`maxRows`) replay the previous heights.",
       "files": [
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
         "openaev-front/src/components/fields/TextFieldFds.tsx"
       ]
     },
@@ -162,7 +163,9 @@
         "openaev-front/src/components/fields/CheckboxFieldController.tsx",
         "openaev-front/src/public/components/login/Login.tsx",
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectAll.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsagesTable.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx"
       ]
     },
     {
@@ -568,6 +571,8 @@
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalScenarioUpdateComponent.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/DetectionRemediationInfo.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/OutputFormTab.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadTrustLine.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
         "openaev-front/src/admin/components/workspaces/custom_dashboards/results/ResultsListCells.tsx",
         "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/list/elements/ExpectationTypeChip.tsx",
         "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/list/elements/InjectExpectationSourceFragment.tsx",
@@ -623,6 +628,7 @@
         "openaev-front/src/admin/components/simulations/simulation/injects/InjectIndexTabs.tsx",
         "openaev-front/src/admin/components/simulations/simulation/variables/AvailableVariablesDialog.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/RemediationFormTabs.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalInformationDrawer.tsx",
         "openaev-front/src/components/common/tabs/Tabs.tsx",
         "openaev-front/src/components/common/marketplace/page/MarketplaceTabs.tsx"
       ]
@@ -861,7 +867,9 @@
         "openaev-front/src/public/components/trialbanners/TopBanner.tsx",
         "openaev-front/src/utils/ai/ResponseDialog.tsx",
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectionBar.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveBar.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx"
       ]
     },
     {
@@ -930,6 +938,52 @@
       "reason": "The type icon tile of the XTM Hub news feed toasts, tinted from the theme primary colour as on the OpenCTI news feed toasts.",
       "files": [
         "openaev-front/src/admin/components/nav/NewsFeedToastItem.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "A message about the payload a drawer shows: its revocation, and what a revoked version breaks.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationBanner.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx"
+      ]
+    },
+    {
+      "component": "Dialog",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The revoke and lift dialog of a payload version: title, description, scrolling body and footer actions.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx"
+      ]
+    },
+    {
+      "component": "Select",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The payload version picker.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionSelect.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Warning shown when another payload version of the action needs values the previous one did not.",
+      "files": [
+        "openaev-front/src/admin/components/common/injects/create/InjectCreationConfig.tsx"
       ]
     }
   ],

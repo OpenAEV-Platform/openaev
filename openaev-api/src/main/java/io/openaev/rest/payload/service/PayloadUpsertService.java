@@ -116,8 +116,8 @@ public class PayloadUpsertService {
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = payloadType.getPayloadSupplier().get();
-    payloadUtils.copyProperties(input, payload, false);
     payload.setTenant(new Tenant(tenantId));
+    payloadUtils.copyProperties(input, payload, false);
 
     if (collectorType != null) {
       payload.setCollectorType(collectorType);

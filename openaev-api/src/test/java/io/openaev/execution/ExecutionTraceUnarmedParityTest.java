@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.execution.ExecutionTraceScopeSeed.Tenant;
@@ -45,6 +47,7 @@ class ExecutionTraceUnarmedParityTest extends IntegrationTest {
   @Autowired private ExecutionTraceRepository executionTraceRepository;
   @Autowired private ExecutionTraceRetentionJob retentionJob;
   @Autowired private DataSource dataSource;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   private ExecutionTraceScopeSeed seed;
   private Tenant tenantA;
@@ -86,14 +89,18 @@ class ExecutionTraceUnarmedParityTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("A finder returns the trace of its inject")
+  @DisplayName("A finder returns the trace of its inject in the scope of the inject's tenant")
   void given_traceOfAnInject_should_beFoundByItsPlayer() {
     // Arrange
     seed.insertTrace(tenantA, null, "EXECUTION", "INFO", 5, tenantA.playerId());
 
-    // Act
+    // Act: the finder joins injects, an active table, so it reads in the inject's tenant
     List<ExecutionTrace> found =
-        executionTraceRepository.findByInjectIdAndPlayerId(tenantA.injectId(), tenantA.playerId());
+        tenantTx.execute(
+            TxCtx.forTenant(tenantA.id()),
+            () ->
+                executionTraceRepository.findByInjectIdAndPlayerId(
+                    tenantA.injectId(), tenantA.playerId()));
 
     // Assert
     assertThat(found).hasSize(1);
