@@ -1,6 +1,6 @@
-import { Button, IconButton } from '@filigran/design-system';
+import { Button, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Dialog, DialogActions, DialogContent, DialogContentText, Divider, Menu, MenuItem } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type MouseEvent, useState } from 'react';
 
 import {
@@ -8,33 +8,20 @@ import {
   deleteThreatArsenalAction,
   duplicateThreatArsenalAction,
   exportThreatArsenalAction,
-  fetchThreatArsenalAction,
-  updateThreatArsenalAction,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import DialogDelete from '../../../components/common/DialogDelete';
-import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
-import {
-  type PayloadCustomizationOutput,
-  type ThreatArsenalAction,
-  type ThreatArsenalActionFullOutput,
-} from '../../../utils/api-types';
-import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
+import { type ThreatArsenalAction } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download, isFeatureEnabled } from '../../../utils/utils';
-import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
-import CustomizationBaseLine from './customization/CustomizationBaseLine';
-import fetchFiligranValues from './customization/filigranValues';
-import PayloadUpdateDialog from './customization/PayloadUpdateDialog';
 import useCanUpdateAction from './hook/useCanUpdateAction';
 import PayloadRevocationDialog from './revocation/PayloadRevocationDialog';
 import usePayloadRevocation from './revocation/usePayloadRevocation';
-import ThreatArsenalActionForm from './ThreatArsenalActionForm';
-import { type ActionFormValues, buildInitialValues, toActionInput } from './utils/actionFormValues';
-import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
+import ThreatArsenalActionEditDrawer from './ThreatArsenalActionEditDrawer';
+import { isCustomizedCopy } from './utils/threatArsenalStatusUtils';
 import PayloadNewVersionDialog from './versions/PayloadNewVersionDialog';
 import useNewVersionNotice from './versions/useNewVersionNotice';
 
@@ -53,14 +40,11 @@ const ThreatArsenalActionPopover = ({
   onDelete,
   onShowVersions,
 }: PayloadPopoverNewProps) => {
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [openEdit, setOpenEdit] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  // The action whose edit drawer is open: this one, or the copy Customize just made.
+  const [editing, setEditing] = useState<ThreatArsenalAction | null>(null);
   const [openDuplicate, setOpenDuplicate] = useState(false);
   const [deletion, setDeletion] = useState(false);
-  const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
-  const [filigranValues, setFiligranValues] = useState<ActionFormValues | undefined>(undefined);
-  const [customization, setCustomization] = useState<PayloadCustomizationOutput | null>(null);
-  const [reviewing, setReviewing] = useState(false);
 
   const { t, tPick } = useFormatter();
   const ability = useAbility();
@@ -74,7 +58,7 @@ const ThreatArsenalActionPopover = ({
   const isUnregistered = action.action_injector_type == null;
   const isFromCollector = action.action_payload?.payload_collector_type != null;
   const catalog = isFeatureEnabled('CATALOG');
-  const customized = catalog && !!action.action_payload_customized;
+  const customized = isCustomizedCopy(action);
   const disableUpdate = isFromCollector || isUnregistered;
   const disableDuplicate = action.action_payload == null || isUnregistered;
   const disableJsonExport = action.action_payload == null || isUnregistered;
@@ -82,55 +66,11 @@ const ThreatArsenalActionPopover = ({
   const disableDelete = !isUnregistered
     && (action.action_payload == null || (isFromCollector && action.action_payload.payload_status !== 'DEPRECATED'));
 
-  // -- Popover --
-  const handlePopoverOpen = (event: MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    setAnchorEl(event.currentTarget);
-  };
-  const handlePopoverClose = () => setAnchorEl(null);
-
   // -- Edit --
-  const handleOpenEdit = async () => {
-    handlePopoverClose();
-    const response = await fetchThreatArsenalAction(actionId);
-    const filigran = customized ? await fetchFiligranValues(actionId) : undefined;
-    setFiligranValues(filigran?.values);
-    setCustomization(filigran?.customization ?? null);
-    setFetchedAction(response.data as ThreatArsenalActionFullOutput);
-    setOpenEdit(true);
-  };
-
-  const handleCloseEdit = () => {
-    setOpenEdit(false);
-    setFetchedAction(null);
-    setFiligranValues(undefined);
-    setCustomization(null);
-  };
-
-  const updatedToFiligran = (saved: ThreatArsenalAction) => {
-    setReviewing(false);
-    handleCloseEdit();
-    afterSave(saved);
-  };
-
-  const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
-    const response = await updateThreatArsenalAction(actionId, toActionInput(data));
-    handleCloseEdit();
-    if (response.data) {
-      afterSave(response.data as ThreatArsenalAction);
-    }
-  };
-
-  const onSubmitInjectorContractEdit = (data: InjectorContractFormValues) => {
-    const updatedDataInput: ThreatArsenalActionCreateCustomInput = {
-      ...fetchedAction,
-      action_name: fetchedAction?.action_labels ? tPick(fetchedAction?.action_labels) : '',
-      action_tags: data.injector_contract_tags,
-      action_attack_patterns: data.injector_contract_attack_patterns,
-      action_domains: data.injector_contract_domains,
-    } as ThreatArsenalActionCreateCustomInput;
-    onSubmitEdit(updatedDataInput);
-  };
+  // A new copy has no older version in use: its card is replaced at once.
+  const editSaved = (saved: ThreatArsenalAction) => (editing === action
+    ? afterSave(saved)
+    : onUpdate?.(saved, editing?.injector_contract_id));
 
   // -- Delete --
   const handleOpenDelete = () => setDeletion(true);
@@ -148,10 +88,7 @@ const ThreatArsenalActionPopover = ({
   };
 
   // -- Duplicate --
-  const handleOpenDuplicate = () => {
-    setOpenDuplicate(true);
-    handlePopoverClose();
-  };
+  const handleOpenDuplicate = () => setOpenDuplicate(true);
   const handleCloseDuplicate = () => setOpenDuplicate(false);
 
   const submitDuplicate = async () => {
@@ -164,11 +101,12 @@ const ThreatArsenalActionPopover = ({
 
   // -- Customize --
   const submitCustomize = async () => {
-    handlePopoverClose();
     const response = await customizeThreatArsenalAction(actionId);
     if (response.data) {
-      onDuplicate?.(response.data as ThreatArsenalAction);
-      MESSAGING$.notifySuccess(t('Customized copy created: it keeps getting Filigran updates'));
+      const copy = response.data as ThreatArsenalAction;
+      onDuplicate?.(copy);
+      MESSAGING$.notifySuccess(t('Customized copy created: it keeps receiving Filigran updates'));
+      setEditing(copy);
     }
   };
 
@@ -183,7 +121,7 @@ const ThreatArsenalActionPopover = ({
   // -- Revocation --
   const { canRevoke, revocable, liftable, revocation, openRevocation, closeRevocation, revocationDone } = usePayloadRevocation(
     action,
-    !!anchorEl,
+    menuOpen,
     (changed) => {
       onUpdate?.(changed);
       onShowVersions?.(changed);
@@ -193,7 +131,6 @@ const ThreatArsenalActionPopover = ({
 
   // -- Export --
   const handleExportJsonSingle = async () => {
-    handlePopoverClose();
     const response = await exportThreatArsenalAction(actionId);
     const match = (response.headers['content-disposition'] as string).match(/filename="?([^"]+)"?/);
     const filename = match?.[1] ?? 'payload.zip';
@@ -202,52 +139,40 @@ const ThreatArsenalActionPopover = ({
 
   return (
     <>
-      <IconButton
-        icon={<MoreVert fontSize="small" />}
-        aria-label={t('More actions')}
-        onClick={handlePopoverOpen}
-        aria-haspopup="true"
-        disabled={allDisabled}
-        priority="tertiary"
-        size="sm"
-      />
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handlePopoverClose}
-      >
-        {hasDuplicateCapability && (
-          <MenuItem onClick={handleOpenDuplicate} disabled={disableDuplicate}>{t('Duplicate')}</MenuItem>
-        )}
-        {canCustomize && (
-          <MenuItem onClick={submitCustomize}>{t('Customize')}</MenuItem>
-        )}
-        <MenuItem onClick={handleExportJsonSingle} disabled={disableJsonExport}>{t('Export')}</MenuItem>
-        {hasUpdateCapability && (
-          <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{customized ? t('Edit customization') : t('Update')}</MenuItem>
-        )}
-        {hasDeleteCapability && (
-          <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
-        )}
-        {(revocable.length > 0 || liftable.length > 0) && <Divider />}
-        {revocable.length > 0 && (
-          <MenuItem onClick={() => {
-            handlePopoverClose();
-            openRevocation('revoke');
-          }}
-          >
-            {t('Revoke')}
-          </MenuItem>
-        )}
-        {liftable.length > 0 && (
-          <MenuItem onClick={() => {
-            handlePopoverClose();
-            openRevocation('lift');
-          }}
-          >
-            {t('Lift revocation')}
-          </MenuItem>
-        )}
+      <Menu open={menuOpen} onOpenChange={setMenuOpen}>
+        <MenuTrigger asChild>
+          <IconButton
+            icon={<MoreVert fontSize="small" />}
+            aria-label={t('More actions')}
+            onClick={(event: MouseEvent) => event.stopPropagation()}
+            disabled={allDisabled}
+            priority="tertiary"
+            size="sm"
+          />
+        </MenuTrigger>
+        {/* The card behind opens its drawer on click: a click in the menu stays in the menu. */}
+        <MenuContent align="end" onClick={event => event.stopPropagation()}>
+          {hasDuplicateCapability && (
+            <MenuItem onSelect={handleOpenDuplicate} disabled={disableDuplicate}>{t('Duplicate')}</MenuItem>
+          )}
+          {canCustomize && (
+            <MenuItem onSelect={submitCustomize}>{t('Customize')}</MenuItem>
+          )}
+          <MenuItem onSelect={handleExportJsonSingle} disabled={disableJsonExport}>{t('Export')}</MenuItem>
+          {hasUpdateCapability && (
+            <MenuItem onSelect={() => setEditing(action)} disabled={disableUpdate}>{customized ? t('Edit customization') : t('Update')}</MenuItem>
+          )}
+          {hasDeleteCapability && (
+            <MenuItem onSelect={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
+          )}
+          {(revocable.length > 0 || liftable.length > 0) && <MenuSeparator />}
+          {revocable.length > 0 && (
+            <MenuItem onSelect={() => openRevocation('revoke')}>{t('Revoke')}</MenuItem>
+          )}
+          {liftable.length > 0 && (
+            <MenuItem onSelect={() => openRevocation('lift')}>{t('Lift revocation')}</MenuItem>
+          )}
+        </MenuContent>
       </Menu>
 
       <PayloadRevocationDialog
@@ -293,50 +218,7 @@ const ThreatArsenalActionPopover = ({
         </DialogActions>
       </Dialog>
 
-      <Drawer
-        open={openEdit}
-        handleClose={handleCloseEdit}
-        title={`${t('Update the action :')} ${name}`}
-      >
-        <>
-          {customization && <CustomizationBaseLine customization={customization} onReview={() => setReviewing(true)} />}
-          {fetchedAction && !!payloadId && (
-            <SnapshotRemediationProvider>
-              <ThreatArsenalActionForm
-                onSubmit={onSubmitEdit}
-                handleClose={handleCloseEdit}
-                editing
-                filigranValues={filigranValues}
-                initialValues={{
-                  ...buildInitialValues(fetchedAction, tPick(fetchedAction.action_labels)),
-                  payload_id: payloadId,
-                }}
-              />
-            </SnapshotRemediationProvider>
-          )}
-          {fetchedAction && !payloadId && (
-            <InjectorContractForm
-              initialValues={{
-                injector_contract_attack_patterns: fetchedAction.action_attack_patterns,
-                injector_contract_domains: fetchedAction.action_domains,
-                injector_contract_tags: fetchedAction.action_tags,
-              }}
-              editing
-              onSubmit={onSubmitInjectorContractEdit}
-              handleClose={handleCloseEdit}
-            />
-          )}
-          {reviewing && customization?.customization_update && (
-            <PayloadUpdateDialog
-              actionId={actionId}
-              baseVersion={customization.customization_base_version}
-              update={customization.customization_update}
-              onClose={() => setReviewing(false)}
-              onUpdated={updatedToFiligran}
-            />
-          )}
-        </>
-      </Drawer>
+      <ThreatArsenalActionEditDrawer action={editing} onClose={() => setEditing(null)} onSaved={editSaved} />
     </>
   );
 };

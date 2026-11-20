@@ -3,15 +3,16 @@ import { useContext } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 
 import { useFormatter } from '../../../../components/i18n';
+import { CUSTOMIZABLE_FORM_FIELDS, type CustomizableField } from './fieldUpdates';
 import FiligranValuesContext from './FiligranValuesContext';
 import sameValue from './sameValue';
 
-// Form field names: the action form mixes the fields of every action type.
-interface Props { fields: string[] }
+interface Props { fields: CustomizableField[] }
 
 // Shown on a customized copy whose fields differ from Filigran's.
-const RevertToFiligran = ({ fields }: Props) => {
+const RevertToFiligran = ({ fields: customizable }: Props) => {
   const { t } = useFormatter();
+  const fields = customizable.map(field => CUSTOMIZABLE_FORM_FIELDS[field]);
   const filigranValues = useContext(FiligranValuesContext);
   const { control, setValue } = useFormContext();
   const current = useWatch({

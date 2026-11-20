@@ -1,4 +1,6 @@
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
+
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -13,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   customization: vi.fn(),
   catalogue: vi.fn(),
   details: vi.fn(),
+  install: vi.fn(),
 }));
 
 vi.mock('../../../../utils/utils', () => ({ isFeatureEnabled: () => true }));
@@ -22,6 +25,7 @@ vi.mock('../../../../admin/components/threat_arsenal/versions/usages/useUsagesBy
 vi.mock('../../../../admin/components/threat_arsenal/customization/useCustomization', () => ({ default: mocks.customization }));
 vi.mock('../../../../admin/components/threat_arsenal/catalog/useCatalogPayloadVersions', () => ({ default: mocks.catalogue }));
 vi.mock('../../../../admin/components/threat_arsenal/hook/useActionDetails', () => ({ default: mocks.details }));
+vi.mock('../../../../actions/catalog/payload-catalog-actions', () => ({ installCatalogPayload: mocks.install }));
 vi.mock('../../../../admin/components/threat_arsenal/customization/PayloadUpdateBanner', () => ({ default: () => null }));
 vi.mock('../../../../admin/components/threat_arsenal/catalog/CatalogPayloadVersionPreview', () => ({ default: () => null }));
 vi.mock('../../../../components/common/Drawer', () => ({
@@ -139,6 +143,45 @@ describe('ThreatArsenalInformationDrawer', () => {
       // Assert
       expect(screen.queryByRole('combobox', { name: 'Version' })).toBeNull();
       expect(screen.getByTestId('overview').textContent).toBe('action-v2 0 undefined');
+    });
+  });
+
+  describe('Catalogue version not installed', () => {
+    it('given the right to install should install it from its row', async () => {
+      // Arrange
+      mocks.details.mockReturnValue({
+        details: { action_external_id: 'mimikatz' },
+        loading: false,
+      });
+      mocks.catalogue.mockReturnValue([{
+        catalog_payload_external_id: 'mimikatz',
+        catalog_payload_version: '3',
+      }]);
+      mocks.install.mockResolvedValue({ installed_id: 'payload-v3' });
+      renderInApp(<ThreatArsenalInformationDrawer open onClose={vi.fn()} threatArsenalAction={anAction({ action_payload_managed: true })} initialTab="versions" />);
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: 'Install' }));
+
+      // Assert
+      await waitFor(() => expect(mocks.install).toHaveBeenCalledWith('mimikatz', '3'));
+      await waitFor(() => expect(mocks.versions).toHaveBeenLastCalledWith('action-v2', true, 1));
+    });
+
+    it('given no right to install should only tell it is not installed', () => {
+      // Arrange
+      mocks.can.mockReturnValue(false);
+      mocks.catalogue.mockReturnValue([{
+        catalog_payload_external_id: 'mimikatz',
+        catalog_payload_version: '3',
+      }]);
+
+      // Act
+      renderInApp(<ThreatArsenalInformationDrawer open onClose={vi.fn()} threatArsenalAction={anAction({ action_payload_managed: true })} initialTab="versions" />);
+
+      // Assert
+      expect(screen.getByText('Not installed')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Install' })).toBeNull();
     });
   });
 });

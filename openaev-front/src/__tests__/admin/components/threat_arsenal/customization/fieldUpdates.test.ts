@@ -4,21 +4,21 @@ import { blockText, fieldText } from '../../../../../admin/components/threat_ars
 import { type PayloadFieldUpdateOutput } from '../../../../../utils/api-types';
 
 describe('fieldText', () => {
-  it.each([
-    ['an empty value', null, ''],
-    ['a command', 'whoami /all', 'whoami /all'],
-    ['platforms', ['Linux', 'Windows'], 'Linux\nWindows'],
-    ['arguments', [{
+  it.each<[string, PayloadFieldUpdateOutput['field_name'], unknown, string]>([
+    ['an empty value', 'COMMAND_CONTENT', null, ''],
+    ['a command', 'COMMAND_CONTENT', 'whoami /all', 'whoami /all'],
+    ['platforms', 'PLATFORMS', ['Linux', 'Windows'], 'Linux\nWindows'],
+    ['arguments', 'ARGUMENTS', [{
       key: 'user',
       default_value: 'admin',
     }], 'user = admin'],
-    ['prerequisites', [{
+    ['prerequisites', 'PREREQUISITES', [{
       executor: 'psh',
       get_command: 'Get-Module',
     }], 'psh: Get-Module'],
-  ])('given_%s_should_readAsText', (_, value, text) => {
+  ])('given_%s_should_readAsText', (_, field, value, text) => {
     // Act & Assert
-    expect(fieldText(value)).toBe(text);
+    expect(fieldText(field, value)).toBe(text);
   });
 });
 
@@ -27,7 +27,7 @@ describe('blockText', () => {
     field_name: name,
     field_block: 'EXECUTION',
     field_filigran: value,
-    field_conflict: true,
+    field_status: 'CONFLICT',
   });
 
   it('given_oneField_should_readAsItsValue', () => {

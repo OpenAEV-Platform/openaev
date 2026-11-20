@@ -1,27 +1,10 @@
-import { useEffect, useState } from 'react';
-
 import { fetchCatalogPayloadVersions } from '../../../../actions/catalog/payload-catalog-actions';
 import { type CatalogPayloadOutput } from '../../../../utils/api-types';
+import useLoadedOnKey from '../../../../utils/hooks/useLoadedOnKey';
+
+const NONE: CatalogPayloadOutput[] = [];
 
 /** The versions the catalogue offers of a payload, newest first; none until loaded or without payload. */
-const useCatalogPayloadVersions = (externalId: string | undefined) => {
-  const [versions, setVersions] = useState<CatalogPayloadOutput[]>([]);
-
-  useEffect(() => {
-    setVersions([]);
-    if (!externalId) return undefined;
-    let cancelled = false;
-    fetchCatalogPayloadVersions(externalId)
-      .then((loaded) => {
-        if (!cancelled) setVersions(loaded);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [externalId]);
-
-  return versions;
-};
+const useCatalogPayloadVersions = (externalId: string | undefined) => useLoadedOnKey(externalId, fetchCatalogPayloadVersions, NONE).value;
 
 export default useCatalogPayloadVersions;

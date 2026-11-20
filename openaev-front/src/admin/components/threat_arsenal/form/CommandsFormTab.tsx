@@ -121,13 +121,13 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           <PlatformFieldController name="action_platforms" label={t('Platforms')} required />
         </div>
       )}
-      <RevertToFiligran fields={['action_platforms']} />
+      <RevertToFiligran fields={['PLATFORMS']} />
 
       {actionType === 'Command' && (
         <InjectFormSection
           title={t('Attack command')}
           helper={t('The command executed on the targeted assets.')}
-          action={<RevertToFiligran fields={['command_executor', 'command_content']} />}
+          action={<RevertToFiligran fields={['COMMAND_EXECUTOR', 'COMMAND_CONTENT']} />}
           required
         >
           <SelectFieldController name="command_executor" label={t('Executor')} items={executorsItems} required />
@@ -185,7 +185,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           <InjectFormSection
             title={t('Arguments')}
             helper={t('Variables the command can reference at execution time.')}
-            action={<RevertToFiligran fields={['action_arguments']} />}
+            action={<RevertToFiligran fields={['ARGUMENTS']} />}
           >
             {argumentsFields.map((argsField, argIndex) => (
               <PayloadArgumentsField
@@ -219,7 +219,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           <InjectFormSection
             title={t('Prerequisites')}
             helper={t('Commands run beforehand to make sure the action can execute.')}
-            action={<RevertToFiligran fields={['action_prerequisites']} />}
+            action={<RevertToFiligran fields={['PREREQUISITES']} />}
           >
             {prerequisitesFields.map((prerequisitesField, prerequisitesIndex) => (
               <div
@@ -269,7 +269,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           <InjectFormSection
             title={t('Cleanup command')}
             helper={t('Executed after the action to restore the asset to its initial state.')}
-            action={<RevertToFiligran fields={['action_cleanup_executor', 'action_cleanup_command']} />}
+            action={<RevertToFiligran fields={['CLEANUP_EXECUTOR', 'CLEANUP_COMMAND']} />}
           >
             <SelectFieldController name="action_cleanup_executor" label={t('Executor')} items={executorsItems} />
             <TextFieldController multiline rows={3} name="action_cleanup_command" />

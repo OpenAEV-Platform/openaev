@@ -5,7 +5,6 @@ import {
   DialogContent,
   DialogFooter,
   DialogTitle,
-  Spinner,
   Text,
 } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
@@ -34,11 +33,15 @@ const PayloadUpdateDialog: FunctionComponent<Props> = ({ actionId, baseVersion, 
   const theme = useTheme();
   const { conflicts, news, kept, sides, choose, ready, applying, apply } = useCustomizationUpdate(actionId, update);
   const version = update.update_version;
+  const filigranVersion = t('Filigran version v{version}', { version });
   const label = (field: PayloadFieldUpdateOutput) => t(CUSTOMIZABLE_FIELD_LABELS[field.field_name]);
-  const updated = (action: ThreatArsenalAction) => {
-    MESSAGING$.notifySuccess(t('Updated to Filigran v{version}', { version }));
-    onUpdated(action);
-  };
+  const submit = () => apply()
+    .then((action) => {
+      MESSAGING$.notifySuccess(t('Updated to Filigran v{version}', { version }));
+      onUpdated(action);
+    })
+    // The call already tells the user it failed: the dialog stays open to try again.
+    .catch(() => undefined);
   const section = {
     display: 'flex',
     flexDirection: 'column',
@@ -57,12 +60,12 @@ const PayloadUpdateDialog: FunctionComponent<Props> = ({ actionId, baseVersion, 
           >
             {conflicts.length > 0 && (
               <div style={section}>
-                <Text variant="content-base">{t('Filigran changed what you changed too. Choose the value to keep for each.')}</Text>
+                <Text variant="content-base">{t('Filigran changed things you edited. Pick which version to keep for each.')}</Text>
                 {conflicts.map(({ block, fields }) => (
                   <ConflictChoice
                     key={block}
                     title={fields.map(label).join(', ')}
-                    theirsLabel={t('Filigran v{version}', { version })}
+                    theirsLabel={filigranVersion}
                     mineLabel={t('Yours')}
                     theirs={blockText(fields, field => field.field_filigran, label)}
                     mine={blockText(fields, field => field.field_yours, label)}
@@ -74,16 +77,22 @@ const PayloadUpdateDialog: FunctionComponent<Props> = ({ actionId, baseVersion, 
             )}
             <div style={section}>
               <Text variant="title-xs">{t('What\'s new in Filigran v{version}', { version })}</Text>
+              {update.update_release_notes.map(note => (
+                <div key={note.release_version}>
+                  <Text variant="content-caption" className="text-default-secondary">{`v${note.release_version}`}</Text>
+                  <Text variant="content-base" style={{ whiteSpace: 'pre-line' }}>{note.release_changelog}</Text>
+                </div>
+              ))}
               {news.length > 0 && (
                 <ChangeDiff
                   rows={news.map(field => ({
                     id: field.field_name,
                     field: label(field),
-                    before: fieldText(field.field_base),
-                    after: fieldText(field.field_filigran),
+                    before: fieldText(field.field_name, field.field_base),
+                    after: fieldText(field.field_name, field.field_filigran),
                   }))}
-                  beforeLabel={t('Filigran v{version}', { version: baseVersion })}
-                  afterLabel={t('Filigran v{version}', { version })}
+                  beforeLabel={t('Filigran version v{version}', { version: baseVersion })}
+                  afterLabel={filigranVersion}
                 />
               )}
               {update.update_other_changes.length > 0 && (
@@ -92,22 +101,20 @@ const PayloadUpdateDialog: FunctionComponent<Props> = ({ actionId, baseVersion, 
                 </Text>
               )}
               {news.length === 0 && update.update_other_changes.length === 0 && (
-                <Text variant="content-caption" className="text-default-secondary">{t('Nothing else changed.')}</Text>
+                <Text variant="content-caption" className="text-default-secondary">{t('No change in the fields you can customize.')}</Text>
               )}
             </div>
             {kept.length > 0 && (
               <div style={section}>
-                <Text variant="title-xs">{t('Your changes, kept')}</Text>
-                <Text variant="content-base">{kept.map(label).join(', ')}</Text>
+                <Text variant="title-xs">{t('Your edits — the update keeps them')}</Text>
+                {kept.map(field => <Text key={field.field_name} variant="content-base">{label(field)}</Text>)}
               </div>
             )}
           </div>
         </DialogBody>
         <DialogFooter>
           <Button priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
-          <Button disabled={applying || !ready} onClick={() => apply().then(updated)}>
-            {applying ? <Spinner size="sm" /> : t('Update')}
-          </Button>
+          <Button loading={applying} disabled={!ready} onClick={submit}>{t('Update')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

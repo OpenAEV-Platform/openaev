@@ -4,54 +4,48 @@ import { type FunctionComponent, useState } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadCustomizationOutput, type ThreatArsenalAction } from '../../../../utils/api-types';
-import useCanUpdateAction from '../hook/useCanUpdateAction';
-import PayloadNewVersionDialog from '../versions/PayloadNewVersionDialog';
-import useNewVersionNotice from '../versions/useNewVersionNotice';
 import PayloadUpdateDialog from './PayloadUpdateDialog';
 
 interface Props {
-  action: ThreatArsenalAction;
+  actionId: string;
   customization: PayloadCustomizationOutput | null;
-  onUpdate?: (action: ThreatArsenalAction, replacedId?: string) => void;
+  canUpdate: boolean;
+  onUpdated: (action: ThreatArsenalAction) => void;
 }
 
-// On a customized copy: the newer Filigran version it can take, reviewed in a dialog.
-const PayloadUpdateBanner: FunctionComponent<Props> = ({ action, customization, onUpdate }) => {
+// On a customized copy: the Filigran version it is built from and the newer one it can take, reviewed in a dialog.
+const PayloadUpdateBanner: FunctionComponent<Props> = ({ actionId, customization, canUpdate, onUpdated }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const canUpdate = useCanUpdateAction(action);
   const [reviewing, setReviewing] = useState(false);
-  const { notice, afterSave, closeNotice } = useNewVersionNotice(action.injector_contract_id, onUpdate);
   const update = customization?.customization_update;
-
-  const updated = (saved: ThreatArsenalAction) => {
-    setReviewing(false);
-    afterSave(saved);
-  };
+  if (!customization || !update) {
+    return null;
+  }
 
   return (
     <>
-      {customization && update && (
-        <Alert
-          style={{ marginBottom: theme.spacing(2) }}
-          severity="info"
-          title={t('Filigran v{version} is available', { version: update.update_version })}
-          description={t('Your copy is based on v{version}.', { version: customization.customization_base_version })}
-          action={canUpdate && (
-            <Button priority="secondary" size="sm" onClick={() => setReviewing(true)}>{t('Review the update')}</Button>
-          )}
-        />
-      )}
-      {customization && update && reviewing && (
+      <Alert
+        style={{ marginBottom: theme.spacing(2) }}
+        severity="info"
+        title={t('Filigran v{version} is available', { version: update.update_version })}
+        description={t('Based on v{version}', { version: customization.customization_base_version })}
+        action={canUpdate && (
+          <Button priority="secondary" size="sm" onClick={() => setReviewing(true)}>{t('Update')}</Button>
+        )}
+      />
+      {reviewing && (
         <PayloadUpdateDialog
-          actionId={action.injector_contract_id}
+          actionId={actionId}
           baseVersion={customization.customization_base_version}
           update={update}
           onClose={() => setReviewing(false)}
-          onUpdated={updated}
+          onUpdated={(saved) => {
+            setReviewing(false);
+            onUpdated(saved);
+          }}
         />
       )}
-      {notice && <PayloadNewVersionDialog action={notice.action} olderVersions={notice.olderVersions} onClose={closeNotice} />}
     </>
   );
 };

@@ -2,6 +2,7 @@ import { Text } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { useMemo } from 'react';
 
+import { tint } from '../../../utils/tint';
 import { diffRuns } from './textDiffRuns';
 
 interface Props {
@@ -16,7 +17,7 @@ const TextDiff = ({ text, other }: Props) => {
   const runs = useMemo(() => diffRuns(text, other), [text, other]);
   const markStyle = {
     color: 'var(--text-default-primary)',
-    background: 'var(--color-feedback-neutral-secondary-transparency-30)',
+    background: tint('var(--color-feedback-neutral-secondary)', 30),
     borderRadius: 'var(--radius-sm)',
     padding: theme.spacing(0, 0.25),
   };
