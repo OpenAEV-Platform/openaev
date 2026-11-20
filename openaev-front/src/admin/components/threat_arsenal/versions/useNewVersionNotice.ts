@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { type ThreatArsenalAction } from '../../../../utils/api-types';
-import { type OlderVersionInUse, usageCount } from './usages/usageCounts';
+import { olderVersionsInUse } from './usages/usageCounts';
 import useUsagesByVersion from './usages/useUsagesByVersion';
 import usePayloadVersions from './usePayloadVersions';
 import useSkipNewVersionDialog from './useSkipNewVersionDialog';
@@ -17,15 +17,7 @@ const useNewVersionNotice = (actionId: string, onUpdate?: (action: ThreatArsenal
   const usages = useUsagesByVersion(saved ? versions : null);
 
   const loaded = !!versions && !!usages;
-  const olderVersions: OlderVersionInUse[] = versions && usages
-    ? versions
-        .filter(version => version.payload_action_id !== saved?.injector_contract_id)
-        .map(version => ({
-          version,
-          usages: usages[version.payload_id],
-        }))
-        .filter(older => usageCount(older.usages) > 0)
-    : [];
+  const olderVersions = versions && usages && saved ? olderVersionsInUse(versions, usages, saved.injector_contract_id) : [];
 
   const replaceCard = (action: ThreatArsenalAction) => {
     onUpdate?.(action, actionId);

@@ -2,7 +2,7 @@ import type { Dispatch } from 'redux';
 
 import { getReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import type {
-  InjectorContractSearchPaginationInput, PayloadUsageMoveInput, SearchPaginationInput,
+  InjectorContractSearchPaginationInput, PayloadCustomizationUpdateInput, PayloadUsageMoveInput, SearchPaginationInput,
   ThreatArsenalActionCreateInput, ThreatArsenalActionUpdateInput,
 } from '../../utils/api-types';
 import { arrayOfSecurityPlatforms } from '../assets/asset-schema';
@@ -36,6 +36,12 @@ export const fetchThreatArsenalVersions = (actionId: string) => simpleCall(`${TH
 export const fetchThreatArsenalUsages = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/usages`);
 
 export const moveThreatArsenalUsages = (actionId: string, input: PayloadUsageMoveInput) => simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/usages/move`, input);
+
+export const customizeThreatArsenalAction = (actionId: string) => simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/customize`);
+
+export const fetchThreatArsenalCustomization = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/customization`);
+
+export const updateThreatArsenalCustomization = (actionId: string, input: PayloadCustomizationUpdateInput) => simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/customization/update`, input);
 
 export const duplicateThreatArsenalAction = (actionId: string) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}/duplicate`;
