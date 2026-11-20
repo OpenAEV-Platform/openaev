@@ -1,8 +1,9 @@
-package io.openaev.api.catalog;
+package io.openaev.api.catalog.action;
 
-import io.openaev.api.catalog.dto.action.AvailableActionOutput;
-import io.openaev.api.catalog.dto.action.AvailableIntegrationActionOutput;
-import io.openaev.api.catalog.dto.action.AvailablePayloadActionOutput;
+import io.openaev.api.catalog.CatalogItemMapper;
+import io.openaev.api.catalog.action.dto.AvailableActionOutput;
+import io.openaev.api.catalog.action.dto.AvailableIntegrationActionOutput;
+import io.openaev.api.catalog.action.dto.AvailablePayloadActionOutput;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorInjectorContract;
 import io.openaev.database.model.catalog.CatalogPayload;

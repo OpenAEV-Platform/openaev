@@ -57,7 +57,7 @@ public class CatalogItemMapper {
   }
 
   // Same rule as the Threat Arsenal sections: the first domain by name.
-  static String primaryDomain(List<String> names) {
+  public static String primaryDomain(List<String> names) {
     return names.stream()
         .filter(name -> !name.isBlank() && !DomainService.TO_CLASSIFY.equals(name))
         .sorted()

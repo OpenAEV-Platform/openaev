@@ -1,4 +1,4 @@
-package io.openaev.service.catalog;
+package io.openaev.service.catalog.action;
 
 import io.openaev.service.catalog.payload.CatalogPayloadOfferService;
 import lombok.RequiredArgsConstructor;
