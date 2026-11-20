@@ -23,13 +23,13 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)
-@DisplayName("Migration V6_20261118120000000 — news feed item metadata and available types")
+@DisplayName("Migration V6_20261120100000000 — news feed item metadata and available types")
 class AddNewsFeedItemMetadataAndAvailableTypesMigrationTest extends IntegrationTest {
 
   private static final String METADATA_TABLE = "news_feed_items_metadata";
 
   @Autowired
-  private V6_20261118120000000__Add_news_feed_item_metadata_and_available_types migration;
+  private V6_20261120100000000__Add_news_feed_item_metadata_and_available_types migration;
 
   private Object single(String sql, Object... parameters) {
     var query = entityManager.createNativeQuery(sql);
