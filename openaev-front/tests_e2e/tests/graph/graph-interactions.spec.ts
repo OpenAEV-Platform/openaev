@@ -223,6 +223,14 @@ test.describe('Exploration graph interactions', () => {
     await page.keyboard.press('Shift+F');
     await expect.poll(viewport, { message: 'Shift+F frames the selected node' }).not.toBe(zoomed);
 
+    // G folds the legend and unfolds it again, as OpenCTI's toggleLegend.
+    const legend = page.getByRole('group', { name: 'Legend' });
+    await expect(legend).toBeVisible();
+    await page.keyboard.press('g');
+    await expect(legend).toHaveCount(0);
+    await page.keyboard.press('g');
+    await expect(legend).toBeVisible();
+
     expect(problems).toEqual([]);
   });
 

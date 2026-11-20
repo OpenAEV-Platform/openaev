@@ -226,6 +226,8 @@ const SHORTCUTS: [string, string][] = [
   ['+', 'Zoom in'],
   ['-', 'Zoom out'],
   ['L', 'Re-run the layout'],
+  ['G', 'Show or hide the legend'],
+  ['Shift+E', 'Export as PNG'],
   ['N', 'Select the neighbours of the selection'],
   ['Delete', 'Remove the selection from the view'],
   ['Shift+drag', 'Select an area'],
@@ -1477,6 +1479,10 @@ const GraphExplorerInner = ({
       frameNodes(framed);
     } else if (event.shiftKey && key === 'h') {
       commit(showHidden);
+    } else if (event.shiftKey && key === 'e') {
+      exportPng();
+    } else if (key === 'g' && variant === 'page') {
+      setLegendOpen(!legendOpen);
     } else if (key === '+' || key === '=') {
       zoomIn({ duration: 200 });
     } else if (key === '-' || key === '_') {
