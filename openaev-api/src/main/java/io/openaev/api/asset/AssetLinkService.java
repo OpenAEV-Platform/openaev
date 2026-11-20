@@ -86,9 +86,14 @@ public class AssetLinkService {
         .orElseThrow(() -> new ElementNotFoundException("Asset link not found"));
   }
 
-  /** Removes an outgoing link of the asset; a link that does not exist is "not found". */
+  /**
+   * Removes an outgoing link of the asset; a link that does not exist is "not found". Both ends
+   * must be readable, as for {@link #addLink}: a link to an asset the caller cannot see is "not
+   * found", so it can neither be removed nor confirmed to exist.
+   */
   public void deleteLink(String assetId, String linkedAssetId, AssetLinkType type) {
     tenantOf(assetId);
+    tenantOf(linkedAssetId);
     AssetLink link = entityManager.find(AssetLink.class, key(assetId, linkedAssetId, type));
     if (link == null) {
       throw new ElementNotFoundException("Asset link not found");
