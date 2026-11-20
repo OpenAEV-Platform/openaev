@@ -158,5 +158,6 @@ export const previewScenarioUpdate = (scenarioId: string, input: ScenarioUpdateI
 };
 
 export const applyScenarioUpdate = (scenarioId: string, input: ScenarioUpdateInput): Promise<{ data: ScenarioUpdatePreview }> => {
-  return simplePostCall(`${CATALOG_URI}/installed-scenarios/${scenarioId}/update`, input);
+  // No toast on failure: the update dialog says what failed, next to its button.
+  return simplePostCall(`${CATALOG_URI}/installed-scenarios/${scenarioId}/update`, input, undefined, false);
 };

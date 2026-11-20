@@ -18,7 +18,7 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { Box, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type ReactNode, type SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -47,7 +47,6 @@ import { fetchScenarioInjectsSimple } from '../../../../actions/scenarios/scenar
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
 import { DetailHero, HeroStat } from '../../../../components/common/detail/EntityDetailCommon';
 import Drawer from '../../../../components/common/Drawer';
-import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCategory from '../../../../components/ItemCategory';
 import ItemSeverity from '../../../../components/ItemSeverity';
@@ -80,7 +79,6 @@ import AutonomousRunStatusChip from '../../autonomous/AutonomousRunStatusChip';
 import { isAutonomousRunActive, isAutonomousRunSettled } from '../../autonomous/autonomousStatus';
 import { DEFAULT_TIMEOUT_HOURS } from '../../autonomous/useAutonomousRunConfig';
 import EEChip from '../../common/entreprise_edition/EEChip';
-import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
@@ -88,6 +86,8 @@ import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
 import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
+import ScenarioLaunchCheckDrawer from '../launch/ScenarioLaunchCheckDrawer';
+import ScenarioLaunchReadiness from '../launch/ScenarioLaunchReadiness';
 import {
   SCENARIO_CONFIGURATION_QUERY_PARAM,
   SCENARIO_CONFIGURATION_VARIABLES_QUERY_VALUE,
@@ -737,16 +737,19 @@ const ScenarioHeader = ({
           )}
           // The alert-toned controls sit in the body row, right-aligned, where the
           // design file draws them (Figma 7929:13294). Each self-hides when healthy.
-          bodyAction={canManage && (
+          bodyAction={(canManage || canLaunch) && (
             <>
-              <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />
-              <ExpectationsDriftIndicator
-                drift={expectationsDrift}
-                variant="scenario"
-                onRealign={onRealignExpectations}
-                onDismiss={onDismissExpectations}
-                placement="warning"
-              />
+              {/* Launch blockers first: revoked payloads, missing targets or integrations (idea C). */}
+              <ScenarioLaunchReadiness scenario={scenario} onOpen={() => setOpenInstantiateSimulationAndStart(true)} />
+              {canManage && (
+                <ExpectationsDriftIndicator
+                  drift={expectationsDrift}
+                  variant="scenario"
+                  onRealign={onRealignExpectations}
+                  onDismiss={onDismissExpectations}
+                  placement="warning"
+                />
+              )}
             </>
           )}
           action={(
@@ -1010,46 +1013,30 @@ const ScenarioHeader = ({
         }}
         onSubmit={onSubmit}
       />
-      <Dialog
+      {/* The launch check replaces the plain confirmation: it lists what blocks the run, with its fix. */}
+      <ScenarioLaunchCheckDrawer
+        scenario={scenario}
         open={openInstantiateSimulationAndStart}
         onClose={() => setOpenInstantiateSimulationAndStart(false)}
-        slots={{ transition: Transition }}
-        slotProps={{ paper: { elevation: 1 } }}
-      >
-        <DialogContent>
-          <DialogContentText>
-            {t('A simulation will be launched based on this scenario and will start immediately. Are you sure you want to proceed?')}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button type="button" priority="secondary" onClick={() => setOpenInstantiateSimulationAndStart(false)}>
-            {t('Cancel')}
-          </Button>
-          <Button
-            type="button"
-            onClick={async () => {
-              setOpenInstantiateSimulationAndStart(false);
-              const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;
-              // A normal launch supersedes any settled AI outcome server-side (the by-scenario run
-              // lookup now 404s), so forget the latched run: the overview reverts to the manual view
-              // instead of keeping the stale AI plan outcome + status chip until a full page reload.
-              onAutonomousRunCleared?.();
-              // A manual launch jumps into the simulation that was just created: a chained scenario
-              // lands on the simulation's Attack path tab (the live execution view), a time-based
-              // scenario on the simulation overview. Only the AUTONOMOUS launch stays on the
-              // scenario (its attack-path tab hosts the AI cockpit) - see handleAiLaunch.
-              if (isScenarioChaining) {
-                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
-              } else {
-                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
-              }
-              MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
-            }}
-          >
-            {t('Confirm')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onLaunch={async () => {
+          const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;
+          setOpenInstantiateSimulationAndStart(false);
+          // A normal launch supersedes any settled AI outcome server-side (the by-scenario run
+          // lookup now 404s), so forget the latched run: the overview reverts to the manual view
+          // instead of keeping the stale AI plan outcome + status chip until a full page reload.
+          onAutonomousRunCleared?.();
+          // A manual launch jumps into the simulation that was just created: a chained scenario
+          // lands on the simulation's Attack path tab (the live execution view), a time-based
+          // scenario on the simulation overview. Only the AUTONOMOUS launch stays on the
+          // scenario (its attack-path tab hosts the AI cockpit) - see handleAiLaunch.
+          if (isScenarioChaining) {
+            navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
+          } else {
+            navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
+          }
+          MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
+        }}
+      />
       <Drawer
         open={openConfiguration}
         handleClose={() => setOpenConfiguration(false)}

@@ -19,7 +19,9 @@ const CatalogScenarioInstallDrawer: FunctionComponent<Props> = ({ externalId, na
   const { t } = useFormatter();
   return (
     <ScenarioTargetsDrawer
-      title={`${t(thenLaunch ? 'Install and launch' : 'Install')} ${name} v${version}`}
+      overline={t(thenLaunch ? 'Install and launch' : 'Install')}
+      title={name}
+      version={version}
       mode="install"
       thenLaunch={thenLaunch}
       chained={chained}

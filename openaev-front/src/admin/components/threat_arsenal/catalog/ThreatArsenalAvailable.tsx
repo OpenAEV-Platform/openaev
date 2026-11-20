@@ -20,7 +20,6 @@ import {
 } from '../../../../actions/catalog/payload-catalog-actions';
 import MarketplaceBrowser from '../../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../../components/common/marketplace/MarketplaceFacetSidebar';
-import MarketplaceHero from '../../../../components/common/marketplace/MarketplaceHero';
 import MarketplaceLoadMore from '../../../../components/common/marketplace/MarketplaceLoadMore';
 import MarketplaceSections from '../../../../components/common/marketplace/MarketplaceSections';
 import MarketplaceSortSelect from '../../../../components/common/marketplace/MarketplaceSortSelect';
@@ -37,6 +36,7 @@ import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { DOMAIN_ICON_MAP } from '../../common/domains/DomainsIcons';
 import ThreatArsenalEmptyState from '../ThreatArsenalEmptyState';
+import ThreatArsenalHero from '../ThreatArsenalHero';
 import notifyPayloadInstalled from './notifyPayloadInstalled';
 import ThreatArsenalCatalogCard from './ThreatArsenalCatalogCard';
 import ThreatArsenalCatalogDrawer from './ThreatArsenalCatalogDrawer';
@@ -153,53 +153,7 @@ const ThreatArsenalAvailable = ({ tabs }: Props) => {
   return (
     <MarketplaceBrowser
       tabs={tabs}
-      hero={(
-        <MarketplaceHero
-          title={t('Threat Arsenal')}
-          subtitle={t('Browse, install and version the actions your simulations run.')}
-          rightSlot={(
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 16,
-            }}
-            >
-              {canChangeSettings && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-                >
-                  <Switch
-                    label={t('Install new actions automatically')}
-                    checked={autoInstall}
-                    onCheckedChange={(checked: boolean) => updateCatalogSettings({ payload_auto_install: checked })
-                      .then(({ data }) => setAutoInstall(!!data.payload_auto_install))}
-                  />
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <IconButton
-                        asChild
-                        icon={<HelpOutlineOutlined fontSize="small" />}
-                        aria-label={t('Learn more')}
-                        priority="tertiary"
-                        size="sm"
-                      >
-                        <a href={AUTO_INSTALL_DOC_URL} target="_blank" rel="noopener noreferrer" />
-                      </IconButton>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {t('Installs each new Filigran action as soon as it is published.')}
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              )}
-              {canInstall && <Button onClick={installEverything} loading={installingAll}>{t('Install all')}</Button>}
-            </div>
-          )}
-        />
-      )}
+      hero={<ThreatArsenalHero />}
       sidebar={(
         <MarketplaceFacetSidebar
           facets={CATALOG_FACETS}
@@ -224,7 +178,49 @@ const ThreatArsenalAvailable = ({ tabs }: Props) => {
               descendingFields={['catalog_item_published_at']}
             />
           )}
-          topBarButtons={<MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />}
+          // The auto-install switch and Install all act on this catalogue: they sit with it, not in the Hero.
+          topBarButtons={(
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+            >
+              {canChangeSettings && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+                >
+                  <Switch
+                    label={t('Auto-install')}
+                    checked={autoInstall}
+                    onCheckedChange={(checked: boolean) => updateCatalogSettings({ payload_auto_install: checked })
+                      .then(({ data }) => setAutoInstall(!!data.payload_auto_install))}
+                  />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <IconButton
+                        asChild
+                        icon={<HelpOutlineOutlined fontSize="small" />}
+                        aria-label={t('Learn more')}
+                        priority="tertiary"
+                        size="sm"
+                      >
+                        <a href={AUTO_INSTALL_DOC_URL} target="_blank" rel="noopener noreferrer" />
+                      </IconButton>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {t('Installs each new Filigran action as soon as it is published.')}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
+              {canInstall && <Button priority="secondary" onClick={installEverything} loading={installingAll}>{t('Install all')}</Button>}
+              <MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />
+            </div>
+          )}
         />
       )}
     >

@@ -6,7 +6,6 @@ import ExportButton from '../../../components/common/ExportButton';
 import { type SearchPaginationInput, type ThreatArsenalAction } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import CreateThreatArsenalAction from './CreateThreatArsenalAction';
 import ImportUploaderThreatArsenal from './ImportUploaderThreatArsenal';
 
 interface Props {
@@ -16,6 +15,7 @@ interface Props {
   onAdd: (results: ThreatArsenalAction[]) => void;
 }
 
+// Export and Import of the Active list, in its toolbar beside the view toggle (Create is in the Hero).
 const ThreatArsenalHeaderActions: FunctionComponent<Props> = ({
   totalElements,
   actions,
@@ -44,11 +44,6 @@ const ThreatArsenalHeaderActions: FunctionComponent<Props> = ({
         <ImportUploaderThreatArsenal onImport={onAdd} />
       </Can>
     </Box>
-    {/* Beside the import icons, one instance for both views: in the pagination
-        row the card view's sort select pushed it out of reach (#7340). */}
-    <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
-      <CreateThreatArsenalAction onCreate={(result: ThreatArsenalAction) => onAdd([result])} />
-    </Can>
   </>
 );
 

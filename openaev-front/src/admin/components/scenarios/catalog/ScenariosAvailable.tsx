@@ -20,7 +20,6 @@ import EmptyPlaceholder from '../../../../components/common/EmptyPlaceholder';
 import MarketplaceBrowser from '../../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../../components/common/marketplace/MarketplaceFacetSidebar';
 import MarketplaceGrid from '../../../../components/common/marketplace/MarketplaceGrid';
-import MarketplaceHero from '../../../../components/common/marketplace/MarketplaceHero';
 import MarketplaceLoadMore from '../../../../components/common/marketplace/MarketplaceLoadMore';
 import MarketplaceSortSelect from '../../../../components/common/marketplace/MarketplaceSortSelect';
 import MarketplaceViewToggle from '../../../../components/common/marketplace/MarketplaceViewToggle';
@@ -34,6 +33,7 @@ import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { SCENARIO_TYPE_LABELS } from '../constants';
+import ScenariosHero from '../ScenariosHero';
 import useScenarioLaunch from '../useScenarioLaunch';
 import CatalogScenarioInstallDrawer from './CatalogScenarioInstallDrawer';
 import ScenarioCatalogCard from './ScenarioCatalogCard';
@@ -65,7 +65,7 @@ const ScenariosAvailable = ({ tabs }: Props) => {
   useEffect(() => {
     fetchCatalogSettings().then(({ data }) => setAutoInstall(!!data.scenario_auto_install));
   }, []);
-  const { launch, targetsDrawer } = useScenarioLaunch();
+  const { launch, launchDrawer } = useScenarioLaunch();
   const [launchAfterInstall, setLaunchAfterInstall] = useState(false);
   const [installingAll, setInstallingAll] = useState(false);
   const install = (item: CatalogItemOutput, thenLaunch: boolean) => {
@@ -106,7 +106,6 @@ const ScenariosAvailable = ({ tabs }: Props) => {
       })
       .finally(() => setInstallingAll(false));
   };
-
   const facets: MarketplaceFacet[] = [
     {
       filterKey: SCENARIO_INSTALLATION_FILTER,
@@ -134,30 +133,7 @@ const ScenariosAvailable = ({ tabs }: Props) => {
   return (
     <MarketplaceBrowser
       tabs={tabs}
-      hero={(
-        <MarketplaceHero
-          title={t('Scenarios')}
-          subtitle={t('Browse, install and version ready-to-run scenarios.')}
-          rightSlot={(
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 16,
-            }}
-            >
-              {canChangeSettings && (
-                <Switch
-                  label={t('Install new scenarios automatically')}
-                  checked={autoInstall}
-                  onCheckedChange={(checked: boolean) => updateCatalogSettings({ scenario_auto_install: checked })
-                    .then(({ data }) => setAutoInstall(!!data.scenario_auto_install))}
-                />
-              )}
-              {canInstall && <Button onClick={installEverything} loading={installingAll}>{t('Install all')}</Button>}
-            </div>
-          )}
-        />
-      )}
+      hero={<ScenariosHero />}
       sidebar={(
         <MarketplaceFacetSidebar
           facets={facets}
@@ -174,7 +150,26 @@ const ScenariosAvailable = ({ tabs }: Props) => {
           searchPaginationInput={searchPaginationInput}
           setContent={setItems}
           propertySchemas={scenarioCatalogFilterSchemas(facetCounts)}
-          topBarButtons={<MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />}
+          // The auto-install switch and Install all act on this catalogue: they sit with it, not in the Hero.
+          topBarButtons={(
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+            >
+              {canChangeSettings && (
+                <Switch
+                  label={t('Auto-install')}
+                  checked={autoInstall}
+                  onCheckedChange={(checked: boolean) => updateCatalogSettings({ scenario_auto_install: checked })
+                    .then(({ data }) => setAutoInstall(!!data.scenario_auto_install))}
+                />
+              )}
+              {canInstall && <Button priority="secondary" onClick={installEverything} loading={installingAll}>{t('Install all')}</Button>}
+              <MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />
+            </div>
+          )}
           queryableHelpers={queryableHelpers}
           filtersEndSlot={(
             <MarketplaceSortSelect
@@ -203,7 +198,12 @@ const ScenariosAvailable = ({ tabs }: Props) => {
             onLaunch={() => {
               const installed = (item.catalog_item_installed_scenarios ?? [])[0];
               if (installed) {
-                launch(installed.scenario_id, item.catalog_item_name ?? item.catalog_item_external_id);
+                launch({
+                  scenario_id: installed.scenario_id,
+                  scenario_name: item.catalog_item_name ?? item.catalog_item_external_id,
+                  scenario_catalog_id: item.catalog_item_external_id,
+                  scenario_version: installed.version,
+                });
               } else {
                 install(item, true);
               }
@@ -237,14 +237,19 @@ const ScenariosAvailable = ({ tabs }: Props) => {
           onInstalled={(scenarioId) => {
             if (launchAfterInstall) {
               setInstalling(null);
-              launch(scenarioId, installing.catalog_item_name ?? installing.catalog_item_external_id);
+              launch({
+                scenario_id: scenarioId,
+                scenario_name: installing.catalog_item_name ?? installing.catalog_item_external_id,
+                scenario_catalog_id: installing.catalog_item_external_id,
+                scenario_version: installing.catalog_item_version,
+              });
             } else {
               navigate(`/admin/scenarios/${scenarioId}`);
             }
           }}
         />
       )}
-      {targetsDrawer}
+      {launchDrawer}
     </MarketplaceBrowser>
   );
 };

@@ -9,6 +9,8 @@ import LIB_SURFACE_BORDER, { LIB_SURFACE_LAYER } from '../../../components/commo
 import { useFormatter } from '../../../components/i18n';
 import { SCENARIO_BASE_URL } from '../../../constants/BaseUrls';
 import { XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import VideoPlayer from './VideoPlayer';
 
 const VIDEO_LINK = 'https://www.youtube.com/embed/wb_v7sa7y8w?rel=0&modestbranding=1&loop=1&playlist=wb_v7sa7y8w';
@@ -70,6 +72,7 @@ const JourneyStep = ({ index, title, children }: {
 // instead of the previous text wall.
 const GettingStartedHero = () => {
   const { t } = useFormatter();
+  const canImport = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const theme = useTheme();
 
   return (
@@ -183,9 +186,18 @@ const GettingStartedHero = () => {
           },
         }}
         >
-          <JourneyStep index={1} title={t('getting_started_step_import')}>
-            {t('getting_started_description_first_task_text')}
-          </JourneyStep>
+          {/* Someone who cannot install or import starts from what the team installed (L49). */}
+          {canImport
+            ? (
+                <JourneyStep index={1} title={t('getting_started_step_import')}>
+                  {t('getting_started_description_first_task_text')}
+                </JourneyStep>
+              )
+            : (
+                <JourneyStep index={1} title={t('Pick a scenario')}>
+                  {t('Your team installs scenarios from the catalogue. Pick one in Scenarios; if the one you need is missing, ask a scenario owner or your administrator.')}
+                </JourneyStep>
+              )}
           <JourneyStep index={2} title={t('getting_started_step_launch')}>
             {t('getting_started_description_scenario_text')}
           </JourneyStep>

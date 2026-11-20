@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 
 import MarketplaceCard from '../../../../components/common/marketplace/MarketplaceCard';
 import { useFormatter } from '../../../../components/i18n';
+import PlatformIcon from '../../../../components/PlatformIcon';
 import { type CatalogItemOutput } from '../../../../utils/api-types';
 import { SCENARIO_TYPE_CHAINED, SCENARIO_TYPE_TIME_BASED, ScenarioTypeIcon } from '../scenario/ScenarioType';
 
@@ -26,20 +27,38 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, canLa
   // The newest installed version: one instance per scenario.
   const installed = (item.catalog_item_installed_scenarios ?? [])[0];
   const missing = item.catalog_item_missing_requirements ?? [];
+  // Name what is missing (Nmap, Nuclei, Enterprise Edition) rather than a generic "requirements".
+  const missingNames = (item.catalog_item_missing_prerequisites ?? [])
+    // Short name for the chip ("Nmap: The network mapper" → "Nmap"); the tooltip keeps the full list.
+    .map(prerequisite => (prerequisite.requirement_catalog_connector_title ?? prerequisite.requirement_label).split(':')[0].trim())
+    .filter(name => name.length > 0);
+  let needs = t('Requirements missing');
+  if (missingNames.length === 1 || missingNames.length === 2) {
+    needs = t('Needs {names}', { names: missingNames.join(', ') });
+  } else if (missingNames.length > 2) {
+    needs = t('Needs {count} prerequisites', { count: String(missingNames.length) });
+  }
 
   const footer = (
     <div style={{
       display: 'flex',
       alignItems: 'center',
       gap: 8,
+      minWidth: 0,
     }}
     >
       {installed && <Chip label={t('Installed')} severity="low" />}
       {!installed && missing.length > 0 && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="inline-flex">
-              <Chip label={t('Requirements missing')} severity="high" />
+            <span
+              className="inline-flex"
+              style={{
+                minWidth: 0,
+                maxWidth: '100%',
+              }}
+            >
+              <Chip label={needs} severity="high" style={{ maxWidth: '100%' }} />
             </span>
           </TooltipTrigger>
           <TooltipContent>{missing.join(', ')}</TooltipContent>
@@ -48,6 +67,8 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, canLa
     </div>
   );
 
+  // Buttons the user has no right for are hidden, not greyed out without a reason (MPRD RBAC).
+  const canInstallOrOpen = !!installed || canInstall;
   return (
     <MarketplaceCard
       accent={theme.palette.primary.main}
@@ -56,11 +77,34 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, canLa
       title={item.catalog_item_name ?? item.catalog_item_external_id}
       subtitle={item.catalog_item_author ? `${t('by')} ${item.catalog_item_author}` : undefined}
       description={item.catalog_item_description ?? undefined}
+      // DS Card anatomy, as on the Threat Arsenal cards (Figma 8467:4560): facts in the info row, what
+      // stands in the way just above the strip, platforms bottom left, Install / Open and Launch right.
+      height="100%"
+      info={[
+        {
+          label: t('Version'),
+          value: `v${item.catalog_item_version}`,
+        },
+        // Only when the catalogue says it, as the former caption did.
+        ...(item.catalog_item_injects_count != null
+          ? [{
+              label: t('Injects'),
+              value: String(item.catalog_item_injects_count),
+            }]
+          : []),
+        {
+          label: t('Published'),
+          value: item.catalog_item_published_at ? nsd(item.catalog_item_published_at) : '–',
+        },
+      ]}
+      statusRow={footer}
       chips={null}
       platforms={item.catalog_item_platforms ?? []}
+      metaStart={(item.catalog_item_platforms ?? []).length > 0
+        ? <>{(item.catalog_item_platforms ?? []).slice(0, 3).map(platform => <PlatformIcon key={platform} width={16} platform={platform} tooltip />)}</>
+        : undefined}
       onClick={onOpen}
-      footerRight={footer}
-      action={(
+      action={canInstallOrOpen && (
         <div style={{
           display: 'flex',
           gap: 8,
@@ -80,7 +124,6 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, canLa
                     stop(event);
                     onInstall();
                   }}
-                  disabled={!canInstall}
                 >
                   {t('Install')}
                 </Button>
@@ -93,18 +136,12 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, canLa
                 stop(event);
                 onLaunch();
               }}
-              disabled={!installed && !canInstall}
             >
               {t('Launch')}
             </Button>
           )}
         </div>
       )}
-      caption={[
-        `v${item.catalog_item_version}`,
-        item.catalog_item_injects_count != null ? `${item.catalog_item_injects_count} ${t('injects')}` : null,
-        item.catalog_item_published_at ? `${t('Published')} ${nsd(item.catalog_item_published_at)}` : null,
-      ].filter(Boolean).join(' · ')}
     />
   );
 };

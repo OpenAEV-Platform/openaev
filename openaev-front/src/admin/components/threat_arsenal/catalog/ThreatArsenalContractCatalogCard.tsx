@@ -1,4 +1,4 @@
-import { Button, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ExtensionOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
@@ -8,8 +8,11 @@ import { type CatalogInjectorContract } from '../../../../actions/catalog/inject
 import type { DomainHelper } from '../../../../actions/domains/domain-helper';
 import MarketplaceCard from '../../../../components/common/marketplace/MarketplaceCard';
 import { useFormatter } from '../../../../components/i18n';
+import PlatformIcon from '../../../../components/PlatformIcon';
 import { useHelper } from '../../../../store';
 import { type Domain } from '../../../../utils/api-types';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 interface Props { contract: CatalogInjectorContract }
 
@@ -25,6 +28,15 @@ const ThreatArsenalContractCatalogCard: FunctionComponent<Props> = ({ contract }
   const accent = domain?.domain_color ?? theme.palette.primary.main;
   const integrationHref = useHref(`/admin/integrations/catalog/${contract.catalog_connector_id}`);
   const openIntegration = () => window.open(integrationHref, '_blank', 'noopener');
+  // Enabling an integration is a tenant setting: without that right the button would be a dead end.
+  const canEnable = useAbility().can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
+  const integration = contract.catalog_connector_title;
+  let integrationCaption = t('Provided by an integration');
+  if (integration) {
+    integrationCaption = canEnable
+      ? t('Requires the {integration} integration', { integration })
+      : t('Ask an administrator to enable the {integration} integration', { integration });
+  }
 
   return (
     <MarketplaceCard
@@ -46,7 +58,21 @@ const ThreatArsenalContractCatalogCard: FunctionComponent<Props> = ({ contract }
       title={contract.contract_label ?? contract.contract_id}
       overline={primaryDomainName ? t(primaryDomainName) : undefined}
       subtitle={contract.catalog_connector_title ? `${t('by')} ${contract.catalog_connector_title}` : undefined}
-      chips={(
+      height="100%"
+      info={[
+        {
+          label: t('Provider'),
+          value: integration ?? '–',
+        },
+        {
+          label: t('Source'),
+          value: t('Integration'),
+        },
+      ]}
+      chips={null}
+      platforms={[]}
+      statusRow={<Text variant="content-compact" className="text-default-secondary">{integrationCaption}</Text>}
+      metaStart={(
         <>
           {domains.length > 1 && (
             <Tooltip>
@@ -56,20 +82,17 @@ const ThreatArsenalContractCatalogCard: FunctionComponent<Props> = ({ contract }
               <TooltipContent>{domains.slice(1).map(name => t(name)).join(', ')}</TooltipContent>
             </Tooltip>
           )}
+          {(contract.contract_platforms ?? []).slice(0, 3).map(platform => <PlatformIcon key={platform} width={16} platform={platform} tooltip />)}
         </>
       )}
-      platforms={contract.contract_platforms ?? []}
-      onClick={openIntegration}
-      action={(
+      onClick={canEnable ? openIntegration : undefined}
+      action={canEnable && (
         <span onClick={event => event.stopPropagation()}>
           <Button size="sm" onClick={openIntegration}>
             {t('Enable integration')}
           </Button>
         </span>
       )}
-      caption={contract.catalog_connector_title
-        ? t('Requires the {integration} integration', { integration: contract.catalog_connector_title })
-        : t('Provided by an integration')}
     />
   );
 };

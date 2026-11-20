@@ -116,6 +116,7 @@ const ScenarioVersions: FunctionComponent = () => {
           version={target.version}
           revisionId={target.revision?.scenario_revision_id}
           revisionNumber={target.revision?.scenario_revision_number}
+          revisionDate={target.revision?.scenario_revision_created_at}
           onClose={() => setTarget(null)}
           onApplied={() => {
             setTarget(null);

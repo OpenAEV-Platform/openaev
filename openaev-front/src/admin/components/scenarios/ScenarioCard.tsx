@@ -1,11 +1,14 @@
-import { Button, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useMemo, useState } from 'react';
+import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
+import { fetchScenarioRevisions, type ScenarioRevision } from '../../../actions/catalog/scenario-catalog-actions';
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import MarketplaceCard from '../../../components/common/marketplace/MarketplaceCard';
+import MarketplaceCardBanner from '../../../components/common/marketplace/MarketplaceCardBanner';
 import { useFormatter } from '../../../components/i18n';
+import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
 import { type CatalogItemOutput, type Domain } from '../../../utils/api-types';
 import handle from '../../../utils/period/Period';
@@ -30,8 +33,8 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
   const navigate = useNavigate();
   const [updating, setUpdating] = useState(false);
   const { canLaunch, canManage } = useScenarioPermissions(scenario.scenario_id);
-  const { launch: launchScenario, targetsDrawer } = useScenarioLaunch();
-  const launch = () => launchScenario(scenario.scenario_id, scenario.scenario_name);
+  const { launch: launchScenario, launchDrawer } = useScenarioLaunch();
+  const launch = () => launchScenario(scenario);
   const {
     scenario_workflow_id: workflowId,
     scenario_author_name: authorName,
@@ -46,6 +49,20 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
     return cron?.isValid() ? cron.toTranslatableStringArray(locale).map(element => t(element)).join(' ') : undefined;
   }, [scenario.scenario_recurrence, locale]);
   const updateAvailable = !!catalogItem && !(catalogItem.catalog_item_installed_versions ?? []).includes(catalogItem.catalog_item_version);
+  // "Roll back last update" in the menu, only right after an update: the latest revision is the one
+  // saved before it (reason UPDATE). A rollback since then already undid it, so the entry goes away.
+  // Only a catalogue scenario has revisions; one call per such card.
+  const [lastUpdate, setLastUpdate] = useState<ScenarioRevision | null>(null);
+  const [rollingBack, setRollingBack] = useState(false);
+  useEffect(() => {
+    if (!catalogItem || !canManage) return;
+    fetchScenarioRevisions(scenario.scenario_id)
+      .then(({ data }) => {
+        const latest = data.toSorted((a, b) => b.scenario_revision_number - a.scenario_revision_number)[0];
+        setLastUpdate(latest?.scenario_revision_reason === 'UPDATE' ? latest : null);
+      })
+      .catch(() => setLastUpdate(null));
+  }, [scenario.scenario_id, scenario.scenario_version, catalogItem, canManage]);
 
   return (
     <>
@@ -57,7 +74,17 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
           onApplied={() => navigate(`/admin/scenarios/${scenario.scenario_id}`)}
         />
       )}
-      {targetsDrawer}
+      {rollingBack && lastUpdate && (
+        <ScenarioUpdateDialog
+          scenarioId={scenario.scenario_id}
+          revisionId={lastUpdate.scenario_revision_id}
+          revisionNumber={lastUpdate.scenario_revision_number}
+          revisionDate={lastUpdate.scenario_revision_created_at}
+          onClose={() => setRollingBack(false)}
+          onApplied={() => navigate(`/admin/scenarios/${scenario.scenario_id}`)}
+        />
+      )}
+      {launchDrawer}
       <MarketplaceCard
         accent={primaryDomain?.domain_color ?? theme.palette.primary.main}
         testId="scenario-card"
@@ -67,39 +94,36 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
         subtitle={authorName ? `${t('by')} ${authorName}` : undefined}
         description={scenario.scenario_description ?? undefined}
         linkTo={`/admin/scenarios/${scenario.scenario_id}`}
-        topRight={(
-          <ScenarioPopover
-            scenario={scenario}
-            actions={['Duplicate', 'Export', 'Delete']}
-            onDelete={onDelete}
-            inList
-            leadingEntries={catalogItem
-              ? [{
-                  label: 'Launch',
-                  action: () => {
-                    launch();
-                  },
-                  userRight: canLaunch,
-                }, ...(updateAvailable
-                  ? [{
-                      label: 'Update',
-                      action: () => setUpdating(true),
-                      userRight: canManage,
-                    }]
-                  : [])]
-              : []}
+        // DS Card anatomy, as on the Threat Arsenal cards (Figma 8467:4560), with the content this card
+        // already had: "Update available" in the banner, version and last run in the info row, status
+        // and platforms bottom left, Launch right.
+        height="100%"
+        banner={updateAvailable && catalogItem && (
+          <MarketplaceCardBanner
+            tone="info"
+            message={t('Update available')}
+            action={canManage
+              ? {
+                  label: t('Update'),
+                  onClick: () => setUpdating(true),
+                }
+              : undefined}
           />
         )}
+        info={[
+          {
+            label: t('Version'),
+            value: version ? `v${version}` : '–',
+          },
+          {
+            label: t('Last run'),
+            value: lastRunAt ? nsd(lastRunAt) : t('Never'),
+          },
+        ]}
         chips={null}
         platforms={scenario.scenario_platforms ?? []}
-        footerRight={(
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-          >
-            {updateAvailable && <Chip label={t('Update available')} severity="medium" />}
+        metaStart={(
+          <>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="inline-flex">
@@ -108,15 +132,49 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
               </TooltipTrigger>
               <TooltipContent>{recurrence ?? t('Not scheduled')}</TooltipContent>
             </Tooltip>
-          </div>
+            {(scenario.scenario_platforms ?? []).slice(0, 3).map(platform => <PlatformIcon key={platform} width={16} platform={platform} tooltip />)}
+          </>
         )}
-        action={canLaunch && (
-          <Button size="sm" onClick={launch}>{t('Launch')}</Button>
+        // The menu sits beside the action, bottom right, as on the Threat Arsenal cards.
+        action={(
+          <span
+            onClick={event => event.stopPropagation()}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            {canLaunch && <Button size="sm" onClick={launch}>{t('Launch')}</Button>}
+            <ScenarioPopover
+              scenario={scenario}
+              actions={['Duplicate', 'Export', 'Delete']}
+              onDelete={onDelete}
+              inList
+              // Launch on every Active card, installed or local (F6); Update only for a catalogue scenario.
+              leadingEntries={[{
+                label: 'Launch',
+                action: () => {
+                  launch();
+                },
+                userRight: canLaunch,
+              }, ...(updateAvailable
+                ? [{
+                    label: 'Update',
+                    action: () => setUpdating(true),
+                    userRight: canManage,
+                  }]
+                : []), ...(lastUpdate
+                ? [{
+                    // The same preview as any rollback: nothing changes before the user confirms.
+                    label: 'Roll back last update',
+                    action: () => setRollingBack(true),
+                    userRight: canManage,
+                  }]
+                : [])]}
+            />
+          </span>
         )}
-        caption={[
-          version ? `v${version}` : null,
-          lastRunAt ? `${t('Last run')} ${nsd(lastRunAt)}` : t('Never run'),
-        ].filter(Boolean).join(' · ')}
       />
     </>
   );

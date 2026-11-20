@@ -2,6 +2,7 @@ import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Divider, Menu, MenuItem } from '@mui/material';
 import { type MouseEvent, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import { uninstallCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
 import { liftPayloadRevocation, revokePayload } from '../../../actions/payloads/payload-revocation-actions';
@@ -33,7 +34,6 @@ import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 import { buildInitialValues, handleCleanupCommandValue, handleCleanupExecutorValue } from './actionFormValues';
-import PayloadNewVersionDialog from './PayloadNewVersionDialog';
 import payloadRevocationChoices from './payloadRevocationChoices';
 import PayloadRevocationDialog from './PayloadRevocationDialog';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
@@ -108,7 +108,26 @@ const ThreatArsenalActionPopover = ({
     setFetchedAction(null);
   };
 
-  const [newVersion, setNewVersion] = useState<ThreatArsenalAction | null>(null);
+  const navigate = useNavigate();
+  // A save that added a version, while injects still run an older one: the drawer opens on its
+  // Versions tab, ready to move them ("Saved as vX" on top, nothing ticked: the user picks what moves).
+  // The one place that shows every version and inject, instead of a smaller copy of it in a dialog.
+  const offerToMoveUsages = (saved: ThreatArsenalAction) => {
+    if (!saved.action_previous_version_id) return;
+    fetchThreatArsenalVersions(saved.action_previous_version_id).then((response: { data: PayloadVersionOutput[] }) => {
+      const used = response.data.some(v => v.payload_installed
+        && v.payload_id !== saved.action_payload?.payload_id
+        && (v.payload_usage_count ?? 0) > 0);
+      if (!used) return;
+      const params = new URLSearchParams({
+        action: saved.injector_contract_id,
+        tab: 'versions',
+        focus: 'migrate',
+        saved: saved.action_payload?.payload_version ?? '',
+      });
+      navigate(`/admin/threat-arsenal?${params.toString()}`);
+    });
+  };
 
   const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
     const inputValues: ThreatArsenalActionUpdateInput = {
@@ -137,8 +156,8 @@ const ThreatArsenalActionPopover = ({
       onUpdate(saved);
     }
     handleCloseEdit();
-    if (saved?.action_previous_version_id && (saved.action_previous_version_usages ?? 0) > 0) {
-      setNewVersion(saved);
+    if (saved?.action_previous_version_id) {
+      offerToMoveUsages(saved);
     }
   };
 
@@ -299,19 +318,8 @@ const ThreatArsenalActionPopover = ({
             {t('Edit customization')}
           </MenuItem>
         )}
-        {hasDeleteCapability && !managed && (
-          <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
-        )}
-        {((hasDeleteCapability && managed) || (hasRevokeCapability && (canRevoke || canLift))) && <Divider />}
-        {hasDeleteCapability && managed && (
-          <MenuItem onClick={() => {
-            handlePopoverClose();
-            setUninstall(true);
-          }}
-          >
-            {t('Uninstall')}
-          </MenuItem>
-        )}
+        {/* Revoking stops a version from running and can be lifted: its own group, away from removal (L41). */}
+        {hasRevokeCapability && !!payloadId && (canRevoke || canLift) && <Divider />}
         {hasRevokeCapability && !!payloadId && canRevoke && (
           <MenuItem onClick={handleOpenRevocation}>{t('Revoke')}</MenuItem>
         )}
@@ -323,6 +331,19 @@ const ThreatArsenalActionPopover = ({
           >
             {t('Lift revocation')}
           </MenuItem>
+        )}
+        {hasDeleteCapability && <Divider />}
+        {hasDeleteCapability && managed && (
+          <MenuItem onClick={() => {
+            handlePopoverClose();
+            setUninstall(true);
+          }}
+          >
+            {t('Uninstall')}
+          </MenuItem>
+        )}
+        {hasDeleteCapability && !managed && (
+          <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         )}
       </Menu>
 
@@ -337,8 +358,8 @@ const ThreatArsenalActionPopover = ({
                 action_previous_version_id: output.previous_action_id ?? output.action.action_previous_version_id,
               });
             }
-            if (output.new_version && output.previous_action_id && output.previous_version_usages > 0 && output.action) {
-              setNewVersion({
+            if (output.new_version && output.previous_action_id && output.action) {
+              offerToMoveUsages({
                 ...output.action,
                 action_previous_version_id: output.previous_action_id,
                 action_previous_version_usages: output.previous_version_usages,
@@ -434,15 +455,6 @@ const ThreatArsenalActionPopover = ({
           )}
         </>
       </Drawer>
-      {newVersion?.action_previous_version_id && newVersion.action_payload?.payload_id && (
-        <PayloadNewVersionDialog
-          previousActionId={newVersion.action_previous_version_id}
-          newPayloadId={newVersion.action_payload.payload_id}
-          newVersion={newVersion.action_payload.payload_version ?? ''}
-          usages={newVersion.action_previous_version_usages ?? 0}
-          onClose={() => setNewVersion(null)}
-        />
-      )}
     </>
   );
 };

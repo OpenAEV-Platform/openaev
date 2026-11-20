@@ -51,7 +51,7 @@ const PayloadUpdateDialog: FunctionComponent<Props> = ({ identityId, baseActionI
           }}
           >
             {conflicts.length > 0 && (
-              <Text variant="content-base">{t('Filigran changed what you customized. Keep one version for each conflict; the rest is combined.')}</Text>
+              <Text variant="content-base">{t('Filigran changed things you edited. Pick which version to keep for each.')}</Text>
             )}
             {preview.missing_variables.length > 0 && (
               <Alert severity="warning" title={`${t('Variables without an argument')}: ${preview.missing_variables.join(', ')}`} />
