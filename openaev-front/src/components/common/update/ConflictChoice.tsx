@@ -1,4 +1,5 @@
 import { Radio, RadioGroup, Text } from '@filigran/design-system';
+import { useTheme } from '@mui/material/styles';
 import { type ReactNode, useId } from 'react';
 
 import TextDiff from './TextDiff';
@@ -18,11 +19,12 @@ interface Props {
 // One conflict of an update: both values, the words that differ highlighted, one to keep.
 const ConflictChoice = ({ title, theirsLabel, mineLabel, theirs, mine, selected, onSelect }: Props) => {
   const titleId = useId();
+  const theme = useTheme();
   return (
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      gap: 8,
+      gap: theme.spacing(1),
     }}
     >
       <Text variant="content-base-medium" id={titleId}>{title}</Text>
