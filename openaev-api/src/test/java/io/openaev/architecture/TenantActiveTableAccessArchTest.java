@@ -318,6 +318,7 @@ import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.mapper.VulnerabilityMapper;
 import io.openaev.xtmhub.XtmHubService;
+import io.openaev.xtmone.XtmOneHealthSnapshot;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Method;
@@ -1242,7 +1243,9 @@ class TenantActiveTableAccessArchTest {
               // (ADR-006): safe regardless of activation:
               ScopeSnapshotService.class,
               // Background telemetry reader scoped via tenantTx.execute(TxCtx.allTenants()):
-              InventoryMetricCollector.class)
+              InventoryMetricCollector.class,
+              // XTM One health snapshot, read under tenantTx.execute(TxCtx.allTenants()):
+              XtmOneHealthSnapshot.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(CollectorRepository.class)
@@ -1267,7 +1270,9 @@ class TenantActiveTableAccessArchTest {
               // carries TxCtx):
               EndpointService.class,
               // Background telemetry reader scoped via tenantTx.execute(TxCtx.allTenants()):
-              InventoryMetricCollector.class)
+              InventoryMetricCollector.class,
+              // XTM One health snapshot, read under tenantTx.execute(TxCtx.allTenants()):
+              XtmOneHealthSnapshot.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(ExecutorRepository.class)
@@ -1300,6 +1305,8 @@ class TenantActiveTableAccessArchTest {
               ConnectorInstanceService.class,
               // Background telemetry reader scoped via tenantTx.execute(TxCtx.allTenants()):
               InventoryMetricCollector.class,
+              // XTM One health snapshot, read under tenantTx.execute(TxCtx.allTenants()):
+              XtmOneHealthSnapshot.class,
               // Runtime migration scoped with tenantTx.executeNew(TxCtx.forTenant(...)):
               V20260420_Migrate_rabbitmq_queues.class,
               // Datapack writer scoped with tenantTx.executeNew(TxCtx.forTenant(...)):
@@ -2099,7 +2106,10 @@ class TenantActiveTableAccessArchTest {
               ExecutableInjectService.class,
               // Quartz heartbeat monitor: reads and updates one tenant's stale agents inside
               // TenantScopedTransaction#forEachTenant.
-              AgentInactivityMonitorJob.class)
+              AgentInactivityMonitorJob.class,
+              // XTM One health snapshot: counts every tenant's agents (total, inactive) under
+              // tenantTx.execute(TxCtx.allTenants()).
+              XtmOneHealthSnapshot.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(AgentRepository.class)
