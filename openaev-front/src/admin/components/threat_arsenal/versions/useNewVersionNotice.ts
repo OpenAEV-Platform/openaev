@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { type ThreatArsenalAction } from '../../../../utils/api-types';
 import { type OlderVersionInUse, usageCount } from './usages/usageCounts';
-import useVersionsUsages from './usages/useVersionsUsages';
+import useUsagesByVersion from './usages/useUsagesByVersion';
 import usePayloadVersions from './usePayloadVersions';
 import useSkipNewVersionDialog from './useSkipNewVersionDialog';
 
@@ -14,7 +14,7 @@ const useNewVersionNotice = (actionId: string, onUpdate?: (action: ThreatArsenal
   const [saved, setSaved] = useState<ThreatArsenalAction | null>(null);
   const [skipsDialog] = useSkipNewVersionDialog();
   const versions = usePayloadVersions(saved?.injector_contract_id ?? '', !!saved);
-  const usages = useVersionsUsages(saved ? versions : null);
+  const usages = useUsagesByVersion(saved ? versions : null);
 
   const loaded = !!versions && !!usages;
   const olderVersions: OlderVersionInUse[] = versions && usages

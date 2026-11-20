@@ -8,18 +8,18 @@ import { actionId, payloadId, payloadVersion, usage, usagesOf, versionAction } f
 
 const mocks = vi.hoisted(() => ({
   usePayloadVersions: vi.fn(),
-  useVersionsUsages: vi.fn(),
+  useUsagesByVersion: vi.fn(),
 }));
 
 vi.mock('../../../../../admin/components/threat_arsenal/versions/usePayloadVersions', () => ({ default: mocks.usePayloadVersions }));
-vi.mock('../../../../../admin/components/threat_arsenal/versions/usages/useVersionsUsages', () => ({ default: mocks.useVersionsUsages }));
+vi.mock('../../../../../admin/components/threat_arsenal/versions/usages/useUsagesByVersion', () => ({ default: mocks.useUsagesByVersion }));
 
 const SAVED_ID = actionId('1.0.0');
 
 // The versions the new action's payload has once loaded, and the usages of each one.
 const versionsLoaded = (usagesByVersion: Record<string, PayloadUsagesOutput>) => {
   mocks.usePayloadVersions.mockImplementation((_id: string, load: boolean) => (load ? Object.keys(usagesByVersion).map(payloadVersion) : null));
-  mocks.useVersionsUsages.mockImplementation((versions: PayloadVersionOutput[] | null) => (versions
+  mocks.useUsagesByVersion.mockImplementation((versions: PayloadVersionOutput[] | null) => (versions
     ? Object.fromEntries(Object.entries(usagesByVersion).map(([version, usages]) => [payloadId(version), usages]))
     : null));
 };
@@ -37,7 +37,7 @@ describe('useNewVersionNotice', () => {
   beforeEach(() => {
     localStorage.clear();
     mocks.usePayloadVersions.mockReset();
-    mocks.useVersionsUsages.mockReset();
+    mocks.useUsagesByVersion.mockReset();
   });
 
   it('given_saveInPlace_should_updateTheCardRightAway', () => {
@@ -107,7 +107,7 @@ describe('useNewVersionNotice', () => {
   it('given_usagesStillLoading_should_waitWithoutNotice', () => {
     // Arrange
     mocks.usePayloadVersions.mockReturnValue([payloadVersion('1.1.0'), payloadVersion('1.0.0')]);
-    mocks.useVersionsUsages.mockReturnValue(null);
+    mocks.useUsagesByVersion.mockReturnValue(null);
     const { result, onUpdate } = renderNotice();
 
     // Act
