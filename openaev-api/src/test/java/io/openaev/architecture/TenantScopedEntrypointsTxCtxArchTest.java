@@ -695,7 +695,15 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.threat_arsenal.move.PayloadUsageMoveApi#moveUsages",
           // catalog_history: the History tabs of an action and of a scenario.
           "io.openaev.api.catalog.CatalogHistoryApi#payloadHistory",
-          "io.openaev.api.catalog.CatalogHistoryApi#scenarioHistory");
+          "io.openaev.api.catalog.CatalogHistoryApi#scenarioHistory",
+          // scenario_revisions, scenarios, catalog_items, payloads: a catalogue scenario updated
+          // to a version or rolled back to a revision.
+          "io.openaev.api.scenario.ScenarioUpdateApi#revisions",
+          "io.openaev.api.scenario.ScenarioUpdateApi#versions",
+          "io.openaev.api.scenario.ScenarioUpdateApi#previewUpdate",
+          "io.openaev.api.scenario.ScenarioUpdateApi#previewRollback",
+          "io.openaev.api.scenario.ScenarioUpdateApi#update",
+          "io.openaev.api.scenario.ScenarioUpdateApi#rollback");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =

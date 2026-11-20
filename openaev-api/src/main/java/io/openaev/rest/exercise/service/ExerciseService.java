@@ -280,6 +280,11 @@ public class ExerciseService {
     }
   }
 
+  @Transactional(readOnly = true)
+  public long countByScenario(@NotBlank final String tenantId, @NotBlank final String scenarioId) {
+    return this.exerciseRepository.countByTenantIdAndScenarioId(tenantId, scenarioId);
+  }
+
   /**
    * Initializes the lazy {@code exercise_documents} a raw {@link Exercise} response serializes as
    * an id array. Serialization runs open-in-view after the controller transaction has committed,

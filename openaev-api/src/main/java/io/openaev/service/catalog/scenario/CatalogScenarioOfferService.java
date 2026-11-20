@@ -49,6 +49,16 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
     return toInstallable(ctx, item);
   }
 
+  /** A released version, offered or not, as the one a tenant installed. */
+  @Transactional(readOnly = true)
+  public ReleasedScenario released(TxCtx ctx, String externalId, String version) {
+    CatalogScenario item = catalogListService.released(CatalogScenario.class, externalId, version);
+    return new ReleasedScenario(
+        item.getArchiveHash(),
+        payloadRefs(item).stream()
+            .collect(Collectors.toMap(PayloadRef::externalId, PayloadRef::version)));
+  }
+
   /** The latest version of every catalogue scenario the tenant does not show. */
   @Transactional(readOnly = true)
   public List<OfferedScenario> notInstalled(String tenantId) {
