@@ -102,7 +102,11 @@ public class MarkingDefinitionApi extends RestBehavior {
   @PostMapping("/export/csv")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.MARKING_DEFINITION)
-  @Operation(summary = "Export marking definitions as CSV")
+  @Operation(
+      summary = "Export marking definitions as CSV",
+      description =
+          "Exports the marking definitions matching the search as CSV; answers 404 while the"
+              + " marking preview feature is off.")
   public void exportMarkingDefinitionsCsv(
       TxCtx ctx,
       @RequestBody @Valid SearchPaginationInput searchPaginationInput,
@@ -118,7 +122,11 @@ public class MarkingDefinitionApi extends RestBehavior {
   @PostMapping(value = "/import/csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @Transactional(rollbackFor = Exception.class)
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MARKING_DEFINITION)
-  @Operation(summary = "Import marking definitions from CSV")
+  @Operation(
+      summary = "Import marking definitions from CSV",
+      description =
+          "Creates the valid rows of a CSV file (1 MB max) and reports every row; existing"
+              + " markings are never overwritten.")
   public ImportReport importMarkingDefinitionsCsv(
       TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file) throws Exception {
     service.assertFeatureEnabled();
