@@ -1,0 +1,52 @@
+import { CardBanner } from '@filigran/design-system';
+import { type MouseEvent } from 'react';
+
+import { useFormatter } from '../../../../components/i18n';
+import { type ThreatArsenalAction } from '../../../../utils/api-types';
+import { isShownRevoked } from '../utils/threatArsenalStatusUtils';
+
+/** The card's one banner, a direct child of the Card: a revoked version first, then injects left on an older version. */
+const useThreatArsenalCardBanner = (
+  action: ThreatArsenalAction,
+  olderVersionsInUse: boolean,
+  onShowVersions: (action: ThreatArsenalAction) => void,
+) => {
+  const { t } = useFormatter();
+  // The card itself opens the drawer on click: the banner action opens its Versions tab instead.
+  const showVersions = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onShowVersions(action);
+  };
+
+  if (isShownRevoked(action)) {
+    return (
+      <CardBanner
+        severity="error"
+        icon="ban"
+        action={{
+          label: t('Versions'),
+          onClick: showVersions,
+        }}
+      >
+        {t('Revoked: injects using it fail')}
+      </CardBanner>
+    );
+  }
+  if (olderVersionsInUse) {
+    return (
+      <CardBanner
+        severity="warning"
+        action={{
+          label: t('Move'),
+          onClick: showVersions,
+        }}
+      >
+        {t('Injects use an older version')}
+      </CardBanner>
+    );
+  }
+  return null;
+};
+
+export default useThreatArsenalCardBanner;
