@@ -8,17 +8,17 @@ import io.openaev.database.model.hash.Hashed;
 import io.openaev.service.hash.CanonicalContent;
 import io.openaev.service.hash.UnreadableFileException;
 import java.util.Collection;
-import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-/** What kind of change a new content of a payload is, from the fields of its hashed content. */
+/** What a new content of a payload changes, from the fields of its hashed content. */
 @Service
 @RequiredArgsConstructor
 public class PayloadChangeKind {
@@ -26,45 +26,57 @@ public class PayloadChangeKind {
   private final PayloadContentHashService payloadContentHashService;
 
   /**
-   * Empty when nothing hashed changed; else the strongest change of the keys that did, as the
-   * catalogue's rule: anything removed from a list is major.
+   * The keys whose value changed, each with what it makes of a new version, as the catalogue's
+   * rule: anything removed from a list is major.
    */
-  public Optional<Hashed.Change> of(
-      Payload before, Payload after, Collection<AttackPattern> afterPatterns) {
+  public PayloadChange of(Payload before, Payload after, Collection<AttackPattern> afterPatterns) {
+    return compare(
+        before,
+        after,
+        files -> payloadContentHashService.canonicalTree(after, afterPatterns, files));
+  }
+
+  /** Between two saved versions, each with the techniques of its own contract. */
+  public PayloadChange between(Payload before, Payload after) {
+    return compare(before, after, files -> payloadContentHashService.canonicalTree(after, files));
+  }
+
+  private PayloadChange compare(
+      Payload before, Payload after, Function<CanonicalContent.Files, ObjectNode> afterTree) {
     Comparison comparison;
     try {
-      comparison = compare(before, after, afterPatterns, CanonicalContent.Files.BY_HASH);
+      comparison = compare(before, afterTree, CanonicalContent.Files.BY_HASH);
     } catch (UnreadableFileException e) {
-      comparison = compare(before, after, afterPatterns, CanonicalContent.Files.BY_ID);
+      comparison = compare(before, afterTree, CanonicalContent.Files.BY_ID);
     }
-    return comparison.kind(payloadContentHashService.changes(after));
+    return comparison.change(payloadContentHashService.changes(after));
   }
 
   private Comparison compare(
       Payload before,
-      Payload after,
-      Collection<AttackPattern> afterPatterns,
+      Function<CanonicalContent.Files, ObjectNode> afterTree,
       CanonicalContent.Files files) {
     return new Comparison(
-        payloadContentHashService.canonicalTree(before, files),
-        payloadContentHashService.canonicalTree(after, afterPatterns, files));
+        payloadContentHashService.canonicalTree(before, files), afterTree.apply(files));
   }
 
   private record Comparison(ObjectNode before, ObjectNode after) {
 
-    Optional<Hashed.Change> kind(Map<String, Hashed.Change> changes) {
+    PayloadChange change(Map<String, Hashed.Change> changes) {
       Set<String> keys = new HashSet<>();
       before.fieldNames().forEachRemaining(keys::add);
       after.fieldNames().forEachRemaining(keys::add);
-      return keys.stream()
+      Map<String, Hashed.Change> changed = new HashMap<>();
+      keys.stream()
           .filter(key -> !Objects.equals(before.get(key), after.get(key)))
-          .map(
+          .forEach(
               key ->
-                  removes(before.get(key), after.get(key))
-                      ? Hashed.Change.MAJOR
-                      : changes.getOrDefault(key, Hashed.Change.MAJOR))
-          // Declared strongest first: the least is the strongest.
-          .min(Comparator.naturalOrder());
+                  changed.put(
+                      key,
+                      removes(before.get(key), after.get(key))
+                          ? Hashed.Change.MAJOR
+                          : changes.getOrDefault(key, Hashed.Change.MAJOR)));
+      return new PayloadChange(before, after, changed);
     }
 
     // An item of a list or a map that the new value no longer has. An object edited in a list is

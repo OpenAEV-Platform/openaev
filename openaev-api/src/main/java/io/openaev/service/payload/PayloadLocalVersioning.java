@@ -5,6 +5,7 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.hash.Hashed;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.repository.PayloadIdentityRepository;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.DetectionRemediationUtils;
 import io.openaev.rest.payload.PayloadUtils;
@@ -26,6 +27,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class PayloadLocalVersioning {
 
+  public static final String LOCKED_ON_CUSTOMIZED_COPY =
+      "A customized copy only changes its commands, arguments, prerequisites and platforms";
+
   private final PayloadService payloadService;
   private final PayloadUtils payloadUtils;
   private final DetectionRemediationUtils detectionRemediationUtils;
@@ -41,15 +45,25 @@ public class PayloadLocalVersioning {
       return Optional.empty();
     }
     Payload candidate = candidate(current, input);
-    return payloadChangeKind
-        .of(current, candidate, attackPatterns)
-        .map(change -> linkAsNewest(current, candidate, change));
+    PayloadChange change = payloadChangeKind.of(current, candidate, attackPatterns);
+    if (current.isCustomized()) {
+      refuseLockedChanges(change);
+    }
+    return change.kind().map(kind -> addVersion(current, candidate, kind));
+  }
+
+  // A customized copy takes everything else from its Filigran version.
+  private static void refuseLockedChanges(PayloadChange change) {
+    if (change.keys().stream().anyMatch(key -> CustomizableField.ofKey(key).isEmpty())) {
+      throw new BadRequestException(LOCKED_ON_CUSTOMIZED_COPY);
+    }
   }
 
   // A duplicate carries the grants of the version; the input then replaces its content.
   private Payload candidate(Payload current, PayloadUpdateInput input) {
     Payload candidate = payloadService.generateDuplicatedPayload(current);
     payloadUtils.copyProperties(input.withoutChildIds(), candidate);
+    candidate.setBase(current.getBase());
     if (input.getDetectionRemediations() == null) {
       // Without the license the rules are not sent: they stay as they are.
       detectionRemediationUtils.copy(current.getDetectionRemediations(), candidate, false);
@@ -57,8 +71,11 @@ public class PayloadLocalVersioning {
     return candidate;
   }
 
-  // Locked: two saves at once number one after the other instead of taking the same number.
-  private Payload linkAsNewest(Payload current, Payload candidate, Hashed.Change change) {
+  /**
+   * Numbers the candidate after the newest version and makes it the one shown. Locked: two saves at
+   * once number one after the other instead of taking the same number.
+   */
+  public Payload addVersion(Payload current, Payload candidate, Hashed.Change change) {
     PayloadIdentity identity =
         payloadIdentityRepository
             .findForUpdateById(current.getIdentity().getId())

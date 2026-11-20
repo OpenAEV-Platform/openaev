@@ -39,6 +39,10 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
   @JsonProperty("action_payload_revoked")
   private Boolean payloadRevoked;
 
+  @Schema(description = "The attached payload is a customized copy of a Filigran payload")
+  @JsonProperty("action_payload_customized")
+  private Boolean payloadCustomized;
+
   @Schema(description = "Injector type")
   @JsonProperty("action_injector_type")
   private String injectorType;
@@ -95,6 +99,7 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
       String payloadVersion,
       Boolean payloadManaged,
       Boolean payloadRevoked,
+      Boolean payloadCustomized,
       String[] attackPatterns,
       String authorId,
       String authorName,
@@ -110,6 +115,7 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
     this.setPayloadVersion(payloadVersion);
     this.setPayloadManaged(payloadManaged);
     this.setPayloadRevoked(payloadRevoked);
+    this.setPayloadCustomized(payloadCustomized);
     this.setAttackPatterns(
         attackPatterns != null ? new HashSet<>(Arrays.asList(attackPatterns)) : new HashSet<>());
     this.setAuthorId(authorId);
