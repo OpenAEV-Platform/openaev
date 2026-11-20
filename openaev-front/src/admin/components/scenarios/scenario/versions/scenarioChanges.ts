@@ -1,4 +1,4 @@
-import { type BeforeAfterRow } from '../../../../../components/common/update/BeforeAfterTable';
+import { type ChangeDiffRow } from '../../../../../components/common/update/ChangeDiff';
 import { type Translate } from '../../../../../components/i18n';
 import { type ScenarioChangeOutput } from '../../../../../utils/api-types';
 
@@ -17,25 +17,26 @@ const FIELD_LABELS: Record<string, string> = {
   depends_on: 'Dependencies',
 };
 
-const elementLabel = (change: ScenarioChangeOutput, t: Translate) => {
+/** What a change is on: the scenario, its variables, or an inject by its title. */
+export const elementLabel = (change: ScenarioChangeOutput, t: Translate) => {
   if (change.scenario_change_element.startsWith(INJECT_ELEMENT)) {
-    return change.scenario_change_title ?? t('Inject');
+    return change.scenario_change_title ? t('Inject “{title}”', { title: change.scenario_change_title }) : t('Inject');
   }
   return t(change.scenario_change_element === VARIABLES_ELEMENT ? 'Variables' : 'Scenario');
 };
 
-// A variable is named by its key, an inject content field by its own name.
+// A variable is named by its key, an inject content field as an argument.
 const fieldLabel = (change: ScenarioChangeOutput, field: string, t: Translate) => {
   if (change.scenario_change_element === VARIABLES_ELEMENT) {
-    return field;
+    return t('Variable {key}', { key: field });
   }
   if (field.startsWith(CONTENT_FIELD)) {
-    return field.slice(CONTENT_FIELD.length);
+    return t('Argument {key}', { key: field.slice(CONTENT_FIELD.length) });
   }
   return t(FIELD_LABELS[field] ?? field);
 };
 
-/** What a change is about, as people read it: "Scan · Title", "Variables · target". */
+/** What a change is about, as people read it: "Inject “Scan” · Title", "Variables · Variable target". */
 export const changeLabel = (change: ScenarioChangeOutput, t: Translate) => {
   const element = elementLabel(change, t);
   const field = change.scenario_change_field;
@@ -59,8 +60,8 @@ export const valueText = (value: unknown): string => {
 export const withStatus = (changes: ScenarioChangeOutput[], status: ScenarioChangeOutput['scenario_change_status']) => changes
   .filter(change => change.scenario_change_status === status);
 
-/** A changed field as the before/after table shows it. */
-export const beforeAfterRow = (change: ScenarioChangeOutput, before: unknown, after: unknown, t: Translate): BeforeAfterRow => ({
+/** A changed field as the diff shows it. */
+export const changeDiffRow = (change: ScenarioChangeOutput, before: unknown, after: unknown, t: Translate): ChangeDiffRow => ({
   id: change.scenario_change_id,
   field: changeLabel(change, t),
   before: valueText(before),

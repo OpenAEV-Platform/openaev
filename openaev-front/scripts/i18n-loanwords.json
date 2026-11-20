@@ -191,9 +191,10 @@
     "Website",
     "Workstation",
     "{injects} in {scenarios}",
-    "Version v{version}",
     "Revision #{number}",
-    "Revision"
+    "Revision",
+    "Variable {key}",
+    "Argument {key}"
   ],
   "es": [
     "{count} roles",
@@ -235,7 +236,8 @@
     "total",
     "Variables",
     "Vulnerable",
-    "Local"
+    "Local",
+    "Variable {key}"
   ],
   "fr": [
     "1 inject",
@@ -376,7 +378,8 @@
     "Vision",
     "~{count} injects",
     "Local",
-    "Version v{version}"
+    "Variable {key}",
+    "Argument {key}"
   ],
   "it": [
     "1 inject",

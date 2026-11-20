@@ -14,6 +14,7 @@ export interface ScenarioUpdateTarget {
   takenLabel: (count: string) => string;
   // The label of the applied side of a conflict.
   theirsLabel: string;
+  conflictsIntro: string;
   removedConflictLabel: string;
   newsTitle: string;
   addedReason: string;
@@ -27,12 +28,13 @@ export interface ScenarioUpdateTarget {
 }
 
 export const updateTarget = (scenarioId: string, version: string, t: Translate): ScenarioUpdateTarget => ({
-  title: t('Update to v{version}', { version }),
+  title: t('Update to Filigran v{version}', { version }),
   summaryTitle: t('In this update'),
-  takenLabel: count => t('Changes from the catalogue: {count}', { count }),
-  theirsLabel: t('Version v{version}', { version }),
+  takenLabel: count => t('Changes from Filigran: {count}', { count }),
+  theirsLabel: t('Filigran version v{version}', { version }),
+  conflictsIntro: t('Filigran changed things you edited. Pick which version to keep for each.'),
   removedConflictLabel: t('Removed in v{version}, changed by you', { version }),
-  newsTitle: t('What\'s new in v{version}', { version }),
+  newsTitle: t('What\'s new in Filigran v{version}', { version }),
   addedReason: t('New in v{version}', { version }),
   removedReason: t('Removed in v{version}', { version }),
   afterLabel: t('After · v{version}', { version }),
@@ -50,6 +52,7 @@ export const rollbackTarget = (scenarioId: string, revision: ScenarioRevisionOut
     summaryTitle: t('In this rollback'),
     takenLabel: count => t('Changes restored: {count}', { count }),
     theirsLabel: t('Revision #{number}', { number }),
+    conflictsIntro: t('You edited things this rollback restores. Pick which version to keep for each.'),
     removedConflictLabel: t('Not in revision #{number}, changed by you', { number }),
     newsTitle: t('Restored from the revision'),
     addedReason: t('In revision #{number}', { number }),

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { beforeAfterRow, changeLabel, valueText, withStatus } from '../../../../../../admin/components/scenarios/scenario/versions/scenarioChanges';
+import { changeDiffRow, changeLabel, valueText, withStatus } from '../../../../../../admin/components/scenarios/scenario/versions/scenarioChanges';
 import { type ScenarioChangeOutput } from '../../../../../../utils/api-types';
 
-const t = ((key: string) => `t:${key}`) as Parameters<typeof changeLabel>[1];
+const t = ((key: string, values?: Record<string, string>) => `t:${key.replace(/\{(\w+)\}/g, (_, name: string) => values?.[name] ?? name)}`) as Parameters<typeof changeLabel>[1];
 
 const change = (element: string, field?: string, title?: string): ScenarioChangeOutput => ({
   scenario_change_id: field ? `${element}/${field}` : element,
@@ -18,10 +18,10 @@ describe('scenarioChanges', () => {
   describe('changeLabel', () => {
     it.each([
       [change('scenario', 'name'), 't:Scenario · t:Name'],
-      [change('variables', 'target'), 't:Variables · target'],
-      [change('inject:a', 'title', 'Scan'), 'Scan · t:Title'],
-      [change('inject:a', 'content.command', 'Scan'), 'Scan · command'],
-      [change('inject:a', undefined, 'Scan'), 'Scan'],
+      [change('variables', 'target'), 't:Variables · t:Variable target'],
+      [change('inject:a', 'title', 'Scan'), 't:Inject “Scan” · t:Title'],
+      [change('inject:a', 'content.command', 'Scan'), 't:Inject “Scan” · t:Argument command'],
+      [change('inject:a', undefined, 'Scan'), 't:Inject “Scan”'],
       [change('inject:a', 'contract'), 't:Inject · t:Payload version'],
     ])('names %o as people read it', (scenarioChange, label) => {
       // Act & Assert
@@ -55,11 +55,11 @@ describe('scenarioChanges', () => {
     expect(withStatus([change('scenario', 'description'), taken], 'TAKE_APPLIED')).toEqual([taken]);
   });
 
-  it('reads a change as a before and after row', () => {
+  it('reads a change as a diff row', () => {
     // Act & Assert
-    expect(beforeAfterRow(change('inject:a', 'title', 'Scan'), 'nmap', null, t)).toEqual({
+    expect(changeDiffRow(change('inject:a', 'title', 'Scan'), 'nmap', null, t)).toEqual({
       id: 'inject:a/title',
-      field: 'Scan · t:Title',
+      field: 't:Inject “Scan” · t:Title',
       before: 'nmap',
       after: '',
     });

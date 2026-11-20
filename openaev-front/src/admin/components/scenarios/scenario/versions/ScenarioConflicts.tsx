@@ -85,6 +85,7 @@ const ScenarioConflicts: FunctionComponent<Props> = ({ target, conflicts, choice
 
   return (
     <div style={column}>
+      <Text variant="content-base">{target.conflictsIntro}</Text>
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -92,7 +93,7 @@ const ScenarioConflicts: FunctionComponent<Props> = ({ target, conflicts, choice
         gap: theme.spacing(1),
       }}
       >
-        <Text variant="title-xs">{t('Conflicts')}</Text>
+        <Text variant="title-xs">{t('Conflicts ({count})', { count: String(conflicts.length) })}</Text>
         <div style={{
           display: 'flex',
           gap: theme.spacing(1),

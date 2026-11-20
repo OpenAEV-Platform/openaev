@@ -62,6 +62,7 @@ const ScenarioVersionsTable: FunctionComponent<Props> = ({ versions, canManage, 
                 >
                   {version.scenario_version_current && <Chip label={t('Current version')} style={{ maxWidth: '100%' }} />}
                   {version.scenario_version_latest && <Chip label={t('Latest version')} severity="low" style={{ maxWidth: '100%' }} />}
+                  {!version.scenario_version_current && <Chip label={t('Not installed')} style={{ maxWidth: '100%' }} />}
                   {notOffered && <Chip label={t(notOffered.label)} severity={notOffered.severity} style={{ maxWidth: '100%' }} />}
                 </div>
               </TableCell>

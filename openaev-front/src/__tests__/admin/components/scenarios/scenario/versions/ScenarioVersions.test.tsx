@@ -82,19 +82,26 @@ const versions: ScenarioVersionsOutput = {
 
 const revisions: ScenarioRevisionOutput[] = [
   {
-    scenario_revision_id: 'revision-2',
-    scenario_revision_number: 2,
+    scenario_revision_id: 'revision-3',
+    scenario_revision_number: 3,
     scenario_revision_reason: 'UPDATE',
     scenario_revision_catalog_version: '1.0.0',
     scenario_revision_created_at: '2026-11-03',
     scenario_revision_user: 'Alice',
   },
   {
-    scenario_revision_id: 'revision-1',
-    scenario_revision_number: 1,
+    scenario_revision_id: 'revision-2',
+    scenario_revision_number: 2,
     scenario_revision_reason: 'ROLLBACK',
     scenario_revision_catalog_version: '1.1.0',
     scenario_revision_created_at: '2026-11-02',
+  },
+  {
+    scenario_revision_id: 'revision-1',
+    scenario_revision_number: 1,
+    scenario_revision_reason: 'INSTALL',
+    scenario_revision_catalog_version: '1.0.0',
+    scenario_revision_created_at: '2026-11-01',
   },
 ];
 
@@ -108,6 +115,7 @@ const change = (id: string, status: ScenarioChangeOutput['scenario_change_status
 });
 
 const preview = (changes: ScenarioChangeOutput[]): ScenarioUpdatePreviewOutput => ({
+  scenario_update_changelogs: [],
   scenario_update_changes: changes,
   scenario_update_payloads_to_install: [],
   scenario_update_revoked_payloads: [],
@@ -143,6 +151,10 @@ const updatePreview: ScenarioUpdatePreviewOutput = {
     payload_version: '1.1.0',
   }],
   scenario_update_lost_dependencies: ['Scan'],
+  scenario_update_changelogs: [{
+    scenario_changelog_version: '1.1.0',
+    scenario_changelog: 'New scan',
+  }],
 };
 
 const serve = (responses: Record<string, unknown>) => mocks.simpleCall.mockImplementation((uri: string) => Promise.resolve({ data: responses[uri] ?? [] }));
@@ -165,7 +177,7 @@ describe('ScenarioVersions', () => {
       [`${SCENARIO}/versions`]: versions,
       [`${SCENARIO}/revisions`]: revisions,
       [`${SCENARIO}/versions/1.1.0/update-preview`]: updatePreview,
-      [`${SCENARIO}/revisions/revision-2/rollback-preview`]: preview([]),
+      [`${SCENARIO}/revisions/revision-3/rollback-preview`]: preview([]),
     });
   });
 
@@ -183,6 +195,8 @@ describe('ScenarioVersions', () => {
     const latest = within(versionsTable).getByText('v1.1.0').closest('tr') as HTMLElement;
     const current = within(versionsTable).getByText('v1.0.0').closest('tr') as HTMLElement;
     expect(within(latest).getByText('Latest version')).toBeInTheDocument();
+    expect(within(latest).getByText('Not installed')).toBeInTheDocument();
+    expect(within(current).queryByText('Not installed')).not.toBeInTheDocument();
     expect(within(latest).getByText('New scan')).toBeInTheDocument();
     expect(within(latest).getByText('time 2026-11-01')).toBeInTheDocument();
     expect(within(current).getByText('Current version')).toBeInTheDocument();
@@ -192,14 +206,16 @@ describe('ScenarioVersions', () => {
     expect(within(versionsTable).getAllByRole('button', { name: 'Update' })).toHaveLength(1);
     expect(within(latest).getByRole('button', { name: 'Update' })).toBeEnabled();
     const revisionsTable = await screen.findByRole('table', { name: 'Revisions' });
-    await within(revisionsTable).findByText('#2');
-    const newest = within(revisionsTable).getByText('#2').closest('tr') as HTMLElement;
+    await within(revisionsTable).findByText('#3');
+    const newest = within(revisionsTable).getByText('#3').closest('tr') as HTMLElement;
     expect(within(newest).getByText('Before an update')).toBeInTheDocument();
     expect(within(newest).getByText('v1.0.0')).toBeInTheDocument();
     expect(within(newest).getByText('Alice')).toBeInTheDocument();
     expect(within(newest).getByText('time 2026-11-03')).toBeInTheDocument();
     expect(within(revisionsTable).getByText('Before a rollback')).toBeInTheDocument();
-    expect(within(revisionsTable).getAllByRole('button', { name: 'Roll back to this revision' })).toHaveLength(2);
+    const installed = within(revisionsTable).getByText('#1').closest('tr') as HTMLElement;
+    expect(within(installed).getByText('Installed')).toBeInTheDocument();
+    expect(within(revisionsTable).getAllByRole('button', { name: 'Roll back to this revision' })).toHaveLength(3);
   });
 
   it('given_noRevision_should_saySo', async () => {
@@ -222,7 +238,7 @@ describe('ScenarioVersions', () => {
 
     // Assert
     expect(await screen.findByRole('button', { name: 'Update' })).toBeDisabled();
-    expect(await screen.findAllByRole('button', { name: 'Roll back to this revision' })).toHaveLength(2);
+    expect(await screen.findAllByRole('button', { name: 'Roll back to this revision' })).toHaveLength(3);
     screen.getAllByRole('button', { name: 'Roll back to this revision' }).forEach(button => expect(button).toBeDisabled());
   });
 
@@ -230,20 +246,26 @@ describe('ScenarioVersions', () => {
     // Arrange
     renderVersions();
     const dialog = await open('Update');
-    const titleConflict = await within(dialog).findByRole('radiogroup', { name: 'Scan · Title' });
+    const titleConflict = await within(dialog).findByRole('radiogroup', { name: 'Inject “Scan” · Title' });
     const nameConflict = within(dialog).getByRole('radiogroup', { name: 'Scenario · Name' });
-    const removedConflict = within(dialog).getByRole('radiogroup', { name: 'Warn · Removed in v1.1.0, changed by you' });
+    const removedConflict = within(dialog).getByRole('radiogroup', { name: 'Inject “Warn” · Removed in v1.1.0, changed by you' });
     const apply = within(dialog).getByRole('button', { name: 'Update' });
-    expect(dialog).toHaveAccessibleName('Update to v1.1.0');
-    expect(within(dialog).getByText('Changes from the catalogue: 1')).toBeInTheDocument();
+    expect(dialog).toHaveAccessibleName('Update to Filigran v1.1.0');
+    expect(within(dialog).getByText('Changes from Filigran: 1')).toBeInTheDocument();
     expect(within(dialog).getByText('Your edits kept: 1')).toBeInTheDocument();
     expect(within(dialog).getByText('Conflicts to decide: 3')).toBeInTheDocument();
     expect(within(dialog).getByText('Injects added: 1')).toBeInTheDocument();
     expect(within(dialog).getByText('Choose only for the conflicts. Everything else is merged for you.')).toBeInTheDocument();
     expect(within(dialog).getByText('Nmap v1.1.0')).toBeInTheDocument();
+    expect(within(dialog).getByText('Filigran changed things you edited. Pick which version to keep for each.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Conflicts (3)')).toBeInTheDocument();
+    expect(within(dialog).getByText('What\'s new in Filigran v1.1.0')).toBeInTheDocument();
+    expect(within(dialog).getByText('New scan')).toBeInTheDocument();
     expect(within(dialog).getByText('Will be added')).toBeInTheDocument();
+    expect(within(dialog).getByText('Inject “Mail”')).toBeInTheDocument();
     expect(within(dialog).getByText('New in v1.1.0 · Needs targets')).toBeInTheDocument();
-    expect(within(dialog).getAllByRole('table', { name: 'Changes' })).toHaveLength(2);
+    expect(within(dialog).getAllByRole('group', { name: 'Changes' })).toHaveLength(2);
+    expect(within(dialog).getByRole('group', { name: 'Scenario · Description · 1 lines added, 1 lines removed' })).toBeInTheDocument();
     expect(within(dialog).getByText('Your edits: the update keeps them')).toBeInTheDocument();
     expect(within(dialog).getByText('Some injects lose a dependency: check them after applying.')).toBeInTheDocument();
     expect(apply).toBeDisabled();
@@ -255,7 +277,7 @@ describe('ScenarioVersions', () => {
     fireEvent.change(value, { target: { value: 'nmap -Pn' } });
     fireEvent.click(within(nameConflict).getByRole('radio', { name: 'Yours' }));
     fireEvent.click(within(removedConflict).getByRole('radio', { name: 'Delete it' }));
-    expect(within(titleConflict).getByRole('radio', { name: 'Version v1.1.0' })).not.toBeChecked();
+    expect(within(titleConflict).getByRole('radio', { name: 'Filigran version v1.1.0' })).not.toBeChecked();
     fireEvent.click(apply);
 
     // Assert
@@ -277,7 +299,7 @@ describe('ScenarioVersions', () => {
     // Arrange
     renderVersions();
     const dialog = await open('Update');
-    await within(dialog).findByRole('radiogroup', { name: 'Scan · Title' });
+    await within(dialog).findByRole('radiogroup', { name: 'Inject “Scan” · Title' });
 
     // Act
     fireEvent.click(within(dialog).getByRole('button', { name: 'Take all' }));
@@ -298,7 +320,7 @@ describe('ScenarioVersions', () => {
     // Arrange
     renderVersions();
     const dialog = await open('Roll back to this revision');
-    expect(dialog).toHaveAccessibleName('Roll back to revision #2');
+    expect(dialog).toHaveAccessibleName('Roll back to revision #3');
     expect(await within(dialog).findByText('Nothing changes in the content.')).toBeInTheDocument();
     expect(within(dialog).getByText('Nothing to decide. Review the details or apply.')).toBeInTheDocument();
 
@@ -307,7 +329,7 @@ describe('ScenarioVersions', () => {
 
     // Assert
     await waitFor(() => expect(notifySuccess).toHaveBeenCalledWith('Scenario rolled back'));
-    expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/revisions/revision-2/rollback`, {
+    expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/revisions/revision-3/rollback`, {
       scenario_update_choices: {},
       scenario_update_edits: {},
     });
