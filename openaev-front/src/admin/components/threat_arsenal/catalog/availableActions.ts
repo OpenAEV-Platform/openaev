@@ -1,4 +1,3 @@
-import createFacetFilter from '../../../../components/common/marketplace/filter/facetFilter';
 import { useFormatter } from '../../../../components/i18n';
 import {
   type AvailableActionOutput,
@@ -22,23 +21,4 @@ export const useActionName = (): ActionName => {
   return action => tPick(action.action_labels) || Object.values(action.action_labels)[0] || action.action_id;
 };
 
-const kindText = byKind<string>({
-  PAYLOAD: action => action.action_payload_description ?? '',
-  INTEGRATION: action => action.action_integration_title,
-});
-
-export const availableActionFilter = createFacetFilter<AvailableActionOutput, 'domains' | 'platforms'>(
-  {
-    domains: action => (action.action_domain ? [action.action_domain] : []),
-    platforms: action => action.action_platforms,
-  },
-  action => [...Object.values(action.action_labels), kindText(action)].join(' '),
-);
-
-export const availableActionSorts = (nameOf: ActionName) => ({
-  name: nameOf,
-  publishedAt: byKind<string>({
-    PAYLOAD: action => action.action_payload_published_at ?? '',
-    INTEGRATION: () => '',
-  }),
-});
+export const integrationUrl = (action: AvailableIntegrationActionOutput) => `/admin/integrations/catalog/${action.action_integration_id}`;

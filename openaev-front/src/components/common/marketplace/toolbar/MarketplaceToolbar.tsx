@@ -6,7 +6,7 @@ import { type SortHelpers } from '../../queryable/sort/SortHelpers';
 import MarketplaceResultsCount from './MarketplaceResultsCount';
 import MarketplaceSortSelect, { type SortOption } from './MarketplaceSortSelect';
 
-export interface MarketplaceToolbarState {
+interface MarketplaceToolbarState {
   keyword: string;
   onSearch: (keyword?: string) => void;
   sortHelpers: SortHelpers;

@@ -1,11 +1,11 @@
-import { Button, Chip } from '@filigran/design-system';
-import { TerminalOutlined } from '@mui/icons-material';
 import { type FunctionComponent } from 'react';
 
 import MarketplaceCard from '../../../../components/common/marketplace/card/MarketplaceCard';
 import { useFormatter } from '../../../../components/i18n';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import { type AvailablePayloadActionOutput } from '../../../../utils/api-types';
+import AvailableActionIcon from './AvailableActionIcon';
+import CatalogPayloadInstallAction from './CatalogPayloadInstallAction';
 
 interface Props {
   action: AvailablePayloadActionOutput;
@@ -23,7 +23,7 @@ const ThreatArsenalCatalogCard: FunctionComponent<Props> = ({ action, name, inst
   return (
     <MarketplaceCard
       testId="threat-arsenal-catalog-card"
-      icon={<TerminalOutlined color="primary" />}
+      icon={<AvailableActionIcon action={action} />}
       title={name}
       overline={action.action_domain ? t(action.action_domain) : undefined}
       description={action.action_payload_description}
@@ -48,9 +48,7 @@ const ThreatArsenalCatalogCard: FunctionComponent<Props> = ({ action, name, inst
           {action.action_platforms.map(platform => <PlatformIcon key={platform} width={16} platform={platform} tooltip />)}
         </div>
       )}
-      action={installed
-        ? <Chip label={t('Installed')} severity="low" />
-        : canInstall && <Button size="sm" loading={installing} onClick={onInstall}>{t('Install')}</Button>}
+      action={<CatalogPayloadInstallAction installed={installed} installing={installing} canInstall={canInstall} onInstall={onInstall} />}
     />
   );
 };

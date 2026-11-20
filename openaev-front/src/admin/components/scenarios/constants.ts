@@ -12,3 +12,6 @@ export const scenarioCategories = new Map([
   ['lateral-movement', 'Lateral Movement'],
   ['url-filtering', 'URL Filtering'],
 ]);
+
+// The English name of a category, the category itself when it has none.
+export const scenarioCategoryLabel = (category: string) => scenarioCategories.get(category) ?? category;

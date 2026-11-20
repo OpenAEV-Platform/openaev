@@ -1,3 +1,4 @@
+import { type Page } from '../../components/common/queryable/Page';
 import { simpleCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import {
   type AvailableActionOutput,
@@ -7,11 +8,15 @@ import {
   type CatalogSettingsInput,
   type CatalogSettingsOutput,
   type PayloadUpsertInput,
+  type SearchPaginationInput,
 } from '../../utils/api-types';
+import { type CatalogFacetCounts } from './catalog-helper';
 import { CATALOG_URI, catalogItemUri, catalogVersionUri } from './catalog-uri';
 
-export const fetchAvailableActions = (): Promise<AvailableActionOutput[]> => simpleCall(`${CATALOG_URI}/actions`)
-  .then(({ data }: { data: AvailableActionOutput[] }) => data);
+export const searchAvailableActions = (input: SearchPaginationInput): Promise<{ data: Page<AvailableActionOutput> }> => simplePostCall(`${CATALOG_URI}/actions/search`, input);
+
+export const fetchAvailableActionFacetCounts = (input: SearchPaginationInput): Promise<CatalogFacetCounts> => simplePostCall(`${CATALOG_URI}/actions/facet-counts`, input)
+  .then(({ data }: { data: CatalogFacetCounts }) => data);
 
 export const fetchCatalogPayloadVersions = (externalId: string): Promise<CatalogPayloadOutput[]> => simpleCall(`${catalogItemUri('payloads', externalId)}/versions`)
   .then(({ data }: { data: CatalogPayloadOutput[] }) => data);

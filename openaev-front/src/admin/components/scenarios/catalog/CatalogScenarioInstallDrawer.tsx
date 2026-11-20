@@ -6,7 +6,7 @@ import { type CatalogScenarioOutput } from '../../../../utils/api-types';
 import { SCENARIO_TYPE_CHAINED } from '../scenario/ScenarioType';
 import { type ScenarioTargets, toTargetsInput } from '../targets/scenarioTargets';
 import ScenarioTargetsDrawer from '../targets/ScenarioTargetsDrawer';
-import { catalogScenarioType } from './catalogScenarioFilters';
+import { catalogScenarioType } from './catalogScenarioType';
 
 interface Props {
   scenario: CatalogScenarioOutput;
