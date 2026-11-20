@@ -27,7 +27,11 @@ vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
 }));
 vi.mock('../../../../../actions/AttackPattern', () => ({ fetchAttackPatterns: vi.fn() }));
 vi.mock('../../../../../components/i18n', () => ({
-  useFormatter: () => ({ t: (key: string, values?: Record<string, string>) => (values ? key.replace('{count}', values.count) : key) }),
+  useFormatter: () => ({
+    t: (key: string, values?: Record<string, string>) => (values
+      ? key.replace('{count}', values.count)
+      : key),
+  }),
 }));
 vi.mock('../../../../../store', () => ({ useHelper: () => [] }));
 vi.mock('../../../../../utils/hooks', () => ({ useAppDispatch: () => vi.fn() }));
