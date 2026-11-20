@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   notifyMoves: vi.fn(),
 }));
 
-vi.mock('../../../../../admin/components/threat_arsenal/versions/usageMove', () => ({ moveUsages: mocks.moveUsages }));
+vi.mock('../../../../../admin/components/threat_arsenal/versions/usages/usageMove', () => ({ moveUsages: mocks.moveUsages }));
 vi.mock('../../../../../admin/components/threat_arsenal/versions/usages/useNotifyMoves', () => ({ default: () => mocks.notifyMoves }));
 
 const firstVersion = olderVersion('1.0.0', usage('inject-1'), usage('step-1', undefined, 'step'));

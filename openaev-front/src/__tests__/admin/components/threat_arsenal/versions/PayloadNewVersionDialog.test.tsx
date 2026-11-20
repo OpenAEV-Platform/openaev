@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (message: string, values?: Record<string, string>) => message.replace(/\{(\w+)\}/g, (_, key: string) => values?.[key] ?? key) }) }));
-vi.mock('../../../../../admin/components/threat_arsenal/versions/usageMove', () => ({ moveUsages: mocks.moveUsages }));
+vi.mock('../../../../../admin/components/threat_arsenal/versions/usages/usageMove', () => ({ moveUsages: mocks.moveUsages }));
 vi.mock('../../../../../admin/components/threat_arsenal/versions/usages/useNotifyMoves', () => ({ default: () => mocks.notifyMoves }));
 
 const firstVersion = olderVersion('1.0.0', usage('inject-1', 'scenario-1'), usage('inject-2', 'scenario-1'));
