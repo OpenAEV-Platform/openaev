@@ -440,7 +440,7 @@ public class ExecutableInjectService {
     // documents before execution; without this override it would download the payload's default
     // document instead of the one configured on the inject.
     resolveDocumentArgumentsFromInjectContent(
-        processed, inject.getContent(), inject.getTenant().getId());
+        processed, inject.getContent(), injectorContractFields, inject.getTenant().getId());
     return processed;
   }
 
@@ -475,7 +475,10 @@ public class ExecutableInjectService {
   }
 
   void resolveDocumentArgumentsFromInjectContent(
-      Payload payload, ObjectNode injectContent, String tenantId) {
+      Payload payload,
+      ObjectNode injectContent,
+      List<ObjectNode> injectorContractFields,
+      String tenantId) {
     if (isEmpty(payload.getArguments()) || injectContent == null) {
       return;
     }
@@ -488,13 +491,23 @@ public class ExecutableInjectService {
                   }
                   String actualValue =
                       getArgumentValueOrDefault(arg.getKey(), injectContent, arg.getDefaultValue());
-                  if (!hasText(actualValue)) {
+                  if (!hasText(actualValue) && !hasText(arg.getDefaultValue())) {
                     return arg;
                   }
                   // The implant downloads the document this value names: a value that does not
                   // resolve in the inject's tenant, whether the payload's default or the inject's
-                  // own, is cleared so it never leaves the platform.
-                  String sentValue = documentIdInTenant(actualValue, tenantId);
+                  // own, is cleared so it never leaves the platform. A blank override replaces the
+                  // default too, so the default must not be sent in its place.
+                  String sentValue =
+                      hasText(actualValue) ? documentIdInTenant(actualValue, tenantId) : "";
+                  if (!hasText(sentValue)
+                      && isMandatoryField(arg.getKey(), injectorContractFields)) {
+                    // Nothing else refuses an argument no command references, and the implant
+                    // would run without the file it was promised.
+                    throw new CommandBindingException(
+                        "Missing mandatory input '%s' for inject execution"
+                            .formatted(arg.getKey()));
+                  }
                   if (sentValue.equals(arg.getDefaultValue())) {
                     return arg;
                   }

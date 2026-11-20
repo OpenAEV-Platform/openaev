@@ -259,7 +259,7 @@ class ExecutableInjectServiceTest {
 
     // Act
     serviceWithDocuments.resolveDocumentArgumentsFromInjectContent(
-        payload, JsonNodeFactory.instance.objectNode(), "tenant-1");
+        payload, JsonNodeFactory.instance.objectNode(), List.of(), "tenant-1");
 
     // Assert
     assertThat(payload.getArguments())
@@ -285,7 +285,7 @@ class ExecutableInjectServiceTest {
 
     // Act
     serviceWithDocuments.resolveDocumentArgumentsFromInjectContent(
-        payload, injectContent, "tenant-1");
+        payload, injectContent, List.of(), "tenant-1");
 
     // Assert
     assertThat(payload.getArguments())
@@ -310,12 +310,91 @@ class ExecutableInjectServiceTest {
 
     // Act
     serviceWithDocuments.resolveDocumentArgumentsFromInjectContent(
-        payload, injectContent, "tenant-1");
+        payload, injectContent, List.of(), "tenant-1");
 
     // Assert
     assertThat(payload.getArguments())
         .singleElement()
         .satisfies(argument -> assertThat(argument.getDefaultValue()).isEqualTo("own-id"));
+  }
+
+  @Test
+  @DisplayName("Should clear a document argument default when the inject overrides it with blanks")
+  void given_blankInjectValueOverFiledDefaultInAnotherTenant_should_clearItFromTheSentPayload() {
+    // Arrange: a whitespace-only value is a present override, so the payload's legacy foreign
+    // default must not be sent to the implant in its place
+    DocumentService documentService = mock(DocumentService.class);
+    when(documentService.documentInTenant("foreign-id", "tenant-1"))
+        .thenThrow(new io.openaev.rest.exception.ElementNotFoundException("Document not found"));
+    ExecutableInjectService serviceWithDocuments =
+        new ExecutableInjectService(null, documentService, null, null, null, null);
+    PayloadArgument fileArgument = payloadArgument("file", "foreign-id");
+    fileArgument.setType(PrimitiveType.Document);
+    Command payload = new Command();
+    payload.setArguments(new ArrayList<>(List.of(fileArgument)));
+    ObjectNode injectContent = JsonNodeFactory.instance.objectNode();
+    injectContent.put("file", " ");
+
+    // Act
+    serviceWithDocuments.resolveDocumentArgumentsFromInjectContent(
+        payload, injectContent, List.of(), "tenant-1");
+
+    // Assert
+    assertThat(payload.getArguments())
+        .singleElement()
+        .satisfies(argument -> assertThat(argument.getDefaultValue()).isEmpty());
+  }
+
+  @Test
+  @DisplayName("Should refuse the dispatch when a mandatory document argument does not resolve")
+  void given_mandatoryDocumentArgumentNotResolving_should_raiseCommandBindingException() {
+    // Arrange: the argument is referenced by no command, so only this step can refuse it
+    DocumentService documentService = mock(DocumentService.class);
+    when(documentService.documentInTenant("foreign-id", "tenant-1"))
+        .thenThrow(new io.openaev.rest.exception.ElementNotFoundException("Document not found"));
+    ExecutableInjectService serviceWithDocuments =
+        new ExecutableInjectService(null, documentService, null, null, null, null);
+    PayloadArgument fileArgument = payloadArgument("file", "foreign-id");
+    fileArgument.setType(PrimitiveType.Document);
+    Command payload = new Command();
+    payload.setArguments(new ArrayList<>(List.of(fileArgument)));
+    ObjectNode fileField = JsonNodeFactory.instance.objectNode();
+    fileField.put(InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY, "file");
+    fileField.put(InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY, true);
+
+    // Act / Assert
+    assertThatThrownBy(
+            () ->
+                serviceWithDocuments.resolveDocumentArgumentsFromInjectContent(
+                    payload, JsonNodeFactory.instance.objectNode(), List.of(fileField), "tenant-1"))
+        .isInstanceOf(CommandBindingException.class);
+  }
+
+  @Test
+  @DisplayName("Should keep clearing an optional document argument that does not resolve")
+  void given_optionalDocumentArgumentNotResolving_should_clearItWithoutFailing() {
+    // Arrange
+    DocumentService documentService = mock(DocumentService.class);
+    when(documentService.documentInTenant("foreign-id", "tenant-1"))
+        .thenThrow(new io.openaev.rest.exception.ElementNotFoundException("Document not found"));
+    ExecutableInjectService serviceWithDocuments =
+        new ExecutableInjectService(null, documentService, null, null, null, null);
+    PayloadArgument fileArgument = payloadArgument("file", "foreign-id");
+    fileArgument.setType(PrimitiveType.Document);
+    Command payload = new Command();
+    payload.setArguments(new ArrayList<>(List.of(fileArgument)));
+    ObjectNode fileField = JsonNodeFactory.instance.objectNode();
+    fileField.put(InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY, "file");
+    fileField.put(InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY, false);
+
+    // Act
+    serviceWithDocuments.resolveDocumentArgumentsFromInjectContent(
+        payload, JsonNodeFactory.instance.objectNode(), List.of(fileField), "tenant-1");
+
+    // Assert
+    assertThat(payload.getArguments())
+        .singleElement()
+        .satisfies(argument -> assertThat(argument.getDefaultValue()).isEmpty());
   }
 
   private static PayloadArgument payloadArgument(String key, String defaultValue) {
