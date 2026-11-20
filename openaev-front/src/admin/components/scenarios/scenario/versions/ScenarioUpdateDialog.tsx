@@ -259,6 +259,10 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
         })
       : t('After · revision #{number}', { number: revisionNumber ?? '' }));
   }
+  // Above a kept edit's content: it is the same now and after applying.
+  const unchangedLabel = String(currentVersion
+    ? t(version ? 'Now (v{version}) and after the update: unchanged' : 'Now (v{version}) and after the rollback: unchanged', { version: currentVersion })
+    : t(version ? 'Now and after the update: unchanged' : 'Now and after the rollback: unchanged'));
   const section = {
     display: 'flex',
     flexDirection: 'column' as const,
@@ -444,24 +448,28 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
                           : <Text variant="content-caption">{item.value || t('(empty)')}</Text>}
                       </div>
                       {item.code && open && (
-                        <pre
-                          tabIndex={0}
-                          aria-label={item.field}
-                          style={{
-                            margin: 0,
-                            maxHeight: 320,
-                            overflow: 'auto',
-                            padding: '8px 12px',
-                            borderRadius: 4,
-                            border: '1px solid var(--border-elevation-subtle-soft)',
-                            fontFamily: 'var(--font-content-code), ui-monospace, monospace',
-                            fontSize: 'var(--text-content-code)',
-                            lineHeight: '22px',
-                            color: 'var(--text-default-primary)',
-                          }}
-                        >
-                          {item.value || t('(empty)')}
-                        </pre>
+                        <>
+                          {/* Which version this is, as every block of content in the dialog says: here, the same on both sides. */}
+                          <Text variant="content-caption">{unchangedLabel}</Text>
+                          <pre
+                            tabIndex={0}
+                            aria-label={item.field}
+                            style={{
+                              margin: 0,
+                              maxHeight: 320,
+                              overflow: 'auto',
+                              padding: '8px 12px',
+                              borderRadius: 4,
+                              border: '1px solid var(--border-elevation-subtle-soft)',
+                              fontFamily: 'var(--font-content-code), ui-monospace, monospace',
+                              fontSize: 'var(--text-content-code)',
+                              lineHeight: '22px',
+                              color: 'var(--text-default-primary)',
+                            }}
+                          >
+                            {item.value || t('(empty)')}
+                          </pre>
+                        </>
                       )}
                     </div>
                   );

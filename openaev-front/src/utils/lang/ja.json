@@ -4979,5 +4979,9 @@
   "{count, plural, one {After: add targets to # new inject.} other {After: add targets to # new injects.}}": "{count, plural, other {適用後: 新しいインジェクト # 件にターゲットを追加してください。}}",
   "The current state is saved first: you can undo this from Versions.": "現在の状態が先に保存されます。バージョンから元に戻せます。",
   "Before · now (v{version})": "変更前 · 現在 (v{version})",
-  "After · revision #{number} (v{version})": "変更後 · リビジョン #{number} (v{version})"
+  "After · revision #{number} (v{version})": "変更後 · リビジョン #{number} (v{version})",
+  "Now (v{version}) and after the update: unchanged": "現在 (v{version}) と更新後: 変更なし",
+  "Now (v{version}) and after the rollback: unchanged": "現在 (v{version}) とロールバック後: 変更なし",
+  "Now and after the update: unchanged": "現在と更新後: 変更なし",
+  "Now and after the rollback: unchanged": "現在とロールバック後: 変更なし"
 }

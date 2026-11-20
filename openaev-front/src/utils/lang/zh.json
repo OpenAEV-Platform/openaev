@@ -4979,5 +4979,9 @@
   "{count, plural, one {After: add targets to # new inject.} other {After: add targets to # new injects.}}": "{count, plural, other {之后：为 # 个新注入添加目标。}}",
   "The current state is saved first: you can undo this from Versions.": "会先保存当前状态：您可以在“版本”中撤销。",
   "Before · now (v{version})": "之前 · 当前 (v{version})",
-  "After · revision #{number} (v{version})": "之后 · 修订 #{number} (v{version})"
+  "After · revision #{number} (v{version})": "之后 · 修订 #{number} (v{version})",
+  "Now (v{version}) and after the update: unchanged": "当前 (v{version}) 及更新后：不变",
+  "Now (v{version}) and after the rollback: unchanged": "当前 (v{version}) 及回滚后：不变",
+  "Now and after the update: unchanged": "当前及更新后：不变",
+  "Now and after the rollback: unchanged": "当前及回滚后：不变"
 }

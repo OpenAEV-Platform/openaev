@@ -4979,5 +4979,9 @@
   "{count, plural, one {After: add targets to # new inject.} other {After: add targets to # new injects.}}": "{count, plural, one {Danach: Fügen Sie dem # neuen Inject Ziele hinzu.} other {Danach: Fügen Sie den # neuen Injects Ziele hinzu.}}",
   "The current state is saved first: you can undo this from Versions.": "Der aktuelle Stand wird zuerst gespeichert: Sie können dies unter Versionen rückgängig machen.",
   "Before · now (v{version})": "Vorher · jetzt (v{version})",
-  "After · revision #{number} (v{version})": "Nachher · Revision #{number} (v{version})"
+  "After · revision #{number} (v{version})": "Nachher · Revision #{number} (v{version})",
+  "Now (v{version}) and after the update: unchanged": "Jetzt (v{version}) und nach dem Update: unverändert",
+  "Now (v{version}) and after the rollback: unchanged": "Jetzt (v{version}) und nach dem Zurücksetzen: unverändert",
+  "Now and after the update: unchanged": "Jetzt und nach dem Update: unverändert",
+  "Now and after the rollback: unchanged": "Jetzt und nach dem Zurücksetzen: unverändert"
 }
