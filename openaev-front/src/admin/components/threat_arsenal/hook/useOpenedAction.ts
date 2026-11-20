@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
 import { fetchThreatArsenalAction } from '../../../../actions/threat_arsenals/threatArsenal-actions';
@@ -7,10 +7,7 @@ import { type ThreatArsenalAction, type ThreatArsenalActionFullOutput } from '..
 
 type OpenedTab = 'versions' | undefined;
 
-/**
- * The action whose drawer is open, and the tab it opens on. A link to an action
- * (?action=<id>&tab=versions) searches it by name, then opens it once the list shows it.
- */
+/** The action whose drawer is open and its tab; a link (?action=<id>&tab=versions) opens it once the list shows it. */
 const useOpenedAction = (actions: ThreatArsenalAction[], searchByName: (name: string) => void) => {
   const { tPick } = useFormatter();
   const [openedAction, setOpenedAction] = useState<ThreatArsenalAction | null>(null);
@@ -19,22 +16,22 @@ const useOpenedAction = (actions: ThreatArsenalAction[], searchByName: (name: st
   const [searchParams] = useSearchParams();
   const linkedActionId = searchParams.get('action');
   const linkedTab: OpenedTab = searchParams.get('tab') === 'versions' ? 'versions' : undefined;
-  const toOpen = useRef<string | null>(null);
+  const [toOpen, setToOpen] = useState<string | null>(null);
 
   useEffect(() => {
     if (!linkedActionId) return;
-    toOpen.current = linkedActionId;
+    setToOpen(linkedActionId);
     fetchThreatArsenalAction(linkedActionId).then(({ data }: { data: ThreatArsenalActionFullOutput }) => searchByName(tPick(data.action_labels)));
   }, [linkedActionId]);
 
   useEffect(() => {
-    const linked = actions.find(action => action.injector_contract_id === toOpen.current);
+    const linked = actions.find(action => action.injector_contract_id === toOpen);
     if (linked) {
-      toOpen.current = null;
+      setToOpen(null);
       setOpenedTab(linkedTab);
       setOpenedAction(linked);
     }
-  }, [actions]);
+  }, [actions, toOpen]);
 
   const openAction = (action: ThreatArsenalAction, tab?: OpenedTab) => {
     setOpenedTab(tab);
