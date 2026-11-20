@@ -1,4 +1,4 @@
-import { createTheme } from '@mui/material/styles';
+import { createTheme, type Theme } from '@mui/material/styles';
 import { describe, expect, it } from 'vitest';
 
 import { getStatusColor, getStatusLabel } from '../../../../../admin/components/threat_arsenal/utils/threatArsenalStatusUtils';
@@ -14,6 +14,22 @@ describe('threatArsenalStatusUtils', () => {
 
       // Assert
       expect(colour).toBe(theme.palette.warning.main);
+    });
+
+    it.each([
+      ['VERIFIED', (theme: Theme) => theme.palette.success.main],
+      ['UNVERIFIED', (theme: Theme) => theme.palette.warning.main],
+      ['DEPRECATED', (theme: Theme) => theme.palette.text.disabled],
+      ['REVOKED', (theme: Theme) => theme.palette.error.main],
+    ])('given_%s_should_returnItsColour', (status, expected) => {
+      // Arrange
+      const theme = createTheme();
+
+      // Act
+      const colour = getStatusColor(theme, status);
+
+      // Assert
+      expect(colour).toBe(expected(theme));
     });
 
     it.each([undefined, null, 'UNKNOWN'])('given_%s_should_returnTheDisabledColour', (status) => {
