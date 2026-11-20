@@ -1,5 +1,6 @@
 package io.openaev.service.catalog.scenario.targeting;
 
+import static io.openaev.utils.InjectContentUtils.MANUAL_TARGETS_CONTENT_KEY;
 import static io.openaev.utils.InjectContentUtils.TARGET_SELECTOR_CONTENT_KEY;
 
 import io.openaev.database.model.Inject;
@@ -11,6 +12,7 @@ import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +20,10 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class CatalogScenarioTargets {
+
+  /** The keys of an inject's content that hold its chosen targets. */
+  public static final Set<String> CONTENT_KEYS =
+      Set.of(TARGET_SELECTOR_CONTENT_KEY, MANUAL_TARGETS_CONTENT_KEY);
 
   private final InjectorContractContentUtils contractContent;
   private final AssetService assetService;

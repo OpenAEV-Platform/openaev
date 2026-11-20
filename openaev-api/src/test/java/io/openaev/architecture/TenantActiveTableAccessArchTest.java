@@ -485,7 +485,8 @@ class TenantActiveTableAccessArchTest {
           "scenarios",
           "injects",
           "execution_traces",
-          "roles");
+          "roles",
+          "scenario_revisions");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -4816,4 +4817,18 @@ class TenantActiveTableAccessArchTest {
                   + " WITHOUT touching ExecutionTraceRepository: a getTraces() outside a scoped"
                   + " transaction silently loads zero rows. New callers must run inside a"
                   + " tenant-scoped transaction and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule scenario_revisions_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Keyed by tenant, inside the scoped transaction of the update and rollback routes:
+              io.openaev.service.catalog.scenario.update.ScenarioRevisionService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.ScenarioRevisionRepository.class)
+          .because(
+              "scenario_revisions is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 }
