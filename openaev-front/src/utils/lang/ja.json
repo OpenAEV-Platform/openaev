@@ -4984,5 +4984,10 @@
   "After the rollback · revision #{number}": "ロールバック後 · リビジョン #{number}",
   "You can roll back later from Versions.": "後で「バージョン」からロールバックできます。",
   "Scenario updated to v{version}.": "シナリオを v{version} に更新しました。",
-  "Scenario rolled back.": "シナリオをロールバックしました。"
+  "Scenario rolled back.": "シナリオをロールバックしました。",
+  "The update didn't apply. Nothing was changed.": "更新は適用されませんでした。何も変更されていません。",
+  "The rollback didn't apply. Nothing was changed.": "ロールバックは適用されませんでした。何も変更されていません。",
+  "The scenario changed since this preview. Nothing was changed.": "このプレビュー以降にシナリオが変更されました。何も変更されていません。",
+  "Close this dialog and open it again to see the latest preview.": "このダイアログを閉じて再度開くと、最新のプレビューが表示されます。",
+  "Try again, or contact your administrator if it keeps failing.": "もう一度お試しください。失敗が続く場合は管理者にお問い合わせください。"
 }

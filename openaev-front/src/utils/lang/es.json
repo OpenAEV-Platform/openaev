@@ -4984,5 +4984,10 @@
   "After the rollback · revision #{number}": "Después de la reversión · revisión n.º {number}",
   "You can roll back later from Versions.": "Puede revertir más tarde desde Versiones.",
   "Scenario updated to v{version}.": "Escenario actualizado a v{version}.",
-  "Scenario rolled back.": "Escenario revertido."
+  "Scenario rolled back.": "Escenario revertido.",
+  "The update didn't apply. Nothing was changed.": "La actualización no se aplicó. No se cambió nada.",
+  "The rollback didn't apply. Nothing was changed.": "La reversión no se aplicó. No se cambió nada.",
+  "The scenario changed since this preview. Nothing was changed.": "El escenario cambió desde esta vista previa. No se cambió nada.",
+  "Close this dialog and open it again to see the latest preview.": "Cierre este diálogo y ábralo de nuevo para ver la vista previa actualizada.",
+  "Try again, or contact your administrator if it keeps failing.": "Inténtelo de nuevo o contacte con su administrador si sigue fallando."
 }

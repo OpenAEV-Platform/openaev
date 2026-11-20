@@ -4984,5 +4984,10 @@
   "After the rollback · revision #{number}": "After the rollback · revision #{number}",
   "You can roll back later from Versions.": "You can roll back later from Versions.",
   "Scenario updated to v{version}.": "Scenario updated to v{version}.",
-  "Scenario rolled back.": "Scenario rolled back."
+  "Scenario rolled back.": "Scenario rolled back.",
+  "The update didn't apply. Nothing was changed.": "The update didn't apply. Nothing was changed.",
+  "The rollback didn't apply. Nothing was changed.": "The rollback didn't apply. Nothing was changed.",
+  "The scenario changed since this preview. Nothing was changed.": "The scenario changed since this preview. Nothing was changed.",
+  "Close this dialog and open it again to see the latest preview.": "Close this dialog and open it again to see the latest preview.",
+  "Try again, or contact your administrator if it keeps failing.": "Try again, or contact your administrator if it keeps failing."
 }

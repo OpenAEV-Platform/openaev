@@ -4984,5 +4984,10 @@
   "After the rollback · revision #{number}": "回滚后 · 修订 #{number}",
   "You can roll back later from Versions.": "之后可在“版本”中回滚。",
   "Scenario updated to v{version}.": "场景已更新到 v{version}。",
-  "Scenario rolled back.": "场景已回滚。"
+  "Scenario rolled back.": "场景已回滚。",
+  "The update didn't apply. Nothing was changed.": "更新未应用。未做任何更改。",
+  "The rollback didn't apply. Nothing was changed.": "回滚未应用。未做任何更改。",
+  "The scenario changed since this preview. Nothing was changed.": "自此预览以来场景已更改。未做任何更改。",
+  "Close this dialog and open it again to see the latest preview.": "关闭此对话框并重新打开以查看最新预览。",
+  "Try again, or contact your administrator if it keeps failing.": "请重试；如果仍然失败，请联系管理员。"
 }

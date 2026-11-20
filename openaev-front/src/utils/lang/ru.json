@@ -4984,5 +4984,10 @@
   "After the rollback · revision #{number}": "После отката · ревизия № {number}",
   "You can roll back later from Versions.": "Позже можно выполнить откат в разделе «Версии».",
   "Scenario updated to v{version}.": "Сценарий обновлён до v{version}.",
-  "Scenario rolled back.": "Сценарий откатен."
+  "Scenario rolled back.": "Сценарий откатен.",
+  "The update didn't apply. Nothing was changed.": "Обновление не применено. Ничего не изменилось.",
+  "The rollback didn't apply. Nothing was changed.": "Откат не применён. Ничего не изменилось.",
+  "The scenario changed since this preview. Nothing was changed.": "Сценарий изменился после этого предпросмотра. Ничего не изменилось.",
+  "Close this dialog and open it again to see the latest preview.": "Закройте это окно и откройте снова, чтобы увидеть актуальный предпросмотр.",
+  "Try again, or contact your administrator if it keeps failing.": "Повторите попытку или обратитесь к администратору, если ошибка повторяется."
 }

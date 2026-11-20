@@ -11,7 +11,7 @@ import {
   Textarea,
 } from '@filigran/design-system';
 import { ArrowForwardOutlined } from '@mui/icons-material';
-import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
 import {
@@ -100,6 +100,12 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
   const [choices, setChoices] = useState<Record<string, ScenarioMergeChoice>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [applying, setApplying] = useState(false);
+  // When applying fails: said in the dialog, by the button, so the click never looks like nothing.
+  const [applyError, setApplyError] = useState<'changed' | 'failed' | null>(null);
+  const applyErrorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (applyError) applyErrorRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [applyError]);
   // Kept edits whose content is open ("View").
   const [viewing, setViewing] = useState<Set<string>>(new Set());
   // Release notes of the versions this update brings, newest first.
@@ -217,6 +223,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
       return;
     }
     setApplying(true);
+    setApplyError(null);
     applyScenarioUpdate(scenarioId, {
       ...target,
       choices,
@@ -224,7 +231,6 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
       local_hash: preview.local_hash,
     })
       .then(() => {
-        // Applying saves the current state as a revision first: said right after, when undo matters.
         // The way back, right when it matters: a link to the Versions tab, where the revision saved just
         // before is listed with "Roll back to this revision" (and its preview, before anything changes).
         MESSAGING$.notifySuccess(
@@ -252,9 +258,19 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
         );
         onApplied();
       })
+      // The server applies all or nothing: on failure nothing changed. 409: the scenario changed since
+      // this preview, so the preview must be opened again.
+      .catch((error: {
+        status?: number;
+        response?: { status?: number };
+      }) => {
+        setApplyError((error.response?.status ?? error.status) === 409 ? 'changed' : 'failed');
+      })
       .finally(() => setApplying(false));
   };
 
+  let applyErrorTitle = String(version ? t('The update didn\'t apply. Nothing was changed.') : t('The rollback didn\'t apply. Nothing was changed.'));
+  if (applyError === 'changed') applyErrorTitle = String(t('The scenario changed since this preview. Nothing was changed.'));
   const taken = preview?.changes.filter(change => change.status === 'TAKE_APPLIED') ?? [];
   const kept = preview?.changes.filter(change => change.status === 'KEEP_MINE') ?? [];
   // One row per kept field, with the user's value (what stays after applying).
@@ -591,6 +607,17 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
                   <Alert severity="warning" title={t('{count} things to check after applying', { count: preview.warnings.length })} />
                 )}
               </div>
+              {applyError && (
+                <div ref={applyErrorRef}>
+                  <Alert
+                    severity="error"
+                    title={applyErrorTitle}
+                    description={applyError === 'changed'
+                      ? t('Close this dialog and open it again to see the latest preview.')
+                      : t('Try again, or contact your administrator if it keeps failing.')}
+                  />
+                </div>
+              )}
             </div>
           )}
         </DialogBody>

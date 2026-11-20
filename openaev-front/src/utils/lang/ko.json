@@ -4984,5 +4984,10 @@
   "After the rollback · revision #{number}": "롤백 후 · 리비전 #{number}",
   "You can roll back later from Versions.": "나중에 버전에서 롤백할 수 있습니다.",
   "Scenario updated to v{version}.": "시나리오가 v{version}(으)로 업데이트되었습니다.",
-  "Scenario rolled back.": "시나리오가 롤백되었습니다."
+  "Scenario rolled back.": "시나리오가 롤백되었습니다.",
+  "The update didn't apply. Nothing was changed.": "업데이트가 적용되지 않았습니다. 변경된 내용은 없습니다.",
+  "The rollback didn't apply. Nothing was changed.": "롤백이 적용되지 않았습니다. 변경된 내용은 없습니다.",
+  "The scenario changed since this preview. Nothing was changed.": "이 미리보기 이후 시나리오가 변경되었습니다. 변경된 내용은 없습니다.",
+  "Close this dialog and open it again to see the latest preview.": "최신 미리보기를 보려면 이 대화 상자를 닫고 다시 여세요.",
+  "Try again, or contact your administrator if it keeps failing.": "다시 시도하거나 계속 실패하면 관리자에게 문의하세요."
 }
