@@ -1964,6 +1964,22 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       assertThat(outputElementTagIds(actionId)).containsExactly(tag.getId());
     }
 
+    @Test
+    @DisplayName("Saving an output element with a tag of another tenant should not link that tag")
+    void given_tagOfAnotherTenant_should_notLinkItToTheOutputElement() throws Exception {
+      // Arrange
+      String otherTenantId = tenantHelper.createTenant("output-element-tags-other").getId();
+      Tag otherTenantTag = TagFixture.getTagWithText("Other tenant output tag");
+      otherTenantTag.setTenant(new Tenant(otherTenantId));
+      tagComposer.forTag(otherTenantTag).persist();
+
+      // Act: the action is written in the caller's tenant, the tag belongs to another one.
+      String actionId = createActionWithOutputElementTag(otherTenantTag);
+
+      // Assert
+      assertThat(outputElementTagIds(actionId)).isEmpty();
+    }
+
     private String createActionWithOutputElementTag(Tag tag) throws Exception {
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       ThreatArsenalActionCreateInput input =
