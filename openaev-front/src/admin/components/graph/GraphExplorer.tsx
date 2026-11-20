@@ -79,11 +79,12 @@ import useCounterpartMatches, { type CounterpartRef, counterpartRefId } from '..
 import OpenCrqPivot, { OPENCRQ_PRODUCT, OpenCrqMark } from '../../../components/xtm/XtmOpenCrq';
 import OpenCtiPivot, { ProductMark } from '../../../components/xtm/XtmPivot';
 import { toHttpUrl } from '../../../utils/url-helper';
+import { drawnRelations, nodeConnections } from './graph-connections';
 import { NODE_LABEL_OFFSET, NODE_WIDTH } from './graph-edge-geometry';
 import { type GroupedNode, groupNeighbours, isGroupId, miniView } from './graph-grouping';
 import NODE_ICON from './graph-icons';
 import { LASSO_MIN_LENGTH, nodesInLasso, pathLength } from './graph-lasso';
-import { entering, extendLayout, type GraphLayout, interpolate, layoutFrames, MINI_CARD_PADDING, miniCardHeight, miniCardLayout, type Point } from './graph-layout';
+import { entering, type GraphLayout, MINI_CARD_PADDING, miniCardHeight, moveAt, planMove, type Point } from './graph-layout';
 import {
   ALL_EDGE_TYPES,
   ALL_NODE_TYPES,
@@ -219,13 +220,20 @@ const SHORTCUTS: [string, string][] = [
   ['E', 'Expand the selected node'],
   ['P', 'Pin or unpin the selected node'],
   ['H', 'Hide the selected node'],
+  ['Shift+H', 'Show hidden nodes'],
   ['F', 'Fit to screen'],
+  ['Shift+F', 'Fit the selection to the screen'],
+  ['+', 'Zoom in'],
+  ['-', 'Zoom out'],
   ['L', 'Re-run the layout'],
+  ['G', 'Show or hide the legend'],
+  ['Shift+E', 'Export as PNG'],
   ['N', 'Select the neighbours of the selection'],
   ['Delete', 'Remove the selection from the view'],
   ['Shift+drag', 'Select an area'],
   ['S', LASSO_LABEL],
   ['Ctrl+click', 'Add a node to the selection'],
+  ['Ctrl+A', 'Select every node'],
   ['Esc', 'Clear the selection'],
   ['Ctrl+Z', 'Undo'],
   ['?', 'Show this list'],
@@ -324,21 +332,32 @@ const GraphExplorerInner = ({
     setLayoutRun(run => run + 1);
   }, [initial, selectFocus]);
 
+  // State and history change in the event, never one inside the other's updater: React runs an updater
+  // during the render, and a setState there is the console's "Cannot update a component while rendering
+  // a different component" (#9572). The latest state is read through a ref for that reason.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const historyRef = useRef(history);
+  historyRef.current = history;
   const commit = useCallback((next: (s: GraphState) => GraphState) => {
-    setState((current) => {
-      setHistory(h => ({ past: [...h.past.slice(-29), current] }));
-      return next(current);
-    });
+    const current = stateRef.current;
+    const updated = next(current);
+    stateRef.current = updated;
+    historyRef.current = { past: [...historyRef.current.past.slice(-29), current] };
+    setHistory(historyRef.current);
+    setState(updated);
   }, []);
 
   const undo = () => {
-    setHistory((h) => {
-      if (h.past.length === 0) {
-        return h;
-      }
-      setState(h.past[h.past.length - 1]);
-      return { past: h.past.slice(0, -1) };
-    });
+    const { past } = historyRef.current;
+    if (past.length === 0) {
+      return;
+    }
+    const previous = past[past.length - 1];
+    historyRef.current = { past: past.slice(0, -1) };
+    stateRef.current = previous;
+    setHistory(historyRef.current);
+    setState(previous);
   };
 
   // The time range (OpenCTI's GraphToolbarTimeRange) spans the dates of every node loaded; a range the
@@ -449,8 +468,15 @@ const GraphExplorerInner = ({
   }, [variant, shownNodes, shownEdges, state.focus, state.pinned, state.path, state.ungrouped, selected]);
   const drawnNodes = drawn.nodes as GroupedNode[];
   const drawnEdges = drawn.edges;
-  // The positions on screen: read by the layout to extend it in place.
+  // The positions on screen, frame by frame while a move plays.
   const shown = useRef<Map<string, Point>>(new Map());
+  // Where every node goes: the target of the last move committed, or where a drag dropped a node. An
+  // expand extends THIS placement, never the mid-move positions, so a re-render during a layout run
+  // (a click, a selection, the URL write) keeps the run's target and the move ends where it should.
+  const settled = useRef<Map<string, Point>>(new Map());
+  // The layout run (layout|run) whose target is on screen or on its way. Written in the commit phase
+  // only: React may call a render twice (StrictMode) or restart it (a transition), so a render that
+  // wrote it would make its own replay skip the layout (#9572).
   const laidOut = useRef<string>('');
   // Set when the view must frame the graph once the move has landed (a load, a layout, new nodes).
   const fitPending = useRef(true);
@@ -458,21 +484,20 @@ const GraphExplorerInner = ({
   // placement) runs on a layout button, Re-run the layout and a new slice; an expand, a hide or a group
   // opened keeps every node where it is and places the newcomers next to their neighbour (an OpenCTI
   // investigation never jumps). The mini card draws its own compact two-hop block.
-  const frames = useMemo(() => {
-    if (variant === 'mini') {
-      return [miniCardLayout(drawnNodes, drawnEdges, state.focus ?? '')];
-    }
-    const key = `${layout}|${layoutRun}`;
-    if (laidOut.current !== key || shown.current.size === 0) {
-      laidOut.current = key;
-      fitPending.current = true;
-      return layoutFrames(layout, drawnNodes, drawnEdges, state.focus);
-    }
-    if (drawnNodes.some(n => !shown.current.has(n.node_id))) {
-      fitPending.current = true;
-    }
-    return [extendLayout(shown.current, drawnNodes, drawnEdges)];
-  }, [variant, layout, layoutRun, drawnNodes, drawnEdges, state.focus]);
+  // Pure: it reads the refs, never writes them (the animation effect does, once committed).
+  const { frames, runKey, fit } = useMemo(
+    () => planMove({
+      variant,
+      runKey: `${layout}|${layoutRun}`,
+      laidOut: laidOut.current,
+      settled: settled.current,
+      layout,
+      nodes: drawnNodes,
+      edges: drawnEdges,
+      focus: state.focus,
+    }),
+    [variant, layout, layoutRun, drawnNodes, drawnEdges, state.focus],
+  );
   const target = frames[frames.length - 1];
   // What is on screen. A layout switch, an expand or a hide moves the nodes from where they are to
   // where they go: the force layout plays its simulation frames (the forces settle visibly), a static
@@ -490,6 +515,11 @@ const GraphExplorerInner = ({
     }));
   }, [fitView, fitOptions]);
   useEffect(() => {
+    laidOut.current = runKey;
+    settled.current = target;
+    if (fit) {
+      fitPending.current = true;
+    }
     const from = entering(shown.current, target, drawnEdges);
     const steps = frames.length > 1 ? frames : [target];
     const duration = frames.length > 1 ? Math.max(MOVE_MS, steps.length * FRAME_MS) : MOVE_MS;
@@ -502,14 +532,8 @@ const GraphExplorerInner = ({
     let raf = 0;
     const start = performance.now();
     const tick = (now: number) => {
-      const progress = Math.min(1, (now - start) / duration);
-      const eased = 1 - (1 - progress) ** 3;
-      // The first leg glides from the screen to the first frame, then the frames play in order.
-      const legs = steps.length;
-      const at = eased * legs;
-      const leg = Math.min(legs - 1, Math.floor(at));
-      const legFrom = leg === 0 ? from : steps[leg - 1];
-      const next = interpolate(legFrom, steps[leg], at - leg);
+      const next = moveAt(from, steps, (now - start) / duration);
+      const progress = Math.min(1, Math.max(0, (now - start) / duration));
       shown.current = next;
       setPositions(next);
       if (progress < 1) {
@@ -520,7 +544,7 @@ const GraphExplorerInner = ({
     };
     raf = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(raf);
-  }, [frames, target, drawnEdges, variant, frame]);
+  }, [frames, target, runKey, fit, drawnEdges, variant, frame]);
   // The mini card frames its graph again when the window is resized (the card's width follows the
   // page), so no node stays cut or off-centre after a resize (#9448, UX round 2 B3).
   useEffect(() => {
@@ -534,6 +558,8 @@ const GraphExplorerInner = ({
   const miniHeight = variant === 'mini' ? miniCardHeight(target, NODE_BOX_HEIGHT) : 0;
   // Hover dimming: the hovered node's first ring stays, the rest fades.
   const ring = useMemo(() => (hovered ? firstRing(hovered, drawnEdges) : null), [hovered, drawnEdges]);
+  // The relations each node draws, against what the data holds (#9572): the badge of each node.
+  const drawnPerNode = useMemo(() => drawnRelations(drawnEdges), [drawnEdges]);
 
   const flowNodes: GraphEntityNodeType[] = drawnNodes.map(n => ({
     id: n.node_id,
@@ -549,7 +575,10 @@ const GraphExplorerInner = ({
     selected: selection.includes(n.node_id),
     data: {
       node: n,
-      focused: n.node_id === state.focus || n.node_id === selected || selection.includes(n.node_id),
+      // ONE style for "selected" (the node of the side panel and the multi-selection), as OpenCTI's
+      // graph; the focus anchor, the entity the view is centred on, gets its own quieter mark.
+      focused: n.node_id === selected || selection.includes(n.node_id),
+      anchor: n.node_id === state.focus,
       pinned: state.pinned.includes(n.node_id),
       matched: matches.has(n.node_id),
       dimmed: (matches.size > 0 && !matches.has(n.node_id))
@@ -558,6 +587,7 @@ const GraphExplorerInner = ({
       highlighted: (failed.nodeIds.has(n.node_id) || (showFailed && Boolean(n.node_group_members) && n.node_result === 'FAILED')) && n.node_type !== 'INJECT',
       truncated: state.truncatedAt.includes(n.node_id),
       groupCount: n.node_group_members?.length,
+      connections: n.node_group_members ? null : nodeConnections(n, drawnPerNode),
       inOpenCti: inOpenCti.has(n.node_id),
       inOpenCrq: inOpenCrq.has(n.node_id),
     },
@@ -625,11 +655,21 @@ const GraphExplorerInner = ({
     }
     if (moved) {
       shown.current = moved;
+      settled.current = moved;
       setPositions(moved);
     }
     if (picked) {
       setSelection(Array.from(picked));
     }
+  };
+
+  /**
+   * Clears the selection as OpenCTI's graph does on a click on the empty canvas or on Esc: no node
+   * stays selected and the side panel closes.
+   */
+  const clearSelection = () => {
+    setSelection([]);
+    setSelected(null);
   };
 
   /** Adds the neighbours of every selected node to the selection (OpenCTI: Select neighbours). */
@@ -654,6 +694,26 @@ const GraphExplorerInner = ({
     ...fitOptions,
     duration: 300,
   });
+
+  /** Frames the given nodes (OpenCTI: Zoom to selection, Locate the node). */
+  const frameNodes = (ids: string[]) => {
+    if (ids.length === 0) {
+      return;
+    }
+    fitView({
+      ...fitOptions,
+      nodes: ids.map(id => ({ id })),
+      duration: 300,
+    });
+  };
+
+  /** Selects every node drawn (OpenCTI: Ctrl+A), groups left out. */
+  const selectAllNodes = () => setSelection(drawnNodes.filter(n => !isGroupId(n.node_id)).map(n => n.node_id));
+
+  /** Selects every drawn node of the given type (OpenCTI: select by entity type). */
+  const selectByType = (type: GraphNodeType) => setSelection(
+    drawnNodes.filter(n => !isGroupId(n.node_id) && n.node_type === type).map(n => n.node_id),
+  );
 
   // The lasso's pointer handlers: the outline is kept in client coordinates, drawn relative to the
   // canvas, and turned into flow coordinates once closed to pick the nodes whose circle it surrounds.
@@ -790,17 +850,28 @@ const GraphExplorerInner = ({
         result?: GraphResult | null;
       }[];
     }
-    return Object.values(state.edges)
+    // One row per neighbour and relation: a membership read from both ends (a group expanded, then
+    // one of its assets) is two edges of opposite direction and one relation (#9572: duplicate keys).
+    const rows = new Map<string, {
+      node: GraphNodeOutput;
+      type: GraphEdgeType;
+      result?: GraphResult | null;
+    }>();
+    Object.values(state.edges)
       .filter(e => e.edge_source === selectedNode.node_id || e.edge_target === selectedNode.node_id)
-      .map((e) => {
+      .forEach((e) => {
         const other = e.edge_source === selectedNode.node_id ? e.edge_target : e.edge_source;
-        return {
-          node: state.nodes[other],
-          type: e.edge_type,
-          result: e.edge_result,
-        };
-      })
-      .filter(n => n.node);
+        const node = state.nodes[other];
+        const key = `${e.edge_type}-${other}`;
+        if (node && !rows.has(key)) {
+          rows.set(key, {
+            node,
+            type: e.edge_type,
+            result: e.edge_result,
+          });
+        }
+      });
+    return Array.from(rows.values());
   }, [selectedNode, state]);
 
   const toggle = <T, >(list: T[], value: T) => (list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
@@ -1078,8 +1149,21 @@ const GraphExplorerInner = ({
   const panelOpen = Boolean(selectedNode && interactive);
   const selectedCounterpart = selectedNode ? nodeCounterpart(selectedNode) : null;
 
+  // "Targets · 12 (8 not shown)": a relation of the expand lists with its count in the data and
+  // what the screen does not draw yet (#9572); the bare label when the node was not counted.
+  const relationLabel = (node: GraphNodeOutput, type: GraphEdgeType) => {
+    const label = t(EDGE_TYPE_LABEL[type]);
+    const relation = nodeConnections(node, drawnPerNode)?.byType.find(r => r.type === type);
+    if (!relation) {
+      return label;
+    }
+    const hidden = relation.total - relation.shown;
+    return hidden > 0 ? `${label} · ${relation.total} (${hidden} ${t('not shown')})` : `${label} · ${relation.total}`;
+  };
+
   const panel = selectedNode && interactive && (
     <Drawer
+      data-testid="graph-side-panel"
       anchor="right"
       variant="persistent"
       open={panelOpen}
@@ -1164,7 +1248,7 @@ const GraphExplorerInner = ({
       <Text variant="content-compact-bold" as="div" className="mt-4">{t('Expand by relation')}</Text>
       <div className="mt-1 flex flex-wrap gap-1">
         {EDGE_TYPES_BY_NODE_TYPE[selectedNode.node_type].map(type => (
-          <Chip key={type} label={t(EDGE_TYPE_LABEL[type])} onClick={() => expand(selectedNode, [type])} />
+          <Chip key={type} label={relationLabel(selectedNode, type)} onClick={() => expand(selectedNode, [type])} />
         ))}
       </div>
       {state.truncatedAt.includes(selectedNode.node_id) && (
@@ -1239,7 +1323,7 @@ const GraphExplorerInner = ({
       <MenuSub key="by-relation">
         <MenuSubTrigger>{t('Expand by relation')}</MenuSubTrigger>
         <MenuSubContent>
-          {EDGE_TYPES_BY_NODE_TYPE[node.node_type].map(type => menuItem(type, t(EDGE_TYPE_LABEL[type]), null, () => expand(node, [type])))}
+          {EDGE_TYPES_BY_NODE_TYPE[node.node_type].map(type => menuItem(type, relationLabel(node, type), null, () => expand(node, [type])))}
         </MenuSubContent>
       </MenuSub>,
       <MenuSub key="by-type">
@@ -1257,6 +1341,8 @@ const GraphExplorerInner = ({
         setSelected(null);
       }),
       menuItem('neighbours', t('Select neighbours'), <SelectAllOutlined fontSize="small" />, () => selectNeighbours([node.node_id])),
+      menuItem('same-type', t('Select every node of this type'), null, () => selectByType(node.node_type)),
+      menuItem('zoom-node', t('Zoom to this node'), <FitScreenOutlined fontSize="small" />, () => frameNodes([node.node_id])),
       menuItem('remove', t('Remove from view'), <DeleteOutlined fontSize="small" />, () => removeFromView([node.node_id]), node.node_id === state.focus),
       ...routeItem('open', t('Open'), <OpenInNewOutlined fontSize="small" />, href),
       ...(inOpenCti.has(node.node_id) ? linkItem('opencti', t('Open in OpenCTI'), <ProductMark size={16} />, menuLinks[OPENCTI_PRODUCT]) : []),
@@ -1274,6 +1360,8 @@ const GraphExplorerInner = ({
         nodes.forEach(n => expand(n));
       }),
       menuItem('neighbours', t('Select neighbours'), <SelectAllOutlined fontSize="small" />, () => selectNeighbours(ids)),
+      menuItem('frame', t('Fit the selection to the screen'), <FitScreenOutlined fontSize="small" />, () => frameNodes(ids)),
+      ...(nodes.length === 2 ? [menuItem('path-between', t('Find the path between them'), <RouteOutlined fontSize="small" />, () => findPath(nodes[0], nodes[1]))] : []),
       menuItem('pin', t('Pin'), <PushPinOutlined fontSize="small" />, () => commit(s => pinNodes(s, ids))),
       menuItem('hide', t('Hide'), <VisibilityOffOutlined fontSize="small" />, () => {
         commit(s => hideNodes(s, ids));
@@ -1289,6 +1377,7 @@ const GraphExplorerInner = ({
     <MenuLabel key="label">{t('Graph')}</MenuLabel>,
     menuItem('relayout', t('Re-run the layout'), <AutorenewOutlined fontSize="small" />, () => relayout()),
     menuItem('fit', t('Fit to screen'), <FitScreenOutlined fontSize="small" />, fitToScreen),
+    menuItem('select-all', t('Select every node'), <SelectAllOutlined fontSize="small" />, selectAllNodes, drawnNodes.length === 0),
     menuItem('show', t('Show hidden nodes'), <VisibilityOutlined fontSize="small" />, () => commit(showHidden), state.hidden.length === 0),
     menuItem('undo', t('Undo'), <UndoOutlined fontSize="small" />, undo, history.past.length === 0),
     menuItem('shortcuts', t('Keyboard shortcuts'), <KeyboardOutlined fontSize="small" />, () => setShortcutsOpen(true)),
@@ -1383,11 +1472,34 @@ const GraphExplorerInner = ({
       undo();
       return;
     }
+    // OpenCTI's graph shortcuts: Ctrl+A selects every node, Shift+F frames the selection, Shift+H
+    // shows the hidden nodes, + and - zoom.
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'a') {
+      event.preventDefault();
+      selectAllNodes();
+      return;
+    }
     if (event.ctrlKey || event.metaKey || event.altKey) {
       return;
     }
     const key = event.key.toLowerCase();
-    if (key === '?') {
+    let framed: string[] = selection;
+    if (framed.length === 0 && selected) {
+      framed = [selected];
+    }
+    if (event.shiftKey && key === 'f' && framed.length > 0) {
+      frameNodes(framed);
+    } else if (event.shiftKey && key === 'h') {
+      commit(showHidden);
+    } else if (event.shiftKey && key === 'e') {
+      exportPng();
+    } else if (key === 'g' && variant === 'page') {
+      setLegendOpen(!legendOpen);
+    } else if (key === '+' || key === '=') {
+      zoomIn({ duration: 200 });
+    } else if (key === '-' || key === '_') {
+      zoomOut({ duration: 200 });
+    } else if (key === '?') {
       setShortcutsOpen(true);
     } else if (key === 'f') {
       fitToScreen();
@@ -1395,8 +1507,8 @@ const GraphExplorerInner = ({
       relayout();
     } else if (key === 's') {
       setLassoOn(!lassoOn);
-    } else if (key === 'escape' && (selection.length > 0 || lassoOn)) {
-      setSelection([]);
+    } else if (key === 'escape' && (selection.length > 0 || lassoOn || selected)) {
+      clearSelection();
       setLassoOn(false);
       setLasso(null);
     } else if (key === 'n' && (selection.length > 0 || selectedNode)) {
@@ -1479,7 +1591,7 @@ const GraphExplorerInner = ({
           onNodeMouseEnter={(_, n) => setHovered(n.id)}
           onNodeMouseLeave={() => setHovered(null)}
           onNodeClick={interactive
-            ? (_, n) => {
+            ? (event, n) => {
                 setMenu(null);
                 if (isGroupId(n.id)) {
                   return;
@@ -1488,6 +1600,11 @@ const GraphExplorerInner = ({
                 if (pathFrom && pathFrom !== n.id) {
                   findPath(state.nodes[pathFrom], node);
                   return;
+                }
+                // A plain click selects this node alone (OpenCTI's graph), also when it was already part of
+                // a multi-selection: React Flow leaves an already selected node's selection untouched.
+                if (!event.ctrlKey && !event.metaKey) {
+                  setSelection([n.id]);
                 }
                 setSelected(n.id);
               }
@@ -1500,7 +1617,7 @@ const GraphExplorerInner = ({
           onPaneContextMenu={interactive ? event => openMenu(event, {}) : undefined}
           onPaneClick={() => {
             setMenu(null);
-            setSelection([]);
+            clearSelection();
           }}
           panOnScroll={false}
           fitView
