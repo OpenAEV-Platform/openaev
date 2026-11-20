@@ -19,6 +19,8 @@ import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.author.Authored;
 import io.openaev.database.model.author.Authorship;
+import io.openaev.database.model.catalog.CatalogContent;
+import io.openaev.database.model.catalog.ContentType;
 import io.openaev.database.model.hash.ContentHashed;
 import io.openaev.database.model.hash.Hashed;
 import io.openaev.database.model.hash.NotHashed;
@@ -82,7 +84,13 @@ import org.hibernate.type.SqlTypes;
     })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.PAYLOAD)
 public class Payload
-    implements GrantableBase, TenantBase, Authored, HasPayloadIdentity, Auditable, ContentHashed {
+    implements GrantableBase,
+        TenantBase,
+        Authored,
+        HasPayloadIdentity,
+        Auditable,
+        ContentHashed,
+        CatalogContent {
 
   private static final int DEFAULT_NUMBER_OF_ACTIONS_FOR_PAYLOAD = 1;
 
@@ -236,6 +244,11 @@ public class Payload
   @JsonIgnore
   private String version = FIRST_VERSION;
 
+  @NotHashed
+  @Formula("EXISTS (SELECT 1 FROM payload_revocations r WHERE r.payload_id = payload_id)")
+  @JsonIgnore
+  private boolean revoked;
+
   // SHA-256 of the canonical content: same content, same hash, on any platform.
   @NotHashed
   @Column(name = "payload_content_hash")
@@ -248,6 +261,35 @@ public class Payload
   @Queryable(filterable = true, path = "identity.source")
   public PAYLOAD_SOURCE getSource() {
     return HasPayloadIdentity.super.getSource();
+  }
+
+  // -- CATALOGUE --
+
+  @Override
+  public ContentType getCatalogType() {
+    return ContentType.PAYLOAD;
+  }
+
+  @Override
+  public String getCatalogRepository() {
+    return getIdentity().getRepository();
+  }
+
+  @Override
+  public String getCatalogExternalId() {
+    return getExternalId();
+  }
+
+  @Override
+  public String getCatalogVersion() {
+    return version;
+  }
+
+  /** The version the Threat Arsenal shows: a local payload, or the catalogue's latest installed. */
+  @JsonIgnore
+  public boolean isLatest() {
+    Payload latest = getIdentity().getLatestVersion();
+    return !isManaged() || (latest != null && latest.getId().equals(id));
   }
 
   // -- AUTHOR --

@@ -20,6 +20,7 @@ import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.Resource;
 import java.io.IOException;
@@ -51,6 +52,7 @@ public class Executor {
   private final ExecutableInjectDTOMapper executableInjectDTOMapper;
   private final ConnectorInstanceService connectorInstanceService;
   private final InjectExpectationService injectExpectationService;
+  private final PayloadRevocationService payloadRevocationService;
   private final OpenAEVConfig openAEVConfig;
 
   public static final String CMD = "cmd";
@@ -115,6 +117,12 @@ public class Executor {
         inject
             .getInjectorContract()
             .orElseThrow(() -> new UnexecutableInjectException("Inject does not have a contract"));
+    payloadRevocationService
+        .refusal(inject)
+        .ifPresent(
+            refusal -> {
+              throw new UnexecutableInjectException(refusal);
+            });
 
     // Resolve the injector instance from the inject entity directly
     Injector injector = inject.getInjector();

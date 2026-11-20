@@ -10,13 +10,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.service.attackpath.AttackPathIds;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
@@ -63,6 +66,7 @@ class AttackPathApiRbacTest extends IntegrationTest {
   @Autowired private TenantRoleComposer tenantRoleComposer;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private AttackPathExecutionRepository executionRepository;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
 
   private String simulationId;
   private Authentication withGrant;
@@ -228,6 +232,9 @@ class AttackPathApiRbacTest extends IntegrationTest {
 
   private List<String> pickerSimulationIds(MockHttpServletRequestBuilder request, Authentication as)
       throws Exception {
+    // The picker reads in the caller's tenant scope: a composed user needs the membership.
+    tenantIsolationTestHelper.attachUserToTenant(
+        ((OpenAEVPrincipal) as.getPrincipal()).getId(), Tenant.DEFAULT_TENANT_UUID);
     String body =
         mvc.perform(request.with(authentication(as)).with(csrf()))
             .andExpect(status().isOk())

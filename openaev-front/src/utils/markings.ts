@@ -1,4 +1,5 @@
 import { type MarkingDefinitionOutput } from './api-types';
+import { type Option } from './Option';
 
 // Order-independent: a marking picker's Autocomplete can re-emit the same selection in a
 // different order without the assigned set actually changing, and treating that as "changed"
@@ -23,6 +24,12 @@ export const markingLabel = (marking: MarkingDefinitionOutput) => {
   const definition = marking.marking_definition_definition.toUpperCase();
   return definition.startsWith(`${type}:`) ? definition : `${type}:${definition}`;
 };
+
+// The `{ id, label }` option of a marking definition, for the value pickers of the marking filter.
+export const markingOption = (marking: MarkingDefinitionOutput): Option => ({
+  id: marking.marking_definition_id,
+  label: markingLabel(marking),
+});
 
 // Keeps only the highest-order marking per type (e.g. TLP:CLEAR/GREEN/AMBER collapse to
 // TLP:AMBER): holding a level already implies holding every less restrictive level of the same

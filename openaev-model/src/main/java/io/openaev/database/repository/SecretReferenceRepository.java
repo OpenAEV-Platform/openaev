@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD;
 import io.openaev.database.model.SecretReference;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -11,6 +12,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.Assert;
 
 @Repository
 public interface SecretReferenceRepository extends JpaRepository<SecretReference, String> {
@@ -40,4 +42,20 @@ public interface SecretReferenceRepository extends JpaRepository<SecretReference
       @Param("methods") Collection<CREDENTIAL_AUTH_METHOD> methods,
       @Param("threshold") Instant threshold,
       Pageable pageable);
+
+  /** The secret references among the given ids that belong to the given tenant. */
+  @NotNull
+  List<SecretReference> findAllByIdInAndTenantId(
+      @NotNull Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The secret references among the given ids that belong to the given tenant. Refuses a null id
+   * list, as {@code findAllById} does.
+   */
+  @NotNull
+  default List<SecretReference> findAllByIdInTenant(
+      Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 }

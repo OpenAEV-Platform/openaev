@@ -3,9 +3,10 @@ package io.openaev.rest.user;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.specification.UserSpecification.byId;
 import static io.openaev.database.specification.UserSpecification.inTenant;
+import static io.openaev.database.specification.UserSpecification.inTenants;
 import static io.openaev.database.specification.UserSpecification.organizationsInTenant;
+import static io.openaev.database.specification.UserSpecification.organizationsInTenants;
 import static io.openaev.helper.DatabaseHelper.resolveTenantOrganization;
-import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.user.PlayerQueryHelper.execution;
 import static io.openaev.rest.user.PlayerQueryHelper.select;
@@ -17,7 +18,6 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.users.dto.UserMapper;
 import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.audit.ModelBaseListener;
@@ -47,12 +47,14 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.function.TriFunction;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -141,32 +143,42 @@ public class PlayerService {
         chunk -> chunk.forEach(id -> deletePlayerOfTenant(ctx, id)));
   }
 
-  public Page<PlayerOutput> playerPagination(@NotNull SearchPaginationInput searchPaginationInput) {
+  public Page<PlayerOutput> playerPagination(
+      @NotNull Set<String> scope, @NotNull SearchPaginationInput searchPaginationInput) {
+    // Read in the caller's resolved tenant scope, never the ambient default tenant: an empty scope
+    // (no membership resolved) returns an empty page (fail closed).
+    if (scope.isEmpty()) {
+      return Page.empty(
+          PageRequest.of(
+              searchPaginationInput.getPage(), Math.max(1, searchPaginationInput.getSize())));
+    }
     // Reserved service/connector accounts (service-*@openaev.invalid,
     // connector-*@openaev.invalid - see ReservedKeyValidator) are system users:
     // they are not players and can never be added to a team, so they must not
     // be listed in player search results (Players page, team players picker...).
     Specification<User> excludeReservedAccounts =
         (root, query, cb) -> cb.notLike(cb.lower(root.get("email")), "%@openaev.invalid");
-    Specification<User> tenantSpec =
-        inTenant(TenantContext.getCurrentTenant()).and(excludeReservedAccounts);
+    Specification<User> tenantSpec = inTenants(scope).and(excludeReservedAccounts);
+    // The organization projection is scoped to the caller's tenants inside select(...); this scopes
+    // the organization join a filter (search by organization) opens, so an organization filter
+    // never
+    // matches an organization of another tenant. Applied after the filter specification.
+    Specification<User> organizationFilterScope = organizationsInTenants(scope);
     TriFunction<Specification<User>, Specification<User>, Pageable, Page<PlayerOutput>>
-        playersFunction;
-    // After the filters, which may join the organizations of the user (see organizationsInTenant).
-    Specification<User> organizationsOfTenant =
-        organizationsInTenant(TenantContext.getCurrentTenant());
-    playersFunction =
-        (specification, specificationCount, pageable) ->
-            this.paginate(
-                tenantSpec.and(specification).and(organizationsOfTenant),
-                tenantSpec.and(specificationCount).and(organizationsOfTenant),
-                pageable);
+        playersFunction =
+            (specification, specificationCount, pageable) ->
+                this.paginate(
+                    scope,
+                    tenantSpec.and(specification).and(organizationFilterScope),
+                    tenantSpec.and(specificationCount).and(organizationFilterScope),
+                    pageable);
     return buildPaginationCriteriaBuilder(playersFunction, searchPaginationInput, User.class);
   }
 
   // -- PRIVATE --
 
   private Page<PlayerOutput> paginate(
+      Set<String> scope,
       Specification<User> specification,
       Specification<User> specificationCount,
       Pageable pageable) {
@@ -174,7 +186,7 @@ public class PlayerService {
 
     CriteriaQuery<Tuple> cq = cb.createTupleQuery();
     Root<User> userRoot = cq.from(User.class);
-    select(cb, cq, userRoot);
+    select(cb, cq, userRoot, scope);
 
     // -- Specification --
     if (specification != null) {
@@ -244,7 +256,7 @@ public class PlayerService {
           .findAllByIdInTenant(input.getTagIds(), tenantId)
           .forEach(tag -> userRepository.addTag(existingUser.getId(), tag.getId()));
       teamRepository
-          .findAllById(input.getTeamIds())
+          .findAllByIdInTenant(input.getTeamIds(), tenantId)
           .forEach(team -> userRepository.addTeam(existingUser.getId(), team.getId()));
       entityManager.refresh(existingUser);
       existingUser.setUpdateAttributes(input);
@@ -262,7 +274,7 @@ public class PlayerService {
       newUser.setUpdateAttributes(input);
       newUser.setTags(
           iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
-      newUser.setTeams(fromIterable(teamRepository.findAllById(input.getTeamIds())));
+      newUser.setTeams(teamRepository.findAllByIdInTenant(input.getTeamIds(), tenantId));
       User savedUser = userRepository.save(newUser);
       assignOrganization(savedUser, input.getOrganizationId(), tenantId);
       userService.createUserToken(savedUser);

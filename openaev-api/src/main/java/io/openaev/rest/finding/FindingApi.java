@@ -5,14 +5,11 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.Finding;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.finding.form.FindingInput;
 import io.openaev.rest.finding.form.FindingOutput;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.utils.mapper.FindingMapper;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -70,27 +67,5 @@ public class FindingApi extends RestBehavior {
   public ResponseEntity<FindingSummaryOutput> findingSummary(
       TxCtx ctx, @PathVariable @NotNull final String id) {
     return ResponseEntity.ok(this.findingService.findingSummary(id));
-  }
-
-  @PostMapping({FINDING_URI, TENANT_FINDING_URI})
-  @Transactional
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.FINDING)
-  public ResponseEntity<FindingOutput> createFinding(
-      TxCtx ctx, @RequestBody @Valid @NotNull final FindingInput input) {
-    return ResponseEntity.ok(
-        this.findingMapper.toFindingOutput(
-            this.findingService.createFinding(
-                ctx, input.toFinding(new Finding()), input.getInjectId())));
-  }
-
-  @DeleteMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})
-  @Transactional
-  @AccessControl(
-      resourceId = "#id",
-      actionPerformed = Action.DELETE,
-      resourceType = ResourceType.FINDING)
-  public ResponseEntity<Void> deleteFinding(TxCtx ctx, @PathVariable @NotNull final String id) {
-    this.findingService.deleteFinding(id);
-    return ResponseEntity.noContent().build();
   }
 }

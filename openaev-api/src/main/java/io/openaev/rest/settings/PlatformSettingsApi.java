@@ -135,6 +135,29 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.updateSettingsSessions(input);
   }
 
+  @PutMapping("/runtime")
+  @Transactional
+  @PlatformWrite
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "The updated settings"),
+        @ApiResponse(
+            responseCode = "400",
+            description =
+                "A setting unknown, a value invalid, or a setting set by its environment variable")
+      })
+  @Operation(
+      summary = "Update runtime settings",
+      description =
+          "Update the runtime settings (inject execution threshold, agent jobs and queue,"
+              + " agent auto-update). A setting whose environment variable is set is read-only"
+              + " and refused. Applied at the next use, no restart")
+  public PlatformSettings updateSettingsRuntime(
+      TxCtx ctx, @Valid @RequestBody SettingsRuntimeUpdateInput input) {
+    return platformSettingsService.updateSettingsRuntime(input);
+  }
+
   @PutMapping("/theme/light")
   @Transactional
   @PlatformWrite

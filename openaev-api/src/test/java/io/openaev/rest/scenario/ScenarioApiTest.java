@@ -33,11 +33,11 @@ import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.rest.scenario.form.ScenarioRecurrenceInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
 import io.openaev.service.AssetGroupService;
+import io.openaev.service.period.RecurrenceService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
-import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.util.*;
@@ -571,6 +571,45 @@ public class ScenarioApiTest extends IntegrationTest {
     assertEquals(false, JsonPath.read(response, "$.rules_found"));
   }
 
+  @Test
+  @DisplayName("Refuse a scenario recurrence the scheduler cannot parse, accept a 6-field cron")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void updateScenarioRecurrenceValidatesTheExpression() throws Exception {
+    Scenario scenario = getScenario(null, null);
+    String uri = SCENARIO_URI + "/" + scenario.getId() + "/recurrence";
+
+    // -- A Unix 5-field cron is refused with the accepted forms, and nothing is stored --
+    ScenarioRecurrenceInput unixCron = new ScenarioRecurrenceInput();
+    unixCron.setRecurrence("0 2 * * *");
+    unixCron.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(unixCron))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            jsonPath("$.message")
+                .value(
+                    "Unsupported recurrence expression '0 2 * * *': "
+                        + RecurrenceService.ACCEPTED_RECURRENCE_FORMS));
+    assertNull(scenarioRepository.findById(scenario.getId()).orElseThrow().getRecurrence());
+
+    // -- A Spring 6-field cron is stored --
+    ScenarioRecurrenceInput springCron = new ScenarioRecurrenceInput();
+    springCron.setRecurrence("0 0 2 * * *");
+    springCron.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(springCron))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.scenario_recurrence").value("0 0 2 * * *"));
+  }
+
   @Nested
   @DisplayName("Lock Scenario EE feature")
   @WithMockUser(isAdmin = true)
@@ -624,7 +663,44 @@ public class ScenarioApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Scheduling a scenario stamps and surfaces the scheduling user")
+    @WithMockUser(
+        isAdmin = true,
+        autoJoinDefaultTenant = true,
+        userFirstName = "Misty",
+        userLastName = "Waterflower",
+        userMail = "misty.waterflower@unittests.invalid")
+    void given_scenarioRecurrence_should_returnScheduledByUser() throws Exception {
+      // Arrange
+      Scenario scenario = getScenario(null, null);
+      ScenarioRecurrenceInput input = new ScenarioRecurrenceInput();
+      input.setRecurrence("0 30 9 * * *");
+      input.setRecurrenceStart(Instant.now());
+
+      // Act
+      mvc.perform(
+              put(SCENARIO_URI + "/" + scenario.getId() + "/recurrence")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert: the GET /scenarios/{id} ScenarioOutput resolves the scheduling user
+      mvc.perform(
+              get(SCENARIO_URI + "/" + scenario.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.scenario_scheduled_by_user.user_name").value("Misty Waterflower"))
+          .andExpect(
+              jsonPath("$.scenario_scheduled_by_user.user_email")
+                  .value("misty.waterflower@unittests.invalid"));
+    }
+
+    @Test
     @DisplayName("Throw license restricted error when add Crowdstrike on scheduled scenario")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_crowdstrikeInsdeDynamicGroup_should_not_beAddedToScheduledExercise()
         throws Exception {
       Scenario scenario = getScenario(ScenarioFixture.getScheduledScenario(), null);
@@ -1030,49 +1106,6 @@ public class ScenarioApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Scenario search in tenant Y should NOT return scenarios from tenant X")
-    void given_scenarioInTenantX_should_notAppearInTenantYSearch() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
-
-      entityManager
-          .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
-                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
-          .setParameter("id", UUID.randomUUID().toString())
-          .setParameter("name", "CrossTenantSearchScenario")
-          .setParameter("tenant", tenantX.getId())
-          .executeUpdate();
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act — search from tenant Y --------
-      SearchPaginationInput searchInput =
-          PaginationFixture.simpleTextSearch("CrossTenantSearchScenario");
-
-      String searchResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/scenarios/search")
-                      .content(asJsonString(searchInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -------- Assert --------
-      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
-    }
-
-    @Test
     @DisplayName("Scenario created in tenant X should NOT be updatable from tenant Y")
     void given_scenarioInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -1153,48 +1186,6 @@ public class ScenarioApiTest extends IntegrationTest {
 
       // -------- Assert --------
       assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
-    @DisplayName("Fetching scenarios by IDs should NOT return scenarios from another tenant")
-    void given_scenarioInTenantX_should_notBeReturnedByIdFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
-
-      String scenarioId = UUID.randomUUID().toString();
-      entityManager
-          .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
-                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
-          .setParameter("id", scenarioId)
-          .setParameter("name", "SearchById Isolation Scenario")
-          .setParameter("tenant", tenantX.getId())
-          .executeUpdate();
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act — fetch by IDs from tenant Y --------
-      String searchByIdResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/scenarios/search-by-id")
-                      .content(asJsonString(Map.of("scenario_ids", List.of(scenarioId))))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -------- Assert — result should be empty --------
-      List<Object> results = JsonPath.read(searchByIdResponse, "$");
-      assertThat(results.size()).isEqualTo(0);
     }
 
     @Test

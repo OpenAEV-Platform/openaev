@@ -73,7 +73,7 @@ class ChannelApiTest extends IntegrationTest {
   @DisplayName("Create article for scenario")
   @Test
   @Order(1)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void createArticleForScenarioTest() throws Exception {
     // -- PREPARE --
     Scenario scenario = new Scenario();
@@ -137,7 +137,7 @@ class ChannelApiTest extends IntegrationTest {
   @DisplayName("Update article for scenario")
   @Test
   @Order(3)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateArticleForScenarioTest() throws Exception {
     // -- PREPARE --
     ArticleUpdateInput articleUpdateInput = new ArticleUpdateInput();

@@ -248,7 +248,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
   @DisplayName("Given a valid scenario with a team, should remove team from scenario successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validScenarioWithTeam_should_removeTeamFromScenarioSuccessfully() throws Exception {
     // -- PREPARE --
     Team teamCreated = createTeam(TEAM_NAME);
@@ -328,6 +328,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   class SearchScenarioTeams {
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Returns global and scenario teams when searching teams")
     void givenContextualOnlyFalse_whenSearchingTeams_shouldReturnGlobalAndScenarioTeams()
         throws Exception {
@@ -364,6 +365,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Returns only scenario teams")
     void givenContextualOnlyTrue_whenSearchingTeams_shouldReturnOnlyScenarioTeams()
         throws Exception {

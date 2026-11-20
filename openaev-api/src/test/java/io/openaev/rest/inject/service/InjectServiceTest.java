@@ -41,6 +41,7 @@ import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.InjectUtils;
@@ -90,6 +91,7 @@ class InjectServiceTest {
   @Mock private AgentRepository agentRepository;
   @Mock private SecretReferenceService secretReferenceService;
   @Mock private PreviewFeatureService previewFeatureService;
+  @Mock private PayloadRevocationService payloadRevocationService;
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
   @Mock private InjectStatusRepository injectStatusRepository;
@@ -117,6 +119,7 @@ class InjectServiceTest {
   @Mock private CollectorService collectorService;
   @Mock private InjectorService injectorService;
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
+  @Mock private io.openaev.service.settings.RuntimeSettingsService runtimeSettingsService;
   @Mock private StepTargetingService stepTargetingService;
   @Mock private ConditionService conditionService;
   @Mock private ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
@@ -174,10 +177,11 @@ class InjectServiceTest {
         injectService,
         "healthCheckUtils",
         new HealthCheckUtils(
-            new ExecutorUtils(assetAgentJobRepository),
+            new ExecutorUtils(assetAgentJobRepository, runtimeSettingsService),
             stepTargetingService,
             conditionService,
-            previewFeatureService));
+            previewFeatureService,
+            payloadRevocationService));
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
@@ -187,10 +191,11 @@ class InjectServiceTest {
             injectExpectationMapper,
             injectUtils,
             new HealthCheckUtils(
-                new ExecutorUtils(assetAgentJobRepository),
+                new ExecutorUtils(assetAgentJobRepository, runtimeSettingsService),
                 stepTargetingService,
                 conditionService,
-                previewFeatureService)));
+                previewFeatureService,
+                payloadRevocationService)));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }

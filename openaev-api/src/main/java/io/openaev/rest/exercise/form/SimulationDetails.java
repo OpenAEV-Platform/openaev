@@ -4,12 +4,14 @@ import static io.openaev.database.model.ExerciseStatus.valueOf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.api.users.dto.UserSimple;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.ExerciseTeamUser;
 import io.openaev.database.model.KillChainPhase;
 import io.openaev.database.model.Objective;
 import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.database.raw.RawSimulationIndexing;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -83,6 +85,14 @@ public class SimulationDetails {
 
   @JsonProperty("exercise_scenario")
   private String scenario;
+
+  // Not "exercise_launched_by": the Exercise entity sends the bare user id under that key, and both
+  // shapes merge into the same frontend store entry.
+  @JsonProperty("exercise_launched_by_user")
+  @Schema(
+      description =
+          "User who launched this exercise, or who last scheduled it when created unattended")
+  private UserSimple launchedBy;
 
   // -- AUDIT --
 
@@ -190,6 +200,12 @@ public class SimulationDetails {
         .lessonsAnonymized(exercise.getExercise_lessons_anonymized())
         .lessonsEnabled(exercise.getExercise_lessons_enabled())
         .scenario(exercise.getScenario_id())
+        .launchedBy(
+            UserSimple.of(
+                exercise.getExercise_launched_by(),
+                exercise.getExercise_launched_by_firstname(),
+                exercise.getExercise_launched_by_lastname(),
+                exercise.getExercise_launched_by_email()))
         .createAt(exercise.getExercise_created_at())
         .updatedAt(exercise.getExercise_updated_at());
     if (exerciseTeamsUsers != null) {

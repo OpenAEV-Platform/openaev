@@ -12,7 +12,6 @@ import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
 import io.openaev.database.model.attackpath.AttackPathFinding;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
-import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,12 +45,13 @@ class AttackPathFindingVerdictsApiTest extends IntegrationTest {
 
   @BeforeEach
   void setUp() {
-    tenant = tenantRepository.save(TenantFixture.getTenant("ap-verdicts"));
+    tenant = new Tenant(Tenant.DEFAULT_TENANT_UUID);
   }
 
   @Test
   @DisplayName(
       "expand: worst-of across producers on one endpoint, and unknown for a status-less producer")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void expandWorstOfAndUnknown() throws Exception {
     AttackPathExecution prevented = save(execution("host-a", "Prevented"));
     AttackPathExecution notPrevented = save(execution("host-a", "Not Prevented"));
@@ -72,6 +72,7 @@ class AttackPathFindingVerdictsApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "the same finding diverges per endpoint on expand, and the graph node is the worst-of rollup")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void perEndpointExpandAndCrossEndpointGraphNode() throws Exception {
     // Same (type, value) prevented on host-a, not prevented on host-b.
     link(save(execution("host-a", "Prevented")), save(finding("host-a", CVE)));
@@ -98,6 +99,7 @@ class AttackPathFindingVerdictsApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "drawer rows carry the aggregated verdict; execution detail items carry the execution's own")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void drawerAndExecutionDetailCarryVerdicts() throws Exception {
     AttackPathExecution exec = execution("host-a", null);
     exec.setDetectionStatus("Detected"); // detection success label
@@ -126,6 +128,7 @@ class AttackPathFindingVerdictsApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("fail-closed: a cross-simulation link never attaches another run's status")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void crossSimulationLinkIsIgnored() throws Exception {
     AttackPathFinding cve = save(finding("host-a", CVE));
     // Same-simulation producer: prevented.

@@ -25,6 +25,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.persistence.criteria.Join;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -133,7 +134,7 @@ public class ScenarioInjectApi extends RestBehavior {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     assert scenarioId.equals(scenario.getId());
     this.scenarioInjectService.requireInjectInScenario(ctx, scenarioId, injectId);
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new));
   }
 
@@ -271,7 +272,7 @@ public class ScenarioInjectApi extends RestBehavior {
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody InjectUpdateActivationInput input) {
     scenarioInjectService.requireInjectInScenario(ctx, scenarioId, injectId);
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         scenarioInjectService.updateInjectActivationForScenario(scenarioId, injectId, input));
   }
 
@@ -322,7 +323,7 @@ public class ScenarioInjectApi extends RestBehavior {
   public List<Inject> bulkDeleteInjectsForScenario(
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
-      @RequestBody @Valid final InjectBulkProcessingInput input) {
+      @RequestBody @Valid final InjectBulkDeleteInput input) {
     input.setSimulationOrScenarioId(scenarioId);
     return bulkInjectService.bulkDeleteWithMonitoring(ctx, input);
   }
@@ -341,14 +342,24 @@ public class ScenarioInjectApi extends RestBehavior {
   public void deleteInjectForScenario(
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
-      @PathVariable @NotBlank final String injectId) {
+      @PathVariable @NotBlank final String injectId,
+      @Parameter(
+              description =
+                  "True keeps the findings produced by the inject, detached from it. False (the"
+                      + " default) deletes them with the inject.")
+          @RequestParam(name = "keep_findings", required = false, defaultValue = "false")
+          final boolean keepFindings) {
     this.scenarioInjectService.requireInjectInScenario(ctx, scenarioId, injectId);
-    this.scenarioInjectService.deleteInject(ctx, scenarioId, injectId);
+    this.scenarioInjectService.deleteInject(ctx, scenarioId, injectId, keepFindings);
   }
 
-  /** See {@link KillChainPhaseInitializer}: hydrate before open-in-view rendering. */
-  private static Inject hydrateKillChainPhases(Inject inject) {
+  /**
+   * See {@link KillChainPhaseInitializer} and {@link InjectLinksInitializer}: hydrate before
+   * open-in-view rendering.
+   */
+  private static Inject hydrateForResponse(Inject inject) {
     KillChainPhaseInitializer.initializeFromInjects(List.of(inject));
+    InjectLinksInitializer.initialize(List.of(inject));
     return inject;
   }
 }

@@ -1,5 +1,7 @@
 package io.openaev.utils.fixtures;
 
+import static io.openaev.utils.PlatformWriteJdbc.inPlatformWriteTransaction;
+
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Grant;
 import io.openaev.injectors.manual.ManualContract;
@@ -20,6 +22,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 public class ContractRightsFixture {
 
+  private final DataSource dataSource;
   private final JdbcTemplate jdbc;
   private final List<String> groups = new ArrayList<>();
   private final List<String> roles = new ArrayList<>();
@@ -27,6 +30,7 @@ public class ContractRightsFixture {
   private final List<String[]> rows = new ArrayList<>();
 
   public ContractRightsFixture(DataSource dataSource) {
+    this.dataSource = dataSource;
     this.jdbc = new JdbcTemplate(dataSource);
   }
 
@@ -46,20 +50,31 @@ public class ContractRightsFixture {
     if (!capabilities.isEmpty()) {
       String roleId = "rights-role-" + UUID.randomUUID();
       roles.add(roleId);
-      jdbc.update(
-          "INSERT INTO roles (role_id, role_name, tenant_id) VALUES (?, ?, ?)",
-          roleId,
-          roleId,
-          tenantId);
-      capabilities.forEach(
-          capability ->
-              jdbc.update(
-                  "INSERT INTO roles_capabilities (role_id, capability) VALUES (?, ?)",
-                  roleId,
-                  capability.name()));
+      // A platform role and its capabilities are written in a platform-write transaction only
+      if (tenantId == null) {
+        inPlatformWriteTransaction(
+            dataSource, writer -> insertRole(writer, roleId, tenantId, capabilities));
+      } else {
+        insertRole(jdbc, roleId, tenantId, capabilities);
+      }
       jdbc.update("INSERT INTO groups_roles (role_id, group_id) VALUES (?, ?)", roleId, groupId);
     }
     return groupId;
+  }
+
+  private static void insertRole(
+      JdbcTemplate writer, String roleId, String tenantId, Set<Capability> capabilities) {
+    writer.update(
+        "INSERT INTO roles (role_id, role_name, tenant_id) VALUES (?, ?, ?)",
+        roleId,
+        roleId,
+        tenantId);
+    capabilities.forEach(
+        capability ->
+            writer.update(
+                "INSERT INTO roles_capabilities (role_id, capability) VALUES (?, ?)",
+                roleId,
+                capability.name()));
   }
 
   /** An OBSERVER grant on a threat arsenal resource (a contract id or a payload identity). */
@@ -224,8 +239,12 @@ public class ContractRightsFixture {
       jdbc.update("DELETE FROM groups WHERE group_id = ?", groupId);
     }
     for (String roleId : roles) {
-      jdbc.update("DELETE FROM roles_capabilities WHERE role_id = ?", roleId);
-      jdbc.update("DELETE FROM roles WHERE role_id = ?", roleId);
+      inPlatformWriteTransaction(
+          dataSource,
+          writer -> {
+            writer.update("DELETE FROM roles_capabilities WHERE role_id = ?", roleId);
+            writer.update("DELETE FROM roles WHERE role_id = ?", roleId);
+          });
     }
     for (String otherUserId : users) {
       jdbc.update("DELETE FROM users WHERE user_id = ?", otherUserId);

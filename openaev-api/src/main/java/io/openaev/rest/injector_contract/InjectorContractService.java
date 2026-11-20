@@ -54,9 +54,11 @@ import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.threat_arsenal.ProvidingFilterSpecificationBuilder;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TriVoid;
 import io.openaev.utils.TxCtxScopeUtils;
+import io.openaev.utils.author.AuthorJoins;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -119,6 +121,7 @@ public class InjectorContractService implements DependenciesManager {
   private final StepRepository stepRepository;
   private final ChainingStepCleanupService chainingStepCleanupService;
   private final WorkflowOwnerScope workflowOwnerScope;
+  private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
 
   /**
    * Built-in contracts whose injectors start with the platform through an autostart instance, so
@@ -165,6 +168,13 @@ public class InjectorContractService implements DependenciesManager {
         .findByIdOrExternalId(id, id)
         // User-facing wording: the entity is exposed as "threat arsenal item" everywhere.
         .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
+  }
+
+  /** The contracts running these payload versions in the tenant, by payload id. */
+  public Map<String, InjectorContract> injectorContractsOfPayloads(
+      @NotBlank final String tenantId, final Collection<String> payloadIds) {
+    return injectorContractRepository.findAllByTenantIdAndPayloadIdIn(tenantId, payloadIds).stream()
+        .collect(Collectors.toMap(contract -> contract.getPayload().getId(), Function.identity()));
   }
 
   /**
@@ -243,7 +253,8 @@ public class InjectorContractService implements DependenciesManager {
       @Nullable final Specification<InjectorContract> specification,
       @Nullable final Specification<InjectorContract> specificationCount,
       @NotNull final Pageable pageable,
-      @NotNull TriVoid<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector) {
+      @NotNull TriVoid<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector,
+      boolean byPrimaryDomain) {
     CriteriaBuilder cb = this.entityManager.getCriteriaBuilder();
 
     CriteriaQuery<Tuple> cq = cb.createTupleQuery();
@@ -272,7 +283,11 @@ public class InjectorContractService implements DependenciesManager {
     }
 
     // -- Sorting --
-    List<Order> orders = toSortCriteriaBuilder(cb, injectorContractRoot, pageable.getSort());
+    List<Order> orders = new ArrayList<>();
+    if (byPrimaryDomain) {
+      orders.add(cb.asc(primaryDomainName(cb, cq, injectorContractRoot)));
+    }
+    orders.addAll(toSortCriteriaBuilder(cb, injectorContractRoot, pageable.getSort()));
     cq.orderBy(orders);
 
     // Type Query
@@ -291,6 +306,17 @@ public class InjectorContractService implements DependenciesManager {
     qs.setQuery(query);
     qs.setTotal(total);
     return qs;
+  }
+
+  /** First domain name in alphabetical order, "To classify" left out: the section of the action. */
+  private static Expression<String> primaryDomainName(
+      CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<InjectorContract> root) {
+    Subquery<String> subquery = cq.subquery(String.class);
+    Root<InjectorContract> correlated = subquery.correlate(root);
+    Join<InjectorContract, Domain> domain = correlated.join("domains");
+    return subquery
+        .select(cb.least(domain.<String>get("name")))
+        .where(cb.notEqual(domain.get("name"), DomainService.TO_CLASSIFY));
   }
 
   public Iterable<RawInjectorsContracts> getAllRawInjectContracts() {
@@ -315,6 +341,11 @@ public class InjectorContractService implements DependenciesManager {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setCustom(true);
     injectorContract.setUpdateAttributes(input);
+
+    // Resolve the injector specified in the input: its tenant is the tenant of the contract, in
+    // which the attack patterns named by the input resolve.
+    Injector injector = injectorService.injector(input.getInjectorId());
+
     List<AttackPattern> aps = new ArrayList<>();
     if (!input.getAttackPatternsExternalIds().isEmpty()) {
       aps =
@@ -323,14 +354,11 @@ public class InjectorContractService implements DependenciesManager {
     } else if (!input.getAttackPatternsIds().isEmpty()) {
       aps =
           attackPatternService.findAllByInternalIdsThrowIfMissing(
-              new HashSet<>(input.getAttackPatternsIds()));
+              new HashSet<>(input.getAttackPatternsIds()), injector.getTenantId());
     }
     injectorContract.setAttackPatterns(aps);
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
-
-    // Resolve the injector specified in the input
-    Injector injector = injectorService.injector(input.getInjectorId());
 
     // Link the contract to the specified injector only.
     // Custom contracts are user-defined for a specific instance —
@@ -452,7 +480,7 @@ public class InjectorContractService implements DependenciesManager {
     injectorContract.setUpdateAttributes(input);
     injectorContract.setAttackPatterns(
         attackPatternService.findAllByInternalIdsThrowIfMissing(
-            new HashSet<>(input.getAttackPatternsIds())));
+            new HashSet<>(input.getAttackPatternsIds()), injectorContract.getTenant().getId()));
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
     // The domains live in the contract's tenant: the ambient one is the default tenant on the
@@ -573,13 +601,15 @@ public class InjectorContractService implements DependenciesManager {
     // Callers converting threat arsenal action inputs can carry null id collections
     // (the action DTO fields are nullable); treat an absent collection as "no associations"
     // instead of failing on new HashSet<>(null) / findAllById(null).
+    String tenantId = injectorContract.getTenant().getId();
     injectorContract.setAttackPatterns(
         attackPatternService.findAllByInternalIdsThrowIfMissing(
-            new HashSet<>(emptyIfNull(input.getAttackPatternsIds()))));
+            new HashSet<>(emptyIfNull(input.getAttackPatternsIds())), tenantId));
     injectorContract.setTags(
-        iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds()))));
+        iterableToSet(tagRepository.findAllByIdInTenant(emptyIfNull(input.getTagIds()), tenantId)));
     injectorContract.setDomains(
-        iterableToSet(domainService.findAllById(emptyIfNull(input.getDomainIds()))));
+        iterableToSet(
+            domainService.findAllByIdInTenant(emptyIfNull(input.getDomainIds()), tenantId)));
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
   }
@@ -757,7 +787,8 @@ public class InjectorContractService implements DependenciesManager {
       Pageable pageable,
       OutputMode mode,
       List<String> idsToIgnore,
-      List<String> idsToProcess) {
+      List<String> idsToProcess,
+      boolean byPrimaryDomain) {
     OutputMode safeMode = (mode == null) ? OutputMode.FULL : mode;
     OutputModeConfig config = CONFIGS.get(safeMode);
     specification = specification.and(withLatestInstalledPayload());
@@ -781,7 +812,8 @@ public class InjectorContractService implements DependenciesManager {
                       .in(idsToProcess));
     }
 
-    QuerySetup qs = setupQuery(specification, specificationCount, pageable, config.selector());
+    QuerySetup qs =
+        setupQuery(specification, specificationCount, pageable, config.selector(), byPrimaryDomain);
 
     List<? extends InjectorContractBaseOutput> results =
         qs.query.getResultList().stream().map(config.mapper()).toList();
@@ -791,6 +823,7 @@ public class InjectorContractService implements DependenciesManager {
 
   private record InjectorContractQueryContext(
       Join<InjectorContract, Payload> payloadJoin,
+      Join<Payload, ?> payloadIdentityJoin,
       Join<?, CollectorType> payloadCollectorTypeJoin,
       Join<?, Injector> injectorJoin,
       Expression<String[]> injectorIdsExpression,
@@ -802,8 +835,9 @@ public class InjectorContractService implements DependenciesManager {
   private InjectorContractQueryContext buildCommonInjectorContractContext(
       CriteriaBuilder cb, Root<InjectorContract> injectorContractRoot) {
     Join<InjectorContract, Payload> payloadJoin = createLeftJoin(injectorContractRoot, "payload");
+    Join<Payload, ?> payloadIdentityJoin = payloadJoin.join("identity", JoinType.LEFT);
     Join<?, CollectorType> payloadCollectorTypeJoin =
-        payloadJoin.join("identity", JoinType.LEFT).join("collectorType", JoinType.LEFT);
+        payloadIdentityJoin.join("collectorType", JoinType.LEFT);
     Join<?, Injector> injectorContractInjectorJoin =
         injectorContractRoot.join("injectorLinks", JoinType.LEFT).join("injector", JoinType.LEFT);
 
@@ -830,6 +864,7 @@ public class InjectorContractService implements DependenciesManager {
 
     return new InjectorContractQueryContext(
         payloadJoin,
+        payloadIdentityJoin,
         payloadCollectorTypeJoin,
         injectorContractInjectorJoin,
         injectorIdsExpression,
@@ -965,22 +1000,6 @@ public class InjectorContractService implements DependenciesManager {
    * when both are set and non-blank, the email otherwise. Evaluates to NULL when the (left-joined)
    * user is absent, so outer coalesces fall through to the next author kind.
    */
-  private Expression<String> userAuthorDisplayName(
-      @NotNull final CriteriaBuilder cb, @NotNull final Join<?, User> userJoin) {
-    Expression<String> firstname = userJoin.get("firstname");
-    Expression<String> lastname = userJoin.get("lastname");
-    Predicate hasFullName =
-        cb.and(
-            cb.isNotNull(firstname),
-            cb.notEqual(cb.trim(firstname), ""),
-            cb.isNotNull(lastname),
-            cb.notEqual(cb.trim(lastname), ""));
-    Expression<String> fullName = cb.concat(cb.concat(firstname, " "), lastname);
-    return cb.<String>selectCase()
-        .when(hasFullName, fullName)
-        .otherwise(userJoin.<String>get("email"));
-  }
-
   private void selectForInjectorContractThreatArsenal(
       @NotNull final CriteriaBuilder cb,
       @NotNull final CriteriaQuery<Tuple> cq,
@@ -1009,9 +1028,9 @@ public class InjectorContractService implements DependenciesManager {
             .value(authorOrgJoin.get("id"));
     Expression<String> authorName =
         cb.<String>coalesce()
-            .value(userAuthorDisplayName(cb, cAuthorUserJoin))
+            .value(AuthorJoins.userName(cb, cAuthorUserJoin))
             .value(cAuthorOrgJoin.get("name"))
-            .value(userAuthorDisplayName(cb, authorUserJoin))
+            .value(AuthorJoins.userName(cb, authorUserJoin))
             .value(authorOrgJoin.get("name"));
     Expression<String> authorType =
         cb.<String>selectCase()
@@ -1034,6 +1053,9 @@ public class InjectorContractService implements DependenciesManager {
         ctx.injectorContractDomainsIdsExpression().alias("injector_contract_domains"),
         ctx.payloadJoin().get("status").alias("payload_status"),
         ctx.payloadJoin().get("id").alias("payload_id"),
+        ctx.payloadJoin().get("version").alias("payload_version"),
+        ctx.payloadIdentityJoin().get("repository").alias("payload_repository"),
+        ctx.payloadJoin().get("revoked").alias("payload_revoked"),
         ctx.attackPatternIdsExpression().alias("injector_contract_attack_patterns"),
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
         authorId.alias("injector_contract_payload_author"),
@@ -1044,6 +1066,8 @@ public class InjectorContractService implements DependenciesManager {
 
     List<Expression<?>> groupBy = new ArrayList<>(getCommonGroupBy(injectorContractRoot, ctx));
     groupBy.add(payloadIdentityId);
+    groupBy.add(ctx.payloadJoin().get("version"));
+    groupBy.add(ctx.payloadIdentityJoin().get("repository"));
     groupBy.add(cAuthorUserJoin.get("id"));
     groupBy.add(cAuthorUserJoin.get("email"));
     groupBy.add(cAuthorUserJoin.get("firstname"));
@@ -1104,6 +1128,9 @@ public class InjectorContractService implements DependenciesManager {
         tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
         dedupePreservingOrder(tuple.get("injector_contract_tags", String[].class)),
         payload,
+        tuple.get("payload_version", String.class),
+        payloadId != null ? tuple.get("payload_repository", String.class) != null : null,
+        payloadId != null ? tuple.get("payload_revoked", Boolean.class) : null,
         dedupePreservingOrder(tuple.get("injector_contract_attack_patterns", String[].class)),
         tuple.get("injector_contract_payload_author", String.class),
         tuple.get("injector_contract_payload_author_name", String.class),
@@ -1182,8 +1209,26 @@ public class InjectorContractService implements DependenciesManager {
    * access control, exactly like the search route.
    */
   private Specification<InjectorContract> facetBaseSpec(SearchPaginationInput input) {
-    Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
+    // The providing filter is matched by its dedicated builder, as on the search route. The
+    // builder strips it from the filter group it reads, so it reads a copy: the facet endpoints
+    // call this method several times on the same input.
+    SearchPaginationInput copy = new SearchPaginationInput();
+    copy.setTextSearch(input.getTextSearch());
+    if (input.getFilterGroup() != null) {
+      Filters.FilterGroup group = new Filters.FilterGroup();
+      group.setMode(input.getFilterGroup().getMode());
+      group.setFilters(
+          input.getFilterGroup().getFilters() == null
+              ? null
+              : new ArrayList<>(input.getFilterGroup().getFilters()));
+      copy.setFilterGroup(group);
+    }
+    ProvidingFilterSpecificationBuilder.ProvidingFilterContext providing =
+        providingFilterSpecificationBuilder.extractProvidingFilter(copy);
     Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
+    Specification<InjectorContract> filterSpec =
+        providingFilterSpecificationBuilder.combine(
+            computeFilterGroupJpa(providing.searchInput().getFilterGroup()), providing, searchSpec);
     Specification<InjectorContract> visible =
         InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
     Specification<InjectorContract> accessSpec =
@@ -1253,9 +1298,9 @@ public class InjectorContractService implements DependenciesManager {
             .value(pAuthorOrgJoin.get("id"));
     Expression<String> authorName =
         cb.<String>coalesce()
-            .value(userAuthorDisplayName(cb, cAuthorUserJoin))
+            .value(AuthorJoins.userName(cb, cAuthorUserJoin))
             .value(cAuthorOrgJoin.get("name"))
-            .value(userAuthorDisplayName(cb, pAuthorUserJoin))
+            .value(AuthorJoins.userName(cb, pAuthorUserJoin))
             .value(pAuthorOrgJoin.get("name"));
     Expression<String> authorType =
         cb.<String>selectCase()

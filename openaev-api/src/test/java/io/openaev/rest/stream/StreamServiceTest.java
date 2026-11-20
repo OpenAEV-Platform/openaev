@@ -100,7 +100,7 @@ public class StreamServiceTest {
     // mock consumer
     OpenAEVPrincipal mockPrincipal = mock(OpenAEVPrincipal.class);
     when(mockPrincipal.getId()).thenReturn(USER_ID);
-    when(userService.user(USER_ID)).thenReturn(mockUser);
+    when(userService.userWithRoles(USER_ID)).thenReturn(mockUser);
 
     // mock objectmapper using reflection
     Field mapperField = StreamService.class.getDeclaredField("mapper");
@@ -182,7 +182,7 @@ public class StreamServiceTest {
   private FluxSink<Object> registerSecondConsumer(User user) throws Exception {
     OpenAEVPrincipal principal = mock(OpenAEVPrincipal.class);
     when(principal.getId()).thenReturn(OTHER_USER_ID);
-    when(userService.user(OTHER_USER_ID)).thenReturn(user);
+    when(userService.userWithRoles(OTHER_USER_ID)).thenReturn(user);
     FluxSink<Object> sink = mock(FluxSink.class);
     @SuppressWarnings("unchecked")
     Map<String, Object> consumers =
@@ -577,7 +577,7 @@ public class StreamServiceTest {
     Agent agent = restrictedAgent();
     stubRead(mockUser, agent, true);
     stubRead(otherUser, agent, true);
-    when(userService.user(defaultConsumerFails ? USER_ID : OTHER_USER_ID))
+    when(userService.userWithRoles(defaultConsumerFails ? USER_ID : OTHER_USER_ID))
         .thenThrow(new ElementNotFoundException("User not found"));
     FluxSink<Object> failingSink = defaultConsumerFails ? mockSink : otherSink;
     FluxSink<Object> healthySink = defaultConsumerFails ? otherSink : mockSink;
@@ -597,7 +597,7 @@ public class StreamServiceTest {
     User privilegedUser = mock(User.class);
     OpenAEVPrincipal privilegedPrincipal = mock(OpenAEVPrincipal.class);
     when(privilegedPrincipal.getId()).thenReturn("privileged-user");
-    when(userService.user("privileged-user")).thenReturn(privilegedUser);
+    when(userService.userWithRoles("privileged-user")).thenReturn(privilegedUser);
     FluxSink<Object> privilegedSink = mock(FluxSink.class);
     @SuppressWarnings("unchecked")
     Map<String, Object> consumers =

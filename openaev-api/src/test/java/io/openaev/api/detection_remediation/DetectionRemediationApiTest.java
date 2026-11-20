@@ -888,6 +888,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   }
 
   @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName(
       "Generate AI rules detection remediation for CrowdStrike using an inject of type command with detection remediation without content")
   public void
@@ -922,6 +923,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   }
 
   @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName(
       "Generate AI rules detection remediation  for CrowdStrike using an inject id of type command")
   public void
@@ -987,6 +989,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   }
 
   @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName(
       "Generate AI rules detection remediation  for Splunk using an inject id of type command")
   public void getDetectionRemediationRuleBasedOnInjectCommandSplunkWithoutDetectionRemediation()
@@ -1034,6 +1037,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   }
 
   @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName(
       "Generate AI rules detection remediation  for CrowdStrike using an inject id of type DnsResolution")
   public void
@@ -1100,6 +1104,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   }
 
   @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName(
       "Generate AI rules detection remediation  for Splunk using an inject id of type DnsResolution")
   public void

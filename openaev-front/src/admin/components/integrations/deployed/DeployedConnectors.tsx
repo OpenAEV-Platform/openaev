@@ -1,14 +1,11 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Typography } from '@mui/material';
+import { Chip } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
-import moment from 'moment-timezone';
 import { type SyntheticEvent, useMemo, useState } from 'react';
 
 import { type CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
 import { type SecretsProviderHelper } from '../../../../actions/secrets_providers/secrets-provider-helper';
-import { FDS } from '../../../../components/fds-tokens.generated';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import type {
@@ -34,7 +31,6 @@ import {
   isSupportedByFiligran,
   secretsProviderConfig,
 } from '../common/ConnectorContext';
-import ConnectorStatus from '../common/ConnectorStatus';
 import MigrateButton from '../common/MigrateButton';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 
@@ -81,6 +77,12 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     const catalogById = new Map(catalogConnectors.map(connector => [connector.catalog_connector_id, connector]));
     const allItems: ConnectorItem[] = [];
     const meta = new Map<string, DeployedMeta>();
+    const lastSeenLabel = (connector: ConnectorOutput) => {
+      const { lastSeen, builtIn } = computeConnectorLiveliness(connector);
+      // Short enough for the card: the detail page keeps the full "Runs inside the platform".
+      if (builtIn) return t('Always on');
+      return lastSeen ? nsdt(lastSeen) : t('Never updated');
+    };
 
     const append = <T,>(
       rawConnectors: T[],
@@ -126,6 +128,9 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
           external: connector.isExternal === true,
           deployedCount: connector.connectorInstance ? 1 : 0,
           logoSrc,
+          version: catalogMatch?.catalog_connector_container_version,
+          lastVerifiedAt: catalogMatch?.catalog_connector_last_verified_date,
+          lastSeen: lastSeenLabel(connector),
           detailUrl: clickable ? config.routes.detail(connector.id) : undefined,
         });
         meta.set(connector.id, {
@@ -176,10 +181,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     setOpenMigrateDrawer(true);
   };
 
-  // Uniform status on every card: a glowing health disk (green = started and
-  // heartbeat within the 2-minute threshold, red otherwise), the last-seen
-  // date in standard color, and a compact Started / Stopped chip.
-  const renderFooterAction = (item: ConnectorItem) => {
+  const renderAction = (item: ConnectorItem) => {
     const deployed = metaById.get(item.id);
     if (!deployed) return null;
     const { connector } = deployed;
@@ -190,15 +192,12 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     // no-op click.
     const canMigrate = connector.isExternal && connector.connectorInstance == null
       && isXtmComposerUp && deployed.catalogConnector != null;
-    const { started, lastSeen, healthy, builtIn } = computeConnectorLiveliness(connector);
-    const diskColor = healthy ? theme.palette.success.main : theme.palette.error.main;
-    let diskTooltip: string;
-    if (builtIn) {
-      diskTooltip = t('Runs inside the platform');
-    } else if (lastSeen) {
-      diskTooltip = `${t('Last Seen')}: ${nsdt(lastSeen)}`;
-    } else {
-      diskTooltip = t('Never updated');
+    const { started, healthy, builtIn } = computeConnectorLiveliness(connector);
+    let statusChip = <Chip label={t('Stopped')} severity="neutral" />;
+    if (started) {
+      statusChip = builtIn || healthy
+        ? <Chip label={t('Running (connector)')} severity="low" />
+        : <Chip label={t('Not responding')} severity="high" />;
     }
     return (
       <div style={{
@@ -209,43 +208,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
       }}
       >
         {canMigrate && <MigrateButton onMigrateBtnClick={e => onMigrateBtnClick(e, deployed)} />}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing(0.75),
-              minWidth: 0,
-            }}
-            >
-              <span style={{
-                width: 8,
-                height: 8,
-                flexShrink: 0,
-                borderRadius: '50%',
-                backgroundColor: diskColor,
-                boxShadow: `0 0 6px ${diskColor}`,
-              }}
-              />
-              {lastSeen && (
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontSize: FDS.scalars['--text-3'],
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    color: 'text.secondary',
-                  }}
-                >
-                  {moment(lastSeen).fromNow()}
-                </Typography>
-              )}
-            </div>
-          </TooltipTrigger>
-          {diskTooltip && <TooltipContent>{diskTooltip}</TooltipContent>}
-        </Tooltip>
-        <ConnectorStatus variant={started ? 'started' : 'stopped'} />
+        {statusChip}
       </div>
     );
   };
@@ -254,7 +217,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     <>
       <ConnectorMarketplace
         items={items}
-        renderFooterAction={renderFooterAction}
+        renderAction={renderAction}
         searchPlaceholder={`${t('Search deployed integrations')}...`}
       />
       <CreateConnectorInstanceDrawer

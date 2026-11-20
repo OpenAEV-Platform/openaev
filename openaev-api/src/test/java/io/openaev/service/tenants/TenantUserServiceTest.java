@@ -31,6 +31,7 @@ import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,6 +70,9 @@ class TenantUserServiceTest extends IntegrationTest {
   void setUp() {
     tenant = tenantComposer.forTenant(getTenant()).persist().get();
     TenantContext.setCurrentTenant(tenant.getId());
+    // A request addressed to this tenant opens its transaction in the tenant's scope; the test
+    // transaction is already open, so its scope is set here.
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
   }
 
   // -- HELPERS --

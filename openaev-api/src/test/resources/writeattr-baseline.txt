@@ -57,6 +57,22 @@ phishing_landing_pages DEFAULT io.openaev.service.tenants.TenantService.create
 users_tenants OTHER io.openaev.service.tenants.TenantService.create
 domains OTHER io.openaev.service.tenants.TenantService.create
 
+# --- Platform user memberships. A platform administrator (MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES
+# capability, enterprise edition) attaches or detaches a user's tenants from the platform screen;
+# PlatformUserApi is the only caller that writes memberships through these methods. The request
+# scope is the administrator's own memberships, so a users_tenants row for any other tenant is
+# OTHER by the detector's definition and correct by intent: the platform route owns every tenant's
+# membership list, and the row carries only the link, no tenant data. UserService.createUser honours
+# the input's tenants for the platform creation scope only, and UserService.updateUser has no other
+# caller. The service-level signatures come from UserServiceTest, the route signatures from
+# PlatformUserApiTest, whose administrator is a member of the default tenant only. Retired when the
+# detector reads the platform-write marker of the transaction (app.platform_write, which these
+# routes do not set today) and stops reporting a marked platform route's writes as OTHER.
+users_tenants OTHER io.openaev.service.UserService.createUser
+users_tenants OTHER io.openaev.service.UserService.updateUser
+users_tenants OTHER io.openaev.api.platform.users.PlatformUserApi.create
+users_tenants OTHER io.openaev.api.platform.users.PlatformUserApi.update
+
 # --- RETIRED by the documents activation (#7904), confirmed on a re-check
 # (KillChainPhaseImportAttributionTest under the shadow arguments produces neither the write-attribution
 # nor the fail-closed violation any more). The nine lines that used to sit here (scenarios, payloads,
@@ -77,7 +93,6 @@ domains OTHER io.openaev.service.tenants.TenantService.create
 #   groups TenantGroupApi.createGroup              -> activation of groups (#6433)
 #   injectors_contracts and its attack-pattern link rows,
 #     InjectorContractApi.updateInjectorContract    -> activation of injectors_contracts (#7905)
-#   exercises TenantScopedJobRunner.supplyInTenant   -> activation of exercises (#6434)
 # The detector's own attribution tests drive these paths on purpose (a deferred insert of a merged
 # copy, a composite-key row, a collection's link rows) and move to raw writes when the table
 # activates. The three simulation and scenario creates (ExerciseApi.createExercise,
@@ -85,15 +100,7 @@ domains OTHER io.openaev.service.tenants.TenantService.create
 # group: they take the tenant of the request scope on both routes, so their header-route write is
 # inside the scope and produces no signature. The groups and injectors_contracts lines
 # were invisible before those tests: the same request shapes were waived as test-driven by the
-# attribution holes the tests pin. The
-# TenantScopedJobRunner.supplyInTenant line is the same class through the background primitive
-# instead of the header route: ScenarioToExerciseDocumentAttributionTest runs the conversion under
-# the source tenant's v2 scope on purpose (supplyInTenant(tenantA, ...)), but Exercise is still on
-# v1 @Filter (board.md's "still on v1 @Filter" list), so the new exercise row is stamped by the v1
-# listener from the ambient TenantContext (deliberately a third tenant, to prove the cloned document
-# stays attributed by its own merge-carried tenant rather than by that ambient value) instead of
-# from the v2 scope the primitive set. exercises is not active, so no cross-tenant read exists today.
-exercises OTHER io.openaev.scheduler.TenantScopedJobRunner.supplyInTenant
+# attribution holes the tests pin.
 groups DEFAULT io.openaev.api.groups.TenantGroupApi.createGroup
 injectors_contracts DEFAULT io.openaev.rest.injector_contract.InjectorContractApi.updateInjectorContract
 injectors_contracts_attack_patterns DEFAULT io.openaev.rest.injector_contract.InjectorContractApi.updateInjectorContract

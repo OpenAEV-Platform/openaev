@@ -46,7 +46,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
         met: success,
         total,
       }),
-      measures: t('The posture score is the share of security validations (prevention, detection, vulnerability and manual expectations) this security platform met. It runs from 0 to 100 and, unlike the home exposure score, a HIGHER number is BETTER - it means this platform stops more of what it is tested against.'),
+      measures: t('The posture score is the share of security validations (prevention, detection, logging, vulnerability and manual expectations) this security platform met. It runs from 0 to 100 and, unlike the home exposure score, a HIGHER number is BETTER - it means this platform stops more of what it is tested against.'),
     };
   } else if (scope === 'asset-group') {
     strings = {
@@ -58,7 +58,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
         met: success,
         total,
       }),
-      measures: t('The posture score is the share of security validations (prevention, detection, vulnerability and manual expectations) the defenses of the assets in this group met. It runs from 0 to 100 and, unlike the home exposure score, a HIGHER number is BETTER - it means this group is better defended.'),
+      measures: t('The posture score is the share of security validations (prevention, detection, logging, vulnerability and manual expectations) the defenses of the assets in this group met. It runs from 0 to 100 and, unlike the home exposure score, a HIGHER number is BETTER - it means this group is better defended.'),
     };
   } else {
     strings = {
@@ -70,7 +70,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
         met: success,
         total,
       }),
-      measures: t('The posture score is the share of security validations (prevention, detection, vulnerability and manual expectations) the defenses of this asset met. It runs from 0 to 100 and, unlike the home exposure score, a HIGHER number is BETTER - it means this asset is better defended.'),
+      measures: t('The posture score is the share of security validations (prevention, detection, logging, vulnerability and manual expectations) the defenses of this asset met. It runs from 0 to 100 and, unlike the home exposure score, a HIGHER number is BETTER - it means this asset is better defended.'),
     };
   }
 

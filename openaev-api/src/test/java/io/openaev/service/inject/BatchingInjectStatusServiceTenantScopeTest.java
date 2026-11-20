@@ -3,7 +3,10 @@ package io.openaev.service.inject;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
@@ -29,6 +32,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * #6357: end-to-end proof that a cross-tenant batch of inject-execution callbacks is processed with
@@ -47,6 +52,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 @DisplayName("batched callbacks are processed under each inject's own tenant (#6357)")
 class BatchingInjectStatusServiceTenantScopeTest extends IntegrationTest {
 
+  // The test classpath declares no active table: the owner lookup and the per-tenant scope only
+  // matter once the statement inspector rewrites the reads, so the production list is armed.
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
+
   @Autowired private BatchingInjectStatusService service;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private InjectComposer injectComposer;
@@ -56,6 +69,7 @@ class BatchingInjectStatusServiceTenantScopeTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private EntityManager entityManager;
   @Autowired private RowTenantScope rowTenantScope;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   private String tenantA;
   private String tenantB;
@@ -89,16 +103,19 @@ class BatchingInjectStatusServiceTenantScopeTest extends IntegrationTest {
         .containsExactlyInAnyOrder(injectA, injectB);
 
     entityManager.clear();
-    assertThat(statusOf(injectA)).isNotEqualTo(ExecutionStatus.PENDING);
-    assertThat(statusOf(injectB)).isNotEqualTo(ExecutionStatus.PENDING);
+    assertThat(statusOf(tenantA, injectA)).isNotEqualTo(ExecutionStatus.PENDING);
+    assertThat(statusOf(tenantB, injectB)).isNotEqualTo(ExecutionStatus.PENDING);
   }
 
-  private ExecutionStatus statusOf(String injectId) {
-    return injectRepository
-        .findById(injectId)
-        .flatMap(Inject::getStatus)
-        .map(InjectStatus::getName)
-        .orElseThrow();
+  private ExecutionStatus statusOf(String tenantId, String injectId) {
+    return tenantTx.execute(
+        TxCtx.forTenant(tenantId),
+        () ->
+            injectRepository
+                .findById(injectId)
+                .flatMap(Inject::getStatus)
+                .map(InjectStatus::getName)
+                .orElseThrow());
   }
 
   private String seedPendingInject(String tenantId) {
