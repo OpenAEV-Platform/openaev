@@ -7,6 +7,7 @@ import ImportReportDialog from '../../../../components/common/import/ImportRepor
 import ImportUploader from '../../../../components/common/ImportUploader';
 import { useFormatter } from '../../../../components/i18n';
 import { type ImportReport } from '../../../../utils/api-types';
+import markingDefinitionImportMessage from './marking-definition-import-message';
 
 interface Props { onImported: () => void }
 
@@ -74,6 +75,7 @@ const MarkingDefinitionImport: FunctionComponent<Props> = ({ onImported }) => {
           CONFLICT: 'medium',
           INSUFFICIENT_ACCESS: 'medium',
         }}
+        rowMessage={row => markingDefinitionImportMessage(t, row)}
         downloadFileName="MarkingDefinitionsSkipped.csv"
       />
     </>

@@ -18,7 +18,7 @@ public final class ImportReportMapper {
             .map(
                 row ->
                     new ImportReportRow(
-                        row.position(), row.status(), row.reason(), row.message(), row.values()))
+                        row.position(), row.status(), row.reason(), row.params(), row.values()))
             .toList());
   }
 }

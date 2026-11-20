@@ -28,6 +28,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
+import io.openaev.rest.exception.MarkingAboveClearanceException;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.MarkingDefinitionFixture;
@@ -1049,7 +1050,8 @@ class MarkingDefinitionApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(input("TLP", "TLP:ABOVE-CLEARANCE", 63)))
                   .with(csrf()))
-          .andExpect(status().isForbidden());
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value(MarkingAboveClearanceException.CODE));
 
       // Assert
       assertThat(
@@ -1408,10 +1410,14 @@ class MarkingDefinitionApiTest extends IntegrationTest {
           .andExpect(jsonPath("$.import_ignored").value(1))
           .andExpect(jsonPath("$.import_columns[0]").value("type"))
           .andExpect(jsonPath("$.import_rows[0].import_row_status").value("CREATED"))
+          .andExpect(jsonPath("$.import_rows[0].import_row_params").isEmpty())
           .andExpect(jsonPath("$.import_rows[1].import_row_position").value(2))
           .andExpect(jsonPath("$.import_rows[1].import_row_reason").value("INVALID_COLOR"))
           .andExpect(jsonPath("$.import_rows[1].import_row_values.color").value("not-a-colour"))
           .andExpect(jsonPath("$.import_rows[2].import_row_reason").value("CONFLICT"))
+          .andExpect(jsonPath("$.import_rows[2].import_row_params.color").value("#999999"))
+          .andExpect(jsonPath("$.import_rows[2].import_row_params.known_color").value("#123456"))
+          .andExpect(jsonPath("$.import_rows[2].import_row_message").doesNotExist())
           .andExpect(jsonPath("$.import_rows[3].import_row_status").value("IGNORED"))
           .andExpect(jsonPath("$.import_rows[4].import_row_reason").value("INSUFFICIENT_ACCESS"))
           .andExpect(jsonPath("$..tenant_id").doesNotExist());

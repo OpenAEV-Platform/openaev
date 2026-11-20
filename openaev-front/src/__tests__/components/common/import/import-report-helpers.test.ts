@@ -13,6 +13,7 @@ const report: ImportReport = {
     {
       import_row_position: 1,
       import_row_status: 'CREATED',
+      import_row_params: {},
       import_row_values: {
         name: 'ok',
         url: 'https://a.test',
@@ -22,7 +23,7 @@ const report: ImportReport = {
       import_row_position: 2,
       import_row_status: 'SKIPPED',
       import_row_reason: 'BAD_URL',
-      import_row_message: 'Not a URL.',
+      import_row_params: {},
       import_row_values: {
         name: 'broken',
         url: 'nope',
@@ -31,6 +32,7 @@ const report: ImportReport = {
     {
       import_row_position: 3,
       import_row_status: 'IGNORED',
+      import_row_params: {},
       import_row_values: {
         name: 'same',
         url: 'https://b.test',
@@ -40,7 +42,7 @@ const report: ImportReport = {
       import_row_position: 4,
       import_row_status: 'SKIPPED',
       import_row_reason: 'MISSING',
-      import_row_message: 'Missing url.',
+      import_row_params: {},
       import_row_values: {
         name: '=SUM(A1)',
         url: '',
@@ -54,6 +56,7 @@ const withRow = (values: Record<string, string>): ImportReport => ({
   import_rows: [{
     import_row_position: 1,
     import_row_status: 'SKIPPED',
+    import_row_params: {},
     import_row_values: values,
   }],
 });

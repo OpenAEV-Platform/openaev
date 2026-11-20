@@ -1,5 +1,12 @@
 package io.openaev.service.marking_definition;
 
+import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_COLOR;
+import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_EARLIER_ROW;
+import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_HIGHEST_ORDER;
+import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_KNOWN_COLOR;
+import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_KNOWN_ORDER;
+import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_MAX_LENGTH;
+import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_ORDER;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createDefaultMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.toInput;
@@ -587,10 +594,10 @@ class MarkingDefinitionServiceTest {
   }
 
   private static void assertSkipped(
-      ImportResultRow row, MarkingDefinitionImportRowReason reason, String message) {
+      ImportResultRow row, MarkingDefinitionImportRowReason reason, Map<String, String> params) {
     assertEquals(ImportRowStatus.SKIPPED, row.status());
     assertEquals(reason.name(), row.reason());
-    assertEquals(message, row.message());
+    assertEquals(params, row.params());
   }
 
   @Nested
@@ -752,10 +759,7 @@ class MarkingDefinitionServiceTest {
         ImportResult result = importAs(USER_ID, row(1, type, definition, color, order));
 
         // Assert
-        assertSkipped(
-            at(result, 1),
-            MarkingDefinitionImportRowReason.MISSING_FIELD,
-            "A value is missing: type, definition, color and order are all required");
+        assertSkipped(at(result, 1), MarkingDefinitionImportRowReason.MISSING_FIELD, Map.of());
       }
 
       @Test
@@ -774,9 +778,9 @@ class MarkingDefinitionServiceTest {
                 row(2, tooLong, "TLP:OK", "#ffffff", "1"));
 
         // Assert
-        String message = "The type and the definition must have 255 characters at most";
-        assertSkipped(at(result, 1), MarkingDefinitionImportRowReason.VALUE_TOO_LONG, message);
-        assertSkipped(at(result, 2), MarkingDefinitionImportRowReason.VALUE_TOO_LONG, message);
+        Map<String, String> params = Map.of(PARAM_MAX_LENGTH, "255");
+        assertSkipped(at(result, 1), MarkingDefinitionImportRowReason.VALUE_TOO_LONG, params);
+        assertSkipped(at(result, 2), MarkingDefinitionImportRowReason.VALUE_TOO_LONG, params);
         verify(repository, never()).saveAll(any());
       }
 
@@ -792,10 +796,7 @@ class MarkingDefinitionServiceTest {
         ImportResult result = importAs(USER_ID, row(1, "TLP", "TLP:X", color, "1"));
 
         // Assert
-        assertSkipped(
-            at(result, 1),
-            MarkingDefinitionImportRowReason.INVALID_COLOR,
-            "The color must be a hex value such as #4CAF50");
+        assertSkipped(at(result, 1), MarkingDefinitionImportRowReason.INVALID_COLOR, Map.of());
       }
 
       @ParameterizedTest(name = "{0}")
@@ -810,10 +811,7 @@ class MarkingDefinitionServiceTest {
         ImportResult result = importAs(USER_ID, row(1, "TLP", "TLP:X", "#ffffff", order));
 
         // Assert
-        assertSkipped(
-            at(result, 1),
-            MarkingDefinitionImportRowReason.INVALID_ORDER,
-            "The order must be a whole number, 0 or more");
+        assertSkipped(at(result, 1), MarkingDefinitionImportRowReason.INVALID_ORDER, Map.of());
       }
     }
 
@@ -822,8 +820,8 @@ class MarkingDefinitionServiceTest {
     class SameKey {
 
       @Test
-      @DisplayName("given_anExistingMarkingWithAnotherColor_should_conflictNamingTheColors")
-      void given_anExistingMarkingWithAnotherColor_should_conflictNamingTheColors() {
+      @DisplayName("given_anExistingMarkingWithAnotherColor_should_conflictWithTheColors")
+      void given_anExistingMarkingWithAnotherColor_should_conflictWithTheColors() {
         // Arrange
         tenantHas(tlpAmber);
         callerHolds("amber");
@@ -835,13 +833,12 @@ class MarkingDefinitionServiceTest {
         assertSkipped(
             at(result, 1),
             MarkingDefinitionImportRowReason.CONFLICT,
-            "Conflicts with an existing marking: color differs (this row #ff0000, the existing"
-                + " marking has #ffc107)");
+            Map.of(PARAM_COLOR, "#ff0000", PARAM_KNOWN_COLOR, "#ffc107"));
       }
 
       @Test
-      @DisplayName("given_anExistingMarkingWithAnotherOrder_should_conflictNamingTheOrders")
-      void given_anExistingMarkingWithAnotherOrder_should_conflictNamingTheOrders() {
+      @DisplayName("given_anExistingMarkingWithAnotherOrder_should_conflictWithTheOrders")
+      void given_anExistingMarkingWithAnotherOrder_should_conflictWithTheOrders() {
         // Arrange
         tenantHas(tlpAmber);
         callerHolds("amber");
@@ -853,13 +850,12 @@ class MarkingDefinitionServiceTest {
         assertSkipped(
             at(result, 1),
             MarkingDefinitionImportRowReason.CONFLICT,
-            "Conflicts with an existing marking: order differs (this row 9, the existing marking"
-                + " has 3)");
+            Map.of(PARAM_ORDER, "9", PARAM_KNOWN_ORDER, "3"));
       }
 
       @Test
-      @DisplayName("given_aProtectedMarkingWithBothDifferent_should_conflictNamingBoth")
-      void given_aProtectedMarkingWithBothDifferent_should_conflictNamingBoth() {
+      @DisplayName("given_aProtectedMarkingWithBothDifferent_should_conflictWithBoth")
+      void given_aProtectedMarkingWithBothDifferent_should_conflictWithBoth() {
         // Arrange
         MarkingDefinition protectedAmber = marking("p", "TLP", "TLP:AMBER", 3, "#ffc107");
         protectedAmber.setProtectedDefinition(true);
@@ -873,16 +869,18 @@ class MarkingDefinitionServiceTest {
         assertSkipped(
             at(result, 1),
             MarkingDefinitionImportRowReason.CONFLICT,
-            "Conflicts with an existing marking: color differs (this row #00ff00, the existing"
-                + " marking has #ffc107) and order differs (this row 2, the existing marking has"
-                + " 3)");
+            Map.of(
+                PARAM_COLOR, "#00ff00",
+                PARAM_KNOWN_COLOR, "#ffc107",
+                PARAM_ORDER, "2",
+                PARAM_KNOWN_ORDER, "3"));
         verify(repository, never()).save(any(MarkingDefinition.class));
         verify(repository, never()).saveAll(any());
       }
 
       @Test
-      @DisplayName("given_anEarlierRowOfTheFile_should_conflictNamingThatRow")
-      void given_anEarlierRowOfTheFile_should_conflictNamingThatRow() {
+      @DisplayName("given_anEarlierRowOfTheFile_should_conflictWithThatRow")
+      void given_anEarlierRowOfTheFile_should_conflictWithThatRow() {
         // Arrange
         tenantHas(tlpClear);
         callerHolds("clear");
@@ -900,12 +898,11 @@ class MarkingDefinitionServiceTest {
         assertSkipped(
             at(result, 2),
             MarkingDefinitionImportRowReason.CONFLICT,
-            "Conflicts with row 1 of the file: order differs (this row 5, row 1 has 2)");
+            Map.of(PARAM_EARLIER_ROW, "1", PARAM_ORDER, "5", PARAM_KNOWN_ORDER, "2"));
         assertSkipped(
             at(result, 3),
             MarkingDefinitionImportRowReason.CONFLICT,
-            "Conflicts with row 1 of the file: color differs (this row #00ff00, row 1 has"
-                + " #ffc107)");
+            Map.of(PARAM_EARLIER_ROW, "1", PARAM_COLOR, "#00ff00", PARAM_KNOWN_COLOR, "#ffc107"));
       }
 
       @Test
@@ -929,7 +926,7 @@ class MarkingDefinitionServiceTest {
         assertEquals(2, result.ignored());
         assertEquals(ImportRowStatus.IGNORED, at(result, 1).status());
         assertNull(at(result, 1).reason());
-        assertNull(at(result, 1).message());
+        assertTrue(at(result, 1).params().isEmpty());
         assertEquals(ImportRowStatus.IGNORED, at(result, 3).status());
       }
 
@@ -978,7 +975,7 @@ class MarkingDefinitionServiceTest {
         assertSkipped(
             at(result, 3),
             MarkingDefinitionImportRowReason.INSUFFICIENT_ACCESS,
-            "Its order (4) is above the highest order you hold for its type (3)");
+            Map.of(PARAM_ORDER, "4", PARAM_HIGHEST_ORDER, "3"));
       }
 
       @Test
@@ -994,9 +991,7 @@ class MarkingDefinitionServiceTest {
 
         // Assert
         assertSkipped(
-            at(result, 1),
-            MarkingDefinitionImportRowReason.INSUFFICIENT_ACCESS,
-            "You hold no marking of its type");
+            at(result, 1), MarkingDefinitionImportRowReason.INSUFFICIENT_ACCESS, Map.of());
       }
 
       @Test
@@ -1035,9 +1030,7 @@ class MarkingDefinitionServiceTest {
         // Assert
         assertEquals(ImportRowStatus.CREATED, at(result, 1).status());
         assertSkipped(
-            at(result, 2),
-            MarkingDefinitionImportRowReason.INSUFFICIENT_ACCESS,
-            "You hold no marking of its type");
+            at(result, 2), MarkingDefinitionImportRowReason.INSUFFICIENT_ACCESS, Map.of());
         verify(markingClearanceCacheManager, times(1)).findClearance(USER_ID, TENANT_ID);
       }
 

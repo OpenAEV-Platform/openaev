@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.openaev.context.MarkingCtx;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.rest.exception.ForbiddenException;
+import io.openaev.rest.exception.MarkingAboveClearanceException;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -156,7 +157,7 @@ class MarkingEscalationValidatorTest {
               () -> assertCanDefineMarking(heldUpToAmber, MarkingDefinition.TYPE_TLP, 4));
 
       // -- ASSERT --
-      assertTrue(thrown.getMessage().contains("above your own clearance"), thrown.getMessage());
+      assertEquals(MarkingAboveClearanceException.CODE, thrown.getMessage());
     }
 
     @Test

@@ -662,6 +662,14 @@ public class RestBehavior {
     return new ResponseEntity<>(new ErrorMessage(ex.getReason()), HttpStatus.FORBIDDEN);
   }
 
+  // The code the client translates: the default 403 body drops the message of a ForbiddenException.
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  @ExceptionHandler(MarkingAboveClearanceException.class)
+  public ResponseEntity<ErrorMessage> handleMarkingAboveClearanceException(
+      MarkingAboveClearanceException ex) {
+    return new ResponseEntity<>(new ErrorMessage(ex.getMessage()), HttpStatus.FORBIDDEN);
+  }
+
   // -- 500 INTERNAL_SERVER_ERROR --
 
   @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

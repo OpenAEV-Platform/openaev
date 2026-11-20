@@ -4,7 +4,7 @@ import { type ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import ImportReportDialog from '../../../../components/common/import/ImportReportDialog';
-import { type ImportReport } from '../../../../utils/api-types';
+import { type ImportReport, type ImportReportRow } from '../../../../utils/api-types';
 
 const { mockDownload } = vi.hoisted(() => ({ mockDownload: vi.fn() }));
 
@@ -22,6 +22,7 @@ const report: ImportReport = {
     {
       import_row_position: 1,
       import_row_status: 'CREATED',
+      import_row_params: {},
       import_row_values: {
         name: 'created-name',
         url: 'https://a.test',
@@ -31,7 +32,7 @@ const report: ImportReport = {
       import_row_position: 2,
       import_row_status: 'SKIPPED',
       import_row_reason: 'BAD_URL',
-      import_row_message: 'Not a URL.',
+      import_row_params: { scheme: 'https' },
       import_row_values: {
         name: 'broken-name',
         url: '<b>nope</b>',
@@ -40,6 +41,7 @@ const report: ImportReport = {
     {
       import_row_position: 3,
       import_row_status: 'IGNORED',
+      import_row_params: {},
       import_row_values: {
         name: 'ignored-name',
         url: 'https://b.test',
@@ -107,7 +109,19 @@ describe('ImportReportDialog', () => {
     expect(screen.getByText('Invalid URL')).toBeTruthy();
     rerender(<ThemeProvider theme={createTheme()}>{dialog()}</ThemeProvider>);
     expect(screen.getByText('BAD_URL')).toBeTruthy();
-    expect(screen.getByText('Not a URL.')).toBeTruthy();
+  });
+
+  it('writes the sentence of a skipped row with the function of the caller, from the row', () => {
+    // Arrange
+    const rowMessage = vi.fn((row: ImportReportRow) => `Expected ${row.import_row_params.scheme} for row ${row.import_row_position}.`);
+
+    // Act
+    const { rerender } = renderDialog(dialog({ rowMessage }));
+
+    // Assert
+    expect(screen.getByText('Expected https for row 2.')).toBeTruthy();
+    rerender(<ThemeProvider theme={createTheme()}>{dialog()}</ThemeProvider>);
+    expect(screen.queryByText(/Expected/)).toBeNull();
   });
 
   it('offers the download of the skipped rows only when there are some', () => {

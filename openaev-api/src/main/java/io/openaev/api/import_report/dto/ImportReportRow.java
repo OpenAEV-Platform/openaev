@@ -9,5 +9,5 @@ public record ImportReportRow(
     @JsonProperty("import_row_position") @NotNull int position,
     @JsonProperty("import_row_status") @NotNull ImportRowStatus status,
     @JsonProperty("import_row_reason") String reason,
-    @JsonProperty("import_row_message") String message,
+    @JsonProperty("import_row_params") @NotNull Map<String, String> params,
     @JsonProperty("import_row_values") @NotNull Map<String, String> values) {}

@@ -39,6 +39,18 @@ final class MarkingImportBatch {
   // The width of the type and definition columns.
   private static final int MAX_TEXT_LENGTH = 255;
 
+  // The names of the values a skipped row hands to the client, which writes the sentence of its
+  // reason in its own language.
+  static final String PARAM_MAX_LENGTH = "max_length";
+  // The position of the earlier row of the file a conflict is with, absent for an existing marking.
+  static final String PARAM_EARLIER_ROW = "earlier_row";
+  static final String PARAM_COLOR = "color";
+  static final String PARAM_KNOWN_COLOR = "known_color";
+  static final String PARAM_ORDER = "order";
+  static final String PARAM_KNOWN_ORDER = "known_order";
+  // Absent when the caller holds no marking of the type.
+  static final String PARAM_HIGHEST_ORDER = "highest_order";
+
   private final String tenantId;
   private final Map<MarkingKey, KnownMarking> inTenant = new HashMap<>();
   private final Map<MarkingKey, KnownMarking> inFile = new HashMap<>();
@@ -62,11 +74,7 @@ final class MarkingImportBatch {
       types.add(type);
       inTenant.put(
           new MarkingKey(type, normalize(marking.getDefinition())),
-          new KnownMarking(
-              marking.getColor(),
-              marking.getOrder(),
-              "an existing marking",
-              "the existing marking"));
+          new KnownMarking(marking.getColor(), marking.getOrder(), null));
     }
   }
 
@@ -83,29 +91,20 @@ final class MarkingImportBatch {
     String type = normalize(row.type());
     String definition = normalize(row.definition());
     if (type.isEmpty() || definition.isEmpty() || row.color().isEmpty() || row.order().isEmpty()) {
-      return skipped(
-          row,
-          MarkingDefinitionImportRowReason.MISSING_FIELD,
-          "A value is missing: type, definition, color and order are all required");
+      return skipped(row, MarkingDefinitionImportRowReason.MISSING_FIELD, Map.of());
     }
     if (type.length() > MAX_TEXT_LENGTH || definition.length() > MAX_TEXT_LENGTH) {
       return skipped(
           row,
           MarkingDefinitionImportRowReason.VALUE_TOO_LONG,
-          "The type and the definition must have " + MAX_TEXT_LENGTH + " characters at most");
+          Map.of(PARAM_MAX_LENGTH, String.valueOf(MAX_TEXT_LENGTH)));
     }
     if (!HEX_COLOR.matcher(row.color()).matches()) {
-      return skipped(
-          row,
-          MarkingDefinitionImportRowReason.INVALID_COLOR,
-          "The color must be a hex value such as #4CAF50");
+      return skipped(row, MarkingDefinitionImportRowReason.INVALID_COLOR, Map.of());
     }
     Integer order = parseOrder(row.order());
     if (order == null) {
-      return skipped(
-          row,
-          MarkingDefinitionImportRowReason.INVALID_ORDER,
-          "The order must be a whole number, 0 or more");
+      return skipped(row, MarkingDefinitionImportRowReason.INVALID_ORDER, Map.of());
     }
     MarkingKey key = new MarkingKey(type, definition);
     KnownMarking known = inTenant.getOrDefault(key, inFile.get(key));
@@ -114,58 +113,57 @@ final class MarkingImportBatch {
     }
     if (types.contains(type) && !isWithinClearance(type, order)) {
       return skipped(
-          row,
-          MarkingDefinitionImportRowReason.INSUFFICIENT_ACCESS,
-          notClearedMessage(type, order));
+          row, MarkingDefinitionImportRowReason.INSUFFICIENT_ACCESS, notClearedParams(type, order));
     }
     created.add(buildEntity(tenantId, type, definition, row.color(), order));
     types.add(type);
-    inFile.put(
-        key,
-        new KnownMarking(
-            row.color(), order, "row " + row.position() + " of the file", "row " + row.position()));
-    return new ImportResultRow(row.position(), ImportRowStatus.CREATED, null, null, valuesOf(row));
+    inFile.put(key, new KnownMarking(row.color(), order, row.position()));
+    return new ImportResultRow(
+        row.position(), ImportRowStatus.CREATED, null, Map.of(), valuesOf(row));
   }
 
   // Never overwritten: identical is ignored, anything else is a conflict.
   private ImportResultRow sameKey(MarkingRow row, KnownMarking known, int order) {
-    List<String> differences = new ArrayList<>();
-    if (!known.color().equalsIgnoreCase(row.color())) {
-      differences.add(
-          "color differs (this row %s, %s has %s)"
-              .formatted(row.color(), known.subject(), known.color()));
+    Map<String, String> params = new LinkedHashMap<>();
+    if (known.fileRow() != null) {
+      params.put(PARAM_EARLIER_ROW, String.valueOf(known.fileRow()));
     }
-    if (known.order() != order) {
-      differences.add(
-          "order differs (this row %d, %s has %d)"
-              .formatted(order, known.subject(), known.order()));
+    boolean sameColor = known.color().equalsIgnoreCase(row.color());
+    if (!sameColor) {
+      params.put(PARAM_COLOR, row.color());
+      params.put(PARAM_KNOWN_COLOR, known.color());
     }
-    if (differences.isEmpty()) {
+    boolean sameOrder = known.order() == order;
+    if (!sameOrder) {
+      params.put(PARAM_ORDER, String.valueOf(order));
+      params.put(PARAM_KNOWN_ORDER, String.valueOf(known.order()));
+    }
+    if (sameColor && sameOrder) {
       return new ImportResultRow(
-          row.position(), ImportRowStatus.IGNORED, null, null, valuesOf(row));
+          row.position(), ImportRowStatus.IGNORED, null, Map.of(), valuesOf(row));
     }
-    return skipped(
-        row,
-        MarkingDefinitionImportRowReason.CONFLICT,
-        "Conflicts with %s: %s".formatted(known.place(), String.join(" and ", differences)));
+    return skipped(row, MarkingDefinitionImportRowReason.CONFLICT, params);
   }
 
   private boolean isWithinClearance(String type, int order) {
     return held == null || MarkingEscalationValidator.isWithinClearance(held, type, order);
   }
 
-  private String notClearedMessage(String type, int order) {
+  private Map<String, String> notClearedParams(String type, int order) {
     OptionalInt highest = MarkingEscalationValidator.highestHeldOrder(held, type);
     return highest.isPresent()
-        ? "Its order (%d) is above the highest order you hold for its type (%d)"
-            .formatted(order, highest.getAsInt())
-        : "You hold no marking of its type";
+        ? Map.of(
+            PARAM_ORDER,
+            String.valueOf(order),
+            PARAM_HIGHEST_ORDER,
+            String.valueOf(highest.getAsInt()))
+        : Map.of();
   }
 
   private static ImportResultRow skipped(
-      MarkingRow row, MarkingDefinitionImportRowReason reason, String message) {
+      MarkingRow row, MarkingDefinitionImportRowReason reason, Map<String, String> params) {
     return new ImportResultRow(
-        row.position(), ImportRowStatus.SKIPPED, reason.name(), message, valuesOf(row));
+        row.position(), ImportRowStatus.SKIPPED, reason.name(), params, valuesOf(row));
   }
 
   private static Map<String, String> valuesOf(MarkingRow row) {
@@ -194,8 +192,8 @@ final class MarkingImportBatch {
   /**
    * A marking a row can clash with.
    *
-   * @param place where it is, for the start of a message
-   * @param subject how it is called when comparing a value of it
+   * @param fileRow the position of the row of the file that created it, {@code null} for a marking
+   *     the tenant already holds
    */
-  private record KnownMarking(String color, int order, String place, String subject) {}
+  private record KnownMarking(String color, int order, Integer fileRow) {}
 }

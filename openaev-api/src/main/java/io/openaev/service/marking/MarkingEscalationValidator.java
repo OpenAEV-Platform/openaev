@@ -3,6 +3,7 @@ package io.openaev.service.marking;
 import io.openaev.context.MarkingCtx;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.rest.exception.ForbiddenException;
+import io.openaev.rest.exception.MarkingAboveClearanceException;
 import java.util.Collection;
 import java.util.List;
 import java.util.OptionalInt;
@@ -64,12 +65,13 @@ public final class MarkingEscalationValidator {
    * @param held the definitions the caller's clearance covers in the tenant being written to
    * @param type the type of the definition being placed
    * @param order the order it is being placed at
-   * @throws ForbiddenException when the order is above the caller's clearance on the type
+   * @throws MarkingAboveClearanceException when the order is above the caller's clearance on the
+   *     type
    */
   public static void assertCanDefineMarking(
       Collection<MarkingDefinition> held, String type, int order) {
     if (!isWithinClearance(held, type, order)) {
-      throw new ForbiddenException("Cannot define a marking above your own clearance");
+      throw new MarkingAboveClearanceException();
     }
   }
 

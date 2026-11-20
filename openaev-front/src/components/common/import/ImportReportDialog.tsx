@@ -3,7 +3,7 @@ import { Button, Chip } from '@filigran/design-system';
 import { Alert, Dialog, DialogActions, DialogContent, DialogTitle, useTheme } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
-import { type ImportReport } from '../../../utils/api-types';
+import { type ImportReport, type ImportReportRow } from '../../../utils/api-types';
 import { download } from '../../../utils/utils';
 import { useFormatter } from '../../i18n';
 import Transition from '../Transition';
@@ -40,6 +40,9 @@ interface Props {
   // Tone of the reason chip, by reason code. Defaults to critical (a malformed value); use medium
   // for a conflict with data that already exists.
   reasonSeverities?: Record<string, ReasonSeverity>;
+  // The translated sentence that explains why a row was skipped, written from its reason code and
+  // `import_row_params`. Without it, only the reason chip shows.
+  rowMessage?: (row: ImportReportRow) => string | null;
   downloadFileName: string;
 }
 
@@ -52,6 +55,7 @@ const ImportReportDialog: FunctionComponent<Props> = ({
   columnLabels = {},
   reasonLabels = {},
   reasonSeverities = {},
+  rowMessage,
   downloadFileName,
 }) => {
   const { t } = useFormatter();
@@ -128,7 +132,7 @@ const ImportReportDialog: FunctionComponent<Props> = ({
                                 severity={reasonSeverities[row.import_row_reason] ?? 'critical'}
                               />
                             )}
-                            <div style={{ marginTop: 4 }}>{row.import_row_message}</div>
+                            <div style={{ marginTop: 4 }}>{rowMessage?.(row)}</div>
                           </td>
                         </tr>
                       ))}
