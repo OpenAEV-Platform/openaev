@@ -18,7 +18,7 @@ import lombok.Setter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
-/** The content of a catalogue scenario, kept before an update or a rollback changes it. */
+/** The content of a catalogue scenario, kept at install and before an update or a rollback. */
 @Getter
 @Setter
 @Entity
@@ -26,6 +26,7 @@ import org.hibernate.annotations.UuidGenerator;
 public class ScenarioRevision implements TenantBase {
 
   public enum Reason {
+    INSTALL(CatalogHistory.Action.INSTALL),
     UPDATE(CatalogHistory.Action.UPDATE),
     ROLLBACK(CatalogHistory.Action.ROLLBACK);
 

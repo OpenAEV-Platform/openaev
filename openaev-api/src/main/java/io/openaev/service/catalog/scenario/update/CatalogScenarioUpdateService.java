@@ -9,12 +9,12 @@ import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.service.VariableService;
 import io.openaev.service.catalog.CatalogListService;
 import io.openaev.service.catalog.event.CatalogChangePublisher;
 import io.openaev.service.catalog.payload.CatalogPayloadService;
 import io.openaev.service.catalog.payload.InstallablePayloadVersion;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.catalog.SemanticVersion;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -39,11 +39,9 @@ public class CatalogScenarioUpdateService {
   private final CatalogListService catalogListService;
   private final InjectService injectService;
   private final ExerciseService exerciseService;
-  private final VariableService variableService;
   private final CatalogPayloadService catalogPayloadService;
   private final ScenarioRevisionService scenarioRevisionService;
   private final ScenarioPayloadCheckService scenarioPayloadCheckService;
-  private final ScenarioContentReader reader;
   private final ScenarioContentWriter writer;
   private final CatalogChangePublisher changePublisher;
 
@@ -94,10 +92,25 @@ public class CatalogScenarioUpdateService {
         ScenarioMerge.merge(
             update.base(),
             update.applied(),
-            local(scenario, injectService.findByScenarioId(scenario.getId())),
+            scenarioRevisionService.content(
+                scenario, injectService.findByScenarioId(scenario.getId())),
             Map.of());
     return new ScenarioPreview(
-        merge, scenarioPayloadCheckService.check(update.installed().tenantId(), merge.merged()));
+        merge,
+        scenarioPayloadCheckService.check(update.installed().tenantId(), merge.merged()),
+        notes(update));
+  }
+
+  // The versions after the installed one up to the one applied, with a changelog.
+  private List<CatalogScenario> notes(ScenarioUpdate update) {
+    InstalledScenario installed = update.installed();
+    return catalogListService.versions(CatalogScenario.class, installed.externalId()).stream()
+        .filter(version -> version.getChangelog() != null)
+        .filter(
+            version -> SemanticVersion.ORDER.compare(version.getVersion(), installed.version()) > 0)
+        .filter(
+            version -> SemanticVersion.ORDER.compare(version.getVersion(), update.version()) <= 0)
+        .toList();
   }
 
   // -- UPDATE --
@@ -116,7 +129,7 @@ public class CatalogScenarioUpdateService {
                 ctx, update.installed().tenantId(), released, file, CatalogHistory.Mode.MANUAL));
     Scenario scenario = unchanged(ctx, update);
     Collection<Inject> injects = injectService.findByScenarioId(scenario.getId());
-    ObjectNode local = local(scenario, injects);
+    ObjectNode local = scenarioRevisionService.content(scenario, injects);
     ScenarioMerge.Result merge =
         ScenarioMerge.merge(update.base(), update.applied(), local, choices, edits);
     if (!merge.resolved()) {
@@ -137,10 +150,5 @@ public class CatalogScenarioUpdateService {
       throw new BadRequestException(CHANGED_MEANWHILE);
     }
     return scenario;
-  }
-
-  private ObjectNode local(Scenario scenario, Collection<Inject> injects) {
-    return reader.fromEntities(
-        scenario, variableService.variablesFromScenario(scenario.getId()), injects);
   }
 }

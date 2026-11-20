@@ -2,20 +2,27 @@ package io.openaev.service.catalog.scenario.update;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.scenario.ScenarioRevision;
 import io.openaev.database.repository.ScenarioRevisionRepository;
 import io.openaev.database.repository.ScenarioRevisionRepository.RevisionRow;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.UserService;
+import io.openaev.service.VariableService;
 import io.openaev.service.scenario.ScenarioService;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** The content of a catalogue scenario kept before each update or rollback, to roll back to. */
+/**
+ * The content of a catalogue scenario kept at install and before each update or rollback, to roll
+ * back to.
+ */
 @Service
 @RequiredArgsConstructor
 public class ScenarioRevisionService {
@@ -23,6 +30,9 @@ public class ScenarioRevisionService {
   private final ScenarioRevisionRepository scenarioRevisionRepository;
   private final ScenarioService scenarioService;
   private final UserService userService;
+  private final InjectService injectService;
+  private final VariableService variableService;
+  private final ScenarioContentReader reader;
 
   // -- LIST --
 
@@ -47,7 +57,22 @@ public class ScenarioRevisionService {
         .orElseThrow(() -> new ElementNotFoundException("Revision not found"));
   }
 
+  /** The content of a scenario as a revision keeps it and a merge compares it. */
+  public ObjectNode content(Scenario scenario, Collection<Inject> injects) {
+    return reader.fromEntities(
+        scenario, variableService.variablesFromScenario(scenario.getId()), injects);
+  }
+
   // -- CREATE --
+
+  /** Keeps the content a scenario was installed with, to roll back to it. */
+  @Transactional(rollbackFor = Exception.class)
+  public void keepInstalled(Scenario scenario) {
+    keep(
+        scenario,
+        ScenarioRevision.Reason.INSTALL,
+        content(scenario, injectService.findByScenarioId(scenario.getId())));
+  }
 
   @Transactional(rollbackFor = Exception.class)
   public void keep(Scenario scenario, ScenarioRevision.Reason reason, ObjectNode content) {
