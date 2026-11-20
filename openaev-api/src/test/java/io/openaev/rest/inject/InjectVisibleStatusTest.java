@@ -22,6 +22,7 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.ExecutionTrace;
+import io.openaev.database.model.ExecutionTraceStatus;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Inject;
@@ -57,6 +58,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -64,6 +66,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -459,6 +463,185 @@ class InjectVisibleStatusTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("the status matrix, read by a TLP:GREEN then a TLP:RED clearance")
+  class StatusMatrix {
+
+    /** An agent dispatched on a GREEN or RED endpoint, with its COMPLETE trace (null: none). */
+    record Target(boolean red, ExecutionTraceStatus complete) {}
+
+    /**
+     * One row: the stored status, the dispatched agents, the COMPLETE traces with no agent (an
+     * endpoint without agent, the platform), and what each clearance reads.
+     */
+    record Row(
+        String name,
+        ExecutionStatus stored,
+        List<Target> targets,
+        List<ExecutionTraceStatus> withoutAgent,
+        boolean markingOff,
+        String green,
+        String red) {
+
+      @Override
+      public String toString() {
+        return name;
+      }
+    }
+
+    static Stream<Row> rows() {
+      Target greenExecuted = new Target(false, ExecutionTraceStatus.EXECUTED);
+      Target greenError = new Target(false, ExecutionTraceStatus.ERROR);
+      Target redExecuted = new Target(true, ExecutionTraceStatus.EXECUTED);
+      Target redError = new Target(true, ExecutionTraceStatus.ERROR);
+      return Stream.of(
+          new Row(
+              "1. both agents succeed",
+              ExecutionStatus.EXECUTED,
+              List.of(greenExecuted, redExecuted),
+              List.of(),
+              false,
+              "EXECUTED",
+              "EXECUTED"),
+          new Row(
+              "2. GREEN fails, RED succeeds",
+              ExecutionStatus.PARTIAL,
+              List.of(greenError, redExecuted),
+              List.of(),
+              false,
+              "ERROR",
+              "PARTIAL"),
+          new Row(
+              "3. GREEN succeeds, RED fails",
+              ExecutionStatus.PARTIAL,
+              List.of(greenExecuted, redError),
+              List.of(),
+              false,
+              "EXECUTED",
+              "PARTIAL"),
+          new Row(
+              "4. GREEN agent inactive, RED succeeds",
+              ExecutionStatus.EXECUTED,
+              List.of(new Target(false, ExecutionTraceStatus.AGENT_INACTIVE), redExecuted),
+              List.of(),
+              false,
+              "NOT_VISIBLE",
+              "EXECUTED"),
+          new Row(
+              "5. RED agent only",
+              ExecutionStatus.EXECUTED,
+              List.of(redExecuted),
+              List.of(),
+              false,
+              "NOT_VISIBLE",
+              "EXECUTED"),
+          new Row(
+              "6. RED agent and a GREEN endpoint without agent",
+              ExecutionStatus.EXECUTED,
+              List.of(redExecuted),
+              List.of(ExecutionTraceStatus.ASSET_AGENTLESS),
+              false,
+              "NOT_VISIBLE",
+              "EXECUTED"),
+          new Row(
+              "7. GREEN agent fails and a RED endpoint without agent",
+              ExecutionStatus.ERROR,
+              List.of(greenError),
+              List.of(ExecutionTraceStatus.ASSET_AGENTLESS),
+              false,
+              "ERROR",
+              "ERROR"),
+          new Row(
+              "8. endpoints without agent only",
+              ExecutionStatus.ERROR,
+              List.of(),
+              List.of(ExecutionTraceStatus.ASSET_AGENTLESS, ExecutionTraceStatus.ASSET_AGENTLESS),
+              false,
+              "ERROR",
+              "ERROR"),
+          new Row(
+              "9. launcher not cleared for the RED agent",
+              ExecutionStatus.EXECUTED,
+              List.of(
+                  greenExecuted, new Target(true, ExecutionTraceStatus.ASSET_CLEARANCE_RESTRICTED)),
+              List.of(),
+              false,
+              "EXECUTED",
+              "EXECUTED"),
+          new Row(
+              "10. dispatch fails before any agent reports",
+              ExecutionStatus.ERROR,
+              List.of(new Target(false, null), new Target(true, null)),
+              List.of(ExecutionTraceStatus.ERROR),
+              false,
+              "ERROR",
+              "ERROR"),
+          new Row(
+              "11. still pending",
+              ExecutionStatus.PENDING,
+              List.of(new Target(false, null), new Target(true, null)),
+              List.of(),
+              false,
+              "PENDING",
+              "PENDING"),
+          new Row(
+              "12. MARKING off",
+              ExecutionStatus.PARTIAL,
+              List.of(greenError, redExecuted),
+              List.of(),
+              true,
+              "PARTIAL",
+              "PARTIAL"),
+          new Row(
+              "13. platform error after a hidden success",
+              ExecutionStatus.PARTIAL,
+              List.of(redExecuted),
+              List.of(ExecutionTraceStatus.ERROR),
+              false,
+              "ERROR",
+              "PARTIAL"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("rows")
+    @DisplayName("given each row, should show each clearance its status")
+    void given_row_should_showEachClearanceItsStatus(Row row) throws Exception {
+      // Arrange
+      if (row.markingOff()) {
+        when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)).thenReturn(false);
+      }
+      InjectStatus status = InjectStatusFixture.createSuccessStatus();
+      status.setName(row.stored());
+      Inject inject =
+          injectWithTraces(
+              status,
+              row.targets().stream()
+                  .map(
+                      target ->
+                          new Run(
+                              target.red() ? tlpRed : tlpGreen,
+                              target.complete() == null
+                                  ? null
+                                  : ExecutionTraceFixture.createExecutionTraceComplete(
+                                      target.complete())))
+                  .toList(),
+              row.withoutAgent().stream()
+                  .map(ExecutionTraceFixture::createExecutionTraceComplete)
+                  .toList(),
+              null);
+
+      // Act
+      grant(tlpGreen);
+      String greenPage = search();
+      grant(tlpRed);
+      String redPage = search();
+
+      // Assert
+      assertThat(statusInPage(greenPage, inject)).as("GREEN clearance").isEqualTo(row.green());
+      assertThat(statusInPage(redPage, inject)).as("RED clearance").isEqualTo(row.red());
+    }
+  }
+
   // -- HELPERS --
 
   /** An atomic testing on a RED and a GREEN endpoint: the RED agent succeeded, the GREEN failed. */
@@ -502,7 +685,10 @@ class InjectVisibleStatusTest extends IntegrationTest {
     return EXERCISE_URI + "/" + simulation.getId() + "/injects";
   }
 
-  /** One agent on an endpoint of the given marking, and the COMPLETE trace it reported. */
+  /**
+   * One agent on an endpoint of the given marking, and the COMPLETE trace it reported (null: none
+   * yet).
+   */
   private record Run(MarkingDefinition marking, ExecutionTrace complete) {}
 
   /**
@@ -519,6 +705,19 @@ class InjectVisibleStatusTest extends IntegrationTest {
       InjectStatus status,
       List<Run> runs,
       ExecutionTrace platformComplete,
+      ExerciseComposer.Composer simulation) {
+    return injectWithTraces(
+        status, runs, platformComplete == null ? List.of() : List.of(platformComplete), simulation);
+  }
+
+  /**
+   * The same, with any number of COMPLETE traces with no agent: the platform's own, or those of the
+   * endpoints targeted without an agent.
+   */
+  private Inject injectWithTraces(
+      InjectStatus status,
+      List<Run> runs,
+      List<ExecutionTrace> completesWithoutAgent,
       ExerciseComposer.Composer simulation) {
     status.setExpectedAgentCount(runs.isEmpty() ? null : runs.size());
     InjectStatusComposer.Composer statusComposer = injectStatusComposer.forInjectStatus(status);
@@ -538,12 +737,14 @@ class InjectVisibleStatusTest extends IntegrationTest {
               .forEndpoint(EndpointFixture.createEndpoint("endpoint-" + uniqueDefinition()))
               .withAgent(agent);
       injectComposerWrapper.withEndpoint(endpoint);
-      statusComposer.withExecutionTrace(completeTrace(run.complete(), agent));
+      if (run.complete() != null) {
+        statusComposer.withExecutionTrace(completeTrace(run.complete(), agent));
+      }
       markings.add(() -> mark(endpoint.get(), run.marking()));
     }
-    if (platformComplete != null) {
-      statusComposer.withExecutionTrace(executionTraceComposer.forExecutionTrace(platformComplete));
-    }
+    completesWithoutAgent.forEach(
+        trace ->
+            statusComposer.withExecutionTrace(executionTraceComposer.forExecutionTrace(trace)));
     injectComposerWrapper.withInjectStatus(statusComposer);
     if (simulation == null) {
       injectComposerWrapper.persist();
