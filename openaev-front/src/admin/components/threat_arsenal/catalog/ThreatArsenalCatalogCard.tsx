@@ -3,8 +3,8 @@ import { TerminalOutlined } from '@mui/icons-material';
 import { type FunctionComponent } from 'react';
 
 import MarketplaceCard from '../../../../components/common/marketplace/card/MarketplaceCard';
+import MarketplaceCardMeta from '../../../../components/common/marketplace/card/MarketplaceCardMeta';
 import { useFormatter } from '../../../../components/i18n';
-import PlatformIcon from '../../../../components/PlatformIcon';
 import { type AvailablePayloadActionOutput } from '../../../../utils/api-types';
 
 interface Props {
@@ -38,16 +38,7 @@ const ThreatArsenalCatalogCard: FunctionComponent<Props> = ({ action, name, inst
           value: action.action_payload_published_at ? nsd(action.action_payload_published_at) : '–',
         },
       ]}
-      footerStart={(
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-        }}
-        >
-          {action.action_platforms.map(platform => <PlatformIcon key={platform} width={16} platform={platform} tooltip />)}
-        </div>
-      )}
+      footerStart={<MarketplaceCardMeta platforms={action.action_platforms} />}
       action={installed
         ? <Chip label={t('Installed')} severity="low" />
         : canInstall && <Button size="sm" loading={installing} onClick={onInstall}>{t('Install')}</Button>}
