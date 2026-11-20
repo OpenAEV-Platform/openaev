@@ -37,6 +37,7 @@ public record SecretMetadata(
     String azureTenantId,
     String azureSubscriptionId,
     String azureAuthorityHostUri,
+    String azureScope,
     boolean azureRequestsCertificateDefined,
     // GCP
     String gcpScope,
@@ -142,6 +143,7 @@ public record SecretMetadata(
    * @param azureTenantId Entra ID tenant id owning the service principal
    * @param azureSubscriptionId targeted subscription id, may be null
    * @param azureAuthorityHostUri optional authority host override
+   * @param azureScope optional scope a token is requested for
    * @param azureRequestsCertificateDefined whether a certificate file is currently stored
    * @return matching metadata
    */
@@ -151,6 +153,7 @@ public record SecretMetadata(
       String azureTenantId,
       String azureSubscriptionId,
       String azureAuthorityHostUri,
+      String azureScope,
       boolean azureRequestsCertificateDefined) {
     return SecretMetadata.builder()
         .azureEnvironment(azureEnvironment)
@@ -158,6 +161,7 @@ public record SecretMetadata(
         .azureTenantId(azureTenantId)
         .azureSubscriptionId(azureSubscriptionId)
         .azureAuthorityHostUri(azureAuthorityHostUri)
+        .azureScope(azureScope)
         .azureRequestsCertificateDefined(azureRequestsCertificateDefined)
         .build();
   }
@@ -172,6 +176,7 @@ public record SecretMetadata(
    * @param azureClientId client id of the user-assigned managed identity, null when system-assigned
    * @param azureSubscriptionId targeted subscription id, may be null
    * @param azureAuthorityHostUri optional authority host override
+   * @param azureScope optional scope a token is requested for
    * @param azureRequestsCertificateDefined whether a certificate file is currently stored
    * @return matching metadata
    */
@@ -180,12 +185,14 @@ public record SecretMetadata(
       String azureClientId,
       String azureSubscriptionId,
       String azureAuthorityHostUri,
+      String azureScope,
       boolean azureRequestsCertificateDefined) {
     return SecretMetadata.builder()
         .azureEnvironment(azureEnvironment)
         .azureClientId(azureClientId)
         .azureSubscriptionId(azureSubscriptionId)
         .azureAuthorityHostUri(azureAuthorityHostUri)
+        .azureScope(azureScope)
         .azureRequestsCertificateDefined(azureRequestsCertificateDefined)
         .build();
   }

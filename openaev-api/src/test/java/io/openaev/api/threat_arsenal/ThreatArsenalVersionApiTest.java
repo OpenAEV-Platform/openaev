@@ -3,6 +3,8 @@ package io.openaev.api.threat_arsenal;
 import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+import static io.openaev.service.payload.PayloadVersionService.NOT_ANOTHER_VERSION;
+import static io.openaev.service.payload.PayloadVersionService.VERSION_REVOKED;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.PAYLOAD_ID;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.manifest;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadFileName;
@@ -10,6 +12,7 @@ import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadVersion;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.releasedPayload;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.syncRequest;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -30,6 +33,8 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.PayloadRevocationRepository;
+import io.openaev.rest.exception.BadRequestException;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CatalogReleaseFixture.ReleasedPayload;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -54,6 +59,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -84,6 +90,7 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
   @Autowired private StepComposer stepComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private PayloadComposer payloadComposer;
+  @Autowired private PayloadVersionService payloadVersionService;
 
   @BeforeEach
   void attachToDefaultTenant() {
@@ -297,6 +304,66 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.payload_usages.length()").value(2))
         .andExpect(jsonPath("$.payload_usages_hidden_count").value(0));
+  }
+
+  // -- OTHER VERSION --
+
+  @Nested
+  @DisplayName("The action of another version of a payload")
+  class OtherVersion {
+
+    @Test
+    @DisplayName("returns the action of another installed version")
+    void given_otherInstalledVersion_should_returnItsAction() throws Exception {
+      // Arrange
+      List<String> ids = installed("1.0.0", "1.1.0");
+      Payload current = payload(ids.get(0));
+      String other = contractOf(ids.get(1)).getId();
+
+      // Act & Assert
+      assertThat(
+              payloadVersionService
+                  .otherVersionAction(DEFAULT_TENANT_UUID, current, ids.get(1))
+                  .getId())
+          .isEqualTo(other);
+      assertThat(
+              payloadVersionService
+                  .otherVersionActionById(DEFAULT_TENANT_UUID, current, other)
+                  .getId())
+          .isEqualTo(other);
+    }
+
+    @Test
+    @DisplayName("refuses the same version, another payload and a revoked version")
+    void given_notAnotherUnrevokedVersion_should_refuseIt() throws Exception {
+      // Arrange
+      List<String> ids = installed("1.0.0", "1.1.0");
+      Payload current = payload(ids.get(0));
+      String otherPayload = localAction().getPayload().getId();
+      payloadRevocationRepository.save(
+          PayloadRevocation.byAdmin(payload(ids.get(1)), "Too noisy", null));
+      entityManager.flush();
+
+      // Act & Assert
+      assertThatThrownBy(
+              () ->
+                  payloadVersionService.otherVersionAction(
+                      DEFAULT_TENANT_UUID, current, ids.get(0)))
+          .isInstanceOf(BadRequestException.class)
+          .hasMessage(NOT_ANOTHER_VERSION);
+      assertThatThrownBy(
+              () ->
+                  payloadVersionService.otherVersionAction(
+                      DEFAULT_TENANT_UUID, current, otherPayload))
+          .isInstanceOf(BadRequestException.class)
+          .hasMessage(NOT_ANOTHER_VERSION);
+      assertThatThrownBy(
+              () ->
+                  payloadVersionService.otherVersionAction(
+                      DEFAULT_TENANT_UUID, current, ids.get(1)))
+          .isInstanceOf(BadRequestException.class)
+          .hasMessage(VERSION_REVOKED);
+    }
   }
 
   // -- SEARCH --

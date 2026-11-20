@@ -663,6 +663,42 @@ public class ScenarioApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Scheduling a scenario stamps and surfaces the scheduling user")
+    @WithMockUser(
+        isAdmin = true,
+        autoJoinDefaultTenant = true,
+        userFirstName = "Misty",
+        userLastName = "Waterflower",
+        userMail = "misty.waterflower@unittests.invalid")
+    void given_scenarioRecurrence_should_returnScheduledByUser() throws Exception {
+      // Arrange
+      Scenario scenario = getScenario(null, null);
+      ScenarioRecurrenceInput input = new ScenarioRecurrenceInput();
+      input.setRecurrence("0 30 9 * * *");
+      input.setRecurrenceStart(Instant.now());
+
+      // Act
+      mvc.perform(
+              put(SCENARIO_URI + "/" + scenario.getId() + "/recurrence")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert: the GET /scenarios/{id} ScenarioOutput resolves the scheduling user
+      mvc.perform(
+              get(SCENARIO_URI + "/" + scenario.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.scenario_scheduled_by_user.user_name").value("Misty Waterflower"))
+          .andExpect(
+              jsonPath("$.scenario_scheduled_by_user.user_email")
+                  .value("misty.waterflower@unittests.invalid"));
+    }
+
+    @Test
     @DisplayName("Throw license restricted error when add Crowdstrike on scheduled scenario")
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_crowdstrikeInsdeDynamicGroup_should_not_beAddedToScheduledExercise()

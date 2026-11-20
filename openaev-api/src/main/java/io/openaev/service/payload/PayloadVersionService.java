@@ -10,6 +10,7 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.User;
 import io.openaev.database.model.payload.PayloadRevocation;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.payload.service.PayloadService;
@@ -32,6 +33,8 @@ import org.springframework.stereotype.Service;
 public class PayloadVersionService {
 
   public static final String NO_PAYLOAD = "This action has no payload";
+  public static final String NOT_ANOTHER_VERSION = "This is not another version of the payload";
+  public static final String VERSION_REVOKED = "This version is revoked";
 
   private final InjectorContractService injectorContractService;
   private final PayloadService payloadService;
@@ -58,6 +61,24 @@ public class PayloadVersionService {
             version ->
                 output(version, actions.get(version.getId()), revocations.get(version.getId())))
         .toList();
+  }
+
+  /** Refused when the version is not another version of the payload, or is revoked. */
+  public InjectorContract otherVersionAction(String tenantId, Payload payload, String versionId) {
+    refuseUnlessOtherVersion(tenantId, payload, versionId);
+    return Optional.ofNullable(
+            injectorContractService
+                .injectorContractsOfPayloads(tenantId, List.of(versionId))
+                .get(versionId))
+        .orElseThrow(() -> new ElementNotFoundException(NO_PAYLOAD));
+  }
+
+  /** Same rule as {@link #otherVersionAction}, from the action of the version. */
+  public InjectorContract otherVersionActionById(
+      String tenantId, Payload payload, String actionId) {
+    InjectorContract action = payloadAction(tenantId, actionId);
+    refuseUnlessOtherVersion(tenantId, payload, action.getPayload().getId());
+    return action;
   }
 
   /** Only what the user can read is listed; the others are counted. */
@@ -110,6 +131,19 @@ public class PayloadVersionService {
             .map(PayloadRevocation::getUser)
             .map(User::getNameOrEmail)
             .orElse(null));
+  }
+
+  private void refuseUnlessOtherVersion(String tenantId, Payload payload, String versionId) {
+    boolean otherVersion =
+        !payload.getId().equals(versionId)
+            && payloadService.versionsOf(tenantId, payload).stream()
+                .anyMatch(version -> version.getId().equals(versionId));
+    if (!otherVersion) {
+      throw new BadRequestException(NOT_ANOTHER_VERSION);
+    }
+    if (payloadRevocationService.isRevoked(tenantId, versionId)) {
+      throw new BadRequestException(VERSION_REVOKED);
+    }
   }
 
   private InjectorContract payloadAction(String tenantId, String actionId) {

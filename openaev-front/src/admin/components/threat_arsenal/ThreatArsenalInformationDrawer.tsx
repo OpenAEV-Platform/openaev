@@ -1,3 +1,5 @@
+import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { fetchThreatArsenalAction } from '../../../actions/threat_arsenals/threatArsenal-actions';
@@ -8,7 +10,11 @@ import {
   type ThreatArsenalAction,
   type ThreatArsenalActionFullOutput,
 } from '../../../utils/api-types';
+import { isFeatureEnabled } from '../../../utils/utils';
+import PayloadRevocationBanner from './revocation/PayloadRevocationBanner';
 import ThreatArsenalActionOverview from './ThreatArsenalActionOverview';
+import PayloadVersionsTab from './versions/PayloadVersionsTab';
+import usePayloadVersions from './versions/usePayloadVersions';
 
 const toPayload = (action: ThreatArsenalActionFullOutput): Payload => {
   return {
@@ -44,17 +50,26 @@ interface Props {
   open: boolean;
   onClose: () => void;
   threatArsenalAction: ThreatArsenalAction | null;
+  initialTab?: 'versions';
 }
 
 const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   open,
   onClose,
   threatArsenalAction,
+  initialTab,
 }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
 
   const [loading, setLoading] = useState(false);
   const [fullOutput, setFullOutput] = useState<ThreatArsenalActionFullOutput | null>(null);
+  const [tab, setTab] = useState<string>(initialTab ?? 'overview');
+  const showVersions = isFeatureEnabled('CATALOG') && !!threatArsenalAction?.action_payload;
+  const versions = usePayloadVersions(threatArsenalAction?.injector_contract_id ?? '', open && showVersions);
+  const shownVersion = versions?.find(v => v.payload_id === threatArsenalAction?.action_payload?.payload_id);
+
+  useEffect(() => setTab(initialTab ?? 'overview'), [open, threatArsenalAction, initialTab]);
 
   useEffect(() => {
     // Reset state on every (re)entry so a previous in-flight fetch whose
@@ -105,15 +120,38 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
       title={t('Action information')}
     >
       {threatArsenalAction == null ? <></> : (
-        <ThreatArsenalActionOverview
-          action={threatArsenalAction}
-          payload={selectedPayload}
-          expectations={fullOutput?.action_expectations}
-          expectationDetails={fullOutput?.action_expectation_details}
-          expectedSecurityPlatforms={fullOutput?.action_expected_security_platforms}
-          providing={fullOutput?.action_providing}
-          loading={loading}
-        />
+        <>
+          {showVersions && (
+            <Tabs value={tab} onValueChange={setTab} panels="external">
+              <TabsList>
+                <TabsTrigger value="overview">{t('Overview')}</TabsTrigger>
+                <TabsTrigger value="versions">{t('Versions')}</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+          <div style={{ marginTop: showVersions ? theme.spacing(2) : 0 }}>
+            {tab === 'versions' && showVersions
+              ? <PayloadVersionsTab versions={versions} />
+              : (
+                  <>
+                    {shownVersion?.payload_revoked && (
+                      <div style={{ marginBottom: theme.spacing(2) }}>
+                        <PayloadRevocationBanner version={shownVersion} />
+                      </div>
+                    )}
+                    <ThreatArsenalActionOverview
+                      action={threatArsenalAction}
+                      payload={selectedPayload}
+                      expectations={fullOutput?.action_expectations}
+                      expectationDetails={fullOutput?.action_expectation_details}
+                      expectedSecurityPlatforms={fullOutput?.action_expected_security_platforms}
+                      providing={fullOutput?.action_providing}
+                      loading={loading}
+                    />
+                  </>
+                )}
+          </div>
+        </>
       )}
     </Drawer>
   );
