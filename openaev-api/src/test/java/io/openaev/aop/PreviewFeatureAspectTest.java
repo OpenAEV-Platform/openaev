@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import io.openaev.annotation.NoTenantScope;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,13 +22,16 @@ import org.springframework.web.bind.annotation.PostMapping;
 class PreviewFeatureAspectTest {
 
   @RequirePreviewFeature(PreviewFeature.EXPLORATION_GRAPH)
+  @NoTenantScope
   static class GatedController {
     @GetMapping("/read")
+    @Transactional
     public String read() {
       return "read";
     }
 
     @PostMapping("/write")
+    @Transactional
     public String write() {
       return "write";
     }
@@ -37,8 +42,10 @@ class PreviewFeatureAspectTest {
     }
   }
 
+  @NoTenantScope
   static class OpenController {
     @GetMapping("/open")
+    @Transactional
     public String open() {
       return "open";
     }
