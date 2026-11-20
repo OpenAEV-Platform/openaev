@@ -83,7 +83,7 @@ import { NODE_LABEL_OFFSET, NODE_WIDTH } from './graph-edge-geometry';
 import { type GroupedNode, groupNeighbours, isGroupId, miniView } from './graph-grouping';
 import NODE_ICON from './graph-icons';
 import { LASSO_MIN_LENGTH, nodesInLasso, pathLength } from './graph-lasso';
-import { entering, extendLayout, type GraphLayout, interpolate, layoutFrames, MINI_CARD_PADDING, miniCardHeight, miniCardLayout, type Point } from './graph-layout';
+import { entering, type GraphLayout, MINI_CARD_PADDING, miniCardHeight, moveAt, planMove, type Point } from './graph-layout';
 import {
   ALL_EDGE_TYPES,
   ALL_NODE_TYPES,
@@ -325,21 +325,32 @@ const GraphExplorerInner = ({
     setLayoutRun(run => run + 1);
   }, [initial, selectFocus]);
 
+  // State and history change in the event, never one inside the other's updater: React runs an updater
+  // during the render, and a setState there is the console's "Cannot update a component while rendering
+  // a different component" (#9572). The latest state is read through a ref for that reason.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const historyRef = useRef(history);
+  historyRef.current = history;
   const commit = useCallback((next: (s: GraphState) => GraphState) => {
-    setState((current) => {
-      setHistory(h => ({ past: [...h.past.slice(-29), current] }));
-      return next(current);
-    });
+    const current = stateRef.current;
+    const updated = next(current);
+    stateRef.current = updated;
+    historyRef.current = { past: [...historyRef.current.past.slice(-29), current] };
+    setHistory(historyRef.current);
+    setState(updated);
   }, []);
 
   const undo = () => {
-    setHistory((h) => {
-      if (h.past.length === 0) {
-        return h;
-      }
-      setState(h.past[h.past.length - 1]);
-      return { past: h.past.slice(0, -1) };
-    });
+    const { past } = historyRef.current;
+    if (past.length === 0) {
+      return;
+    }
+    const previous = past[past.length - 1];
+    historyRef.current = { past: past.slice(0, -1) };
+    stateRef.current = previous;
+    setHistory(historyRef.current);
+    setState(previous);
   };
 
   // The time range (OpenCTI's GraphToolbarTimeRange) spans the dates of every node loaded; a range the
@@ -450,8 +461,15 @@ const GraphExplorerInner = ({
   }, [variant, shownNodes, shownEdges, state.focus, state.pinned, state.path, state.ungrouped, selected]);
   const drawnNodes = drawn.nodes as GroupedNode[];
   const drawnEdges = drawn.edges;
-  // The positions on screen: read by the layout to extend it in place.
+  // The positions on screen, frame by frame while a move plays.
   const shown = useRef<Map<string, Point>>(new Map());
+  // Where every node goes: the target of the last move committed, or where a drag dropped a node. An
+  // expand extends THIS placement, never the mid-move positions, so a re-render during a layout run
+  // (a click, a selection, the URL write) keeps the run's target and the move ends where it should.
+  const settled = useRef<Map<string, Point>>(new Map());
+  // The layout run (layout|run) whose target is on screen or on its way. Written in the commit phase
+  // only: React may call a render twice (StrictMode) or restart it (a transition), so a render that
+  // wrote it would make its own replay skip the layout (#9572).
   const laidOut = useRef<string>('');
   // Set when the view must frame the graph once the move has landed (a load, a layout, new nodes).
   const fitPending = useRef(true);
@@ -459,21 +477,20 @@ const GraphExplorerInner = ({
   // placement) runs on a layout button, Re-run the layout and a new slice; an expand, a hide or a group
   // opened keeps every node where it is and places the newcomers next to their neighbour (an OpenCTI
   // investigation never jumps). The mini card draws its own compact two-hop block.
-  const frames = useMemo(() => {
-    if (variant === 'mini') {
-      return [miniCardLayout(drawnNodes, drawnEdges, state.focus ?? '')];
-    }
-    const key = `${layout}|${layoutRun}`;
-    if (laidOut.current !== key || shown.current.size === 0) {
-      laidOut.current = key;
-      fitPending.current = true;
-      return layoutFrames(layout, drawnNodes, drawnEdges, state.focus);
-    }
-    if (drawnNodes.some(n => !shown.current.has(n.node_id))) {
-      fitPending.current = true;
-    }
-    return [extendLayout(shown.current, drawnNodes, drawnEdges)];
-  }, [variant, layout, layoutRun, drawnNodes, drawnEdges, state.focus]);
+  // Pure: it reads the refs, never writes them (the animation effect does, once committed).
+  const { frames, runKey, fit } = useMemo(
+    () => planMove({
+      variant,
+      runKey: `${layout}|${layoutRun}`,
+      laidOut: laidOut.current,
+      settled: settled.current,
+      layout,
+      nodes: drawnNodes,
+      edges: drawnEdges,
+      focus: state.focus,
+    }),
+    [variant, layout, layoutRun, drawnNodes, drawnEdges, state.focus],
+  );
   const target = frames[frames.length - 1];
   // What is on screen. A layout switch, an expand or a hide moves the nodes from where they are to
   // where they go: the force layout plays its simulation frames (the forces settle visibly), a static
@@ -491,6 +508,11 @@ const GraphExplorerInner = ({
     }));
   }, [fitView, fitOptions]);
   useEffect(() => {
+    laidOut.current = runKey;
+    settled.current = target;
+    if (fit) {
+      fitPending.current = true;
+    }
     const from = entering(shown.current, target, drawnEdges);
     const steps = frames.length > 1 ? frames : [target];
     const duration = frames.length > 1 ? Math.max(MOVE_MS, steps.length * FRAME_MS) : MOVE_MS;
@@ -503,14 +525,8 @@ const GraphExplorerInner = ({
     let raf = 0;
     const start = performance.now();
     const tick = (now: number) => {
-      const progress = Math.min(1, (now - start) / duration);
-      const eased = 1 - (1 - progress) ** 3;
-      // The first leg glides from the screen to the first frame, then the frames play in order.
-      const legs = steps.length;
-      const at = eased * legs;
-      const leg = Math.min(legs - 1, Math.floor(at));
-      const legFrom = leg === 0 ? from : steps[leg - 1];
-      const next = interpolate(legFrom, steps[leg], at - leg);
+      const next = moveAt(from, steps, (now - start) / duration);
+      const progress = Math.min(1, Math.max(0, (now - start) / duration));
       shown.current = next;
       setPositions(next);
       if (progress < 1) {
@@ -521,7 +537,7 @@ const GraphExplorerInner = ({
     };
     raf = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(raf);
-  }, [frames, target, drawnEdges, variant, frame]);
+  }, [frames, target, runKey, fit, drawnEdges, variant, frame]);
   // The mini card frames its graph again when the window is resized (the card's width follows the
   // page), so no node stays cut or off-centre after a resize (#9448, UX round 2 B3).
   useEffect(() => {
@@ -626,6 +642,7 @@ const GraphExplorerInner = ({
     }
     if (moved) {
       shown.current = moved;
+      settled.current = moved;
       setPositions(moved);
     }
     if (picked) {
@@ -791,17 +808,24 @@ const GraphExplorerInner = ({
         result?: GraphResult | null;
       }[];
     }
-    return Object.values(state.edges)
+    // One row per neighbour and relation: a membership read from both ends (a group expanded, then
+    // one of its assets) is two edges of opposite direction and one relation (#9572: duplicate keys).
+    const rows = new Map<string, { node: GraphNodeOutput; type: GraphEdgeType; result?: GraphResult | null }>();
+    Object.values(state.edges)
       .filter(e => e.edge_source === selectedNode.node_id || e.edge_target === selectedNode.node_id)
-      .map((e) => {
+      .forEach((e) => {
         const other = e.edge_source === selectedNode.node_id ? e.edge_target : e.edge_source;
-        return {
-          node: state.nodes[other],
-          type: e.edge_type,
-          result: e.edge_result,
-        };
-      })
-      .filter(n => n.node);
+        const node = state.nodes[other];
+        const key = `${e.edge_type}-${other}`;
+        if (node && !rows.has(key)) {
+          rows.set(key, {
+            node,
+            type: e.edge_type,
+            result: e.edge_result,
+          });
+        }
+      });
+    return Array.from(rows.values());
   }, [selectedNode, state]);
 
   const toggle = <T, >(list: T[], value: T) => (list.includes(value) ? list.filter(v => v !== value) : [...list, value]);

@@ -514,6 +514,61 @@ export const layoutBounds = (positions: Map<string, Point>, nodeWidth: number, n
   };
 };
 
+/**
+ * The move toward a layout, planned from what is committed (#9572). A new layout run (a layout button,
+ * Re-run the layout, a new slice: its key differs from the run already laid out) or an empty screen
+ * plays the whole layout; anything else (an expand, a hide, a selection, a re-render) extends the
+ * placement already committed, so a re-render while a layout plays keeps that layout's target. Pure:
+ * it never writes what it reads, so React may call it twice for one render (StrictMode, a restarted
+ * transition) and get the same plan.
+ */
+export const planMove = ({ variant, runKey, laidOut, settled, layout, nodes, edges, focus }: {
+  variant: 'page' | 'embedded' | 'mini' | string;
+  runKey: string;
+  laidOut: string;
+  settled: Map<string, Point>;
+  layout: GraphLayout;
+  nodes: GraphNodeOutput[];
+  edges: GraphEdgeOutput[];
+  focus?: string | null;
+}): { frames: Map<string, Point>[]; runKey: string; fit: boolean } => {
+  if (variant === 'mini') {
+    return {
+      frames: [miniCardLayout(nodes, edges, focus ?? '')],
+      runKey,
+      fit: true,
+    };
+  }
+  if (laidOut !== runKey || settled.size === 0) {
+    return {
+      frames: layoutFrames(layout, nodes, edges, focus),
+      runKey,
+      fit: true,
+    };
+  }
+  return {
+    frames: [extendLayout(settled, nodes, edges)],
+    runKey,
+    fit: nodes.some(n => !settled.has(n.node_id)),
+  };
+};
+
+/**
+ * The positions of a move at its share of time t: an ease-out over the legs, the first leg from the
+ * screen to the first frame, then the frames in order. t is clamped to [0, 1]: an animation frame's
+ * timestamp can precede the move's start by a few milliseconds, and a negative t once read a frame
+ * before the first (#9572: "Cannot read properties of undefined (reading 'forEach')").
+ */
+export const moveAt = (from: Map<string, Point>, steps: Map<string, Point>[], t: number): Map<string, Point> => {
+  const progress = Math.min(1, Math.max(0, Number.isFinite(t) ? t : 1));
+  const eased = 1 - (1 - progress) ** 3;
+  const legs = steps.length;
+  const at = eased * legs;
+  const leg = Math.min(legs - 1, Math.max(0, Math.floor(at)));
+  const legFrom = leg === 0 ? from : steps[leg - 1];
+  return interpolate(legFrom, steps[leg], Math.min(1, at - leg));
+};
+
 /** The positions between two frames at t in [0, 1], for the nodes of the second frame. */
 export const interpolate = (a: Map<string, Point>, b: Map<string, Point>, t: number): Map<string, Point> => {
   const result = new Map<string, Point>();
