@@ -6,7 +6,7 @@ import { buildSearchPagination } from '../../../../components/common/queryable/Q
 import { useFormatter } from '../../../../components/i18n';
 import { THREAT_ARSENAL_BASE_URL } from '../../../../constants/BaseUrls';
 
-interface Props { action: ReactNode }
+interface Props { action?: ReactNode }
 
 // Same header on both tabs: only its action changes.
 const ThreatArsenalHero: FunctionComponent<Props> = ({ action }) => {
