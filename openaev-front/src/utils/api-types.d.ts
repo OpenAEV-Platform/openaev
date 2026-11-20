@@ -2797,7 +2797,9 @@ export interface CatalogHistoryOutput {
     | "INSTALL"
     | "UNINSTALL"
     | "REVOKE"
-    | "LIFT_REVOCATION";
+    | "LIFT_REVOCATION"
+    | "UPDATE"
+    | "ROLLBACK";
   /** @format date-time */
   catalog_history_created_at: string;
   /** @minLength 1 */
