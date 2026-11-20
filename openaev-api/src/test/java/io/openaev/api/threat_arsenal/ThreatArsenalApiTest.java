@@ -26,6 +26,7 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
 import io.openaev.rest.payload.service.PayloadService;
@@ -36,6 +37,7 @@ import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.helpers.UserTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utils.pagination.SortField;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -711,6 +713,38 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       assertTrue(
           totalElements >= expectedMinCount,
           "Expected at least " + expectedMinCount + " results but got " + totalElements);
+    }
+
+    @Test
+    @DisplayName("Searching by primary domain returns each domain's actions together")
+    void given_groupByPrimaryDomain_should_returnActionsInDomainOrder() throws Exception {
+      // Arrange
+      InjectorContractSearchPaginationInput input = new InjectorContractSearchPaginationInput();
+      input.setSize(20);
+      input.setSorts(
+          List.of(SortField.builder().property("action_labels").direction("DESC").build()));
+      input.setGroupByPrimaryDomain(true);
+      String first =
+          domain1.get().getName().compareTo(domain2.get().getName()) < 0
+              ? domain1.get().getId()
+              : domain2.get().getId();
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/search")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> primaryDomains = JsonPath.read(response, "$.content[*].action_domains_ids[0]");
+      int firstCount = (int) primaryDomains.stream().filter(first::equals).count();
+      assertThat(primaryDomains.subList(0, firstCount)).containsOnly(first);
     }
 
     static Stream<Arguments> domainCountFilterProvider() {

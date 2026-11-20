@@ -56,14 +56,17 @@ setup('authenticate admin', async ({ page }) => {
   await page.context().storageState({ path: AUTH_ADMIN });
 });
 
-for (const persona of ['manager', 'observer'] as const) {
+for (const persona of ['manager', 'observer', 'noright'] as const) {
   // eslint-disable-next-line playwright/expect-expect
   setup(`authenticate ${persona}`, async ({ playwright }) => {
     const { email, password, firstname, groupName } = PERSONAS[persona];
     const admin = await newRequestContextAs(playwright, 'admin');
     try {
       const user = await new UserApiHelpers(admin).createOrAttachUser(email, password, firstname);
-      await new GroupApiHelpers(admin).addUserToGroup(groupName, user.user_id);
+      // eslint-disable-next-line playwright/no-conditional-in-test
+      if (groupName) {
+        await new GroupApiHelpers(admin).addUserToGroup(groupName, user.user_id);
+      }
     } finally {
       await admin.dispose();
     }

@@ -98,11 +98,11 @@ const DashboardResults = () => {
   // a dependency here: it would give `defaultWidget` (and thus the seed effect) a
   // fresh identity every render, re-running the fetch on every render and looping
   // the ad-hoc endpoint. `locale` is the stable signal that t's output changed.
-  // includeHumanResponse is forced on: this resolver only looks up the widget the
-  // user clicked, and the Human Response gauge can only be clicked when the
-  // dashboard mounted it (data present in range) - it must stay resolvable here.
+  // includeHumanResponse and includeLogging are forced on: this resolver only looks up
+  // the widget the user clicked, and the Human Response and Logging gauges can only be
+  // clicked when the dashboard mounted them - they must stay resolvable here.
   const defaultWidget = useMemo(
-    () => (source === 'default' ? buildDefaultHomeWidgets(defaultTimeRange, t, true).find(w => w.widget_id === widgetId) : undefined),
+    () => (source === 'default' ? buildDefaultHomeWidgets(defaultTimeRange, t, true, true).find(w => w.widget_id === widgetId) : undefined),
     [source, defaultTimeRange, widgetId, locale],
   );
 

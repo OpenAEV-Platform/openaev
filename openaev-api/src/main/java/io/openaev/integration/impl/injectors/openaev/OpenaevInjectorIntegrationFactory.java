@@ -10,15 +10,14 @@ import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.scheduler.jobs.InjectsExecutionJob;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.settings.InjectExecutionThresholdService;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -31,12 +30,7 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
   private final InjectorContext injectorContext;
   private final InjectExpectationService injectExpectationService;
   private final InjectService injectService;
-
-  @Value(
-      "${inject.execution.threshold.minutes:"
-          + InjectsExecutionJob.DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES
-          + "}")
-  private Integer injectExecutionThresholdMinutes;
+  private final InjectExecutionThresholdService injectExecutionThresholdService;
 
   public OpenaevInjectorIntegrationFactory(
       ComponentRequestEngine componentRequestEngine,
@@ -47,7 +41,8 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
       HttpClientFactory httpClientFactory,
       InjectorContext injectorContext,
       InjectExpectationService injectExpectationService,
-      InjectService injectService) {
+      InjectService injectService,
+      InjectExecutionThresholdService injectExecutionThresholdService) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
@@ -56,6 +51,7 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
     this.injectorContext = injectorContext;
     this.injectExpectationService = injectExpectationService;
     this.injectService = injectService;
+    this.injectExecutionThresholdService = injectExecutionThresholdService;
   }
 
   @Override
@@ -100,7 +96,10 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
 
   @Override
   public void registerConnectorForTenant(String tenantId) throws Exception {
-    int timeoutSeconds = injectExecutionThresholdMinutes * 60;
+    // The implant is given as long as the finalization job waits for it. The value is baked into
+    // the executor commands when the built-in injector is registered (at startup), so a change of
+    // the platform setting reaches the implant at the next registration.
+    int timeoutSeconds = injectExecutionThresholdService.thresholdMinutes() * 60;
     Map<String, String> executorCommands =
         OpenaevImplantCommandBuilder.buildExecutorCommands(timeoutSeconds);
     Map<String, String> executorClearCommands =

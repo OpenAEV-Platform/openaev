@@ -102,7 +102,8 @@ public interface RawFindingIndexing extends RawTenant {
   Set<String> getAsset_ids();
 
   /**
-   * Returns the IDs of the asset groups targeted by the injects where this finding occurred.
+   * Returns the IDs of the asset groups that statically contain one of this finding's assets. The
+   * dynamic groups are added at indexing time by the membership resolver.
    *
    * @return the asset group IDs
    */

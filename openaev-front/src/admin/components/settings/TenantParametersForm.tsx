@@ -68,7 +68,7 @@ const TenantParametersForm: FunctionComponent<TenantParametersFormProps> = ({
         style={{
           display: 'flex',
           flexDirection: 'column',
-          minHeight: '100%',
+          height: '100%',
           gap: theme.spacing(2.5),
         }}
       >
@@ -78,7 +78,13 @@ const TenantParametersForm: FunctionComponent<TenantParametersFormProps> = ({
         <CustomDashboardAutocompleteFieldController name="platform_home_dashboard" label={t('Home dashboard')} disabled={canNotManage} withPlatformDefault />
         <CustomDashboardAutocompleteFieldController name="platform_scenario_dashboard" label={t('Default scenario dashboard')} disabled={canNotManage} />
         <CustomDashboardAutocompleteFieldController name="platform_simulation_dashboard" label={t('Default simulation dashboard')} disabled={canNotManage} />
-        <div>
+        {/* Bottom right of the card, as on the Execution and Themes cards. */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          marginTop: 'auto',
+        }}
+        >
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
             <Button type="submit" disabled={!isDirty || isSubmitting}>
               {t('Update')}

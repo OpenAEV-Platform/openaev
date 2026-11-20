@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import LeftBar from '../../../../admin/components/nav/LeftBar';
 import { type NavMenuEntries } from '../../../../components/common/menu/navbar/nav-menu-model';
+import { type UserGrant } from '../../../../utils/api-types';
 import { defineAbility } from '../../../../utils/permissions/ability';
 import { AbilityProvider } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -113,6 +114,88 @@ describe('LeftBar Threat Arsenal navigation', () => {
       // Assert
       const link = screen.queryByRole('link', { name: 'Threat Arsenal' });
       expect(link?.getAttribute('href') ?? null).toBe(visible ? '/admin/threat-arsenal' : null);
+    });
+  });
+});
+
+describe('LeftBar assessment navigation', () => {
+  afterEach(cleanup);
+
+  const ASSESSMENT_LINKS = [
+    {
+      name: 'Scenarios',
+      href: '/admin/scenarios',
+    },
+    {
+      name: 'Simulations',
+      href: '/admin/simulations',
+    },
+    {
+      name: 'Atomic testings',
+      href: '/admin/atomic_testings',
+    },
+  ];
+
+  describe.each<{
+    name: string;
+    capabilities: string[];
+    grantType?: UserGrant['type'];
+    visible: boolean;
+  }>([
+    {
+      name: 'a SCENARIO grant',
+      capabilities: [],
+      grantType: 'SCENARIO',
+      visible: true,
+    },
+    {
+      name: 'a SIMULATION grant',
+      capabilities: [],
+      grantType: 'SIMULATION',
+      visible: true,
+    },
+    {
+      name: 'an ATOMIC_TESTING grant',
+      capabilities: [],
+      grantType: 'ATOMIC_TESTING',
+      visible: true,
+    },
+    {
+      name: 'the assessment capability',
+      capabilities: ['ACCESS_ASSESSMENT'],
+      visible: true,
+    },
+    {
+      name: 'a THREAT_ARSENAL grant',
+      capabilities: [],
+      grantType: 'THREAT_ARSENAL',
+      visible: false,
+    },
+    {
+      name: 'no permissions',
+      capabilities: [],
+      visible: false,
+    },
+  ])('with $name', ({ capabilities, grantType, visible }) => {
+    it(`${visible ? 'shows' : 'hides'} the scenario, simulation and atomic testing links`, () => {
+      // Arrange
+      const grants: Record<string, UserGrant> = grantType
+        ? {
+            'granted-resource': {
+              grant: 'OBSERVER',
+              type: grantType,
+            },
+          }
+        : {};
+      const ability = defineAbility(capabilities, grants, false);
+
+      // Act
+      render(<AbilityProvider value={ability}><LeftBar /></AbilityProvider>);
+
+      // Assert
+      ASSESSMENT_LINKS.forEach(({ name, href }) => {
+        expect(screen.queryByRole('link', { name })?.getAttribute('href') ?? null).toBe(visible ? href : null);
+      });
     });
   });
 });

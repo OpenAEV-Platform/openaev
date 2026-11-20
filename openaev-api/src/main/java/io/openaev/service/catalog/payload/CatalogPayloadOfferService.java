@@ -39,6 +39,18 @@ public class CatalogPayloadOfferService implements CatalogOffer<InstallablePaylo
         catalogListService.offered(CatalogPayload.class, externalId, version));
   }
 
+  /** The latest offered version of every catalogue payload the tenant does not show. */
+  @Transactional(readOnly = true)
+  public List<CatalogPayload> notInstalled(String tenantId) {
+    Set<String> installed = installedVersions(tenantId).keySet();
+    return catalogListService.latestOffered(CatalogPayload.class).stream()
+        .filter(
+            item ->
+                !installed.contains(
+                    CatalogOffer.key(item.getRelease().getRepository(), item.getExternalId())))
+        .toList();
+  }
+
   /** The latest offered version of every catalogue payload the tenant never installed. */
   @Override
   @Transactional(readOnly = true)
@@ -80,12 +92,7 @@ public class CatalogPayloadOfferService implements CatalogOffer<InstallablePaylo
   // An uninstalled payload has no latest version: none of its versions installs itself.
   private List<InstallablePayloadVersion> newerVersions(
       String tenantId, List<CatalogPayload> items) {
-    Map<String, String> installed =
-        payloadIdentityRepository.findInstalledVersions(tenantId).stream()
-            .collect(
-                Collectors.toMap(
-                    v -> CatalogOffer.key(v.getRepository(), v.getExternalId()),
-                    RawInstalledPayloadVersion::getVersion));
+    Map<String, String> installed = installedVersions(tenantId);
     return items.stream()
         .filter(item -> item.getStatus().isOffered())
         .map(InstallablePayloadVersion::of)
@@ -98,5 +105,14 @@ public class CatalogPayloadOfferService implements CatalogOffer<InstallablePaylo
             })
         .sorted(Comparator.comparing(InstallablePayloadVersion::version, SemanticVersion.ORDER))
         .toList();
+  }
+
+  // The version the tenant shows of each installed catalogue payload, by its key.
+  private Map<String, String> installedVersions(String tenantId) {
+    return payloadIdentityRepository.findInstalledVersions(tenantId).stream()
+        .collect(
+            Collectors.toMap(
+                v -> CatalogOffer.key(v.getRepository(), v.getExternalId()),
+                RawInstalledPayloadVersion::getVersion));
   }
 }

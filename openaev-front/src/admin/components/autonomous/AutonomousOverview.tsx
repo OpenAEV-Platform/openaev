@@ -7,10 +7,11 @@ import { type AutonomousEvent, type AutonomousRun, type AutonomousRunStatus } fr
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults } from '../../../actions/exercises/exercise-action';
 import { SectionBlock } from '../../../components/common/detail/EntityDetailCommon';
 import PostureGauges from '../../../components/common/detail/PostureGauges';
-import SAMPLE_POSTURE from '../../../components/common/detail/samplePosture';
+import samplePosture from '../../../components/common/detail/samplePosture';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
 import { type ExpectationResultsByType, type InjectExpectationResultsByAttackPattern } from '../../../utils/api-types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import MitreCoverageMatrix from '../common/matrix/MitreCoverageMatrix';
 import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../workspaces/custom_dashboards/results/contextualWidgets';
 import SamplePreview from '../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
@@ -39,6 +40,7 @@ interface AutonomousOverviewProps {
  */
 const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run, sharedEvents }) => {
   const { t } = useFormatter();
+  const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
   const navigate = useNavigate();
   const location = useLocation();
   const status = run.autonomous_run_status;
@@ -121,7 +123,7 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run, s
             if (postureResults.length === 0) {
               return (
                 <SamplePreview active variant="subtle" atPanelEdge>
-                  <PostureGauges expectationResultsByTypes={SAMPLE_POSTURE} />
+                  <PostureGauges expectationResultsByTypes={samplePosture(isLoggingEnabled)} />
                 </SamplePreview>
               );
             }

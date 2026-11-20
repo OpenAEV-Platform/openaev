@@ -32,6 +32,7 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
+import { ASSESSMENT_ACCESS_CHECKS } from './config/assessment.config';
 import settingsEntries from './config/settings.config';
 import LeftBarHeader from './LeftBarHeader';
 import TenantSwitcher from './LeftBarTenantSwitcher';
@@ -44,6 +45,8 @@ const LeftBar = () => {
   // clean and avoids an orphan divider above the first entry (Home).
   const hasTenantSwitcher = (userTenants ?? []).length > 1;
   const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+  // Same checks as the list routes: users with grants only still reach what is granted to them
+  const canAccessAssessments = ASSESSMENT_ACCESS_CHECKS.some(({ action, subject }) => ability.can(action, subject));
 
   const entries: NavMenuEntries[] = [
     {
@@ -82,19 +85,19 @@ const LeftBar = () => {
           path: `/admin/scenarios`,
           icon: () => (<RouteOutlined />),
           label: 'Scenarios',
-          userRight: true,
+          userRight: canAccessAssessments,
         },
         {
           path: `/admin/simulations`,
           icon: () => (<PlayCircleOutlineOutlined />),
           label: 'Simulations',
-          userRight: true,
+          userRight: canAccessAssessments,
         },
         {
           path: `/admin/atomic_testings`,
           icon: () => (<Target />),
           label: 'Atomic testings',
-          userRight: true,
+          userRight: canAccessAssessments,
         },
         {
           path: `/admin/threat-arsenal`,

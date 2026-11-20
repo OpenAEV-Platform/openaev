@@ -36,7 +36,10 @@ import org.springframework.util.CollectionUtils;
 
 @RequiredArgsConstructor
 @Service
-public class AssetGroupService {
+public class AssetGroupService implements AssetGroupMembershipResolver {
+
+  /** Asset ids per membership query, under the bind parameter limit of the driver. */
+  private static final int MEMBERSHIP_CHUNK = 1000;
 
   private final AssetGroupRepository assetGroupRepository;
   private final AssetService assetService;
@@ -316,6 +319,108 @@ public class AssetGroupService {
         .filter(group -> isAssetInDynamicGroup(asset, group))
         .forEach(group -> assetGroupsById.putIfAbsent(group.getId(), group));
     return new ArrayList<>(assetGroupsById.values());
+  }
+
+  /**
+   * The asset groups that contain at least one of the given assets, static and dynamic: the asset
+   * groups of a finding are those of its assets (see {@link AssetGroupMembershipResolver}).
+   */
+  @Transactional(readOnly = true)
+  public List<AssetGroup> assetGroupsOfAssets(@NotNull final Collection<String> assetIds) {
+    Set<String> groupIds =
+        membershipsOfAssets(assetIds).values().stream()
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    if (groupIds.isEmpty()) {
+      return List.of();
+    }
+    return fromIterable(this.assetGroupRepository.findAllById(groupIds));
+  }
+
+  /**
+   * Static membership from {@code asset_groups_assets}, dynamic membership from each dynamic
+   * group's filter, constrained to the given ids and to the group's tenant. One query per dynamic
+   * group and chunk of ids, whatever the number of assets, so an indexing batch never resolves the
+   * full member list of a group.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Map<String, Set<String>> assetGroupIdsByAssetId(final Collection<String> assetIds) {
+    return membershipsOfAssets(assetIds);
+  }
+
+  /**
+   * The body of {@link #assetGroupIdsByAssetId(Collection)}, run inside the caller's transaction so
+   * a method of this class never calls a {@code @Transactional} method of its own.
+   */
+  private Map<String, Set<String>> membershipsOfAssets(final Collection<String> assetIds) {
+    Map<String, Set<String>> groupsByAsset = new HashMap<>();
+    if (assetIds == null || assetIds.isEmpty()) {
+      return groupsByAsset;
+    }
+    List<List<String>> chunks = chunks(new ArrayList<>(new LinkedHashSet<>(assetIds)));
+    chunks.forEach(
+        chunk ->
+            this.assetGroupRepository
+                .findStaticMembershipsOfAssets(chunk)
+                .forEach(row -> addMembership(groupsByAsset, (String) row[0], (String) row[1])));
+    List<AssetGroup> dynamicGroups =
+        fromIterable(this.assetGroupRepository.findAll()).stream()
+            .filter(group -> !isEmptyFilterGroup(group.getDynamicFilter()))
+            .toList();
+    for (AssetGroup group : dynamicGroups) {
+      for (List<String> chunk : chunks) {
+        dynamicMembersAmong(group, chunk)
+            .forEach(assetId -> addMembership(groupsByAsset, assetId, group.getId()));
+      }
+    }
+    return groupsByAsset;
+  }
+
+  private static void addMembership(
+      Map<String, Set<String>> groupsByAsset, String assetId, String groupId) {
+    groupsByAsset.computeIfAbsent(assetId, id -> new HashSet<>()).add(groupId);
+  }
+
+  private static List<List<String>> chunks(List<String> ids) {
+    List<List<String>> chunks = new ArrayList<>();
+    for (int start = 0; start < ids.size(); start += MEMBERSHIP_CHUNK) {
+      chunks.add(ids.subList(start, Math.min(ids.size(), start + MEMBERSHIP_CHUNK)));
+    }
+    return chunks;
+  }
+
+  /**
+   * The ids among {@code assetIds} that the group's dynamic filter matches: the same rules as
+   * {@link #computeDynamicAssets(AssetGroup)} (injectable or agentless endpoints, and non-endpoint
+   * assets when the filter keys apply to them), within the group's tenant.
+   */
+  private Set<String> dynamicMembersAmong(
+      final AssetGroup group, final Collection<String> assetIds) {
+    Set<String> members = new HashSet<>();
+    Specification<Endpoint> endpointFilter = computeFilterGroupJpa(group.getDynamicFilter());
+    Specification<Endpoint> endpointIdIn = (root, query, cb) -> root.get("id").in(assetIds);
+    this.endpointService
+        .endpoints(
+            endpointFilter
+                .and(endpointsOfTenantOf(group))
+                .and(EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints())
+                .and(endpointIdIn))
+        .forEach(endpoint -> members.add(endpoint.getId()));
+    if (isFilterResolvableForBaseAssets(group.getDynamicFilter())) {
+      String tenantId = group.getTenant().getId();
+      Specification<Asset> assetFilter = computeFilterGroupJpa(group.getDynamicFilter());
+      Specification<Asset> nonEndpointOfTenant =
+          (root, query, cb) ->
+              cb.and(
+                  cb.notEqual(root.get("type"), AssetType.Values.ENDPOINT_TYPE),
+                  cb.equal(root.get("tenant").get("id"), tenantId),
+                  root.get("id").in(assetIds));
+      this.assetService
+          .assets(assetFilter.and(nonEndpointOfTenant))
+          .forEach(asset -> members.add(asset.getId()));
+    }
+    return members;
   }
 
   /** True when the group's dynamic filter matches the given asset (id-constrained query). */

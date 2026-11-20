@@ -1,83 +1,75 @@
-import { ButtonGroup, ButtonGroupItem, Checkbox, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import {
-  GridViewOutlined,
-  LinkOffOutlined,
-  ViewListOutlined,
-} from '@mui/icons-material';
-import { Box, List, ListItem, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { CategoryOutlined } from '@mui/icons-material';
+import { Box } from '@mui/material';
 import { useState } from 'react';
 
+import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
+import { fetchAttackPatterns } from '../../../actions/AttackPattern';
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import {
   bulkDeleteThreatArsenalActions,
-  exportThreatArsenalCsvMapper,
   fetchThreatArsenalAuthorCounts,
   searchThreatArsenalActions,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
-import Breadcrumbs from '../../../components/Breadcrumbs';
 import DialogDelete from '../../../components/common/DialogDelete';
-import ExportButton from '../../../components/common/ExportButton';
-import { useAuthorFacetOptions } from '../../../components/common/facets/ContractFacets';
+import { useAuthorOptions } from '../../../components/common/facets/ContractFacets';
+import MarketplaceBrowser from '../../../components/common/marketplace/page/MarketplaceBrowser';
+import MarketplaceLoadMore from '../../../components/common/marketplace/results/MarketplaceLoadMore';
+import MarketplaceSections from '../../../components/common/marketplace/results/MarketplaceSections';
 import MarketplaceSortSelect from '../../../components/common/marketplace/toolbar/MarketplaceSortSelect';
+import MarketplaceViewToggle from '../../../components/common/marketplace/toolbar/MarketplaceViewToggle';
+import useMarketplaceView from '../../../components/common/marketplace/toolbar/useMarketplaceView';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
-import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
-import {
-  type SearchPaginationInput,
-  type ThreatArsenalAction,
-} from '../../../utils/api-types';
+import { type AttackPattern, type InjectorContractAuthorCountOutput, type SearchPaginationInput, type ThreatArsenalAction } from '../../../utils/api-types';
 import { useBulkOperationsFinishedCount } from '../../../utils/bulkOperations';
+import { useAppDispatch } from '../../../utils/hooks';
+import useDataLoader from '../../../utils/hooks/useDataLoader';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { DOMAIN_ICON_MAP } from '../common/domains/DomainsIcons';
 import useDomainIconFilter from '../common/domains/useDomainIconFilter';
+import { MITRE_FILTER_KEY } from '../common/filters/MitreFilter';
 import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
+import ThreatArsenalSelectAll from './bulk/ThreatArsenalSelectAll';
+import ThreatArsenalSelectionBar from './bulk/ThreatArsenalSelectionBar';
+import ThreatArsenalCard from './card/ThreatArsenalCard';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
-import ImportUploaderThreatArsenal from './ImportUploaderThreatArsenal';
-import ThreatArsenalCard from './ThreatArsenalCard';
+import ThreatArsenalList from './list/ThreatArsenalList';
+import { THREAT_ARSENAL_SORT_OPTIONS } from './list/threatArsenalListConfig';
+import ThreatArsenalHeaderActions from './page/ThreatArsenalHeaderActions';
+import ThreatArsenalHero from './page/ThreatArsenalHero';
+import ThreatArsenalSidebar from './page/ThreatArsenalSidebar';
+import ThreatArsenalTabs from './page/ThreatArsenalTabs';
 import ThreatArsenalEmptyState from './ThreatArsenalEmptyState';
-import ThreatArsenalHero from './ThreatArsenalHero';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
-import { THREAT_ARSENAL_LIST_HEADERS, THREAT_ARSENAL_LIST_INLINE_STYLES, THREAT_ARSENAL_SORT_OPTIONS } from './threatArsenalListConfig';
-import ThreatArsenalListRow from './ThreatArsenalListRow';
 import { hasOrphanedScopeFilters, toggleOrphanedScope } from './threatArsenalOrphanedScopeUtils';
-import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
-import ThreatArsenalSidebar from './ThreatArsenalSidebar';
 import useThreatArsenalFacetCounts from './useThreatArsenalFacetCounts';
+import actionDomains from './utils/actionDomains';
 
-type ViewMode = 'grid' | 'list';
-
-const VIEW_MODE_STORAGE_KEY = 'threat-arsenal:view-mode-v2';
-
-const readViewMode = (): ViewMode => {
-  if (typeof window === 'undefined') return 'grid';
-  const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
-  return stored === 'list' ? 'list' : 'grid';
-};
+const AVAILABLE_FILTER_NAMES = [
+  'action_injectors',
+  'action_platforms',
+  'action_domains',
+  'action_tags',
+  'action_payload_status',
+  'action_updated_at',
+  'action_author',
+  MITRE_FILTER_KEY,
+];
 
 const ThreatArsenal = () => {
   const { t } = useFormatter();
-  const theme = useTheme();
-  const ability = useAbility();
-  const canDeleteThreatArsenal = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS);
-
-  const [selectedThreatArsenalAction, setSelectedThreatArsenalAction] = useState<ThreatArsenalAction | null>(null);
+  const canDelete = useAbility().can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS);
+  const [openedAction, setOpenedAction] = useState<ThreatArsenalAction | null>(null);
   const [isRunTestDrawerOpened, setRunTestDrawerOpened] = useState<boolean>(false);
+  const [runTestAction, setRunTestAction] = useState<ThreatArsenalAction | null>(null);
   const [isBulkDeleteDialogOpened, setBulkDeleteDialogOpened] = useState<boolean>(false);
   const [threatArsenalActions, setThreatArsenalActions] = useState<ThreatArsenalAction[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>(readViewMode);
-
-  const handleViewModeChange = (next: string) => {
-    const value = next as ViewMode;
-    setViewMode(value);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, value);
-    }
-  };
+  const { viewMode, handleViewModeChange } = useMarketplaceView('threat-arsenal:view-mode-v2');
 
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
     'threat-arsenal',
@@ -92,15 +84,14 @@ const ThreatArsenal = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const fetchActions = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchThreatArsenalActions({ ...input }).finally(() => setLoading(false));
+    return searchThreatArsenalActions({
+      ...input,
+      group_by_primary_domain: true,
+    }).finally(() => setLoading(false));
   };
 
-  // Massive operations (bulk delete) run detached from this screen: reload the page
-  // of actions every time one finishes, so the list and the total stop showing the
-  // rows that were deleted in the background. Only live transitions bump this count
-  // (the history replayed at startup does not), so mounting never triggers a reload.
+  // Bulk deletes run detached: reload the actions each time one finishes.
   const finishedBulkOperations = useBulkOperationsFinishedCount();
-
   const totalElements = queryableHelpers.paginationHelpers.getTotalElements();
 
   const {
@@ -111,15 +102,14 @@ const ThreatArsenal = () => {
     handleToggleSelectAll,
     onToggleEntity,
     numberOfSelectedElements,
-  } = useEntityToggle<ThreatArsenalAction>(
-    'injector_contract',
-    threatArsenalActions,
-    totalElements,
-  );
+  } = useEntityToggle<ThreatArsenalAction>('injector_contract', threatArsenalActions, totalElements);
 
-  const { domainOptions } = useHelper(
-    (helper: DomainHelper) => ({ domainOptions: helper.getDomains() }),
-  );
+  const { domainOptions } = useHelper((helper: DomainHelper) => ({ domainOptions: helper.getDomains() }));
+  const dispatch = useAppDispatch();
+  useDataLoader(() => {
+    dispatch(fetchAttackPatterns());
+  });
+  const attackPatterns: AttackPattern[] = useHelper((helper: AttackPatternHelper) => helper.getAttackPatterns());
   const { iconBarOrderedDomains } = useDomainIconFilter({
     domainOptions,
     searchPaginationInput,
@@ -127,57 +117,16 @@ const ThreatArsenal = () => {
     apiPrefix: 'threat_arsenals',
     domainFilterKey: 'action_domains',
   });
-
-  // Platform + status counts come from a global aggregation endpoint (never
-  // from `threatArsenalActions`, which only holds the currently loaded page and
-  // would yield misleading page-bound counts).
   const facetCounts = useThreatArsenalFacetCounts(searchPaginationInput);
+  const authorOptions = useAuthorOptions(() => fetchThreatArsenalAuthorCounts(buildSearchPagination({}))
+    .then(({ data }: { data: InjectorContractAuthorCountOutput[] }) => data.map(row => ({
+      value: row.author ?? '',
+      label: row.author_name ?? row.author ?? '',
+      type: row.author_type,
+    }))));
 
-  const availableFilterNames = [
-    'action_injectors',
-    'action_platforms',
-    'action_domains',
-    'action_tags',
-    'action_payload_status',
-    'action_updated_at',
-    'action_author',
-  ];
-
-  const exportProps = {
-    exportType: 'THREAT_ARSENAL_ACTIONS',
-    exportKeys: [],
-    exportData: threatArsenalActions,
-    searchPaginationInput,
-  };
-
-  const isSelectedAction = (action: ThreatArsenalAction) =>
-    (selectAll && !(action.injector_contract_id in (deSelectedElements || {})))
-    || action.injector_contract_id in (selectedElements || {});
-
-  const computeRowFlags = (action: ThreatArsenalAction) => {
-    // Dummy injectors were removed from the platform (#6779): actions whose
-    // injector is not registered yet simply carry no injector type.
-    const isUnregistered = action.action_injector_type == null;
-    // `payload_collector_type` is optional in api-types, so a loose `!= null`
-    // is required: a strict `!== null` would treat `undefined` (field absent
-    // for manually created payloads) as "coming from a collector".
-    const isFromCollector = action.action_payload?.payload_collector_type != null;
-    return {
-      // Update is disabled for actions coming from a collector or whose
-      // injector is not registered yet.
-      disableUpdate: isFromCollector || isUnregistered,
-      disableDuplicate: action.action_payload == null || isUnregistered,
-      disableJsonExport: action.action_payload == null || isUnregistered,
-      // Orphaned actions (their injector was removed, hence the "question mark"
-      // card) can always be purged. Otherwise delete is disabled for actions
-      // without a payload and for collector actions that are not deprecated.
-      disableDelete: isUnregistered
-        ? false
-        : (action.action_payload == null
-          || (isFromCollector && action.action_payload.payload_status !== 'DEPRECATED')),
-    };
-  };
-
+  const hasActiveFilters = (searchPaginationInput.filterGroup?.filters?.length ?? 0) > 0
+    || !!searchPaginationInput.textSearch;
   const handleResetFilters = () => {
     queryableHelpers.filterHelpers.handleClearAllFilters();
     queryableHelpers.textSearchHelpers.handleTextSearch('');
@@ -192,13 +141,7 @@ const ThreatArsenal = () => {
     handleClearSelectedElements,
   });
 
-  // Fire and forget, like every other massive operation in the platform: the dialog
-  // closes and the selection clears immediately, progress is reported by the
-  // massive-operations indicator in the top bar, and the list reloads once the
-  // operation reaches a terminal state (see `reloadContentCount` below). Returning
-  // the promise instead would keep the confirmation dialog in its loading state for
-  // the whole deletion - minutes on a large scope, where the request may even
-  // outlive the proxy timeout while the backend keeps committing chunk by chunk.
+  // Fire and forget, like every massive operation: the top bar reports progress, the list reloads when it ends.
   const handleBulkDelete = () => {
     const input = {
       ...searchPaginationInput,
@@ -207,253 +150,28 @@ const ThreatArsenal = () => {
     };
     setBulkDeleteDialogOpened(false);
     handleClearSelectedElements();
-    // Failures are already surfaced by the shared error notifier, so the rethrow is
-    // swallowed here to avoid an unhandled rejection on this detached call.
     bulkDeleteThreatArsenalActions(input).catch(() => {});
   };
 
-  // Former visible caption of the select-all control, now carried by its
-  // tooltip and accessible name (the toolbar shows the bare checkbox only).
-  // String() narrows the formatter's `string | ReactNode[]` return type for
-  // the aria-label: with a numeric placeholder the result is always a string.
-  const selectAllLabel = (() => {
-    if (numberOfSelectedElements === 0) return t('Select all');
-    if (numberOfSelectedElements === 1) return t('1 action selected');
-    return String(t('{count} actions selected', { count: numberOfSelectedElements }));
-  })();
+  let selectAllLabel = String(t('{count} actions selected', { count: numberOfSelectedElements }));
+  if (numberOfSelectedElements === 0) selectAllLabel = t('Select all');
+  if (numberOfSelectedElements === 1) selectAllLabel = t('1 action selected');
+  const partiallySelected = (!selectAll && numberOfSelectedElements > 0)
+    || (selectAll && Object.keys(deSelectedElements ?? {}).length > 0);
 
-  const hasActiveFilters = !!(
-    (searchPaginationInput.filterGroup?.filters?.length ?? 0) > 0
-    || (searchPaginationInput.textSearch && searchPaginationInput.textSearch.length > 0)
-  );
-
-  // Full author universe + per-filter counts (backend aggregation), so the
-  // sidebar keeps every author visible and greys out the zero-count ones.
-  const authorOptions = useAuthorFacetOptions(fetchThreatArsenalAuthorCounts, searchPaginationInput);
-
-  const renderGridView = () => {
-    if (loading) {
-      return (
-        <Box sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: 2,
-        }}
-        >
-          {Array.from({ length: 12 }).map((_, idx) => (
-            <Box
-              key={idx}
-              sx={{
-                height: 200,
-                borderRadius: 1,
-                overflow: 'hidden',
-                border: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <Skeleton variant="rectangular" height={64} animation="wave" />
-              <Box sx={{ padding: 2 }}>
-                <Skeleton variant="text" width="80%" height={28} animation="wave" />
-                <Skeleton variant="text" width="60%" height={20} animation="wave" />
-                <Box sx={{
-                  display: 'flex',
-                  gap: 1,
-                  marginTop: 2,
-                }}
-                >
-                  <Skeleton variant="circular" width={20} height={20} animation="wave" />
-                  <Skeleton variant="circular" width={20} height={20} animation="wave" />
-                  <Skeleton variant="rectangular" width={60} height={20} animation="wave" sx={{ borderRadius: 1 }} />
-                </Box>
-              </Box>
-            </Box>
-          ))}
-        </Box>
-      );
-    }
-
-    if (threatArsenalActions.length === 0) {
-      return <ThreatArsenalEmptyState hasFilters={hasActiveFilters} onResetFilters={handleResetFilters} />;
-    }
-
-    return (
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: 2,
-        }}
-      >
-        {threatArsenalActions.map((action) => {
-          const flags = computeRowFlags(action);
-          return (
-            <ThreatArsenalCard
-              key={action.injector_contract_id}
-              action={action}
-              selected={selectedThreatArsenalAction?.injector_contract_id === action.injector_contract_id}
-              checked={isSelectedAction(action)}
-              anySelected={numberOfSelectedElements > 0}
-              onSelect={() => setSelectedThreatArsenalAction(action)}
-              onToggleEntity={event => onToggleEntity(action, event)}
-              onUpdate={(result: ThreatArsenalAction) =>
-                setThreatArsenalActions(prev => prev.map(a => (a.injector_contract_id === action.injector_contract_id ? result : a)))}
-              onDuplicate={(result: ThreatArsenalAction) => setThreatArsenalActions(prev => [result, ...prev])}
-              onDelete={() => setThreatArsenalActions(prev => prev.filter(a => a.injector_contract_id !== action.injector_contract_id))}
-              disableUpdate={flags.disableUpdate}
-              disableDuplicate={flags.disableDuplicate}
-              disableJsonExport={flags.disableJsonExport}
-              disableDelete={flags.disableDelete}
-            />
-          );
-        })}
-      </Box>
-    );
+  const prependActions = (results: ThreatArsenalAction[]) => setThreatArsenalActions(prev => [...results, ...prev]);
+  const sections = {
+    sectionKey: (action: ThreatArsenalAction) => actionDomains(action, domainOptions)[0]?.domain_name,
+    sectionLabel: (name: string | undefined) => (name ? t(name) : t('Other')),
+    sectionIcon: (name: string | undefined) => (name && DOMAIN_ICON_MAP[name]?.()) || <CategoryOutlined />,
   };
-
-  const renderListView = () => {
-    if (!loading && threatArsenalActions.length === 0) {
-      return <ThreatArsenalEmptyState hasFilters={hasActiveFilters} onResetFilters={handleResetFilters} />;
-    }
-    return (
-      <List disablePadding>
-        <ListItem
-          divider
-          secondaryAction={<>&nbsp;</>}
-          sx={{ paddingLeft: 2 }}
-        >
-          {/* Spacers align the header labels with the checkbox + icon columns. */}
-          <ListItemIcon style={{ minWidth: 38 }} />
-          <ListItemIcon style={{ minWidth: 40 }} />
-          <ListItemText
-            primary={(
-              <SortHeadersComponentV2
-                headers={THREAT_ARSENAL_LIST_HEADERS}
-                inlineStylesHeaders={THREAT_ARSENAL_LIST_INLINE_STYLES}
-                sortHelpers={queryableHelpers.sortHelpers}
-              />
-            )}
-          />
-        </ListItem>
-        {/* Skeleton rows mirror the exact real row anatomy (checkbox column,
-            inject icon column, then the shared column widths) so the layout
-            does not shift when the data lands. */}
-        {loading && Array.from({ length: 10 }).map((_, idx) => (
-          <Box
-            key={idx}
-            sx={{
-              height: 50,
-              display: 'flex',
-              alignItems: 'center',
-              paddingLeft: 2,
-              paddingRight: 7,
-              borderBottom: `1px solid ${theme.palette.divider}`,
-            }}
-          >
-            <Box sx={{ minWidth: 38 }}>
-              <Skeleton variant="rounded" width={18} height={18} animation="wave" />
-            </Box>
-            <Box sx={{ minWidth: 40 }}>
-              <Skeleton variant="circular" width={26} height={26} animation="wave" />
-            </Box>
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              flex: 1,
-            }}
-            >
-              {THREAT_ARSENAL_LIST_HEADERS.map(header => (
-                <Box
-                  key={header.field}
-                  style={THREAT_ARSENAL_LIST_INLINE_STYLES[header.field]}
-                  sx={{ paddingRight: '10px' }}
-                >
-                  <Skeleton variant="text" width="70%" height={20} animation="wave" />
-                </Box>
-              ))}
-            </Box>
-          </Box>
-        ))}
-        {!loading && threatArsenalActions.map((action) => {
-          const flags = computeRowFlags(action);
-          return (
-            <ThreatArsenalListRow
-              key={action.injector_contract_id}
-              action={action}
-              checked={isSelectedAction(action)}
-              onSelect={() => setSelectedThreatArsenalAction(action)}
-              onToggleEntity={event => onToggleEntity(action, event)}
-              onUpdate={(result: ThreatArsenalAction) =>
-                setThreatArsenalActions(prev => prev.map(a => (a.injector_contract_id === action.injector_contract_id ? result : a)))}
-              onDuplicate={(result: ThreatArsenalAction) => setThreatArsenalActions(prev => [result, ...prev])}
-              onDelete={() => setThreatArsenalActions(prev => prev.filter(a => a.injector_contract_id !== action.injector_contract_id))}
-              disableUpdate={flags.disableUpdate}
-              disableDuplicate={flags.disableDuplicate}
-              disableJsonExport={flags.disableJsonExport}
-              disableDelete={flags.disableDelete}
-            />
-          );
-        })}
-      </List>
-    );
-  };
-
-  const headerRightSlot = (
-    <>
-      <ButtonGroup
-        value={viewMode}
-        size="md"
-        usecase="isolated"
-        onValueChange={handleViewModeChange}
-        aria-label={t('View mode')}
-      >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <ButtonGroupItem value="grid" aria-label={t('Grid view')} icon={<GridViewOutlined fontSize="small" />} />
-          </TooltipTrigger>
-          <TooltipContent>{t('Grid view')}</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ViewListOutlined fontSize="small" />} />
-          </TooltipTrigger>
-          <TooltipContent>{t('List view')}</TooltipContent>
-        </Tooltip>
-      </ButtonGroup>
-
-      {/* A plain row of actions: this was a ToggleButtonGroup used as a frame,
-          which announced a group of choices that never existed. */}
-      <Box sx={{
-        display: 'flex',
-        gap: 1,
-      }}
-      >
-        <ExportButton
-          totalElements={totalElements}
-          exportProps={exportProps}
-          exportCsvMapperFunction={exportThreatArsenalCsvMapper}
-        />
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
-          <ImportUploaderThreatArsenal
-            onImport={results => setThreatArsenalActions(prev => [...results, ...prev])}
-          />
-        </Can>
-      </Box>
-
-      {/* The create button used to ride the pagination row, which the card view
-          makes 180px wider than the list view (it adds the sort select there) —
-          measured at 1400px wide: 47px of the button visible in list view, 0 in
-          card view, with no way to scroll to it. Here it sits beside the import
-          icons, one instance, rendered in both views. */}
-      {/* No margin here: the header's own row already puts 8px between its
-          children — adding one made the gap 16. */}
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
-        <CreateThreatArsenalAction
-          onCreate={(result: ThreatArsenalAction) => {
-            setThreatArsenalActions(prev => [result, ...prev]);
-          }}
-        />
-      </Can>
-    </>
-  );
+  const loadingFirstPage = loading && searchPaginationInput.page === 0;
+  const emptyState = <ThreatArsenalEmptyState hasFilters={hasActiveFilters} onResetFilters={handleResetFilters} />;
+  const isChecked = (action: ThreatArsenalAction) => (selectAll && !(action.injector_contract_id in (deSelectedElements || {})))
+    || action.injector_contract_id in (selectedElements || {});
+  const updateAction = (result: ThreatArsenalAction) => setThreatArsenalActions(prev => prev.map(a => (a.injector_contract_id === result.injector_contract_id ? result : a)));
+  const duplicateAction = (result: ThreatArsenalAction) => prependActions([result]);
+  const deleteAction = (actionId: string) => setThreatArsenalActions(prev => prev.filter(a => a.injector_contract_id !== actionId));
 
   return (
     <Box sx={{
@@ -462,32 +180,17 @@ const ThreatArsenal = () => {
       paddingBottom: numberOfSelectedElements > 0 ? 12 : 4,
     }}
     >
-      <Breadcrumbs
-        variant="list"
-        elements={[{
-          label: t('Threat Arsenal'),
-          current: true,
-        }]}
-      />
-
-      <Box sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2,
-      }}
-      >
-        <ThreatArsenalHero
-          totalElements={totalElements}
-          stats={[]}
-          rightSlot={headerRightSlot}
-        />
-
-        <Box sx={{
-          display: 'flex',
-          gap: 3,
-          alignItems: 'flex-start',
-        }}
-        >
+      <MarketplaceBrowser
+        hero={(
+          <ThreatArsenalHero action={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
+              <CreateThreatArsenalAction onCreate={result => prependActions([result])} />
+            </Can>
+          )}
+          />
+        )}
+        tabs={<ThreatArsenalTabs active="active" />}
+        sidebar={(
           <ThreatArsenalSidebar
             domainElements={iconBarOrderedDomains}
             authorOptions={authorOptions}
@@ -495,125 +198,131 @@ const ThreatArsenal = () => {
             searchPaginationInput={searchPaginationInput}
             filterHelpers={queryableHelpers.filterHelpers}
           />
-
-          <Box sx={{
-            flex: 1,
-            minWidth: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-          }}
-          >
-            <Box sx={{ '& > div:first-of-type': { marginTop: 0 } }}>
-              <PaginationComponentV2
-                fetch={fetchActions}
-                searchPaginationInput={searchPaginationInput}
-                setContent={setThreatArsenalActions}
-                entityPrefix="threat_arsenal"
-                availableFilterNames={availableFilterNames}
-                queryableHelpers={queryableHelpers}
-                reloadContentCount={finishedBulkOperations}
-                filtersEndSlot={viewMode === 'grid'
-                  ? (
-                      // List view sorts via its column headers; the select is grid-only.
-                      // Sits at the end of the filter row (after the clear-filters icon),
-                      // matching the OpenCTI card-view sort placement.
-                      <MarketplaceSortSelect sortHelpers={queryableHelpers.sortHelpers} options={THREAT_ARSENAL_SORT_OPTIONS} descendingFields={['action_updated_at']} />
-                    )
-                  : null}
-                leftSlot={(
-                  <Box sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 2.5,
-                    marginRight: 1.5,
-                    flexShrink: 0,
-                  }}
-                  >
-                    {/* Checkbox only, no text label (#7340): the toolbar must fit
-                        on one row at ~1512px, so the former "Select all" /
-                        "N selected" caption moves into the tooltip and the
-                        accessible name. The selection count stays visible in the
-                        floating selection bar once something is selected. This
-                        single control drives select-all for BOTH the grid and
-                        the list view (the toolbar is shared by the two). */}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex">
-                          {/* The library box is 16x16 with no padding, so it no
-                            longer sets the row's height — the 36px is the row's
-                            own now. The mixed state travels as the `checked`
-                            value, which is where Radix reads it. */}
-                          <Checkbox
-                            aria-label={selectAllLabel}
-                            checked={
-                              (!selectAll && numberOfSelectedElements > 0)
-                              || (selectAll && Object.keys(deSelectedElements ?? {}).length > 0)
-                                ? 'indeterminate'
-                                : selectAll
-                            }
-                            onCheckedChange={handleToggleSelectAll}
-                            disabled={threatArsenalActions.length === 0}
-                          />
-                        </span>
-                      </TooltipTrigger>
-                      {selectAllLabel && <TooltipContent>{selectAllLabel}</TooltipContent>}
-                    </Tooltip>
-                    {canDeleteThreatArsenal && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <IconButton
-                            icon={<LinkOffOutlined fontSize="small" />}
-                            aria-label={t('Select orphaned actions')}
-                            aria-pressed={isOrphanedScopeActive}
-                            active={isOrphanedScopeActive}
-                            onClick={handleToggleOrphaned}
-                            priority="tertiary"
-                            size="sm"
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {isOrphanedScopeActive
-                            ? t('Show all actions again')
-                            : t('Select orphaned actions (no injector, no payload) to purge them at once')}
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </Box>
+        )}
+        toolbar={(
+          <PaginationComponentV2
+            attackPatterns={attackPatterns}
+            resultsCount
+            infiniteScroll
+            topBarButtons={(
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}
+              >
+                <ThreatArsenalHeaderActions
+                  totalElements={totalElements}
+                  actions={threatArsenalActions}
+                  searchPaginationInput={searchPaginationInput}
+                  onImport={prependActions}
+                />
+                <MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />
+              </Box>
+            )}
+            fetch={fetchActions}
+            searchPaginationInput={searchPaginationInput}
+            setContent={setThreatArsenalActions}
+            entityPrefix="threat_arsenal"
+            availableFilterNames={AVAILABLE_FILTER_NAMES}
+            queryableHelpers={queryableHelpers}
+            reloadContentCount={finishedBulkOperations}
+            filtersEndSlot={viewMode === 'grid'
+              ? <MarketplaceSortSelect sortHelpers={queryableHelpers.sortHelpers} options={THREAT_ARSENAL_SORT_OPTIONS} descendingFields={['action_updated_at']} />
+              : null}
+            leftSlot={viewMode === 'list'
+              ? (
+                  <ThreatArsenalSelectAll
+                    label={selectAllLabel}
+                    checked={partiallySelected ? 'indeterminate' : selectAll}
+                    disabled={threatArsenalActions.length === 0}
+                    onToggle={handleToggleSelectAll}
+                    onSelectOrphans={canDelete ? handleToggleOrphaned : undefined}
+                    orphansActive={isOrphanedScopeActive}
+                  />
+                )
+              : null}
+          />
+        )}
+      >
+        {viewMode === 'grid'
+          ? (
+              <MarketplaceSections
+                items={threatArsenalActions}
+                loading={loadingFirstPage}
+                emptyState={emptyState}
+                sections={sections}
+                renderItem={action => (
+                  <ThreatArsenalCard
+                    key={action.injector_contract_id}
+                    action={action}
+                    onSelect={() => setOpenedAction(action)}
+                    onUpdate={updateAction}
+                    onDuplicate={duplicateAction}
+                    onDelete={() => deleteAction(action.injector_contract_id)}
+                    onRunTest={() => setRunTestAction(action)}
+                  />
                 )}
               />
-            </Box>
+            )
+          : (
+              <ThreatArsenalList
+                actions={threatArsenalActions}
+                loading={loadingFirstPage}
+                emptyState={emptyState}
+                {...sections}
+                sortHelpers={queryableHelpers.sortHelpers}
+                isChecked={isChecked}
+                onSelect={setOpenedAction}
+                onToggle={onToggleEntity}
+                onUpdate={updateAction}
+                onDuplicate={duplicateAction}
+                onDelete={deleteAction}
+              />
+            )}
+        <MarketplaceLoadMore
+          hasMore={threatArsenalActions.length < totalElements}
+          loading={loading && searchPaginationInput.page > 0}
+          paused={loading && searchPaginationInput.page === 0}
+          onLoadMore={() => queryableHelpers.paginationHelpers.handleChangePage(searchPaginationInput.page + 1)}
+        />
+      </MarketplaceBrowser>
 
-            {viewMode === 'grid' ? renderGridView() : renderListView()}
-          </Box>
-        </Box>
-      </Box>
-
-      {(selectedThreatArsenalAction !== null) && (
+      {openedAction !== null && (
         <ThreatArsenalInformationDrawer
-          open={true}
-          onClose={() => setSelectedThreatArsenalAction(null)}
-          threatArsenalAction={selectedThreatArsenalAction}
+          open
+          onClose={() => setOpenedAction(null)}
+          threatArsenalAction={openedAction}
         />
       )}
 
-      {isRunTestDrawerOpened && (
+      {(isRunTestDrawerOpened || runTestAction) && (
         <ThreatArsenalRunTestDrawer
-          isExclusionMode={selectAll}
-          isOnlyOneItemSelected={
-            selectAll
-              ? Object.keys(deSelectedElements).length === totalElements - 1
-              : numberOfSelectedElements === 1
-          }
-          selectionCount={numberOfSelectedElements}
-          selectedElements={selectedElements}
-          deSelectedElements={deSelectedElements}
+          {...(runTestAction
+            ? {
+                isExclusionMode: false,
+                isOnlyOneItemSelected: true,
+                selectionCount: 1,
+                selectedElements: { [runTestAction.injector_contract_id]: runTestAction },
+                deSelectedElements: {},
+              }
+            : {
+                isExclusionMode: selectAll,
+                isOnlyOneItemSelected: selectAll
+                  ? Object.keys(deSelectedElements).length === totalElements - 1
+                  : numberOfSelectedElements === 1,
+                selectionCount: numberOfSelectedElements,
+                selectedElements,
+                deSelectedElements,
+              })}
           searchPaginationInput={searchPaginationInput}
-          open={isRunTestDrawerOpened}
-          onClose={() => setRunTestDrawerOpened(false)}
+          open
+          onClose={() => {
+            setRunTestDrawerOpened(false);
+            setRunTestAction(null);
+          }}
         />
       )}
-
       <Can I={ACTIONS.DELETE} a={SUBJECTS.THREAT_ARSENALS}>
         <DialogDelete
           open={isBulkDeleteDialogOpened}
@@ -633,9 +342,7 @@ const ThreatArsenal = () => {
         hidden={isRunTestDrawerOpened}
         onClear={handleClearSelectedElements}
         onRunTest={() => setRunTestDrawerOpened(true)}
-        onDelete={
-          canDeleteThreatArsenal ? () => setBulkDeleteDialogOpened(true) : undefined
-        }
+        onDelete={canDelete ? () => setBulkDeleteDialogOpened(true) : undefined}
       />
     </Box>
   );

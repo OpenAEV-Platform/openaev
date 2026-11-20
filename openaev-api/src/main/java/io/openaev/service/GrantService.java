@@ -29,6 +29,21 @@ public class GrantService {
     return hasGrant(resourceId, user, GRANT_TYPE.OBSERVER);
   }
 
+  /**
+   * Same check as {@link #hasReadGrant(String, User)}, resolved in an explicit tenant instead of
+   * the user's scoped one: for a route that carries no tenant of its own (the player routes), where
+   * the scoped tenant falls back to the default one, the grant has to be read in the tenant of the
+   * resource.
+   *
+   * @param tenantId the tenant whose groups, next to platform groups, count for the grant
+   */
+  public boolean hasReadGrantInTenant(
+      @NotBlank final String resourceId,
+      @NotNull final User user,
+      @NotBlank final String tenantId) {
+    return hasGrant(resourceId, user, tenantId, GRANT_TYPE.OBSERVER);
+  }
+
   public boolean hasWriteGrant(@NotBlank final String resourceId, @NotNull final User user) {
     return hasGrant(resourceId, user, GRANT_TYPE.PLANNER);
   }
@@ -54,8 +69,16 @@ public class GrantService {
       @NotBlank final String resourceId,
       @NotNull final User user,
       @NotNull final GRANT_TYPE grantType) {
+    return hasGrant(resourceId, user, user.scopedTenantId(), grantType);
+  }
+
+  private boolean hasGrant(
+      @NotBlank final String resourceId,
+      @NotNull final User user,
+      final String tenantId,
+      @NotNull final GRANT_TYPE grantType) {
     return this.grantRepository.existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
-        user.getId(), user.scopedTenantId(), resourceId, grantType.andHigher());
+        user.getId(), tenantId, resourceId, grantType.andHigher());
   }
 
   /**

@@ -92,7 +92,7 @@ class CatalogHttpIsolationTest extends IntegrationTest {
 
       // Act
       String response =
-          mvc.perform(get(TENANT_CATALOG_URI + "/payloads", tenantA))
+          mvc.perform(get(TENANT_CATALOG_URI + "/actions", tenantA))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()

@@ -216,7 +216,7 @@ public class CatalogPayloadService {
     }
   }
 
-  private PayloadUpsertInput read(byte[] file) {
+  PayloadUpsertInput read(byte[] file) {
     try {
       PayloadUpsertInput input = mapper.readValue(file, PayloadUpsertInput.class);
       // Taken as written: the input's default expectations would change the content.
