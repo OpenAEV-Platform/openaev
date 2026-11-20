@@ -119,7 +119,7 @@ class NotificationLiveTriggerTenantScopeTest extends IntegrationTest {
         tenantId,
         NotificationTriggerEventType.CREATE,
         endpointName,
-        StreamVisibility.UNFILTERED);
+        () -> StreamVisibility.UNFILTERED);
 
     // Ground truth through raw JDBC: a scoped read could not see the row either, so it would agree
     // with a broken re-check for the wrong reason.
@@ -145,7 +145,7 @@ class NotificationLiveTriggerTenantScopeTest extends IntegrationTest {
         UUID.randomUUID().toString(),
         NotificationTriggerEventType.CREATE,
         endpointName,
-        StreamVisibility.UNFILTERED);
+        () -> StreamVisibility.UNFILTERED);
 
     Long records =
         jdbc.queryForObject(

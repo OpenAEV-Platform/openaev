@@ -16,6 +16,7 @@ import io.openaev.notification.engine.NotificationEngineService;
 import io.openaev.notification.engine.NotificationResourceCatalog;
 import io.openaev.service.stream.StreamVisibility;
 import java.util.List;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,7 @@ class CatalogNotificationListenerTest {
 
   private String sentMessage(String release) {
     ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<Supplier<StreamVisibility>> visibility = ArgumentCaptor.forClass(Supplier.class);
     verify(engine)
         .handleEventWithMessage(
             eq(NotificationResourceCatalog.CATALOG_SYNC),
@@ -44,7 +46,8 @@ class CatalogNotificationListenerTest {
             eq(TENANT),
             eq(SYNC_BLOCKED),
             message.capture(),
-            eq(StreamVisibility.UNFILTERED));
+            visibility.capture());
+    assertThat(visibility.getValue().get()).isEqualTo(StreamVisibility.UNFILTERED);
     return message.getValue();
   }
 

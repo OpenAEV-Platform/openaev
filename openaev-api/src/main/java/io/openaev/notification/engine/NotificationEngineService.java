@@ -11,10 +11,9 @@ import io.openaev.database.model.NotificationTriggerType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.NotificationEventRecordRepository;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.stream.StreamVisibility;
 import java.util.List;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,7 +36,6 @@ public class NotificationEngineService {
   private final NotificationEventRecordRepository notificationEventRecordRepository;
   private final TenantScopedTransaction tenantTx;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
-  private final PreviewFeatureService previewFeatureService;
 
   /**
    * Processes one entity lifecycle event.
@@ -47,9 +45,9 @@ public class NotificationEngineService {
    * @param entityTenantId tenant of the affected entity (null when not tenant-scoped)
    * @param eventType lifecycle operation
    * @param label human-readable entity label used in notification messages
-   * @param visibility the event's marking visibility ({@code StreamVisibility.UNFILTERED} for a
-   *     resource type that carries no markings), computed once by the caller from the same payload
-   *     the activity stream uses
+   * @param visibilitySupplier the event's marking visibility, computed from the same payload the
+   *     activity stream uses - a supplier, not a value, so a caller with no live trigger for this
+   *     resource type or event never pays for it (see {@link #handleEventWithMessage})
    */
   public void handleEvent(
       NotificationResourceCatalog entry,
@@ -57,14 +55,14 @@ public class NotificationEngineService {
       String entityTenantId,
       NotificationTriggerEventType eventType,
       String label,
-      StreamVisibility visibility) {
+      Supplier<StreamVisibility> visibilitySupplier) {
     handleEventWithMessage(
         entry,
         entityId,
         entityTenantId,
         eventType,
         buildMessage(entry, eventType, label),
-        visibility);
+        visibilitySupplier);
   }
 
   /**
@@ -77,12 +75,17 @@ public class NotificationEngineService {
       String entityTenantId,
       NotificationTriggerEventType eventType,
       String message,
-      StreamVisibility visibility) {
+      Supplier<StreamVisibility> visibilitySupplier) {
     List<ResolvedNotificationTrigger> triggers =
         triggerCacheService.getLiveTriggers(entry.getResourceType());
     if (triggers.isEmpty()) {
       return;
     }
+    // Resolved at most once per event, lazily: only once a trigger's event-type and tenant match,
+    // and reused for every later trigger of the same event (they all share entityTenantId, by the
+    // tenant check below). Outside tenantTx.execute() on purpose: StreamVisibilityService opens
+    // its own top-level transaction and refuses to run inside one already active.
+    StreamVisibility[] visibilityHolder = new StreamVisibility[1];
     for (ResolvedNotificationTrigger trigger : triggers) {
       try {
         if (!trigger.eventTypes().contains(eventType)) {
@@ -94,6 +97,10 @@ public class NotificationEngineService {
         if (entityTenantId == null || !entityTenantId.equals(trigger.tenantId())) {
           continue;
         }
+        if (visibilityHolder[0] == null) {
+          visibilityHolder[0] = visibilitySupplier.get();
+        }
+        StreamVisibility visibility = visibilityHolder[0];
         // Run with both scopes on the async thread: TenantContext keeps v1 paths correct,
         // TenantScopedTransaction/TX ctx scopes v2-active reads.
         TenantContext.setCurrentTenant(trigger.tenantId());
@@ -131,18 +138,15 @@ public class NotificationEngineService {
 
   /**
    * Narrows a trigger's recipients to those the event's {@link StreamVisibility} shows - unchanged
-   * when the MARKING preview feature is off or the visibility is unfiltered. The feature check
-   * comes first, deliberately: {@code visibility} is already computed by the caller at that point
-   * (from the same payload the activity stream reads), so there is nothing to gate a DB lookup for
-   * here, but the clearance lookup per recipient is still worth skipping. Resolved once, before
-   * both the outbox write and the live dispatch use it: a recipient never cleared for this event
-   * gets neither a {@link #recordEvents} row nor the live notification, so a later digest built
-   * from that outbox never has to re-check it.
+   * when the visibility is unfiltered (the MARKING preview feature off, assets not marking-active,
+   * or the resource carries none, all folded into {@link StreamVisibility#isUnfiltered()} by the
+   * supplier the caller built). Resolved once, before both the outbox write and the live dispatch
+   * use it: a recipient never cleared for this event gets neither a {@link #recordEvents} row nor
+   * the live notification, so a later digest built from that outbox never has to re-check it.
    */
   private List<String> recipientsUnderClearance(
       ResolvedNotificationTrigger trigger, StreamVisibility visibility) {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)
-        || visibility.isUnfiltered()) {
+    if (visibility.isUnfiltered()) {
       return trigger.recipientUserIds();
     }
     return trigger.recipientUserIds().stream()

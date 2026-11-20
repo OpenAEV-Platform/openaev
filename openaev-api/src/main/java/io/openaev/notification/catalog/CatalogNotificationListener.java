@@ -56,7 +56,7 @@ public class CatalogNotificationListener {
         tenantId,
         SYNC_BLOCKED,
         message,
-        StreamVisibility.UNFILTERED);
+        () -> StreamVisibility.UNFILTERED);
   }
 
   private static String count(long count, String noun) {
