@@ -15,7 +15,7 @@ import { isFeatureEnabled } from '../../../../utils/utils';
 import InjectIcon from '../../common/injects/InjectIcon';
 import ThreatArsenalActionPopover from '../ThreatArsenalActionPopover';
 import actionDomains from '../utils/actionDomains';
-import { getStatusLabel, type PayloadStatus, STATUS_CHIP_SEVERITY } from '../utils/threatArsenalStatusUtils';
+import { getActionStatus, getPayloadSourceLabel, getStatusLabel, isShownRevoked, type PayloadStatus, STATUS_CHIP_SEVERITY } from '../utils/threatArsenalStatusUtils';
 
 interface Props {
   action: ThreatArsenalAction;
@@ -47,8 +47,8 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
     .sort();
   const name = tPick(action.action_labels);
   const catalog = isFeatureEnabled('CATALOG');
-  const revoked = catalog && !!action.action_payload_revoked;
-  const status = revoked ? 'REVOKED' : action.action_payload?.payload_status;
+  const revoked = isShownRevoked(action);
+  const status = getActionStatus(action);
   const statusLabel = getStatusLabel(status);
   const platforms = action.action_platforms ?? [];
 
@@ -103,7 +103,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
               value: action.action_payload_version ? `v${action.action_payload_version}` : '–',
             }, {
               label: t('Source'),
-              value: action.action_payload ? t(action.action_payload_managed ? 'Filigran' : 'Local') : '–',
+              value: action.action_payload ? t(getPayloadSourceLabel(action)) : '–',
             }]
           : []),
         {

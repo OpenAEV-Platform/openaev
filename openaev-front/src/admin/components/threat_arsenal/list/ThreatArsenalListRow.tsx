@@ -9,10 +9,10 @@ import ItemDomains from '../../../../components/ItemDomains';
 import ItemTags from '../../../../components/ItemTags';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import { type ThreatArsenalAction } from '../../../../utils/api-types';
-import { isFeatureEnabled } from '../../../../utils/utils';
 import InjectIcon from '../../common/injects/InjectIcon';
 import PayloadStatusComponent from '../../payloads/PayloadStatusComponent';
 import ThreatArsenalActionPopover from '../ThreatArsenalActionPopover';
+import { isShownRevoked } from '../utils/threatArsenalStatusUtils';
 import { THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
 
 const useStyles = makeStyles()(() => ({ item: { height: 50 } }));
@@ -131,7 +131,7 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
                 ...THREAT_ARSENAL_LIST_INLINE_STYLES.action_status,
               }}
               >
-                {isFeatureEnabled('CATALOG') && action.action_payload_revoked
+                {isShownRevoked(action)
                   ? <Chip label={t('Revoked')} severity="critical" />
                   : <PayloadStatusComponent status={action.action_payload?.payload_status} />}
               </div>

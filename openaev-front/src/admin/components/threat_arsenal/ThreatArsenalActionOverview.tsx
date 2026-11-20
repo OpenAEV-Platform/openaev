@@ -53,7 +53,7 @@ import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
 import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
-import { getStatusColor, getStatusLabel } from './utils/threatArsenalStatusUtils';
+import { getActionStatus, getStatusColor, getStatusLabel } from './utils/threatArsenalStatusUtils';
 import PayloadTrustLine from './versions/PayloadTrustLine';
 
 interface Props {
@@ -121,8 +121,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
 
   const primaryDomain = domains[0];
   const accent = primaryDomain?.domain_color ?? theme.palette.primary.main;
-  const catalog = isFeatureEnabled('CATALOG');
-  const status = catalog && action.action_payload_revoked ? 'REVOKED' : action.action_payload?.payload_status ?? payload?.payload_status;
+  const status = getActionStatus(action, action.action_payload?.payload_status ?? payload?.payload_status);
   const statusColor = status ? getStatusColor(theme, status) : undefined;
   const statusLabel = getStatusLabel(status);
   const name = tPick(action.action_labels);
@@ -310,9 +309,9 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
               </Typography>
             )}
 
-            {catalog && (
-              <div style={{ marginTop: 12 }}>
-                <PayloadTrustLine action={action} updatedAt={action.injector_contract_updated_at} />
+            {isFeatureEnabled('CATALOG') && (
+              <div style={{ marginTop: theme.spacing(1.5) }}>
+                <PayloadTrustLine action={action} />
               </div>
             )}
 
