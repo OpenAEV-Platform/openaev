@@ -191,7 +191,9 @@
     "Website",
     "Workstation",
     "{injects} in {scenarios}",
-    "Version v{version}"
+    "Version v{version}",
+    "Revision #{number}",
+    "Revision"
   ],
   "es": [
     "{count} roles",

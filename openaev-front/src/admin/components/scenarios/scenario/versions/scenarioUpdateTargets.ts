@@ -5,7 +5,7 @@ import {
   updateScenario,
 } from '../../../../../actions/scenarios/scenario-update-actions';
 import { type Translate } from '../../../../../components/i18n';
-import { type ScenarioChangeOutput, type ScenarioUpdateInput } from '../../../../../utils/api-types';
+import { type ScenarioChangeOutput, type ScenarioRevisionOutput, type ScenarioUpdateInput } from '../../../../../utils/api-types';
 
 /** What the update dialog applies: a catalogue version, or a revision to roll back to. */
 export interface ScenarioUpdateTarget {
@@ -27,11 +27,14 @@ export const updateTarget = (scenarioId: string, version: string, t: Translate):
   apply: input => updateScenario(scenarioId, version, input),
 });
 
-export const rollbackTarget = (scenarioId: string, revisionId: string, date: string, t: Translate): ScenarioUpdateTarget => ({
-  title: t('Roll back to the content of {date}', { date }),
-  theirsLabel: t('Content of {date}', { date }),
-  applyLabel: t('Roll back'),
-  appliedMessage: t('Scenario rolled back'),
-  preview: () => previewScenarioRollback(scenarioId, revisionId),
-  apply: input => rollbackScenario(scenarioId, revisionId, input),
-});
+export const rollbackTarget = (scenarioId: string, revision: ScenarioRevisionOutput, t: Translate): ScenarioUpdateTarget => {
+  const number = String(revision.scenario_revision_number);
+  return {
+    title: t('Roll back to revision #{number}', { number }),
+    theirsLabel: t('Revision #{number}', { number }),
+    applyLabel: t('Roll back'),
+    appliedMessage: t('Scenario rolled back'),
+    preview: () => previewScenarioRollback(scenarioId, revision.scenario_revision_id),
+    apply: input => rollbackScenario(scenarioId, revision.scenario_revision_id, input),
+  };
+};

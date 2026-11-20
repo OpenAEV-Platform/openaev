@@ -1,16 +1,16 @@
 import { simpleCall, simplePostCall } from '../../utils/Action';
 import {
-  type CatalogScenarioVersionOutput,
   type ScenarioChangeOutput,
   type ScenarioRevisionOutput,
   type ScenarioUpdateInput,
+  type ScenarioVersionsOutput,
 } from '../../utils/api-types';
 import { SCENARIO_URI } from './scenario-actions';
 
 const scenarioUri = (scenarioId: string) => `${SCENARIO_URI}/${scenarioId}`;
 
-export const fetchScenarioNewerVersions = (scenarioId: string): Promise<CatalogScenarioVersionOutput[]> => simpleCall(`${scenarioUri(scenarioId)}/newer-versions`)
-  .then(({ data }: { data: CatalogScenarioVersionOutput[] }) => data);
+export const fetchScenarioVersions = (scenarioId: string): Promise<ScenarioVersionsOutput> => simpleCall(`${scenarioUri(scenarioId)}/versions`)
+  .then(({ data }: { data: ScenarioVersionsOutput }) => data);
 
 export const fetchScenarioRevisions = (scenarioId: string): Promise<ScenarioRevisionOutput[]> => simpleCall(`${scenarioUri(scenarioId)}/revisions`)
   .then(({ data }: { data: ScenarioRevisionOutput[] }) => data);
