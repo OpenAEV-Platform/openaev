@@ -68,11 +68,11 @@ public interface FindingRepository
       @Param("displayValue") String displayValue,
       @Param("tenantId") String tenantId);
 
+  /** The distinct assets of every finding sharing this (type, displayed value) in the tenant. */
   @Query(
-      "SELECT COUNT(DISTINCT ag.id) FROM FindingOccurrence o JOIN o.finding f JOIN o.inject i"
-          + " JOIN i.assetGroups ag"
+      "SELECT DISTINCT a.id FROM Finding f JOIN f.assets a"
           + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
-  long countDistinctAssetGroups(
+  List<String> findDistinctAssetIds(
       @Param("type") ContractOutputType type,
       @Param("displayValue") String displayValue,
       @Param("tenantId") String tenantId);
@@ -250,11 +250,13 @@ public interface FindingRepository
               + " WHERE fo.finding_occurrence_finding_id = f.finding_id) AS scenario_ids,"
               + " (SELECT array_agg(fa.asset_id) FROM findings_assets fa"
               + " WHERE fa.finding_id = f.finding_id) AS asset_ids,"
-              // The asset groups the injects of the occurrences target (findings per asset group)
-              + " (SELECT array_agg(DISTINCT iag.asset_group_id)"
-              + " FROM finding_occurrences fo"
-              + " JOIN injects_asset_groups iag ON iag.inject_id = fo.finding_occurrence_inject_id"
-              + " WHERE fo.finding_occurrence_finding_id = f.finding_id) AS asset_group_ids,"
+              // The asset groups that statically contain one of the finding's assets. Never the
+              // groups the inject targeted: those include groups the hit asset is not in. The
+              // dynamic memberships are added by FindingHandler through the membership resolver.
+              + " (SELECT array_agg(DISTINCT aga.asset_group_id)"
+              + " FROM findings_assets fa"
+              + " JOIN asset_groups_assets aga ON aga.asset_id = fa.asset_id"
+              + " WHERE fa.finding_id = f.finding_id) AS asset_group_ids,"
               // The inject the finding is deleted with (ON DELETE CASCADE), and its context. One
               // row at most: injects is joined on its primary key.
               + " f.finding_inject_id, li.inject_exercise AS finding_simulation_id,"
