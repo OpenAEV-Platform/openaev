@@ -18,6 +18,7 @@ import MarketplaceSections from '../../../components/common/marketplace/results/
 import MarketplaceSortSelect from '../../../components/common/marketplace/toolbar/MarketplaceSortSelect';
 import MarketplaceViewToggle from '../../../components/common/marketplace/toolbar/MarketplaceViewToggle';
 import useMarketplaceView from '../../../components/common/marketplace/toolbar/useMarketplaceView';
+import { type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
@@ -38,6 +39,7 @@ import ThreatArsenalSelectAll from './bulk/ThreatArsenalSelectAll';
 import ThreatArsenalSelectionBar from './bulk/ThreatArsenalSelectionBar';
 import ThreatArsenalCard from './card/ThreatArsenalCard';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
+import useOlderVersionsInUse from './hook/useOlderVersionsInUse';
 import useOpenedAction from './hook/useOpenedAction';
 import ThreatArsenalList from './list/ThreatArsenalList';
 import { THREAT_ARSENAL_SORT_OPTIONS } from './list/threatArsenalListConfig';
@@ -82,11 +84,15 @@ const ThreatArsenal = () => {
   );
 
   const [loading, setLoading] = useState<boolean>(false);
+  const olderVersions = useOlderVersionsInUse();
   const fetchActions = (input: SearchPaginationInput) => {
     setLoading(true);
     return searchThreatArsenalActions({
       ...input,
       group_by_primary_domain: true,
+    }).then((response: { data: Page<ThreatArsenalAction> }) => {
+      olderVersions.load(response.data.content);
+      return response;
     }).finally(() => setLoading(false));
   };
 
@@ -129,6 +135,11 @@ const ThreatArsenal = () => {
     threatArsenalActions,
     queryableHelpers.textSearchHelpers.handleTextSearch,
   );
+  // A move or a keep in the drawer changes the banner of its card.
+  const closeDrawer = () => {
+    if (openedAction) olderVersions.load([openedAction]);
+    closeAction();
+  };
 
   const hasActiveFilters = (searchPaginationInput.filterGroup?.filters?.length ?? 0) > 0
     || !!searchPaginationInput.textSearch;
@@ -261,6 +272,7 @@ const ThreatArsenal = () => {
                   <ThreatArsenalCard
                     key={action.injector_contract_id}
                     action={action}
+                    olderVersionsInUse={olderVersions.isInUse(action.injector_contract_id)}
                     onSelect={() => openAction(action)}
                     onUpdate={updateAction}
                     onDuplicate={duplicateAction}
@@ -298,7 +310,7 @@ const ThreatArsenal = () => {
       {openedAction !== null && (
         <ThreatArsenalInformationDrawer
           open
-          onClose={closeAction}
+          onClose={closeDrawer}
           threatArsenalAction={openedAction}
           initialTab={openedTab}
         />

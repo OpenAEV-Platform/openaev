@@ -12,6 +12,7 @@ const version = (id: string, latest = false, revoked = false): PayloadVersionOut
   payload_action_id: `action-${id}`,
   payload_version: id,
   payload_is_latest: latest,
+  payload_older_versions_kept: false,
   payload_revoked: revoked,
   payload_revoked_by_catalogue: false,
 });

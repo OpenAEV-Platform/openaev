@@ -869,7 +869,8 @@
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectionBar.tsx",
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveBar.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/OlderVersionsAlert.tsx"
       ]
     },
     {
@@ -950,7 +951,19 @@
       "files": [
         "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationBanner.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/OlderVersionsAlert.tsx"
+      ]
+    },
+    {
+      "component": "CardBanner",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The one banner of a Threat Arsenal card, a direct child of the library Card: a revoked version, or injects left on an older version.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/card/useThreatArsenalCardBanner.tsx"
       ]
     },
     {

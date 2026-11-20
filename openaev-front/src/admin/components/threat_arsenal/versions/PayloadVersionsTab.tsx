@@ -6,30 +6,31 @@ import { type FunctionComponent, useReducer, useState } from 'react';
 import { fdsGroupRowStyle, fdsTableFrameStyle } from '../../../../components/common/fdsTableSpec';
 import { LIB_SURFACE_LAYER } from '../../../../components/common/libSurfaceBorder';
 import { useFormatter } from '../../../../components/i18n';
-import { type PayloadVersionOutput } from '../../../../utils/api-types';
+import { type PayloadUsagesOutput, type PayloadVersionOutput } from '../../../../utils/api-types';
 import useCountLabel from '../../../../utils/hooks/useCountLabel';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import OlderVersionsAlert from './OlderVersionsAlert';
 import PayloadUsageMoveBar from './usages/PayloadUsageMoveBar';
 import PayloadUsageMoveResult from './usages/PayloadUsageMoveResult';
 import PayloadUsagesTable from './usages/PayloadUsagesTable';
-import { usageCount } from './usages/usageCounts';
+import { olderUsageCount, usageCount } from './usages/usageCounts';
 import useUsageMove from './usages/useUsageMove';
-import useVersionUsages from './usages/useVersionUsages';
+import useUsagesByVersion from './usages/useUsagesByVersion';
+import useOlderVersionsKept from './useOlderVersionsKept';
 
 interface VersionProps {
   version: PayloadVersionOutput;
   versions: PayloadVersionOutput[];
+  usages: PayloadUsagesOutput | null;
   canMove: boolean;
-  reloadKey: number;
   onMoved: () => void;
 }
 
-const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, canMove, reloadKey, onMoved }) => {
+const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, usages, canMove, onMoved }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const counted = useCountLabel();
-  const usages = useVersionUsages(version.payload_action_id, reloadKey);
   const [expanded, setExpanded] = useState(version.payload_is_latest);
   const move = useUsageMove({
     source: version,
@@ -70,24 +71,38 @@ interface Props { versions: PayloadVersionOutput[] | null }
 const PayloadVersionsTab: FunctionComponent<Props> = ({ versions }) => {
   const theme = useTheme();
   const canMove = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
-  // A move changes the usages of two versions: each version loads its own again.
+  // A move changes the usages of two versions: they are all loaded again.
   const [reloadKey, reload] = useReducer((key: number) => key + 1, 0);
+  const usages = useUsagesByVersion(versions, reloadKey);
+  const latest = versions?.find(version => version.payload_is_latest);
+  const { kept, toggle } = useOlderVersionsKept(latest);
+  const olderUsages = versions && usages ? olderUsageCount(versions, latest, usages) : 0;
 
   if (versions === null) {
     return <Skeleton className="h-24" />;
   }
   return (
-    <div className={LIB_SURFACE_LAYER} style={fdsTableFrameStyle(theme)}>
-      {versions.map(version => (
-        <PayloadVersion
-          key={version.payload_id}
-          version={version}
-          versions={versions}
-          canMove={canMove}
-          reloadKey={reloadKey}
-          onMoved={reload}
-        />
-      ))}
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: theme.spacing(2),
+    }}
+    >
+      {olderUsages > 0 && latest && (
+        <OlderVersionsAlert usageCount={olderUsages} kept={kept} onToggle={canMove ? toggle : undefined} />
+      )}
+      <div className={LIB_SURFACE_LAYER} style={fdsTableFrameStyle(theme)}>
+        {versions.map(version => (
+          <PayloadVersion
+            key={version.payload_id}
+            version={version}
+            versions={versions}
+            usages={usages?.[version.payload_id] ?? null}
+            canMove={canMove}
+            onMoved={reload}
+          />
+        ))}
+      </div>
     </div>
   );
 };
