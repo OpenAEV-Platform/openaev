@@ -26,7 +26,7 @@ interface Props {
 const inlineStyles: Record<string, CSSProperties> = ({
   finding_type: { width: '13%' },
   finding_value: { width: '27%' },
-  finding_assets: { width: '33%' },
+  finding_assets: { width: '32%' },
   finding_created_at: { width: '14%' },
   finding_updated_at: { width: '14%' },
 });
