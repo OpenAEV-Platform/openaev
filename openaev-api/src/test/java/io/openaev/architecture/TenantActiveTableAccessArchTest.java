@@ -4823,7 +4823,8 @@ class TenantActiveTableAccessArchTest {
       noClasses()
           .that()
           .doNotBelongToAnyOf(
-              // Keyed by tenant, inside the scoped transaction of the update and rollback routes:
+              // Keyed by tenant, inside the scoped transaction of the install, update and rollback
+              // routes:
               io.openaev.service.catalog.scenario.update.ScenarioRevisionService.class)
           .should()
           .dependOnClassesThat()

@@ -5,8 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 /**
- * What an update or a rollback changes, the payload versions it installs or runs revoked, and the
- * injects that lose a dependency.
+ * What an update or a rollback changes, the payload versions it installs or runs revoked, the
+ * injects that lose a dependency, and the changelog of each version it brings.
  */
 public record ScenarioUpdatePreviewOutput(
     @JsonProperty("scenario_update_changes") @NotNull List<ScenarioChangeOutput> changes,
@@ -14,4 +14,6 @@ public record ScenarioUpdatePreviewOutput(
         List<ScenarioPayloadVersionOutput> payloadsToInstall,
     @JsonProperty("scenario_update_revoked_payloads") @NotNull
         List<ScenarioPayloadVersionOutput> revokedPayloads,
-    @JsonProperty("scenario_update_lost_dependencies") @NotNull List<String> lostDependencies) {}
+    @JsonProperty("scenario_update_lost_dependencies") @NotNull List<String> lostDependencies,
+    @JsonProperty("scenario_update_changelogs") @NotNull
+        List<ScenarioChangelogOutput> changelogs) {}

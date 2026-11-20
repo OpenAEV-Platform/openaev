@@ -24,6 +24,8 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -45,6 +47,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Variable;
 import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.scenario.ScenarioRevision;
 import io.openaev.database.repository.CatalogHistoryRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
@@ -173,6 +176,10 @@ class ScenarioUpdateApiTest extends IntegrationTest {
     };
   }
 
+  private static String changelog(String version) {
+    return "What changed in " + version;
+  }
+
   private static Consumer<ObjectNode> linkingChallenges() {
     return export ->
         export.putArray("scenario_challenges").addObject().put("challenge_name", "Find the flag");
@@ -185,6 +192,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
         (version, archive) -> {
           Map<String, Object> item =
               scenarioItem(version, REVOKED.equals(version) ? "REVOKED" : "VERIFIED", archive);
+          item.put("changelog", changelog(version));
           String payloadVersion = NEXT_PAYLOAD.equals(version) ? NEXT_PAYLOAD_VERSION : INSTALLED;
           item.put(
               "payloads", List.of(Map.of("external_id", PAYLOAD_ID, "version", payloadVersion)));
@@ -306,16 +314,21 @@ class ScenarioUpdateApiTest extends IntegrationTest {
         .orElseThrow();
   }
 
-  private String onlyRevisionId(Scenario scenario) throws Exception {
+  // The revision the install kept, and the one the first update kept.
+  private String revisionId(Scenario scenario, ScenarioRevision.Reason reason) throws Exception {
     String body =
         revisions(scenario)
-            .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].scenario_revision_reason").value("UPDATE"))
-            .andExpect(jsonPath("$[0].scenario_revision_catalog_version").value(INSTALLED))
+            .andExpect(
+                jsonPath("$[*].scenario_revision_catalog_version").value(everyItem(is(INSTALLED))))
             .andReturn()
             .getResponse()
             .getContentAsString();
-    return mapper.readTree(body).get(0).path("scenario_revision_id").asText();
+    return StreamSupport.stream(mapper.readTree(body).spliterator(), false)
+        .filter(
+            revision -> reason.name().equals(revision.path("scenario_revision_reason").asText()))
+        .map(revision -> revision.path("scenario_revision_id").asText())
+        .findFirst()
+        .orElseThrow();
   }
 
   private Inject onlyInject(Scenario scenario) {
@@ -403,23 +416,43 @@ class ScenarioUpdateApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("numbers the revisions an update and a rollback kept, with their reason and user")
-    void given_updateThenRollback_should_listNumberedRevisions() throws Exception {
+    @DisplayName("keeps the installed content as the first revision")
+    void given_installedScenario_should_keepTheInstalledRevision() throws Exception {
       // Arrange
       Scenario scenario = install();
-      update(scenario, Map.of()).andExpect(status().isNoContent());
-      rollback(scenario, onlyRevisionId(scenario)).andExpect(status().isNoContent());
 
       // Act
       ResultActions revisions = revisions(scenario);
 
       // Assert
       revisions
-          .andExpect(jsonPath("$[*].scenario_revision_number").value(contains(2, 1)))
+          .andExpect(jsonPath("$.length()").value(1))
+          .andExpect(jsonPath("$[0].scenario_revision_number").value(1))
+          .andExpect(jsonPath("$[0].scenario_revision_reason").value("INSTALL"))
+          .andExpect(jsonPath("$[0].scenario_revision_catalog_version").value(INSTALLED));
+    }
+
+    @Test
+    @DisplayName("numbers the revisions an update and a rollback kept, with their reason and user")
+    void given_updateThenRollback_should_listNumberedRevisions() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      update(scenario, Map.of()).andExpect(status().isNoContent());
+      rollback(scenario, revisionId(scenario, ScenarioRevision.Reason.UPDATE))
+          .andExpect(status().isNoContent());
+
+      // Act
+      ResultActions revisions = revisions(scenario);
+
+      // Assert
+      revisions
+          .andExpect(jsonPath("$[*].scenario_revision_number").value(contains(3, 2, 1)))
           .andExpect(
-              jsonPath("$[*].scenario_revision_reason").value(contains("ROLLBACK", "UPDATE")))
+              jsonPath("$[*].scenario_revision_reason")
+                  .value(contains("ROLLBACK", "UPDATE", "INSTALL")))
           .andExpect(
-              jsonPath("$[*].scenario_revision_catalog_version").value(contains(NEWER, INSTALLED)))
+              jsonPath("$[*].scenario_revision_catalog_version")
+                  .value(contains(NEWER, INSTALLED, INSTALLED)))
           .andExpect(jsonPath("$[0].scenario_revision_user").isNotEmpty())
           .andExpect(jsonPath("$[0].scenario_revision_created_at").isNotEmpty());
     }
@@ -474,7 +507,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
           .extracting(Variable::getKey, Variable::getValue)
           .containsExactly(tuple("target", TARGET));
       assertThat(installedVersion(scenario)).isEqualTo(NEWER);
-      assertThat(onlyRevisionId(scenario)).isNotBlank();
+      assertThat(revisionId(scenario, ScenarioRevision.Reason.UPDATE)).isNotBlank();
       assertThat(catalogHistoryRepository.findAll())
           .extracting(CatalogHistory::getAction)
           .contains(CatalogHistory.Action.UPDATE);
@@ -550,6 +583,26 @@ class ScenarioUpdateApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("gives the changelog of each version the update brings, newest first")
+    void given_versionsInBetween_should_giveTheirChangelogs() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+
+      // Act
+      ResultActions preview = previewUpdate(scenario, RESHAPED);
+
+      // Assert
+      preview
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.scenario_update_changelogs[*].scenario_changelog_version")
+                  .value(contains(RESHAPED, NEWER, SAME_CONTENT)))
+          .andExpect(
+              jsonPath("$.scenario_update_changelogs[0].scenario_changelog")
+                  .value(changelog(RESHAPED)));
+    }
+
+    @Test
     @DisplayName("refuses a scenario not installed from the catalogue")
     void given_localScenario_should_refuse() throws Exception {
       // Arrange
@@ -576,7 +629,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
       // Arrange
       Scenario scenario = install();
       update(scenario, Map.of()).andExpect(status().isNoContent());
-      String revisionId = onlyRevisionId(scenario);
+      String revisionId = revisionId(scenario, ScenarioRevision.Reason.UPDATE);
 
       // Act
       committed(
@@ -633,6 +686,35 @@ class ScenarioUpdateApiTest extends IntegrationTest {
           .extracting(Variable::getKey, Variable::getValue)
           .containsExactly(tuple("target", TARGET));
       assertThat(installedVersion(scenario)).isEqualTo(NEWER);
+    }
+  }
+
+  // -- ROLLBACK TO THE INSTALL --
+
+  @Nested
+  @DisplayName("Rolling back to the install")
+  class RollingBackToTheInstall {
+
+    @Test
+    @DisplayName("brings back the content the scenario was installed with")
+    void given_updatedTwice_should_rollBackToTheInstalledContent() throws Exception {
+      // Arrange
+      injectorContractFixture.getWellKnownSingleEmailContract();
+      Scenario scenario = install();
+      update(scenario, Map.of()).andExpect(status().isNoContent());
+      update(scenario, RESHAPED, Map.of()).andExpect(status().isNoContent());
+
+      // Act
+      rollback(scenario, revisionId(scenario, ScenarioRevision.Reason.INSTALL))
+          .andExpect(status().isNoContent());
+
+      // Assert
+      assertThat(injectRepository.findByScenarioId(scenario.getId()))
+          .singleElement()
+          .extracting(Inject::getTitle)
+          .isEqualTo("whoami");
+      assertThat(variables(scenario)).isEmpty();
+      assertThat(installedVersion(scenario)).isEqualTo(INSTALLED);
     }
   }
 

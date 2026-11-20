@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 
-/** Content a catalogue scenario had before an update or a rollback. */
+/** Content a catalogue scenario had at install, or before an update or a rollback. */
 public record ScenarioRevisionOutput(
     @JsonProperty("scenario_revision_id") @NotBlank String id,
     @JsonProperty("scenario_revision_number") @NotNull int number,

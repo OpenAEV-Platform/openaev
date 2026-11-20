@@ -3,6 +3,7 @@ package io.openaev.api.scenario;
 import static java.util.stream.Collectors.joining;
 
 import io.openaev.api.scenario.dto.ScenarioChangeOutput;
+import io.openaev.api.scenario.dto.ScenarioChangelogOutput;
 import io.openaev.api.scenario.dto.ScenarioPayloadVersionOutput;
 import io.openaev.api.scenario.dto.ScenarioRevisionOutput;
 import io.openaev.api.scenario.dto.ScenarioUpdatePreviewOutput;
@@ -40,7 +41,12 @@ public class ScenarioUpdateMapper {
         preview.merge().changes().stream().map(ScenarioUpdateMapper::toOutput).toList(),
         preview.payloads().toInstall().stream().map(ScenarioUpdateMapper::toOutput).toList(),
         preview.payloads().revoked().stream().map(ScenarioUpdateMapper::toOutput).toList(),
-        preview.merge().lostDependencies());
+        preview.merge().lostDependencies(),
+        preview.notes().stream().map(ScenarioUpdateMapper::toChangelog).toList());
+  }
+
+  private static ScenarioChangelogOutput toChangelog(CatalogScenario version) {
+    return new ScenarioChangelogOutput(version.getVersion(), version.getChangelog());
   }
 
   private static ScenarioPayloadVersionOutput toOutput(ScenarioPayloadCheck.Version version) {

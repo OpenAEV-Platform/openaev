@@ -16,6 +16,7 @@ import io.openaev.service.catalog.CatalogOffer;
 import io.openaev.service.catalog.event.CatalogChangePublisher;
 import io.openaev.service.catalog.payload.CatalogPayloadService;
 import io.openaev.service.catalog.payload.InstallablePayloadVersion;
+import io.openaev.service.catalog.scenario.update.ScenarioRevisionService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.scenario.ScenarioService;
 import java.io.ByteArrayInputStream;
@@ -51,13 +52,15 @@ public class CatalogScenarioService {
   private final List<CatalogScenarioTypeInstall<?>> typeInstalls;
   private final OrganizationService organizationService;
   private final CatalogChangePublisher changePublisher;
+  private final ScenarioRevisionService scenarioRevisionService;
 
   // -- CREATE --
 
   /**
    * Installs the payload versions the release names, then imports the package, whose payloads link
    * to these versions by external ID and content, and applies what the admin chose: targets for the
-   * injects, scope and limits for a chained scenario's workflow.
+   * injects, scope and limits for a chained scenario's workflow. The content installed is kept as
+   * its first revision.
    */
   @Transactional(rollbackFor = Exception.class)
   public Scenario install(
@@ -76,6 +79,7 @@ public class CatalogScenarioService {
     refuseOtherPayloads(typeInstall.payloadsRun(scenario), payloadIds);
     typeInstall.apply(scenario, choiceFor(typeInstall, choice));
     markInstalled(scenario, identity, tenantId, released);
+    scenarioRevisionService.keepInstalled(scenario);
     changePublisher.changed(scenario, CatalogHistory.Action.INSTALL, mode);
     return scenario;
   }
