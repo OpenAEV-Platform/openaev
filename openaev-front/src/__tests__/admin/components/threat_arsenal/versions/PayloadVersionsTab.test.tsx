@@ -101,7 +101,7 @@ describe('PayloadVersionsTab', () => {
   });
 
   describe('injects on older versions', () => {
-    const KEPT = 'Kept on their version. The card's banner returns with the next version.';
+    const KEPT = 'Kept on their version. The card\'s banner returns with the next version.';
 
     it('given injects on an older version should count them and keep them on their version', async () => {
       // Arrange
