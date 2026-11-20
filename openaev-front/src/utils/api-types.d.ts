@@ -11757,6 +11757,13 @@ export interface ScenarioChangeOutput {
   scenario_change_title?: string;
 }
 
+export interface ScenarioChangelogOutput {
+  /** @minLength 1 */
+  scenario_changelog: string;
+  /** @minLength 1 */
+  scenario_changelog_version: string;
+}
+
 export interface ScenarioIdsAndInjectorContractsInputs {
   injector_contract_search_pagination_input: InjectorContractSearchPaginationInput;
   /** @minLength 1 */
@@ -11914,7 +11921,7 @@ export interface ScenarioRevisionOutput {
   scenario_revision_id: string;
   /** @format int32 */
   scenario_revision_number: number;
-  scenario_revision_reason: "UPDATE" | "ROLLBACK";
+  scenario_revision_reason: "INSTALL" | "UPDATE" | "ROLLBACK";
   scenario_revision_user?: string;
 }
 
@@ -11964,6 +11971,7 @@ export interface ScenarioUpdateInput {
 }
 
 export interface ScenarioUpdatePreviewOutput {
+  scenario_update_changelogs: ScenarioChangelogOutput[];
   scenario_update_changes: ScenarioChangeOutput[];
   scenario_update_lost_dependencies: string[];
   scenario_update_payloads_to_install: ScenarioPayloadVersionOutput[];
