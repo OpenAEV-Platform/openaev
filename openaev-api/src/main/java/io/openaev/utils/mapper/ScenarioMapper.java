@@ -83,6 +83,7 @@ public class ScenarioMapper {
         .customDashboard(rawScenario.getScenario_custom_dashboard())
         .description(rawScenario.getScenario_description())
         .externalUrl(rawScenario.getScenario_external_url())
+        .catalogVersion(rawScenario.getScenario_catalog_version())
         .lessonsAnonymized(rawScenario.getScenario_lessons_anonymized())
         .lessonsEnabled(rawScenario.getScenario_lessons_enabled())
         .fromName(rawScenario.getScenario_mail_from_name())
