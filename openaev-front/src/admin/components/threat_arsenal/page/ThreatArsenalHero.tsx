@@ -1,35 +1,36 @@
-import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
+import { type FunctionComponent, type ReactNode } from 'react';
 
+import { searchAvailableActions } from '../../../../actions/catalog/payload-catalog-actions';
 import { searchThreatArsenalActions } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import MarketplaceHero from '../../../../components/common/marketplace/page/MarketplaceHero';
-import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
+import useNotInstalledStat from '../../../../components/common/marketplace/page/useNotInstalledStat';
 import { useFormatter } from '../../../../components/i18n';
 import { THREAT_ARSENAL_BASE_URL } from '../../../../constants/BaseUrls';
+import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 
 interface Props { action?: ReactNode }
 
 // Same header on both tabs: only its action changes.
 const ThreatArsenalHero: FunctionComponent<Props> = ({ action }) => {
   const { t } = useFormatter();
-  // The whole arsenal, never the current page or filters.
-  const [active, setActive] = useState(0);
-  useEffect(() => {
-    searchThreatArsenalActions(buildSearchPagination({ size: 1 }))
-      .then(({ data }: { data: { totalElements?: number } }) => setActive(data?.totalElements ?? 0))
-      .catch(() => undefined);
-  }, []);
+  // The whole arsenal and catalogue, never the current page or filters.
+  const active = useSearchTotal(searchThreatArsenalActions) ?? 0;
+  const notInstalled = useNotInstalledStat(searchAvailableActions, `${THREAT_ARSENAL_BASE_URL}/available`);
 
   return (
     <MarketplaceHero
       title={t('Threat Arsenal')}
       subtitle={t('Browse and version the actions your simulations run.')}
-      stats={[{
-        id: 'active',
-        label: t('Active'),
-        value: active,
-        icon: 'layers-2',
-        to: THREAT_ARSENAL_BASE_URL,
-      }]}
+      stats={[
+        {
+          id: 'active',
+          label: t('Active'),
+          value: active,
+          icon: 'layers-2',
+          to: THREAT_ARSENAL_BASE_URL,
+        },
+        ...notInstalled,
+      ]}
       action={action}
     />
   );
