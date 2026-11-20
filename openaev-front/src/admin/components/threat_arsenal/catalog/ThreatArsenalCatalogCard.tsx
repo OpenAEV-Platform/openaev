@@ -4,7 +4,7 @@ import MarketplaceCard from '../../../../components/common/marketplace/card/Mark
 import { useFormatter } from '../../../../components/i18n';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import { type AvailablePayloadActionOutput } from '../../../../utils/api-types';
-import AvailableActionIcon from './AvailableActionIcon';
+import { PayloadActionIcon } from './AvailableActionIcon';
 import CatalogPayloadInstallAction from './CatalogPayloadInstallAction';
 
 interface Props {
@@ -23,7 +23,7 @@ const ThreatArsenalCatalogCard: FunctionComponent<Props> = ({ action, name, inst
   return (
     <MarketplaceCard
       testId="threat-arsenal-catalog-card"
-      icon={<AvailableActionIcon action={action} />}
+      icon={<PayloadActionIcon />}
       title={name}
       overline={action.action_domain ? t(action.action_domain) : undefined}
       description={action.action_payload_description}
