@@ -4896,5 +4896,11 @@
   "+{count} more": "另外 {count} 个",
   "Outgoing": "出站",
   "Incoming": "入站",
+  "Connected from": "连接自",
+  "Depended on by": "被依赖于",
+  "Hosted by": "托管于",
+  "Has a session from": "会话来自",
+  "Runs": "运行",
+  "Used by": "被使用于",
   "Add a link": "添加链接"
 }

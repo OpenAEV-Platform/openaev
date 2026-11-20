@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ASSET_LINK_TYPES, assetLinkTypeLabel, groupAssetLinkRows, isLinkCandidate, previewRows, RELATIONSHIP_PREVIEW, toAssetLinkRows } from '../../../../../admin/components/assets/asset/asset-links';
+import { ASSET_LINK_TYPES, assetLinkDirectionLabel, assetLinkTypeLabel, groupAssetLinkRows, isLinkCandidate, previewRows, RELATIONSHIP_PREVIEW, toAssetLinkRows } from '../../../../../admin/components/assets/asset/asset-links';
 import { type AssetLinkOutput } from '../../../../../utils/api-types';
 
 const links: AssetLinkOutput[] = [
@@ -39,6 +39,20 @@ describe('asset-links', () => {
       expect(type.description).not.toBe(type.label);
     });
     expect(new Set(ASSET_LINK_TYPES.map(type => type.description)).size).toBe(ASSET_LINK_TYPES.length);
+  });
+
+  it('words an incoming link with the inverse verb so the line reads true from the asset', () => {
+    expect(ASSET_LINK_TYPES.map(type => assetLinkDirectionLabel(type.value, false))).toEqual(['Connected from', 'Depended on by', 'Hosted by', 'Has a session from', 'Runs', 'Used by']);
+    expect(assetLinkDirectionLabel('HOSTS', true)).toBe('Hosts');
+    ASSET_LINK_TYPES.forEach((type) => {
+      expect(type.inverseLabel).not.toBe(type.label);
+    });
+    // An incoming LOGGED_ON seen from the identity: srv-01 has a session on it.
+    const [incoming] = toAssetLinkRows(links, 'identity');
+    expect(incoming.outgoing).toBe(false);
+    expect(assetLinkDirectionLabel(incoming.type, incoming.outgoing)).toBe('Has a session from');
+    expect(assetLinkDirectionLabel('UNKNOWN', false)).toBe('UNKNOWN');
+    expect(assetLinkDirectionLabel(undefined, false)).toBe('-');
   });
 
   it('builds outgoing and incoming rows seen from the asset', () => {

@@ -33,7 +33,7 @@ import { searchAssetsAsOption } from '../../../../actions/assets/endpoint-action
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type AssetOptionOutput } from '../../../../utils/api-types';
-import { ASSET_LINK_TYPES, type AssetLinkRow, type AssetLinkType, assetLinkTypeLabel, isLinkCandidate } from './asset-links';
+import { ASSET_LINK_TYPES, assetLinkDirectionLabel, type AssetLinkRow, type AssetLinkType, assetLinkTypeLabel, isLinkCandidate } from './asset-links';
 
 interface Props {
   open: boolean;
@@ -233,7 +233,7 @@ const AssetLinksDrawer: FunctionComponent<Props> = ({ open, onClose, assetId, as
                   {row.outgoing
                     ? <ArrowForwardOutlined fontSize="small" aria-label={t('Outgoing')} />
                     : <ArrowBackOutlined fontSize="small" aria-label={t('Incoming')} />}
-                  <Chip label={t(assetLinkTypeLabel(row.type))} />
+                  <Chip label={t(assetLinkDirectionLabel(row.type, row.outgoing))} />
                   <Text variant="content-base" className="truncate">{row.otherName}</Text>
                   <Tooltip>
                     <TooltipTrigger asChild>

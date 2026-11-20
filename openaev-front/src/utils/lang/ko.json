@@ -4896,5 +4896,11 @@
   "+{count} more": "+{count}개 더",
   "Outgoing": "나가는 링크",
   "Incoming": "들어오는 링크",
+  "Connected from": "연결 출처",
+  "Depended on by": "의존 출처",
+  "Hosted by": "호스팅 출처",
+  "Has a session from": "세션 출처",
+  "Runs": "실행 대상",
+  "Used by": "사용 출처",
   "Add a link": "링크 추가"
 }

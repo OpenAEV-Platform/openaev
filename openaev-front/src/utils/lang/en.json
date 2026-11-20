@@ -4896,5 +4896,11 @@
   "+{count} more": "+{count} more",
   "Outgoing": "Outgoing",
   "Incoming": "Incoming",
+  "Connected from": "Connected from",
+  "Depended on by": "Depended on by",
+  "Hosted by": "Hosted by",
+  "Has a session from": "Has a session from",
+  "Runs": "Runs",
+  "Used by": "Used by",
   "Add a link": "Add a link"
 }

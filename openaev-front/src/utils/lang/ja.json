@@ -4896,5 +4896,11 @@
   "+{count} more": "他 {count} 件",
   "Outgoing": "送信方向",
   "Incoming": "受信方向",
+  "Connected from": "接続元",
+  "Depended on by": "依存元",
+  "Hosted by": "ホスト元",
+  "Has a session from": "セッション元",
+  "Runs": "実行対象",
+  "Used by": "使用元",
   "Add a link": "リンクを追加"
 }

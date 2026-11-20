@@ -4896,5 +4896,11 @@
   "+{count} more": "ещё {count}",
   "Outgoing": "Исходящая",
   "Incoming": "Входящая",
+  "Connected from": "Подключено из",
+  "Depended on by": "Требуется для",
+  "Hosted by": "Размещено на",
+  "Has a session from": "Имеет сеанс от",
+  "Runs": "Выполняет",
+  "Used by": "Используется",
   "Add a link": "Добавить связь"
 }

@@ -11,7 +11,7 @@ import { SectionBlock } from '../../../../components/common/detail/EntityDetailC
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type AssetLinkOutput } from '../../../../utils/api-types';
-import { type AssetLinkRow, assetLinkTypeLabel, groupAssetLinkRows, previewRows, RELATIONSHIP_PREVIEW, toAssetLinkRows } from './asset-links';
+import { assetLinkDirectionLabel, type AssetLinkRow, groupAssetLinkRows, previewRows, RELATIONSHIP_PREVIEW, toAssetLinkRows } from './asset-links';
 import AssetLinksDrawer from './AssetLinksDrawer';
 
 interface Props {
@@ -113,7 +113,7 @@ const AssetLinks: FunctionComponent<Props> = ({ assetId, assetName, canManage, o
                   {group.outgoing
                     ? <ArrowForwardOutlined fontSize="small" aria-label={t('Outgoing')} />
                     : <ArrowBackOutlined fontSize="small" aria-label={t('Incoming')} />}
-                  <Text variant="content-base">{`${t(assetLinkTypeLabel(group.type))} (${group.rows.length})`}</Text>
+                  <Text variant="content-base">{`${t(assetLinkDirectionLabel(group.type, group.outgoing))} (${group.rows.length})`}</Text>
                 </Box>
                 <Box
                   component="dd"

@@ -5,47 +5,64 @@ export type AssetLinkType = AssetLinkInput['asset_link_type'];
 // The overview card shows this many linked assets per group before "+N more".
 export const RELATIONSHIP_PREVIEW = 5;
 
-// The link types the backend accepts, with the i18n key of the verb read "source <verb> target"
-// and the i18n key of its one-line meaning, shown under each option of the picker.
+// The link types the backend accepts, with the i18n key of the verb read "source <verb> target",
+// the i18n key of its inverse read from the target ("target <inverse> source") and the i18n key of
+// its one-line meaning, shown under each option of the picker.
 export const ASSET_LINK_TYPES: {
   value: AssetLinkType;
   label: string;
+  inverseLabel: string;
   description: string;
 }[] = [
   {
     value: 'CONNECTS_TO',
     label: 'Connects to',
+    inverseLabel: 'Connected from',
     description: 'Reaches the linked asset over the network',
   },
   {
     value: 'DEPENDS_ON',
     label: 'Depends on',
+    inverseLabel: 'Depended on by',
     description: 'Needs the linked asset to work',
   },
   {
     value: 'HOSTS',
     label: 'Hosts',
+    inverseLabel: 'Hosted by',
     description: 'Runs the linked asset on its own hardware or hypervisor',
   },
   {
     value: 'LOGGED_ON',
     label: 'Logged on',
+    inverseLabel: 'Has a session from',
     description: 'Has a user session open on the linked asset',
   },
   {
     value: 'RUNS_ON',
     label: 'Runs on',
+    inverseLabel: 'Runs',
     description: 'Is installed and executed on the linked asset',
   },
   {
     value: 'USES',
     label: 'Uses',
+    inverseLabel: 'Used by',
     description: 'Calls a service the linked asset provides',
   },
 ];
 
 export const assetLinkTypeLabel = (type?: string): string => {
   return ASSET_LINK_TYPES.find(linkType => linkType.value === type)?.label ?? type ?? '-';
+};
+
+// The wording of a link as read from the asset page: the verb for an outgoing link ("this asset
+// Hosts X"), its inverse for an incoming one ("this asset is Hosted by X"), so the line stays true.
+export const assetLinkDirectionLabel = (type: string | undefined, outgoing: boolean): string => {
+  if (outgoing) {
+    return assetLinkTypeLabel(type);
+  }
+  return ASSET_LINK_TYPES.find(linkType => linkType.value === type)?.inverseLabel ?? type ?? '-';
 };
 
 export type AssetLinkRow = {
