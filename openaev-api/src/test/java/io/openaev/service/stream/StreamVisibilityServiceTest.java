@@ -45,6 +45,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -256,18 +257,19 @@ class StreamVisibilityServiceTest {
     @Test
     @DisplayName("a finding's groups, serialized whole, keep only the visible assets")
     void given_findingOnAGroupWithAHiddenAsset_should_keepTheVisibleOnesInTheGroup() {
-      // Arrange
+      // Arrange: the finding is on g, so its group is the group g belongs to
+      Endpoint visible = endpoint("g");
       AssetGroup group = AssetGroupFixture.createDefaultAssetGroup("group");
       group.setId("group-id");
-      group.setAssets(List.of(endpoint("g"), endpoint("r")));
+      group.setAssets(List.of(visible, endpoint("r")));
+      visible.setAssetGroups(Set.of(group));
       Inject inject = InjectFixture.getDefaultInject();
       inject.setId("inject-id");
-      inject.setAssetGroups(List.of(group));
       Finding finding = FindingFixture.createDefaultTextFinding();
       finding.setId("finding-id");
       finding.setOccurrences(
           List.of(createOccurrence(finding, inject, Instant.now(), finding.getField())));
-      finding.setAssets(List.of(endpoint("g")));
+      finding.setAssets(List.of(visible));
 
       // Act
       StreamVisibility visibility = visibilityOf(finding);
