@@ -19,6 +19,7 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectBulkDeleteInput;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.period.RecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
@@ -81,6 +82,8 @@ public class AtomicTestingService {
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final BulkDeleteExecutor bulkDeleteExecutor;
   private final RecurrenceService recurrenceService;
+  private final InjectStatusService injectStatusService;
+  private final AssetAgentJobRepository assetAgentJobRepository;
   private final HealthCheckUtils healthCheckUtils;
 
   // -- CRUD --
@@ -351,6 +354,40 @@ public class AtomicTestingService {
     findInject(ctx, id);
     // The grants move with the relaunch, in InjectService, before the old inject is deleted.
     return injectService.relaunchAsCurrentUser(id);
+  }
+
+  /**
+   * Stops a running atomic testing on a user's request: withdraws the agent jobs not picked up yet
+   * (an agent no longer receives them), then ends the inject in ERROR with an INTERRUPTED trace
+   * naming who stopped it. The simulation cancel ends its injects the same way ({@code
+   * WorkflowEndService#stopActiveInjects}); an atomic testing has no simulation, so it is stopped
+   * here. An implant an agent already started is not killed: no agent protocol carries a kill
+   * today, and its later callbacks find the inject's execution authorisation revoked.
+   *
+   * @param ctx the request scope the atomic testing is resolved in
+   * @param id the atomic testing (inject) id
+   * @return the stopped atomic testing
+   * @throws BadRequestException when the inject is not an atomic testing or is not in progress
+   */
+  @Transactional
+  public InjectResultOverviewOutput stop(TxCtx ctx, String id) {
+    Inject inject = findInject(ctx, id);
+    if (!inject.isAtomicTesting()) {
+      throw new BadRequestException("Only an atomic testing can be stopped here");
+    }
+    ExecutionStatus currentStatus =
+        inject.getStatus().map(InjectStatus::getName).orElse(ExecutionStatus.DRAFT);
+    if (!ExecutionStatus.INJECT_EXECUTION_IN_PROGRESS_STATUSES.contains(currentStatus)) {
+      throw new BadRequestException(
+          "The atomic testing is not running (status " + currentStatus.name() + ")");
+    }
+    // Withdraw the jobs first, in the atomic testing's own tenant (asset_agent_jobs is v2-active):
+    // an agent polling meanwhile must not receive a job of a stopped atomic testing.
+    assetAgentJobRepository.deleteAllByInjectIdsAndTenantId(
+        List.of(inject.getId()), inject.getTenant().getId());
+    injectStatusService.interruptInjectStatus(inject, userService.currentUser().getNameOrEmail());
+    log.info("Atomic testing {} stopped (was {})", inject.getId(), currentStatus.name());
+    return findById(ctx, id);
   }
 
   /** Bulk update used by the recurring atomic testing job to self-clear outdated recurrences. */

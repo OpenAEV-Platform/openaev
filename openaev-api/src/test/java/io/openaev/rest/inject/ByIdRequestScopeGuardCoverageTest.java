@@ -123,6 +123,9 @@ class ByIdRequestScopeGuardCoverageTest extends ByIdRequestScopeProductionTables
             "POST /atomic-testings/{atomicTestingId}/relaunch",
             (Call) ByIdRequestScopeGuardCoverageTest::relaunchAtomicTesting),
         Arguments.of(
+            "POST /atomic-testings/{atomicTestingId}/stop",
+            (Call) ByIdRequestScopeGuardCoverageTest::stopAtomicTesting),
+        Arguments.of(
             "GET /atomic-testings/{injectId}/payload",
             (Call) ByIdRequestScopeGuardCoverageTest::getAtomicTestingPayloadCall),
         Arguments.of(
@@ -500,6 +503,10 @@ class ByIdRequestScopeGuardCoverageTest extends ByIdRequestScopeProductionTables
 
   private int relaunchAtomicTesting(Route route, String injectId) throws Exception {
     return status(route.with(post(route.atomicTesting(injectId) + "/relaunch")));
+  }
+
+  private int stopAtomicTesting(Route route, String injectId) throws Exception {
+    return status(route.with(post(route.atomicTesting(injectId) + "/stop")));
   }
 
   private int getAtomicTestingPayloadCall(Route route, String injectId) throws Exception {

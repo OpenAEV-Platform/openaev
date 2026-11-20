@@ -407,6 +407,26 @@ public class InjectStatusService {
     return injectStatusRepository.save(injectStatus);
   }
 
+  /**
+   * Stops an in-progress inject on a user's request: records the INTERRUPTED trace naming who
+   * stopped it, then finalizes the status as ERROR (tracking end date set, inject authorisation
+   * revoked) and streams the transition, like the simulation cancel does for its injects.
+   *
+   * @param inject the inject to stop, with a status in progress
+   * @param stoppedBy the name (or email) of the user who stopped it
+   * @return the finalized status
+   */
+  public InjectStatus interruptInjectStatus(@NotNull Inject inject, @NotNull String stoppedBy) {
+    InjectStatus injectStatus = getOrInitializeInjectStatus(inject);
+    ExecutionStatus previousStatus = injectStatus.getName();
+    ExecutionTraceUtils.addAtomicTestingStoppedTrace(injectStatus, stoppedBy);
+    InjectStatus saved = finalizeAsError(injectStatus);
+    inject.setStatus(saved);
+    publishInjectStatusUpdate(inject);
+    logInjectStatusTransition(inject, previousStatus, ExecutionStatus.ERROR, null);
+    return saved;
+  }
+
   public InjectStatus failInjectStatus(@NotNull Inject inject, @Nullable String message) {
     InjectStatus injectStatus = getOrInitializeInjectStatus(inject);
     ExecutionStatus previousStatus = injectStatus.getName();

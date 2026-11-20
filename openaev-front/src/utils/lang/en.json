@@ -4953,5 +4953,8 @@
   "Has a session from": "Has a session from",
   "Runs": "Runs",
   "Used by": "Used by",
-  "Add a link": "Add a link"
+  "Add a link": "Add a link",
+  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.",
+  "Do you want to stop this atomic testing: {title}?": "Do you want to stop this atomic testing: {title}?",
+  "Stop execution": "Stop execution"
 }
