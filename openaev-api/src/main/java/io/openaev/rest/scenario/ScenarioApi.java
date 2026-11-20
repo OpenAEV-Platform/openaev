@@ -54,6 +54,7 @@ import io.openaev.service.scenario.ScenarioLaunchService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -96,6 +97,7 @@ public class ScenarioApi extends RestBehavior {
   private final TeamService teamService;
   private final AssetGroupService assetGroupService;
   private final EndpointService endpointService;
+  private final EndpointMapper endpointMapper;
   private final ChannelService channelService;
   private final DocumentService documentService;
   private final TenantSettingsService tenantSettingsService;
@@ -763,10 +765,14 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
+  // Deprecated: the UI stopped calling it when the inject form moved to the asset-groups/find
+  // route, which loads only the selected ids. Kept for API clients until its removal.
+  @Deprecated(since = "3.261118.0", forRemoval = true)
   @Operation(
       summary =
           "Get asset groups. Can only be called if the user has access to the given scenario.",
-      description = "Get all asset groups used by injects for a given scenario")
+      description = "Get all asset groups used by injects for a given scenario",
+      deprecated = true)
   @Transactional
   public List<AssetGroup> assetGroups(TxCtx ctx, @PathVariable String scenarioId) {
     return this.assetGroupService.assetGroupsForScenario(scenarioId);
@@ -818,12 +824,18 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Operation(
       summary = "Get endpoints. Can only be called if the user has access to the given scenario.",
-      description = "Get all endpoints used by injects for a given scenario")
+      description = "Get all endpoints used by injects for a given scenario",
+      deprecated = true)
   @Transactional
   // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
   // executors table (each endpoint's agents eager-load their executor).
-  public List<Endpoint> endpoints(TxCtx ctx, @PathVariable String scenarioId) {
-    return this.endpointService.endpointsForScenario(scenarioId);
+  // Deprecated: the UI stopped calling it when the inject form moved to the endpoints/find
+  // route, which loads only the selected ids. Kept for API clients until its removal.
+  @Deprecated(since = "3.261118.0", forRemoval = true)
+  public List<EndpointOutput> endpoints(TxCtx ctx, @PathVariable String scenarioId) {
+    return this.endpointService.endpointsForScenario(scenarioId).stream()
+        .map(endpointMapper::toEndpointOutput)
+        .toList();
   }
 
   @PostMapping({
