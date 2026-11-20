@@ -4982,7 +4982,7 @@
   "After the update · v{version}": "업데이트 후 · v{version}",
   "After the rollback · revision #{number} (v{version})": "롤백 후 · 리비전 #{number} (v{version})",
   "After the rollback · revision #{number}": "롤백 후 · 리비전 #{number}",
-  "Scenario updated to v{version}. To undo, roll back from Versions.": "시나리오가 v{version}(으)로 업데이트되었습니다. 되돌리려면 버전에서 롤백하세요.",
-  "Scenario rolled back. To undo, roll back again from Versions.": "시나리오가 롤백되었습니다. 되돌리려면 버전에서 다시 롤백하세요.",
-  "You can roll back later from Versions.": "나중에 버전에서 롤백할 수 있습니다."
+  "You can roll back later from Versions.": "나중에 버전에서 롤백할 수 있습니다.",
+  "Scenario updated to v{version}.": "시나리오가 v{version}(으)로 업데이트되었습니다.",
+  "Scenario rolled back.": "시나리오가 롤백되었습니다."
 }

@@ -10,7 +10,9 @@ import {
   Text,
   Textarea,
 } from '@filigran/design-system';
+import { ArrowForwardOutlined } from '@mui/icons-material';
 import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 
 import {
   applyScenarioUpdate,
@@ -223,9 +225,31 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
     })
       .then(() => {
         // Applying saves the current state as a revision first: said right after, when undo matters.
-        MESSAGING$.notifySuccess(version
-          ? t('Scenario updated to v{version}. To undo, roll back from Versions.', { version })
-          : t('Scenario rolled back. To undo, roll back again from Versions.'));
+        // The way back, right when it matters: a link to the Versions tab, where the revision saved just
+        // before is listed with "Roll back to this revision" (and its preview, before anything changes).
+        MESSAGING$.notifySuccess(
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+          >
+            {version ? t('Scenario updated to v{version}.', { version }) : t('Scenario rolled back.')}
+            <Link
+              to={`/admin/scenarios/${encodeURIComponent(scenarioId)}/versions`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                fontWeight: 600,
+              }}
+            >
+              {t('Roll back')}
+              <ArrowForwardOutlined fontSize="inherit" />
+            </Link>
+          </span>,
+        );
         onApplied();
       })
       .finally(() => setApplying(false));

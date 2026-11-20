@@ -4982,7 +4982,7 @@
   "After the update · v{version}": "После обновления · v{version}",
   "After the rollback · revision #{number} (v{version})": "После отката · ревизия № {number} (v{version})",
   "After the rollback · revision #{number}": "После отката · ревизия № {number}",
-  "Scenario updated to v{version}. To undo, roll back from Versions.": "Сценарий обновлён до v{version}. Чтобы отменить, выполните откат в разделе «Версии».",
-  "Scenario rolled back. To undo, roll back again from Versions.": "Сценарий откатен. Чтобы отменить, снова выполните откат в разделе «Версии».",
-  "You can roll back later from Versions.": "Позже можно выполнить откат в разделе «Версии»."
+  "You can roll back later from Versions.": "Позже можно выполнить откат в разделе «Версии».",
+  "Scenario updated to v{version}.": "Сценарий обновлён до v{version}.",
+  "Scenario rolled back.": "Сценарий откатен."
 }

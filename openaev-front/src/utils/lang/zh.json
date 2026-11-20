@@ -4982,7 +4982,7 @@
   "After the update · v{version}": "更新后 · v{version}",
   "After the rollback · revision #{number} (v{version})": "回滚后 · 修订 #{number} (v{version})",
   "After the rollback · revision #{number}": "回滚后 · 修订 #{number}",
-  "Scenario updated to v{version}. To undo, roll back from Versions.": "场景已更新到 v{version}。如需撤销，请在“版本”中回滚。",
-  "Scenario rolled back. To undo, roll back again from Versions.": "场景已回滚。如需撤销，请在“版本”中再次回滚。",
-  "You can roll back later from Versions.": "之后可在“版本”中回滚。"
+  "You can roll back later from Versions.": "之后可在“版本”中回滚。",
+  "Scenario updated to v{version}.": "场景已更新到 v{version}。",
+  "Scenario rolled back.": "场景已回滚。"
 }

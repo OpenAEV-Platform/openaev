@@ -4982,7 +4982,7 @@
   "After the update · v{version}": "After the update · v{version}",
   "After the rollback · revision #{number} (v{version})": "After the rollback · revision #{number} (v{version})",
   "After the rollback · revision #{number}": "After the rollback · revision #{number}",
-  "Scenario updated to v{version}. To undo, roll back from Versions.": "Scenario updated to v{version}. To undo, roll back from Versions.",
-  "Scenario rolled back. To undo, roll back again from Versions.": "Scenario rolled back. To undo, roll back again from Versions.",
-  "You can roll back later from Versions.": "You can roll back later from Versions."
+  "You can roll back later from Versions.": "You can roll back later from Versions.",
+  "Scenario updated to v{version}.": "Scenario updated to v{version}.",
+  "Scenario rolled back.": "Scenario rolled back."
 }
