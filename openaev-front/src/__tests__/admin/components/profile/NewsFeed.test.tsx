@@ -177,6 +177,22 @@ describe('NewsFeed page', () => {
       expect(mockMarkAllRead).not.toHaveBeenCalled();
     });
 
+    it('refreshes the counter when only one category could be marked read', async () => {
+      mockMarkAllRead.mockImplementation(async (category?: string) => {
+        if (category === 'RESOURCE') {
+          throw new Error('unavailable');
+        }
+        return {};
+      });
+      const refreshCounter = vi.fn();
+      const subscription = MESSAGING$.refreshNewsFeedUnreadCount.subscribe(refreshCounter);
+      renderPage('blog_posts');
+      await waitFor(() => expect(refreshCounter).toHaveBeenCalledTimes(1));
+      expect(mockMarkAllRead).toHaveBeenCalledTimes(2);
+      expect(mockNotifyError).not.toHaveBeenCalled();
+      subscription.unsubscribe();
+    });
+
     it('keeps the counter and the page when the items cannot be marked read', async () => {
       mockMarkAllRead.mockRejectedValue(new Error('unavailable'));
       const refreshCounter = vi.fn();

@@ -11,8 +11,8 @@ export type NewsFeedItemsToMark = readonly NewsFeedCategory[] | typeof ALL_NEWS_
 
 /**
  * Marks the news feed items of the user as read once they are displayed, those of `itemsToMark`, then tells the top
- * bar to refresh its unread counter. A failure is silent and keeps the counter: the items stay unread, and the next
- * visit marks them again.
+ * bar to refresh its unread counter when at least one request succeeded. A failure is silent: its items stay unread,
+ * and the next visit marks them again.
  *
  * `visitKey` identifies a navigation to the page (the router's `location.key`): it marks the items again when
  * the user comes back to the page they are already on, e.g. by clicking the top bar icon to see a new item.
@@ -28,9 +28,12 @@ const useMarkNewsFeedItemsRead = (displayed: boolean, visitKey: string | undefin
     const requests = itemsToMark === ALL_NEWS_FEED_ITEMS
       ? [markAllMyNewsFeedItemsRead()]
       : itemsToMark.map(category => markAllMyNewsFeedItemsRead(category));
-    Promise.all(requests)
-      .then(() => MESSAGING$.refreshNewsFeedUnreadCount.next())
-      .catch(() => {});
+    // Each category on its own: the one that succeeded changed the counter, even when another failed.
+    Promise.allSettled(requests).then((results) => {
+      if (results.some(result => result.status === 'fulfilled')) {
+        MESSAGING$.refreshNewsFeedUnreadCount.next();
+      }
+    });
   }, [displayed, visitKey, itemsToMarkKey]);
 };
 
