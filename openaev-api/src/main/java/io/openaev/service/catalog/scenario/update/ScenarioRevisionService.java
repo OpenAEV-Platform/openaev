@@ -68,7 +68,7 @@ public class ScenarioRevisionService {
   /** Keeps the content a scenario was installed with, to roll back to it. */
   @Transactional(rollbackFor = Exception.class)
   public void keepInstalled(Scenario scenario) {
-    keep(
+    save(
         scenario,
         ScenarioRevision.Reason.INSTALL,
         content(scenario, injectService.findByScenarioId(scenario.getId())));
@@ -76,6 +76,10 @@ public class ScenarioRevisionService {
 
   @Transactional(rollbackFor = Exception.class)
   public void keep(Scenario scenario, ScenarioRevision.Reason reason, ObjectNode content) {
+    save(scenario, reason, content);
+  }
+
+  private void save(Scenario scenario, ScenarioRevision.Reason reason, ObjectNode content) {
     ScenarioRevision revision = new ScenarioRevision();
     revision.setTenant(scenario.getTenant());
     revision.setScenario(scenario);
