@@ -1,0 +1,102 @@
+# The OpenAEV platform, as XTM Studio runs it: its page and API, its database, its bucket, its
+# queues and its indices, each through an enrollment with the rights it uses. Every name of its data
+# derives from its dataset, <env>-<instance>. Its collectors and injectors reach it through its
+# contract openaev; it registers with XTM One when linked to one.
+schema: 1
+name: openaev/platform
+group: openaev
+title: OpenAEV platform
+description: The OpenAEV platform, its page and its API.
+logo:
+  dark: ../../../../openaev-front/src/static/images/logo_dark.svg
+  light: ../../../../openaev-front/src/static/images/logo_light.svg
+image: { version: 3.261118.0 }
+endpoints:
+  - port: 8080
+    contracts:
+      web: { url: { protocol: http, ui: true }, credential: { user: admin@filigran.io } }
+      # Its API, for its collectors and injectors: the token they call it with.
+      openaev: { url: { protocol: http }, enrollment: { token: { secret: true } } }
+secrets:
+  ADMIN_PASSWORD: { type: password, size: 28 }
+  ADMIN_TOKEN: { type: uuid }
+  HEALTHCHECK_KEY: { type: uuid }
+  ENCRYPTION_KEY: { type: password, size: 32 }
+  ENCRYPTION_SALT: { type: password, size: 16 }
+environment:
+  OPENAEV_ADMIN_EMAIL: admin@filigran.io
+  OPENAEV_ADMIN_PASSWORD: "{{secrets.ADMIN_PASSWORD}}"
+  OPENAEV_ADMIN_TOKEN: "{{secrets.ADMIN_TOKEN}}"
+  OPENAEV_ADMIN_ENCRYPTION_KEY: "{{secrets.ENCRYPTION_KEY}}"
+  OPENAEV_ADMIN_ENCRYPTION_SALT: "{{secrets.ENCRYPTION_SALT}}"
+  OPENAEV_HEALTHCHECK_KEY: "{{secrets.HEALTHCHECK_KEY}}"
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://{{requires.postgresql.contract.url.address}}/{{requires.postgresql.enrollment.database}}"
+  SPRING_DATASOURCE_USERNAME: "{{requires.postgresql.enrollment.user_credential.user}}"
+  SPRING_DATASOURCE_PASSWORD: "{{requires.postgresql.enrollment.user_credential.password}}"
+  OPENAEV_RABBITMQ_HOSTNAME: "{{requires.rabbitmq.contracts.amqp.url.host}}"
+  OPENAEV_RABBITMQ_PORT: "{{requires.rabbitmq.contracts.amqp.url.port}}"
+  OPENAEV_RABBITMQ_USER: "{{requires.rabbitmq.enrollment.amqp.user_credential.user}}"
+  OPENAEV_RABBITMQ_PASS: "{{requires.rabbitmq.enrollment.amqp.user_credential.password}}"
+  OPENAEV_RABBITMQ_VHOST: "{{requires.rabbitmq.enrollment.amqp.vhost}}"
+  OPENAEV_RABBITMQ_PREFIX: "{{dataset.name}}"
+  ENGINE_URL: "{{requires.search.contract.url.value}}"
+  ENGINE_USERNAME: "{{requires.search.enrollment.user_credential.user}}"
+  ENGINE_PASSWORD: "{{requires.search.enrollment.user_credential.password}}"
+  MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+  SPRING_MAIL_HOST: "{{#requires.smtp}}{{contract.url.host}}{{/requires.smtp}}"
+  SPRING_MAIL_PORT: "{{#requires.smtp}}{{contract.url.port}}{{/requires.smtp}}"
+  OPENAEV_XTM_ONE_URL: "{{#requires.xtm-one}}{{contract.url.value}}{{/requires.xtm-one}}"
+  OPENAEV_XTM_ONE_TOKEN: "{{#requires.xtm-one}}{{output.token}}{{/requires.xtm-one}}"
+  # Spring binds no variable to a setting whose name has a dash: those come as JSON.
+  SPRING_APPLICATION_JSON: >-
+    {"openaev":{"base-url":"{{contracts.web.url.machine.value}}","auth-local-enable":true,"rabbitmq":{"management-port":{{requires.rabbitmq.contracts.rabbitmq-management.url.port}}}{{#requires.opencti}},
+    "xtm":{"opencti":{"enable":true,"url":"{{contract.url.protocol}}://{{contract.url.machine.address}}","api-url":"{{contract.url.value}}","token":"{{output.token}}"}}{{/requires.opencti}}},
+    "minio":{"endpoint":"{{requires.s3.contract.url.host}}","port":{{requires.s3.contract.url.port}},"bucket":"{{requires.s3.enrollment.bucket}}",
+    "access-key":"{{requires.s3.enrollment.user_credential.user}}","access-secret":"{{requires.s3.enrollment.user_credential.password}}"},
+    "engine":{"index-prefix":"{{dataset.name}}"}}
+service:
+  healthcheck: { test: [CMD-SHELL, 'wget -qO- "http://localhost:8080/api/health?health_access_key=$$OPENAEV_HEALTHCHECK_KEY" >/dev/null'], interval: 10s, timeout: 5s, retries: 60, start_period: 120s }
+requires:
+  postgresql:
+    count: "1"
+    enrollment: { user_credential: { user: "{{dataset.name_underscore}}" }, database: "{{dataset.name_underscore}}" }
+  s3:
+    count: "1"
+    enrollment: { user_credential: { user: "{{dataset.name}}" }, bucket: "{{dataset.name}}", policy: ["s3:*"] }
+  rabbitmq:
+    all: [amqp, rabbitmq-management@4]
+    count: "1"
+    enrollment:
+      amqp:
+        user_credential: { user: "{{dataset.name}}" }
+        vhost: "{{dataset.name}}"
+        permissions: { configure: ".*", write: ".*", read: ".*" }
+      rabbitmq-management@4:
+        user_credential: { user: "{{dataset.name}}" }
+        tags: [management]
+  # Its indices, policies and templates, all named after its dataset.
+  search:
+    accepts: [elasticsearch, opensearch]
+    count: "1"
+    enrollment:
+      elasticsearch:
+        user_credential: { user: "{{dataset.name}}" }
+        role:
+          cluster: [monitor, manage_index_templates, manage_ilm, manage_pipeline]
+          indices: [{ names: ["{{dataset.name}}_*", "{{dataset.name}}-*"], privileges: [all] }]
+        prefix: "{{dataset.name}}_"
+      opensearch:
+        user_credential: { user: "{{dataset.name}}" }
+        role:
+          cluster_permissions: [cluster_monitor, cluster_composite_ops, cluster_manage_index_templates, cluster_manage_pipelines, "cluster:admin/opendistro/ism/*"]
+          index_permissions: [{ index_patterns: ["{{dataset.name}}_*", "{{dataset.name}}-*"], allowed_actions: [indices_all] }]
+        prefix: "{{dataset.name}}_"
+  smtp: { count: "0..1" }
+  # OpenCTI, whose knowledge it uses, as a service account of its own; OpenCTI may require it in turn.
+  opencti:
+    count: "0..1"
+    enrollment: { service_account: { name: "{{dataset.name}}" } }
+  # Its registration with XTM One, which it sends at start, then every 5 minutes.
+  xtm-one:
+    count: "0..1"
+    enrollment: { platform: openaev }
