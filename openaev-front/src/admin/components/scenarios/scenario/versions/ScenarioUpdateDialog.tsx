@@ -222,7 +222,10 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
       local_hash: preview.local_hash,
     })
       .then(() => {
-        MESSAGING$.notifySuccess(version ? t('Scenario updated to v{version}', { version }) : t('Scenario rolled back'));
+        // Applying saves the current state as a revision first: said right after, when undo matters.
+        MESSAGING$.notifySuccess(version
+          ? t('Scenario updated to v{version}. To undo, roll back from Versions.', { version })
+          : t('Scenario rolled back. To undo, roll back again from Versions.'));
         onApplied();
       })
       .finally(() => setApplying(false));
@@ -246,18 +249,24 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
   // "(v2.0.0, 9 Nov 2026)": the revision's version and date, so the user knows which one it is.
   const revisionFacts = [preview?.target_version && `v${preview.target_version}`, revisionDate && fsd(revisionDate)].filter(Boolean);
   const revisionDetails = revisionFacts.length > 0 ? ` (${revisionFacts.join(', ')})` : '';
-  // A version on each side, as in the Threat Arsenal diffs. "now" stays: the current state is the
-  // installed version plus the user's edits, not exactly that version.
+  // The diff key in plain words, a version on each side as in the Threat Arsenal: "Now · v2.0.0" (with
+  // "with your edits" when the current state is not exactly that version) and "After the update · v2.3.0".
   const currentVersion = preview?.current_version;
-  const beforeLabel = currentVersion ? t('Before · now (v{version})', { version: currentVersion }) : t('Before · now');
-  let afterLabel = String(t('After · v{version}', { version: version ?? '' }));
+  const hasEdits = kept.length > 0 || conflicts.length > 0 || (preview?.elements.some(element => element.change === 'KEPT_USER') ?? false);
+  let beforeLabel = String(t('Now'));
+  if (currentVersion) {
+    beforeLabel = String(hasEdits
+      ? t('Now · v{version} with your edits', { version: currentVersion })
+      : t('Now · v{version}', { version: currentVersion }));
+  }
+  let afterLabel = String(t('After the update · v{version}', { version: version ?? '' }));
   if (!version) {
     afterLabel = String(preview?.target_version
-      ? t('After · revision #{number} (v{version})', {
+      ? t('After the rollback · revision #{number} (v{version})', {
           number: revisionNumber ?? '',
           version: preview.target_version,
         })
-      : t('After · revision #{number}', { number: revisionNumber ?? '' }));
+      : t('After the rollback · revision #{number}', { number: revisionNumber ?? '' }));
   }
   // Above a kept edit's content: it is the same now and after applying.
   const unchangedLabel = String(currentVersion
@@ -295,6 +304,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
                   a chip at 0 says nothing. The details follow in three parts: what changes, what stays, and
                   what the user needs to do. */}
               <div style={section} data-testid="scenario-update-summary">
+                {/* Undo is said here, where everyone reads, and again in the message after applying. */}
                 <Text variant="content-base">
                   {version
                     ? t('The content moves to Filigran v{version}.', { version })
@@ -302,6 +312,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
                         number: revisionNumber ?? '',
                         details: revisionDetails,
                       })}
+                  {` ${t('You can undo it later from Versions.')}`}
                 </Text>
                 {(() => {
                   const added = preview.elements.filter(element => element.change === 'ADDED').length;
@@ -560,12 +571,6 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
           )}
         </DialogBody>
         <DialogFooter>
-          {/* Applying saves the current state as a revision first, so it can always be undone. */}
-          {preview && (
-            <Text variant="content-caption" style={{ marginRight: 'auto' }}>
-              {t('The current state is saved first: you can undo this from Versions.')}
-            </Text>
-          )}
           <Button priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
           <Button onClick={apply} disabled={!preview || !ready || applying}>
             {version ? t('Update') : t('Roll back')}
