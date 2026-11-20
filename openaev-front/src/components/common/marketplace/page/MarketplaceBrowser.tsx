@@ -18,7 +18,7 @@ const MarketplaceBrowser: FunctionComponent<Props> = ({ hero, tabs, sidebar, too
     display: 'flex',
     flexDirection: 'column',
     gap: 3,
-    ...mainBoxStyle
+    ...mainBoxStyle,
   }}
   >
     {hero}
@@ -36,7 +36,7 @@ const MarketplaceBrowser: FunctionComponent<Props> = ({ hero, tabs, sidebar, too
         display: 'flex',
         flexDirection: 'column',
         gap: 2,
-        ...childrenBoxStyle
+        ...childrenBoxStyle,
       }}
       >
         {/* The column gap is the only space under the toolbar, as on Integrations. */}

@@ -8,15 +8,13 @@ import {
 } from '@mui/icons-material';
 import { type ReactElement, useCallback, useEffect, useMemo, useState } from 'react';
 
-import {type Filter, FindingOutput, type Option, type SearchPaginationInput} from '../../../utils/api-types';
+import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../../../admin/components/findings/ContractOutputElementType';
+import { type Filter, type Option, type SearchPaginationInput } from '../../../utils/api-types';
+import FindingIcon from '../../FindingIcon';
 import { type FilterHelpers } from '../queryable/filter/FilterHelpers';
 import { generateFilterId } from '../queryable/filter/FilterUtils';
 import { buildSearchPagination } from '../queryable/QueryableUtils';
 import { type FacetRow } from './FacetFilters';
-import ContractOutputElementType, {
-  CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS
-} from "../../../admin/components/findings/ContractOutputElementType";
-import FindingIcon from "../../FindingIcon";
 
 // Shared author + payload-status facet helpers for the injector-contract
 // libraries (Threat Arsenal and the inject-contract picker), so both sidebars
@@ -306,12 +304,12 @@ const findingTypeFacetMeta = (t: (key: string) => string): {
   icon: () => ReactElement;
 }[] => {
   return CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS
-      .map(type => ({
-        value: type,
-        label: t(ContractOutputElementType[type]),
-        icon: () => <FindingIcon findingType={type} />
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label));
+    .map(type => ({
+      value: type,
+      label: t(ContractOutputElementType[type]),
+      icon: () => <FindingIcon findingType={type} />,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 };
 
 export const buildFindingTypeRows = ({

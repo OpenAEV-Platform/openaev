@@ -1,24 +1,13 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
-import { Binoculars } from 'mdi-material-ui';
-import { type CSSProperties, useState } from 'react';
-import { Link } from 'react-router';
+import { Typography } from '@mui/material';
+import { useState } from 'react';
 
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
-import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
-import useBodyItemsStyles from '../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
-import Empty from '../../../components/Empty';
-import { FDS } from '../../../components/fds-tokens.generated';
-import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
-import ItemTargets from '../../../components/ItemTargets';
-import PaginatedListLoader from '../../../components/PaginatedListLoader';
-import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
-import ContractOutputElementType from './ContractOutputElementType';
-import FindingListView from "./components/FindingListView";
+import { type AggregatedFindingOutput, type SearchPaginationInput } from '../../../utils/api-types';
+import FindingListView from './components/FindingListView';
 
 interface Props {
   searchDistinctFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
@@ -87,10 +76,10 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
         disablePagination={compact}
       />
       <FindingListView
-          loading={loading}
-          findings={findings}
-          queryableHelpers={queryableHelpers}
-          hiddenFields={hiddenFields}
+        loading={loading}
+        findings={findings}
+        queryableHelpers={queryableHelpers}
+        hiddenFields={hiddenFields}
       />
       {/* Compact mode has no pager: if the run produced more findings than one compact page, say so
           explicitly (with the total) so the list never reads as "this inject has N findings". */}
