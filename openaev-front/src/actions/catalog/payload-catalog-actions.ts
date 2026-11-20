@@ -8,22 +8,18 @@ import {
   type CatalogSettingsOutput,
   type PayloadUpsertInput,
 } from '../../utils/api-types';
-
-const CATALOG_URI = '/api/catalog';
-
-const payloadUri = (externalId: string) => `${CATALOG_URI}/payloads/${encodeURIComponent(externalId)}`;
-const versionUri = (externalId: string, version: string) => `${payloadUri(externalId)}/versions/${encodeURIComponent(version)}`;
+import { CATALOG_URI, catalogItemUri, catalogVersionUri } from './catalog-uri';
 
 export const fetchAvailableActions = (): Promise<AvailableActionOutput[]> => simpleCall(`${CATALOG_URI}/actions`)
   .then(({ data }: { data: AvailableActionOutput[] }) => data);
 
-export const fetchCatalogPayloadVersions = (externalId: string): Promise<CatalogPayloadOutput[]> => simpleCall(`${payloadUri(externalId)}/versions`)
+export const fetchCatalogPayloadVersions = (externalId: string): Promise<CatalogPayloadOutput[]> => simpleCall(`${catalogItemUri('payloads', externalId)}/versions`)
   .then(({ data }: { data: CatalogPayloadOutput[] }) => data);
 
-export const fetchCatalogPayloadVersionContent = (externalId: string, version: string): Promise<PayloadUpsertInput> => simpleCall(`${versionUri(externalId, version)}/content`)
+export const fetchCatalogPayloadVersionContent = (externalId: string, version: string): Promise<PayloadUpsertInput> => simpleCall(`${catalogVersionUri('payloads', externalId, version)}/content`)
   .then(({ data }: { data: PayloadUpsertInput }) => data);
 
-export const installCatalogPayload = (externalId: string, version: string): Promise<CatalogInstallOutput> => simplePostCall(`${versionUri(externalId, version)}/install`)
+export const installCatalogPayload = (externalId: string, version: string): Promise<CatalogInstallOutput> => simplePostCall(`${catalogVersionUri('payloads', externalId, version)}/install`)
   .then(({ data }: { data: CatalogInstallOutput }) => data);
 
 export const installAllCatalogPayloads = (): Promise<CatalogInstallAllOutput> => simplePostCall(`${CATALOG_URI}/payloads/install-all`)

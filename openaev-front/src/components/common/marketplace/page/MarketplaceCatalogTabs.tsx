@@ -1,13 +1,17 @@
 import { type FunctionComponent } from 'react';
 
-import MarketplaceTabs from '../../../../components/common/marketplace/page/MarketplaceTabs';
-import { useFormatter } from '../../../../components/i18n';
 import { isFeatureEnabled } from '../../../../utils/utils';
+import { useFormatter } from '../../../i18n';
+import MarketplaceTabs from './MarketplaceTabs';
 
-interface Props { active: 'active' | 'available' }
+interface Props {
+  active: 'active' | 'available';
+  // The Active tab's route; the Available tab lives under it.
+  baseUrl: string;
+}
 
 // The Available tab lists the catalogue: no tabs while the catalogue is off.
-const ThreatArsenalTabs: FunctionComponent<Props> = ({ active }) => {
+const MarketplaceCatalogTabs: FunctionComponent<Props> = ({ active, baseUrl }) => {
   const { t } = useFormatter();
   if (!isFeatureEnabled('CATALOG')) {
     return null;
@@ -19,16 +23,16 @@ const ThreatArsenalTabs: FunctionComponent<Props> = ({ active }) => {
         {
           value: 'active',
           label: t('Active'),
-          to: '/admin/threat-arsenal',
+          to: baseUrl,
         },
         {
           value: 'available',
           label: t('Available'),
-          to: '/admin/threat-arsenal/available',
+          to: `${baseUrl}/available`,
         },
       ]}
     />
   );
 };
 
-export default ThreatArsenalTabs;
+export default MarketplaceCatalogTabs;

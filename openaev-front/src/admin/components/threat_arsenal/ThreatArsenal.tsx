@@ -13,6 +13,7 @@ import {
 import DialogDelete from '../../../components/common/DialogDelete';
 import { useAuthorOptions } from '../../../components/common/facets/ContractFacets';
 import MarketplaceBrowser from '../../../components/common/marketplace/page/MarketplaceBrowser';
+import MarketplaceCatalogTabs from '../../../components/common/marketplace/page/MarketplaceCatalogTabs';
 import MarketplaceLoadMore from '../../../components/common/marketplace/results/MarketplaceLoadMore';
 import MarketplaceSections from '../../../components/common/marketplace/results/MarketplaceSections';
 import MarketplaceSortSelect from '../../../components/common/marketplace/toolbar/MarketplaceSortSelect';
@@ -44,7 +45,6 @@ import { THREAT_ARSENAL_SORT_OPTIONS } from './list/threatArsenalListConfig';
 import ThreatArsenalHeaderActions from './page/ThreatArsenalHeaderActions';
 import ThreatArsenalHero from './page/ThreatArsenalHero';
 import ThreatArsenalSidebar from './page/ThreatArsenalSidebar';
-import ThreatArsenalTabs from './page/ThreatArsenalTabs';
 import ThreatArsenalEmptyState from './ThreatArsenalEmptyState';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
 import { hasOrphanedScopeFilters, toggleOrphanedScope } from './threatArsenalOrphanedScopeUtils';
@@ -194,7 +194,7 @@ const ThreatArsenal = () => {
           )}
           />
         )}
-        tabs={<ThreatArsenalTabs active="active" />}
+        tabs={<MarketplaceCatalogTabs active="active" baseUrl="/admin/threat-arsenal" />}
         sidebar={(
           <ThreatArsenalSidebar
             domainElements={iconBarOrderedDomains}

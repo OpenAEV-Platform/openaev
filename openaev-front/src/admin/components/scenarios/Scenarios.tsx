@@ -1,10 +1,11 @@
 import { RouteOutlined } from '@mui/icons-material';
-import { Box } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
 import { bulkDeleteScenarios, searchScenarios } from '../../../actions/scenarios/scenario-actions';
 import EmptyPlaceholder from '../../../components/common/EmptyPlaceholder';
 import MarketplaceBrowser from '../../../components/common/marketplace/page/MarketplaceBrowser';
+import MarketplaceCatalogTabs from '../../../components/common/marketplace/page/MarketplaceCatalogTabs';
 import MarketplaceLoadMore from '../../../components/common/marketplace/results/MarketplaceLoadMore';
 import MarketplaceSections from '../../../components/common/marketplace/results/MarketplaceSections';
 import MarketplaceSortSelect from '../../../components/common/marketplace/toolbar/MarketplaceSortSelect';
@@ -24,7 +25,6 @@ import ScenariosList from './list/ScenariosList';
 import ScenariosHeaderActions from './page/ScenariosHeaderActions';
 import ScenariosHero from './page/ScenariosHero';
 import ScenariosSidebar from './page/ScenariosSidebar';
-import ScenariosTabs from './page/ScenariosTabs';
 import { type ScenarioRow } from './scenarioRow';
 
 const AVAILABLE_FILTER_NAMES = [
@@ -54,6 +54,7 @@ const SORT_OPTIONS = [
 
 const Scenarios = () => {
   const { t } = useFormatter();
+  const theme = useTheme();
   const canManage = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const { viewMode, handleViewModeChange } = useMarketplaceView('scenarios:view-mode');
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([]);
@@ -106,17 +107,17 @@ const Scenarios = () => {
   return (
     <MarketplaceBrowser
       hero={<ScenariosHero />}
-      tabs={<ScenariosTabs active="active" />}
+      tabs={<MarketplaceCatalogTabs active="active" baseUrl="/admin/scenarios" />}
       sidebar={<ScenariosSidebar searchPaginationInput={searchPaginationInput} filterHelpers={queryableHelpers.filterHelpers} />}
       toolbar={(
         <PaginationComponentV2
           resultsCount
           infiniteScroll
           topBarButtons={(
-            <Box sx={{
+            <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 1,
+              gap: theme.spacing(1),
             }}
             >
               <ScenariosHeaderActions
@@ -125,7 +126,7 @@ const Scenarios = () => {
                 onImported={() => setReloadCount(count => count + 1)}
               />
               <MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />
-            </Box>
+            </div>
           )}
           fetch={search}
           reloadContentCount={reloadCount}

@@ -1,5 +1,6 @@
 import { Button, Switch } from '@filigran/design-system';
 import { CategoryOutlined } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 
 import {
@@ -9,35 +10,25 @@ import {
   installCatalogPayload,
   updateCatalogSettings,
 } from '../../../../actions/catalog/payload-catalog-actions';
+import { FACET_PLATFORMS, platformFacetIcon } from '../../../../components/common/facets/facetPlatforms';
+import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../../components/common/marketplace/filter/MarketplaceFacetSidebar';
+import useMarketplaceFilters from '../../../../components/common/marketplace/filter/useMarketplaceFilters';
+import useNotifyInstalled from '../../../../components/common/marketplace/install/useNotifyInstalled';
 import MarketplaceBrowser from '../../../../components/common/marketplace/page/MarketplaceBrowser';
+import MarketplaceCatalogTabs from '../../../../components/common/marketplace/page/MarketplaceCatalogTabs';
 import MarketplaceSections from '../../../../components/common/marketplace/results/MarketplaceSections';
-import MarketplaceResultsCount from '../../../../components/common/marketplace/toolbar/MarketplaceResultsCount';
-import MarketplaceSortSelect from '../../../../components/common/marketplace/toolbar/MarketplaceSortSelect';
-import { type SortHelpers } from '../../../../components/common/queryable/sort/SortHelpers';
+import MarketplaceToolbar from '../../../../components/common/marketplace/toolbar/MarketplaceToolbar';
 import { useFormatter } from '../../../../components/i18n';
-import SearchFilter from '../../../../components/SearchFilter';
 import { type AvailableActionOutput, type AvailablePayloadActionOutput, type CatalogSettingsOutput } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { DOMAIN_ICON_MAP } from '../../common/domains/DomainsIcons';
 import ThreatArsenalHero from '../page/ThreatArsenalHero';
-import ThreatArsenalTabs from '../page/ThreatArsenalTabs';
 import ThreatArsenalEmptyState from '../ThreatArsenalEmptyState';
-import {
-  type AvailableActionFilters,
-  type AvailableActionSort,
-  byKind,
-  type FacetKey,
-  filterActions,
-  hasFilters,
-  NO_FILTERS,
-  type SortField,
-  useActionName,
-} from './availableActions';
+import { availableActionFilter, availableActionSorts, byKind, useActionName } from './availableActions';
 import ThreatArsenalCatalogCard from './ThreatArsenalCatalogCard';
 import ThreatArsenalCatalogDrawer from './ThreatArsenalCatalogDrawer';
-import ThreatArsenalCatalogSidebar from './ThreatArsenalCatalogSidebar';
 import ThreatArsenalContractCatalogCard from './ThreatArsenalContractCatalogCard';
 
 const SORT_OPTIONS = [
@@ -51,25 +42,45 @@ const SORT_OPTIONS = [
   },
 ];
 
-// The catalogue actions the tenant does not have yet, filtered and sorted in memory: the catalogue is small.
+const FACETS: MarketplaceFacet<'domains' | 'platforms'>[] = [
+  {
+    key: 'domains',
+    label: 'Domains',
+    icon: domain => DOMAIN_ICON_MAP[domain],
+  },
+  {
+    key: 'platforms',
+    label: 'Platform',
+    values: FACET_PLATFORMS,
+    icon: platformFacetIcon,
+  },
+];
+
+const domainOf = (action: AvailableActionOutput) => action.action_domain;
+
+// The catalogue actions the tenant does not have yet.
 const ThreatArsenalAvailable = () => {
   const { t } = useFormatter();
+  const theme = useTheme();
   const nameOf = useActionName();
+  const notifyInstalled = useNotifyInstalled();
   const ability = useAbility();
   const canInstall = ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
   const canChangeSettings = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
   const [actions, setActions] = useState<AvailableActionOutput[]>([]);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<CatalogSettingsOutput | null>(null);
-  const [filters, setFilters] = useState<AvailableActionFilters>(NO_FILTERS);
-  const [sort, setSort] = useState<AvailableActionSort>({
-    field: 'name',
-    asc: true,
-  });
   const [installedIds, setInstalledIds] = useState<Set<string>>(new Set());
   const [installingIds, setInstallingIds] = useState<Set<string>>(new Set());
   const [installingAll, setInstallingAll] = useState(false);
   const [opened, setOpened] = useState<AvailablePayloadActionOutput | null>(null);
+  const { shown, filtered, resetFilters, facetState, toolbar } = useMarketplaceFilters({
+    items: actions,
+    facetFilter: availableActionFilter,
+    sortValues: availableActionSorts(nameOf),
+    defaultSort: 'name',
+    groupKey: domainOf,
+  });
 
   const loadActions = useCallback(() => fetchAvailableActions()
     .then((loaded) => {
@@ -84,29 +95,9 @@ const ThreatArsenalAvailable = () => {
     fetchCatalogSettings().then(setSettings).catch(() => undefined);
   }, [loadActions]);
 
-  const sortHelpers: SortHelpers = {
-    getSortBy: () => sort.field,
-    getSortAsc: () => sort.asc,
-    handleDirectedSort: (field, asc) => setSort({
-      field: field as SortField,
-      asc,
-    }),
-    handleSort: field => setSort({
-      field: field as SortField,
-      asc: field === sort.field ? !sort.asc : true,
-    }),
-  };
-  const toggleFacet = (key: FacetKey, value: string) => setFilters(previous => ({
-    ...previous,
-    [key]: previous[key].includes(value) ? previous[key].filter(v => v !== value) : [...previous[key], value],
-  }));
-
   const markInstalled = (action: AvailablePayloadActionOutput, version: string) => {
     setInstalledIds(previous => new Set([...previous, action.action_id]));
-    MESSAGING$.notifySuccess(t('{name} v{version} installed', {
-      name: nameOf(action),
-      version,
-    }));
+    notifyInstalled(nameOf(action), version);
   };
   const install = (action: AvailablePayloadActionOutput) => {
     const id = action.action_id;
@@ -127,6 +118,10 @@ const ThreatArsenalAvailable = () => {
       .catch(() => undefined)
       .finally(() => setInstallingAll(false));
   };
+  const changeAutoInstall = (payloadAutoInstall: boolean) => settings && updateCatalogSettings({
+    payload_auto_install: payloadAutoInstall,
+    scenario_auto_install: settings.scenario_auto_install,
+  }).then(setSettings).catch(() => undefined);
   const card = byKind<ReactNode>({
     PAYLOAD: action => (
       <ThreatArsenalCatalogCard
@@ -148,72 +143,50 @@ const ThreatArsenalAvailable = () => {
       />
     ),
   });
-  const shown = filterActions(actions, filters, sort, nameOf);
-  const changeAutoInstall = (payloadAutoInstall: boolean) => settings && updateCatalogSettings({
-    payload_auto_install: payloadAutoInstall,
-    scenario_auto_install: settings.scenario_auto_install,
-  }).then(setSettings).catch(() => undefined);
 
   return (
     <>
       <MarketplaceBrowser
-        hero={(
-          <ThreatArsenalHero action={(
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 16,
-            }}
-            >
-              {canChangeSettings && settings && (
-                <Switch
-                  label={t('Install new actions automatically')}
-                  checked={settings.payload_auto_install}
-                  onCheckedChange={changeAutoInstall}
-                />
-              )}
-              {canInstall && <Button onClick={installAll} loading={installingAll}>{t('Install all')}</Button>}
-            </div>
-          )}
-          />
-        )}
-        tabs={<ThreatArsenalTabs active="available" />}
-        sidebar={<ThreatArsenalCatalogSidebar actions={actions} filters={filters} onToggle={toggleFacet} />}
+        hero={<ThreatArsenalHero />}
+        tabs={<MarketplaceCatalogTabs active="available" baseUrl="/admin/threat-arsenal" />}
+        sidebar={<MarketplaceFacetSidebar facets={FACETS} {...facetState} />}
         toolbar={(
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 12,
-          }}
-          >
-            <SearchFilter
-              variant="small"
-              keyword={filters.keyword}
-              onChange={keyword => setFilters(previous => ({
-                ...previous,
-                keyword: keyword ?? '',
-              }))}
-            />
-            <MarketplaceSortSelect sortHelpers={sortHelpers} options={SORT_OPTIONS} descendingFields={['publishedAt']} />
-            <div style={{ marginLeft: 'auto' }}>
-              <MarketplaceResultsCount count={shown.length} />
-            </div>
-          </div>
+          <MarketplaceToolbar
+            {...toolbar}
+            sortOptions={SORT_OPTIONS}
+            descendingFields={['publishedAt']}
+            actions={(
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing(1),
+              }}
+              >
+                {canChangeSettings && settings && (
+                  <Switch
+                    label={t('Install new actions automatically')}
+                    checked={settings.payload_auto_install}
+                    onCheckedChange={changeAutoInstall}
+                  />
+                )}
+                {canInstall && <Button priority="secondary" onClick={installAll} loading={installingAll}>{t('Install all')}</Button>}
+              </div>
+            )}
+          />
         )}
       >
         <MarketplaceSections
           items={shown}
           loading={loading}
           sections={{
-            sectionKey: action => action.action_domain,
+            sectionKey: domainOf,
             sectionLabel: domain => (domain ? t(domain) : t('Other')),
             sectionIcon: domain => (domain && DOMAIN_ICON_MAP[domain]?.()) || <CategoryOutlined />,
           }}
           emptyState={(
             <ThreatArsenalEmptyState
-              hasFilters={hasFilters(filters)}
-              onResetFilters={() => setFilters(NO_FILTERS)}
+              hasFilters={filtered}
+              onResetFilters={resetFilters}
               empty={{
                 title: t('Every catalog action is installed'),
                 description: t('New Filigran actions show here as soon as they are published.'),

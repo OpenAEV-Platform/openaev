@@ -5,7 +5,7 @@ import MarketplaceHero from '../../../../components/common/marketplace/page/Mark
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../../components/i18n';
 
-interface Props { action: ReactNode }
+interface Props { action?: ReactNode }
 
 // Same header on both tabs: only its action changes.
 const ThreatArsenalHero: FunctionComponent<Props> = ({ action }) => {
