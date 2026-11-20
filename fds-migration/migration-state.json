@@ -361,7 +361,8 @@
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectAll.tsx",
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectionBar.tsx",
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
+        "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogCard.tsx"
       ]
     },
     {
@@ -604,7 +605,9 @@
         "openaev-front/src/components/common/marketplace/results/MarketplaceSectionHeader.tsx",
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
-        "openaev-front/src/components/common/marketplace/card/MarketplaceCardMeta.tsx"
+        "openaev-front/src/components/common/marketplace/card/MarketplaceCardMeta.tsx",
+        "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogCard.tsx",
+        "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogDrawer.tsx"
       ]
     },
     {
@@ -869,7 +872,8 @@
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectionBar.tsx",
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveBar.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx",
+        "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogDrawer.tsx"
       ]
     },
     {
@@ -973,6 +977,17 @@
       "reason": "The payload version picker.",
       "files": [
         "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionSelect.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Inline notice with its action: each thing a catalogue scenario lacks, with the button that opens the integration to enable.",
+      "files": [
+        "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogDrawer.tsx"
       ]
     }
   ],

@@ -1,4 +1,4 @@
-import { Button, Chip } from '@filigran/design-system';
+import { Button, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { type FunctionComponent } from 'react';
 
 import MarketplaceCard from '../../../../components/common/marketplace/card/MarketplaceCard';
@@ -8,6 +8,7 @@ import { type CatalogScenarioOutput } from '../../../../utils/api-types';
 import { scenarioCategories } from '../constants';
 import { ScenarioTypeIcon } from '../scenario/ScenarioType';
 import { catalogScenarioType } from './catalogScenarioFilters';
+import useMissingRequirementsLabel from './useMissingRequirementsLabel';
 
 interface Props {
   scenario: CatalogScenarioOutput;
@@ -20,6 +21,7 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ scenario, canInstall, o
   const { t, nsd } = useFormatter();
   const category = scenario.catalog_scenario_category;
   const missing = scenario.catalog_scenario_missing_requirements.length > 0;
+  const needs = useMissingRequirementsLabel(scenario.catalog_scenario_missing_requirements);
 
   return (
     <MarketplaceCard
@@ -42,7 +44,16 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ scenario, canInstall, o
       ]}
       footerStart={(
         <MarketplaceCardMeta
-          status={missing ? <Chip label={t('Requirements missing')} severity="high" /> : undefined}
+          status={missing
+            ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Chip label={needs.label} severity="high" style={{ maxWidth: '100%' }} />
+                  </TooltipTrigger>
+                  <TooltipContent>{needs.names}</TooltipContent>
+                </Tooltip>
+              )
+            : undefined}
           platforms={scenario.catalog_scenario_platforms}
         />
       )}

@@ -24,25 +24,30 @@ import { scenarioCategories } from './constants';
 // ScenarioUpdate), so the general update input stays untouched.
 export type ScenarioFormInput = ScenarioInput & { scenario_lessons_enabled?: boolean };
 
-interface Props {
+interface EditableProps {
+  readOnly?: false;
   onSubmit: (data: ScenarioFormInput, isScenarioAssistantChecked?: boolean) => void;
   handleClose: () => void;
   editing?: boolean;
   disabled?: boolean;
-  initialValues: ScenarioFormInput;
   isCreation?: boolean;
-  isChaining?: boolean;
 }
 
-const ScenarioForm: FunctionComponent<Props> = ({
-  onSubmit,
-  handleClose,
-  editing,
-  initialValues,
-  disabled,
-  isCreation = false,
-  isChaining = false,
-}) => {
+// A catalogue scenario before install: its fields shown disabled, nothing to submit.
+interface ReadOnlyProps {
+  readOnly: true;
+}
+
+type Props = (EditableProps | ReadOnlyProps) & {
+  initialValues: ScenarioFormInput;
+  isChaining?: boolean;
+};
+
+const ScenarioForm: FunctionComponent<Props> = (props) => {
+  const { initialValues, isChaining = false } = props;
+  const editable = props.readOnly === true ? null : props;
+  const readOnly = editable === null;
+  const disabled = editable?.disabled;
   // Standard hooks
   const theme = useTheme();
   const { t } = useFormatter();
@@ -92,7 +97,9 @@ const ScenarioForm: FunctionComponent<Props> = ({
         marginTop: theme.spacing(2),
       }}
       id="scenarioForm"
-      onSubmit={handleSubmit((data: ScenarioFormInput) => onSubmit(data, isScenarioAssistantChecked))}
+      onSubmit={editable
+        ? handleSubmit((data: ScenarioFormInput) => editable.onSubmit(data, isScenarioAssistantChecked))
+        : event => event.preventDefault()}
     >
       {/* Same sectioned layout as the simulation form (ExerciseForm):
             General, Modules (edit only), Emails and SMS. */}
@@ -107,7 +114,8 @@ const ScenarioForm: FunctionComponent<Props> = ({
         {...register('scenario_name')}
         control={control}
         setValue={setValue}
-        askAi={true}
+        disabled={readOnly}
+        askAi={!readOnly}
       />
       <div style={{
         display: 'flex',
@@ -119,6 +127,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
           variant="standard"
           fullWidth={true}
           name="scenario_category"
+          disabled={readOnly}
           label={t('Category')}
           error={!!errors.scenario_category}
           control={control}
@@ -134,6 +143,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
           variant="standard"
           fullWidth={true}
           name="scenario_main_focus"
+          disabled={readOnly}
           label={t('Main focus')}
           error={!!errors.scenario_main_focus}
           control={control}
@@ -169,6 +179,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
           variant="standard"
           fullWidth={true}
           name="scenario_severity"
+          disabled={readOnly}
           label={t('Severity')}
           error={!!errors.scenario_severity}
           control={control}
@@ -189,6 +200,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
         </SelectField>
         <DefaultKillChainSelectField<ScenarioFormInput>
           name="scenario_default_kill_chain"
+          disabled={readOnly}
           control={control}
           defaultValue={initialValues.scenario_default_kill_chain ?? undefined}
         />
@@ -202,34 +214,39 @@ const ScenarioForm: FunctionComponent<Props> = ({
         {...register('scenario_description')}
         control={control}
         setValue={setValue}
-        askAi={true}
+        disabled={readOnly}
+        askAi={!readOnly}
       />
-      <Controller
-        control={control}
-        name="scenario_tags"
-        render={({ field: { onChange, value }, fieldState: { error } }) => (
-          <TagField
-            label={t('Tags')}
-            fieldValue={value ?? []}
-            fieldOnChange={onChange}
-            error={error}
-          />
-        )}
-      />
-      {isCreation && (
+      {!readOnly && (
+        <Controller
+          control={control}
+          name="scenario_tags"
+          render={({ field: { onChange, value }, fieldState: { error } }) => (
+            <TagField
+              label={t('Tags')}
+              fieldValue={value ?? []}
+              fieldOnChange={onChange}
+              error={error}
+            />
+          )}
+        />
+      )}
+      {editable?.isCreation && (
         <Checkbox
           checked={isScenarioAssistantChecked}
           onCheckedChange={() => setIsScenarioAssistantChecked(!isScenarioAssistantChecked)}
           label={t('Use the scenario assistant')}
         />
       )}
-      <LessonsLearnedSection
-        control={control}
-        name="scenario_lessons_enabled"
-        disabled={disabled}
-        style={{ marginTop: theme.spacing(2) }}
-      />
-      {!isChaining && (
+      {!readOnly && (
+        <LessonsLearnedSection
+          control={control}
+          name="scenario_lessons_enabled"
+          disabled={disabled}
+          style={{ marginTop: theme.spacing(2) }}
+        />
+      )}
+      {!isChaining && !readOnly && (
         <>
           <Typography variant="h2" style={{ marginTop: theme.spacing(2) }}>
             {t('Emails and SMS')}
@@ -307,19 +324,21 @@ const ScenarioForm: FunctionComponent<Props> = ({
           />
         </>
       )}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: theme.spacing(1),
-      }}
-      >
-        <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
-          {t('Cancel')}
-        </Button>
-        <Button type="submit" disabled={!isDirty || isSubmitting}>
-          {editing ? t('Update') : t('Create')}
-        </Button>
-      </div>
+      {editable && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: theme.spacing(1),
+        }}
+        >
+          <Button type="button" priority="secondary" onClick={editable.handleClose} disabled={isSubmitting}>
+            {t('Cancel')}
+          </Button>
+          <Button type="submit" disabled={!isDirty || isSubmitting}>
+            {editable.editing ? t('Update') : t('Create')}
+          </Button>
+        </div>
+      )}
     </form>
   );
 };

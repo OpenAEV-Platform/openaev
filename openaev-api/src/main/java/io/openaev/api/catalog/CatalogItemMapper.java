@@ -6,6 +6,7 @@ import io.openaev.api.catalog.dto.CatalogInstallAllOutput;
 import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.api.catalog.dto.payload.CatalogPayloadOutput;
 import io.openaev.api.catalog.dto.scenario.CatalogScenarioOutput;
+import io.openaev.api.catalog.dto.scenario.CatalogScenarioRequirementOutput;
 import io.openaev.api.catalog.dto.scenario.CatalogScenarioVersionOutput;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.catalog.CatalogItemStatus;
@@ -15,6 +16,7 @@ import io.openaev.rest.domain.DomainService;
 import io.openaev.service.catalog.InstallableVersion;
 import io.openaev.service.catalog.Installed;
 import io.openaev.service.catalog.scenario.CatalogScenarioType;
+import io.openaev.service.catalog.scenario.MissingRequirement;
 import io.openaev.service.catalog.scenario.OfferedScenario;
 import java.util.ArrayList;
 import java.util.List;
@@ -123,17 +125,27 @@ public class CatalogItemMapper {
         version.getCategory(),
         version.getPlatforms(),
         version.getPublishedAt(),
-        offered.missingRequirements());
+        offered.missingRequirements().stream()
+            .map(CatalogItemMapper::toRequirementOutput)
+            .toList());
   }
 
-  public CatalogScenarioVersionOutput toVersionOutput(CatalogScenario version) {
+  private static CatalogScenarioRequirementOutput toRequirementOutput(
+      MissingRequirement requirement) {
+    return new CatalogScenarioRequirementOutput(
+        requirement.label(), requirement.name(), requirement.integrationId(), requirement.status());
+  }
+
+  public CatalogScenarioVersionOutput toVersionOutput(
+      CatalogScenario version, List<CatalogPayload> payloads) {
     return new CatalogScenarioVersionOutput(
         version.getVersion(),
         version.getPublishedAt(),
         version.getChangelog(),
         version.getMainFocus(),
         version.getSeverity(),
-        version.getInjectsCount());
+        version.getInjectsCount(),
+        payloads.stream().map(this::toOutput).toList());
   }
 
   public CatalogPayloadOutput toOutput(CatalogPayload version) {

@@ -7,6 +7,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.catalog.SemanticVersion;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -39,13 +40,19 @@ public class CatalogListService {
   @Transactional(readOnly = true)
   public <T extends CatalogItem> T offered(Class<T> type, String externalId, String version) {
     T item =
-        catalogItemRepository
-            .findVersion(type, externalId, version)
+        version(type, externalId, version)
             .orElseThrow(() -> new ElementNotFoundException("Catalogue version not found"));
     if (!isOffered(item)) {
       throw new BadRequestException("This version is no longer offered");
     }
     return item;
+  }
+
+  /** One version of a catalogue item, whatever its status. */
+  @Transactional(readOnly = true)
+  public <T extends CatalogItem> Optional<T> version(
+      Class<T> type, String externalId, String version) {
+    return catalogItemRepository.findVersion(type, externalId, version);
   }
 
   /** A deprecated or revoked version stays out of the catalogue; installed ones are untouched. */
