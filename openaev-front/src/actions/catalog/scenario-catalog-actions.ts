@@ -4,7 +4,7 @@ import {
   type CatalogScenarioOutput,
   type CatalogScenarioVersionOutput,
   type ChainedScenarioInstallInput,
-  type TimeBasedScenarioInstallInput,
+  type ScenarioTargetsInput,
 } from '../../utils/api-types';
 
 const CATALOG_URI = '/api/catalog';
@@ -17,7 +17,7 @@ export const fetchCatalogScenarioVersions = (externalId: string): Promise<Catalo
 
 export const installCatalogScenario = (
   scenario: CatalogScenarioOutput,
-  input: TimeBasedScenarioInstallInput | ChainedScenarioInstallInput,
+  input: ScenarioTargetsInput | ChainedScenarioInstallInput,
 ): Promise<CatalogInstallOutput> => simplePostCall(
   `${CATALOG_URI}/scenarios/${encodeURIComponent(scenario.catalog_scenario_external_id)}/versions/${encodeURIComponent(scenario.catalog_scenario_version)}/install`,
   input,

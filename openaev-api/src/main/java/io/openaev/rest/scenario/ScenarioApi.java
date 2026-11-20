@@ -11,6 +11,8 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.catalog.CatalogFeature;
+import io.openaev.api.catalog.dto.scenario.ScenarioTargetsInput;
 import io.openaev.api.expectations.ExpectationsDriftService;
 import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
@@ -110,6 +112,7 @@ public class ScenarioApi extends RestBehavior {
   private final FaithfulCopyTransaction faithfulCopy;
   private final ExerciseService exerciseService;
   private final ScenarioLaunchService scenarioLaunchService;
+  private final CatalogFeature catalogFeature;
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @Transactional
@@ -724,9 +727,17 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
+  @Operation(summary = "Start a simulation from the scenario, the targets sent added to it only")
   public Exercise createRunningExerciseFromScenario(
-      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
-    String simulationId = scenarioLaunchService.launch(ctx, scenarioId, TargetChoice.NONE);
+      TxCtx ctx,
+      @PathVariable @NotBlank final String scenarioId,
+      @Valid @RequestBody(required = false) final ScenarioTargetsInput targets)
+      throws ChainingException {
+    TargetChoice choice = targets == null ? TargetChoice.NONE : targets.toChoice();
+    if (!choice.isEmpty()) {
+      catalogFeature.require();
+    }
+    String simulationId = scenarioLaunchService.launch(ctx, scenarioId, choice);
     return ExerciseResponseHydrator.hydrateForResponse(exerciseService.exercise(ctx, simulationId));
   }
 

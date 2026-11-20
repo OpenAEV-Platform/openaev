@@ -1,9 +1,10 @@
 import { type FunctionComponent } from 'react';
 import { useNavigate } from 'react-router';
 
-import { launchScenario } from '../../../../actions/scenarios/scenario-actions';
+import { createRunningExerciseFromScenario } from '../../../../actions/scenarios/scenario-actions';
 import { useFormatter } from '../../../../components/i18n';
 import { SIMULATION_BASE_URL } from '../../../../constants/BaseUrls';
+import { type Exercise } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import { SCENARIO_TYPE_CHAINED } from '../scenario/ScenarioType';
 import { type ScenarioRow, scenarioTypeOf } from '../scenarioRow';
@@ -21,11 +22,11 @@ const ScenarioLaunchDrawer: FunctionComponent<Props> = ({ scenario, onClose }) =
   const navigate = useNavigate();
   const chained = scenarioTypeOf(scenario) === SCENARIO_TYPE_CHAINED;
 
-  const launch = (targets: ScenarioTargets) => launchScenario(scenario.scenario_id, toTargetsInput(targets))
-    .then(({ simulation_id }) => {
+  const launch = (targets: ScenarioTargets) => createRunningExerciseFromScenario(scenario.scenario_id, toTargetsInput(targets))
+    .then(({ data }: { data: Exercise }) => {
       MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
       // A chained simulation opens on its live execution view.
-      navigate(`${SIMULATION_BASE_URL}/${simulation_id}${chained ? '/attack-path' : ''}`);
+      navigate(`${SIMULATION_BASE_URL}/${data.exercise_id}${chained ? '/attack-path' : ''}`);
     });
 
   return (
