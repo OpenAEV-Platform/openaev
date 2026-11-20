@@ -6820,6 +6820,8 @@ export interface HealthCheck {
     | "INEFFECTIVE_TECHNICAL_TARGETS"
     | "INEFFECTIVE_AUDIENCE_TARGETS"
     | "REVOKED";
+  /** Key of the injector contract field the check is about, set on a missing mandatory field (its type can be unknown when the key is not a known check type) */
+  field?: string;
   /** Define if it's an error or a warning */
   status: "ERROR" | "WARNING";
   /** Type of the check, could be a service, an attribute, etc */
@@ -7594,6 +7596,8 @@ export interface InjectResultOverviewOutput {
   inject_kill_chain_phases?: KillChainPhaseSimple[];
   /** User who launched this inject */
   inject_launched_by_user?: UserSimple;
+  /** Keys of the injector contract's mandatory fields this inject leaves empty: the reasons it is not ready (empty when it is ready) */
+  inject_missing_mandatory_fields: string[];
   /** Indicates whether the inject is ready for use */
   inject_ready?: boolean;
   /** Recurrence cron expression for scheduled relaunch */

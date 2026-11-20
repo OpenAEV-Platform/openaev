@@ -3,13 +3,14 @@ package io.openaev.api.scenario;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.api.catalog.CatalogFeature;
+import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.api.scenario.dto.ScenarioLaunchOutput;
 import io.openaev.api.scenario.dto.ScenarioTargetsInput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.catalog.scenario.targeting.TargetChoice;
 import io.openaev.service.scenario.ScenarioLaunchService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,11 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Launches a scenario with targets for this simulation only. */
 @RestController
+@RequirePreviewFeature(PreviewFeature.CATALOG)
 @RequiredArgsConstructor
 public class ScenarioLaunchApi {
 
   private final ScenarioLaunchService scenarioLaunchService;
-  private final CatalogFeature catalogFeature;
 
   @Operation(summary = "Start a simulation from the scenario, the chosen targets added to it only")
   @PostMapping(TENANT_SCENARIO_URI + "/{scenarioId}/launch")
@@ -42,7 +43,6 @@ public class ScenarioLaunchApi {
   public ScenarioLaunchOutput launch(
       TxCtx ctx, @PathVariable String scenarioId, @Valid @RequestBody ScenarioTargetsInput input)
       throws ChainingException {
-    catalogFeature.require();
     return new ScenarioLaunchOutput(
         scenarioLaunchService.launch(
             ctx,

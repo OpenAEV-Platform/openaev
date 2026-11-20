@@ -140,6 +140,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
       // 2) Create atomic testing linked to the previously created payload.
       AtomicTestingInput atomicCreateInput = InjectFixture.createAtomicTesting(injectTitle, null);
       atomicCreateInput.getContent().put("payload_id", payloadId);
+      fillMandatoryEmailFields(atomicCreateInput);
 
       String atomicCreateResponse =
           mvc.perform(
@@ -158,6 +159,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
       AtomicTestingInput addAssetsInput = InjectFixture.createAtomicTesting(injectTitle, null);
       addAssetsInput.setAssets(List.of(assetId));
       addAssetsInput.getContent().put("payload_id", payloadId);
+      fillMandatoryEmailFields(addAssetsInput);
 
       mvc.perform(
               put(AtomicTestingApi.ATOMIC_TESTING_URI + "/" + atomicTestingId)
@@ -170,6 +172,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
       AtomicTestingInput removeAssetsInput = InjectFixture.createAtomicTesting(injectTitle, null);
       removeAssetsInput.setAssets(List.of());
       removeAssetsInput.getContent().put("payload_id", payloadId);
+      fillMandatoryEmailFields(removeAssetsInput);
 
       mvc.perform(
               put(AtomicTestingApi.ATOMIC_TESTING_URI + "/" + atomicTestingId)
@@ -272,6 +275,13 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
       assertThat(resolveParentLink(addAssetEvent)).isEqualTo(atomicTestingId);
       assertThat(resolveParentLink(removeAssetEvent)).isEqualTo(atomicTestingId);
     }
+  }
+
+  // The launch gate refuses an atomic testing whose mandatory contract fields are empty: the
+  // email contract of the fixture requires a subject and a body.
+  private static void fillMandatoryEmailFields(AtomicTestingInput input) {
+    input.getContent().put("subject", "audit lifecycle subject");
+    input.getContent().put("body", "audit lifecycle body");
   }
 
   // Returns the first event matching the predicate, or fails with a clear missing-event message.

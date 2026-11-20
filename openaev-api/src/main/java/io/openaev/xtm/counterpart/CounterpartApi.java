@@ -4,12 +4,13 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.api.graph.GraphFeature;
+import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.xtm.counterpart.form.CounterpartLookupInput;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.*;
  * EXPLORATION_GRAPH} is off (the default).
  */
 @RestController
+@RequirePreviewFeature(PreviewFeature.EXPLORATION_GRAPH)
 @RequiredArgsConstructor
 @RequestMapping(CounterpartApi.XTM_API)
 @Tag(name = "XTM counterparts", description = "Objects shared with the other XTM products")
@@ -43,7 +45,6 @@ public class CounterpartApi extends RestBehavior {
   private final LocalObjectService localObjectService;
   private final UserService userService;
   private final PermissionService permissionService;
-  private final GraphFeature graphFeature;
 
   @LogExecutionTime
   @GetMapping("/connections")
@@ -53,7 +54,6 @@ public class CounterpartApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "List the XTM products this tenant is connected to")
   public List<XtmConnectionOutput> connections(TxCtx ctx, @PathVariable String tenantId) {
-    graphFeature.require();
     return counterpartService.connections(tenantId).stream()
         .map(XtmConnectionOutput::from)
         .toList();
@@ -168,7 +168,6 @@ public class CounterpartApi extends RestBehavior {
 
   private List<LocalObjectOutput> local(
       TxCtx ctx, CounterpartKind kind, CounterpartLookupInput input) {
-    graphFeature.require();
     return localObjectService.find(kind, input.keys(), access(ctx)).stream()
         .map(LocalObjectOutput::from)
         .toList();
@@ -208,7 +207,6 @@ public class CounterpartApi extends RestBehavior {
 
   private List<CounterpartOutput> lookup(
       String tenantId, CounterpartKind kind, CounterpartLookupInput input) {
-    graphFeature.require();
     return counterpartService.resolve(tenantId, kind, input.keys()).stream()
         .map(CounterpartOutput::from)
         .toList();

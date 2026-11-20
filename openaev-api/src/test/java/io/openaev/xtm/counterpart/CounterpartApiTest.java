@@ -1,7 +1,6 @@
 package io.openaev.xtm.counterpart;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
@@ -9,11 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.api.graph.GraphFeature;
-import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PermissionService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
 import io.openaev.xtm.counterpart.CounterpartServiceTest.FakeProvider;
 import io.openaev.xtm.counterpart.LocalObjectService.Fact;
@@ -59,37 +54,18 @@ class CounterpartApiTest {
 
   private FakeProvider provider;
   private LocalObjectService localObjects;
-  private PreviewFeatureService previewFeatures;
   private CounterpartApi api;
 
   @BeforeEach
   void setUp() {
     provider = new FakeProvider();
     localObjects = mock(LocalObjectService.class);
-    previewFeatures = mock(PreviewFeatureService.class);
-    when(previewFeatures.isFeatureEnabled(PreviewFeature.EXPLORATION_GRAPH)).thenReturn(true);
     api =
         new CounterpartApi(
             new CounterpartService(List.of(provider, new SilentProvider())),
             localObjects,
             mock(UserService.class),
-            mock(PermissionService.class),
-            new GraphFeature(previewFeatures));
-  }
-
-  @Test
-  @DisplayName("with EXPLORATION_GRAPH off, every route answers not found and reads nothing")
-  void featureOff_refusesEveryRoute() {
-    when(previewFeatures.isFeatureEnabled(PreviewFeature.EXPLORATION_GRAPH)).thenReturn(false);
-    CounterpartLookupInput input = new CounterpartLookupInput(List.of("T1059"));
-
-    assertThatThrownBy(() -> api.connections(null, "t"))
-        .isInstanceOf(ElementNotFoundException.class);
-    assertThatThrownBy(() -> api.attackPatterns(null, "t", input))
-        .isInstanceOf(ElementNotFoundException.class);
-    assertThatThrownBy(() -> api.localAssets(null, "t", input))
-        .isInstanceOf(ElementNotFoundException.class);
-    org.mockito.Mockito.verifyNoInteractions(localObjects);
+            mock(PermissionService.class));
   }
 
   @Test
