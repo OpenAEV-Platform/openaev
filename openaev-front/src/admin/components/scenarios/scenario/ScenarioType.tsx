@@ -11,8 +11,6 @@ export const SCENARIO_TYPE_CHAINED = 'Chained';
 
 export type ScenarioTypeValue = typeof SCENARIO_TYPE_TIME_BASED | typeof SCENARIO_TYPE_CHAINED;
 
-export const SCENARIO_TYPES: ScenarioTypeValue[] = [SCENARIO_TYPE_TIME_BASED, SCENARIO_TYPE_CHAINED];
-
 // One color + icon per engine type, chosen to read at a glance:
 // - Time-based: a clock (classic scheduled scenario)
 // - Chained: a workflow tree (inject-chaining logic map)

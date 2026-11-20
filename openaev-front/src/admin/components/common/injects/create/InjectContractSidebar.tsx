@@ -173,7 +173,7 @@ const InjectContractSidebar = ({ domainElements, searchPaginationInput, filterHe
       value: platform,
       label: t(platform),
       count: facetCounts ? (facetCounts.platforms[platform] ?? 0) : undefined,
-      icon: platformFacetIcon(platform),
+      icon: () => platformFacetIcon(platform),
       checked: platformValues.includes(platform),
       onToggle: () => toggleValue(PLATFORM_FILTER_KEY, platformValues, platform),
     }));

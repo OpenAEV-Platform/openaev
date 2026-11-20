@@ -1,3 +1,7 @@
+import { SCENARIO_TYPE_CHAINED, SCENARIO_TYPE_TIME_BASED, type ScenarioTypeValue } from './scenario/ScenarioType';
+
+export const SCENARIO_TYPES: ScenarioTypeValue[] = [SCENARIO_TYPE_TIME_BASED, SCENARIO_TYPE_CHAINED];
+
 export const scenarioCategories = new Map([
   ['global-crisis', 'Global Crisis'],
   ['attack-scenario', 'Attack Scenario'],

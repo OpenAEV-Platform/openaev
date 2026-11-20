@@ -14,7 +14,7 @@ import { TO_CLASSIFY } from '../../../../utils/domains/domainUtils';
 import { type Option } from '../../../../utils/Option';
 import { DOMAIN_ICON_MAP } from '../../common/domains/DomainsIcons';
 import { orderDomains } from '../../workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
-import { SCENARIO_TYPES } from '../scenario/ScenarioType';
+import { SCENARIO_TYPES } from '../constants';
 
 interface Facet {
   key: string;
@@ -61,7 +61,7 @@ const ScenariosSidebar = ({ searchPaginationInput, filterHelpers }: Props) => {
       values: FACET_PLATFORMS.map(platform => ({
         value: platform,
         label: platform,
-        icon: platformFacetIcon(platform),
+        icon: () => platformFacetIcon(platform),
       })),
     },
     {

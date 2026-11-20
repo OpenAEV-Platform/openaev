@@ -17,9 +17,9 @@ import { SCENARIO_BASE_URL } from '../../../../constants/BaseUrls';
 import { type CatalogScenarioOutput } from '../../../../utils/api-types';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { scenarioCategories } from '../constants';
+import { SCENARIO_TYPES, scenarioCategories } from '../constants';
 import ScenariosHero from '../page/ScenariosHero';
-import { SCENARIO_TYPES, ScenarioTypeIcon, type ScenarioTypeValue } from '../scenario/ScenarioType';
+import { ScenarioTypeIcon, type ScenarioTypeValue } from '../scenario/ScenarioType';
 import { catalogScenarioFilter, catalogScenarioSorts } from './catalogScenarioFilters';
 import CatalogScenarioInstallDrawer from './CatalogScenarioInstallDrawer';
 import ScenarioCatalogCard from './ScenarioCatalogCard';
@@ -41,7 +41,7 @@ const FACETS: MarketplaceFacet<'types' | 'platforms' | 'categories'>[] = [
     key: 'types',
     label: 'Type',
     values: SCENARIO_TYPES,
-    icon: type => () => <ScenarioTypeIcon type={type as ScenarioTypeValue} />,
+    icon: type => <ScenarioTypeIcon type={type as ScenarioTypeValue} />,
   },
   {
     key: 'platforms',
