@@ -147,6 +147,11 @@ public class EndpointService implements AuditLoggedService {
   /** Builds an endpoint from its input and creates it under {@code tenantId}. */
   public Endpoint createEndpoint(
       @NotNull final EndpointInput input, @NotBlank final String tenantId) {
+    return createEndpoint(buildEndpoint(input, tenantId), tenantId);
+  }
+
+  public Endpoint buildEndpoint(
+      @NotNull final EndpointInput input, @NotBlank final String tenantId) {
     validateLinkedPersonInTenant(input.getLinkedPerson(), tenantId);
     Endpoint endpoint = new Endpoint();
     endpoint.setUpdateAttributes(input);
@@ -157,7 +162,7 @@ public class EndpointService implements AuditLoggedService {
     endpoint.setTags(
         iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
     endpoint.setEoL(input.isEol());
-    return createEndpoint(endpoint, tenantId);
+    return endpoint;
   }
 
   /**

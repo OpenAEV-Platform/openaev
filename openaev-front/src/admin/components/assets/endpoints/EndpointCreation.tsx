@@ -6,7 +6,7 @@ import { addEndpointAgentless } from '../../../../actions/assets/endpoint-action
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import type { AiTargetInput, Endpoint, EndpointInput } from '../../../../utils/api-types';
+import type { AiTargetCreateInput, Endpoint, EndpointCreateInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import AiTargetForm from '../ai_targets/AiTargetForm';
 import { type AssetCategory, getCategoryDef } from '../asset-categories';
@@ -35,7 +35,7 @@ const EndpointCreation: FunctionComponent<Props> = ({
     setCategory(null);
   };
 
-  const onSubmit = (data: EndpointInput) => {
+  const onSubmit = (data: EndpointCreateInput) => {
     dispatch(addEndpointAgentless(data)).then(
       (result: {
         result: string;
@@ -53,7 +53,7 @@ const EndpointCreation: FunctionComponent<Props> = ({
     );
   };
 
-  const onSubmitAiTarget = (data: AiTargetInput) => {
+  const onSubmitAiTarget = (data: AiTargetCreateInput) => {
     // AI targets are base Assets, not Endpoints, so they are not prepended to the
     // (endpoint-shaped) onCreate list: the caller refetches the inventory instead.
     dispatch(addAiTarget(data)).then((result: { entities?: unknown }) => {
