@@ -845,3 +845,40 @@ in filigran-design-system).
   tooltip keeps its text transform, not its first-letter rule). Two sites kept
   on MUI with a reason. Eight tests wrap their render in the provider; a hover
   test covers the converted custom tooltip.
+
+## 2026-11-20 — Switch wave 1: seven files on the library Switch
+
+- Branch: fds/switch-20261120
+- Changed: SwitchFieldController.tsx, SchedulingDialog.tsx, ExerciseDateForm.tsx,
+  ReportingSchedulesTab.tsx, EnterpriseEditionSettings.tsx,
+  InjectorContractCustomForm.jsx, FieldOutputLink.tsx; `libComponentUsage`
+  entry `Switch` (guard `imported-from-library`); LIBRARY-FEEDBACK #71.
+- Every MUI `Switch` site in these files is converted, none is held. The
+  labelled sites drop their MUI `FormControlLabel` and pass the text to the
+  Switch's own `label`; the label-less ones carry an `aria-label` (`Read only`,
+  `XTM One (Agentic IA)`, and the schedule name in the reporting rows).
+  `onChange(event, checked)` becomes
+  `onCheckedChange(checked)` with the same behaviour. `sx` spacing moved to
+  `style` in pixels (`marginBottom: 2` = 16px). The tooltip in the reporting
+  rows keeps its span host.
+- Size change explicitly accepted by the product: the library Switch has a
+  single size, 36x20 (no `size` prop), against MUI's 58x38 and 40x24. Measured
+  before/after on an isolated page, both themes: labelled form row 38 -> 20px
+  high, small form row 24 -> 26px, the simulation date form 250 -> 238px; list
+  rows (24px) and the scheduling dialog row (36px) keep their height. The
+  `size` prop of SwitchFieldController stays for its callers and has no effect.
+- Also visible: the label renders at the library's 12px (18px line height);
+  the off thumb is grey in the light theme; keyboard focus draws the
+  library's focus ring; in the reporting schedule rows the switch now sits
+  about 4px from the edit icon, closer than before.
+- The "Read only" switch of the custom injector contract form keeps its
+  existing behaviour, including its known defect; it is not fixed here.
+- Friction / process feedback: none upstream beyond #71.
+- Review round 1: the "Limit to Local Scope" caption moves into the Switch's
+  own `label` (the separate caption is dropped, so it now uses the library
+  label text); the reporting-row Switch is named after its schedule instead of
+  an action; the label, focus ring and light off-thumb differences recorded
+  in LIBRARY-FEEDBACK #71.
+- Review round 2: label size and labelled row height corrected from the
+  captures (12px label, row 38 -> 20px), the `aria-label` list updated, the
+  reporting row spacing recorded.

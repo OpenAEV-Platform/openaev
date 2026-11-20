@@ -1,6 +1,6 @@
-import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, IconButton, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, DeleteOutlined, EditOutlined, ScheduleOutlined } from '@mui/icons-material';
-import { Box, List, ListItem, ListItemIcon, ListItemText, Switch, Typography } from '@mui/material';
+import { Box, List, ListItem, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -286,10 +286,10 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                           <TooltipTrigger asChild>
                             <span className="inline-flex">
                               <Switch
-                                size="small"
                                 checked={schedule.reporting_schedule_enabled}
                                 disabled={!canManage}
-                                onChange={(_, checked) => toggleEnabled(schedule, checked)}
+                                onCheckedChange={checked => toggleEnabled(schedule, checked === true)}
+                                aria-label={schedule.reporting_schedule_name || t('Schedule')}
                               />
                             </span>
                           </TooltipTrigger>
