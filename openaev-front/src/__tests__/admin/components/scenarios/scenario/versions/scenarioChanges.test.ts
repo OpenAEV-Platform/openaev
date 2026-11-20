@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { changeLabel, isConflict, valueText } from '../../../../../../admin/components/scenarios/scenario/versions/scenarioChanges';
+import { beforeAfterRow, changeLabel, valueText, withStatus } from '../../../../../../admin/components/scenarios/scenario/versions/scenarioChanges';
 import { type ScenarioChangeOutput } from '../../../../../../utils/api-types';
 
 const t = ((key: string) => `t:${key}`) as Parameters<typeof changeLabel>[1];
@@ -11,6 +11,7 @@ const change = (element: string, field?: string, title?: string): ScenarioChange
   scenario_change_field: field,
   scenario_change_title: title,
   scenario_change_status: 'CONFLICT',
+  scenario_change_editable: false,
 });
 
 describe('scenarioChanges', () => {
@@ -43,12 +44,24 @@ describe('scenarioChanges', () => {
     });
   });
 
-  it('tells a conflict from another change', () => {
-    // Act & Assert
-    expect(isConflict(change('scenario', 'name'))).toBe(true);
-    expect(isConflict({
+  it('keeps the changes of one status', () => {
+    // Arrange
+    const taken: ScenarioChangeOutput = {
       ...change('scenario', 'name'),
       scenario_change_status: 'TAKE_APPLIED',
-    })).toBe(false);
+    };
+
+    // Act & Assert
+    expect(withStatus([change('scenario', 'description'), taken], 'TAKE_APPLIED')).toEqual([taken]);
+  });
+
+  it('reads a change as a before and after row', () => {
+    // Act & Assert
+    expect(beforeAfterRow(change('inject:a', 'title', 'Scan'), 'nmap', null, t)).toEqual({
+      id: 'inject:a/title',
+      field: 'Scan · t:Title',
+      before: 'nmap',
+      after: '',
+    });
   });
 });

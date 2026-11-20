@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SCENARIO_URI } from '../../../../../../actions/scenarios/scenario-actions';
 import ScenarioVersions from '../../../../../../admin/components/scenarios/scenario/versions/ScenarioVersions';
-import { type ScenarioChangeOutput, type ScenarioRevisionOutput, type ScenarioVersionsOutput } from '../../../../../../utils/api-types';
+import { type ScenarioChangeOutput, type ScenarioRevisionOutput, type ScenarioUpdatePreviewOutput, type ScenarioVersionsOutput } from '../../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../../utils/Environment';
 
 const mocks = vi.hoisted(() => ({
@@ -98,31 +98,52 @@ const revisions: ScenarioRevisionOutput[] = [
   },
 ];
 
-const changes: ScenarioChangeOutput[] = [
-  {
-    scenario_change_id: 'inject:a/title',
-    scenario_change_element: 'inject:a',
-    scenario_change_field: 'title',
-    scenario_change_title: 'Scan',
-    scenario_change_status: 'CONFLICT',
-    scenario_change_applied: 'nmap -sV',
-    scenario_change_local: 'nmap -A',
-  },
-  {
-    scenario_change_id: 'scenario/name',
-    scenario_change_element: 'scenario',
-    scenario_change_field: 'name',
-    scenario_change_status: 'CONFLICT',
-    scenario_change_applied: 'Recon',
-    scenario_change_local: 'My recon',
-  },
-  {
-    scenario_change_id: 'scenario/description',
-    scenario_change_element: 'scenario',
-    scenario_change_field: 'description',
-    scenario_change_status: 'TAKE_APPLIED',
-  },
-];
+const change = (id: string, status: ScenarioChangeOutput['scenario_change_status'], values: Partial<ScenarioChangeOutput> = {}): ScenarioChangeOutput => ({
+  scenario_change_id: id,
+  scenario_change_element: id.split('/')[0],
+  scenario_change_field: id.split('/')[1],
+  scenario_change_status: status,
+  scenario_change_editable: false,
+  ...values,
+});
+
+const preview = (changes: ScenarioChangeOutput[]): ScenarioUpdatePreviewOutput => ({
+  scenario_update_changes: changes,
+  scenario_update_payloads_to_install: [],
+  scenario_update_revoked_payloads: [],
+  scenario_update_lost_dependencies: [],
+});
+
+const updatePreview: ScenarioUpdatePreviewOutput = {
+  ...preview([
+    change('inject:a/title', 'CONFLICT', {
+      scenario_change_title: 'Scan',
+      scenario_change_editable: true,
+      scenario_change_applied: 'nmap -sV',
+      scenario_change_local: 'nmap -A',
+    }),
+    change('scenario/name', 'CONFLICT', {
+      scenario_change_editable: true,
+      scenario_change_applied: 'Recon',
+      scenario_change_local: 'My recon',
+    }),
+    change('inject:b', 'CONFLICT', { scenario_change_title: 'Warn' }),
+    change('scenario/description', 'TAKE_APPLIED', {
+      scenario_change_local: 'Old',
+      scenario_change_applied: 'New',
+    }),
+    change('scenario/category', 'KEEP_MINE', {
+      scenario_change_base: 'recon',
+      scenario_change_local: 'mine',
+    }),
+    change('inject:c', 'ADDED', { scenario_change_title: 'Mail' }),
+  ]),
+  scenario_update_payloads_to_install: [{
+    payload_name: 'Nmap',
+    payload_version: '1.1.0',
+  }],
+  scenario_update_lost_dependencies: ['Scan'],
+};
 
 const serve = (responses: Record<string, unknown>) => mocks.simpleCall.mockImplementation((uri: string) => Promise.resolve({ data: responses[uri] ?? [] }));
 
@@ -143,7 +164,8 @@ describe('ScenarioVersions', () => {
     serve({
       [`${SCENARIO}/versions`]: versions,
       [`${SCENARIO}/revisions`]: revisions,
-      [`${SCENARIO}/versions/1.1.0/update-preview`]: changes,
+      [`${SCENARIO}/versions/1.1.0/update-preview`]: updatePreview,
+      [`${SCENARIO}/revisions/revision-2/rollback-preview`]: preview([]),
     });
   });
 
@@ -204,35 +226,72 @@ describe('ScenarioVersions', () => {
     screen.getAllByRole('button', { name: 'Roll back to this revision' }).forEach(button => expect(button).toBeDisabled());
   });
 
-  it('given_conflicts_should_updateWithTheSideChosenForEach', async () => {
+  it('given_conflicts_should_updateWithTheSideChosenOrTheValueTypedForEach', async () => {
     // Arrange
     renderVersions();
     const dialog = await open('Update');
     const titleConflict = await within(dialog).findByRole('radiogroup', { name: 'Scan · Title' });
     const nameConflict = within(dialog).getByRole('radiogroup', { name: 'Scenario · Name' });
+    const removedConflict = within(dialog).getByRole('radiogroup', { name: 'Warn · Removed in v1.1.0, changed by you' });
     const apply = within(dialog).getByRole('button', { name: 'Update' });
     expect(dialog).toHaveAccessibleName('Update to v1.1.0');
-    expect(within(dialog).getByText('Taken')).toBeInTheDocument();
-    expect(within(dialog).getByText('Scenario · Description')).toBeInTheDocument();
+    expect(within(dialog).getByText('Changes from the catalogue: 1')).toBeInTheDocument();
+    expect(within(dialog).getByText('Your edits kept: 1')).toBeInTheDocument();
+    expect(within(dialog).getByText('Conflicts to decide: 3')).toBeInTheDocument();
+    expect(within(dialog).getByText('Injects added: 1')).toBeInTheDocument();
+    expect(within(dialog).getByText('Choose only for the conflicts. Everything else is merged for you.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Nmap v1.1.0')).toBeInTheDocument();
+    expect(within(dialog).getByText('Will be added')).toBeInTheDocument();
+    expect(within(dialog).getByText('New in v1.1.0 · Needs targets')).toBeInTheDocument();
+    expect(within(dialog).getAllByRole('table', { name: 'Changes' })).toHaveLength(2);
+    expect(within(dialog).getByText('Your edits: the update keeps them')).toBeInTheDocument();
+    expect(within(dialog).getByText('Some injects lose a dependency: check them after applying.')).toBeInTheDocument();
     expect(apply).toBeDisabled();
 
     // Act
-    fireEvent.click(within(titleConflict).getByRole('radio', { name: 'Version v1.1.0' }));
+    fireEvent.click(within(dialog).getAllByRole('button', { name: 'Edit' })[0]);
+    const value = within(dialog).getByRole('textbox', { name: 'Value' });
+    expect(value).toHaveValue('nmap -A');
+    fireEvent.change(value, { target: { value: 'nmap -Pn' } });
     fireEvent.click(within(nameConflict).getByRole('radio', { name: 'Yours' }));
-    expect(within(titleConflict).getByRole('radio', { name: 'Version v1.1.0' })).toBeChecked();
+    fireEvent.click(within(removedConflict).getByRole('radio', { name: 'Delete it' }));
+    expect(within(titleConflict).getByRole('radio', { name: 'Version v1.1.0' })).not.toBeChecked();
     fireEvent.click(apply);
 
     // Assert
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/versions/1.1.0/update`, {
       scenario_update_choices: {
-        'inject:a/title': 'TAKE_APPLIED',
+        'inject:a/title': 'EDIT',
         'scenario/name': 'KEEP_MINE',
+        'inject:b': 'TAKE_APPLIED',
       },
+      scenario_update_edits: { 'inject:a/title': 'nmap -Pn' },
     });
     expect(notifySuccess).toHaveBeenCalledWith('Scenario updated to v1.1.0');
     expect(mocks.dispatch).toHaveBeenCalledTimes(1);
     expect(mocks.simpleCall.mock.calls.filter(([uri]) => uri === `${SCENARIO}/versions`)).toHaveLength(2);
+  });
+
+  it('given_conflicts_should_takeAllInOneClick', async () => {
+    // Arrange
+    renderVersions();
+    const dialog = await open('Update');
+    await within(dialog).findByRole('radiogroup', { name: 'Scan · Title' });
+
+    // Act
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Take all' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Update' }));
+
+    // Assert
+    await waitFor(() => expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/versions/1.1.0/update`, {
+      scenario_update_choices: {
+        'inject:a/title': 'TAKE_APPLIED',
+        'scenario/name': 'TAKE_APPLIED',
+        'inject:b': 'TAKE_APPLIED',
+      },
+      scenario_update_edits: {},
+    }));
   });
 
   it('given_aRevisionWithNothingToChoose_should_rollBackToIt', async () => {
@@ -241,13 +300,17 @@ describe('ScenarioVersions', () => {
     const dialog = await open('Roll back to this revision');
     expect(dialog).toHaveAccessibleName('Roll back to revision #2');
     expect(await within(dialog).findByText('Nothing changes in the content.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Nothing to decide. Review the details or apply.')).toBeInTheDocument();
 
     // Act
     fireEvent.click(within(dialog).getByRole('button', { name: 'Roll back' }));
 
     // Assert
     await waitFor(() => expect(notifySuccess).toHaveBeenCalledWith('Scenario rolled back'));
-    expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/revisions/revision-2/rollback`, { scenario_update_choices: {} });
+    expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/revisions/revision-2/rollback`, {
+      scenario_update_choices: {},
+      scenario_update_edits: {},
+    });
   });
 
   it('given_aPreviewStillLoading_should_closeOnCancelWithoutApplying', async () => {

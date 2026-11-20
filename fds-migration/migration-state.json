@@ -106,7 +106,8 @@
       "reason": "Form-field wave: the multiline branch of the same wrapper. `resize` is pinned to none on every site, as arbitrated; `rows` and autosize (`minRows`/`maxRows`) replay the previous heights.",
       "files": [
         "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
-        "openaev-front/src/components/fields/TextFieldFds.tsx"
+        "openaev-front/src/components/fields/TextFieldFds.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioConflicts.tsx"
       ]
     },
     {
@@ -607,7 +608,8 @@
         "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
         "openaev-front/src/components/common/marketplace/card/MarketplaceCardMeta.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx",
-        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersionsTable.tsx"
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersionsTable.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateSummary.tsx"
       ]
     },
     {
@@ -875,7 +877,8 @@
         "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioRevisionsTable.tsx",
-        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersionsTable.tsx"
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersionsTable.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioConflicts.tsx"
       ]
     },
     {
