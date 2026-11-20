@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.catalog.CatalogItem;
 import io.openaev.database.model.catalog.CatalogPayload;
 import io.openaev.database.model.catalog.ContentType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -34,6 +35,10 @@ public interface CatalogItemRepository extends JpaRepository<CatalogItem, String
   @Query("SELECT i FROM CatalogItem i WHERE TYPE(i) = :type AND i.externalId = :externalId")
   <T extends CatalogItem> List<T> findAllVersions(
       @Param("type") Class<T> type, @Param("externalId") String externalId);
+
+  @Query("SELECT i FROM CatalogItem i WHERE TYPE(i) = :type AND i.externalId IN :externalIds")
+  <T extends CatalogItem> List<T> findAllVersionsIn(
+      @Param("type") Class<T> type, @Param("externalIds") Collection<String> externalIds);
 
   // -- PAYLOADS --
 

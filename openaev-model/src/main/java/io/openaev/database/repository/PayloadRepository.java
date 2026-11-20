@@ -4,6 +4,7 @@ import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.FileDrop;
 import io.openaev.database.model.Payload;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -117,6 +118,9 @@ public interface PayloadRepository
 
   List<Payload> findAllByTenantIdAndIdentityExternalId(
       @NotNull String tenantId, @NotNull String externalId);
+
+  List<Payload> findAllByTenantIdAndIdentityExternalIdIn(
+      @NotNull String tenantId, @NotNull Collection<String> externalIds);
 
   /** Every version of this payload in the tenant, itself included. */
   @Query(

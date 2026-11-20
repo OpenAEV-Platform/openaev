@@ -116,6 +116,31 @@ class ScenarioMergeTest {
     }
 
     @Test
+    @DisplayName("writes the value typed for a text conflict, never for a payload")
+    void given_editedConflict_should_writeTheTypedTextOnly() {
+      // Arrange
+      ObjectNode base =
+          content("{'inject:a': {'title': 'Scan', 'contract': {'payload_version': '1'}}}");
+      ObjectNode applied =
+          content("{'inject:a': {'title': 'Scan v2', 'contract': {'payload_version': '2'}}}");
+      ObjectNode local =
+          content("{'inject:a': {'title': 'My scan', 'contract': {'payload_version': '3'}}}");
+      Map<String, Choice> edit =
+          Map.of(INJECT + "/title", Choice.EDIT, INJECT + "/contract", Choice.EDIT);
+      Map<String, String> typed = Map.of(INJECT + "/title", "Our scan", INJECT + "/contract", "{}");
+
+      // Act
+      Result result = ScenarioMerge.merge(base, applied, local, edit, typed);
+
+      // Assert
+      assertThat(merged(result, "title").asText()).isEqualTo("Our scan");
+      assertThat(result.unresolved()).containsExactly(INJECT + "/contract");
+      assertThat(result.changes())
+          .extracting(Change::field, Change::editable)
+          .containsExactly(tuple("title", true), tuple("contract", false));
+    }
+
+    @Test
     @DisplayName("adds a variable the applied content adds and drops one it removes")
     void given_variablesAddedAndRemoved_should_followTheAppliedContent() {
       // Act
@@ -188,6 +213,24 @@ class ScenarioMergeTest {
       assertThat(result.resolved()).isTrue();
       assertThat(merged(result, "content.command").asText()).isEqualTo("nmap -A");
       assertThat(result.changes()).extracting(Change::id).containsExactly(INJECT);
+    }
+
+    @Test
+    @DisplayName("names the injects that lose a dependency on a removed inject")
+    void given_removedParent_should_nameTheChildLosingIt() {
+      // Arrange
+      ObjectNode content =
+          content(
+              "{'inject:a': {'title': 'Warn'},"
+                  + " 'inject:b': {'title': 'Scan', 'depends_on': [{'parent': 'a'}]}}");
+      ObjectNode withoutParent =
+          content("{'inject:b': {'title': 'Scan', 'depends_on': [{'parent': 'a'}]}}");
+
+      // Act
+      Result result = ScenarioMerge.merge(content, withoutParent, content, Map.of());
+
+      // Assert
+      assertThat(result.lostDependencies()).containsExactly("Scan");
     }
 
     @Test

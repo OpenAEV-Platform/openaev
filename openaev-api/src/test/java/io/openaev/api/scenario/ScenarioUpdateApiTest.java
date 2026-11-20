@@ -3,6 +3,7 @@ package io.openaev.api.scenario;
 import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
+import static io.openaev.rest.payload.PayloadApi.TENANT_PAYLOAD_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService.CONFLICT_LEFT;
 import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService.NOT_INSTALLED;
@@ -35,6 +36,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.api.catalog.dto.scenario.TimeBasedScenarioInstallInput;
+import io.openaev.api.payload.dto.PayloadRevocationInput;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectDependencyConditions.DependencyMode;
@@ -92,6 +94,8 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   private static final String SAME_CONTENT = "1.0.1";
   private static final String RESHAPED = "1.2.0";
   private static final String LINKING_CHALLENGES = "1.3.0";
+  private static final String NEXT_PAYLOAD = "1.4.0";
+  private static final String NEXT_PAYLOAD_VERSION = "1.1.0";
   private static final String CHAINED = "2.0.0";
   private static final String REVOKED = "2.1.0";
   private static final String NEW_TITLE = "whoami, verbose";
@@ -125,6 +129,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
     archives.put(NEWER, scenarioPackage(RELEASED.file(), newer()));
     archives.put(RESHAPED, scenarioPackage(RELEASED.file(), newer().andThen(reshaped())));
     archives.put(LINKING_CHALLENGES, scenarioPackage(RELEASED.file(), linkingChallenges()));
+    archives.put(NEXT_PAYLOAD, scenarioPackage(RELEASED.file()));
     archives.put(CHAINED, chainedScenarioPackage(RELEASED.file()));
     archives.put(REVOKED, scenarioPackage(RELEASED.file()));
     publish(archives);
@@ -180,7 +185,9 @@ class ScenarioUpdateApiTest extends IntegrationTest {
         (version, archive) -> {
           Map<String, Object> item =
               scenarioItem(version, REVOKED.equals(version) ? "REVOKED" : "VERIFIED", archive);
-          item.put("payloads", List.of(Map.of("external_id", PAYLOAD_ID, "version", INSTALLED)));
+          String payloadVersion = NEXT_PAYLOAD.equals(version) ? NEXT_PAYLOAD_VERSION : INSTALLED;
+          item.put(
+              "payloads", List.of(Map.of("external_id", PAYLOAD_ID, "version", payloadVersion)));
           if (CHAINED.equals(version)) {
             item.put("type", "chained");
           }
@@ -188,13 +195,16 @@ class ScenarioUpdateApiTest extends IntegrationTest {
           files.put(scenarioFileName(version), archive);
         });
     files.put(payloadFileName(INSTALLED), RELEASED.file());
+    files.put(payloadFileName(NEXT_PAYLOAD_VERSION), RELEASED.file());
     mvc.perform(
             syncRequest(
                     mapper.writeValueAsBytes(
                         manifest(
                             "2026.11.20",
                             items,
-                            List.of(payloadVersion(INSTALLED, "VERIFIED", RELEASED)))),
+                            List.of(
+                                payloadVersion(INSTALLED, "VERIFIED", RELEASED),
+                                payloadVersion(NEXT_PAYLOAD_VERSION, "VERIFIED", RELEASED)))),
                     files,
                     TENANT_CATALOG_URI + "/sync",
                     DEFAULT_TENANT_UUID)
@@ -246,6 +256,12 @@ class ScenarioUpdateApiTest extends IntegrationTest {
 
   private ResultActions update(Scenario scenario, String version, Map<String, String> choices)
       throws Exception {
+    return update(scenario, version, choices, Map.of());
+  }
+
+  private ResultActions update(
+      Scenario scenario, String version, Map<String, String> choices, Map<String, String> edits)
+      throws Exception {
     return committed(
         post(
                 TENANT_SCENARIO_URI + "/{scenarioId}/versions/{version}/update",
@@ -253,7 +269,9 @@ class ScenarioUpdateApiTest extends IntegrationTest {
                 scenario.getId(),
                 version)
             .contentType(MediaType.APPLICATION_JSON)
-            .content(mapper.writeValueAsString(Map.of("scenario_update_choices", choices))));
+            .content(
+                mapper.writeValueAsString(
+                    Map.of("scenario_update_choices", choices, "scenario_update_edits", edits))));
   }
 
   private ResultActions rollback(Scenario scenario, String revisionId) throws Exception {
@@ -365,6 +383,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
                       contains(
                           REVOKED,
                           CHAINED,
+                          NEXT_PAYLOAD,
                           LINKING_CHALLENGES,
                           RESHAPED,
                           NEWER,
@@ -427,7 +446,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
               .getContentAsString();
 
       // Assert
-      assertThatJson(body).isArray().isEmpty();
+      assertThatJson(body).inPath("$.scenario_update_changes").isArray().isEmpty();
     }
 
     @Test
@@ -447,7 +466,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
 
       // Assert
       assertThatJson(preview)
-          .inPath("$[*].scenario_change_status")
+          .inPath("$.scenario_update_changes[*].scenario_change_status")
           .isArray()
           .containsOnly("TAKE_APPLIED");
       assertThat(onlyInject(scenario).getTitle()).isEqualTo(NEW_TITLE);
@@ -473,7 +492,10 @@ class ScenarioUpdateApiTest extends IntegrationTest {
       previewUpdate(scenario, NEWER)
           .andExpect(status().isOk())
           .andExpect(
-              jsonPath("$[?(@.scenario_change_id == '" + conflictId + "')].scenario_change_status")
+              jsonPath(
+                      "$.scenario_update_changes[?(@.scenario_change_id == '"
+                          + conflictId
+                          + "')].scenario_change_status")
                   .value("CONFLICT"));
       update(scenario, Map.of())
           .andExpect(status().isBadRequest())
@@ -481,6 +503,50 @@ class ScenarioUpdateApiTest extends IntegrationTest {
       update(scenario, Map.of(conflictId, "KEEP_MINE")).andExpect(status().isNoContent());
       assertThat(onlyInject(scenario).getTitle()).isEqualTo(MY_TITLE);
       assertThat(installedVersion(scenario)).isEqualTo(NEWER);
+    }
+
+    @Test
+    @DisplayName("writes the value the client typed for a conflict")
+    void given_editedConflict_should_writeTheTypedValue() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      renameInjectLocally(scenario);
+      String conflictId = "inject:" + onlyInject(scenario).getCatalogId() + "/title";
+
+      // Act
+      update(scenario, NEWER, Map.of(conflictId, "EDIT"), Map.of(conflictId, "Our whoami"))
+          .andExpect(status().isNoContent());
+
+      // Assert
+      assertThat(onlyInject(scenario).getTitle()).isEqualTo("Our whoami");
+    }
+
+    @Test
+    @DisplayName("names the payload versions an update installs or runs revoked")
+    void given_payloadsToCheck_should_nameThem() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      String payloadId = onlyInject(scenario).getPayload().orElseThrow().getId();
+      committed(
+              post(TENANT_PAYLOAD_URI + "/{payloadId}/revocation", DEFAULT_TENANT_UUID, payloadId)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(mapper.writeValueAsString(new PayloadRevocationInput("Unsafe"))))
+          .andExpect(status().isCreated());
+
+      // Act & Assert
+      previewUpdate(scenario, NEWER)
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.scenario_update_revoked_payloads[*].payload_version")
+                  .value(contains(INSTALLED)))
+          .andExpect(jsonPath("$.scenario_update_payloads_to_install").isEmpty())
+          .andExpect(jsonPath("$.scenario_update_lost_dependencies").isEmpty());
+      previewUpdate(scenario, NEXT_PAYLOAD)
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.scenario_update_payloads_to_install[*].payload_version")
+                  .value(contains(NEXT_PAYLOAD_VERSION)))
+          .andExpect(jsonPath("$.scenario_update_revoked_payloads").isEmpty());
     }
 
     @Test
@@ -520,7 +586,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
                   scenario.getId(),
                   revisionId))
           .andExpect(status().isOk())
-          .andExpect(jsonPath("$").isNotEmpty());
+          .andExpect(jsonPath("$.scenario_update_changes").isNotEmpty());
       rollback(scenario, revisionId).andExpect(status().isNoContent());
 
       // Assert

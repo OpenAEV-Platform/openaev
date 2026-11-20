@@ -5,9 +5,9 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.catalog.CatalogFeature;
-import io.openaev.api.scenario.dto.ScenarioChangeOutput;
 import io.openaev.api.scenario.dto.ScenarioRevisionOutput;
 import io.openaev.api.scenario.dto.ScenarioUpdateInput;
+import io.openaev.api.scenario.dto.ScenarioUpdatePreviewOutput;
 import io.openaev.api.scenario.dto.ScenarioVersionsOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -78,12 +78,11 @@ public class ScenarioUpdateApi {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public List<ScenarioChangeOutput> previewUpdate(
+  public ScenarioUpdatePreviewOutput previewUpdate(
       TxCtx ctx, @PathVariable String scenarioId, @PathVariable String version) {
     catalogFeature.require();
-    return catalogScenarioUpdater.previewUpdate(ctx, scenarioId, version).changes().stream()
-        .map(ScenarioUpdateMapper::toOutput)
-        .toList();
+    return ScenarioUpdateMapper.toOutput(
+        catalogScenarioUpdater.previewUpdate(ctx, scenarioId, version));
   }
 
   @LogExecutionTime
@@ -94,12 +93,11 @@ public class ScenarioUpdateApi {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public List<ScenarioChangeOutput> previewRollback(
+  public ScenarioUpdatePreviewOutput previewRollback(
       TxCtx ctx, @PathVariable String scenarioId, @PathVariable String revisionId) {
     catalogFeature.require();
-    return catalogScenarioUpdater.previewRollback(ctx, scenarioId, revisionId).changes().stream()
-        .map(ScenarioUpdateMapper::toOutput)
-        .toList();
+    return ScenarioUpdateMapper.toOutput(
+        catalogScenarioUpdater.previewRollback(ctx, scenarioId, revisionId));
   }
 
   // -- UPDATE --
@@ -121,7 +119,7 @@ public class ScenarioUpdateApi {
       @PathVariable String version,
       @Valid @RequestBody ScenarioUpdateInput input) {
     catalogFeature.require();
-    catalogScenarioUpdater.update(ctx, scenarioId, version, input.choices());
+    catalogScenarioUpdater.update(ctx, scenarioId, version, input.choices(), input.edits());
   }
 
   @LogExecutionTime
@@ -141,6 +139,6 @@ public class ScenarioUpdateApi {
       @PathVariable String revisionId,
       @Valid @RequestBody ScenarioUpdateInput input) {
     catalogFeature.require();
-    catalogScenarioUpdater.rollback(ctx, scenarioId, revisionId, input.choices());
+    catalogScenarioUpdater.rollback(ctx, scenarioId, revisionId, input.choices(), input.edits());
   }
 }

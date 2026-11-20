@@ -16,6 +16,7 @@ public record ScenarioChangeOutput(
     @JsonProperty("scenario_change_field") String field,
     @JsonProperty("scenario_change_title") String title,
     @JsonProperty("scenario_change_status") @NotNull ScenarioMerge.Status status,
+    @JsonProperty("scenario_change_editable") @NotNull boolean editable,
     @JsonProperty("scenario_change_base") JsonNode base,
     @JsonProperty("scenario_change_applied") JsonNode applied,
     @JsonProperty("scenario_change_local") JsonNode local) {}

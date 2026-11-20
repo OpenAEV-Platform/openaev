@@ -42,6 +42,7 @@ public class CatalogScenarioUpdateService {
   private final VariableService variableService;
   private final CatalogPayloadService catalogPayloadService;
   private final ScenarioRevisionService scenarioRevisionService;
+  private final ScenarioPayloadCheckService scenarioPayloadCheckService;
   private final ScenarioContentReader reader;
   private final ScenarioContentWriter writer;
   private final CatalogChangePublisher changePublisher;
@@ -87,13 +88,16 @@ public class CatalogScenarioUpdateService {
 
   /** What the content changes, and its conflicts, none of them chosen yet. */
   @Transactional(readOnly = true)
-  public ScenarioMerge.Result preview(TxCtx ctx, ScenarioUpdate update) {
+  public ScenarioPreview preview(TxCtx ctx, ScenarioUpdate update) {
     Scenario scenario = unchanged(ctx, update);
-    return ScenarioMerge.merge(
-        update.base(),
-        update.applied(),
-        local(scenario, injectService.findByScenarioId(scenario.getId())),
-        Map.of());
+    ScenarioMerge.Result merge =
+        ScenarioMerge.merge(
+            update.base(),
+            update.applied(),
+            local(scenario, injectService.findByScenarioId(scenario.getId())),
+            Map.of());
+    return new ScenarioPreview(
+        merge, scenarioPayloadCheckService.check(update.installed().tenantId(), merge.merged()));
   }
 
   // -- UPDATE --
@@ -104,7 +108,8 @@ public class CatalogScenarioUpdateService {
       TxCtx ctx,
       ScenarioUpdate update,
       Map<InstallablePayloadVersion, byte[]> payloadFiles,
-      Map<String, ScenarioMerge.Choice> choices) {
+      Map<String, ScenarioMerge.Choice> choices,
+      Map<String, String> edits) {
     payloadFiles.forEach(
         (released, file) ->
             catalogPayloadService.installIfMissing(
@@ -113,7 +118,7 @@ public class CatalogScenarioUpdateService {
     Collection<Inject> injects = injectService.findByScenarioId(scenario.getId());
     ObjectNode local = local(scenario, injects);
     ScenarioMerge.Result merge =
-        ScenarioMerge.merge(update.base(), update.applied(), local, choices);
+        ScenarioMerge.merge(update.base(), update.applied(), local, choices, edits);
     if (!merge.resolved()) {
       throw new BadRequestException(CONFLICT_LEFT);
     }
