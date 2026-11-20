@@ -3,6 +3,13 @@ package io.openaev.api.threat_arsenal;
 import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+import static io.openaev.service.payload.CustomizableField.LOCKED_ON_CUSTOMIZED_COPY;
+import static io.openaev.service.payload.PayloadCustomizationMerge.CONFLICT_WITHOUT_CHOICE;
+import static io.openaev.service.payload.PayloadCustomizationService.NOT_CUSTOMIZED;
+import static io.openaev.service.payload.PayloadCustomizationService.NOT_FILIGRAN;
+import static io.openaev.service.payload.PayloadCustomizationService.NOT_LATEST;
+import static io.openaev.service.payload.PayloadCustomizationService.REVOKED;
+import static io.openaev.service.payload.PayloadCustomizationService.UPDATE_CHANGED;
 import static io.openaev.utils.StringUtils.CUSTOMIZED_SUFFIX;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.PAYLOAD_ID;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.manifest;
@@ -66,6 +73,7 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
   private static final String MY_COMMAND = "sc create Crowdoor start= demand";
   private static final String FILIGRAN_COMMAND = "sc create Crowdoor start= delayed-auto";
   private static final String FILIGRAN_CLEANUP = "sc.exe stop Crowdoor && sc.exe delete Crowdoor";
+  private static final String NEWER_CHANGELOG = "The service now starts after boot.";
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
@@ -89,7 +97,7 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
                             List.of(),
                             List.of(
                                 payloadVersion(FIRST, "VERIFIED", RELEASED),
-                                payloadVersion(NEWER, "VERIFIED", RELEASED)))),
+                                withChangelog(payloadVersion(NEWER, "VERIFIED", RELEASED))))),
                     Map.of(
                         payloadFileName(FIRST), RELEASED.file(),
                         payloadFileName(NEWER), RELEASED.file()),
@@ -100,6 +108,11 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
   }
 
   // -- HELPERS --
+
+  private static Map<String, Object> withChangelog(Map<String, Object> version) {
+    version.put("changelog", NEWER_CHANGELOG);
+    return version;
+  }
 
   /** Installs a released version: its payload id. */
   private String install(String version) throws Exception {
@@ -258,7 +271,8 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
                       DEFAULT_TENANT_UUID,
                       local.getId())
                   .with(csrf()))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(NOT_FILIGRAN));
     }
 
     @Test
@@ -277,7 +291,8 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
                       DEFAULT_TENANT_UUID,
                       contractOf(base).getId())
                   .with(csrf()))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(REVOKED));
     }
   }
 
@@ -337,7 +352,8 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
                   .content(
                       mapper.writeValueAsString(
                           edit(copyId, current.getContent(), "My own description"))))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(LOCKED_ON_CUSTOMIZED_COPY));
     }
   }
 
@@ -381,19 +397,24 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
           .containsExactlyInAnyOrder("COMMAND_CONTENT", "CLEANUP_COMMAND");
       JsonNode command = fieldOf(update, "COMMAND_CONTENT");
       assertThat(command.path("field_block").asText()).isEqualTo("EXECUTION");
-      assertThat(command.path("field_conflict").asBoolean()).isTrue();
+      assertThat(command.path("field_status").asText()).isEqualTo("CONFLICT");
       assertThat(command.path("field_filigran").asText()).isEqualTo(FILIGRAN_COMMAND);
       assertThat(command.path("field_yours").asText()).isEqualTo(MY_COMMAND);
       JsonNode cleanup = fieldOf(update, "CLEANUP_COMMAND");
       assertThat(cleanup.path("field_block").asText()).isEqualTo("EXECUTION");
-      assertThat(cleanup.path("field_conflict").asBoolean()).isTrue();
+      assertThat(cleanup.path("field_status").asText()).isEqualTo("CONFLICT");
+      JsonNode releaseNote = update.path("update_release_notes").path(0);
+      assertThat(releaseNote.path("release_version").asText()).isEqualTo(NEWER);
+      assertThat(releaseNote.path("release_changelog").asText()).isEqualTo(NEWER_CHANGELOG);
     }
 
     @Test
     @DisplayName("refuses an action that is not a customized copy")
     void given_filigranAction_should_refuseIt() throws Exception {
       // Act & Assert
-      customization(contractOf(install(FIRST)).getId()).andExpect(status().isBadRequest());
+      customization(contractOf(install(FIRST)).getId())
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(NOT_CUSTOMIZED));
     }
 
     private JsonNode fieldOf(JsonNode update, String name) {
@@ -426,7 +447,7 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
               update(
                       copy.path("injector_contract_id").asText(),
                       newer,
-                      Map.of("EXECUTION", "YOURS"))
+                      Map.of("EXECUTION", "KEEP_MINE"))
                   .andExpect(status().isOk()));
 
       // Assert
@@ -454,7 +475,7 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
               update(
                       copy.path("injector_contract_id").asText(),
                       newer,
-                      Map.of("EXECUTION", "FILIGRAN"))
+                      Map.of("EXECUTION", "TAKE_APPLIED"))
                   .andExpect(status().isOk()));
 
       // Assert
@@ -497,7 +518,8 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
 
       // Act & Assert
       update(copy.path("injector_contract_id").asText(), newer, Map.of())
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(CONFLICT_WITHOUT_CHOICE));
     }
 
     @Test
@@ -510,7 +532,79 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
 
       // Act & Assert
       update(copy.path("injector_contract_id").asText(), base, Map.of())
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(UPDATE_CHANGED));
+    }
+
+    @Test
+    @DisplayName("refuses an older version of the copy")
+    void given_olderVersionOfTheCopy_should_refuseIt() throws Exception {
+      // Arrange
+      JsonNode copy = customize(install(FIRST));
+      String copyId = copy.path("action_payload").path("payload_id").asText();
+      String copyActionId = copy.path("injector_contract_id").asText();
+      entityManager.flush();
+      entityManager.clear();
+      mvc.perform(
+              put(TENANT_THREAT_ARSENAL_URL + "/{actionId}", DEFAULT_TENANT_UUID, copyActionId)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(mapper.writeValueAsString(edit(copyId, MY_COMMAND, ""))))
+          .andExpect(status().isOk());
+      String newer = installNewerWithFiligranChanges();
+
+      // Act & Assert
+      update(copyActionId, newer, Map.of())
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(NOT_LATEST));
+    }
+  }
+
+  @Nested
+  @DisplayName("Another tenant")
+  class OtherTenant {
+
+    @Test
+    @DisplayName("neither customizes nor reads an action of another tenant")
+    void given_otherTenantPath_should_neitherCustomizeNorRead() throws Exception {
+      // Arrange
+      String base = install(FIRST);
+      String actionId = contractOf(base).getId();
+      String otherTenant = tenantHelper.createTenantWithCurrentUser("customization-other").getId();
+
+      // Act & Assert
+      mvc.perform(
+              post(TENANT_THREAT_ARSENAL_URL + "/{actionId}/customize", otherTenant, actionId)
+                  .with(csrf()))
+          .andExpect(status().is4xxClientError());
+      mvc.perform(
+              get(TENANT_THREAT_ARSENAL_URL + "/{actionId}/customization", otherTenant, actionId))
+          .andExpect(status().is4xxClientError());
+      assertThat(payloadRepository.findAll()).noneMatch(Payload::isCustomized);
+    }
+  }
+
+  @Nested
+  @DisplayName("Filigran version removed")
+  class BaseRemoved {
+
+    @Test
+    @DisplayName("keeps the copy, no longer linked")
+    void given_baseRemoved_should_keepTheCopy() throws Exception {
+      // Arrange
+      String base = install(FIRST);
+      install(NEWER);
+      String copyId = customize(base).path("action_payload").path("payload_id").asText();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      payloadRepository.delete(payload(base));
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      assertThat(payload(copyId).isCustomized()).isFalse();
     }
   }
 }

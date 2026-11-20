@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.service.payload.CustomizableBlock;
 import io.openaev.service.payload.CustomizableField;
+import io.openaev.service.payload.PayloadCustomizationMerge.Status;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 
@@ -18,7 +19,7 @@ public record PayloadFieldUpdateOutput(
         JsonNode base,
     @JsonProperty("field_filigran") JsonNode filigran,
     @JsonProperty("field_yours") JsonNode yours,
-    @Schema(description = "Both changed its block differently: the user chooses one side")
-        @JsonProperty("field_conflict")
+    @Schema(description = "What the update does with the field; a conflict needs a choice")
+        @JsonProperty("field_status")
         @NotNull
-        boolean conflict) {}
+        Status status) {}
