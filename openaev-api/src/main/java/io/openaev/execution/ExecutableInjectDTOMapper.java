@@ -32,6 +32,7 @@ public class ExecutableInjectDTOMapper {
       assetsToExecute =
           injectService.resolveAllAssetsToExecute(executableInject.getInjection().getInject());
     }
+    List<String> credentialReferenceIds = executableInject.credentialReferenceIds(assetsToExecute);
     return ExecutableInjectDTO.builder()
         .injection(executableInject.getInjection())
         .assets(
@@ -58,13 +59,12 @@ public class ExecutableInjectDTOMapper {
                 .map(assetGroupMapper::toAssetGroupSimple)
                 .collect(Collectors.toSet()))
         .attachments(
-            executableInject.getSecretReferenceIds() != null
-                    && !executableInject.getSecretReferenceIds().isEmpty()
-                ? ExecutableInjectDTO.Attachments.builder()
-                    .credentialReferences(executableInject.getSecretReferenceIds())
+            credentialReferenceIds.isEmpty()
+                ? null
+                : ExecutableInjectDTO.Attachments.builder()
+                    .credentialReferences(credentialReferenceIds)
                     .authorisationCode(authorisationCode)
-                    .build()
-                : null)
+                    .build())
         .build();
   }
 }

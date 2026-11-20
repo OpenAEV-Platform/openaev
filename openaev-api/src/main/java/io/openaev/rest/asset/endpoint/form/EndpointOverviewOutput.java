@@ -119,8 +119,7 @@ public class EndpointOverviewOutput {
   private String linkedPerson;
 
   // -- AI TARGET (category = AI_TARGET) --
-  // Connection metadata is safe to expose; the credential (ai_target_token) is intentionally never
-  // surfaced in the overview.
+  // The AI target credential is never surfaced in the overview.
 
   @Schema(description = "AI target provider (AI targets only)")
   @JsonProperty("ai_target_provider")

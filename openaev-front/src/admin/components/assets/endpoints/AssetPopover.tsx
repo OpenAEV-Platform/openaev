@@ -43,7 +43,7 @@ const AI_TARGET_INPUT_KEYS: (keyof AiTargetInput | 'asset_markings')[] = [
   'ai_target_endpoint',
   'ai_target_model',
   'ai_target_system_prompt',
-  'ai_target_token',
+  'ai_target_credential',
   'ai_target_configuration',
   'asset_criticality',
   'asset_description',

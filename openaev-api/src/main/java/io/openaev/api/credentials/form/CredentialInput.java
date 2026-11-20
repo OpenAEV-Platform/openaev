@@ -50,6 +50,7 @@ public record CredentialInput(
         String gcpCustomResourceManagerUri,
     @JsonProperty("gcp_custom_iam_uri") @Size(max = 255) String gcpCustomIamUri,
     @JsonProperty("gcp_custom_oauth_access_token") String gcpCustomOauthAccessToken,
+    @JsonProperty("credential_api_token") String credentialApiToken,
     @JsonProperty("credential_tags") List<String> credentialTagIds) {
 
   public CredentialInput(
@@ -91,6 +92,7 @@ public record CredentialInput(
         null,
         null,
         // GCP
+        null,
         null,
         null,
         null,
