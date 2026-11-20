@@ -266,6 +266,7 @@ const GraphExplorerInner = ({
   const { t, fd } = useFormatter();
   const { fitView, screenToFlowPosition, zoomIn, zoomOut } = useReactFlow();
   const wrapper = useRef<HTMLDivElement>(null);
+  const emptyPane = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [state, setState] = useState<GraphState>(() => fromSlice(initial));
   const [history, setHistory] = useState<History>({ past: [] });
@@ -780,7 +781,8 @@ const GraphExplorerInner = ({
     setNotice(t('Link copied to the clipboard'));
   };
 
-  const selectedNode = selected ? state.nodes[selected] : undefined;
+  // A hidden node has no side panel: hiding it (alone, in a selection, by its key) closes the panel.
+  const selectedNode = selected && !state.hidden.includes(selected) ? state.nodes[selected] : undefined;
   const neighbours = useMemo(() => {
     if (!selectedNode) {
       return [] as {
@@ -1264,6 +1266,7 @@ const GraphExplorerInner = ({
       menuItem('hide', t('Hide'), <VisibilityOffOutlined fontSize="small" />, () => {
         commit(s => hideNodes(s, ids));
         setSelection([]);
+        setSelected(current => (current && ids.includes(current) ? null : current));
       }),
       menuItem('remove', t('Remove from view'), <DeleteOutlined fontSize="small" />, () => removeFromView(ids)),
       <MenuSeparator key="sep" />,
@@ -1402,13 +1405,35 @@ const GraphExplorerInner = ({
   };
 
   const empty = drawnNodes.length === 0;
+  // Every node hidden is not an empty graph: the toolbar stays (Show hidden nodes, Undo) and the empty
+  // canvas offers to show them again, so hiding never leaves the user without a way back.
+  const allHidden = empty && state.hidden.length > 0;
+  // The menu item that hid the last node is gone with the menu: the focus moves to the empty canvas, so
+  // Ctrl+Z (handled on the wrapper) still undoes the hide.
+  useEffect(() => {
+    if (allHidden && interactive) {
+      emptyPane.current?.focus();
+    }
+  }, [allHidden, interactive]);
   // The controls and the mini-map move left of the open side panel instead of sitting under it.
   const sideOffset = panelOpen ? PANEL_WIDTH + 8 : 0;
 
   const canvas = empty
     ? (
-        <div className="flex h-full items-center justify-center">
-          <Text variant="content-compact" className="text-default-secondary">{t('Nothing to show in the graph yet')}</Text>
+        <div
+          ref={emptyPane}
+          data-testid="graph-empty"
+          tabIndex={allHidden && interactive ? 0 : undefined}
+          className="flex h-full flex-col items-center justify-center gap-3 outline-none"
+        >
+          <Text variant="content-compact" className="text-default-secondary">
+            {allHidden ? t('Every node of the graph is hidden') : t('Nothing to show in the graph yet')}
+          </Text>
+          {allHidden && (
+            <Button type="button" priority="secondary" size="sm" onClick={() => commit(showHidden)}>
+              {`${t('Show hidden nodes')} (${state.hidden.length})`}
+            </Button>
+          )}
         </div>
       )
     : (
@@ -1617,7 +1642,7 @@ const GraphExplorerInner = ({
           </div>
         )}
         {!empty && renderLegend()}
-        {!empty && canvasToolbar(sideOffset)}
+        {(!empty || allHidden) && canvasToolbar(sideOffset)}
         {panel}
         {contextMenu}
       </Box>

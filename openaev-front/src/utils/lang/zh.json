@@ -3018,6 +3018,7 @@
   "Notes": "笔记",
   "Nothing added yet.": "尚未添加任何内容。",
   "Nothing in flight right now.": "当前没有执行中的注入。",
+  "Every node of the graph is hidden": "图中的所有节点均已隐藏",
   "Nothing to show in the graph yet": "图中暂无可显示的内容",
   "Nothing to start from yet: run a simulation to see where the estate is exposed.": "暂无起点：运行一次模拟以查看资产暴露的位置。",
   "Notification center": "通知中心",
