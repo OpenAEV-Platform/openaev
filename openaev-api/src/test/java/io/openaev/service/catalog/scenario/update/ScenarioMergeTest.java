@@ -149,6 +149,18 @@ class ScenarioMergeTest {
     }
 
     @Test
+    @DisplayName("asks which side to keep for an inject both added differently")
+    void given_injectBothAddedDifferently_should_askFirst() {
+      // Act
+      Result result =
+          ScenarioMerge.merge(
+              content("{}"), inject("Scan", "nmap -sV"), inject("Scan", "nmap"), Map.of());
+
+      // Assert
+      assertThat(result.unresolved()).containsExactly(INJECT + "/content.command");
+    }
+
+    @Test
     @DisplayName("removes an inject the applied content removes and the client left as it was")
     void given_removedUntouchedInject_should_removeIt() {
       // Act
