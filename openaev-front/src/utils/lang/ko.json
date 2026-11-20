@@ -4954,9 +4954,7 @@
   "Runs": "실행 대상",
   "Used by": "사용 출처",
   "Add a link": "링크 추가",
-  "connections": "연결",
-  "not shown": "표시되지 않음",
-  "double-click to expand": "두 번 클릭하여 확장",
-  "Fit the selection to the screen": "선택 항목을 화면에 맞추기",
-  "Select every node": "모든 노드 선택"
+  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "에이전트는 대기 중인 작업을 받지 않으며 테스트는 오류로 종료됩니다. 에이전트가 이미 시작한 명령은 중단되지 않습니다.",
+  "Do you want to stop this atomic testing: {title}?": "이 원자 테스트를 중지하시겠습니까: {title}?",
+  "Stop execution": "실행 중지"
 }

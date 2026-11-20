@@ -4954,9 +4954,7 @@
   "Runs": "Выполняет",
   "Used by": "Используется",
   "Add a link": "Добавить связь",
-  "connections": "связей",
-  "not shown": "не показано",
-  "double-click to expand": "дважды щёлкните, чтобы развернуть",
-  "Fit the selection to the screen": "Вписать выделение в экран",
-  "Select every node": "Выбрать все узлы"
+  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "Агенты не получат его ожидающие задания, и тест завершится с ошибкой. Команды, уже запущенные агентом, не прерываются.",
+  "Do you want to stop this atomic testing: {title}?": "Остановить этот атомарный тест: {title}?",
+  "Stop execution": "Остановить выполнение"
 }

@@ -4954,9 +4954,7 @@
   "Runs": "Runs",
   "Used by": "Used by",
   "Add a link": "Add a link",
-  "connections": "connections",
-  "not shown": "not shown",
-  "double-click to expand": "double-click to expand",
-  "Fit the selection to the screen": "Fit the selection to the screen",
-  "Select every node": "Select every node"
+  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.",
+  "Do you want to stop this atomic testing: {title}?": "Do you want to stop this atomic testing: {title}?",
+  "Stop execution": "Stop execution"
 }
