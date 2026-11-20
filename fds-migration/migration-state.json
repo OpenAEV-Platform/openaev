@@ -878,7 +878,7 @@
         "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateBanner.tsx",
         "openaev-front/src/admin/components/threat_arsenal/customization/RevertToFiligran.tsx",
         "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalInformationDrawer.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/customization/CustomizationBaseLine.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx"
       ]
     },
     {
@@ -960,7 +960,9 @@
         "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationBanner.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/versions/AskAfterSavingChoice.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/versions/AskAfterSavingChoice.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateBanner.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalInformationDrawer.tsx"
       ]
     },
     {
@@ -972,7 +974,8 @@
       "reason": "The revoke and lift dialog of a payload version: title, description, scrolling body and footer actions.",
       "files": [
         "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadNewVersionDialog.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadNewVersionDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateDialog.tsx"
       ]
     },
     {
@@ -995,6 +998,17 @@
       "reason": "One side to keep for each conflict of an update.",
       "files": [
         "openaev-front/src/components/common/update/ConflictChoice.tsx"
+      ]
+    },
+    {
+      "component": "Menu",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The actions menu of a Threat Arsenal action: trigger, items and separator.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalActionPopover.tsx"
       ]
     }
   ],

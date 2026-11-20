@@ -47,6 +47,9 @@ export const getStatusLabel = (status: PayloadStatus | string | undefined | null
 /** A revoked payload shows as revoked, whatever status it has. */
 export const isShownRevoked = (action: Pick<ThreatArsenalAction, 'action_payload_revoked'>) => isFeatureEnabled('CATALOG') && !!action.action_payload_revoked;
 
+/** A customized copy of a Filigran payload, behind the catalogue preview. */
+export const isCustomizedCopy = (action: Pick<ThreatArsenalAction, 'action_payload_customized'> | null) => isFeatureEnabled('CATALOG') && !!action?.action_payload_customized;
+
 export const getActionStatus = (
   action: Pick<ThreatArsenalAction, 'action_payload' | 'action_payload_revoked'>,
   payloadStatus = action.action_payload?.payload_status,

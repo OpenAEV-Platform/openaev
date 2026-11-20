@@ -8,13 +8,13 @@ import {
   type PayloadFieldUpdateOutput,
   type ThreatArsenalAction,
 } from '../../../../utils/api-types';
-import { changedByFiligran, changedByYou, type CustomizableBlock } from './fieldUpdates';
+import { type CustomizableBlock } from './fieldUpdates';
 
 type Choices = NonNullable<PayloadCustomizationUpdateInput['update_choices']>;
 
 const CHOICE_OF_SIDE: Record<ConflictSide, Choices[string]> = {
-  theirs: 'FILIGRAN',
-  mine: 'YOURS',
+  theirs: 'TAKE_APPLIED',
+  mine: 'KEEP_MINE',
 };
 
 interface ConflictBlock {
@@ -27,13 +27,12 @@ const useCustomizationUpdate = (actionId: string, update: PayloadCustomizationUp
   const [sides, setSides] = useState<Record<string, ConflictSide>>({});
   const [applying, setApplying] = useState(false);
 
-  const conflicting = update.update_fields.filter(field => field.field_conflict);
+  const withStatus = (status: PayloadFieldUpdateOutput['field_status']) => update.update_fields.filter(field => field.field_status === status);
+  const conflicting = withStatus('CONFLICT');
   const conflicts: ConflictBlock[] = [...new Set(conflicting.map(field => field.field_block))].map(block => ({
     block,
     fields: conflicting.filter(field => field.field_block === block),
   }));
-  const news = update.update_fields.filter(field => !field.field_conflict && changedByFiligran(field));
-  const kept = update.update_fields.filter(field => !field.field_conflict && !changedByFiligran(field) && changedByYou(field));
 
   const choose = (block: CustomizableBlock, side: ConflictSide) => setSides(previous => ({
     ...previous,
@@ -52,8 +51,8 @@ const useCustomizationUpdate = (actionId: string, update: PayloadCustomizationUp
 
   return {
     conflicts,
-    news,
-    kept,
+    news: withStatus('TAKE_APPLIED'),
+    kept: withStatus('KEEP_MINE'),
     sides,
     choose,
     ready: conflicts.every(({ block }) => sides[block]),

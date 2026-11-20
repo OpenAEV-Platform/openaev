@@ -1,24 +1,14 @@
-import { useEffect, useState } from 'react';
-
 import { fetchThreatArsenalCustomization } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import { type PayloadCustomizationOutput, type ThreatArsenalAction } from '../../../../utils/api-types';
-import { isFeatureEnabled } from '../../../../utils/utils';
+import useLoadedOnKey from '../../../../utils/hooks/useLoadedOnKey';
+import { isCustomizedCopy } from '../utils/threatArsenalStatusUtils';
 
-/** The Filigran version a customized copy is built from, and the update it can take. */
+const loadCustomization = (actionId: string) => fetchThreatArsenalCustomization(actionId)
+  .then(({ data }: { data: PayloadCustomizationOutput }) => data);
+
+/** The Filigran version a customized copy is built from, and the update it can take; null for any other action. */
 const useCustomization = (action: ThreatArsenalAction | null) => {
-  const [customization, setCustomization] = useState<PayloadCustomizationOutput | null>(null);
-  const actionId = action?.injector_contract_id;
-  const customized = isFeatureEnabled('CATALOG') && !!action?.action_payload_customized;
-
-  useEffect(() => {
-    setCustomization(null);
-    if (customized && actionId) {
-      fetchThreatArsenalCustomization(actionId)
-        .then(({ data }: { data: PayloadCustomizationOutput }) => setCustomization(data));
-    }
-  }, [actionId, customized]);
-
-  return customization;
+  return useLoadedOnKey<PayloadCustomizationOutput | null>(isCustomizedCopy(action) ? action?.injector_contract_id : undefined, loadCustomization, null).value;
 };
 
 export default useCustomization;

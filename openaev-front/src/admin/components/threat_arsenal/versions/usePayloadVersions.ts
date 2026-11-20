@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import { fetchThreatArsenalVersions } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import { type PayloadVersionOutput } from '../../../../utils/api-types';
 
-/** The versions of an action's payload, newest first, fetched again each time `load` turns on; null while loading. */
-const usePayloadVersions = (actionId: string, load: boolean) => {
+/** The versions of an action's payload, newest first, fetched again each time `load` turns on or `reloadKey` changes; null while loading. */
+const usePayloadVersions = (actionId: string, load: boolean, reloadKey = 0) => {
   const [versions, setVersions] = useState<PayloadVersionOutput[] | null>(null);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ const usePayloadVersions = (actionId: string, load: boolean) => {
     return () => {
       cancelled = true;
     };
-  }, [actionId, load]);
+  }, [actionId, load, reloadKey]);
 
   return versions;
 };

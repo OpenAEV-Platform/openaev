@@ -1,4 +1,4 @@
-import { Alert, Chip, Skeleton, Text } from '@filigran/design-system';
+import { Alert, Button, Chip, Skeleton, Text } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useRef, useState } from 'react';
@@ -77,10 +77,15 @@ const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, us
   );
 };
 
-interface NotInstalledProps { version: string }
+interface NotInstalledProps {
+  version: string;
+  installing: boolean;
+  // Without the right to install, the row only tells the version is not installed.
+  onInstall?: (version: string) => void;
+}
 
 // A catalogue version not installed in the tenant: nothing runs it.
-const NotInstalledVersion: FunctionComponent<NotInstalledProps> = ({ version }) => {
+const NotInstalledVersion: FunctionComponent<NotInstalledProps> = ({ version, installing, onInstall }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   return (
@@ -91,6 +96,8 @@ const NotInstalledVersion: FunctionComponent<NotInstalledProps> = ({ version }) 
     >
       <Text variant="content-base-bold">{`v${version}`}</Text>
       <Chip label={t('Not installed')} />
+      <span style={{ flex: 1 }} />
+      {onInstall && <Button priority="secondary" size="sm" loading={installing} onClick={() => onInstall(version)}>{t('Install')}</Button>}
     </div>
   );
 };
@@ -102,9 +109,12 @@ interface Props {
   onMoved: () => void;
   notInstalled?: string[];
   focusMove?: boolean;
+  // The catalogue version being installed.
+  installing?: string | null;
+  onInstall?: (version: string) => void;
 }
 
-const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMoved, notInstalled, focusMove = false }) => {
+const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMoved, notInstalled, focusMove = false, installing, onInstall }) => {
   const theme = useTheme();
   const canMove = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
 
@@ -132,7 +142,7 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMove
                 focusMove={focusMove}
               />
             )
-          : <NotInstalledVersion key={version} version={version} />))}
+          : <NotInstalledVersion key={version} version={version} installing={installing === version} onInstall={onInstall} />))}
       </div>
     </div>
   );

@@ -28,7 +28,7 @@ const Form = ({ command, children }: {
 
 const renderRevert = (command: string, filigranValues: ActionFormValues | null) => render(
   <FiligranValuesContext.Provider value={filigranValues}>
-    <Form command={command}><RevertToFiligran fields={['command_content']} /></Form>
+    <Form command={command}><RevertToFiligran fields={['COMMAND_CONTENT']} /></Form>
   </FiligranValuesContext.Provider>,
 );
 

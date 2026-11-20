@@ -1,5 +1,4 @@
-import { type PayloadFieldUpdateOutput } from '../../../../utils/api-types';
-import sameValue from './sameValue';
+import { type PayloadArgument, type PayloadFieldUpdateOutput, type PayloadPrerequisite } from '../../../../utils/api-types';
 
 export type CustomizableField = PayloadFieldUpdateOutput['field_name'];
 
@@ -15,27 +14,39 @@ export const CUSTOMIZABLE_FIELD_LABELS: Record<CustomizableField, string> = {
   PREREQUISITES: 'Prerequisites',
 };
 
-export const changedByFiligran = (field: PayloadFieldUpdateOutput) => !sameValue(field.field_base, field.field_filigran);
-
-export const changedByYou = (field: PayloadFieldUpdateOutput) => !sameValue(field.field_base, field.field_yours);
-
-const lineOf = (item: unknown) => {
-  if (typeof item !== 'object' || item === null) {
-    return String(item);
-  }
-  const entry = item as Record<string, unknown>;
-  return entry.key !== undefined
-    ? `${entry.key} = ${entry.default_value ?? ''}`
-    : `${entry.executor ?? ''}: ${entry.get_command ?? ''}`;
+/** The action form field of each field a customized copy may change. */
+export const CUSTOMIZABLE_FORM_FIELDS: Record<CustomizableField, string> = {
+  COMMAND_EXECUTOR: 'command_executor',
+  COMMAND_CONTENT: 'command_content',
+  CLEANUP_EXECUTOR: 'action_cleanup_executor',
+  CLEANUP_COMMAND: 'action_cleanup_command',
+  PLATFORMS: 'action_platforms',
+  ARGUMENTS: 'action_arguments',
+  PREREQUISITES: 'action_prerequisites',
 };
 
-/** A field value as text: arguments and prerequisites one per line. */
-export const fieldText = (value: unknown) => {
-  if (sameValue(value, null)) {
-    return '';
+const asList = (value: unknown): unknown[] => {
+  if (value === null || value === undefined || value === '') {
+    return [];
   }
-  return (Array.isArray(value) ? value.map(lineOf) : [lineOf(value)]).join('\n');
+  return Array.isArray(value) ? value : [value];
 };
+
+const ITEM_TEXT: Partial<Record<CustomizableField, (item: unknown) => string>> = {
+  ARGUMENTS: (item) => {
+    const argument = item as PayloadArgument;
+    return `${argument.key} = ${argument.default_value ?? ''}`;
+  },
+  PREREQUISITES: (item) => {
+    const prerequisite = item as PayloadPrerequisite;
+    return `${prerequisite.executor}: ${prerequisite.get_command}`;
+  },
+};
+
+/** A field value as text: platforms, arguments and prerequisites one per line. */
+export const fieldText = (field: CustomizableField, value: unknown) => asList(value)
+  .map(ITEM_TEXT[field] ?? String)
+  .join('\n');
 
 /** One side of a conflicting block as text: each field under its label when the block has several. */
 export const blockText = (
@@ -43,9 +54,10 @@ export const blockText = (
   valueOf: (field: PayloadFieldUpdateOutput) => unknown,
   labelOf: (field: PayloadFieldUpdateOutput) => string,
 ) => (fields.length === 1
-  ? fieldText(valueOf(fields[0]))
-  : fields.map(field => `${labelOf(field)}\n${fieldText(valueOf(field))}`).join('\n\n'));
+  ? fieldText(fields[0].field_name, valueOf(fields[0]))
+  : fields.map(field => `${labelOf(field)}\n${fieldText(field.field_name, valueOf(field))}`).join('\n\n'));
 
+// Keys of the payload's hashed content (the backend's canonical form); an unknown key shows as is.
 const OTHER_CHANGE_LABELS: Record<string, string> = {
   payload_name: 'Name',
   payload_description: 'Description',
