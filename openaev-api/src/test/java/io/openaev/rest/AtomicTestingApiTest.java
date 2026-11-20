@@ -344,7 +344,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Stop a running Atomic Testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   class StopAtomicTesting {
 
     @Test
