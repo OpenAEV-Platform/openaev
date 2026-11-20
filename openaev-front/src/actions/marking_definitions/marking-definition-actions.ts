@@ -78,14 +78,3 @@ export const importMarkingDefinitions = (file: File): Promise<ImportReport> => {
       throw error;
     });
 };
-
-// -- OPTIONS --
-
-export const searchMarkingDefinitionAsOption = (searchText: string = '') => {
-  const params = { searchText };
-  return simpleCall(`${MARKING_DEFINITIONS_URI}/options`, { params });
-};
-
-export const searchMarkingDefinitionByIdAsOption = (ids: string[]) => {
-  return simplePostCall(`${MARKING_DEFINITIONS_URI}/options`, ids);
-};
