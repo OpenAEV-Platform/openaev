@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import useFacetFilterToggle from '../../../../components/common/facets/useFacetFilterToggle';
 import { type FilterHelpers } from '../../../../components/common/queryable/filter/FilterHelpers';
-import { type Filter, type Option, type SearchPaginationInput } from '../../../../utils/api-types';
+import { type Filter, type SearchPaginationInput } from '../../../../utils/api-types';
 
 // -- HELPERS --
 
@@ -120,57 +120,6 @@ describe('useFacetFilterToggle', () => {
 
       // Assert
       expect(helpers.handleRemoveFilterById).toHaveBeenCalledWith('filter-1');
-    });
-  });
-
-  describe('toggleAndTranslateOptionWithCurrent', () => {
-    const options: Option[] = [
-      {
-        id: 'asset-a',
-        label: 'Host A',
-      },
-      {
-        id: 'asset-b',
-        label: 'Host B',
-      },
-    ];
-
-    it('should store the ids of the options whose label is selected', () => {
-      // Arrange
-      const { helpers, hook } = setup([aFilter(['asset-a'])]);
-
-      // Act
-      hook.toggleAndTranslateOptionWithCurrent(KEY, ['Host A'], options[1], options);
-
-      // Assert
-      expect(helpers.handleUpdateValuesById).toHaveBeenCalledWith('filter-1', ['asset-a', 'asset-b']);
-    });
-
-    it('should drop the filter when the selected label is unselected', () => {
-      // Arrange
-      const { helpers, hook } = setup([aFilter(['asset-a'])]);
-
-      // Act
-      hook.toggleAndTranslateOptionWithCurrent(KEY, ['Host A'], options[0], options);
-
-      // Assert
-      expect(helpers.handleRemoveFilterById).toHaveBeenCalledWith('filter-1');
-    });
-
-    it.each([
-      ['no id', { label: 'Host A' }],
-      ['no label', { id: 'asset-a' }],
-    ])('should ignore an option with %s', (_name, option) => {
-      // Arrange
-      const { helpers, hook } = setup([]);
-
-      // Act
-      hook.toggleAndTranslateOptionWithCurrent(KEY, [], option, options);
-
-      // Assert
-      expect(helpers.handleAddFilterWithEmptyValue).not.toHaveBeenCalled();
-      expect(helpers.handleUpdateValuesById).not.toHaveBeenCalled();
-      expect(helpers.handleRemoveFilterById).not.toHaveBeenCalled();
     });
   });
 });

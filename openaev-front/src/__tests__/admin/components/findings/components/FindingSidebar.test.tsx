@@ -130,6 +130,45 @@ describe('FindingSidebar', () => {
       expect(helpers.handleRemoveFilterById).toHaveBeenCalledWith('filter-finding_assets');
     });
 
+    it('should select only the clicked asset when several assets share the same name', async () => {
+      // Arrange
+      mockSearchAssets.mockResolvedValue({
+        data: [
+          {
+            id: 'asset-1',
+            label: 'localhost',
+          },
+          {
+            id: 'asset-2',
+            label: 'localhost',
+          },
+        ],
+      });
+      const helpers = renderSidebar([aFilter('finding_assets', ['asset-1'])]);
+      await waitFor(() => expect(screen.getAllByRole('checkbox', { name: 'localhost' })).toHaveLength(2));
+
+      // Act
+      const [first, second] = screen.getAllByRole('checkbox', { name: 'localhost' });
+      fireEvent.click(second);
+
+      // Assert
+      expect(first).toHaveAttribute('aria-checked', 'true');
+      expect(second).toHaveAttribute('aria-checked', 'false');
+      expect(helpers.handleUpdateValuesById).toHaveBeenCalledWith('filter-finding_assets', ['asset-1', 'asset-2']);
+    });
+
+    it('should keep a selected asset missing from the loaded options when another one is toggled', async () => {
+      // Arrange: the restored filter holds an id the (possibly truncated) option list does not return
+      mockSearchAssets.mockResolvedValue({ data: ASSETS });
+      const helpers = renderSidebar([aFilter('finding_assets', ['asset-unlisted'])]);
+
+      // Act
+      fireEvent.click(await checkbox('Host B'));
+
+      // Assert
+      expect(helpers.handleUpdateValuesById).toHaveBeenCalledWith('filter-finding_assets', ['asset-unlisted', 'asset-b']);
+    });
+
     it('should list no asset when their options cannot be loaded', async () => {
       // Arrange
       mockSearchAssets.mockRejectedValue(new Error('403'));
