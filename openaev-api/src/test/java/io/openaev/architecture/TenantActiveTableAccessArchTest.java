@@ -464,7 +464,8 @@ class TenantActiveTableAccessArchTest {
           "payload_revocations",
           "exercises",
           "scenarios",
-          "injects");
+          "injects",
+          "scenario_revisions");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -4571,4 +4572,17 @@ class TenantActiveTableAccessArchTest {
           .because(
               "injects is tenant-active: an accessor without a tenant scope silently reads zero"
                   + " rows. New accessors must carry a scope and be allowlisted here");
+
+  static final ArchRule scenario_revisions_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Keyed by tenant, inside the scoped transaction of the update and rollback routes:
+              io.openaev.service.catalog.scenario.update.ScenarioRevisionService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.ScenarioRevisionRepository.class)
+          .because(
+              "scenario_revisions is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 }

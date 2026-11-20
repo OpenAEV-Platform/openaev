@@ -407,7 +407,25 @@ public class V1_DataImporter implements Importer {
     List<MissingImportedAction> missingActions =
         skippedSteps.stream().map(V1_DataImporter::toMissingImportedAction).toList();
     return new ImportResult(
-        new ArrayList<>(missingActions), savedScenario == null ? null : savedScenario.getId());
+        new ArrayList<>(missingActions),
+        savedScenario == null ? null : savedScenario.getId(),
+        packageInjectIds(importNode, prefix, baseIds));
+  }
+
+  private static Map<String, String> packageInjectIds(
+      JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+    Map<String, String> ids = new HashMap<>();
+    importNode
+        .path(prefix + "injects")
+        .forEach(
+            inject -> {
+              String packageId = inject.path("inject_id").asText();
+              Base created = baseIds.get(packageId);
+              if (created != null) {
+                ids.put(created.getId(), packageId);
+              }
+            });
+    return ids;
   }
 
   private static MissingImportedAction toMissingImportedAction(SkippedWorkflowStep step) {

@@ -8,6 +8,7 @@ import io.openaev.database.model.catalog.ContentType;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.FileService;
+import io.openaev.service.catalog.payload.InstallablePayloadVersion;
 import io.openaev.utils.catalog.SemanticVersion;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -109,6 +110,14 @@ public class CatalogFileService {
       payloadFiles.put(key, readVersionFile(file));
     }
     return new CheckedRelease(manifest, refusals, payloadFiles);
+  }
+
+  /** The stored file of each payload version, in their order. */
+  public Map<InstallablePayloadVersion, byte[]> payloadFiles(
+      List<InstallablePayloadVersion> versions) {
+    Map<InstallablePayloadVersion, byte[]> files = new LinkedHashMap<>();
+    versions.forEach(version -> files.put(version, storedFile(version.fileHash())));
+    return files;
   }
 
   /** A file stored at sync, read again only if its bytes still have the hash it is stored by. */

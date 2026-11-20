@@ -9,6 +9,7 @@ import io.openaev.database.model.scenario.ScenarioIdentity;
 import io.openaev.database.repository.ScenarioIdentityRepository;
 import io.openaev.importer.ImportResult;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.ImportService;
 import io.openaev.service.catalog.event.CatalogChangePublisher;
 import io.openaev.service.catalog.payload.CatalogPayloadService;
@@ -40,6 +41,7 @@ public class CatalogScenarioService {
       "The scenario runs a payload its release does not name";
 
   private final ScenarioService scenarioService;
+  private final InjectService injectService;
   private final ScenarioIdentityRepository scenarioIdentityRepository;
   private final ImportService importService;
   private final CatalogPayloadService catalogPayloadService;
@@ -121,7 +123,16 @@ public class CatalogScenarioService {
     if (result.scenarioId() == null) {
       throw new BadRequestException("The package holds no scenario");
     }
-    return scenarioService.scenario(ctx, result.scenarioId());
+    Scenario scenario = scenarioService.scenario(ctx, result.scenarioId());
+    keepPackageInjectIds(scenario, result.packageInjectIds());
+    return scenario;
+  }
+
+  // Every version of the package names an inject the same way: an update finds it by this ID.
+  private void keepPackageInjectIds(Scenario scenario, Map<String, String> packageInjectIds) {
+    injectService
+        .findByScenarioId(scenario.getId())
+        .forEach(inject -> inject.setCatalogId(packageInjectIds.get(inject.getId())));
   }
 
   // Each install takes the choice of its own type, checked by choiceFor.
