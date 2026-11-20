@@ -16,7 +16,10 @@ vi.mock('../../../../../components/i18n', () => ({
 
 const { default: ScenarioCatalogCard } = await import('../../../../../admin/components/scenarios/catalog/ScenarioCatalogCard');
 
-const requirement = (label: string): CatalogScenarioRequirementOutput => ({ requirement_label: label });
+const requirement = (name: string): CatalogScenarioRequirementOutput => ({
+  requirement_label: `Injector ${name}`,
+  requirement_name: name,
+});
 
 const scenarioMissing = (missing: CatalogScenarioRequirementOutput[]): CatalogScenarioOutput => ({
   catalog_scenario_external_id: 'phishing',
@@ -44,9 +47,9 @@ describe('ScenarioCatalogCard', () => {
 
   describe('missing requirements', () => {
     it.each<[string, CatalogScenarioRequirementOutput[], string]>([
-      ['oneMissing', [requirement('Injector openaev_nmap')], 'Needs Injector openaev_nmap'],
-      ['twoMissing', [requirement('Injector openaev_nmap'), requirement('OpenAEV >=2.0')], 'Needs Injector openaev_nmap, OpenAEV >=2.0'],
-      ['threeMissing', [requirement('Injector a'), requirement('Injector b'), requirement('Injector c')], 'Needs 3 prerequisites'],
+      ['oneMissing', [requirement('Nmap: The network mapper')], 'Needs Nmap'],
+      ['twoMissing', [requirement('Nmap'), requirement('Nuclei')], 'Needs Nmap, Nuclei'],
+      ['threeMissing', [requirement('Nmap'), requirement('Nuclei'), requirement('Censys')], 'Needs 3 prerequisites'],
     ])('given_%s_should_nameOrCountThemAndBlockTheInstall', (_case, missing, label) => {
       // Act
       renderCard(scenarioMissing(missing));

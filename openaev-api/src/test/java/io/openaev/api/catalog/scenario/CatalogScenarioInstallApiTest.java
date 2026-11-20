@@ -510,6 +510,9 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
               jsonPath("$.content[0].catalog_scenario_missing_requirements[0].requirement_label")
                   .value("Injector openaev_unknown"))
           .andExpect(
+              jsonPath("$.content[0].catalog_scenario_missing_requirements[0].requirement_name")
+                  .value("Injector openaev_unknown"))
+          .andExpect(
               jsonPath(
                       "$.content[0].catalog_scenario_missing_requirements[0].requirement_integration_id")
                   .doesNotExist())
@@ -519,7 +522,8 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("links a missing injector to the catalogue integration that brings it")
+    @DisplayName(
+        "links a missing injector to the catalogue integration that brings it, by its name")
     void given_missingInjectorInTheCatalogue_should_giveItsIntegration() throws Exception {
       // Arrange
       CatalogConnector integration =
@@ -541,6 +545,9 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
               jsonPath(
                       "$.content[0].catalog_scenario_missing_requirements[0].requirement_integration_id")
                   .value(integration.getId()))
+          .andExpect(
+              jsonPath("$.content[0].catalog_scenario_missing_requirements[0].requirement_name")
+                  .value(integration.getTitle()))
           .andExpect(
               jsonPath("$.content[0].catalog_scenario_missing_requirements[0].requirement_status")
                   .value("NOT_DEPLOYED"));

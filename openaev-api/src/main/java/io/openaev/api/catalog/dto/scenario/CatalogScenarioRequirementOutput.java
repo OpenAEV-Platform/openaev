@@ -10,5 +10,6 @@ import jakarta.validation.constraints.NotBlank;
  */
 public record CatalogScenarioRequirementOutput(
     @JsonProperty("requirement_label") @NotBlank String label,
+    @JsonProperty("requirement_name") @NotBlank String name,
     @JsonProperty("requirement_integration_id") String integrationId,
     @JsonProperty("requirement_status") Status status) {}

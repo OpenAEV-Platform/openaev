@@ -51,12 +51,12 @@ public class CatalogScenarioRequirements {
     private final Set<String> injectors =
         injectorService.findAll().stream().map(Injector::getType).collect(Collectors.toSet());
     // An injector is enabled from the catalogue integration of the same slug, when there is one.
-    private final Map<String, String> integrationsBySlug =
+    private final Map<String, CatalogConnector> integrationsBySlug =
         catalogConnectorService.findAll().stream()
             .filter(connector -> connector.getSlug() != null)
             .collect(
                 Collectors.toMap(
-                    CatalogConnector::getSlug, CatalogConnector::getId, (first, other) -> first));
+                    CatalogConnector::getSlug, Function.identity(), (first, other) -> first));
     private final Function<String, Status> integrationStatus;
 
     private Checker(Function<String, Status> integrationStatus) {
@@ -71,7 +71,8 @@ public class CatalogScenarioRequirements {
       }
       if (requires.openaev() != null
           && !VersionConstraint.allows(requires.openaev(), platformVersion)) {
-        missing.add(new MissingRequirement("OpenAEV " + requires.openaev(), null, null));
+        String label = "OpenAEV " + requires.openaev();
+        missing.add(new MissingRequirement(label, label, null, null));
       }
       Optional.ofNullable(requires.injectors()).orElse(List.of()).stream()
           .filter(type -> !injectors.contains(type))
@@ -80,9 +81,17 @@ public class CatalogScenarioRequirements {
     }
 
     private MissingRequirement injector(String type) {
-      String integrationId = integrationsBySlug.get(type);
+      String label = "Injector " + type;
+      Optional<CatalogConnector> integration = Optional.ofNullable(integrationsBySlug.get(type));
+      String integrationId = integration.map(CatalogConnector::getId).orElse(null);
       return new MissingRequirement(
-          "Injector " + type, integrationId, integrationStatus.apply(integrationId));
+          label,
+          integration
+              .map(CatalogConnector::getTitle)
+              .filter(title -> !title.isBlank())
+              .orElse(label),
+          integrationId,
+          integrationStatus.apply(integrationId));
     }
   }
 
