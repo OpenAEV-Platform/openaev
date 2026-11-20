@@ -19,6 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.api.catalog.dto.action.AvailableActionOutput;
 import io.openaev.database.model.Filters;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CatalogItemFixture.Item;
@@ -232,7 +233,8 @@ class CatalogAvailableSearchApiTest extends IntegrationTest {
       result
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.totalElements").value(3))
-          .andExpect(jsonPath("$.content[*].action_id", contains(INTEGRATION_ACTION)));
+          .andExpect(jsonPath("$.content[*].action_id", contains(INTEGRATION_ACTION)))
+          .andExpect(jsonPath("$.content[0].action_kind").value(AvailableActionOutput.INTEGRATION));
     }
 
     @Test
