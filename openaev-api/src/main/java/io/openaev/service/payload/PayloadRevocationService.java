@@ -3,7 +3,6 @@ package io.openaev.service.payload;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Payload;
-import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.database.model.payload.PayloadRevocation;
 import io.openaev.database.repository.PayloadRevocationRepository;
 import io.openaev.rest.exception.AlreadyExistingException;
@@ -11,7 +10,6 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.UserService;
-import io.openaev.service.catalog.event.CatalogChangePublisher;
 import io.openaev.service.catalog.payload.CatalogPayloadStatuses;
 import java.util.Collection;
 import java.util.Map;
@@ -35,7 +33,6 @@ public class PayloadRevocationService {
   private final PayloadRevocationRepository payloadRevocationRepository;
   private final UserService userService;
   private final CatalogPayloadStatuses catalogPayloadStatuses;
-  private final CatalogChangePublisher changePublisher;
 
   // -- CREATE --
 
@@ -45,9 +42,8 @@ public class PayloadRevocationService {
     if (isRevoked(tenantId, payloadId)) {
       throw new AlreadyExistingException(ALREADY_REVOKED);
     }
-    save(
-        PayloadRevocation.byAdmin(payload, reason, userService.currentUserOrNull()),
-        CatalogHistory.Mode.MANUAL);
+    payloadRevocationRepository.save(
+        PayloadRevocation.byAdmin(payload, reason, userService.currentUserOrNull()));
   }
 
   // -- READ --
@@ -117,12 +113,12 @@ public class PayloadRevocationService {
           .filter(revoked::is)
           .filter(payload -> !revocations.containsKey(payload.getId()))
           .forEach(
-              payload -> save(PayloadRevocation.byCatalogue(payload), CatalogHistory.Mode.AUTO));
+              payload -> payloadRevocationRepository.save(PayloadRevocation.byCatalogue(payload)));
     }
     revocations.values().stream()
         .filter(PayloadRevocation::isByCatalogue)
         .filter(revocation -> catalogue.clears(revocation.getPayload()))
-        .forEach(revocation -> delete(revocation, CatalogHistory.Mode.AUTO));
+        .forEach(payloadRevocationRepository::delete);
   }
 
   // -- DELETE --
@@ -132,18 +128,6 @@ public class PayloadRevocationService {
     if (catalogPayloadStatuses.current().revokes(payloadService.payload(tenantId, payloadId))) {
       throw new BadRequestException(LIFT_REFUSED);
     }
-    delete(revocation(tenantId, payloadId), CatalogHistory.Mode.MANUAL);
-  }
-
-  // -- STEPS --
-
-  private void save(PayloadRevocation revocation, CatalogHistory.Mode mode) {
-    payloadRevocationRepository.save(revocation);
-    changePublisher.changed(revocation.getPayload(), CatalogHistory.Action.REVOKE, mode);
-  }
-
-  private void delete(PayloadRevocation revocation, CatalogHistory.Mode mode) {
-    payloadRevocationRepository.delete(revocation);
-    changePublisher.changed(revocation.getPayload(), CatalogHistory.Action.LIFT_REVOCATION, mode);
+    payloadRevocationRepository.delete(revocation(tenantId, payloadId));
   }
 }
