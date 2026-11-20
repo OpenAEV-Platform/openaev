@@ -241,4 +241,6 @@ public interface RawScenario {
   String getScenario_scheduled_by_lastname();
 
   String getScenario_scheduled_by_email();
+
+  String getScenario_catalog_version();
 }

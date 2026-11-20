@@ -23,6 +23,8 @@ public class CatalogHistory implements TenantBase {
   public enum Action {
     INSTALL,
     UNINSTALL,
+    REVOKE,
+    LIFT_REVOCATION,
     UPDATE,
     ROLLBACK
   }

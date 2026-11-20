@@ -41,6 +41,13 @@ public interface AssetRepository
   }
 
   /**
+   * Hostname lookup scoped by the transaction alone (the statement inspector restricts the rows to
+   * the request's tenant scope and markings). Hostnames are stored lower-case, so callers pass
+   * lower-case keys. Used by the XTM counterpart lookup another product runs on our assets.
+   */
+  List<Asset> findAllByHostnameIn(Collection<String> hostnames);
+
+  /**
    * Feeds the {@code asset} search index with the whole asset inventory: every asset type except
    * security platforms, which have their own index and never surface in the inventory (mirrors
    * {@code AssetService.searchAssets}). Host-only columns come from the Endpoint subclass rows of

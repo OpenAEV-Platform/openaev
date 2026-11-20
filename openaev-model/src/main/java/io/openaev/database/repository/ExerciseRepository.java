@@ -474,4 +474,23 @@ public interface ExerciseRepository
       nativeQuery = true)
   List<RawSimulationIndexing> findForIndexing(
       @Param("from") Instant from, @Param("limit") int limit);
+
+  /**
+   * Simulations run from each of the given scenarios, with the start of the latest one: the key
+   * facts another XTM product shows next to its scenario pivot. One row per scenario with at least
+   * one simulation.
+   */
+  @Query(
+      "SELECT e.scenario.id AS scenarioId, COUNT(e) AS simulations, MAX(e.start) AS lastStart"
+          + " FROM Exercise e WHERE e.scenario.id IN :scenarioIds GROUP BY e.scenario.id")
+  List<ScenarioSimulationsRow> countSimulationsByScenarioIdIn(
+      @Param("scenarioIds") Collection<String> scenarioIds);
+
+  interface ScenarioSimulationsRow {
+    String getScenarioId();
+
+    long getSimulations();
+
+    Instant getLastStart();
+  }
 }
