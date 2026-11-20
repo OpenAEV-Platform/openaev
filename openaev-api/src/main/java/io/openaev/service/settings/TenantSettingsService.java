@@ -162,6 +162,21 @@ public class TenantSettingsService {
             });
   }
 
+  /**
+   * Set a tenant setting to {@code value} only when it has no value yet (absent or blank).
+   *
+   * @return true when the setting was written
+   */
+  public boolean setSettingIfBlank(
+      @NotBlank String tenantId, @NotBlank String key, @NotBlank String value) {
+    Optional<Setting> current = settingRepository.findByKeyAndTenantId(key, tenantId);
+    if (current.isPresent() && StringUtils.hasText(current.get().getValue())) {
+      return false;
+    }
+    upsert(new Tenant(tenantId), key, value);
+    return true;
+  }
+
   // -- Private helpers --
 
   private Map<String, Setting> loadTenantSettings(@NotBlank String tenantId) {

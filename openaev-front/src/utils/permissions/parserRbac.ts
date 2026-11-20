@@ -26,6 +26,8 @@ type ParsedGrantByAction = [Actions, Subjects, string[] ] [];
 
 // Grant resource types that live in the Threat Arsenal (PAYLOAD is the deprecated name)
 const THREAT_ARSENAL_RESOURCE_TYPES: UserGrant['type'][] = ['THREAT_ARSENAL', 'PAYLOAD'];
+// Grant resource types that live in the Scenarios, Simulations and Atomic Testings
+const ASSESSMENT_RESOURCE_TYPES: UserGrant['type'][] = ['SCENARIO', 'SIMULATION', 'ATOMIC_TESTING'];
 
 export function parseGrants(grants: Record<string, UserGrant>): ParsedGrantByAction | null {
   const grouped: Partial<Record<Subjects, Partial<Record<Actions, string[]>>>> = {};
@@ -45,6 +47,8 @@ export function parseGrants(grants: Record<string, UserGrant>): ParsedGrantByAct
       add(SUBJECTS.RESOURCE, action, id);
       if (THREAT_ARSENAL_RESOURCE_TYPES.includes(type)) {
         add(SUBJECTS.THREAT_ARSENAL_RESOURCE, action, id);
+      } else if (ASSESSMENT_RESOURCE_TYPES.includes(type)) {
+        add(SUBJECTS.ASSESSMENT_RESOURCE, action, id);
       }
     }
   }

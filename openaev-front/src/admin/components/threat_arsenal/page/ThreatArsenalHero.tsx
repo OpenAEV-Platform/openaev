@@ -1,17 +1,14 @@
-import { type FunctionComponent, useEffect, useState } from 'react';
+import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 
 import { searchThreatArsenalActions } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import MarketplaceHero from '../../../../components/common/marketplace/page/MarketplaceHero';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../../components/i18n';
-import { type ThreatArsenalAction } from '../../../../utils/api-types';
-import { Can } from '../../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import CreateThreatArsenalAction from '../CreateThreatArsenalAction';
 
-interface Props { onCreate: (action: ThreatArsenalAction) => void }
+interface Props { action: ReactNode }
 
-const ThreatArsenalHero: FunctionComponent<Props> = ({ onCreate }) => {
+// Same header on both tabs: only its action changes.
+const ThreatArsenalHero: FunctionComponent<Props> = ({ action }) => {
   const { t } = useFormatter();
   // The whole arsenal, never the current page or filters.
   const [active, setActive] = useState(0);
@@ -32,11 +29,7 @@ const ThreatArsenalHero: FunctionComponent<Props> = ({ onCreate }) => {
         icon: 'layers-2',
         to: '/admin/threat-arsenal',
       }]}
-      action={(
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
-          <CreateThreatArsenalAction onCreate={onCreate} />
-        </Can>
-      )}
+      action={action}
     />
   );
 };

@@ -1965,6 +1965,45 @@ export interface AutonomousTriggerFilter {
   value?: string;
 }
 
+export type AvailableActionOutput = BaseAvailableActionOutput &
+  (
+    | BaseAvailableActionOutputActionKindMapping<
+        "PAYLOAD",
+        AvailablePayloadActionOutput
+      >
+    | BaseAvailableActionOutputActionKindMapping<
+        "INTEGRATION",
+        AvailableIntegrationActionOutput
+      >
+  );
+
+export type AvailableIntegrationActionOutput = BaseAvailableActionOutput & {
+  action_attack_patterns: string[];
+  action_domain?: string;
+  /** @minLength 1 */
+  action_id: string;
+  /** @minLength 1 */
+  action_integration_id: string;
+  action_integration_logo_url?: string;
+  /** @minLength 1 */
+  action_integration_title: string;
+  action_labels: Record<string, string>;
+  action_platforms: string[];
+};
+
+export type AvailablePayloadActionOutput = BaseAvailableActionOutput & {
+  action_domain?: string;
+  /** @minLength 1 */
+  action_id: string;
+  action_labels: Record<string, string>;
+  action_payload_description?: string;
+  /** @format date-time */
+  action_payload_published_at?: string;
+  /** @minLength 1 */
+  action_payload_version: string;
+  action_platforms: string[];
+};
+
 export type AverageConfiguration = UtilRequiredKeys<
   WidgetConfiguration,
   "widget_configuration_type" | "time_range" | "date_attribute"
@@ -2083,6 +2122,14 @@ export type AzureServicePrincipal = Value & {
   azure_subscription_id?: string;
   azure_tenant_id?: string;
 };
+
+interface BaseAvailableActionOutput {
+  action_kind: string;
+}
+
+type BaseAvailableActionOutputActionKindMapping<Key, Type> = {
+  action_kind: Key;
+} & Type;
 
 interface BaseEsBase {
   /** @format date-time */
@@ -2586,9 +2633,14 @@ export interface CatalogInstallOutput {
 }
 
 export interface CatalogPayloadOutput {
+  catalog_payload_description?: string;
+  catalog_payload_domain?: string;
   /** @minLength 1 */
   catalog_payload_external_id: string;
   catalog_payload_name?: string;
+  catalog_payload_platforms: string[];
+  /** @format date-time */
+  catalog_payload_published_at?: string;
   /** @minLength 1 */
   catalog_payload_version: string;
 }
@@ -2598,9 +2650,29 @@ export interface CatalogScenarioInstallInput {
 }
 
 export interface CatalogScenarioOutput {
+  catalog_scenario_author?: string;
+  catalog_scenario_category?: string;
+  catalog_scenario_description?: string;
   /** @minLength 1 */
   catalog_scenario_external_id: string;
+  catalog_scenario_missing_requirements: string[];
   catalog_scenario_name?: string;
+  catalog_scenario_platforms: string[];
+  /** @format date-time */
+  catalog_scenario_published_at?: string;
+  catalog_scenario_type: string;
+  /** @minLength 1 */
+  catalog_scenario_version: string;
+}
+
+export interface CatalogScenarioVersionOutput {
+  catalog_scenario_changelog?: string;
+  /** @format int32 */
+  catalog_scenario_injects_count?: number;
+  catalog_scenario_main_focus?: string;
+  /** @format date-time */
+  catalog_scenario_published_at?: string;
+  catalog_scenario_severity?: string;
   /** @minLength 1 */
   catalog_scenario_version: string;
 }
@@ -3835,6 +3907,27 @@ export interface CustomDashboardParametersInput {
     | "startDate"
     | "endDate"
     | "scenario";
+}
+
+/** Scenarios, simulations and tenant defaults that use a custom dashboard */
+export interface CustomDashboardUsageOutput {
+  custom_dashboard_id: string;
+  /** The dashboard is the tenant default home dashboard (delete refused) */
+  default_home_dashboard: boolean;
+  /** The dashboard is the tenant default scenario dashboard */
+  default_scenario_dashboard: boolean;
+  /** The dashboard is the tenant default simulation dashboard */
+  default_simulation_dashboard: boolean;
+  /**
+   * Scenarios that show this dashboard in their Analysis tab
+   * @format int64
+   */
+  scenarios_count: number;
+  /**
+   * Simulations that show this dashboard in their Analysis tab
+   * @format int64
+   */
+  simulations_count: number;
 }
 
 export interface CustomDomain {
@@ -10555,6 +10648,8 @@ export interface PlatformSettings {
   postgre_version?: string;
   /** Current version of RabbitMQ */
   rabbitmq_version?: string;
+  /** Settings an administrator may change at runtime, each with its value in force and its source: env (environment variable, read-only), ui or default */
+  runtime_settings?: RuntimeSettingOutput[];
   /** SMTP Service availability */
   smtp_service_available?: string;
   /** True if telemetry manager enable */
@@ -11473,6 +11568,49 @@ export interface RuleAttributeUpdateInput {
   rule_attribute_name: string;
 }
 
+/** A platform setting an administrator may change unless its env var is set */
+export interface RuntimeSettingOutput {
+  /** Only effective with an Enterprise Edition license */
+  enterprise_only: boolean;
+  /**
+   * Environment variable that pins the setting when set
+   * @minLength 1
+   */
+  env_var: string;
+  /**
+   * Setting key
+   * @minLength 1
+   */
+  key: string;
+  /** True when the environment variable is set: the UI is read-only */
+  locked: boolean;
+  /**
+   * Highest value, for an integer
+   * @format int32
+   */
+  max?: number;
+  /**
+   * Lowest value, for an integer
+   * @format int32
+   */
+  min?: number;
+  /**
+   * Where the value comes from: env (environment variable, read-only), ui (set by an administrator) or default (configuration default)
+   * @minLength 1
+   */
+  source: "env" | "ui" | "default";
+  /**
+   * Value type
+   * @minLength 1
+   */
+  type: "integer" | "boolean";
+  /**
+   * Value in force, as text
+   * @minLength 1
+   */
+  value: string;
+}
+
 export interface Scenario {
   listened?: boolean;
   /** @format int64 */
@@ -11601,6 +11739,11 @@ export interface ScenarioInput {
   scenario_tags?: string[];
 }
 
+export interface ScenarioLaunchOutput {
+  /** @minLength 1 */
+  simulation_id: string;
+}
+
 export interface ScenarioOutput {
   /** Lesson anonymized state of the scenario */
   lessonsAnonymized?: boolean;
@@ -11709,6 +11852,13 @@ export interface ScenarioSimple {
 
 export interface ScenarioStatistic {
   simulations_results_latest: SimulationsResultsLatest;
+}
+
+export interface ScenarioTargetsInput {
+  asset_group_ids?: string[];
+  asset_ids?: string[];
+  manual_targets?: string[];
+  team_ids?: string[];
 }
 
 export interface ScenarioTeamPlayersEnableInput {
@@ -12293,6 +12443,11 @@ export interface SettingsPlatformWhitemarkUpdateInput {
   platform_whitemark: string;
 }
 
+export interface SettingsRuntimeUpdateInput {
+  /** Runtime settings to store, by key (inject_execution_threshold_minutes, agent_max_simultaneous_jobs, agent_queue_threshold, agent_auto_update_enabled). A setting whose environment variable is set is refused */
+  settings: Record<string, any>;
+}
+
 export interface SettingsSessionsUpdateInput {
   /**
    * Maximum number of concurrent sessions per user (0 = unlimited)
@@ -12457,6 +12612,16 @@ export interface SortObject {
   empty?: boolean;
   sorted?: boolean;
   unsorted?: boolean;
+}
+
+/** Starter-pack dashboards restored and tenant defaults set back */
+export interface StarterPackDashboardsRestoreOutput {
+  /** Tenant default dashboard settings that were empty and are set back */
+  defaults_set: string[];
+  /** Names of the starter-pack dashboards that already existed */
+  existing_dashboards: string[];
+  /** Names of the dashboards created by this restore */
+  restored_dashboards: string[];
 }
 
 export interface StatusPayload {

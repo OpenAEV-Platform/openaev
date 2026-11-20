@@ -41,14 +41,12 @@ io.openaev.database.audit.TenantIdBaseListener#manageTenant | TenantContext.getC
 io.openaev.database.model.BaseConnectorEntity#resolveCompositeId | TenantContext.getCurrentTenant | 1 | storage key or connector id derives from the ambient tenant
 io.openaev.database.model.ConnectorInstancePersisted | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.Cwe | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
-io.openaev.database.model.Exercise | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.Finding | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.ImportMapper | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.Inject | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.InjectorContract#resolveCompositeId | TenantContext.getCurrentTenant | 1 | entity getter reads the ambient tenant as the owning tenant
 io.openaev.database.model.InjectorInjectorContract#<init> | TenantContext.getCurrentTenant | 1 | entity getter reads the ambient tenant as the owning tenant
 io.openaev.database.model.Mitigation | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
-io.openaev.database.model.Scenario | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.Secret | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.SecretReference | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.User#getOrganization | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
@@ -61,25 +59,10 @@ io.openaev.database.repository.AssetGroupRepository#findAllBySimulationOrScenari
 io.openaev.database.repository.EndpointRepository#findAllBySimulationOrScenarioIdAndName | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
 io.openaev.database.repository.ExerciseRepository#findAllOptionByNameLinkedToFindings | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
 io.openaev.database.repository.ExerciseRepository#findAllOptionByNameLinkedToFindingsWithContext | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ExerciseRepository#findLatestExerciseIdsByStatus | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ExerciseRepository#rawAll | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ExerciseRepository#rawAllByScenarioIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ExerciseRepository#rawAllGranted | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ExerciseRepository#rawByExerciseIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ExerciseRepository#rawDetailsById | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ExerciseRepository#rawGrantedByExerciseIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ExerciseRepository#rawLatestFinishedExercisesWithInjectsByScenarioId | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
 io.openaev.database.repository.InjectRepository#findAllByTitleLinkedToFindings | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
 io.openaev.database.repository.InjectRepository#findAllByTitleLinkedToFindingsWithContext | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
 io.openaev.database.repository.InjectRepository#findAllIdsForChallengeId | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
 io.openaev.database.repository.InjectRepository#findContentTargetContentsByExerciseIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ScenarioRepository#findDistinctCategoriesBySearchTerm | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ScenarioRepository#getScenarioByIdAndTenantId | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ScenarioRepository#rawAll | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ScenarioRepository#rawAllByExternalReference | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ScenarioRepository#rawAllGranted | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ScenarioRepository#rawByScenarioIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ScenarioRepository#rawGrantedByScenarioIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
 io.openaev.debug.DebugTenantSource#currentTenant | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
 io.openaev.executors.caldera.service.CalderaExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
 io.openaev.executors.caldera.service.CalderaExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
@@ -156,6 +139,7 @@ io.openaev.rest.reporting.service.PlaywrightReportingRenderer#submit | TenantCon
 io.openaev.rest.reporting.service.ReportingScheduleService#executeSchedule | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.rest.reporting.service.ReportingScheduleService#executeSchedule | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.rest.scenario.ScenarioApi#createScenarioWithInjectorContracts | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
+io.openaev.rest.scenario.ScenarioApi#updateScenariosWithInjectorContracts | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
 io.openaev.rest.security.SecurityExpression#isExercisePlayer | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
 io.openaev.rest.security.SecurityExpression#isSimulationObserver | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
 io.openaev.rest.security.SecurityExpression#isSimulationPlanner | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
