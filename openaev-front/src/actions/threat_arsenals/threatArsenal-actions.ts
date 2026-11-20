@@ -31,7 +31,7 @@ export const updateThreatArsenalAction = (actionId: string, data: ThreatArsenalA
   return simplePutCall(uri, data, {}, true, true);
 };
 
-export const fetchThreatArsenalVersions = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/versions`);
+export const fetchThreatArsenalVersions = (actionId: string, notifyError = true) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/versions`, undefined, notifyError);
 
 export const fetchThreatArsenalUsages = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/usages`);
 
