@@ -312,7 +312,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
                         number: revisionNumber ?? '',
                         details: revisionDetails,
                       })}
-                  {` ${t('You can undo it later from Versions.')}`}
+                  {` ${t('You can roll back later from Versions.')}`}
                 </Text>
                 {(() => {
                   const added = preview.elements.filter(element => element.change === 'ADDED').length;

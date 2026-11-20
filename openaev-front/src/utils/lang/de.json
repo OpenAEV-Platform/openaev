@@ -4982,7 +4982,7 @@
   "After the update · v{version}": "Nach dem Update · v{version}",
   "After the rollback · revision #{number} (v{version})": "Nach dem Zurücksetzen · Revision #{number} (v{version})",
   "After the rollback · revision #{number}": "Nach dem Zurücksetzen · Revision #{number}",
-  "You can undo it later from Versions.": "Sie können dies später unter Versionen rückgängig machen.",
   "Scenario updated to v{version}. To undo, roll back from Versions.": "Szenario auf v{version} aktualisiert. Zum Rückgängigmachen unter Versionen zurücksetzen.",
-  "Scenario rolled back. To undo, roll back again from Versions.": "Szenario zurückgesetzt. Zum Rückgängigmachen unter Versionen erneut zurücksetzen."
+  "Scenario rolled back. To undo, roll back again from Versions.": "Szenario zurückgesetzt. Zum Rückgängigmachen unter Versionen erneut zurücksetzen.",
+  "You can roll back later from Versions.": "Sie können später unter Versionen zurücksetzen."
 }

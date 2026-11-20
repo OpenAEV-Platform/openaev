@@ -4982,7 +4982,7 @@
   "After the update · v{version}": "更新後 · v{version}",
   "After the rollback · revision #{number} (v{version})": "ロールバック後 · リビジョン #{number} (v{version})",
   "After the rollback · revision #{number}": "ロールバック後 · リビジョン #{number}",
-  "You can undo it later from Versions.": "後で「バージョン」から元に戻せます。",
   "Scenario updated to v{version}. To undo, roll back from Versions.": "シナリオを v{version} に更新しました。元に戻すには「バージョン」からロールバックしてください。",
-  "Scenario rolled back. To undo, roll back again from Versions.": "シナリオをロールバックしました。元に戻すには「バージョン」から再度ロールバックしてください。"
+  "Scenario rolled back. To undo, roll back again from Versions.": "シナリオをロールバックしました。元に戻すには「バージョン」から再度ロールバックしてください。",
+  "You can roll back later from Versions.": "後で「バージョン」からロールバックできます。"
 }
