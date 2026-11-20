@@ -39,14 +39,22 @@ register() {
   # The agent version must match the platform's, or registration queues an upgrade job
   local version
   version=$(curl -sS "$URL/api/settings" -H "Authorization: Bearer $TOKEN" | jq -r '.platform_version')
+  # A MAC (and IP) of its own, stable per name: a new agent joins the endpoint of any matching MAC,
+  # so a shared one would put every fake agent on the first one's endpoint
+  local hash mac ip
+  hash=$(printf '%s' "$name" | cksum | cut -d' ' -f1)
+  mac=$(printf '02:66:%02x:%02x:%02x:%02x' $(((hash >> 24) & 255)) $(((hash >> 16) & 255)) \
+    $(((hash >> 8) & 255)) $((hash & 255)))
+  ip="10.66.$(((hash >> 8) & 255)).$((hash % 254 + 1))"
   # Registering again refreshes last seen: an agent unseen for 1h is inactive and never dispatched
   local endpoint
-  endpoint=$(call POST "$API/endpoints/register" "$(jq -n --arg n "$name" --arg v "$version" '{
+  endpoint=$(call POST "$API/endpoints/register" "$(jq -n --arg n "$name" --arg v "$version" \
+    --arg mac "$mac" --arg ip "$ip" '{
     asset_name: $n,
     asset_external_reference: ("ext-" + $n),
     asset_hostname: $n,
-    asset_ips: ["10.66.0.42"],
-    asset_mac_addresses: ["02:66:00:00:00:42"],
+    asset_ips: [$ip],
+    asset_mac_addresses: [$mac],
     endpoint_platform: "Linux",
     endpoint_arch: "x86_64",
     endpoint_agent_version: $v,
