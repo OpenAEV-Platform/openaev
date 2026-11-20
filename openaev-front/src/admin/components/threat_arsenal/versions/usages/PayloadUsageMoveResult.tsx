@@ -1,8 +1,8 @@
 import { Alert, Button } from '@filigran/design-system';
 import { type FunctionComponent } from 'react';
 
-import { useFormatter } from '../../../../components/i18n';
-import { type PayloadUsageRefusal } from '../../../../utils/api-types';
+import { useFormatter } from '../../../../../components/i18n';
+import { type PayloadUsageRefusal } from '../../../../../utils/api-types';
 import { type UsageMove } from './useUsageMove';
 
 const REFUSAL_LABELS: Record<PayloadUsageRefusal['reason'], string> = {

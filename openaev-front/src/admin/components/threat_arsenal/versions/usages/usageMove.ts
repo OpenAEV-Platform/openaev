@@ -1,5 +1,5 @@
-import { moveThreatArsenalUsages } from '../../../../actions/threat_arsenals/threatArsenal-actions';
-import { type PayloadUsageMoveOutput, type PayloadUsageOutput, type PayloadVersionOutput } from '../../../../utils/api-types';
+import { moveThreatArsenalUsages } from '../../../../../actions/threat_arsenals/threatArsenal-actions';
+import { type PayloadUsageMoveOutput, type PayloadUsageOutput, type PayloadVersionOutput } from '../../../../../utils/api-types';
 
 // Where the usages of a version can go, the latest picked first: a revoked version would refuse them all.
 export const moveTargets = (versions: PayloadVersionOutput[], sourceId: string) => {

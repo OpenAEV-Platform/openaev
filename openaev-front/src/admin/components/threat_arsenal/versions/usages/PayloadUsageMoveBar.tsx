@@ -2,9 +2,9 @@ import { Button, Spinner, Text } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
-import { fdsTableSectionStyle } from '../../../../components/common/fdsTableSpec';
-import { useFormatter } from '../../../../components/i18n';
-import PayloadVersionSelect from './PayloadVersionSelect';
+import { fdsTableSectionStyle } from '../../../../../components/common/fdsTableSpec';
+import { useFormatter } from '../../../../../components/i18n';
+import PayloadVersionSelect from '../PayloadVersionSelect';
 import { type UsageMove } from './useUsageMove';
 
 interface Props { move: UsageMove }

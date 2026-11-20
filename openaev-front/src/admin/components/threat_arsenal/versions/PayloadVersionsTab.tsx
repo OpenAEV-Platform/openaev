@@ -10,12 +10,12 @@ import { type PayloadVersionOutput } from '../../../../utils/api-types';
 import useCountLabel from '../../../../utils/hooks/useCountLabel';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import PayloadUsageMoveBar from './PayloadUsageMoveBar';
-import PayloadUsageMoveResult from './PayloadUsageMoveResult';
+import PayloadUsageMoveBar from './usages/PayloadUsageMoveBar';
+import PayloadUsageMoveResult from './usages/PayloadUsageMoveResult';
 import PayloadUsagesTable from './usages/PayloadUsagesTable';
 import { usageCount } from './usages/usageCounts';
+import useUsageMove from './usages/useUsageMove';
 import useVersionUsages from './usages/useVersionUsages';
-import useUsageMove from './useUsageMove';
 
 interface VersionProps {
   version: PayloadVersionOutput;

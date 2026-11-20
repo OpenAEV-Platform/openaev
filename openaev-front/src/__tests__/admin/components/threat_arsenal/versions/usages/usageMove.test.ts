@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { moveTargets, moveUsages } from '../../../../../admin/components/threat_arsenal/versions/usageMove';
-import { type PayloadUsageOutput, type PayloadVersionOutput } from '../../../../../utils/api-types';
+import { moveTargets, moveUsages } from '../../../../../../admin/components/threat_arsenal/versions/usages/usageMove';
+import { type PayloadUsageOutput, type PayloadVersionOutput } from '../../../../../../utils/api-types';
 
 const mocks = vi.hoisted(() => ({ moveThreatArsenalUsages: vi.fn() }));
 
-vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({ moveThreatArsenalUsages: mocks.moveThreatArsenalUsages }));
+vi.mock('../../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({ moveThreatArsenalUsages: mocks.moveThreatArsenalUsages }));
 
 const version = (id: string, latest = false, revoked = false): PayloadVersionOutput => ({
   payload_id: id,

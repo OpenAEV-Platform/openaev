@@ -868,8 +868,8 @@
         "openaev-front/src/utils/ai/ResponseDialog.tsx",
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectionBar.tsx",
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadUsageMoveBar.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadUsageMoveResult.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveBar.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx"
       ]
     },
     {
@@ -950,7 +950,7 @@
       "files": [
         "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationBanner.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadUsageMoveResult.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx"
       ]
     },
     {

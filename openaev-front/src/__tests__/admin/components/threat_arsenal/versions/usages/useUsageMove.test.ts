@@ -1,12 +1,12 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import useUsageMove from '../../../../../admin/components/threat_arsenal/versions/useUsageMove';
-import { type PayloadUsagesOutput, type PayloadVersionOutput } from '../../../../../utils/api-types';
+import useUsageMove from '../../../../../../admin/components/threat_arsenal/versions/usages/useUsageMove';
+import { type PayloadUsagesOutput, type PayloadVersionOutput } from '../../../../../../utils/api-types';
 
 const mocks = vi.hoisted(() => ({ moveThreatArsenalUsages: vi.fn() }));
 
-vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({ moveThreatArsenalUsages: mocks.moveThreatArsenalUsages }));
+vi.mock('../../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({ moveThreatArsenalUsages: mocks.moveThreatArsenalUsages }));
 
 const version = (id: string, latest = false): PayloadVersionOutput => ({
   payload_id: id,

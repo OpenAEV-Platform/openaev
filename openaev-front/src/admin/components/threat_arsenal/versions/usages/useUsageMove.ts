@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-import { type PayloadUsageMoveOutput, type PayloadUsageOutput, type PayloadUsagesOutput, type PayloadVersionOutput } from '../../../../utils/api-types';
-import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
+import { type PayloadUsageMoveOutput, type PayloadUsageOutput, type PayloadUsagesOutput, type PayloadVersionOutput } from '../../../../../utils/api-types';
+import useEntityToggle from '../../../../../utils/hooks/useEntityToggle';
 import { moveTargets, moveUsages } from './usageMove';
 
 interface Options {

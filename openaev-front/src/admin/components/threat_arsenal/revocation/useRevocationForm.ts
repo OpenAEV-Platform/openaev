@@ -4,7 +4,7 @@ import { liftPayloadRevocation, revokePayload } from '../../../../actions/payloa
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadVersionOutput } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
-import { moveTargets, moveUsages } from '../versions/usageMove';
+import { moveTargets, moveUsages } from '../versions/usages/usageMove';
 import useVersionUsages from '../versions/usages/useVersionUsages';
 
 interface Options {
