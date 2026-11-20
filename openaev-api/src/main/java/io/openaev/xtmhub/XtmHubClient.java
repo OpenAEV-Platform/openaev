@@ -66,9 +66,12 @@ public class XtmHubClient {
   // Bounds a Hub that never answers: the collector runs on a shared scheduler thread.
   static final Timeout NEWS_FEED_TIMEOUT = Timeout.ofSeconds(30);
   // What the Hub answers when the platform id and token headers do not match a registration: the
-  // error code when it sends one, else (older Hubs) a message containing one of these values.
+  // error code when it sends one, else (older Hubs) a message containing one of these values. The
+  // code is PLATFORM_NOT_REGISTERED from its resolver (e.g. a deployment request token), or
+  // UNAUTHENTICATED from its guard when it cannot build a platform principal: OpenAEV always sends
+  // both headers, so on this mutation UNAUTHENTICATED means a rejected token.
   private static final List<String> TOKEN_REJECTED_CODES =
-      List.of("PLATFORM_NOT_REGISTERED", "INVALID_PLATFORM_ID");
+      List.of("PLATFORM_NOT_REGISTERED", "INVALID_PLATFORM_ID", "UNAUTHENTICATED");
   private static final List<String> TOKEN_REJECTED_MESSAGES =
       List.of(
           "Invalid token provided",

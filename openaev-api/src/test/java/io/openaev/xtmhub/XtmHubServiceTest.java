@@ -1809,6 +1809,29 @@ class XtmHubServiceTest {
     }
 
     @Test
+    @DisplayName(
+        "Given an unauthenticated answer of the Hub guard, should fall back to the next tenant")
+    void given_unauthenticatedAnswer_should_fallBackToNextTenant() {
+      // Arrange
+      givenRegistrations(
+          registered("tenant-a", FIRST_TOKEN, now.minusDays(10)),
+          registered("tenant-b", SECOND_TOKEN, now.minusDays(1)));
+      givenHubAnswers(
+          FIRST_TOKEN,
+          200,
+          "{\"errors\":[{\"message\":\"Unauthorized\","
+              + "\"extensions\":{\"code\":\"UNAUTHENTICATED\"}}],\"data\":null}");
+      givenHubAnswers(SECOND_TOKEN, 200, ITEMS_RESPONSE);
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN, SECOND_TOKEN);
+      assertThat(createdItems()).extracting(ProvisionedNewsFeedItem::id).containsExactly("hub-1");
+    }
+
+    @Test
     @DisplayName("Given an error with an unrelated code, should stop after one attempt")
     void given_errorWithUnrelatedCode_should_stopAfterOneAttempt() {
       // Arrange

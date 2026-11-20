@@ -211,6 +211,21 @@ class XtmHubClientTest {
 
       @Test
       @DisplayName(
+          "Given the code the Hub guard sends without a platform principal, should report the"
+              + " token as rejected")
+      void given_unauthenticatedErrorCode_should_reportTokenRejected() throws Exception {
+        // Arrange
+        givenHubAnswers(
+            200,
+            "{\"errors\":[{\"message\":\"Unauthorized\","
+                + "\"extensions\":{\"code\":\"UNAUTHENTICATED\"}}],\"data\":null}");
+
+        // Act & Assert
+        assertThat(consume()).isInstanceOf(NewsFeedFetchResult.TokenRejected.class);
+      }
+
+      @Test
+      @DisplayName(
           "Given an unrelated code but a token message, should report the token as rejected")
       void given_unrelatedCodeAndTokenMessage_should_reportTokenRejected() throws Exception {
         // Arrange
