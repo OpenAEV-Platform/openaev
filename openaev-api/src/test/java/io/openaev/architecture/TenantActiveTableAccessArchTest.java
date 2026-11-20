@@ -2731,7 +2731,9 @@ class TenantActiveTableAccessArchTest {
               CatalogPayloadService.class,
               CatalogPayloadOfferService.class,
               // Reads the identity it is handed by the catalogue, to describe the change:
-              io.openaev.service.catalog.event.CatalogChangePublisher.class)
+              io.openaev.service.catalog.event.CatalogChangePublisher.class,
+              // Subquery of the Available tab search, run by CatalogPayloadOfferService:
+              io.openaev.database.specification.CatalogItemSpecification.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(PayloadIdentity.class)

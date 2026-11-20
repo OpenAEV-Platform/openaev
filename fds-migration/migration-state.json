@@ -604,7 +604,8 @@
         "openaev-front/src/components/common/marketplace/results/MarketplaceSectionHeader.tsx",
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
-        "openaev-front/src/components/common/marketplace/card/MarketplaceCardMeta.tsx"
+        "openaev-front/src/components/common/marketplace/card/MarketplaceCardMeta.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/catalog/CatalogPayloadInstallAction.tsx"
       ]
     },
     {
@@ -869,7 +870,9 @@
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectionBar.tsx",
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveBar.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/catalog/CatalogPayloadInstallAction.tsx",
+        "openaev-front/src/admin/components/scenarios/catalog/CatalogScenarioInstallButton.tsx"
       ]
     },
     {

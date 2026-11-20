@@ -6,7 +6,11 @@ import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /** An action of the catalogue the tenant does not have yet, by what brings it. */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = AvailableActionOutput.KIND)
+// Each kind writes its own: a page erases the type of its content, and the type id with it.
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.EXISTING_PROPERTY,
+    property = AvailableActionOutput.KIND)
 @JsonSubTypes({
   @JsonSubTypes.Type(
       value = AvailablePayloadActionOutput.class,

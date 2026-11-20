@@ -680,11 +680,13 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installAllPayloads",
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#uninstallPayload",
           // catalog_items, payload_identities, injectors: the Available tab of the Threat Arsenal.
-          "io.openaev.api.catalog.CatalogApi#actions",
+          "io.openaev.api.catalog.CatalogApi#searchActions",
+          "io.openaev.api.catalog.CatalogApi#actionFacetCounts",
           "io.openaev.api.catalog.CatalogApi#payloadVersions",
           "io.openaev.api.catalog.CatalogApi#payloadVersionContent",
           // catalog_items, scenario_identities: the Available tab of the Scenarios page.
-          "io.openaev.api.catalog.CatalogApi#scenarios",
+          "io.openaev.api.catalog.CatalogApi#searchScenarios",
+          "io.openaev.api.catalog.CatalogApi#scenarioFacetCounts",
           "io.openaev.api.catalog.CatalogApi#scenarioVersions",
           // exercises, injects: a scenario launched with targets for its simulation only.
           "io.openaev.api.scenario.ScenarioLaunchApi#launch",

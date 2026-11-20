@@ -73,7 +73,7 @@ public class CatalogItemMapper {
     target.setSeverity(item.severity());
     target.setCategory(item.category());
     target.setMainFocus(item.mainFocus());
-    target.setScenarioType(item.scenarioTypeOrType());
+    target.setScenarioType(CatalogScenarioType.of(item.scenarioTypeOrType()).name());
     target.setPlatforms(
         item.platforms() == null ? new String[0] : item.platforms().toArray(new String[0]));
     target.setInjectsCount(item.injectsCount());

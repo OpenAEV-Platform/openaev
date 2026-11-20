@@ -1,86 +1,82 @@
 import { Button } from '@filigran/design-system';
 import { RouteOutlined } from '@mui/icons-material';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
-import { fetchCatalogScenarios } from '../../../../actions/catalog/scenario-catalog-actions';
+import { fetchCatalogScenarioFacetCounts, searchCatalogScenarios } from '../../../../actions/catalog/scenario-catalog-actions';
 import EmptyPlaceholder from '../../../../components/common/EmptyPlaceholder';
+import MarketplaceCardMeta from '../../../../components/common/marketplace/card/MarketplaceCardMeta';
+import {
+  CATALOG_ITEM_DEFAULT_SORT,
+  CATALOG_ITEM_NAME,
+  CATALOG_ITEM_PLATFORM_FACET,
+  CATALOG_ITEM_PLATFORMS,
+  CATALOG_ITEM_PUBLISHED,
+  CATALOG_ITEM_SORT_OPTIONS,
+} from '../../../../components/common/marketplace/filter/catalogItemSearch';
+import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../../components/common/marketplace/filter/MarketplaceFacetSidebar';
+import useMarketplaceSearch from '../../../../components/common/marketplace/filter/useMarketplaceSearch';
+import useNotifyInstalled from '../../../../components/common/marketplace/install/useNotifyInstalled';
 import MarketplaceBrowser from '../../../../components/common/marketplace/page/MarketplaceBrowser';
+import MarketplaceCatalogTabs from '../../../../components/common/marketplace/page/MarketplaceCatalogTabs';
+import MarketplaceList, { type MarketplaceColumn } from '../../../../components/common/marketplace/results/MarketplaceList';
+import MarketplaceLoadMore from '../../../../components/common/marketplace/results/MarketplaceLoadMore';
 import MarketplaceSections from '../../../../components/common/marketplace/results/MarketplaceSections';
-import MarketplaceResultsCount from '../../../../components/common/marketplace/toolbar/MarketplaceResultsCount';
 import MarketplaceSortSelect from '../../../../components/common/marketplace/toolbar/MarketplaceSortSelect';
-import { type SortHelpers } from '../../../../components/common/queryable/sort/SortHelpers';
+import MarketplaceViewToggle from '../../../../components/common/marketplace/toolbar/MarketplaceViewToggle';
+import useMarketplaceView from '../../../../components/common/marketplace/toolbar/useMarketplaceView';
+import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../../components/i18n';
-import SearchFilter from '../../../../components/SearchFilter';
 import { type CatalogScenarioOutput } from '../../../../utils/api-types';
-import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { scenarioCategoryLabel } from '../constants';
 import ScenariosHero from '../page/ScenariosHero';
-import ScenariosTabs from '../page/ScenariosTabs';
-import {
-  type CatalogScenarioFilters,
-  type CatalogScenarioSort,
-  type FacetKey,
-  filterScenarios,
-  hasFilters,
-  NO_FILTERS,
-  type SortField,
-} from './catalogScenarioFilters';
+import { ScenarioTypeIcon } from '../scenario/ScenarioType';
+import CatalogScenarioInstallButton from './CatalogScenarioInstallButton';
 import CatalogScenarioInstallDrawer from './CatalogScenarioInstallDrawer';
+import { CATALOG_SCENARIO_TYPES, catalogScenarioType, scenarioTypeOf } from './catalogScenarioType';
 import ScenarioCatalogCard from './ScenarioCatalogCard';
 import ScenarioCatalogDrawer from './ScenarioCatalogDrawer';
-import ScenariosCatalogSidebar from './ScenariosCatalogSidebar';
 
-const SORT_OPTIONS = [
+const TYPE = 'catalog_item_scenario_type';
+const CATEGORY = 'catalog_item_category';
+const AUTHOR = 'catalog_item_author';
+
+const FACETS: MarketplaceFacet[] = [
   {
-    field: 'catalog_scenario_name',
-    label: 'Name',
+    key: TYPE,
+    label: 'Type',
+    values: CATALOG_SCENARIO_TYPES,
+    valueLabel: scenarioTypeOf,
+    icon: type => <ScenarioTypeIcon type={scenarioTypeOf(type)} />,
+  },
+  CATALOG_ITEM_PLATFORM_FACET,
+  {
+    key: CATEGORY,
+    label: 'Category',
+    valueLabel: scenarioCategoryLabel,
   },
   {
-    field: 'catalog_scenario_published_at',
-    label: 'Published',
+    key: AUTHOR,
+    label: 'Author',
   },
 ];
 
-// The catalogue scenarios the tenant has not installed, filtered and sorted in memory: the catalogue is small.
+// The catalogue scenarios the tenant has not installed.
 const ScenariosAvailable = () => {
-  const { t } = useFormatter();
+  const { t, nsd } = useFormatter();
+  const notifyInstalled = useNotifyInstalled();
   const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
-  const [scenarios, setScenarios] = useState<CatalogScenarioOutput[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<CatalogScenarioFilters>(NO_FILTERS);
-  const [sort, setSort] = useState<CatalogScenarioSort>({
-    field: 'catalog_scenario_name',
-    asc: true,
-  });
+  const { viewMode, handleViewModeChange } = useMarketplaceView('scenarios-catalog:view-mode');
   const [opened, setOpened] = useState<CatalogScenarioOutput | null>(null);
   const [installing, setInstalling] = useState<CatalogScenarioOutput | null>(null);
-
-  useEffect(() => {
-    fetchCatalogScenarios()
-      .then(setScenarios)
-      .catch(() => undefined)
-      .finally(() => setLoading(false));
-  }, []);
-
-  const sortHelpers: SortHelpers = {
-    getSortBy: () => sort.field,
-    getSortAsc: () => sort.asc,
-    handleDirectedSort: (field, asc) => setSort({
-      field: field as SortField,
-      asc,
-    }),
-    handleSort: field => setSort({
-      field: field as SortField,
-      asc: field === sort.field ? !sort.asc : true,
-    }),
-  };
-  const toggleFacet = (key: FacetKey, value: string) => setFilters(previous => ({
-    ...previous,
-    [key]: previous[key].includes(value) ? previous[key].filter(v => v !== value) : [...previous[key], value],
-  }));
-  const shown = filterScenarios(scenarios, filters, sort);
-  const filtered = hasFilters(filters);
+  const catalog = useMarketplaceSearch<CatalogScenarioOutput>({
+    storageKey: 'scenarios-catalog',
+    defaultSort: CATALOG_ITEM_DEFAULT_SORT,
+    search: searchCatalogScenarios,
+    fetchFacetCounts: fetchCatalogScenarioFacetCounts,
+  });
+  const { queryableHelpers, searchPaginationInput } = catalog;
 
   const install = (scenario: CatalogScenarioOutput) => {
     setOpened(null);
@@ -88,66 +84,112 @@ const ScenariosAvailable = () => {
   };
   // An installed scenario leaves this tab for the Active one.
   const markInstalled = (installed: CatalogScenarioOutput) => {
-    setScenarios(previous => previous.filter(scenario => scenario.catalog_scenario_external_id !== installed.catalog_scenario_external_id));
     setInstalling(null);
-    MESSAGING$.notifySuccess(t('{name} v{version} installed', {
-      name: installed.catalog_scenario_name ?? installed.catalog_scenario_external_id,
-      version: installed.catalog_scenario_version,
-    }));
+    notifyInstalled(installed.catalog_scenario_name ?? installed.catalog_scenario_external_id, installed.catalog_scenario_version);
+    catalog.reload();
   };
+
+  const columns: MarketplaceColumn<CatalogScenarioOutput>[] = [
+    {
+      field: CATALOG_ITEM_NAME,
+      label: 'Name',
+      sortable: true,
+      width: '35%',
+      value: scenario => scenario.catalog_scenario_name ?? scenario.catalog_scenario_external_id,
+    },
+    {
+      field: TYPE,
+      label: 'Type',
+      width: '15%',
+      value: scenario => t(catalogScenarioType(scenario)),
+    },
+    {
+      field: CATEGORY,
+      label: 'Category',
+      width: '20%',
+      value: scenario => (scenario.catalog_scenario_category ? t(scenarioCategoryLabel(scenario.catalog_scenario_category)) : '–'),
+    },
+    {
+      field: CATALOG_ITEM_PLATFORMS,
+      label: 'Platforms',
+      width: '15%',
+      value: scenario => <MarketplaceCardMeta platforms={scenario.catalog_scenario_platforms} />,
+    },
+    {
+      field: CATALOG_ITEM_PUBLISHED,
+      label: 'Published',
+      sortable: true,
+      width: '15%',
+      value: scenario => (scenario.catalog_scenario_published_at ? nsd(scenario.catalog_scenario_published_at) : '–'),
+    },
+  ];
+  const emptyState = (
+    <EmptyPlaceholder
+      icon={<RouteOutlined />}
+      title={catalog.filtered ? t('No scenario matches these filters.') : t('Every catalog scenario is installed')}
+      message={catalog.filtered ? undefined : t('New Filigran scenarios show here as soon as they are published.')}
+      action={catalog.filtered && (
+        <Button type="button" priority="secondary" onClick={catalog.resetFilters}>{t('Reset filters')}</Button>
+      )}
+    />
+  );
 
   return (
     <>
       <MarketplaceBrowser
         hero={<ScenariosHero />}
-        tabs={<ScenariosTabs active="available" />}
-        sidebar={<ScenariosCatalogSidebar scenarios={scenarios} filters={filters} onToggle={toggleFacet} />}
+        tabs={<MarketplaceCatalogTabs active="available" baseUrl="/admin/scenarios" />}
+        sidebar={(
+          <MarketplaceFacetSidebar
+            facets={FACETS}
+            facetCounts={catalog.facetCounts}
+            searchPaginationInput={searchPaginationInput}
+            filterHelpers={queryableHelpers.filterHelpers}
+          />
+        )}
         toolbar={(
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 12,
-          }}
-          >
-            <SearchFilter
-              variant="small"
-              keyword={filters.keyword}
-              onChange={keyword => setFilters(previous => ({
-                ...previous,
-                keyword: keyword ?? '',
-              }))}
-            />
-            <MarketplaceSortSelect sortHelpers={sortHelpers} options={SORT_OPTIONS} descendingFields={['catalog_scenario_published_at']} />
-            <div style={{ marginLeft: 'auto' }}>
-              <MarketplaceResultsCount count={shown.length} />
-            </div>
-          </div>
+          <PaginationComponentV2
+            {...catalog.pagination}
+            entityPrefix="catalog_scenario"
+            availableFilterNames={[TYPE, CATALOG_ITEM_PLATFORMS, CATEGORY, AUTHOR]}
+            filtersEndSlot={viewMode === 'grid'
+              ? <MarketplaceSortSelect sortHelpers={queryableHelpers.sortHelpers} options={CATALOG_ITEM_SORT_OPTIONS} descendingFields={[CATALOG_ITEM_PUBLISHED]} />
+              : null}
+            topBarButtons={<MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />}
+          />
         )}
       >
-        <MarketplaceSections
-          items={shown}
-          loading={loading}
-          emptyState={(
-            <EmptyPlaceholder
-              icon={<RouteOutlined />}
-              title={filtered ? t('No scenario matches these filters.') : t('Every catalog scenario is installed')}
-              message={filtered ? undefined : t('New Filigran scenarios show here as soon as they are published.')}
-              action={filtered && (
-                <Button type="button" priority="secondary" onClick={() => setFilters(NO_FILTERS)}>{t('Reset filters')}</Button>
-              )}
-            />
-          )}
-          renderItem={scenario => (
-            <ScenarioCatalogCard
-              key={scenario.catalog_scenario_external_id}
-              scenario={scenario}
-              canInstall={canInstall}
-              onInstall={() => install(scenario)}
-              onOpen={() => setOpened(scenario)}
-            />
-          )}
-        />
+        {viewMode === 'grid'
+          ? (
+              <MarketplaceSections
+                items={catalog.items}
+                loading={catalog.loadingFirstPage}
+                emptyState={emptyState}
+                renderItem={scenario => (
+                  <ScenarioCatalogCard
+                    key={scenario.catalog_scenario_external_id}
+                    scenario={scenario}
+                    canInstall={canInstall}
+                    onInstall={() => install(scenario)}
+                    onOpen={() => setOpened(scenario)}
+                  />
+                )}
+              />
+            )
+          : (
+              <MarketplaceList
+                items={catalog.items}
+                loading={catalog.loadingFirstPage}
+                emptyState={emptyState}
+                columns={columns}
+                sortHelpers={queryableHelpers.sortHelpers}
+                rowKey={scenario => scenario.catalog_scenario_external_id}
+                icon={scenario => <ScenarioTypeIcon type={catalogScenarioType(scenario)} />}
+                open={scenario => ({ onClick: () => setOpened(scenario) })}
+                action={scenario => <CatalogScenarioInstallButton scenario={scenario} canInstall={canInstall} onInstall={() => install(scenario)} />}
+              />
+            )}
+        <MarketplaceLoadMore {...catalog.loadMore} />
       </MarketplaceBrowser>
       <ScenarioCatalogDrawer
         scenario={opened}
