@@ -3,7 +3,6 @@ import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Divider, Menu, MenuItem } from '@mui/material';
 import { type MouseEvent, useState } from 'react';
 
-import { customizeThreatArsenalAction } from '../../../actions/threat_arsenals/threatArsenal-customization-actions';
 import {
   deleteThreatArsenalAction,
   duplicateThreatArsenalAction,
@@ -11,6 +10,7 @@ import {
   fetchThreatArsenalAction,
   updateThreatArsenalAction,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
+import { customizeThreatArsenalAction } from '../../../actions/threat_arsenals/threatArsenal-customization-actions';
 import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
