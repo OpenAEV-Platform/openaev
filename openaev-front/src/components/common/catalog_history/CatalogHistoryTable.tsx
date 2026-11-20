@@ -1,11 +1,12 @@
 import { Skeleton, Text } from '@filigran/design-system';
 // fds:keep-mui the library has no Table yet
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { type CatalogHistoryOutput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
-import { FDS_TABLE_FRAME_STYLE, FDS_TABLE_SECTION_STYLE, FDS_TABLE_SX } from '../fdsTableSpec';
+import { FDS_TABLE_SX, fdsTableFrameStyle, fdsTableSectionStyle } from '../fdsTableSpec';
 
 const ACTION_LABELS: Record<CatalogHistoryOutput['catalog_history_action'], string> = {
   INSTALL: 'Installed',
@@ -18,6 +19,7 @@ interface Props { history: CatalogHistoryOutput[] | null }
 
 const CatalogHistoryTable: FunctionComponent<Props> = ({ history }) => {
   const { t, nsdt } = useFormatter();
+  const theme = useTheme();
 
   if (history === null) {
     return <Skeleton className="h-24" />;
@@ -26,10 +28,10 @@ const CatalogHistoryTable: FunctionComponent<Props> = ({ history }) => {
     ? t('Automatic')
     : entry.catalog_history_user ?? '-');
   return (
-    <div style={FDS_TABLE_FRAME_STYLE}>
+    <div style={fdsTableFrameStyle(theme)}>
       {history.length === 0
         ? (
-            <div style={FDS_TABLE_SECTION_STYLE}>
+            <div style={fdsTableSectionStyle(theme)}>
               <Text variant="content-compact" className="text-default-secondary">{t('No history yet')}</Text>
             </div>
           )
