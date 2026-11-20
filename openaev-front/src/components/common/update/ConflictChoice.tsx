@@ -16,10 +16,21 @@ interface Props {
   onSelect: (side: ConflictSide) => void;
 }
 
-// One conflict of an update: both values, the words that differ highlighted, one to keep.
+// One conflict of an update: both values side by side, the words that differ highlighted, one to keep.
 const ConflictChoice = ({ title, theirsLabel, mineLabel, theirs, mine, selected, onSelect }: Props) => {
   const titleId = useId();
   const theme = useTheme();
+  const side = (value: ConflictSide, label: string, text: string, other: string) => (
+    <div style={{
+      minWidth: 0,
+      padding: theme.spacing(1.5),
+      borderRadius: 'var(--radius-sm)',
+      border: `1px solid ${selected === value ? 'var(--color-filigran-brand-primary)' : 'var(--border-elevation-subtle-soft)'}`,
+    }}
+    >
+      <Radio value={value} label={label} description={<TextDiff text={text} other={other} />} />
+    </div>
+  );
   return (
     <div style={{
       display: 'flex',
@@ -32,9 +43,14 @@ const ConflictChoice = ({ title, theirsLabel, mineLabel, theirs, mine, selected,
         aria-labelledby={titleId}
         value={selected ?? ''}
         onValueChange={value => onSelect(value as ConflictSide)}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gap: theme.spacing(1.5),
+        }}
       >
-        <Radio value="theirs" label={theirsLabel} description={<TextDiff text={theirs} other={mine} />} />
-        <Radio value="mine" label={mineLabel} description={<TextDiff text={mine} other={theirs} />} />
+        {side('theirs', theirsLabel, theirs, mine)}
+        {side('mine', mineLabel, mine, theirs)}
       </RadioGroup>
     </div>
   );
