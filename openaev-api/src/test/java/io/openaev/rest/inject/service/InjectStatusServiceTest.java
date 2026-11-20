@@ -998,4 +998,128 @@ class InjectStatusServiceTest {
       verify(executionTraceRepositoryHelper).updateInjectStatus(any(), eq("EXECUTED"), any());
     }
   }
+
+  @Nested
+  @DisplayName("Stop of an in-progress inject")
+  class StopInProgressInjectTest {
+
+    @Mock private InjectRepository injectRepository;
+    @Mock private AgentRepository agentRepository;
+    @Mock private InjectAgentResolverService injectAgentResolverService;
+    @Mock private InjectUtils injectUtils;
+    @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
+    @Mock private InjectStatusRepository injectStatusRepository;
+    @Mock private ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
+    @Mock private AuditLogger auditLogger;
+    @Mock private EntityManager entityManager;
+    @Mock private ObjectMapper objectMapper;
+    @Mock private ApplicationEventPublisher eventPublisher;
+
+    private InjectStatusService injectStatusService;
+
+    @BeforeEach
+    void setUp() {
+      injectStatusService =
+          new InjectStatusService(
+              injectRepository,
+              agentRepository,
+              injectAgentResolverService,
+              injectUtils,
+              injectAuthorisationRepository,
+              injectStatusRepository,
+              executionTraceRepositoryHelper,
+              Optional.of(auditLogger),
+              eventPublisher,
+              objectMapper,
+              entityManager);
+    }
+
+    private Inject injectWithStatus(ExecutionStatus name) {
+      Inject inject = new Inject();
+      inject.setId("inject-stop");
+      inject.setTitle("Stopped inject");
+      if (name != null) {
+        InjectStatus injectStatus = new InjectStatus();
+        injectStatus.setId("status-stop");
+        injectStatus.setName(name);
+        injectStatus.setInject(inject);
+        injectStatus.setTraces(new ArrayList<>());
+        inject.setStatus(injectStatus);
+      }
+      return inject;
+    }
+
+    @Test
+    @DisplayName("given a pending inject should finalize it as error with an interrupted trace")
+    void given_pendingInject_should_finalizeAsErrorWithInterruptedTrace() {
+      // Arrange
+      Inject inject = injectWithStatus(ExecutionStatus.PENDING);
+      when(injectStatusRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+      // Act
+      Optional<InjectStatus> stopped = injectStatusService.stopInProgressInject(inject);
+
+      // Assert
+      assertThat(stopped).isPresent();
+      InjectStatus status = stopped.get();
+      assertThat(status.getName()).isEqualTo(ExecutionStatus.ERROR);
+      assertThat(status.getTrackingEndDate()).isNotNull();
+      assertThat(status.getTraces())
+          .singleElement()
+          .satisfies(
+              trace -> {
+                assertThat(trace.getStatus()).isEqualTo(ExecutionTraceStatus.INTERRUPTED);
+                assertThat(trace.getAction()).isEqualTo(ExecutionTraceAction.COMPLETE);
+                assertThat(trace.getMessage()).isEqualTo("Inject stopped by a user.");
+                assertThat(trace.getAgent()).isNull();
+              });
+      verify(injectAuthorisationRepository).deleteAllByInjectId("inject-stop");
+      verify(eventPublisher).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("given a queuing inject should stop it")
+    void given_queuingInject_should_stopIt() {
+      // Arrange
+      Inject inject = injectWithStatus(ExecutionStatus.QUEUING);
+      when(injectStatusRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+      // Act
+      Optional<InjectStatus> stopped = injectStatusService.stopInProgressInject(inject);
+
+      // Assert
+      assertThat(stopped).map(InjectStatus::getName).contains(ExecutionStatus.ERROR);
+    }
+
+    @Test
+    @DisplayName("given a finished inject should leave it untouched")
+    void given_finishedInject_should_leaveItUntouched() {
+      // Arrange
+      Inject inject = injectWithStatus(ExecutionStatus.EXECUTED);
+
+      // Act
+      Optional<InjectStatus> stopped = injectStatusService.stopInProgressInject(inject);
+
+      // Assert
+      assertThat(stopped).isEmpty();
+      assertThat(inject.getStatus().orElseThrow().getName()).isEqualTo(ExecutionStatus.EXECUTED);
+      assertThat(inject.getStatus().orElseThrow().getTraces()).isEmpty();
+      verify(injectStatusRepository, never()).save(any());
+      verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("given an inject never launched should leave it untouched")
+    void given_injectWithoutStatus_should_leaveItUntouched() {
+      // Arrange
+      Inject inject = injectWithStatus(null);
+
+      // Act
+      Optional<InjectStatus> stopped = injectStatusService.stopInProgressInject(inject);
+
+      // Assert
+      assertThat(stopped).isEmpty();
+      verify(injectStatusRepository, never()).save(any());
+    }
+  }
 }

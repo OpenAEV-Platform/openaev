@@ -14,9 +14,11 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.rest.atomic_testing.form.*;
+import io.openaev.rest.exception.ConflictException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.period.RecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
@@ -79,6 +81,8 @@ public class AtomicTestingService {
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final BulkDeleteExecutor bulkDeleteExecutor;
   private final RecurrenceService recurrenceService;
+  private final InjectStatusService injectStatusService;
+  private final AssetAgentJobRepository assetAgentJobRepository;
 
   // -- CRUD --
 
@@ -280,6 +284,34 @@ public class AtomicTestingService {
   public InjectResultOverviewOutput launch(TxCtx ctx, String id) {
     findInject(ctx, id);
     return injectService.launch(id);
+  }
+
+  /**
+   * Stops a running atomic testing: its agent jobs not yet picked up are deleted, so they never
+   * run, and its status is finalized as ERROR with a COMPLETE / INTERRUPTED trace. An agent or an
+   * injector that already picked up its job may still report: the report is kept as a late trace
+   * and never changes the status. The atomic testing keeps its id, its traces and its results.
+   *
+   * @throws ConflictException when the atomic testing is not in progress (never launched, or
+   *     already finished)
+   */
+  @Transactional
+  public InjectResultOverviewOutput stop(TxCtx ctx, String id) {
+    Inject inject = findInject(ctx, id);
+    boolean inProgress =
+        inject
+            .getStatus()
+            .map(InjectStatus::getName)
+            .filter(ExecutionStatus.INJECT_EXECUTION_IN_PROGRESS_STATUSES::contains)
+            .isPresent();
+    if (!inProgress) {
+      throw new ConflictException(
+          "Atomic testing " + id + " is not in progress (queuing, executing or pending)");
+    }
+    assetAgentJobRepository.deleteAllByInjectIdsAndTenantId(
+        List.of(inject.getId()), inject.getTenant().getId());
+    injectStatusService.stopInProgressInject(inject);
+    return findById(ctx, id);
   }
 
   /**

@@ -244,6 +244,29 @@ public class AtomicTestingApi extends RestBehavior {
     return atomicTestingService.launch(ctx, atomicTestingId);
   }
 
+  @Operation(
+      summary = "Stop a running atomic testing",
+      description =
+          "Stops an atomic testing that is queuing, executing or pending: the agent jobs not yet"
+              + " picked up are dropped and the status ends as ERROR with an interrupted trace."
+              + " The atomic testing keeps its id and its results; a report an agent sends"
+              + " afterwards is kept as a late trace. Answers 409 when it is not in progress.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "The stopped atomic testing"),
+        @ApiResponse(responseCode = "409", description = "The atomic testing is not in progress")
+      })
+  @PostMapping("/{atomicTestingId}/stop")
+  @Transactional
+  @AccessControl(
+      resourceId = "#atomicTestingId",
+      actionPerformed = Action.LAUNCH,
+      resourceType = ResourceType.INJECT)
+  public InjectResultOverviewOutput stopAtomicTesting(
+      TxCtx ctx, @PathVariable @NotBlank final String atomicTestingId) {
+    return atomicTestingService.stop(ctx, atomicTestingId);
+  }
+
   @PostMapping("/{atomicTestingId}/relaunch")
   @Transactional
   @AccessControl(

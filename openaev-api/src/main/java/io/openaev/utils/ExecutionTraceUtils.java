@@ -98,6 +98,15 @@ public class ExecutionTraceUtils {
         null);
   }
 
+  /** Adds the COMPLETE/INTERRUPTED trace of an atomic testing a user stopped while it ran. */
+  public static void addUserStopTrace(InjectStatus status) {
+    status.addTrace(
+        ExecutionTraceStatus.INTERRUPTED,
+        "Inject stopped by a user.",
+        ExecutionTraceAction.COMPLETE,
+        null);
+  }
+
   public static void addSimulationNoMoreProgressTrace(InjectStatus status) {
     status.addTrace(
         ExecutionTraceStatus.INTERRUPTED,

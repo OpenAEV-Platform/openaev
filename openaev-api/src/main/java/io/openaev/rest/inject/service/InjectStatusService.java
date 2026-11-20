@@ -422,6 +422,32 @@ public class InjectStatusService {
     return saved;
   }
 
+  /**
+   * Stops an inject that is still in progress (QUEUING, EXECUTING or PENDING): adds a COMPLETE /
+   * INTERRUPTED trace, finalizes the status as ERROR, as a cancelled simulation does for its active
+   * injects, and streams the transition. A report an agent or an injector sends afterwards is kept
+   * as a late trace and never changes the status.
+   *
+   * @return the stopped status, or empty when the inject has no status or is not in progress
+   */
+  public Optional<InjectStatus> stopInProgressInject(@NotNull Inject inject) {
+    Optional<InjectStatus> current = inject.getStatus();
+    if (current.isEmpty()
+        || current.get().getName() == null
+        || !ExecutionStatus.INJECT_EXECUTION_IN_PROGRESS_STATUSES.contains(
+            current.get().getName())) {
+      return Optional.empty();
+    }
+    InjectStatus injectStatus = current.get();
+    ExecutionStatus previousStatus = injectStatus.getName();
+    ExecutionTraceUtils.addUserStopTrace(injectStatus);
+    InjectStatus saved = finalizeAsError(injectStatus);
+    inject.setStatus(saved);
+    publishInjectStatusUpdate(inject);
+    logInjectStatusTransition(inject, previousStatus, ExecutionStatus.ERROR, null);
+    return Optional.of(saved);
+  }
+
   @Transactional(propagation = Propagation.MANDATORY)
   public InjectStatus persistErrorStatusInTransaction(
       @NotNull String injectId, @Nullable String message) {
