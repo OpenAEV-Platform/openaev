@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import PayloadUpdateDialog from '../../../../../admin/components/threat_arsenal/customization/PayloadUpdateDialog';
 import { type PayloadCustomizationUpdateOutput } from '../../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../../utils/Environment';
 import { expectNoMuiControls } from '../../../../utils/designSystemAssertions';
 
 const mocks = vi.hoisted(() => ({ updateCustomization: vi.fn() }));
@@ -82,6 +83,7 @@ describe('PayloadUpdateDialog', () => {
     // Arrange
     const saved = { injector_contract_id: 'copy-action-1.1.0' };
     mocks.updateCustomization.mockResolvedValue({ data: saved });
+    const notifySuccess = vi.spyOn(MESSAGING$, 'notifySuccess');
     const onUpdated = renderDialog();
     fireEvent.click(screen.getByRole('radio', { name: 'Yours' }));
 
@@ -90,6 +92,7 @@ describe('PayloadUpdateDialog', () => {
 
     // Assert
     await waitFor(() => expect(onUpdated).toHaveBeenCalledWith(saved));
+    expect(notifySuccess).toHaveBeenCalledWith('Updated to Filigran v1.1.0');
     expect(mocks.updateCustomization).toHaveBeenCalledWith('copy-action', {
       update_payload_id: 'filigran-1.1.0',
       update_choices: { COMMAND_CONTENT: 'YOURS' },
