@@ -7,7 +7,6 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.catalog.CatalogPayload;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.model.catalog.ContentType;
-import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.database.repository.ScenarioIdentityRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.catalog.CatalogListService;
@@ -32,7 +31,6 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   private final CatalogScenarioRequirements catalogScenarioRequirements;
   private final CatalogSettingsService catalogSettingsService;
   private final ScenarioIdentityRepository scenarioIdentityRepository;
-  private final CatalogItemRepository catalogItemRepository;
   private final ObjectMapper mapper;
 
   // -- LIST --
@@ -44,7 +42,7 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   @Transactional(readOnly = true)
   public InstallableScenarioVersion installable(TxCtx ctx, String externalId, String version) {
     CatalogScenario item = catalogListService.offered(CatalogScenario.class, externalId, version);
-    List<MissingRequirement> missing = catalogScenarioRequirements.missing(item);
+    List<MissingRequirement> missing = catalogScenarioRequirements.checker().missing(item);
     if (!missing.isEmpty()) {
       throw new BadRequestException(
           "Missing to install this scenario: "
@@ -59,8 +57,8 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
     return payloadRefs(item).stream()
         .flatMap(
             ref ->
-                catalogItemRepository
-                    .findVersion(CatalogPayload.class, ref.externalId(), ref.version())
+                catalogListService
+                    .version(CatalogPayload.class, ref.externalId(), ref.version())
                     .stream())
         .toList();
   }
@@ -72,12 +70,13 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
         scenarioIdentityRepository.findAllInstalledByTenantId(tenantId).stream()
             .map(CatalogOffer::key)
             .collect(Collectors.toSet());
+    CatalogScenarioRequirements.Checker checker = catalogScenarioRequirements.checkerWithStatus();
     return catalogListService.latestOffered(CatalogScenario.class).stream()
         .filter(
             item ->
                 !installed.contains(
                     CatalogOffer.key(item.getRelease().getRepository(), item.getExternalId())))
-        .map(item -> new OfferedScenario(item, catalogScenarioRequirements.missing(item)))
+        .map(item -> new OfferedScenario(item, checker.missing(item)))
         .toList();
   }
 
@@ -108,13 +107,14 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
         scenarioIdentityRepository.findAllByTenantId(tenantId).stream()
             .map(CatalogOffer::key)
             .collect(Collectors.toSet());
+    CatalogScenarioRequirements.Checker checker = catalogScenarioRequirements.checker();
     return catalogListService.latestOffered(CatalogScenario.class).stream()
         .filter(
             item ->
                 !known.contains(
                     CatalogOffer.key(item.getRelease().getRepository(), item.getExternalId())))
         .filter(item -> CatalogScenarioType.of(item.getScenarioType()).installedInBulk())
-        .filter(item -> catalogScenarioRequirements.missing(item).isEmpty())
+        .filter(item -> checker.missing(item).isEmpty())
         .map(item -> toInstallable(ctx, item))
         .toList();
   }

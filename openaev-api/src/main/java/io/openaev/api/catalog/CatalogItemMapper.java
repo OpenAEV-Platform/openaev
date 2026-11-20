@@ -132,7 +132,8 @@ public class CatalogItemMapper {
 
   private static CatalogScenarioRequirementOutput toRequirementOutput(
       MissingRequirement requirement) {
-    return new CatalogScenarioRequirementOutput(requirement.label(), requirement.integrationId());
+    return new CatalogScenarioRequirementOutput(
+        requirement.label(), requirement.integrationId(), requirement.status());
   }
 
   public CatalogScenarioVersionOutput toVersionOutput(
