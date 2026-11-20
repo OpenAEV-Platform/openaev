@@ -5,10 +5,12 @@ import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.payload.PayloadApi.TENANT_PAYLOAD_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
+import static io.openaev.service.UserService.buildAuthenticationToken;
+import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService.CHANGED_MEANWHILE;
 import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService.CONFLICT_LEFT;
-import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService.NOT_INSTALLED;
 import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdater.CHAINED_REFUSED;
 import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdater.IMPORTED_LINKS_REFUSED;
+import static io.openaev.service.catalog.scenario.update.InstalledScenarioService.NOT_INSTALLED;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.PAYLOAD_ID;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.SCENARIO_ID;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.chainedScenarioPackage;
@@ -22,11 +24,13 @@ import static io.openaev.utils.fixtures.CatalogReleaseFixture.scenarioPackage;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.syncRequest;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -35,36 +39,47 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.api.catalog.dto.scenario.TimeBasedScenarioInstallInput;
 import io.openaev.api.payload.dto.PayloadRevocationInput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectDependencyConditions.DependencyMode;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.database.model.Variable;
 import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.database.model.scenario.ScenarioRevision;
 import io.openaev.database.repository.CatalogHistoryRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.database.repository.ScenarioRevisionRepository;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.VariableService;
+import io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService;
+import io.openaev.service.catalog.scenario.update.InstalledScenario;
+import io.openaev.service.catalog.scenario.update.ScenarioUpdate;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CatalogReleaseFixture.ReleasedPayload;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
+import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -76,8 +91,10 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -119,11 +136,15 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   @Autowired private VariableService variableService;
   @Autowired private CatalogHistoryRepository catalogHistoryRepository;
   @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private UserComposer userComposer;
+  @Autowired private ScenarioRevisionRepository scenarioRevisionRepository;
+  @Autowired private CatalogScenarioUpdateService catalogScenarioUpdateService;
 
   @BeforeEach
   void publishAndInstall() throws Exception {
     markingDefinitionComposer.reset();
     exerciseComposer.reset();
+    userComposer.reset();
     tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT_UUID);
     injectorFixture.getWellKnownOaevImplantInjector();
     Map<String, byte[]> archives = new LinkedHashMap<>();
@@ -252,7 +273,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   private ResultActions previewUpdate(Scenario scenario, String version) throws Exception {
     return committed(
         get(
-            TENANT_SCENARIO_URI + "/{scenarioId}/versions/{version}/update-preview",
+            TENANT_SCENARIO_URI + "/{scenarioId}/versions/{version}/preview",
             DEFAULT_TENANT_UUID,
             scenario.getId(),
             version));
@@ -270,27 +291,63 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   private ResultActions update(
       Scenario scenario, String version, Map<String, String> choices, Map<String, String> edits)
       throws Exception {
-    return committed(
-        post(
-                TENANT_SCENARIO_URI + "/{scenarioId}/versions/{version}/update",
-                DEFAULT_TENANT_UUID,
-                scenario.getId(),
-                version)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(
-                mapper.writeValueAsString(
-                    Map.of("scenario_update_choices", choices, "scenario_update_edits", edits))));
+    return committed(updateRequest(scenario, version, choices, edits));
+  }
+
+  private MockHttpServletRequestBuilder updateRequest(
+      Scenario scenario, String version, Map<String, String> choices, Map<String, String> edits)
+      throws Exception {
+    return post(
+            TENANT_SCENARIO_URI + "/{scenarioId}/versions/{version}/updates",
+            DEFAULT_TENANT_UUID,
+            scenario.getId(),
+            version)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(
+            mapper.writeValueAsString(
+                Map.of("scenario_update_choices", choices, "scenario_update_edits", edits)));
   }
 
   private ResultActions rollback(Scenario scenario, String revisionId) throws Exception {
-    return committed(
-        post(
-                TENANT_SCENARIO_URI + "/{scenarioId}/revisions/{revisionId}/rollback",
-                DEFAULT_TENANT_UUID,
-                scenario.getId(),
-                revisionId)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content("{}"));
+    return committed(rollbackRequest(scenario, revisionId));
+  }
+
+  private MockHttpServletRequestBuilder rollbackRequest(Scenario scenario, String revisionId) {
+    return post(
+            TENANT_SCENARIO_URI + "/{scenarioId}/revisions/{revisionId}/rollbacks",
+            DEFAULT_TENANT_UUID,
+            scenario.getId(),
+            revisionId)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{}");
+  }
+
+  // A revision of a scenario installed by hand, in the given tenant.
+  private String foreignRevision(String tenantId) {
+    Scenario other = ScenarioFixture.getScenario();
+    other.setTenant(new Tenant(tenantId));
+    ScenarioRevision revision = new ScenarioRevision();
+    revision.setTenant(new Tenant(tenantId));
+    revision.setScenario(scenarioRepository.save(other));
+    revision.setReason(ScenarioRevision.Reason.UPDATE);
+    revision.setCatalogVersion(NEWER);
+    revision.setContent(JsonNodeFactory.instance.objectNode());
+    String revisionId = scenarioRevisionRepository.save(revision).getId();
+    entityManager.flush();
+    entityManager.clear();
+    return revisionId;
+  }
+
+  // A user of the tenant with no right to change its scenarios.
+  private Authentication reader() {
+    User reader =
+        userComposer
+            .forUser(
+                UserFixture.getUser("Scenario", "Reader", UUID.randomUUID() + "@unittests.invalid"))
+            .persist()
+            .get();
+    tenantHelper.attachUserToTenant(reader.getId(), DEFAULT_TENANT_UUID);
+    return buildAuthenticationToken(reader);
   }
 
   private ResultActions revisions(Scenario scenario) throws Exception {
@@ -634,7 +691,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
       // Act
       committed(
               get(
-                  TENANT_SCENARIO_URI + "/{scenarioId}/revisions/{revisionId}/rollback-preview",
+                  TENANT_SCENARIO_URI + "/{scenarioId}/revisions/{revisionId}/preview",
                   DEFAULT_TENANT_UUID,
                   scenario.getId(),
                   revisionId))
@@ -743,6 +800,71 @@ class ScenarioUpdateApiTest extends IntegrationTest {
       previewUpdate(scenario, version)
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.message").value(message));
+    }
+
+    @Test
+    @DisplayName("refuses an update when the scenario moved to another version meanwhile")
+    void given_versionChangedMeanwhile_should_refuseTheUpdate() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      ObjectNode empty = JsonNodeFactory.instance.objectNode();
+      ScenarioUpdate stale =
+          new ScenarioUpdate(
+              new InstalledScenario(
+                  scenario.getId(), DEFAULT_TENANT_UUID, SCENARIO_ID, SAME_CONTENT),
+              empty,
+              empty,
+              NEWER,
+              ScenarioRevision.Reason.UPDATE);
+
+      // Act & Assert
+      assertThatThrownBy(
+              () ->
+                  catalogScenarioUpdateService.apply(
+                      TxCtx.forTenant(DEFAULT_TENANT_UUID), stale, Map.of(), Map.of(), Map.of()))
+          .isInstanceOf(BadRequestException.class)
+          .hasMessage(CHANGED_MEANWHILE);
+      assertThat(installedVersion(scenario)).isEqualTo(INSTALLED);
+    }
+
+    @ParameterizedTest(name = "in another tenant: {0}")
+    @ValueSource(booleans = {false, true})
+    @DisplayName("refuses a rollback to a revision of another scenario, and writes nothing")
+    void given_foreignRevision_should_refuseTheRollback(boolean otherTenant) throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      String tenantId =
+          otherTenant
+              ? tenantHelper.createTenant("scenario-revision").getId()
+              : DEFAULT_TENANT_UUID;
+      String revisionId = foreignRevision(tenantId);
+
+      // Act
+      ResultActions rollback = rollback(scenario, revisionId);
+
+      // Assert
+      rollback.andExpect(status().isNotFound());
+      revisions(scenario).andExpect(jsonPath("$.length()").value(1));
+      assertThat(installedVersion(scenario)).isEqualTo(INSTALLED);
+    }
+
+    @Test
+    @DisplayName("refuses an update and a rollback to a user who cannot change the scenario")
+    void given_userWithoutWrite_should_refuseUpdateAndRollback() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      String revisionId = revisionId(scenario, ScenarioRevision.Reason.INSTALL);
+      Authentication reader = reader();
+
+      // Act & Assert
+      mvc.perform(
+              updateRequest(scenario, NEWER, Map.of(), Map.of())
+                  .with(authentication(reader))
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+      mvc.perform(rollbackRequest(scenario, revisionId).with(authentication(reader)).with(csrf()))
+          .andExpect(status().isForbidden());
+      assertThat(installedVersion(scenario)).isEqualTo(INSTALLED);
     }
   }
 }
