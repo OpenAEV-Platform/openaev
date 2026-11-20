@@ -206,7 +206,14 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
     return List.of(first, second);
   }
 
-  private List<String> usageIds(InjectorContract action) throws Exception {
+  private List<String> usageIds(InjectorContract action) {
+    return payloadVersionService.usages(DEFAULT_TENANT_UUID, action.getId()).usages().stream()
+        .map(usage -> usage.id())
+        .toList();
+  }
+
+  /** After a request, which clears the security context the services read the user from. */
+  private List<String> listedUsageIds(InjectorContract action) throws Exception {
     JsonNode usages =
         body(
             mvc.perform(
@@ -507,8 +514,8 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
       entityManager.clear();
       assertThat(contractIdOf(atomicTesting)).isEqualTo(v2.getId());
       assertThat(contractIdOf(simulationInject)).isEqualTo(v1.getId());
-      assertThat(usageIds(v1)).isEmpty();
-      List<String> onV2 = usageIds(v2);
+      assertThat(listedUsageIds(v1)).isEmpty();
+      List<String> onV2 = listedUsageIds(v2);
       assertThat(onV2).hasSize(3);
       Step step = stepRepository.findAllById(onV2).getFirst();
       JsonNode stepContract = mapper.readTree(step.getData()).path("inject_injector_contract");
