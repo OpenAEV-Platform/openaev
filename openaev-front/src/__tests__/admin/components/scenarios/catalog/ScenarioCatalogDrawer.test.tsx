@@ -1,6 +1,6 @@
 import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -76,6 +76,46 @@ describe('ScenarioCatalogDrawer', () => {
     expect(screen.getByText('v1.2')).toBeTruthy();
     expect(screen.getByText('Attack Scenario')).toBeTruthy();
     expect(mocks.fetchCatalogScenarioVersions).toHaveBeenCalledWith('phishing');
+  });
+
+  it('given_aVersionWithItsFocusAndSeverity_should_showThem', async () => {
+    // Arrange
+    mocks.fetchCatalogScenarioVersions.mockResolvedValue([{
+      catalog_scenario_version: '1.2',
+      catalog_scenario_main_focus: 'endpoint-protection',
+      catalog_scenario_severity: 'high',
+    }]);
+
+    // Act
+    renderDrawer({
+      ...SCENARIO,
+      catalog_scenario_published_at: '2026-01-15',
+      catalog_scenario_category: 'custom-category',
+    });
+
+    // Assert
+    expect(await screen.findByText('endpoint-protection')).toBeTruthy();
+    expect(screen.getByText('high')).toBeTruthy();
+    expect(screen.getByText('2026-01-15')).toBeTruthy();
+    expect(screen.getByText('custom-category')).toBeTruthy();
+  });
+
+  it('given_noOptionalFactsAndNoVersions_should_showDashes', async () => {
+    // Arrange
+    mocks.fetchCatalogScenarioVersions.mockRejectedValue(new Error('unreachable'));
+
+    // Act
+    renderDrawer({
+      ...SCENARIO,
+      catalog_scenario_author: undefined,
+      catalog_scenario_category: undefined,
+      catalog_scenario_platforms: [],
+    });
+
+    // Assert
+    await waitFor(() => expect(screen.getAllByText('–')).toHaveLength(6));
+    expect(screen.getByText('-')).toBeTruthy();
+    expect(screen.queryByText(/What's new/)).toBeNull();
   });
 
   it('given_installClicked_should_installTheScenario', async () => {
