@@ -1,4 +1,4 @@
-export default function buildSimulationTabs(params: {
+function buildAllSimulationTabs(params: {
   lessonsEnabled: boolean | undefined;
   isAutonomous: boolean;
   hasWorkflow: boolean;
@@ -48,4 +48,16 @@ export default function buildSimulationTabs(params: {
     ['/graph', t('Graph')],
     ['/statistics', t('Statistics')],
   ];
+}
+
+export default function buildSimulationTabs(params: {
+  lessonsEnabled: boolean | undefined;
+  isAutonomous: boolean;
+  hasWorkflow: boolean;
+  // The Graph tab belongs to the exploration graph preview feature (off by default).
+  graphEnabled?: boolean;
+  t: (value: string) => string;
+}): [string, string][] {
+  const { graphEnabled = false } = params;
+  return buildAllSimulationTabs(params).filter(([suffix]) => graphEnabled || suffix !== '/graph');
 }

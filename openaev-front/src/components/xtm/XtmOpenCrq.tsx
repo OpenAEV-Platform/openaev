@@ -7,6 +7,7 @@ import { type FunctionComponent, type MouseEvent, type ReactNode, useState } fro
 import { type CounterpartKindPath } from '../../actions/xtm/counterpart-actions';
 import ocrqMark from '../../static/images/xtm/ocrq.svg';
 import { type FactOutput } from '../../utils/api-types';
+import useExplorationGraph from '../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { useFormatter } from '../i18n';
@@ -185,7 +186,7 @@ interface PivotProps {
 }
 
 /** Hero action: "Open in OpenCRQ", "Not in OpenCRQ" or "Connect OpenCRQ". */
-const OpenCrqPivot: FunctionComponent<PivotProps & { size?: 'sm' | 'md' }> = ({ kind, objectKey, size }) => {
+const OpenCrqPivotLookup: FunctionComponent<PivotProps & { size?: 'sm' | 'md' }> = ({ kind, objectKey, size }) => {
   const answer = useCounterpart(kind, objectKey, OPENCRQ_PRODUCT);
   return <OpenCrqPivotView answer={answer} size={size} />;
 };
@@ -200,7 +201,7 @@ interface RowMarkProps extends PivotProps {
  * OpenCtiRowMark). The tooltip names the action and the counterpart.
  * With reserveSlot, a row of a connected tenant keeps an empty slot of the mark's width.
  */
-export const OpenCrqRowMark: FunctionComponent<RowMarkProps> = ({
+const OpenCrqRowMarkLookup: FunctionComponent<RowMarkProps> = ({
   kind,
   objectKey,
   label = 'Open in OpenCRQ',
@@ -313,9 +314,15 @@ export const OpenCrqCardView: FunctionComponent<{ answer: CounterpartAnswer }> =
   );
 };
 
-export const OpenCrqCard: FunctionComponent<PivotProps> = ({ kind, objectKey }) => {
+const OpenCrqCardLookup: FunctionComponent<PivotProps> = ({ kind, objectKey }) => {
   const answer = useCounterpart(kind, objectKey, OPENCRQ_PRODUCT);
   return <OpenCrqCardView answer={answer} />;
 };
+
+// The pivots belong to the exploration graph preview feature: off (the default), they draw nothing
+// and never ask the backend (the lookup component, and its request, is not mounted).
+export const OpenCrqRowMark: FunctionComponent<RowMarkProps> = props => (useExplorationGraph() ? <OpenCrqRowMarkLookup {...props} /> : null);
+export const OpenCrqCard: FunctionComponent<PivotProps> = props => (useExplorationGraph() ? <OpenCrqCardLookup {...props} /> : null);
+const OpenCrqPivot: FunctionComponent<PivotProps & { size?: 'sm' | 'md' }> = props => (useExplorationGraph() ? <OpenCrqPivotLookup {...props} /> : null);
 
 export default OpenCrqPivot;

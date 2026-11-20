@@ -15,6 +15,7 @@ import { useHelper } from '../../../../store';
 import { type Exercise as ExerciseType, type SimulationDetails } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { AutonomousContext } from '../../autonomous/AutonomousContext';
@@ -59,6 +60,7 @@ const IndexComponent: FunctionComponent<{
   const location = useLocation();
   const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
   const isAutonomous = !!autonomousRun;
+  const graphEnabled = useExplorationGraph();
   // Lifted so the overview shares the cockpit's stream instead of starting a second
   // full-from-cursor-0 poll of the same endpoint (#7472).
   const cockpitActive = isAutonomousRunActive(autonomousRun);
@@ -152,7 +154,7 @@ const IndexComponent: FunctionComponent<{
                   {/* Simulation-scoped custom dashboard, surfaced as the Statistics tab. */}
                   <Route path="statistics" element={errorWrapper(SimulationStatistics)()} />
                   {/* The simulation's graph: its injects, their targets and the run's results. */}
-                  <Route path="graph" element={<EntityGraph type="SIMULATION" entityId={exercise.exercise_id} variant="embedded" />} />
+                  {graphEnabled && <Route path="graph" element={<EntityGraph type="SIMULATION" entityId={exercise.exercise_id} variant="embedded" />} />}
                   {/* Statistics replaced the hero dashboard quick action and the old
                     Analysis tab; keep redirects for old links. */}
                   <Route path="dashboard" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />

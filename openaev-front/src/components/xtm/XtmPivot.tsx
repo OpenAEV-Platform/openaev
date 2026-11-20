@@ -7,6 +7,7 @@ import { type FunctionComponent, type MouseEvent, type ReactNode, useState } fro
 import { type CounterpartKindPath } from '../../actions/xtm/counterpart-actions';
 import octiDark from '../../static/images/xtm/octi_dark.png';
 import octiLight from '../../static/images/xtm/octi_light.png';
+import useExplorationGraph from '../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { useFormatter } from '../i18n';
@@ -167,7 +168,7 @@ export const OpenCtiPivotView: FunctionComponent<{
 };
 
 /** Hero action: "Open in OpenCTI", "Not in OpenCTI" or "Connect OpenCTI". */
-const OpenCtiPivot: FunctionComponent<PivotProps & { size?: PivotSize }> = ({ kind, objectKey, size }) => {
+const OpenCtiPivotLookup: FunctionComponent<PivotProps & { size?: PivotSize }> = ({ kind, objectKey, size }) => {
   const answer = useCounterpart(kind, objectKey, OPENCTI_PRODUCT);
   return <OpenCtiPivotView answer={answer} size={size} />;
 };
@@ -187,7 +188,7 @@ interface RowMarkProps extends PivotProps {
  * With reserveSlot, a row of a connected tenant keeps an empty slot of the mark's width when it
  * has no counterpart, so controls placed after the mark line up on every row.
  */
-export const OpenCtiRowMark: FunctionComponent<RowMarkProps> = ({ kind, objectKey, label = 'Open in OpenCTI', reserveSlot = false }) => {
+const OpenCtiRowMarkLookup: FunctionComponent<RowMarkProps> = ({ kind, objectKey, label = 'Open in OpenCTI', reserveSlot = false }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const answer = useCounterpart(kind, objectKey, OPENCTI_PRODUCT);
@@ -241,7 +242,7 @@ export const OpenCtiRowMark: FunctionComponent<RowMarkProps> = ({ kind, objectKe
 };
 
 /** Overview card: "In OpenCTI" with the counterpart's name and type, or the CTA. */
-export const OpenCtiCard: FunctionComponent<PivotProps & { children?: ReactNode }> = ({ kind, objectKey, children }) => {
+const OpenCtiCardLookup: FunctionComponent<PivotProps & { children?: ReactNode }> = ({ kind, objectKey, children }) => {
   const { t } = useFormatter();
   const answer = useCounterpart(kind, objectKey, OPENCTI_PRODUCT);
   if (answer.state === 'loading') {
@@ -296,5 +297,11 @@ export const OpenCtiCard: FunctionComponent<PivotProps & { children?: ReactNode 
     </Box>
   );
 };
+
+// The pivots belong to the exploration graph preview feature: off (the default), they draw nothing
+// and never ask the backend (the lookup component, and its request, is not mounted).
+export const OpenCtiRowMark: FunctionComponent<RowMarkProps> = props => (useExplorationGraph() ? <OpenCtiRowMarkLookup {...props} /> : null);
+export const OpenCtiCard: FunctionComponent<PivotProps & { children?: ReactNode }> = props => (useExplorationGraph() ? <OpenCtiCardLookup {...props} /> : null);
+const OpenCtiPivot: FunctionComponent<PivotProps & { size?: PivotSize }> = props => (useExplorationGraph() ? <OpenCtiPivotLookup {...props} /> : null);
 
 export default OpenCtiPivot;

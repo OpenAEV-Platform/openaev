@@ -9,6 +9,8 @@ import { ConnectOpenCrqCta, OpenCrqCardView, OpenCrqPivotView, OpenCrqRowMark } 
 
 const can = vi.fn();
 const useCounterpartMock = vi.fn();
+const graphEnabled = vi.fn(() => true);
+vi.mock('../../../utils/hooks/useExplorationGraph', () => ({ default: () => graphEnabled() }));
 vi.mock('../../../components/xtm/useCounterpart', () => ({ default: (...args: unknown[]) => useCounterpartMock(...args) }));
 vi.mock('../../../components/i18n', () => ({
   useFormatter: () => ({
@@ -151,6 +153,14 @@ describe('OpenCrqCardView', () => {
 
 describe('OpenCrqRowMark', () => {
   afterEach(cleanup);
+
+  it('given the exploration graph feature off should render nothing and never look the object up', () => {
+    graphEnabled.mockReturnValueOnce(false);
+    useCounterpartMock.mockClear();
+    const { container } = renderView(<OpenCrqRowMark kind="vulnerabilities" objectKey="CVE-2024-0001" reserveSlot />);
+    expect(container.textContent).toBe('');
+    expect(useCounterpartMock).not.toHaveBeenCalled();
+  });
 
   it('given a match should link the OpenCRQ mark to the object', () => {
     useCounterpartMock.mockReturnValue(MATCH);

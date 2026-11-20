@@ -35,6 +35,7 @@ import { useHelper } from '../../../../store';
 import { type Filter, type InjectResultOutput, type PlayerOutput, type SearchPaginationInput, type Team, type TeamOutput, type User } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import InjectResultList from '../../atomic_testings/InjectResultList';
@@ -78,7 +79,10 @@ const TeamDetail = () => {
   const dispatch = useAppDispatch();
   const ability = useAbility();
   const { teamId } = useParams() as { teamId: string };
-  const { currentTab, handleChangeTab } = useRoutedTabs(TEAM_TABS, 'overview');
+  // The tab bar (Overview | Graph) exists only with the exploration graph preview feature on; off,
+  // the page is the overview alone, as before it.
+  const graphEnabled = useExplorationGraph();
+  const { currentTab, handleChangeTab } = useRoutedTabs(graphEnabled ? TEAM_TABS : ['overview'], 'overview');
 
   const [managing, setManaging] = useState(false);
 
@@ -258,22 +262,24 @@ const TeamDetail = () => {
           )}
         />
 
-        <Tabs
-          entries={[
-            {
-              key: 'overview',
-              label: t('Overview'),
-            },
-            {
-              key: 'graph',
-              label: t('Graph'),
-            },
-          ]}
-          currentTab={currentTab}
-          onChange={handleChangeTab}
-        />
+        {graphEnabled && (
+          <Tabs
+            entries={[
+              {
+                key: 'overview',
+                label: t('Overview'),
+              },
+              {
+                key: 'graph',
+                label: t('Graph'),
+              },
+            ]}
+            currentTab={currentTab}
+            onChange={handleChangeTab}
+          />
+        )}
 
-        {currentTab === 'graph' && <EntityGraph type="TEAM" entityId={teamId} variant="embedded" />}
+        {graphEnabled && currentTab === 'graph' && <EntityGraph type="TEAM" entityId={teamId} variant="embedded" />}
 
         {currentTab === 'overview' && (
           <>

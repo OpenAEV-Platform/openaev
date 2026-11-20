@@ -8,6 +8,8 @@ import { ConnectOpenCtiCta, OpenCtiPivotView, OpenCtiRowMark } from '../../../co
 
 const can = vi.fn();
 const useCounterpartMock = vi.fn();
+const graphEnabled = vi.fn(() => true);
+vi.mock('../../../utils/hooks/useExplorationGraph', () => ({ default: () => graphEnabled() }));
 vi.mock('../../../components/xtm/useCounterpart', () => ({
   default: (...args: unknown[]) => useCounterpartMock(...args),
   OPENCTI_PRODUCT: 'opencti',
@@ -131,6 +133,15 @@ describe('OpenCtiRowMark', () => {
       counterpart_name: 'Incident 1',
     },
   };
+
+  it('given the exploration graph feature off should render nothing and never look the object up', () => {
+    graphEnabled.mockReturnValueOnce(false);
+    useCounterpartMock.mockClear();
+    const { container } = renderPivot(<OpenCtiRowMark kind="alerts" objectKey="https://edr/1" reserveSlot />);
+    expect(container.textContent).toBe('');
+    expect(screen.queryByTestId('xtm-row-mark-slot')).toBeNull();
+    expect(useCounterpartMock).not.toHaveBeenCalled();
+  });
 
   it('given a match with a reserved slot should render the mark inside a fixed-width slot', () => {
     useCounterpartMock.mockReturnValue(match);

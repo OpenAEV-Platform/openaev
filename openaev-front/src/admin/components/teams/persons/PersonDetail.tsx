@@ -36,6 +36,7 @@ import {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import { emptyFilled } from '../../../../utils/String';
 import InjectResultList from '../../atomic_testings/InjectResultList';
@@ -76,7 +77,10 @@ const PersonDetail = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { userId } = useParams() as { userId: string };
-  const { currentTab, handleChangeTab } = useRoutedTabs(PERSON_TABS, 'overview');
+  // The tab bar (Overview | Graph) exists only with the exploration graph preview feature on; off,
+  // the page is the overview alone, as before it.
+  const graphEnabled = useExplorationGraph();
+  const { currentTab, handleChangeTab } = useRoutedTabs(graphEnabled ? PERSON_TABS : ['overview'], 'overview');
 
   const { usersMap, teamsMap, organizationsMap } = useHelper((helper: UserHelper & TeamsHelper & OrganizationHelper & TagHelper) => ({
     usersMap: helper.getUsersMap(),
@@ -190,22 +194,24 @@ const PersonDetail = () => {
         )}
       />
 
-      <Tabs
-        entries={[
-          {
-            key: 'overview',
-            label: t('Overview'),
-          },
-          {
-            key: 'graph',
-            label: t('Graph'),
-          },
-        ]}
-        currentTab={currentTab}
-        onChange={handleChangeTab}
-      />
+      {graphEnabled && (
+        <Tabs
+          entries={[
+            {
+              key: 'overview',
+              label: t('Overview'),
+            },
+            {
+              key: 'graph',
+              label: t('Graph'),
+            },
+          ]}
+          currentTab={currentTab}
+          onChange={handleChangeTab}
+        />
+      )}
 
-      {currentTab === 'graph' && <EntityGraph type="PERSON" entityId={userId} variant="embedded" />}
+      {graphEnabled && currentTab === 'graph' && <EntityGraph type="PERSON" entityId={userId} variant="embedded" />}
 
       {currentTab === 'overview' && (
         <>

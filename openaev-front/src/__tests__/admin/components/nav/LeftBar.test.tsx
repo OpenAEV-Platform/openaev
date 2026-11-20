@@ -24,6 +24,39 @@ vi.mock('../../../../admin/components/nav/LeftBarHeader', () => ({ default: () =
 vi.mock('../../../../admin/components/nav/LeftBarTenantSwitcher', () => ({ default: () => null }));
 vi.mock('../../../../utils/hooks/useAuth', () => ({ default: () => ({ userTenants: [] }) }));
 vi.mock('../../../../utils/utils', () => ({ isFeatureEnabled: () => false }));
+const graphEnabled = vi.fn(() => true);
+vi.mock('../../../../utils/hooks/useExplorationGraph', () => ({ default: () => graphEnabled() }));
+
+describe('LeftBar with the exploration graph preview feature off (the default)', () => {
+  afterEach(cleanup);
+
+  it('shows Dashboards and Reporting as two entries and no Graph entry, as before the feature', () => {
+    // Arrange
+    graphEnabled.mockReturnValue(false);
+    const ability = defineAbility(['ACCESS_DASHBOARDS', 'ACCESS_REPORTINGS', 'ACCESS_ASSETS'], {}, false);
+
+    // Act
+    render(<AbilityProvider value={ability}><LeftBar /></AbilityProvider>);
+
+    // Assert
+    expect(screen.queryByRole('link', { name: 'Graph' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Dashboards' }).getAttribute('href')).toBe('/admin/workspaces/custom_dashboards');
+    expect(screen.getByRole('link', { name: 'Reporting' }).getAttribute('href')).toBe('/admin/reporting');
+    graphEnabled.mockReturnValue(true);
+  });
+
+  it('shows the Graph entry once the feature is on', () => {
+    // Arrange
+    graphEnabled.mockReturnValue(true);
+    const ability = defineAbility(['ACCESS_ASSETS'], {}, false);
+
+    // Act
+    render(<AbilityProvider value={ability}><LeftBar /></AbilityProvider>);
+
+    // Assert
+    expect(screen.getByRole('link', { name: 'Graph' }).getAttribute('href')).toBe('/admin/graph');
+  });
+});
 
 describe('LeftBar Dashboards entry (custom dashboards and reporting as two tabs)', () => {
   afterEach(cleanup);

@@ -1,4 +1,4 @@
-export default function buildScenarioTabs(params: {
+function buildAllScenarioTabs(params: {
   isChained: boolean;
   lessonsEnabled: boolean | undefined;
   t: (value: string) => string;
@@ -33,4 +33,15 @@ export default function buildScenarioTabs(params: {
     ['/graph', t('Graph')],
     ['/statistics', t('Statistics')],
   ];
+}
+
+export default function buildScenarioTabs(params: {
+  isChained: boolean;
+  lessonsEnabled: boolean | undefined;
+  // The Graph tab belongs to the exploration graph preview feature (off by default).
+  graphEnabled?: boolean;
+  t: (value: string) => string;
+}): [string, string][] {
+  const { graphEnabled = false } = params;
+  return buildAllScenarioTabs(params).filter(([suffix]) => graphEnabled || suffix !== '/graph');
 }

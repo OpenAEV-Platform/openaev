@@ -36,6 +36,7 @@ import { useHelper } from '../../../../store';
 import { type AggregatedFindingOutput, type Filter, type InjectResultOutput, type Organization, type PlayerOutput, type SearchPaginationInput, type Team, type User } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
@@ -78,7 +79,10 @@ const OrganizationDetailContent = () => {
   const navigate = useNavigate();
   const bodyItemsStyles = useBodyItemsStyles();
   const { organizationId } = useParams() as { organizationId: string };
-  const { currentTab, handleChangeTab } = useRoutedTabs(ORGANIZATION_TABS, 'overview');
+  // The tab bar (Overview | Graph) exists only with the exploration graph preview feature on; off,
+  // the page is the overview alone, as before it.
+  const graphEnabled = useExplorationGraph();
+  const { currentTab, handleChangeTab } = useRoutedTabs(graphEnabled ? ORGANIZATION_TABS : ['overview'], 'overview');
 
   const [organization, setOrganization] = useState<Organization | null>(null);
   useEffect(() => {
@@ -266,22 +270,24 @@ const OrganizationDetailContent = () => {
           )}
         />
 
-        <Tabs
-          entries={[
-            {
-              key: 'overview',
-              label: t('Overview'),
-            },
-            {
-              key: 'graph',
-              label: t('Graph'),
-            },
-          ]}
-          currentTab={currentTab}
-          onChange={handleChangeTab}
-        />
+        {graphEnabled && (
+          <Tabs
+            entries={[
+              {
+                key: 'overview',
+                label: t('Overview'),
+              },
+              {
+                key: 'graph',
+                label: t('Graph'),
+              },
+            ]}
+            currentTab={currentTab}
+            onChange={handleChangeTab}
+          />
+        )}
 
-        {currentTab === 'graph' && <EntityGraph type="ORGANIZATION" entityId={organizationId} variant="embedded" />}
+        {graphEnabled && currentTab === 'graph' && <EntityGraph type="ORGANIZATION" entityId={organizationId} variant="embedded" />}
 
         {currentTab === 'overview' && (
           <>

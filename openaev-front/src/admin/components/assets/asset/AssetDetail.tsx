@@ -36,6 +36,7 @@ import {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
 import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
@@ -146,7 +147,9 @@ const AssetDetail = () => {
   // charts without eating vertical space on the main tab. Tabs are routed
   // (/admin/assets/:id[/statistics]) so they can be deep-linked like the
   // atomic testing and scenario tabs.
-  const { currentTab, handleChangeTab } = useRoutedTabs(['overview', 'graph', 'statistics'], 'overview');
+  // The Graph tab and the asset links belong to the exploration graph preview feature (off by default).
+  const graphEnabled = useExplorationGraph();
+  const { currentTab, handleChangeTab } = useRoutedTabs(graphEnabled ? ['overview', 'graph', 'statistics'] : ['overview', 'statistics'], 'overview');
 
   if (loading && !asset) {
     return <Loader />;
@@ -259,10 +262,12 @@ const AssetDetail = () => {
             key: 'overview',
             label: t('Overview'),
           },
-          {
-            key: 'graph',
-            label: t('Graph'),
-          },
+          ...(graphEnabled
+            ? [{
+                key: 'graph',
+                label: t('Graph'),
+              }]
+            : []),
           {
             key: 'statistics',
             label: t('Statistics'),
@@ -272,7 +277,7 @@ const AssetDetail = () => {
         onChange={handleChangeTab}
       />
 
-      {currentTab === 'graph' && <EntityGraph type="ASSET" entityId={id} variant="embedded" />}
+      {graphEnabled && currentTab === 'graph' && <EntityGraph type="ASSET" entityId={id} variant="embedded" />}
 
       {currentTab === 'statistics' && (
         // Two simple 50/50 time series: the posture-score evolution (same
@@ -445,11 +450,13 @@ const AssetDetail = () => {
 
           {/* Asset-to-asset links (hosts, uses, logged on...), both directions, read-only and
               compact; edited in the Manage links drawer only. The graph lives in the Graph tab. */}
-          <AssetLinks
-            assetId={id}
-            assetName={asset.asset_name}
-            canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS)}
-          />
+          {graphEnabled && (
+            <AssetLinks
+              assetId={id}
+              assetName={asset.asset_name}
+              canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS)}
+            />
+          )}
 
           {hasAgents && (
             <SectionBlock title={t('Agents')}>

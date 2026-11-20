@@ -32,6 +32,7 @@ import { useHelper } from '../../../../store';
 import { type AssetOutput, type Filter, type InjectResultOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
@@ -99,7 +100,9 @@ const AssetGroupDetail = () => {
   // charts without eating vertical space on the main tab. Tabs are routed
   // (/admin/asset_groups/:id[/statistics]) so they can be deep-linked like the
   // atomic testing and scenario tabs.
-  const { currentTab, handleChangeTab } = useRoutedTabs(['overview', 'graph', 'statistics'], 'overview');
+  // The Graph tab belongs to the exploration graph preview feature (off by default).
+  const graphEnabled = useExplorationGraph();
+  const { currentTab, handleChangeTab } = useRoutedTabs(graphEnabled ? ['overview', 'graph', 'statistics'] : ['overview', 'statistics'], 'overview');
 
   // Injects played: the same scoped search as the hero count above, but
   // server-paginated for the full list section below.
@@ -239,10 +242,12 @@ const AssetGroupDetail = () => {
             key: 'overview',
             label: t('Overview'),
           },
-          {
-            key: 'graph',
-            label: t('Graph'),
-          },
+          ...(graphEnabled
+            ? [{
+                key: 'graph',
+                label: t('Graph'),
+              }]
+            : []),
           {
             key: 'statistics',
             label: t('Statistics'),
@@ -252,7 +257,7 @@ const AssetGroupDetail = () => {
         onChange={handleChangeTab}
       />
 
-      {currentTab === 'graph' && <EntityGraph type="ASSET_GROUP" entityId={assetGroupId} variant="embedded" />}
+      {graphEnabled && currentTab === 'graph' && <EntityGraph type="ASSET_GROUP" entityId={assetGroupId} variant="embedded" />}
 
       {currentTab === 'statistics' && (
         // Two simple 50/50 time series: the posture-score evolution (same

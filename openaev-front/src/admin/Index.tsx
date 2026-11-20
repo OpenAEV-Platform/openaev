@@ -121,6 +121,7 @@ const Index = () => {
   const chatbotTransition = useChatbotContentTransition(theme);
   const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
   const isCatalogEnabled = isFeatureEnabled('CATALOG');
+  const isExplorationGraphEnabled = isFeatureEnabled('EXPLORATION_GRAPH');
 
   const { currentUserTenant } = useAuth();
 
@@ -190,18 +191,21 @@ const Index = () => {
             <Route path="" element={errorWrapper(Home)()} />
             <Route path="results" element={errorWrapper(DashboardResults)()} />
             <Route path="fulltextsearch" element={errorWrapper(FullTextSearch)()} />
-            <Route
-              path="graph"
-              element={(
-                <ProtectedRoute
-                  checks={[{
-                    action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.ASSETS,
-                  }]}
-                  Component={errorWrapper(Graph)()}
-                />
-              )}
-            />
+            {/* The Graph page exists only with the exploration graph preview feature on. */}
+            {isExplorationGraphEnabled && (
+              <Route
+                path="graph"
+                element={(
+                  <ProtectedRoute
+                    checks={[{
+                      action: ACTIONS.ACCESS,
+                      subject: SUBJECTS.ASSETS,
+                    }]}
+                    Component={errorWrapper(Graph)()}
+                  />
+                )}
+              />
+            )}
             <Route
               path="findings"
               element={(
