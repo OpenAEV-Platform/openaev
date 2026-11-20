@@ -1,14 +1,12 @@
 import { type FunctionComponent } from 'react';
-import { useNavigate } from 'react-router';
 
 import { launchScenario } from '../../../../actions/scenarios/scenario-actions';
 import { useFormatter } from '../../../../components/i18n';
-import { SIMULATION_BASE_URL } from '../../../../constants/BaseUrls';
-import { MESSAGING$ } from '../../../../utils/Environment';
 import { SCENARIO_TYPE_CHAINED } from '../scenario/ScenarioType';
 import { type ScenarioRow, scenarioTypeOf } from '../scenarioRow';
 import { type ScenarioTargets, toTargetsInput } from '../targets/scenarioTargets';
 import ScenarioTargetsDrawer from '../targets/ScenarioTargetsDrawer';
+import useOpenLaunchedSimulation from './useOpenLaunchedSimulation';
 
 interface Props {
   scenario: ScenarioRow;
@@ -18,15 +16,11 @@ interface Props {
 // A simulation starts from the scenario, the chosen targets added to it only.
 const ScenarioLaunchDrawer: FunctionComponent<Props> = ({ scenario, onClose }) => {
   const { t } = useFormatter();
-  const navigate = useNavigate();
+  const openLaunchedSimulation = useOpenLaunchedSimulation();
   const chained = scenarioTypeOf(scenario) === SCENARIO_TYPE_CHAINED;
 
   const launch = (targets: ScenarioTargets) => launchScenario(scenario.scenario_id, toTargetsInput(targets))
-    .then(({ simulation_id }) => {
-      MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
-      // A chained simulation opens on its live execution view.
-      navigate(`${SIMULATION_BASE_URL}/${simulation_id}${chained ? '/attack-path' : ''}`);
-    });
+    .then(({ simulation_id }) => openLaunchedSimulation(simulation_id, chained));
 
   return (
     <ScenarioTargetsDrawer

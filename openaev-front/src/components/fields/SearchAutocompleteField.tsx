@@ -13,9 +13,9 @@ import {
 } from '@filigran/design-system';
 import { type FunctionComponent, useMemo } from 'react';
 
-import RequiredMark from '../../../../components/fields/RequiredMark';
-import { useFormatter } from '../../../../components/i18n';
-import { type Option } from '../../../../utils/Option';
+import { type Option } from '../../utils/Option';
+import { useFormatter } from '../i18n';
+import RequiredMark from './RequiredMark';
 
 /**
  * Search-driven autocomplete matching the platform's standard form fields
@@ -27,6 +27,7 @@ interface BaseProps {
   labelPosition?: ComboboxLabelPosition;
   /** Fixed width for a left-positioned label, so sibling rows line up. */
   labelWidth?: number;
+  placeholder?: string;
   options: Option[];
   onInputChange: (search: string) => void;
   required?: boolean;
@@ -48,8 +49,8 @@ interface MultipleProps extends BaseProps {
 
 type Props = SingleProps | MultipleProps;
 
-const ReportingAutocompleteField: FunctionComponent<Props> = (props) => {
-  const { label, labelPosition, labelWidth, options, onInputChange, required = false, error = false, helperText } = props;
+const SearchAutocompleteField: FunctionComponent<Props> = (props) => {
+  const { label, labelPosition, labelWidth, placeholder, options, onInputChange, required = false, error = false, helperText } = props;
   const { t } = useFormatter();
 
   const selected = useMemo(() => {
@@ -100,7 +101,7 @@ const ReportingAutocompleteField: FunctionComponent<Props> = (props) => {
       </ComboboxLabel>
       <ComboboxField>
         {props.multiple === true ? <ComboboxChips /> : null}
-        <ComboboxInput />
+        <ComboboxInput placeholder={placeholder} />
         <ComboboxControls>
           <ComboboxClear />
           <ComboboxTrigger />
@@ -112,4 +113,4 @@ const ReportingAutocompleteField: FunctionComponent<Props> = (props) => {
   );
 };
 
-export default ReportingAutocompleteField;
+export default SearchAutocompleteField;

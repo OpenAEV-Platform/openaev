@@ -51,7 +51,6 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCategory from '../../../../components/ItemCategory';
 import ItemSeverity from '../../../../components/ItemSeverity';
-import { SIMULATION_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import {
   type Article,
@@ -89,6 +88,7 @@ import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
 import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
+import useOpenLaunchedSimulation from '../launch/useOpenLaunchedSimulation';
 import {
   SCENARIO_CONFIGURATION_QUERY_PARAM,
   SCENARIO_CONFIGURATION_VARIABLES_QUERY_VALUE,
@@ -123,6 +123,7 @@ const ScenarioHeader = ({
   const { t, locale, fld } = useFormatter();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const openLaunchedSimulation = useOpenLaunchedSimulation();
   const location = useLocation();
   const theme = useTheme();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
@@ -1059,16 +1060,8 @@ const ScenarioHeader = ({
               // lookup now 404s), so forget the latched run: the overview reverts to the manual view
               // instead of keeping the stale AI plan outcome + status chip until a full page reload.
               onAutonomousRunCleared?.();
-              // A manual launch jumps into the simulation that was just created: a chained scenario
-              // lands on the simulation's Attack path tab (the live execution view), a time-based
-              // scenario on the simulation overview. Only the AUTONOMOUS launch stays on the
-              // scenario (its attack-path tab hosts the AI cockpit) - see handleAiLaunch.
-              if (isScenarioChaining) {
-                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
-              } else {
-                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
-              }
-              MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
+              // Only the autonomous launch stays on the scenario: see handleAiLaunch.
+              openLaunchedSimulation(exercise.exercise_id, isScenarioChaining);
             }}
           >
             {t('Confirm')}
