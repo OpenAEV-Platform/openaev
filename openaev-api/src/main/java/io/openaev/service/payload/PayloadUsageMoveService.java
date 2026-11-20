@@ -9,16 +9,11 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.User;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
-import io.openaev.rest.exception.BadRequestException;
-import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.injector_contract.InjectorContractService;
-import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.StepService;
@@ -43,10 +38,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(rollbackFor = Exception.class)
 public class PayloadUsageMoveService {
 
-  public static final String NOT_ANOTHER_VERSION =
-      "The target is not another version of this payload";
-  public static final String TARGET_REVOKED = "The target version is revoked";
-
   /** Why a usage stays on its version. */
   public enum Refusal {
     NOT_ON_THIS_VERSION,
@@ -57,9 +48,6 @@ public class PayloadUsageMoveService {
   public record Moves(List<String> moved, Map<String, Refusal> refused) {}
 
   private final PayloadVersionService payloadVersionService;
-  private final PayloadService payloadService;
-  private final PayloadRevocationService payloadRevocationService;
-  private final InjectorContractService injectorContractService;
   private final StepService stepService;
   private final HealthCheckUtils healthCheckUtils;
   private final PermissionService permissionService;
@@ -71,7 +59,8 @@ public class PayloadUsageMoveService {
   public Moves move(
       TxCtx ctx, String tenantId, String actionId, String targetPayloadId, List<String> usageIds) {
     InjectorContract source = payloadVersionService.payloadAction(tenantId, actionId);
-    InjectorContract target = targetAction(tenantId, source.getPayload(), targetPayloadId);
+    InjectorContract target =
+        payloadVersionService.otherVersionAction(tenantId, source.getPayload(), targetPayloadId);
     Map<String, Usage> onSource = usagesOn(tenantId, source);
     User user = userService.currentUser();
 
@@ -88,24 +77,6 @@ public class PayloadUsageMoveService {
       }
     }
     return new Moves(moved, refused);
-  }
-
-  private InjectorContract targetAction(String tenantId, Payload source, String targetPayloadId) {
-    boolean otherVersion =
-        !source.getId().equals(targetPayloadId)
-            && payloadService.versionsOf(tenantId, source).stream()
-                .anyMatch(version -> version.getId().equals(targetPayloadId));
-    if (!otherVersion) {
-      throw new BadRequestException(NOT_ANOTHER_VERSION);
-    }
-    if (payloadRevocationService.isRevoked(tenantId, targetPayloadId)) {
-      throw new BadRequestException(TARGET_REVOKED);
-    }
-    return Optional.ofNullable(
-            injectorContractService
-                .injectorContractsOfPayloads(tenantId, List.of(targetPayloadId))
-                .get(targetPayloadId))
-        .orElseThrow(() -> new ElementNotFoundException(PayloadVersionService.NO_PAYLOAD));
   }
 
   private Map<String, Usage> usagesOn(String tenantId, InjectorContract action) {
