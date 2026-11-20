@@ -116,7 +116,7 @@ describe('NewsFeedBlogPosts', () => {
     expect(screen.getByText(INFO)).toBeInTheDocument();
   });
 
-  it('links to the Filigran blog in a new tab, with the UTM of the news feed and no platform id', async () => {
+  it('links to the Filigran blog in a new tab, with the UTM of the news feed, the product as source, and no platform id', async () => {
     // Act
     renderBlogPosts();
 
@@ -126,7 +126,7 @@ describe('NewsFeedBlogPosts', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     const url = new URL(link.getAttribute('href') as string);
     expect(url.origin + url.pathname).toBe('https://filigran.io/blog');
-    expect(url.searchParams.get('utm_source')).toBe(PLATFORM_ID);
+    expect(url.searchParams.get('utm_source')).toBe('openaev');
     expect(url.searchParams.get('utm_medium')).toBe('newsfeed');
     expect(url.searchParams.get('utm_campaign')).toBe('blog_posts');
     expect(url.searchParams.get('utm_content')).toBe('see_all');

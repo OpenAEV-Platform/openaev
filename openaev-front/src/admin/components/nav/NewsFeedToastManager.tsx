@@ -86,7 +86,7 @@ const NewsFeedToastManager: FunctionComponent = () => {
   let overflowMessage = t('(+{count}) Click to view all the new items', { count: String(hiddenCount) });
   let overflowLinkLabel = t('View all');
   if (isOnlyBlogPostHidden) {
-    overflowUrl = buildNewsFeedBlogSeeAllUrl(settings.platform_id, settings.xtm_hub_url);
+    overflowUrl = buildNewsFeedBlogSeeAllUrl(settings.xtm_hub_url);
     overflowMessage = t('(+{count}) Click to view all the new blogposts', { count: String(hiddenCount) });
     overflowLinkLabel = t('See all');
   } else if (isOnlyResourceHidden) {

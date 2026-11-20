@@ -94,13 +94,15 @@ export const parseNewsFeedReadMinutes = (rawReadMinutes: string | undefined): nu
 
 const FILIGRAN_BLOG_URL = 'https://filigran.io/blog';
 const FILIGRAN_STAGING_BLOG_URL = 'https://staging.filigran.io/blog';
+// The product, as XTM Hub names it in the links it builds: not the installation.
+const NEWS_FEED_UTM_SOURCE = 'openaev';
 
 /**
  * Link of the "See all" button of the blogposts: the Filigran blog (staging blog when the platform is linked to a
- * staging XTM Hub), tagged with the UTM of the news feed. No `platform_id`: this link does not go through the XTM Hub
- * redirect.
+ * staging XTM Hub), tagged with the UTM of the news feed, whose source is the product, not the installation. This link
+ * does not go through the XTM Hub redirect.
  */
-export const buildNewsFeedBlogSeeAllUrl = (platformId: string | undefined, configuredHubUrl: string | undefined): string => {
+export const buildNewsFeedBlogSeeAllUrl = (configuredHubUrl: string | undefined): string => {
   let isStaging = false;
   try {
     isStaging = /(^|\.)staging\./.test(new URL(configuredHubUrl ?? XTM_HUB_DEFAULT_URL).hostname);
@@ -108,9 +110,7 @@ export const buildNewsFeedBlogSeeAllUrl = (platformId: string | undefined, confi
     // malformed XTM Hub URL: the production blog
   }
   const url = new URL(isStaging ? FILIGRAN_STAGING_BLOG_URL : FILIGRAN_BLOG_URL);
-  if (platformId) {
-    url.searchParams.append('utm_source', platformId);
-  }
+  url.searchParams.append('utm_source', NEWS_FEED_UTM_SOURCE);
   url.searchParams.append('utm_medium', 'newsfeed');
   url.searchParams.append('utm_campaign', 'blog_posts');
   url.searchParams.append('utm_content', 'see_all');

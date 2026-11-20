@@ -98,7 +98,7 @@ const NewsFeedBlogPosts = () => {
       }}
       >
         <Button asChild priority="secondary">
-          <a href={buildNewsFeedBlogSeeAllUrl(settings.platform_id, settings.xtm_hub_url)} target="_blank" rel="noopener noreferrer">
+          <a href={buildNewsFeedBlogSeeAllUrl(settings.xtm_hub_url)} target="_blank" rel="noopener noreferrer">
             {t('See all')}
             <OpenInNewOutlined fontSize="small" />
           </a>

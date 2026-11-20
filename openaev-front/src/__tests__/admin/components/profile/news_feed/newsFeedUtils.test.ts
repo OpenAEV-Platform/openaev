@@ -93,14 +93,14 @@ describe('newsFeedUtils', () => {
   });
 
   describe('buildNewsFeedBlogSeeAllUrl', () => {
-    it('targets the Filigran blog with the UTM of the news feed and no platform id', () => {
+    it('targets the Filigran blog with the UTM of the news feed, the product as source, and no platform id', () => {
       // Act
-      const url = new URL(buildNewsFeedBlogSeeAllUrl('platform-1', HUB_URL));
+      const url = new URL(buildNewsFeedBlogSeeAllUrl(HUB_URL));
 
       // Assert
       expect(url.origin + url.pathname).toBe('https://filigran.io/blog');
       expect(Object.fromEntries(url.searchParams)).toEqual({
-        utm_source: 'platform-1',
+        utm_source: 'openaev',
         utm_medium: 'newsfeed',
         utm_campaign: 'blog_posts',
         utm_content: 'see_all',
@@ -108,15 +108,11 @@ describe('newsFeedUtils', () => {
     });
 
     it('targets the staging blog when the platform is linked to a staging XTM Hub', () => {
-      expect(new URL(buildNewsFeedBlogSeeAllUrl('platform-1', 'https://hub.staging.filigran.io')).origin).toBe('https://staging.filigran.io');
+      expect(new URL(buildNewsFeedBlogSeeAllUrl('https://hub.staging.filigran.io')).origin).toBe('https://staging.filigran.io');
     });
 
     it.each([undefined, 'not an url'])('targets the production blog when the XTM Hub URL is %s', (hubUrl) => {
-      expect(new URL(buildNewsFeedBlogSeeAllUrl('platform-1', hubUrl)).origin).toBe('https://filigran.io');
-    });
-
-    it('does not forge a utm_source when the platform identifier is missing', () => {
-      expect(new URL(buildNewsFeedBlogSeeAllUrl(undefined, HUB_URL)).searchParams.has('utm_source')).toBe(false);
+      expect(new URL(buildNewsFeedBlogSeeAllUrl(hubUrl)).origin).toBe('https://filigran.io');
     });
   });
 });

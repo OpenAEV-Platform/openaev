@@ -238,7 +238,7 @@ describe('NewsFeedToastManager', () => {
         expect(within(region).queryByText(/new resources on the Hub/)).not.toBeInTheDocument();
         const url = new URL(within(region).getByRole('link', { name: 'See all' }).getAttribute('href') as string);
         expect(url.origin + url.pathname).toBe('https://filigran.io/blog');
-        expect(url.searchParams.get('utm_source')).toBe(PLATFORM_ID);
+        expect(url.searchParams.get('utm_source')).toBe('openaev');
         expect(url.searchParams.get('utm_content')).toBe('see_all');
         expect(url.searchParams.has('platform_id')).toBe(false);
       });
