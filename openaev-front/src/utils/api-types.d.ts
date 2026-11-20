@@ -3335,10 +3335,24 @@ export interface ConnectorInstanceLogsInput {
 }
 
 export interface ConnectorInstanceOutput {
+  /** Container image the composer deploys (image:version), absent for a built-in instance */
+  connector_image?: string;
   connector_instance_current_status: "started" | "stopped";
   /** @minLength 1 */
   connector_instance_id: string;
+  /** Whether the container is in a reboot loop */
+  connector_instance_is_in_reboot_loop?: boolean;
   connector_instance_requested_status?: "starting" | "stopping";
+  /**
+   * Container restart count, as reported by the composer
+   * @format int32
+   */
+  connector_instance_restart_count?: number;
+  /**
+   * When the container last started, as reported by the composer
+   * @format date-time
+   */
+  connector_instance_started_at?: string;
 }
 
 export interface ConnectorInstancePersisted {
@@ -3476,6 +3490,8 @@ export interface ContractOutputElementInput {
 export interface ContractOutputElementSimple {
   /** @minLength 1 */
   contract_output_element_id: string;
+  /** True when the values extracted by this element are saved as findings. */
+  contract_output_element_is_finding: boolean;
   /**
    * Represents a unique key identifier.
    * @minLength 1
@@ -6804,6 +6820,8 @@ export interface HealthCheck {
     | "INEFFECTIVE_TECHNICAL_TARGETS"
     | "INEFFECTIVE_AUDIENCE_TARGETS"
     | "REVOKED";
+  /** Key of the injector contract field the check is about, set on a missing mandatory field (its type can be unknown when the key is not a known check type) */
+  field?: string;
   /** Define if it's an error or a warning */
   status: "ERROR" | "WARNING";
   /** Type of the check, could be a service, an attribute, etc */
@@ -7578,6 +7596,8 @@ export interface InjectResultOverviewOutput {
   inject_kill_chain_phases?: KillChainPhaseSimple[];
   /** User who launched this inject */
   inject_launched_by_user?: UserSimple;
+  /** Keys of the injector contract's mandatory fields this inject leaves empty: the reasons it is not ready (empty when it is ready) */
+  inject_missing_mandatory_fields: string[];
   /** Indicates whether the inject is ready for use */
   inject_ready?: boolean;
   /** Recurrence cron expression for scheduled relaunch */
@@ -13723,7 +13743,7 @@ export interface ThreatArsenalActionFullOutput {
    * Parsers used to process action outputs
    * @uniqueItems true
    */
-  action_output_parsers?: OutputParser[];
+  action_output_parsers?: OutputParserSimple[];
   /** Supported endpoint platforms for this action */
   action_platforms?: (
     | "Linux"

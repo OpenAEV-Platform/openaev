@@ -4,10 +4,12 @@ import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSEN
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.api.catalog.dto.CatalogHistoryOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.catalog.history.CatalogHistoryService;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,11 +24,11 @@ import org.springframework.web.bind.annotation.RestController;
  * Who installed, uninstalled, revoked or lifted each version of a payload or a scenario, and when.
  */
 @RestController
+@RequirePreviewFeature(PreviewFeature.CATALOG)
 @RequiredArgsConstructor
 public class CatalogHistoryApi {
 
   private final CatalogHistoryService catalogHistoryService;
-  private final CatalogFeature catalogFeature;
 
   // -- READ --
 
@@ -38,7 +40,6 @@ public class CatalogHistoryApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.THREAT_ARSENAL)
   public List<CatalogHistoryOutput> payloadHistory(TxCtx ctx, @PathVariable String actionId) {
-    catalogFeature.require();
     return catalogHistoryService
         .payloadHistory(TxCtxScopeUtils.requireOneTenantOfScope(ctx), actionId)
         .stream()
@@ -54,7 +55,6 @@ public class CatalogHistoryApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public List<CatalogHistoryOutput> scenarioHistory(TxCtx ctx, @PathVariable String scenarioId) {
-    catalogFeature.require();
     return catalogHistoryService.scenarioHistory(ctx, scenarioId).stream()
         .map(CatalogHistoryMapper::toOutput)
         .toList();

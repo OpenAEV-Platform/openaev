@@ -260,7 +260,7 @@ public class ThreatArsenalMapper {
         payload.getExecutionArch(),
         payload.getCollectorTypeValue(),
         payload.getDetectionRemediations(),
-        payload.getOutputParsers(),
+        payloadMapper.toOutputParsersSimple(payload.getOutputParsers()),
         tagIds,
         domainIds,
         attackPatternIds,

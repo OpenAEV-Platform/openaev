@@ -180,9 +180,9 @@ public class CatalogPayloadService {
     refuseOtherType(versions, type);
     validateArchitecture(type.key, input.getExecutionArch());
     Payload payload = type.getPayloadSupplier().get();
+    payload.setTenant(new Tenant(tenantId));
     // Copied before the identity is set: the input carries an origin the release does not decide.
     payloadUtils.copyProperties(input, payload, false);
-    payload.setTenant(new Tenant(tenantId));
     payload.setIdentity(identity);
     payload.setVersion(released.version());
     payload.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);

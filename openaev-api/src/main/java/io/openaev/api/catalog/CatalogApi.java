@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.api.catalog.dto.action.AvailableActionOutput;
 import io.openaev.api.catalog.dto.payload.CatalogPayloadOutput;
 import io.openaev.api.catalog.dto.scenario.CatalogScenarioOutput;
@@ -15,6 +16,7 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.catalog.CatalogPayload;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.catalog.AvailableActionService;
 import io.openaev.service.catalog.AvailableActions;
 import io.openaev.service.catalog.CatalogListService;
@@ -32,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** The content catalogue of the tenant, as the collector released it. */
 @RestController
+@RequirePreviewFeature(PreviewFeature.CATALOG)
 @RequiredArgsConstructor
 public class CatalogApi {
 
@@ -43,7 +46,6 @@ public class CatalogApi {
   private final AvailableActionService availableActionService;
   private final CatalogScenarioOfferService catalogScenarioOfferService;
   private final TenantWriteScopeResolver writeScopeResolver;
-  private final CatalogFeature catalogFeature;
   private final CatalogItemMapper catalogItemMapper;
 
   // -- READ --
@@ -53,7 +55,6 @@ public class CatalogApi {
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<CatalogScenarioOutput> scenarios(TxCtx ctx) {
-    catalogFeature.require();
     return catalogScenarioOfferService
         .notInstalled(writeScopeResolver.tenantForWrite(ctx, null))
         .stream()
@@ -67,7 +68,6 @@ public class CatalogApi {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<CatalogScenarioVersionOutput> scenarioVersions(
       TxCtx ctx, @PathVariable String externalId) {
-    catalogFeature.require();
     return catalogListService.offeredVersions(CatalogScenario.class, externalId).stream()
         .map(catalogItemMapper::toVersionOutput)
         .toList();
@@ -78,7 +78,6 @@ public class CatalogApi {
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public List<AvailableActionOutput> actions(TxCtx ctx) {
-    catalogFeature.require();
     AvailableActions available =
         availableActionService.available(writeScopeResolver.tenantForWrite(ctx, null));
     return Stream.concat(
@@ -92,7 +91,6 @@ public class CatalogApi {
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public List<CatalogPayloadOutput> payloadVersions(TxCtx ctx, @PathVariable String externalId) {
-    catalogFeature.require();
     return catalogListService.offeredVersions(CatalogPayload.class, externalId).stream()
         .map(catalogItemMapper::toOutput)
         .toList();
@@ -105,7 +103,6 @@ public class CatalogApi {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public PayloadUpsertInput payloadVersionContent(
       TxCtx ctx, @PathVariable String externalId, @PathVariable String version) {
-    catalogFeature.require();
     return catalogPayloadInstaller.releasedContent(ctx, externalId, version);
   }
 }

@@ -3,12 +3,13 @@ package io.openaev.api.payload;
 import static io.openaev.rest.payload.PayloadApi.TENANT_PAYLOAD_URI;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.api.catalog.CatalogFeature;
+import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.api.payload.dto.PayloadRevocationInput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.payload.PayloadRevocationService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequirePreviewFeature(PreviewFeature.CATALOG)
 @RequiredArgsConstructor
 public class PayloadRevocationApi {
 
@@ -31,7 +33,6 @@ public class PayloadRevocationApi {
 
   private final PayloadRevocationService payloadRevocationService;
   private final TenantWriteScopeResolver writeScopeResolver;
-  private final CatalogFeature catalogFeature;
 
   // -- CREATE --
 
@@ -42,7 +43,6 @@ public class PayloadRevocationApi {
   @Transactional(propagation = Propagation.SUPPORTS)
   public void revoke(
       TxCtx ctx, @PathVariable String payloadId, @Valid @RequestBody PayloadRevocationInput input) {
-    catalogFeature.require();
     payloadRevocationService.revoke(
         ctx, writeScopeResolver.tenantForWrite(ctx, null), payloadId, input.reason());
   }
@@ -55,7 +55,6 @@ public class PayloadRevocationApi {
   @AccessControl(actionPerformed = Action.REVOKE, resourceType = ResourceType.THREAT_ARSENAL)
   @Transactional(propagation = Propagation.SUPPORTS)
   public void lift(TxCtx ctx, @PathVariable String payloadId) {
-    catalogFeature.require();
     payloadRevocationService.lift(ctx, writeScopeResolver.tenantForWrite(ctx, null), payloadId);
   }
 }

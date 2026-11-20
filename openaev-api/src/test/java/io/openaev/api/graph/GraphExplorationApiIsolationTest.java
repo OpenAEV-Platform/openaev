@@ -160,7 +160,7 @@ class GraphExplorationApiIsolationTest extends IntegrationTest {
             .persist()
             .get();
     mvc.perform(
-            get(GraphExplorationApi.GRAPH_URI + "/hot-paths")
+            get(HOT_PATHS, tenantA)
                 .with(authentication(buildAuthenticationToken(plain)))
                 .with(csrf()))
         .andExpect(status().isForbidden());

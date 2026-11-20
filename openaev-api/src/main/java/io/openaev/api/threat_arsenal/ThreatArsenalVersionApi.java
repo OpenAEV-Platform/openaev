@@ -4,13 +4,14 @@ import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSEN
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.THREAT_ARSENAL_URL;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.api.catalog.CatalogFeature;
+import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.api.threat_arsenal.dto.PayloadUsagesOutput;
 import io.openaev.api.threat_arsenal.dto.PayloadVersionOutput;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,11 +23,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequirePreviewFeature(PreviewFeature.CATALOG)
 @RequiredArgsConstructor
 public class ThreatArsenalVersionApi {
 
   private final PayloadVersionService payloadVersionService;
-  private final CatalogFeature catalogFeature;
 
   // -- READ --
 
@@ -42,7 +43,6 @@ public class ThreatArsenalVersionApi {
       resourceType = ResourceType.THREAT_ARSENAL)
   public List<PayloadVersionOutput> versions(
       @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
-    catalogFeature.require();
     return payloadVersionService.versions(TxCtxScopeUtils.requireOneTenantOfScope(ctx), actionId);
   }
 
@@ -61,7 +61,6 @@ public class ThreatArsenalVersionApi {
       resourceType = ResourceType.THREAT_ARSENAL)
   public PayloadUsagesOutput usages(
       @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
-    catalogFeature.require();
     return payloadVersionService.usages(TxCtxScopeUtils.requireOneTenantOfScope(ctx), actionId);
   }
 }
