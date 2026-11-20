@@ -17,7 +17,7 @@ import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.inject.form.InjectBulkProcessingInput;
+import io.openaev.rest.inject.form.InjectBulkDeleteInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.period.RecurrenceService;
@@ -235,10 +235,16 @@ public class AtomicTestingService {
     return injectMapper.toInjectResultOverviewOutput(saved);
   }
 
-  public void deleteAtomicTesting(TxCtx ctx, String injectId) {
+  /**
+   * Deletes an atomic testing.
+   *
+   * @param keepFindings true keeps the findings it produced, detached from it; false (the default)
+   *     deletes them with the atomic testing
+   */
+  public void deleteAtomicTesting(TxCtx ctx, String injectId, boolean keepFindings) {
     // Verify the inject exists inside the request's tenant scope before deleting
     findInject(ctx, injectId);
-    injectService.delete(injectId);
+    injectService.delete(injectId, keepFindings);
   }
 
   /**
@@ -246,14 +252,15 @@ public class AtomicTestingService {
    * (select-all with optional exclusions). The scope is restricted to atomic testings (injects
    * without scenario or simulation) the user is allowed to plan on.
    *
-   * @param input the bulk processing input (ids or search input, plus ids to ignore)
+   * @param input the bulk delete input (ids or search input, plus ids to ignore, and keep_findings:
+   *     true keeps the findings the atomic testings produced, detached from them)
    *     <p>Not transactional as a whole: the deletion scope is resolved in a short transaction,
    *     then atomic testings are deleted in small independent chunks (with deadlock retry) tracked
    *     as a massive operation, so per-entity stream events are suppressed in favor of aggregated
    *     progress events.
    * @return the list of deleted inject ids
    */
-  public List<String> bulkDelete(final TxCtx ctx, @NotNull final InjectBulkProcessingInput input) {
+  public List<String> bulkDelete(final TxCtx ctx, @NotNull final InjectBulkDeleteInput input) {
     // The generic inject specification is unrestricted when no simulation/scenario id is given:
     // constrain it to atomic testings only so a select-all can never touch simulation or scenario
     // injects.
@@ -269,7 +276,10 @@ public class AtomicTestingService {
               return injectRepository.findAll(specification).stream().map(Inject::getId).toList();
             });
     return bulkDeleteExecutor.deleteInChunks(
-        ctx, "atomic testings", injectIdsToDelete, ids -> injectService.deleteAllByIds(ctx, ids));
+        ctx,
+        "atomic testings",
+        injectIdsToDelete,
+        ids -> injectService.deleteAllByIds(ctx, ids, input.isKeepFindings()));
   }
 
   // -- ACTIONS --
