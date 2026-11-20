@@ -7,7 +7,6 @@ import io.openaev.database.model.scenario.ScenarioRevision;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.catalog.CatalogFileService;
 import io.openaev.service.catalog.scenario.CatalogScenarioOfferService;
-import io.openaev.service.catalog.scenario.CatalogScenarioType;
 import io.openaev.service.catalog.scenario.InstallableScenarioVersion;
 import io.openaev.service.catalog.scenario.ReleasedScenario;
 import java.util.Map;
@@ -26,6 +25,7 @@ public class CatalogScenarioUpdater {
   public static final String IMPORTED_LINKS_REFUSED =
       "This version holds documents, channels or challenges: updating to it is not supported yet";
 
+  private final InstalledScenarioService installedScenarioService;
   private final CatalogScenarioUpdateService catalogScenarioUpdateService;
   private final CatalogScenarioOfferService catalogScenarioOfferService;
   private final ScenarioRevisionService scenarioRevisionService;
@@ -36,7 +36,7 @@ public class CatalogScenarioUpdater {
   // -- UPDATE --
 
   public ScenarioPreview previewUpdate(TxCtx ctx, String scenarioId, String version) {
-    InstalledScenario installed = catalogScenarioUpdateService.installed(ctx, scenarioId);
+    InstalledScenario installed = installedScenarioService.installed(ctx, scenarioId);
     return catalogScenarioUpdateService.preview(
         ctx, toRelease(ctx, installed, offered(ctx, installed, version)));
   }
@@ -47,7 +47,7 @@ public class CatalogScenarioUpdater {
       String version,
       Map<String, ScenarioMerge.Choice> choices,
       Map<String, String> edits) {
-    InstalledScenario installed = catalogScenarioUpdateService.installed(ctx, scenarioId);
+    InstalledScenario installed = installedScenarioService.installed(ctx, scenarioId);
     InstallableScenarioVersion released = offered(ctx, installed, version);
     catalogScenarioUpdateService.apply(
         ctx,
@@ -79,7 +79,7 @@ public class CatalogScenarioUpdater {
       TxCtx ctx, InstalledScenario installed, String version) {
     InstallableScenarioVersion released =
         catalogScenarioOfferService.installable(ctx, installed.externalId(), version);
-    if (released.type() == CatalogScenarioType.CHAINED) {
+    if (!released.type().updatable()) {
       throw new BadRequestException(CHAINED_REFUSED);
     }
     return released;
@@ -87,7 +87,8 @@ public class CatalogScenarioUpdater {
 
   private ScenarioUpdate toRelease(
       TxCtx ctx, InstalledScenario installed, InstallableScenarioVersion released) {
-    ReleasedScenario files = released.released();
+    ReleasedScenario files =
+        catalogScenarioOfferService.released(ctx, installed.externalId(), released.version());
     ScenarioPackage scenarioPackage = packageOf(files);
     if (scenarioPackage.linksImportedContent()) {
       throw new BadRequestException(IMPORTED_LINKS_REFUSED);
@@ -101,7 +102,7 @@ public class CatalogScenarioUpdater {
   }
 
   private ScenarioUpdate toRevision(TxCtx ctx, String scenarioId, String revisionId) {
-    InstalledScenario installed = catalogScenarioUpdateService.installed(ctx, scenarioId);
+    InstalledScenario installed = installedScenarioService.installed(ctx, scenarioId);
     ScenarioRevision revision = scenarioRevisionService.revision(ctx, scenarioId, revisionId);
     return new ScenarioUpdate(
         installed,

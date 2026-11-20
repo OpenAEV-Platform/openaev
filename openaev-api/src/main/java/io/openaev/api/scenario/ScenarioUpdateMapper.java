@@ -26,8 +26,9 @@ public class ScenarioUpdateMapper {
   public static ScenarioChangeOutput toOutput(ScenarioMerge.Change change) {
     return new ScenarioChangeOutput(
         change.id(),
-        change.element(),
-        change.field(),
+        change.elementKind(),
+        change.fieldKind(),
+        change.fieldKey(),
         change.title(),
         change.status(),
         change.editable(),
