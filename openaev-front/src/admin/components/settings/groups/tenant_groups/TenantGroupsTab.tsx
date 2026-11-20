@@ -11,7 +11,7 @@ import { useQueryableWithLocalStorage } from '../../../../../components/common/q
 import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
 import { GROUP_BASE_URL } from '../../../../../constants/BaseUrls';
-import type { Group } from '../../../../../utils/api-types';
+import type { TenantGroupOutput } from '../../../../../utils/api-types';
 import useMarkingDefinitions from '../../../../../utils/hooks/useMarkingDefinitions';
 import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -100,7 +100,7 @@ const TenantGroupsTab = () => {
         {loading
           ? <PaginatedListLoader Icon={GroupsOutlined} headers={headers} headerStyles={TENANT_GROUP_INLINE_STYLES} />
           : (
-              <PaginatedList<Group>
+              <PaginatedList<TenantGroupOutput>
                 Icon={GroupsOutlined}
                 secondaryAction={group => (
                   <GroupPopover

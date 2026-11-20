@@ -13,6 +13,8 @@ import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
+import io.openaev.utils.fixtures.TenantGroupFixture;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
@@ -22,6 +24,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
 import java.util.UUID;
+import org.hibernate.Session;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -36,6 +40,7 @@ class UserServiceTest extends IntegrationTest {
   @Autowired private UserService userService;
   @Autowired private TenantGroupService tenantGroupService;
   @Autowired private UserComposer userComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private TenantComposer tenantComposer;
   @Autowired private GroupRepository groupRepository;
   @Autowired private TokenRepository tokenRepository;
@@ -398,6 +403,47 @@ class UserServiceTest extends IntegrationTest {
 
     // -- ASSERT --
     assertThatThrownBy(() -> userService.user(persisted.getId()))
+        .isInstanceOf(ElementNotFoundException.class);
+  }
+
+  @Test
+  @DisplayName("given_userSharingAGroup_should_deleteLoadingOnlyThatUser")
+  void given_userSharingAGroup_should_deleteLoadingOnlyThatUser() {
+    // -- ARRANGE --
+    // Group.users used to be EAGER like User.groups: loading the user to delete pulled every
+    // member of its groups, then their groups, and so on (the whole user base on a real platform).
+    Group sharedGroup = tenantGroupComposer.forGroup(TenantGroupFixture.getGroup()).persist().get();
+    User target =
+        userComposer
+            .forUser(getUser("Delete", "Shared", UUID.randomUUID() + "@test.invalid"))
+            .withGroup(tenantGroupComposer.forGroup(sharedGroup))
+            .persist()
+            .get();
+    for (int i = 0; i < 5; i++) {
+      userComposer
+          .forUser(getUser("Peer", "Member", UUID.randomUUID() + "@test.invalid"))
+          .withGroup(tenantGroupComposer.forGroup(sharedGroup))
+          .persist();
+    }
+    entityManager.flush();
+    entityManager.clear();
+    Statistics stats = entityManager.unwrap(Session.class).getSessionFactory().getStatistics();
+    boolean statisticsWereEnabled = stats.isStatisticsEnabled();
+    stats.setStatisticsEnabled(true);
+    stats.clear();
+
+    // -- ACT --
+    long loadedUsers;
+    try {
+      userService.delete(target.getId());
+      loadedUsers = stats.getEntityStatistics(User.class.getName()).getLoadCount();
+    } finally {
+      stats.setStatisticsEnabled(statisticsWereEnabled);
+    }
+
+    // -- ASSERT --
+    assertThat(loadedUsers).as("deleting a user must not load its group peers").isEqualTo(1);
+    assertThatThrownBy(() -> userService.user(target.getId()))
         .isInstanceOf(ElementNotFoundException.class);
   }
 

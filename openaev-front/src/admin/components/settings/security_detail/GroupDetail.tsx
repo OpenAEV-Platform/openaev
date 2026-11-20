@@ -30,7 +30,7 @@ import Loader from '../../../../components/Loader';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { GROUP_BASE_URL, ROLE_BASE_URL, USER_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
-import { type Group, type PlatformGroupOutput, type RoleOutput, type SearchPaginationInput, type UserOutput } from '../../../../utils/api-types';
+import { type PlatformGroupOutput, type RoleOutput, type SearchPaginationInput, type TenantGroupOutput, type UserOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
@@ -78,7 +78,7 @@ const GroupDetail = () => {
   // group_markings field at all, so this must never fetch/render in that scope.
   const markingDefinitions = useMarkingDefinitions({ skip: isPlatform || !markingEnabled });
 
-  const [group, setGroup] = useState<Group | null>(null);
+  const [group, setGroup] = useState<TenantGroupOutput | null>(null);
   const [platformGroup, setPlatformGroup] = useState<PlatformGroupOutput | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [roles, setRoles] = useState<RoleOutput[]>([]);
@@ -131,7 +131,7 @@ const GroupDetail = () => {
         .finally(() => setPlatformRolesReady(true));
     } else {
       fetchGroupById(groupId)
-        .then(response => setGroup(response.data as Group))
+        .then(response => setGroup(response.data as TenantGroupOutput))
         .catch(() => setNotFound(true));
       fetchAllRoles().then(response => setRoles(response.data as RoleOutput[]));
     }
@@ -310,7 +310,7 @@ const GroupDetail = () => {
                     groupRolesIds={group!.group_roles ?? []}
                     groupMarkingIds={group!.group_markings ?? []}
                     markingEnabled={markingEnabled}
-                    onUpdate={(updated: Group) => setGroup(updated)}
+                    onUpdate={(updated: TenantGroupOutput) => setGroup(updated)}
                     onDelete={() => navigate(groupsLink)}
                   />
                 )}
