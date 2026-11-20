@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { simplePostCall } = vi.hoisted(() => ({ simplePostCall: vi.fn((_uri?: string, _data?: unknown) => Promise.resolve({ data: { simulation_id: 'simulation-id' } })) }));
 vi.mock('../../../utils/Action', async importOriginal => ({
-  ...await importOriginal<typeof import('../../../utils/Action')>(),
+  ...(await importOriginal<Record<string, unknown>>()),
   simplePostCall,
 }));
 
