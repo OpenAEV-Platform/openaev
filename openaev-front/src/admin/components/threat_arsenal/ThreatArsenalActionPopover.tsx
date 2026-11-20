@@ -329,6 +329,7 @@ const ThreatArsenalActionPopover = ({
           {reviewing && customization?.customization_update && (
             <PayloadUpdateDialog
               actionId={actionId}
+              baseVersion={customization.customization_base_version}
               update={customization.customization_update}
               onClose={() => setReviewing(false)}
               onUpdated={updatedToFiligran}
