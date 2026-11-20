@@ -63,6 +63,21 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   @Override
   @Transactional(readOnly = true)
   public List<InstallableScenarioVersion> neverInstalled(TxCtx ctx, String tenantId) {
+    return installableNeverInstalled(ctx, tenantId);
+  }
+
+  /** What a release brings to install by itself: the scenarios never installed, when asked. */
+  @Override
+  @Transactional(readOnly = true)
+  public List<InstallableScenarioVersion> toAutoInstall(TxCtx ctx, String tenantId) {
+    return catalogSettingsService.isAutoInstall(ctx, tenantId, ContentType.SCENARIO)
+        ? installableNeverInstalled(ctx, tenantId)
+        : List.of();
+  }
+
+  // -- STEPS --
+
+  private List<InstallableScenarioVersion> installableNeverInstalled(TxCtx ctx, String tenantId) {
     return catalogListService
         .latestOfferedExcept(CatalogScenario.class, catalogScenarioService.knownKeys(tenantId))
         .stream()
@@ -71,17 +86,6 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
         .map(item -> toInstallable(ctx, item))
         .toList();
   }
-
-  /** What a release brings to install by itself: the scenarios never installed, when asked. */
-  @Override
-  @Transactional(readOnly = true)
-  public List<InstallableScenarioVersion> toAutoInstall(TxCtx ctx, String tenantId) {
-    return catalogSettingsService.isAutoInstall(ctx, tenantId, ContentType.SCENARIO)
-        ? neverInstalled(ctx, tenantId)
-        : List.of();
-  }
-
-  // -- STEPS --
 
   private InstallableScenarioVersion toInstallable(TxCtx ctx, CatalogScenario item) {
     return new InstallableScenarioVersion(
