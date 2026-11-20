@@ -79,6 +79,7 @@ import useCounterpartMatches, { type CounterpartRef, counterpartRefId } from '..
 import OpenCrqPivot, { OPENCRQ_PRODUCT, OpenCrqMark } from '../../../components/xtm/XtmOpenCrq';
 import OpenCtiPivot, { ProductMark } from '../../../components/xtm/XtmPivot';
 import { toHttpUrl } from '../../../utils/url-helper';
+import { drawnRelations, nodeConnections } from './graph-connections';
 import { NODE_LABEL_OFFSET, NODE_WIDTH } from './graph-edge-geometry';
 import { type GroupedNode, groupNeighbours, isGroupId, miniView } from './graph-grouping';
 import NODE_ICON from './graph-icons';
@@ -551,6 +552,8 @@ const GraphExplorerInner = ({
   const miniHeight = variant === 'mini' ? miniCardHeight(target, NODE_BOX_HEIGHT) : 0;
   // Hover dimming: the hovered node's first ring stays, the rest fades.
   const ring = useMemo(() => (hovered ? firstRing(hovered, drawnEdges) : null), [hovered, drawnEdges]);
+  // The relations each node draws, against what the data holds (#9572): the badge of each node.
+  const drawnPerNode = useMemo(() => drawnRelations(drawnEdges), [drawnEdges]);
 
   const flowNodes: GraphEntityNodeType[] = drawnNodes.map(n => ({
     id: n.node_id,
@@ -578,6 +581,7 @@ const GraphExplorerInner = ({
       highlighted: (failed.nodeIds.has(n.node_id) || (showFailed && Boolean(n.node_group_members) && n.node_result === 'FAILED')) && n.node_type !== 'INJECT',
       truncated: state.truncatedAt.includes(n.node_id),
       groupCount: n.node_group_members?.length,
+      connections: n.node_group_members ? null : nodeConnections(n, drawnPerNode),
       inOpenCti: inOpenCti.has(n.node_id),
       inOpenCrq: inOpenCrq.has(n.node_id),
     },
@@ -1117,6 +1121,18 @@ const GraphExplorerInner = ({
   const panelOpen = Boolean(selectedNode && interactive);
   const selectedCounterpart = selectedNode ? nodeCounterpart(selectedNode) : null;
 
+  // "Targets · 12 (8 not shown)": a relation of the expand lists with its count in the data and
+  // what the screen does not draw yet (#9572); the bare label when the node was not counted.
+  const relationLabel = (node: GraphNodeOutput, type: GraphEdgeType) => {
+    const label = t(EDGE_TYPE_LABEL[type]);
+    const relation = nodeConnections(node, drawnPerNode)?.byType.find(r => r.type === type);
+    if (!relation) {
+      return label;
+    }
+    const hidden = relation.total - relation.shown;
+    return hidden > 0 ? `${label} · ${relation.total} (${hidden} ${t('not shown')})` : `${label} · ${relation.total}`;
+  };
+
   const panel = selectedNode && interactive && (
     <Drawer
       data-testid="graph-side-panel"
@@ -1204,7 +1220,7 @@ const GraphExplorerInner = ({
       <Text variant="content-compact-bold" as="div" className="mt-4">{t('Expand by relation')}</Text>
       <div className="mt-1 flex flex-wrap gap-1">
         {EDGE_TYPES_BY_NODE_TYPE[selectedNode.node_type].map(type => (
-          <Chip key={type} label={t(EDGE_TYPE_LABEL[type])} onClick={() => expand(selectedNode, [type])} />
+          <Chip key={type} label={relationLabel(selectedNode, type)} onClick={() => expand(selectedNode, [type])} />
         ))}
       </div>
       {state.truncatedAt.includes(selectedNode.node_id) && (
@@ -1268,7 +1284,7 @@ const GraphExplorerInner = ({
       <MenuSub key="by-relation">
         <MenuSubTrigger>{t('Expand by relation')}</MenuSubTrigger>
         <MenuSubContent>
-          {EDGE_TYPES_BY_NODE_TYPE[node.node_type].map(type => menuItem(type, t(EDGE_TYPE_LABEL[type]), null, () => expand(node, [type])))}
+          {EDGE_TYPES_BY_NODE_TYPE[node.node_type].map(type => menuItem(type, relationLabel(node, type), null, () => expand(node, [type])))}
         </MenuSubContent>
       </MenuSub>,
       <MenuSub key="by-type">

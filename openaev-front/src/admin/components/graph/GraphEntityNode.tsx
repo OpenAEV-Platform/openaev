@@ -7,6 +7,7 @@ import { memo } from 'react';
 import { useFormatter } from '../../../components/i18n';
 import { OpenCrqMark } from '../../../components/xtm/XtmOpenCrq';
 import { ProductMark } from '../../../components/xtm/XtmPivot';
+import { type NodeConnections } from './graph-connections';
 import { LABEL_MARGIN, NODE_CIRCLE_SIZE, NODE_WIDTH } from './graph-edge-geometry';
 import NODE_ICON from './graph-icons';
 import { type GraphNodeOutput, NODE_TYPE_LABEL, NODE_TYPE_PLURAL } from './graph-model';
@@ -24,6 +25,8 @@ export interface GraphEntityNodeData extends Record<string, unknown> {
   truncated: boolean;
   /** A group node (same-type neighbours folded, as OpenCTI's graph collapse): how many it stands for. */
   groupCount?: number;
+  /** Its relations in the data against the ones drawn (#9572): the connection badge; null when not counted. */
+  connections?: NodeConnections | null;
   /** The node has a counterpart in the connected OpenCTI / OpenCRQ: the product mark of the list rows on its circle. */
   inOpenCti?: boolean;
   inOpenCrq?: boolean;
@@ -36,7 +39,15 @@ const SIZE = NODE_CIRCLE_SIZE;
 const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const { node, focused, anchor, pinned, matched, dimmed, highlighted, truncated, groupCount, inOpenCti, inOpenCrq } = data;
+  const { node, focused, anchor, pinned, matched, dimmed, highlighted, truncated, groupCount, connections, inOpenCti, inOpenCrq } = data;
+  // OpenCTI's number on a node: its relations in the data, "+N" when N of them are not drawn yet.
+  const expandable = connections ? connections.hidden : 0;
+  let connectionsHint = '';
+  if (connections && connections.total > 0) {
+    connectionsHint = expandable > 0
+      ? ` · ${connections.total} ${t('connections')}, ${expandable} ${t('not shown')}, ${t('double-click to expand')}`
+      : ` · ${connections.total} ${t('connections')}`;
+  }
   let outline = 'none';
   if (focused || matched || highlighted) {
     outline = `3px solid ${matched ? theme.palette.secondary.main : theme.palette.primary.main}`;
@@ -109,6 +120,36 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
               }}
             >
               <Icon />
+              {connections && connections.total > 0 && (
+                // Bottom right of the circle, away from the failed badge (top right) and the product
+                // marks (top left); the label sits under the circle, so it is never covered.
+                <Box
+                  data-testid={`graph-node-connections-${node.node_id}`}
+                  data-total={connections.total}
+                  data-hidden={expandable}
+                  aria-label={`${connections.total} ${t('connections')}`}
+                  sx={{
+                    position: 'absolute',
+                    bottom: -6,
+                    right: -10,
+                    minWidth: 18,
+                    height: 16,
+                    px: '3px',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    lineHeight: 1,
+                    color: expandable > 0 ? theme.palette.primary.contrastText : theme.palette.text.secondary,
+                    backgroundColor: expandable > 0 ? theme.palette.primary.main : theme.palette.background.paper,
+                    border: `1px solid ${expandable > 0 ? theme.palette.primary.main : theme.palette.divider}`,
+                  }}
+                >
+                  {expandable > 0 ? `+${expandable}` : connections.total}
+                </Box>
+              )}
               {marks.length > 0 && (
                 <Box
                   sx={{
@@ -180,6 +221,7 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
         {groupCount ? label : `${t(NODE_TYPE_LABEL[node.node_type])}: ${node.node_label}`}
         {node.node_failed_count > 0 ? ` · ${t('Failed expectations')}: ${node.node_failed_count}` : ''}
         {node.node_finding_count > 0 ? ` · ${t('Findings')}: ${node.node_finding_count}` : ''}
+        {connectionsHint}
         {marks.map(m => ` · ${m.label}`).join('')}
       </TooltipContent>
     </Tooltip>

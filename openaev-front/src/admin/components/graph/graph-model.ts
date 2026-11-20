@@ -20,6 +20,8 @@ export interface GraphNodeOutput {
   node_finding_count: number;
   /** When the entity happened (a simulation's start, a finding's last update), else absent: the time range filters on it. */
   node_date?: string | null;
+  /** The entity's relations in the data per relation type, drawn or not (#9572); absent when not counted. */
+  node_relation_counts?: Partial<Record<GraphEdgeType, number>> | null;
 }
 
 export interface GraphEdgeOutput {

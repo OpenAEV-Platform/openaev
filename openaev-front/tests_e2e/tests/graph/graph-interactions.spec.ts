@@ -172,4 +172,31 @@ test.describe('Exploration graph interactions', () => {
 
     expect(problems).toEqual([]);
   });
+
+  test('each node shows its connections in the data, the badge equals the API count', async ({ page, request }) => {
+    const problems = watchConsole(page);
+    const response = await request.get(tenantApiPath(`/api/graph/asset_group/${seeded.groupId}/neighbourhood`));
+    expect(response.ok()).toBeTruthy();
+    const slice = (await response.json()) as {
+      graph_nodes: {
+        node_id: string;
+        node_relation_counts?: Record<string, number> | null;
+      }[];
+    };
+    const groupNode = slice.graph_nodes.find(n => n.node_id === `ASSET_GROUP:${seeded.groupId}`);
+    const apiTotal = Object.values(groupNode?.node_relation_counts ?? {}).reduce((sum, n) => sum + n, 0);
+    expect(apiTotal).toBe(4);
+
+    await page.goto(tenantUrl(`/admin/graph?focus=asset_group:${seeded.groupId}`));
+    await expect(page.locator('.react-flow__node')).toHaveCount(5);
+    // The group draws its 4 members: 4 connections, none left to expand.
+    const groupBadge = page.getByTestId(`graph-node-connections-ASSET_GROUP:${seeded.groupId}`);
+    await expect(groupBadge).toHaveAttribute('data-total', String(apiTotal));
+    await expect(groupBadge).toHaveAttribute('data-hidden', '0');
+    // Each member draws its one group membership.
+    const memberBadge = page.getByTestId(`graph-node-connections-ASSET:${seeded.assetIds[0]}`);
+    await expect(memberBadge).toHaveAttribute('data-total', '1');
+
+    expect(problems).toEqual([]);
+  });
 });

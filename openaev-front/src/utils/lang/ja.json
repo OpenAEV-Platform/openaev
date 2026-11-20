@@ -4953,5 +4953,8 @@
   "Has a session from": "セッション元",
   "Runs": "実行対象",
   "Used by": "使用元",
-  "Add a link": "リンクを追加"
+  "Add a link": "リンクを追加",
+  "connections": "接続",
+  "not shown": "未表示",
+  "double-click to expand": "ダブルクリックで展開"
 }

@@ -4953,5 +4953,8 @@
   "Has a session from": "会话来自",
   "Runs": "运行",
   "Used by": "被使用于",
-  "Add a link": "添加链接"
+  "Add a link": "添加链接",
+  "connections": "个连接",
+  "not shown": "未显示",
+  "double-click to expand": "双击展开"
 }

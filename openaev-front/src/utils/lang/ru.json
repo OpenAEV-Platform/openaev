@@ -4953,5 +4953,8 @@
   "Has a session from": "Имеет сеанс от",
   "Runs": "Выполняет",
   "Used by": "Используется",
-  "Add a link": "Добавить связь"
+  "Add a link": "Добавить связь",
+  "connections": "связей",
+  "not shown": "не показано",
+  "double-click to expand": "дважды щёлкните, чтобы развернуть"
 }

@@ -4953,5 +4953,8 @@
   "Has a session from": "Tiene una sesión de",
   "Runs": "Ejecuta",
   "Used by": "Utilizado por",
-  "Add a link": "Añadir un vínculo"
+  "Add a link": "Añadir un vínculo",
+  "connections": "conexiones",
+  "not shown": "no mostradas",
+  "double-click to expand": "doble clic para expandir"
 }

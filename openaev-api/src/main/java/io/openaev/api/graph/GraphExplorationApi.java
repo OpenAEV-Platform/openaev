@@ -60,6 +60,7 @@ public class GraphExplorationApi extends RestBehavior {
   private final UserService userService;
   private final PermissionService permissionService;
   private final GraphFeature graphFeature;
+  private final GraphRelationCounter relationCounter;
 
   /**
    * The top exposure story of the landing (#9447): one connected subgraph of about 30 nodes, the
@@ -72,7 +73,8 @@ public class GraphExplorationApi extends RestBehavior {
   @Operation(summary = "The top exposure story of the graph landing")
   public GraphOutput story(TxCtx ctx) {
     graphFeature.require();
-    return landingService.story(scope(ctx), visibility(ctx));
+    GraphVisibility visibility = visibility(ctx);
+    return counted(landingService.story(scope(ctx), visibility), ctx, visibility);
   }
 
   /** The aggregated estate overview of the landing (#9447): asset-group bubbles, not nodes. */
@@ -105,7 +107,8 @@ public class GraphExplorationApi extends RestBehavior {
   @Operation(summary = "The exposure hot paths of the tenant")
   public GraphOutput hotPaths(TxCtx ctx, @RequestParam(defaultValue = "15") int limit) {
     graphFeature.require();
-    return graphService.hotPaths(scope(ctx), limit, visibility(ctx));
+    GraphVisibility visibility = visibility(ctx);
+    return counted(graphService.hotPaths(scope(ctx), limit, visibility), ctx, visibility);
   }
 
   /**
@@ -125,8 +128,12 @@ public class GraphExplorationApi extends RestBehavior {
       @RequestParam(required = false) List<String> edges,
       @RequestParam(defaultValue = "50") int limit) {
     graphFeature.require();
-    return graphService.neighbourhood(
-        scope(ctx), type(entityType), entityId, edgeTypes(edges), limit, visibility(ctx));
+    GraphVisibility visibility = visibility(ctx);
+    return counted(
+        graphService.neighbourhood(
+            scope(ctx), type(entityType), entityId, edgeTypes(edges), limit, visibility),
+        ctx,
+        visibility);
   }
 
   /** A shortest path between two entities, bounded; an empty path when none is found. */
@@ -142,11 +149,19 @@ public class GraphExplorationApi extends RestBehavior {
       @RequestParam String toType,
       @RequestParam String toId) {
     graphFeature.require();
-    return graphService.path(
-        scope(ctx), type(fromType), fromId, type(toType), toId, visibility(ctx));
+    GraphVisibility visibility = visibility(ctx);
+    return counted(
+        graphService.path(scope(ctx), type(fromType), fromId, type(toType), toId, visibility),
+        ctx,
+        visibility);
   }
 
   // -- helpers --
+
+  /** The slice with the relation counts of its nodes (#9572), read in the request's scope. */
+  private GraphOutput counted(GraphOutput out, TxCtx ctx, GraphVisibility visibility) {
+    return relationCounter.counted(out, scope(ctx), visibility);
+  }
 
   private static Set<String> scope(TxCtx ctx) {
     return TxCtxScopeUtils.requestReadScope(ctx);
@@ -210,6 +225,11 @@ public class GraphExplorationApi extends RestBehavior {
       @Override
       public boolean canReadFindings() {
         return can(null, ResourceType.FINDING);
+      }
+
+      @Override
+      public boolean countsGrantManaged() {
+        return user.isAdminOrBypass();
       }
 
       private boolean can(String id, ResourceType type) {
