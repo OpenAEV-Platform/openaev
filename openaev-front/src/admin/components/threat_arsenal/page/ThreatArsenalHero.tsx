@@ -1,9 +1,9 @@
-import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
+import { type FunctionComponent, type ReactNode } from 'react';
 
 import { searchThreatArsenalActions } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import MarketplaceHero from '../../../../components/common/marketplace/page/MarketplaceHero';
-import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../../components/i18n';
+import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 
 interface Props { action: ReactNode }
 
@@ -11,12 +11,7 @@ interface Props { action: ReactNode }
 const ThreatArsenalHero: FunctionComponent<Props> = ({ action }) => {
   const { t } = useFormatter();
   // The whole arsenal, never the current page or filters.
-  const [active, setActive] = useState(0);
-  useEffect(() => {
-    searchThreatArsenalActions(buildSearchPagination({ size: 1 }))
-      .then(({ data }: { data: { totalElements?: number } }) => setActive(data?.totalElements ?? 0))
-      .catch(() => undefined);
-  }, []);
+  const active = useSearchTotal(searchThreatArsenalActions);
 
   return (
     <MarketplaceHero
@@ -25,7 +20,7 @@ const ThreatArsenalHero: FunctionComponent<Props> = ({ action }) => {
       stats={[{
         id: 'active',
         label: t('Active'),
-        value: active,
+        value: active ?? 0,
         icon: 'layers-2',
         to: '/admin/threat-arsenal',
       }]}

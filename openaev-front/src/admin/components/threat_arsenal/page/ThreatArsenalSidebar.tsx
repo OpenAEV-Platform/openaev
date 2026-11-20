@@ -21,20 +21,15 @@ const AUTHOR_FILTER_KEY = 'action_author';
 const PLATFORMS = ['Windows', 'Linux', 'MacOS'];
 
 interface Props {
-  /** Domain facet rows (with live counts + icons), already ordered. */
   domainElements: IconBarElement[];
-  /** Distinct authors present in the loaded page (id + label + type). */
   authorOptions: AuthorOption[];
-  /** Platform + status counts under the current filters (null until loaded). */
+  // Null until loaded: rows show no count badge meanwhile.
   facetCounts: ThreatArsenalFacetCounts | null;
   searchPaginationInput: SearchPaginationInput;
   filterHelpers: FilterHelpers;
 }
 
-// The Threat Arsenal "basket": a sticky faceted sidebar (mirrors the
-// integrations marketplace CatalogSidebar) whose rows toggle REAL backend
-// filters through `filterHelpers`. The generic "Add filter" bar still handles
-// every other property (injectors, tags, dates...).
+// Each row toggles a search filter; the "Add filter" bar handles the other properties.
 const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, searchPaginationInput, filterHelpers }: Props) => {
   const { t } = useFormatter();
 
@@ -63,8 +58,6 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
       onToggle: element.function,
     }));
 
-    // Counts stay undefined (no badge, row clickable) until the aggregation
-    // endpoint answers; afterwards zero-count rows grey out like the domain facet.
     const platformRows: FacetRow[] = PLATFORMS.map(platform => ({
       value: platform,
       label: t(platform),

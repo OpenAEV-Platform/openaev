@@ -861,7 +861,8 @@
         "openaev-front/src/public/components/trialbanners/TopBanner.tsx",
         "openaev-front/src/utils/ai/ResponseDialog.tsx",
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectionBar.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
+        "openaev-front/src/admin/components/integrations/Integrations.tsx"
       ]
     },
     {
@@ -930,6 +931,17 @@
       "reason": "The type icon tile of the XTM Hub news feed toasts, tinted from the theme primary colour as on the OpenCTI news feed toasts.",
       "files": [
         "openaev-front/src/admin/components/nav/NewsFeedToastItem.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Inline warnings with an optional action button (e.g. Dismiss) instead of the MUI Alert.",
+      "files": [
+        "openaev-front/src/admin/components/integrations/Integrations.tsx"
       ]
     }
   ],
