@@ -148,7 +148,9 @@ public class ExecutableInjectService {
         log.error(
             "[Inject execution] Missing mandatory input '{}' -> step run can not be created/executed",
             argumentKey);
-        throw new IllegalArgumentException(
+        // CommandBindingException is what getExecutablePayloadAndUpdateInjectStatus records as an
+        // implant error trace without rolling back, so the inject does not stay pending.
+        throw new CommandBindingException(
             "Missing mandatory input '%s' for inject execution".formatted(argumentKey));
       }
       if (isUnchangedTextDefault(defaultPayloadArgument, resolvedArgument.value())) {
@@ -437,7 +439,8 @@ public class ExecutableInjectService {
     // for all payload types. The implant uses payload_arguments[].default_value to download
     // documents before execution; without this override it would download the payload's default
     // document instead of the one configured on the inject.
-    resolveDocumentArgumentsFromInjectContent(processed, inject.getContent());
+    resolveDocumentArgumentsFromInjectContent(
+        processed, inject.getContent(), inject.getTenant().getId());
     return processed;
   }
 
@@ -461,8 +464,18 @@ public class ExecutableInjectService {
     return payloadCommand;
   }
 
-  private void resolveDocumentArgumentsFromInjectContent(
-      Payload payload, ObjectNode injectContent) {
+  private String documentIdInTenant(String documentId, String tenantId) {
+    try {
+      documentService.documentInTenant(documentId, tenantId);
+      return documentId;
+    } catch (ElementNotFoundException e) {
+      log.error("Payload argument target unexisting document", e);
+      return "";
+    }
+  }
+
+  void resolveDocumentArgumentsFromInjectContent(
+      Payload payload, ObjectNode injectContent, String tenantId) {
     if (isEmpty(payload.getArguments()) || injectContent == null) {
       return;
     }
@@ -475,14 +488,21 @@ public class ExecutableInjectService {
                   }
                   String actualValue =
                       getArgumentValueOrDefault(arg.getKey(), injectContent, arg.getDefaultValue());
-                  if (!hasText(actualValue) || actualValue.equals(arg.getDefaultValue())) {
+                  if (!hasText(actualValue)) {
+                    return arg;
+                  }
+                  // The implant downloads the document this value names: a value that does not
+                  // resolve in the inject's tenant, whether the payload's default or the inject's
+                  // own, is cleared so it never leaves the platform.
+                  String sentValue = documentIdInTenant(actualValue, tenantId);
+                  if (sentValue.equals(arg.getDefaultValue())) {
                     return arg;
                   }
                   // Create a copy to avoid mutating the shared original PayloadArgument.
                   PayloadArgument copy = new PayloadArgument();
                   copy.setType(arg.getType());
                   copy.setKey(arg.getKey());
-                  copy.setDefaultValue(actualValue);
+                  copy.setDefaultValue(sentValue);
                   copy.setDescription(arg.getDescription());
                   copy.setSeparator(arg.getSeparator());
                   return copy;
