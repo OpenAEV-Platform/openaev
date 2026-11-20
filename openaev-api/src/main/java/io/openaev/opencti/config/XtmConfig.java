@@ -2,6 +2,7 @@ package io.openaev.opencti.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Tenant;
+import io.openaev.opencrq.config.OpenCRQConfig;
 import jakarta.annotation.Resource;
 import java.util.HashMap;
 import java.util.Map;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Component;
 public class XtmConfig {
 
   @Setter private Map<String, Object> opencti = new HashMap<>();
+
+  @Setter private Map<String, Object> opencrq = new HashMap<>();
 
   @Resource protected ObjectMapper mapper;
 
@@ -45,6 +48,20 @@ public class XtmConfig {
           Tenant.DEFAULT_TENANT_UUID, mapper.convertValue(legacyFields, OpenCTIConfig.class));
     }
 
+    return normalized;
+  }
+
+  /** The OpenCRQ connections, by tenant: openaev.xtm.opencrq.{tenantId}.* only. */
+  public Map<String, OpenCRQConfig> getOpencrq() {
+    if (opencrq == null || opencrq.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, OpenCRQConfig> normalized = new HashMap<>();
+    for (Map.Entry<String, Object> entry : opencrq.entrySet()) {
+      if (entry.getValue() instanceof Map<?, ?> tenantConfigMap) {
+        normalized.put(entry.getKey(), mapper.convertValue(tenantConfigMap, OpenCRQConfig.class));
+      }
+    }
     return normalized;
   }
 }

@@ -163,7 +163,9 @@
         "openaev-front/src/components/fields/CheckboxFieldController.tsx",
         "openaev-front/src/public/components/login/Login.tsx",
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectAll.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsagesTable.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx"
       ]
     },
     {
@@ -865,7 +867,9 @@
         "openaev-front/src/public/components/trialbanners/TopBanner.tsx",
         "openaev-front/src/utils/ai/ResponseDialog.tsx",
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectionBar.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveBar.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx"
       ]
     },
     {
@@ -945,7 +949,8 @@
       "reason": "A message about the payload a drawer shows: its revocation, and what a revoked version breaks.",
       "files": [
         "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationBanner.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx"
       ]
     },
     {
@@ -968,6 +973,17 @@
       "reason": "The payload version picker.",
       "files": [
         "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionSelect.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Warning shown when another payload version of the action needs values the previous one did not.",
+      "files": [
+        "openaev-front/src/admin/components/common/injects/create/InjectCreationConfig.tsx"
       ]
     }
   ],

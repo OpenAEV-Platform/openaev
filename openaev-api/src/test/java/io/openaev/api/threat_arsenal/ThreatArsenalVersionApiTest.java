@@ -2,7 +2,10 @@ package io.openaev.api.threat_arsenal;
 
 import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+import static io.openaev.injector_contract.fields.ContractText.textField;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.service.payload.PayloadVersionService.NOT_ANOTHER_VERSION;
 import static io.openaev.service.payload.PayloadVersionService.VERSION_REVOKED;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.PAYLOAD_ID;
@@ -11,32 +14,45 @@ import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadFileName;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadVersion;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.releasedPayload;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.syncRequest;
+import static io.openaev.utils.fixtures.InjectorContractFixture.addField;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Grant;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Step;
+import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.database.model.payload.PayloadRevocation;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.PayloadRevocationRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.WorkflowNotEditableException;
+import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.service.chaining.StepService;
+import io.openaev.service.payload.PayloadUsageMoveService;
+import io.openaev.service.payload.PayloadUsageMoveService.Moves;
+import io.openaev.service.payload.PayloadUsageMoveService.Refusal;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CatalogReleaseFixture.ReleasedPayload;
+import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
@@ -44,6 +60,7 @@ import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
@@ -90,7 +107,11 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
   @Autowired private StepComposer stepComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private PayloadComposer payloadComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private StepRepository stepRepository;
+  @Autowired private StepService stepService;
   @Autowired private PayloadVersionService payloadVersionService;
+  @Autowired private PayloadUsageMoveService payloadUsageMoveService;
 
   @BeforeEach
   void attachToDefaultTenant() {
@@ -177,6 +198,68 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
             .get();
     entityManager.flush();
     return action;
+  }
+
+  /** Two local versions of one payload: the first is 1.0.0, the second 2.0.0. */
+  private List<InjectorContract> localVersions() {
+    InjectorContract first = localAction();
+    InjectorContract second = localAction();
+    second.getPayload().setIdentity(first.getPayload().getIdentity());
+    second.getPayload().setVersion("2.0.0");
+    payloadRepository.save(second.getPayload());
+    entityManager.flush();
+    return List.of(first, second);
+  }
+
+  private List<String> usageIds(InjectorContract action) {
+    return payloadVersionService.usages(DEFAULT_TENANT_UUID, action.getId()).usages().stream()
+        .map(usage -> usage.id())
+        .toList();
+  }
+
+  /** After a request, which clears the security context the services read the user from. */
+  private List<String> listedUsageIds(InjectorContract action) throws Exception {
+    JsonNode usages =
+        body(
+            mvc.perform(
+                    get(
+                        TENANT_THREAT_ARSENAL_URL + "/{actionId}/usages",
+                        DEFAULT_TENANT_UUID,
+                        action.getId()))
+                .andExpect(status().isOk()));
+    return usages.path("payload_usages").findValuesAsText("usage_id");
+  }
+
+  private ResultActions moveRequest(
+      InjectorContract source, String targetPayloadId, List<String> usageIds) throws Exception {
+    return mvc.perform(
+        post(
+                TENANT_THREAT_ARSENAL_URL + "/{actionId}/usages/move",
+                DEFAULT_TENANT_UUID,
+                source.getId())
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(
+                mapper.writeValueAsString(
+                    Map.of("target_payload_id", targetPayloadId, "usage_ids", usageIds))));
+  }
+
+  private Moves move(InjectorContract source, InjectorContract target, List<String> usageIds) {
+    return payloadUsageMoveService.move(
+        TxCtx.forTenant(DEFAULT_TENANT_UUID),
+        DEFAULT_TENANT_UUID,
+        source.getId(),
+        target.getPayload().getId(),
+        usageIds);
+  }
+
+  private String contractIdOf(Inject inject) {
+    return injectRepository
+        .findById(inject.getId())
+        .orElseThrow()
+        .getInjectorContract()
+        .orElseThrow()
+        .getId();
   }
 
   private JsonNode body(ResultActions result) throws Exception {
@@ -366,6 +449,50 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
     }
   }
 
+  // -- HISTORY --
+
+  @Test
+  @DisplayName("lists who installed each version of the payload, newest first")
+  void given_installedVersions_should_listTheirInstallsNewestFirst() throws Exception {
+    // Arrange
+    List<String> ids = installed("1.0.0", "1.1.0");
+
+    // Act
+    JsonNode history =
+        body(
+            mvc.perform(
+                    get(
+                        TENANT_THREAT_ARSENAL_URL + "/{actionId}/history",
+                        DEFAULT_TENANT_UUID,
+                        contractOf(ids.getFirst()).getId()))
+                .andExpect(status().isOk()));
+
+    // Assert
+    assertThat(history.findValuesAsText("catalog_history_version"))
+        .containsExactly("1.1.0", "1.0.0");
+    assertThat(history.findValuesAsText("catalog_history_action"))
+        .containsOnly(CatalogHistory.Action.INSTALL.name());
+    assertThat(history.findValuesAsText("catalog_history_mode"))
+        .containsOnly(CatalogHistory.Mode.MANUAL.name());
+    assertThat(history.findValuesAsText("catalog_history_user")).doesNotContain("", "null");
+  }
+
+  @Test
+  @DisplayName("has no history for a payload made in the tenant")
+  void given_localPayload_should_haveNoHistory() throws Exception {
+    // Arrange
+    InjectorContract action = localAction();
+
+    // Act & Assert
+    mvc.perform(
+            get(
+                TENANT_THREAT_ARSENAL_URL + "/{actionId}/history",
+                DEFAULT_TENANT_UUID,
+                action.getId()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(0));
+  }
+
   // -- SEARCH --
 
   @Test
@@ -390,5 +517,263 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
         .andExpect(jsonPath("$.content[0].action_payload_version").value("1.0.0"))
         .andExpect(jsonPath("$.content[0].action_payload_managed").value(true))
         .andExpect(jsonPath("$.content[0].action_payload_revoked").value(true));
+  }
+
+  // -- MOVE --
+
+  @Nested
+  @DisplayName("Moving usages to another version")
+  class MoveUsages {
+
+    @Test
+    @DisplayName(
+        "moves scenario injects, atomic testings and chained steps, never simulation injects")
+    void given_usagesOnV1_should_moveThemToV2() throws Exception {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      InjectorContract v1 = versions.get(0);
+      InjectorContract v2 = versions.get(1);
+      scenarioRunning(v1);
+      Inject atomicTesting =
+          injectComposer
+              .forInject(InjectFixture.createInject(v1, "Atomic testing"))
+              .persist()
+              .get();
+      Inject simulationInject =
+          injectComposer
+              .forInject(InjectFixture.createInject(v1, "Simulation inject"))
+              .withExercise(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+              .persist()
+              .get();
+      entityManager.flush();
+      List<String> usageIds = new ArrayList<>(usageIds(v1));
+      usageIds.add(simulationInject.getId());
+
+      // Act
+      JsonNode moves =
+          body(moveRequest(v1, v2.getPayload().getId(), usageIds).andExpect(status().isOk()));
+
+      // Assert
+      assertThat(moves.path("moved_ids").size()).isEqualTo(3);
+      assertThat(moves.path("refused").findValuesAsText("usage_id"))
+          .containsExactly(simulationInject.getId());
+      assertThat(moves.path("refused").findValuesAsText("reason"))
+          .containsExactly(Refusal.NOT_ON_THIS_VERSION.name());
+      entityManager.flush();
+      entityManager.clear();
+      assertThat(contractIdOf(atomicTesting)).isEqualTo(v2.getId());
+      assertThat(contractIdOf(simulationInject)).isEqualTo(v1.getId());
+      assertThat(listedUsageIds(v1)).isEmpty();
+      List<String> onV2 = listedUsageIds(v2);
+      assertThat(onV2).hasSize(3);
+      Step step = stepRepository.findAllById(onV2).getFirst();
+      JsonNode stepContract = mapper.readTree(step.getData()).path("inject_injector_contract");
+      assertThat(stepContract.path("injector_contract_id").asText()).isEqualTo(v2.getId());
+      assertThat(stepContract.path("injector_contract_payload").isMissingNode()).isFalse();
+    }
+
+    @Test
+    @DisplayName("refuses a revoked target version")
+    void given_revokedTarget_should_refuseTheMove() throws Exception {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      atomicTestingOn(versions.get(0));
+      payloadRevocationRepository.save(
+          PayloadRevocation.byAdmin(versions.get(1).getPayload(), "Too noisy", null));
+      entityManager.flush();
+
+      // Act & Assert
+      moveRequest(versions.get(0), versions.get(1).getPayload().getId(), usageIds(versions.get(0)))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("refuses a target that is not a version of the same payload")
+    void given_otherPayload_should_refuseTheMove() throws Exception {
+      // Arrange
+      InjectorContract action = localAction();
+      InjectorContract other = localAction();
+      atomicTestingOn(action);
+      entityManager.flush();
+
+      // Act & Assert
+      moveRequest(action, other.getPayload().getId(), usageIds(action))
+          .andExpect(status().isBadRequest());
+    }
+  }
+
+  @Nested
+  @DisplayName("Usages that stay on their version")
+  class MoveRefusals {
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.ACCESS_THREAT_ARSENALS})
+    @DisplayName("keeps the usages of a scenario the user cannot update")
+    void given_readOnlyScenario_should_keepItsUsages() throws Exception {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      String scenarioId = scenarioRunning(versions.get(0));
+      addGrantToCurrentUser(
+          Grant.GRANT_RESOURCE_TYPE.SCENARIO, Grant.GRANT_TYPE.OBSERVER, scenarioId);
+      List<String> usageIds = usageIds(versions.get(0));
+      assertThat(usageIds).hasSize(2);
+
+      // Act
+      Moves moves = move(versions.get(0), versions.get(1), usageIds);
+
+      // Assert
+      assertThat(moves.moved()).isEmpty();
+      assertThat(moves.refused())
+          .containsOnlyKeys(usageIds)
+          .allSatisfy((usageId, refusal) -> assertThat(refusal).isEqualTo(Refusal.MISSING_RIGHT));
+    }
+
+    @Test
+    @DisplayName("keeps the usages that leave empty a field the target version needs")
+    void given_targetNeedsAnEmptyField_should_keepTheUsages() throws Exception {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      InjectorContract target = versions.get(1);
+      addField(target, mapper, List.of(textField("new_argument", "New argument")));
+      injectorContractRepository.save(target);
+      scenarioRunning(versions.get(0));
+      entityManager.clear();
+      List<String> usageIds = usageIds(versions.get(0));
+      assertThat(usageIds).hasSize(2);
+
+      // Act
+      Moves moves = move(versions.get(0), target, usageIds);
+
+      // Assert
+      assertThat(moves.moved()).isEmpty();
+      assertThat(moves.refused())
+          .containsOnlyKeys(usageIds)
+          .allSatisfy((usageId, refusal) -> assertThat(refusal).isEqualTo(Refusal.NOT_COMPATIBLE));
+    }
+
+    @Test
+    @DisplayName("keeps a chained step of a launched simulation")
+    void given_stepOfLaunchedSimulation_should_refuseToUpdateIt() {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      Step step = StepFixture.getDefaultStepTemplate();
+      workflowComposer
+          .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+          .withSimulation(
+              exerciseComposer.forExercise(ExerciseFixture.createRunningAttackExercise()))
+          .withStep(stepComposer.forStep(step))
+          .persist();
+      entityManager.flush();
+
+      // Act & Assert
+      assertThatThrownBy(
+              () -> stepService.updateStepTemplateInjectorContract(step, versions.get(1)))
+          .isInstanceOf(WorkflowNotEditableException.class);
+    }
+  }
+
+  // -- INJECT VERSION --
+
+  @Nested
+  @DisplayName("Choosing the version an inject runs")
+  class InjectVersion {
+
+    private Inject scenarioInjectOn(InjectorContract contract) {
+      InjectComposer.Composer inject =
+          injectComposer.forInject(InjectFixture.createInject(contract, "Scenario inject"));
+      scenarioComposer.forScenario(ScenarioFixture.getScenario()).withInject(inject).persist();
+      entityManager.flush();
+      return inject.get();
+    }
+
+    private ResultActions chooseInScenario(Inject inject, InjectorContract chosen)
+        throws Exception {
+      return mvc.perform(
+          put(
+                  TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
+                  DEFAULT_TENANT_UUID,
+                  inject.getScenario().getId(),
+                  inject.getId())
+              .with(csrf())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(mapper.writeValueAsString(input(inject, chosen))));
+    }
+
+    private InjectInput input(Inject inject, InjectorContract chosen) {
+      InjectInput input = new InjectInput();
+      input.setTitle(inject.getTitle());
+      input.setInjectorContract(chosen.getId());
+      input.setDependsDuration(inject.getDependsDuration());
+      return input;
+    }
+
+    @Test
+    @DisplayName("moves a scenario inject to another installed version of its payload")
+    void given_otherInstalledVersion_should_runIt() throws Exception {
+      // Arrange
+      List<String> ids = installed("1.0.0", "1.1.0");
+      Inject inject = scenarioInjectOn(contractOf(ids.get(0)));
+      String chosen = contractOf(ids.get(1)).getId();
+
+      // Act & Assert
+      chooseInScenario(inject, contractOf(ids.get(1)))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.inject_injector_contract.injector_contract_id").value(chosen));
+    }
+
+    @Test
+    @DisplayName("refuses a revoked version")
+    void given_revokedVersion_should_refuseIt() throws Exception {
+      // Arrange
+      List<String> ids = installed("1.0.0", "1.1.0");
+      Inject inject = scenarioInjectOn(contractOf(ids.get(0)));
+      InjectorContract revoked = contractOf(ids.get(1));
+      payloadRevocationRepository.save(
+          PayloadRevocation.byAdmin(payload(ids.get(1)), "Too noisy", null));
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act & Assert
+      chooseInScenario(inject, revoked).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("refuses the action of another payload")
+    void given_otherPayload_should_refuseIt() throws Exception {
+      // Arrange
+      Inject inject = scenarioInjectOn(contractOf(installed("1.0.0").getFirst()));
+
+      // Act & Assert
+      chooseInScenario(inject, localAction()).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("keeps the version of a simulation inject")
+    void given_simulationInject_should_keepItsVersion() throws Exception {
+      // Arrange
+      List<String> ids = installed("1.0.0", "1.1.0");
+      InjectorContract current = contractOf(ids.get(0));
+      InjectComposer.Composer inject =
+          injectComposer.forInject(InjectFixture.createInject(current, "Simulation inject"));
+      exerciseComposer
+          .forExercise(ExerciseFixture.createDefaultExercise())
+          .withInject(inject)
+          .persist();
+      entityManager.flush();
+
+      // Act & Assert
+      mvc.perform(
+              put(
+                      TENANT_PREFIX + "/injects/{exerciseId}/{injectId}",
+                      DEFAULT_TENANT_UUID,
+                      inject.get().getExercise().getId(),
+                      inject.get().getId())
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(mapper.writeValueAsString(input(inject.get(), contractOf(ids.get(1))))))
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.inject_injector_contract.injector_contract_id").value(current.getId()));
+    }
   }
 }
