@@ -1,6 +1,6 @@
 import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useEffect, useState } from 'react';
+import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 
 import { fetchThreatArsenalAction } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import Drawer from '../../../components/common/Drawer';
@@ -11,6 +11,7 @@ import {
   type ThreatArsenalActionFullOutput,
 } from '../../../utils/api-types';
 import { isFeatureEnabled } from '../../../utils/utils';
+import PayloadHistoryTab from './history/PayloadHistoryTab';
 import PayloadRevocationBanner from './revocation/PayloadRevocationBanner';
 import ThreatArsenalActionOverview from './ThreatArsenalActionOverview';
 import PayloadVersionsTab from './versions/PayloadVersionsTab';
@@ -68,6 +69,11 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   const showVersions = isFeatureEnabled('CATALOG') && !!threatArsenalAction?.action_payload;
   const versions = usePayloadVersions(threatArsenalAction?.injector_contract_id ?? '', open && showVersions);
   const shownVersion = versions?.find(v => v.payload_id === threatArsenalAction?.action_payload?.payload_id);
+  const payloadTabs: Record<string, () => ReactNode> = {
+    versions: () => <PayloadVersionsTab versions={versions} />,
+    history: () => <PayloadHistoryTab actionId={threatArsenalAction?.injector_contract_id ?? ''} />,
+  };
+  const payloadTab = showVersions ? payloadTabs[tab] : undefined;
 
   useEffect(() => setTab(initialTab ?? 'overview'), [open, threatArsenalAction, initialTab]);
 
@@ -126,12 +132,13 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
               <TabsList>
                 <TabsTrigger value="overview">{t('Overview')}</TabsTrigger>
                 <TabsTrigger value="versions">{t('Versions')}</TabsTrigger>
+                <TabsTrigger value="history">{t('History')}</TabsTrigger>
               </TabsList>
             </Tabs>
           )}
           <div style={{ marginTop: showVersions ? theme.spacing(2) : 0 }}>
-            {tab === 'versions' && showVersions
-              ? <PayloadVersionsTab versions={versions} />
+            {payloadTab
+              ? payloadTab()
               : (
                   <>
                     {shownVersion?.payload_revoked && (

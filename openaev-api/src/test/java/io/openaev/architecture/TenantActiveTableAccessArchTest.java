@@ -4373,7 +4373,9 @@ class TenantActiveTableAccessArchTest {
           .that()
           .doNotBelongToAnyOf(
               // Written by the catalogue events, inside the scoped transaction that raises them:
-              io.openaev.service.catalog.event.CatalogHistoryListener.class)
+              io.openaev.service.catalog.event.CatalogHistoryListener.class,
+              // Read by tenant, inside the scoped transaction of the history routes:
+              io.openaev.service.catalog.history.CatalogHistoryService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(io.openaev.database.repository.CatalogHistoryRepository.class)

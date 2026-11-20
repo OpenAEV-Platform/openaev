@@ -36,6 +36,7 @@ export const fetchThreatArsenalVersions = (actionId: string, notifyError = true)
 export const fetchThreatArsenalUsages = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/usages`);
 
 export const moveThreatArsenalUsages = (actionId: string, input: PayloadUsageMoveInput) => simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/usages/move`, input);
+export const fetchThreatArsenalHistory = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/history`);
 
 export const duplicateThreatArsenalAction = (actionId: string) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}/duplicate`;

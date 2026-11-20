@@ -50,8 +50,7 @@ public class PayloadVersionService {
 
   /** Newest first. */
   public List<PayloadVersionOutput> versions(String tenantId, String actionId) {
-    List<Payload> versions =
-        payloadService.versionsOf(tenantId, payloadAction(tenantId, actionId).getPayload());
+    List<Payload> versions = payloadService.versionsOf(tenantId, payload(tenantId, actionId));
     Map<String, PayloadRevocation> revocations =
         payloadRevocationService.revocations(tenantId, versions);
     Map<String, InjectorContract> actions =
@@ -81,6 +80,11 @@ public class PayloadVersionService {
     InjectorContract action = payloadAction(tenantId, actionId);
     refuseUnlessOtherVersion(tenantId, payload, action.getPayload().getId());
     return action;
+  }
+
+  /** The payload version the action runs. */
+  public Payload payload(String tenantId, String actionId) {
+    return payloadAction(tenantId, actionId).getPayload();
   }
 
   /** Only what the user can read is listed; the others are counted. */

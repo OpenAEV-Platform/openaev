@@ -2624,6 +2624,23 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
+export interface CatalogHistoryOutput {
+  catalog_history_action:
+    | "INSTALL"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION";
+  /** @format date-time */
+  catalog_history_created_at: string;
+  /** @minLength 1 */
+  catalog_history_id: string;
+  catalog_history_mode: "MANUAL" | "AUTO";
+  /** Who made the change; empty when the platform made it alone */
+  catalog_history_user?: string;
+  /** @minLength 1 */
+  catalog_history_version: string;
+}
+
 export interface CatalogInstallAllOutput {
   failed_external_ids?: string[];
   installed_ids?: string[];
@@ -11866,6 +11883,8 @@ export interface ScenarioOutput {
    * @format int64
    */
   scenario_users_number?: number;
+  /** Catalogue version installed, empty for a scenario of the tenant */
+  scenario_version?: string;
   /** Workflow ID associated with the scenario */
   scenario_workflow_id?: string;
 }
