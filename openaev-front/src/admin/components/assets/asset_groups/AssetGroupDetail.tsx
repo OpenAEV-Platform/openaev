@@ -287,12 +287,6 @@ const AssetGroupDetail = () => {
             </SectionBlock>
           </DetailSections>
 
-          {/* Mini graph: the group, its member assets and their findings, result coloured; a
-              click opens the Graph page focused on the group. */}
-          <SectionBlock title={t('Graph')}>
-            <EntityGraph type="ASSET_GROUP" entityId={assetGroupId} variant="mini" />
-          </SectionBlock>
-
           <SectionBlock title={t('Assets')}>
             <PaginationComponentV2
               fetch={(input: SearchPaginationInput) => searchEndpointsFromAssetGroup(input, assetGroupId)}

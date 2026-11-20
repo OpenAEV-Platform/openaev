@@ -4890,5 +4890,11 @@
   "Runs the linked asset on its own hardware or hypervisor": "自身のハードウェアまたはハイパーバイザーでリンク先アセットを実行する",
   "Has a user session open on the linked asset": "リンク先アセットでユーザーセッションを開いている",
   "Is installed and executed on the linked asset": "リンク先アセットにインストールされ実行される",
-  "Calls a service the linked asset provides": "リンク先アセットが提供するサービスを呼び出す"
+  "Calls a service the linked asset provides": "リンク先アセットが提供するサービスを呼び出す",
+  "Relationships": "関係",
+  "Manage links": "リンクを管理",
+  "+{count} more": "他 {count} 件",
+  "Outgoing": "送信方向",
+  "Incoming": "受信方向",
+  "Add a link": "リンクを追加"
 }

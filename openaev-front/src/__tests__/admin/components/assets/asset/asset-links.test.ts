@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ASSET_LINK_TYPES, assetLinkTypeLabel, isLinkCandidate, toAssetLinkRows } from '../../../../../admin/components/assets/asset/asset-links';
+import { ASSET_LINK_TYPES, assetLinkTypeLabel, groupAssetLinkRows, isLinkCandidate, previewRows, RELATIONSHIP_PREVIEW, toAssetLinkRows } from '../../../../../admin/components/assets/asset/asset-links';
 import { type AssetLinkOutput } from '../../../../../utils/api-types';
 
 const links: AssetLinkOutput[] = [
@@ -57,8 +57,56 @@ describe('asset-links', () => {
       sourceId: 'app',
       targetId: 'host',
       sourceName: 'billing',
+      otherName: 'billing',
     });
+    expect(rows[0].otherName).toBe('alice@corp');
     expect(new Set(rows.map(row => row.key)).size).toBe(2);
+  });
+
+  it('groups the overview card by type and direction, outgoing first, names sorted', () => {
+    const many: AssetLinkOutput[] = [
+      ...links,
+      {
+        asset_link_source_id: 'host',
+        asset_link_source_name: 'srv-01',
+        asset_link_target_id: 'bob',
+        asset_link_target_name: 'bob@corp',
+        asset_link_type: 'LOGGED_ON',
+      },
+      {
+        asset_link_source_id: 'host',
+        asset_link_source_name: 'srv-01',
+        asset_link_target_id: 'dc',
+        asset_link_target_name: 'dc-01',
+        asset_link_type: 'CONNECTS_TO',
+      },
+    ];
+    const groups = groupAssetLinkRows(toAssetLinkRows(many, 'host'));
+    expect(groups.map(group => [group.type, group.outgoing])).toEqual([
+      ['CONNECTS_TO', true],
+      ['LOGGED_ON', true],
+      ['RUNS_ON', false],
+    ]);
+    expect(groups[1].rows.map(row => row.otherName)).toEqual(['alice@corp', 'bob@corp']);
+  });
+
+  it('shows a few linked assets per line and counts the rest behind +N more', () => {
+    const rows = Array.from({ length: RELATIONSHIP_PREVIEW + 3 }, (_, index) => ({
+      key: `k${index}`,
+      outgoing: true,
+      sourceId: 'host',
+      sourceName: 'srv-01',
+      targetId: `t${index}`,
+      targetName: `t${index}`,
+      otherId: `t${index}`,
+      otherName: `t${index}`,
+      type: 'USES' as const,
+    }));
+    expect(previewRows(rows, false)).toMatchObject({ hidden: 3 });
+    expect(previewRows(rows, false).shown).toHaveLength(RELATIONSHIP_PREVIEW);
+    expect(previewRows(rows, true)).toMatchObject({ hidden: 0 });
+    expect(previewRows(rows, true).shown).toHaveLength(RELATIONSHIP_PREVIEW + 3);
+    expect(previewRows(rows.slice(0, 2), false)).toMatchObject({ hidden: 0 });
   });
 
   it('offers neither the asset itself nor an existing link of the same type', () => {

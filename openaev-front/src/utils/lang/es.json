@@ -4890,5 +4890,11 @@
   "Runs the linked asset on its own hardware or hypervisor": "Ejecuta el activo vinculado en su propio hardware o hipervisor",
   "Has a user session open on the linked asset": "Tiene una sesión de usuario abierta en el activo vinculado",
   "Is installed and executed on the linked asset": "Está instalado y se ejecuta en el activo vinculado",
-  "Calls a service the linked asset provides": "Llama a un servicio que ofrece el activo vinculado"
+  "Calls a service the linked asset provides": "Llama a un servicio que ofrece el activo vinculado",
+  "Relationships": "Relaciones",
+  "Manage links": "Gestionar vínculos",
+  "+{count} more": "+{count} más",
+  "Outgoing": "Saliente",
+  "Incoming": "Entrante",
+  "Add a link": "Añadir un vínculo"
 }

@@ -4890,5 +4890,11 @@
   "Runs the linked asset on its own hardware or hypervisor": "在自身硬件或虚拟机管理程序上运行链接的资产",
   "Has a user session open on the linked asset": "在链接的资产上打开了用户会话",
   "Is installed and executed on the linked asset": "安装并运行在链接的资产上",
-  "Calls a service the linked asset provides": "调用链接的资产提供的服务"
+  "Calls a service the linked asset provides": "调用链接的资产提供的服务",
+  "Relationships": "关系",
+  "Manage links": "管理链接",
+  "+{count} more": "另外 {count} 个",
+  "Outgoing": "出站",
+  "Incoming": "入站",
+  "Add a link": "添加链接"
 }

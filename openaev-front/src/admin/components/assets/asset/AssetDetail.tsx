@@ -87,8 +87,6 @@ const AssetDetail = () => {
 
   const [asset, setAsset] = useState<AssetOverview | null>(null);
   const [loading, setLoading] = useState(true);
-  // Bumped when a link is added or removed so the mini graph re-reads the LINKED_TO pivots.
-  const [linksVersion, setLinksVersion] = useState(0);
   const ability = useAbility();
 
   const loadAsset = useCallback(() => {
@@ -445,22 +443,13 @@ const AssetDetail = () => {
             </SectionBlock>
           </DetailSections>
 
-          {/* Asset-to-asset links (hosts, uses, logged on...), both directions; each one is a
-              LINKED_TO pivot of the graph below. */}
-          <SectionBlock title={t('Linked assets')}>
-            <AssetLinks
-              assetId={id}
-              assetName={asset.asset_name}
-              canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS)}
-              onChange={() => setLinksVersion(version => version + 1)}
-            />
-          </SectionBlock>
-
-          {/* Mini graph: the asset, its groups, findings and the injects that targeted it, result
-              coloured; a click opens the Graph page focused on the asset. */}
-          <SectionBlock title={t('Graph')}>
-            <EntityGraph key={linksVersion} type="ASSET" entityId={id} variant="mini" />
-          </SectionBlock>
+          {/* Asset-to-asset links (hosts, uses, logged on...), both directions, read-only and
+              compact; edited in the Manage links drawer only. The graph lives in the Graph tab. */}
+          <AssetLinks
+            assetId={id}
+            assetName={asset.asset_name}
+            canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS)}
+          />
 
           {hasAgents && (
             <SectionBlock title={t('Agents')}>

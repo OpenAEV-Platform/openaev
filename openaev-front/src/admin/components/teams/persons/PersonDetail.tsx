@@ -246,12 +246,6 @@ const PersonDetail = () => {
             </Section>
           </DetailSections>
 
-          {/* Mini graph: the person, their identity assets, organization and teams; a click opens
-          the Graph page focused on them. */}
-          <SectionBlock title={t('Graph')}>
-            <EntityGraph type="PERSON" entityId={userId} variant="mini" />
-          </SectionBlock>
-
           <SectionBlock title={t('Findings')}>
             <FindingList
               filterLocalStorageKey="person-findings"

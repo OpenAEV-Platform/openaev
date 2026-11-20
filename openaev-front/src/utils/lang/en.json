@@ -4890,5 +4890,11 @@
   "Runs the linked asset on its own hardware or hypervisor": "Runs the linked asset on its own hardware or hypervisor",
   "Has a user session open on the linked asset": "Has a user session open on the linked asset",
   "Is installed and executed on the linked asset": "Is installed and executed on the linked asset",
-  "Calls a service the linked asset provides": "Calls a service the linked asset provides"
+  "Calls a service the linked asset provides": "Calls a service the linked asset provides",
+  "Relationships": "Relationships",
+  "Manage links": "Manage links",
+  "+{count} more": "+{count} more",
+  "Outgoing": "Outgoing",
+  "Incoming": "Incoming",
+  "Add a link": "Add a link"
 }

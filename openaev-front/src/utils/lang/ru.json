@@ -4890,5 +4890,11 @@
   "Runs the linked asset on its own hardware or hypervisor": "Запускает связанный актив на своём оборудовании или гипервизоре",
   "Has a user session open on the linked asset": "Имеет открытый сеанс пользователя на связанном активе",
   "Is installed and executed on the linked asset": "Установлен и выполняется на связанном активе",
-  "Calls a service the linked asset provides": "Вызывает службу, предоставляемую связанным активом"
+  "Calls a service the linked asset provides": "Вызывает службу, предоставляемую связанным активом",
+  "Relationships": "Связи",
+  "Manage links": "Управление связями",
+  "+{count} more": "ещё {count}",
+  "Outgoing": "Исходящая",
+  "Incoming": "Входящая",
+  "Add a link": "Добавить связь"
 }

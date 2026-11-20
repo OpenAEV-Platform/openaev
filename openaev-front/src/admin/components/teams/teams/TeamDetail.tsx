@@ -294,12 +294,6 @@ const TeamDetail = () => {
               <Field label={t('Update date')}>{fldt(team.team_updated_at)}</Field>
             </InformationGrid>
 
-            {/* Mini graph: the team, its persons and organization; a click opens the Graph page
-            focused on it. */}
-            <SectionBlock title={t('Graph')}>
-              <EntityGraph type="TEAM" entityId={teamId} variant="mini" />
-            </SectionBlock>
-
             <SectionBlock title={t('Persons')}>
               <PaginationComponentV2
                 fetch={fetchTeamPersons}

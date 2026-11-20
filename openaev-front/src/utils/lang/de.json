@@ -4890,5 +4890,11 @@
   "Runs the linked asset on its own hardware or hypervisor": "Betreibt das verknüpfte Asset auf eigener Hardware oder eigenem Hypervisor",
   "Has a user session open on the linked asset": "Hat eine Benutzersitzung auf dem verknüpften Asset geöffnet",
   "Is installed and executed on the linked asset": "Ist auf dem verknüpften Asset installiert und wird dort ausgeführt",
-  "Calls a service the linked asset provides": "Ruft einen Dienst des verknüpften Assets auf"
+  "Calls a service the linked asset provides": "Ruft einen Dienst des verknüpften Assets auf",
+  "Relationships": "Beziehungen",
+  "Manage links": "Verknüpfungen verwalten",
+  "+{count} more": "+{count} weitere",
+  "Outgoing": "Ausgehend",
+  "Incoming": "Eingehend",
+  "Add a link": "Verknüpfung hinzufügen"
 }

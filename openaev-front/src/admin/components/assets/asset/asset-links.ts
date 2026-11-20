@@ -2,9 +2,8 @@ import { type AssetLinkInput, type AssetLinkOutput } from '../../../../utils/api
 
 export type AssetLinkType = AssetLinkInput['asset_link_type'];
 
-// Height of a design-system field label and its gap above the field (measured in the lab: label top
-// 459 px, field top 485 px), so a button beside the fields sits on their row (#9448, UX round 2 B1).
-export const FIELD_LABEL_BLOCK_PX = 26;
+// The overview card shows this many linked assets per group before "+N more".
+export const RELATIONSHIP_PREVIEW = 5;
 
 // The link types the backend accepts, with the i18n key of the verb read "source <verb> target"
 // and the i18n key of its one-line meaning, shown under each option of the picker.
@@ -57,6 +56,7 @@ export type AssetLinkRow = {
   targetId: string;
   targetName: string;
   otherId: string;
+  otherName: string;
   type: AssetLinkType;
 };
 
@@ -70,17 +70,73 @@ export const toAssetLinkRows = (links: AssetLinkOutput[], assetId: string): Asse
       const targetId = link.asset_link_target_id as string;
       const type = link.asset_link_type as AssetLinkType;
       const outgoing = sourceId === assetId;
+      const sourceName = link.asset_link_source_name ?? sourceId;
+      const targetName = link.asset_link_target_name ?? targetId;
       return {
         key: `${sourceId}-${targetId}-${type}`,
         outgoing,
         sourceId,
-        sourceName: link.asset_link_source_name ?? sourceId,
+        sourceName,
         targetId,
-        targetName: link.asset_link_target_name ?? targetId,
+        targetName,
         otherId: outgoing ? targetId : sourceId,
+        otherName: outgoing ? targetName : sourceName,
         type,
       };
     });
+};
+
+export type AssetLinkGroup = {
+  key: string;
+  type: AssetLinkType;
+  outgoing: boolean;
+  rows: AssetLinkRow[];
+};
+
+// The read-only overview card: one line per link type and direction, outgoing before incoming,
+// in the order of ASSET_LINK_TYPES, the linked assets sorted by name inside each line.
+export const groupAssetLinkRows = (rows: AssetLinkRow[]): AssetLinkGroup[] => {
+  const order = (type: AssetLinkType) => ASSET_LINK_TYPES.findIndex(linkType => linkType.value === type);
+  const groups = new Map<string, AssetLinkGroup>();
+  rows.forEach((row) => {
+    const key = `${row.type}-${row.outgoing ? 'out' : 'in'}`;
+    const group = groups.get(key) ?? {
+      key,
+      type: row.type,
+      outgoing: row.outgoing,
+      rows: [],
+    };
+    group.rows.push(row);
+    groups.set(key, group);
+  });
+  return [...groups.values()]
+    .map(group => ({
+      ...group,
+      rows: [...group.rows].sort((a, b) => a.otherName.localeCompare(b.otherName)),
+    }))
+    .sort((a, b) => {
+      if (a.outgoing !== b.outgoing) {
+        return a.outgoing ? -1 : 1;
+      }
+      return order(a.type) - order(b.type);
+    });
+};
+
+// The linked assets a group line shows, and how many stay behind "+N more".
+export const previewRows = (rows: AssetLinkRow[], expanded: boolean, limit = RELATIONSHIP_PREVIEW): {
+  shown: AssetLinkRow[];
+  hidden: number;
+} => {
+  if (expanded || rows.length <= limit) {
+    return {
+      shown: rows,
+      hidden: 0,
+    };
+  }
+  return {
+    shown: rows.slice(0, limit),
+    hidden: rows.length - limit,
+  };
 };
 
 // The picker hides the asset itself and the assets already linked with the chosen type.

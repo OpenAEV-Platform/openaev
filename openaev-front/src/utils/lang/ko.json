@@ -4890,5 +4890,11 @@
   "Runs the linked asset on its own hardware or hypervisor": "자체 하드웨어 또는 하이퍼바이저에서 연결된 자산을 실행합니다",
   "Has a user session open on the linked asset": "연결된 자산에 사용자 세션이 열려 있습니다",
   "Is installed and executed on the linked asset": "연결된 자산에 설치되어 실행됩니다",
-  "Calls a service the linked asset provides": "연결된 자산이 제공하는 서비스를 호출합니다"
+  "Calls a service the linked asset provides": "연결된 자산이 제공하는 서비스를 호출합니다",
+  "Relationships": "관계",
+  "Manage links": "링크 관리",
+  "+{count} more": "+{count}개 더",
+  "Outgoing": "나가는 링크",
+  "Incoming": "들어오는 링크",
+  "Add a link": "링크 추가"
 }
