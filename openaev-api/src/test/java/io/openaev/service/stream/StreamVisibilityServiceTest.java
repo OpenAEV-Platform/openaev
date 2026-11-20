@@ -336,6 +336,7 @@ class StreamVisibilityServiceTest {
       InjectStatus status = new InjectStatus();
       status.setId("status-id");
       status.setName(ExecutionStatus.PARTIAL);
+      status.setExpectedAgentCount(2);
       status.setTraces(
           List.of(
               completeTrace("trace-on-g", agentOn("agent-on-g", green), ExecutionTraceStatus.ERROR),
@@ -365,6 +366,7 @@ class StreamVisibilityServiceTest {
       InjectStatus status = new InjectStatus();
       status.setId("status-id");
       status.setName(ExecutionStatus.EXECUTED);
+      status.setExpectedAgentCount(2);
       status.setTraces(
           List.of(
               completeTrace(
@@ -384,6 +386,61 @@ class StreamVisibilityServiceTest {
           .isEqualTo("NOT_VISIBLE");
       assertThat(visibility.payloadFor(RED).at("/inject_status/status_name").asText())
           .isEqualTo("EXECUTED");
+    }
+
+    @Test
+    @DisplayName(
+        "a PARTIAL inject whose RED agent was deleted keeps its expected count, not the traces left")
+    void given_partialInjectWhoseHiddenAgentWasDeleted_should_notShowTheStoredVerdict() {
+      // Arrange: GREEN failed, RED succeeded; the RED agent was deleted with its traces
+      agentAssets.put("agent-on-g", "g");
+      Endpoint green = endpoint("g");
+      InjectStatus status = new InjectStatus();
+      status.setId("status-id");
+      status.setName(ExecutionStatus.PARTIAL);
+      status.setExpectedAgentCount(2);
+      status.setTraces(
+          List.of(
+              completeTrace(
+                  "trace-on-g", agentOn("agent-on-g", green), ExecutionTraceStatus.ERROR)));
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId("inject-id");
+      inject.setAssets(List.of(green));
+      inject.setStatus(status);
+
+      // Act
+      StreamVisibility visibility = visibilityOf(inject);
+
+      // Assert: the deleted RED success shows to no reader, as on the REST path
+      JsonNode amber = visibility.payloadFor(AMBER);
+      assertThat(amber.at("/inject_status/status_name").asText()).isEqualTo("ERROR");
+      assertThat(visibility.payloadFor(RED).at("/inject_status/status_name").asText())
+          .isEqualTo("ERROR");
+      assertThat(amber.toString()).doesNotContain("expected_agent_count");
+    }
+
+    @Test
+    @DisplayName(
+        "an inject whose every agent was deleted shows NOT_VISIBLE, not its stored verdict")
+    void given_injectWhoseEveryAgentWasDeleted_should_showNotVisible() {
+      // Arrange: the only agent, on RED, succeeded and was deleted with its traces
+      Endpoint green = endpoint("g");
+      InjectStatus status = new InjectStatus();
+      status.setId("status-id");
+      status.setName(ExecutionStatus.EXECUTED);
+      status.setExpectedAgentCount(1);
+      status.setTraces(List.of());
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId("inject-id");
+      inject.setAssets(List.of(green));
+      inject.setStatus(status);
+
+      // Act
+      StreamVisibility visibility = visibilityOf(inject);
+
+      // Assert
+      assertThat(visibility.payloadFor(AMBER).at("/inject_status/status_name").asText())
+          .isEqualTo("NOT_VISIBLE");
     }
   }
 

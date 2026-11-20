@@ -12,12 +12,12 @@ import io.openaev.service.stream.StreamMarkingRules.EntityRule;
 import io.openaev.service.stream.StreamMarkingRules.ListingRule;
 import io.openaev.service.stream.StreamMarkingRules.RowRule;
 import io.openaev.utils.InjectStatusUtils;
+import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.StreamSupport;
@@ -31,7 +31,8 @@ import java.util.stream.StreamSupport;
 public final class StreamVisibility {
 
   /** An event the marking rules do not apply to: sent to every reader as it is. */
-  public static final StreamVisibility UNFILTERED = new StreamVisibility(null, null, null, null);
+  public static final StreamVisibility UNFILTERED =
+      new StreamVisibility(null, null, null, null, null);
 
   /** Stands for markings that could not be read: no clearance but the unrestricted one holds it. */
   private static final Set<String> UNRESOLVED = Set.of("unresolved-marking");
@@ -41,20 +42,25 @@ public final class StreamVisibility {
   private final ObjectNode payload;
   private final Map<String, Map<String, Set<String>>> markingsByTable;
 
+  /** The expected agent count of an inject's status: never serialized, so never sent. */
+  private final Integer expectedAgentCount;
+
   StreamVisibility(
       StreamMarkingRules rules,
       EntityRule rule,
       ObjectNode payload,
-      Map<String, Map<String, Set<String>>> markingsByTable) {
+      Map<String, Map<String, Set<String>>> markingsByTable,
+      @Nullable Integer expectedAgentCount) {
     this.rules = rules;
     this.rule = rule;
     this.payload = payload;
     this.markingsByTable = markingsByTable;
+    this.expectedAgentCount = expectedAgentCount;
   }
 
   /** An event whose visibility could not be computed: sent only to unrestricted readers. */
   public static StreamVisibility unresolved() {
-    return new StreamVisibility(null, null, null, Map.of());
+    return new StreamVisibility(null, null, null, Map.of(), null);
   }
 
   public boolean isUnfiltered() {
@@ -94,26 +100,22 @@ public final class StreamVisibility {
 
   /**
    * An inject's status depends on the traces its reader sees ({@link
-   * InjectStatusUtils#visibleStatus}): recomputed once the traces are pruned. The publisher's
-   * payload has every COMPLETE trace, so its agents stand for the agents the inject was dispatched
-   * to (the count itself is not serialized). No-op on a payload that is not an inject.
+   * InjectStatusUtils#visibleStatus}): recomputed once the traces are pruned, against the persisted
+   * expected agent count, as the REST path does. Not the agents of the payload's COMPLETE traces:
+   * deleting an agent deletes its traces, and a count read from them would drop with it, showing a
+   * reader the stored verdict that includes the deleted agent's outcome. No-op on a payload that is
+   * not an inject.
    */
   private void showVisibleInjectStatus(ObjectNode filtered) {
     if (!(filtered.get("inject_status") instanceof ObjectNode status)
         || !status.hasNonNull("status_name")) {
       return;
     }
-    int dispatchedAgents =
-        (int)
-            completeTraces(payload).stream()
-                .map(InjectStatusUtils.CompleteTrace::agentId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .count();
     ExecutionStatus stored = ExecutionStatus.fromName(status.get("status_name").asText());
     status.put(
         "status_name",
-        InjectStatusUtils.visibleStatus(stored, dispatchedAgents, completeTraces(filtered)).name());
+        InjectStatusUtils.visibleStatus(stored, expectedAgentCount, completeTraces(filtered))
+            .name());
   }
 
   private static List<InjectStatusUtils.CompleteTrace> completeTraces(JsonNode injectPayload) {
