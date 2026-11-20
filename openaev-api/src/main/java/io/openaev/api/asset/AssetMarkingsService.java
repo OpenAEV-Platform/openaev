@@ -110,7 +110,7 @@ public class AssetMarkingsService {
 
   /**
    * Puts markings on an asset being created, before its first save, so it never exists unmarked.
-   * Same guards as {@link #updateAssetMarkings}; no marking asks for no capability.
+   * Same guards as {@link #updateAssetMarkings}. Without markings, no capability is checked.
    */
   public void markNewAsset(
       @NotBlank final String tenantId, @NotNull final Asset asset, final Set<String> markingIds) {
