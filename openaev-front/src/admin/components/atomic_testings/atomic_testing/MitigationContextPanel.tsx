@@ -16,8 +16,12 @@ interface Props {
   // Findings the execution produced. Values of sensitive types are never shown nor sent.
   findings: MitigationFinding[];
   techniques?: string[];
+  // False when the finding types are already shown elsewhere (the guidance cards show them in their header).
+  showFindings?: boolean;
   // Operating system / environment line. Undefined when the execution has no agent.
   environment?: string;
+  // Names of the targets (assets) the request covers: the same list the group opens in the left list.
+  assets?: string[];
 }
 
 const row = (label: string, value: ReactNode) => (
@@ -34,8 +38,8 @@ const row = (label: string, value: ReactNode) => (
   </div>
 );
 
-const MitigationContextPanel = ({ action, command, findings, techniques = [], environment }: Props) => {
-  const { t } = useFormatter();
+const MitigationContextPanel = ({ action, command, findings, techniques = [], environment, assets = [], showFindings = true }: Props) => {
+  const { t, n } = useFormatter();
   const label = (finding: MitigationFinding) => (finding.value && !SENSITIVE_TYPES.some(sensitive => finding.type.toLowerCase().includes(sensitive))
     ? `${finding.type}: ${finding.value}`
     : `${finding.type} (${t('value masked')})`);
@@ -61,7 +65,7 @@ const MitigationContextPanel = ({ action, command, findings, techniques = [], en
           {command}
         </div>,
       )}
-      {row(
+      {showFindings && row(
         t('Findings'),
         findings.length > 0
           ? findings.map(finding => <Chip key={`${finding.type}-${finding.value ?? ''}`} label={label(finding)} severity="neutral" />)
@@ -74,8 +78,27 @@ const MitigationContextPanel = ({ action, command, findings, techniques = [], en
           {environment ?? t('No agent (injector based execution): the suggestion relies on the command and its findings.')}
         </Text>,
       )}
+      {assets.length > 0 && row(
+        `${t('Targets')} (${n(assets.length)})`,
+        <ul
+          style={{
+            listStyle: 'none',
+            margin: 0,
+            padding: 0,
+            width: '100%',
+            maxHeight: 320,
+            overflowY: 'auto',
+          }}
+        >
+          {assets.map(name => (
+            <li key={name} style={{ padding: '2px 0' }}>
+              <Text variant="content-compact">{name}</Text>
+            </li>
+          ))}
+        </ul>,
+      )}
       <Text variant="content-caption" className="text-default-secondary">
-        {t('Same command, finding types and operating system: the stored mitigation is reused, no new request.')}
+        {t('Same command, findings, operating system and privilege: the stored mitigation is reused, no new request.')}
       </Text>
     </Paper>
   );

@@ -13,8 +13,7 @@ const AtomicTesting = lazy(() => import('./AtomicTesting'));
 const AtomicTestingExecutionDetails = lazy(() => import('./AtomicTestingExecutionDetails'));
 const AtomicTestingFindings = lazy(() => import('./AtomicTestingFindings'));
 const AtomicTestingPayloadInfo = lazy(() => import('./payload_info/AtomicTestingPayloadInfo'));
-const AtomicTestingRemediations = lazy(() => import('./AtomicTestingRemediations'));
-const AtomicTestingMitigations = lazy(() => import('./AtomicTestingMitigations'));
+const AtomicTestingRemediationMitigation = lazy(() => import('./AtomicTestingRemediationMitigation'));
 
 const AtomicTestingRoutes = ({ injectResultOverview }: Props) => {
   return (
@@ -27,14 +26,29 @@ const AtomicTestingRoutes = ({ injectResultOverview }: Props) => {
           <Route path="findings" element={errorWrapper(AtomicTestingFindings)()} />
         )}
         {injectResultOverview.inject_injector_contract?.injector_contract_payload && (
-          <>
-            <Route path="payload_info" element={errorWrapper(AtomicTestingPayloadInfo)()} />
-            <Route path="remediations" element={errorWrapper(AtomicTestingRemediations)()} />
-          </>
+          <Route path="payload_info" element={errorWrapper(AtomicTestingPayloadInfo)()} />
         )}
         {(injectResultOverview.inject_injector_contract?.injector_contract_payload
           || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
-          <Route path="mitigations" element={errorWrapper(AtomicTestingMitigations)({ injectType: injectResultOverview.inject_type })} />
+          <Route
+            path="remediations"
+            element={errorWrapper(AtomicTestingRemediationMitigation)({
+              category: 'remediation',
+              injectTitle: injectResultOverview.inject_title,
+              injectType: injectResultOverview.inject_type,
+            })}
+          />
+        )}
+        {(injectResultOverview.inject_injector_contract?.injector_contract_payload
+          || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
+          <Route
+            path="mitigations"
+            element={errorWrapper(AtomicTestingRemediationMitigation)({
+              category: 'mitigation',
+              injectTitle: injectResultOverview.inject_title,
+              injectType: injectResultOverview.inject_type,
+            })}
+          />
         )}
         <Route path="*" element={<NotFound />} />
       </Routes>

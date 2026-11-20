@@ -6,6 +6,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import MitigationCard, { criticalitySeverity, type MockMitigation } from '../../../atomic_testings/atomic_testing/MitigationCard';
 import { buildMitigations } from '../../../atomic_testings/atomic_testing/mitigationMock';
 import MitigationTargetsTable from '../../../atomic_testings/atomic_testing/MitigationTargetsTable';
+import GenerateAiButton from '../../../remediation_mitigation/GenerateAiButton';
 
 // ---------------------------------------------------------------------------------------------
 // PROTOTYPE - MOCK DATA ONLY. Nothing is sent to the backend or to XTM One.
@@ -189,14 +190,12 @@ const SimulationMitigations: FunctionComponent<Props> = ({ simulationLabel }) =>
               {`${n(missing.length)} ${t('requests, one per distinct command, finding types and OS, for')} ${n(missingAssets)} ${t('executions')}`}
             </Text>
           )}
-          <Button
-            variant="ia"
-            priority="secondary"
+          <GenerateAiButton
             disabled={missing.length === 0}
             onClick={() => generate(missing.map(({ group }) => group.id))}
           >
             {`${t('Generate missing')} (${missing.length})`}
-          </Button>
+          </GenerateAiButton>
         </div>
       </div>
 
@@ -236,9 +235,9 @@ const SimulationMitigations: FunctionComponent<Props> = ({ simulationLabel }) =>
               }}
               >
                 {!isGenerated && (
-                  <Button variant="ia" priority="secondary" disabled={isLoading} onClick={() => generate([group.id])}>
+                  <GenerateAiButton disabled={isLoading} onClick={() => generate([group.id])}>
                     {isLoading ? t('Generating mitigation…') : t('Generate mitigation')}
-                  </Button>
+                  </GenerateAiButton>
                 )}
                 <Button priority="secondary" onClick={() => setOpen(isOpen ? null : group.id)} endIcon={isOpen ? <ExpandLess /> : <ExpandMore />}>
                   {t('Details')}
@@ -268,9 +267,11 @@ const SimulationMitigations: FunctionComponent<Props> = ({ simulationLabel }) =>
               }}
               >
                 {isGenerated
-                  ? mitigations.map(mitigation => (
-                      <MitigationCard key={mitigation.summary} mitigation={mitigation} onRegenerate={() => generate([group.id])} />
-                    ))
+                  ? (
+                      mitigations.map(mitigation => (
+                        <MitigationCard key={mitigation.summary} mitigation={mitigation} onRegenerate={() => generate([group.id])} />
+                      ))
+                    )
                   : <Text variant="content-compact" className="text-default-secondary">{t('No mitigation generated for this group yet.')}</Text>}
                 <div>
                   <Text variant="content-base-bold" className="mb-2 block text-default-secondary">

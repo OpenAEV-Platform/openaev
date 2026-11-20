@@ -32,6 +32,9 @@ export interface MockMitigation {
   impact: string;
   rollback: string;
   limitedContext: boolean;
+  // The kind of control, so each area can group it: Hardening / Patch for a remediation, Detection /
+  // Prevention for a mitigation.
+  controlType?: 'hardening' | 'patch' | 'detection' | 'prevention';
 }
 
 export const criticalitySeverity: Record<Criticality, ChipSeverity> = {

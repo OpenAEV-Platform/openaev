@@ -2,7 +2,6 @@ import { Button, IconButton, Paper, Text } from '@filigran/design-system';
 import { ArrowBack, Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import DOMPurify from 'dompurify';
 import { useEffect, useRef, useState } from 'react';
 
 import { searchDistinctFindingsForInjects } from '../../../../../actions/findings/finding-actions';
@@ -26,6 +25,8 @@ import expectationIconByType from '../../../common/ExpectationIconByType';
 import GlobalExecutionTraces from '../../../common/injects/status/traces/GlobalExecutionTraces';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
 import FindingList from '../../../findings/FindingList';
+import RemediationMitigationPanel, { type PanelContext } from '../../../remediation_mitigation/RemediationMitigationPanel';
+import { type Verdict } from '../../../remediation_mitigation/remediationMitigationStore';
 import ExecutionMitigationTab from './ExecutionMitigationTab';
 import { InjectorExecutionStatusBadge, PayloadExecutionStatusBadge } from './ExecutionStatusBadge';
 import ExpectationPlatformsTable, {
@@ -351,9 +352,6 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
   const { isValidated } = useEnterpriseEdition();
   const ability = useAbility();
   const { currentTab, handleChangeTab } = useTabs(RESULT_TAB);
-  // Detection remediations (per security platform) for this action, resolved from the execution's
-  // payload's detection remediations by the backend (empty when the payload has none).
-  const detectionRemediations = detail?.detectionRemediations ?? [];
 
   // Size the Terminal to exactly fill its scroll area so it is the single scroller (no nested
   // scrollbar) and nothing is clipped: measure the content box and track it on resize.
@@ -411,6 +409,25 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
   const showPrevention = preventedBy.length > 0 || Boolean(detail?.preventionStatus);
   const showDetection = detectedBy.length > 0 || Boolean(detail?.detectionStatus);
   const showVulnerability = vulnerabilityBy.length > 0 || Boolean(detail?.vulnerabilityStatus);
+  // PROTOTYPE: what the step observed, as Met / Not met / Not evaluated, drives the smart hints of the
+  // Mitigation and Remediation tabs. A prevented or detected step is Met; the vulnerability verdict is
+  // Met when the weakness is present (the target is vulnerable).
+  const toVerdict = (rows: SecurityPlatformRow[], status: string | null | undefined, weaknessPresentWhenFailed = false): Verdict => {
+    const hasStatus = !!status && status.trim().length > 0;
+    if (rows.length === 0 && !hasStatus) return 'not_evaluated';
+    const succeeded = rows.some(row => (row.status ?? '').toUpperCase() === 'SUCCESS') || (rows.length === 0 && (status ?? '').toUpperCase() === 'SUCCESS');
+    if (weaknessPresentWhenFailed) return succeeded ? 'not_met' : 'met';
+    return succeeded ? 'met' : 'not_met';
+  };
+  const firstFindingType = (detail?.findings ?? []).find(finding => !!finding.type)?.type;
+  const panelContext: PanelContext = {
+    findingType: firstFindingType,
+    verdicts: {
+      prevention: toVerdict(preventedBy, detail?.preventionStatus),
+      detection: toVerdict(detectedBy, detail?.detectionStatus),
+      vulnerability: toVerdict(vulnerabilityBy, detail?.vulnerabilityStatus, true),
+    },
+  };
   // Platform attribution is Enterprise-gated: the resolver returns nothing without an active licence,
   // which must never read as "no platform prevented this". Same treatment, minus the Enterprise
   // wording, for any other reason attribution can be absent (a run not yet committed, a target with
@@ -833,62 +850,43 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
             )}
 
             {currentTab === REMEDIATION_TAB && (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: theme.spacing(2),
-              }}
-              >
-                <Text variant="content-caption" className="text-default-secondary">
-                  {t('How each security platform could detect this action (detection rules).')}
-                </Text>
-                {detectionRemediations.length === 0 && (
-                  <Text variant="content-compact" className="text-default-secondary">
-                    {t('No detection remediation available for this action yet.')}
-                  </Text>
-                )}
-                {detectionRemediations.map((rem, index) => (
-                  <div key={rem.detection_remediation_id ?? rem.detection_remediation_security_platform ?? index}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: theme.spacing(0.75),
-                      marginBottom: theme.spacing(0.75),
-                    }}
-                    >
-                      {rem.detection_remediation_security_platform && (
-                        <SecurityPlatformAssetLogo
-                          platformId={rem.detection_remediation_security_platform}
-                          label={rem.detection_remediation_security_platform_name ?? rem.detection_remediation_security_platform}
-                          mode={theme.palette.mode}
-                        />
-                      )}
-                      <Text variant="content-base-bold">{rem.detection_remediation_security_platform_name ?? rem.detection_remediation_security_platform}</Text>
-                    </div>
-                    {/* Detection rule text is sanitized before rendering — never injected raw. */}
-                    <div
-                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize((rem.detection_remediation_values ?? '').replace(/\n/g, '<br/>')) }}
-                    />
-                  </div>
-                ))}
-              </div>
+              <RemediationMitigationPanel
+                category="remediation"
+                payloadName={detail.payloadName}
+                editable
+                context={panelContext}
+              />
             )}
 
             {currentTab === MITIGATION_TAB && (
-              <ExecutionMitigationTab
-                executionLabel={endpointLabel ?? detail.agentName ?? 'execution'}
-                actionName={detail.payloadName ?? t('Execution')}
-                command={detail.command ?? detail.injectorCommandLine ?? undefined}
-                findings={(detail.findings ?? []).filter(finding => !!finding.type).map(finding => ({
-                  type: finding.type as string,
-                  value: finding.value,
-                }))}
-                attackPatterns={(detail.attackPatterns ?? []).map(ap => ap.externalId ?? ap.name ?? '').filter(Boolean)}
-                targetPlatform={detail.targetPlatform ?? undefined}
-                agentName={detail.agentName ?? undefined}
-                agentPrivilege={detail.agentPrivilege ?? undefined}
-                prevented={getSecurityPlatforms(detail).some(platform => platform.bucket === 'prevention')}
-              />
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: theme.spacing(3),
+              }}
+              >
+                <RemediationMitigationPanel
+                  category="mitigation"
+                  payloadName={detail.payloadName}
+                  editable
+                  context={panelContext}
+                  onSwitchToRemediation={() => handleChangeTab(REMEDIATION_TAB)}
+                />
+                <ExecutionMitigationTab
+                  executionLabel={endpointLabel ?? detail.agentName ?? 'execution'}
+                  actionName={detail.payloadName ?? t('Execution')}
+                  command={detail.command ?? detail.injectorCommandLine ?? undefined}
+                  findings={(detail.findings ?? []).filter(finding => !!finding.type).map(finding => ({
+                    type: finding.type as string,
+                    value: finding.value,
+                  }))}
+                  attackPatterns={(detail.attackPatterns ?? []).map(ap => ap.externalId ?? ap.name ?? '').filter(Boolean)}
+                  targetPlatform={detail.targetPlatform ?? undefined}
+                  agentName={detail.agentName ?? undefined}
+                  agentPrivilege={detail.agentPrivilege ?? undefined}
+                  prevented={getSecurityPlatforms(detail).some(platform => platform.bucket === 'prevention')}
+                />
+              </div>
             )}
           </div>
         </div>

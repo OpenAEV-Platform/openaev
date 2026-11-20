@@ -1,4 +1,4 @@
-import { Button, Chip, Paper, Text } from '@filigran/design-system';
+import { Chip, Paper, Text } from '@filigran/design-system';
 import { BuildOutlined, ShieldOutlined } from '@mui/icons-material';
 import { useReducer } from 'react';
 
@@ -6,6 +6,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import MitigationCard, { type MitigationFinding, type MockMitigation } from '../../../atomic_testings/atomic_testing/MitigationCard';
 import MitigationContextPanel from '../../../atomic_testings/atomic_testing/MitigationContextPanel';
 import { buildMitigations } from '../../../atomic_testings/atomic_testing/mitigationMock';
+import GenerateAiButton from '../../../remediation_mitigation/GenerateAiButton';
 
 // ---------------------------------------------------------------------------------------------
 // PROTOTYPE - MOCK DATA ONLY. Nothing is sent to the backend or to XTM One.
@@ -148,7 +149,7 @@ const ExecutionMitigationTab = ({
           <Text variant="content-compact" className="text-default-secondary">
             {t('No mitigation generated for this action and findings yet.')}
           </Text>
-          <Button variant="ia" priority="secondary" onClick={generate}>{t('Generate mitigation')}</Button>
+          <GenerateAiButton onClick={generate}>{t('Generate mitigation')}</GenerateAiButton>
         </Paper>
       )}
     </div>

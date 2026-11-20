@@ -68,17 +68,17 @@ const InjectIndexTabs = ({ injectResultOverview, exercise, backlabel, backuri }:
           </TabsTrigger>
         )}
         {hasPayload && (
-          <TabsTrigger value={`${base}/remediations`} asChild>
-            <Link to={computePath(`${base}/remediations`)} onClick={handleRemediationClick} aria-current={current(`${base}/remediations`)}>
-              {t('Remediations')}
-              {!isValidatedEnterpriseEdition && <EEChip />}
+          <TabsTrigger value={`${base}/mitigations`} asChild>
+            <Link to={computePath(`${base}/mitigations`)} aria-current={current(`${base}/mitigations`)}>
+              {t('Mitigation')}
             </Link>
           </TabsTrigger>
         )}
         {hasPayload && (
-          <TabsTrigger value={`${base}/mitigations`} asChild>
-            <Link to={computePath(`${base}/mitigations`)} aria-current={current(`${base}/mitigations`)}>
-              {t('Mitigations')}
+          <TabsTrigger value={`${base}/remediations`} asChild>
+            <Link to={computePath(`${base}/remediations`)} onClick={handleRemediationClick} aria-current={current(`${base}/remediations`)}>
+              {t('Remediation')}
+              {!isValidatedEnterpriseEdition && <EEChip />}
             </Link>
           </TabsTrigger>
         )}
