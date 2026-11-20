@@ -9995,6 +9995,56 @@ export type PayloadCreateInput = BasePayloadCreateInput &
     | BasePayloadCreateInputPayloadTypeMapping<"NetworkTraffic", NetworkTraffic>
   );
 
+export interface PayloadCustomizationOutput {
+  /**
+   * The action of the Filigran version the copy is built from
+   * @minLength 1
+   */
+  customization_base_action_id: string;
+  /** @minLength 1 */
+  customization_base_version: string;
+  /** The newer Filigran version the copy can take; empty when none */
+  customization_update?: PayloadCustomizationUpdateOutput;
+}
+
+export interface PayloadCustomizationUpdateInput {
+  /** Filigran's or yours, for every conflicting field */
+  update_choices?: Record<string, "YOURS" | "FILIGRAN">;
+  /**
+   * The Filigran version reviewed
+   * @minLength 1
+   */
+  update_payload_id: string;
+}
+
+export interface PayloadCustomizationUpdateOutput {
+  /** The fields Filigran or the copy changed since the base version */
+  update_fields: PayloadFieldUpdateOutput[];
+  /** The other keys Filigran changed: the copy takes them as they are */
+  update_other_changes: string[];
+  /** @minLength 1 */
+  update_payload_id: string;
+  /** @minLength 1 */
+  update_version: string;
+}
+
+export interface PayloadFieldUpdateOutput {
+  /** The value of the base version; empty when it has none */
+  field_base?: JsonNode;
+  /** Both changed it differently: the user chooses one */
+  field_conflict: boolean;
+  field_filigran?: JsonNode;
+  field_name:
+    | "COMMAND_EXECUTOR"
+    | "COMMAND_CONTENT"
+    | "CLEANUP_EXECUTOR"
+    | "CLEANUP_COMMAND"
+    | "PLATFORMS"
+    | "ARGUMENTS"
+    | "PREREQUISITES";
+  field_yours?: JsonNode;
+}
+
 export interface PayloadInput {
   agent_slug?: string;
   command_content?: string | null;
@@ -13352,6 +13402,8 @@ export interface ThreatArsenalAction {
   action_labels?: Record<string, string>;
   /** Payload attached */
   action_payload?: PayloadSimple;
+  /** The attached payload is a customized copy of a Filigran payload */
+  action_payload_customized?: boolean;
   /** The attached payload comes from the Filigran catalogue */
   action_payload_managed?: boolean;
   /** The attached payload version is revoked in the tenant */
