@@ -1,6 +1,6 @@
 package io.openaev.database.model.payload;
 
-import jakarta.persistence.PostPersist;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreRemove;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -13,7 +13,7 @@ public class PayloadRevocationListener {
 
   private final ApplicationEventPublisher eventPublisher;
 
-  @PostPersist
+  @PrePersist
   void revoked(PayloadRevocation revocation) {
     eventPublisher.publishEvent(changed(revocation, true));
   }
