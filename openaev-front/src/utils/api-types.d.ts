@@ -12531,7 +12531,10 @@ export interface ScenarioTeamUserOutput {
 }
 
 export interface ScenarioUpdateInput {
-  scenario_update_choices?: Record<string, "KEEP_MINE" | "TAKE_APPLIED" | "EDIT">;
+  scenario_update_choices?: Record<
+    string,
+    "KEEP_MINE" | "TAKE_APPLIED" | "EDIT"
+  >;
   scenario_update_edits?: Record<string, string>;
 }
 
