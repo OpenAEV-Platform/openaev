@@ -11738,6 +11738,24 @@ export interface ScenarioChallengesReader {
   scenario_information?: PublicScenario;
 }
 
+export interface ScenarioChangeOutput {
+  scenario_change_applied?: JsonNode;
+  scenario_change_base?: JsonNode;
+  /** @minLength 1 */
+  scenario_change_element: string;
+  scenario_change_field?: string;
+  /** @minLength 1 */
+  scenario_change_id: string;
+  scenario_change_local?: JsonNode;
+  scenario_change_status:
+    | "TAKE_APPLIED"
+    | "KEEP_MINE"
+    | "CONFLICT"
+    | "ADDED"
+    | "REMOVED";
+  scenario_change_title?: string;
+}
+
 export interface ScenarioIdsAndInjectorContractsInputs {
   injector_contract_search_pagination_input: InjectorContractSearchPaginationInput;
   /** @minLength 1 */
@@ -11866,6 +11884,8 @@ export interface ScenarioOutput {
    * @format int64
    */
   scenario_users_number?: number;
+  /** Catalogue version installed, empty for a scenario of the tenant */
+  scenario_version?: string;
   /** Workflow ID associated with the scenario */
   scenario_workflow_id?: string;
 }
@@ -11876,6 +11896,17 @@ export interface ScenarioRecurrenceInput {
   scenario_recurrence_end?: string;
   /** @format date-time */
   scenario_recurrence_start?: string;
+}
+
+export interface ScenarioRevisionOutput {
+  /** @minLength 1 */
+  scenario_revision_catalog_version: string;
+  /** @format date-time */
+  scenario_revision_created_at: string;
+  /** @minLength 1 */
+  scenario_revision_id: string;
+  scenario_revision_reason: "UPDATE" | "ROLLBACK";
+  scenario_revision_user?: string;
 }
 
 export interface ScenarioSimple {
@@ -11913,6 +11944,10 @@ export interface ScenarioTeamUserOutput {
   team_id?: string;
   /** ID of the user */
   user_id?: string;
+}
+
+export interface ScenarioUpdateInput {
+  scenario_update_choices?: Record<string, "KEEP_MINE" | "TAKE_APPLIED">;
 }
 
 export interface ScenarioUpdateTagsInput {
