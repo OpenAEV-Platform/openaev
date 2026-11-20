@@ -2590,3 +2590,15 @@ Both held MUI X and, with it, the `LocalizationProvider` the rest of the product
 **Product need.** Sam's form rule: an amount is shown with its unit. Numeric settings (a threshold in minutes, a count of jobs) are number fields with a stepper, and the unit belongs next to the value, not only in the label.
 
 **The request.** A number field that shows both the stepper and a unit (the unit to the left of the stepper pair, or a `unit` prop the node lays out), or a ruling that the unit of a number field belongs in the label.
+
+## 71. `Switch` has no size variant
+
+**Status.** Open. The product accepted the single size for the Switch adoption.
+
+**Needed.** The product laid its toggles out on MUI's two sizes: 40x24 (small) in list rows and dense forms, 58x38 (medium) in forms and dialogs.
+
+**Today.** The library `Switch` is a single fixed size, 36x20 (`h-5 w-9`, no `size` prop), measured on the installed build.
+
+**Consequence.** It cannot match MUI's 40x24 small / 58x38 medium layouts, so every adoption is a visual change: a labelled form row goes from 38px to 20px high, a list-row toggle from 40x24 to 36x20. The product accepted the single size for this adoption; the `size` prop on `SwitchFieldController` is kept for callers but has no effect.
+
+**Ask.** A `size` prop (at least a 24px-high `sm` for forms and list rows, matching the other controls' `sm`), or a ruling that the single size is the design for every context.

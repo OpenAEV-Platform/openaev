@@ -1,6 +1,6 @@
-import { Button } from '@filigran/design-system';
+import { Button, Switch } from '@filigran/design-system';
 import { RichTextEditor } from '@filigran/rich-text-editor';
-import { Grid, Switch, Typography } from '@mui/material';
+import { Grid, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
@@ -165,12 +165,12 @@ const InjectorContractForm = (props) => {
                     </Typography>
 
                     <Switch
-                      size="small"
                       checked={!R.isNil(fields[field.key]?.readOnly) ? fields[field.key].readOnly : field.readOnly}
-                      onChange={event => setFields({
+                      onCheckedChange={checked => setFields({
                         ...fields,
-                        [field.key]: { readOnly: event.target.checked },
+                        [field.key]: { readOnly: checked === true },
                       })}
+                      aria-label={t('Read only')}
                     />
                   </Grid>
                 </Grid>

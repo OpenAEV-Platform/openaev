@@ -1,6 +1,6 @@
-import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { KeyboardArrowDown, LinkOff, LinkOutlined } from '@mui/icons-material';
-import { Box, ClickAwayListener, Paper, Popper, Switch, Typography } from '@mui/material';
+import { Box, ClickAwayListener, Paper, Popper, Typography } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
 
 import AutocompleteField from '../../../../../components/fields/AutocompleteField';
@@ -133,10 +133,9 @@ const FieldOutputLink: FunctionComponent<Props> = ({
                 }}
                 >
                   <Switch
-                    size="small"
                     checked={link.localScope}
-                    onChange={(_, checked) => onToggleLocalScope(fieldKey, checked)}
-                    color="primary"
+                    onCheckedChange={checked => onToggleLocalScope(fieldKey, checked === true)}
+                    aria-label={t('Limit to Local Scope')}
                   />
                   <Typography
                     variant="caption"
