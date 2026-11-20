@@ -1,6 +1,7 @@
-import { Button, Chip, Spinner, Text } from '@filigran/design-system';
+import { Alert, Button, Spinner, Text } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
+import { Link } from 'react-router';
 
 import { fetchCatalogScenarioVersions } from '../../../../actions/catalog/scenario-catalog-actions';
 import { Field } from '../../../../components/common/detail/EntityDetailCommon';
@@ -11,9 +12,8 @@ import ItemMainFocus from '../../../../components/ItemMainFocus';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import PlatformIconGroup from '../../../../components/PlatformIconGroup';
 import { type CatalogScenarioOutput, type CatalogScenarioVersionOutput } from '../../../../utils/api-types';
+import { catalogConnectorUrl } from '../../integrations/catalog_connectors/catalog-facets';
 import { scenarioCategories } from '../constants';
-import ScenarioType from '../scenario/ScenarioType';
-import { catalogScenarioType } from './catalogScenarioFilters';
 
 interface Props {
   scenario: CatalogScenarioOutput | null;
@@ -22,7 +22,7 @@ interface Props {
   onInstall: (scenario: CatalogScenarioOutput) => void;
 }
 
-// A scenario of the Available tab: what it is and needs, before installing it.
+// A scenario of the Available tab: what it runs and needs, before installing it.
 const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall, onClose, onInstall }) => {
   const { t, nsd } = useFormatter();
   const theme = useTheme();
@@ -50,15 +50,18 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
   }, [scenario]);
 
   const ofVersion = (value: ReactNode): ReactNode => (loading ? <Spinner size="sm" /> : value);
+  const payloads = shown?.catalog_scenario_payloads ?? [];
+  const column = {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.spacing(1),
+  } as const;
 
   return (
     <Drawer
       open={scenario !== null}
       handleClose={onClose}
       title={scenario ? (scenario.catalog_scenario_name ?? scenario.catalog_scenario_external_id) : ''}
-      headerActions={canInstall && scenario && (
-        <Button disabled={missing.length > 0} onClick={() => onInstall(scenario)}>{t('Install')}</Button>
-      )}
     >
       {scenario && (
         <div style={{
@@ -67,6 +70,23 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
           gap: theme.spacing(3),
         }}
         >
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: theme.spacing(1),
+          }}
+          >
+            <PlatformIconGroup platforms={scenario.catalog_scenario_platforms} width={16} />
+            <Text variant="content-caption">
+              {[
+                `v${scenario.catalog_scenario_version}`,
+                shown?.catalog_scenario_injects_count != null ? t('{count} injects', { count: shown.catalog_scenario_injects_count }) : null,
+                scenario.catalog_scenario_published_at ? `${t('Published')} ${nsd(scenario.catalog_scenario_published_at)}` : null,
+                scenario.catalog_scenario_author ? `${t('by')} ${scenario.catalog_scenario_author}` : null,
+              ].filter(Boolean).join(' · ')}
+            </Text>
+          </div>
           {scenario.catalog_scenario_description && <Text variant="content-base">{scenario.catalog_scenario_description}</Text>}
           <div style={{
             display: 'grid',
@@ -74,10 +94,6 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
             gap: theme.spacing(2),
           }}
           >
-            <Field label={t('Version')}>{`v${scenario.catalog_scenario_version}`}</Field>
-            <Field label={t('Published')}>{scenario.catalog_scenario_published_at ? nsd(scenario.catalog_scenario_published_at) : '–'}</Field>
-            <Field label={t('Author')}>{scenario.catalog_scenario_author ?? '–'}</Field>
-            <Field label={t('Type')}><ScenarioType type={catalogScenarioType(scenario)} /></Field>
             <Field label={t('Category')}>
               {category ? <ItemCategory category={category} label={t(scenarioCategories.get(category) ?? category)} /> : '–'}
             </Field>
@@ -91,18 +107,34 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
                 ? <ItemSeverity severity={shown.catalog_scenario_severity} label={t(shown.catalog_scenario_severity)} />
                 : '–')}
             </Field>
-            <Field label={t('Injects')}>{ofVersion(shown?.catalog_scenario_injects_count ?? '–')}</Field>
-            <Field label={t('Platforms')}><PlatformIconGroup platforms={scenario.catalog_scenario_platforms} width={16} /></Field>
           </div>
           {missing.length > 0 && (
-            <Field label={t('Requirements missing')}>
-              <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: theme.spacing(1),
-              }}
-              >
-                {missing.map(requirement => <Chip key={requirement} label={requirement} severity="high" />)}
+            <Field label={t('Missing to run it')}>
+              <div style={column}>
+                {missing.map(requirement => (
+                  <Alert
+                    key={requirement.requirement_label}
+                    severity="warning"
+                    elevation={1}
+                    title={requirement.requirement_label}
+                    action={requirement.requirement_integration_id && (
+                      <Button asChild size="sm" priority="secondary">
+                        <Link to={catalogConnectorUrl(requirement.requirement_integration_id)} target="_blank">{t('Enable integration')}</Link>
+                      </Button>
+                    )}
+                  />
+                ))}
+              </div>
+            </Field>
+          )}
+          {payloads.length > 0 && (
+            <Field label={t('Payloads')}>
+              <div style={column}>
+                {payloads.map(payload => (
+                  <Text key={`${payload.catalog_payload_external_id}:${payload.catalog_payload_version}`} variant="content-base">
+                    {`${payload.catalog_payload_name ?? payload.catalog_payload_external_id} · v${payload.catalog_payload_version}`}
+                  </Text>
+                ))}
               </div>
             </Field>
           )}
@@ -111,6 +143,15 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
               {shown.catalog_scenario_changelog}
             </Field>
           )}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: theme.spacing(1),
+          }}
+          >
+            <Button type="button" priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
+            <Button type="button" disabled={!canInstall || missing.length > 0} onClick={() => onInstall(scenario)}>{t('Install')}</Button>
+          </div>
         </div>
       )}
     </Drawer>

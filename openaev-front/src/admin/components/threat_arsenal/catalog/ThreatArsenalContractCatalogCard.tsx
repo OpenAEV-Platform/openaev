@@ -6,6 +6,7 @@ import MarketplaceCard from '../../../../components/common/marketplace/card/Mark
 import MarketplaceCardMeta from '../../../../components/common/marketplace/card/MarketplaceCardMeta';
 import { useFormatter } from '../../../../components/i18n';
 import { type AvailableIntegrationActionOutput } from '../../../../utils/api-types';
+import { catalogConnectorUrl } from '../../integrations/catalog_connectors/catalog-facets';
 
 interface Props {
   action: AvailableIntegrationActionOutput;
@@ -34,7 +35,7 @@ const ThreatArsenalContractCatalogCard: FunctionComponent<Props> = ({ action, na
         </span>
       )}
       footerStart={<MarketplaceCardMeta platforms={action.action_platforms} />}
-      linkTo={`/admin/integrations/catalog/${action.action_integration_id}`}
+      linkTo={catalogConnectorUrl(action.action_integration_id)}
     />
   );
 };

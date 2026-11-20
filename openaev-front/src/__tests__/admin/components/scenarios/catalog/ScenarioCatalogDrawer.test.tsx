@@ -2,6 +2,7 @@ import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { type CatalogScenarioOutput } from '../../../../../utils/api-types';
@@ -17,18 +18,10 @@ vi.mock('../../../../../components/i18n', () => ({
 }));
 vi.mock('../../../../../actions/catalog/scenario-catalog-actions', () => ({ fetchCatalogScenarioVersions: mocks.fetchCatalogScenarioVersions }));
 vi.mock('../../../../../components/common/Drawer', () => ({
-  default: ({ open, headerActions, children }: {
+  default: ({ open, children }: {
     open: boolean;
-    headerActions: ReactNode;
     children: ReactNode;
-  }) => (open
-    ? (
-        <div>
-          {headerActions}
-          {children}
-        </div>
-      )
-    : null),
+  }) => (open ? <div>{children}</div> : null),
 }));
 
 const { default: ScenarioCatalogDrawer } = await import('../../../../../admin/components/scenarios/catalog/ScenarioCatalogDrawer');
@@ -44,13 +37,21 @@ const SCENARIO: CatalogScenarioOutput = {
   catalog_scenario_missing_requirements: [],
 };
 
-const renderDrawer = (scenario: CatalogScenarioOutput | null, onInstall = vi.fn()) => render(
-  <ThemeProvider theme={createTheme()}>
-    <TooltipProvider>
-      <ScenarioCatalogDrawer scenario={scenario} canInstall onClose={vi.fn()} onInstall={onInstall} />
-    </TooltipProvider>
-  </ThemeProvider>,
+const renderDrawer = (scenario: CatalogScenarioOutput | null, {
+  canInstall = true,
+  onInstall = vi.fn(),
+  onClose = vi.fn(),
+} = {}) => render(
+  <MemoryRouter>
+    <ThemeProvider theme={createTheme()}>
+      <TooltipProvider>
+        <ScenarioCatalogDrawer scenario={scenario} canInstall={canInstall} onClose={onClose} onInstall={onInstall} />
+      </TooltipProvider>
+    </ThemeProvider>
+  </MemoryRouter>,
 );
+
+const installButton = () => screen.getByRole('button', { name: 'Install' }) as HTMLButtonElement;
 
 describe('ScenarioCatalogDrawer', () => {
   afterEach(() => {
@@ -58,92 +59,167 @@ describe('ScenarioCatalogDrawer', () => {
     vi.clearAllMocks();
   });
 
-  it('given_aScenario_should_showItsFactsAndTheChangesOfItsVersion', async () => {
-    // Arrange
-    mocks.fetchCatalogScenarioVersions.mockResolvedValue([{
-      catalog_scenario_version: '1.2',
-      catalog_scenario_injects_count: 7,
-      catalog_scenario_changelog: 'New phishing mail',
-    }]);
+  describe('summary', () => {
+    it('given_aScenario_should_sumItUpInOneLineAndShowTheChangesOfItsVersion', async () => {
+      // Arrange
+      mocks.fetchCatalogScenarioVersions.mockResolvedValue([{
+        catalog_scenario_version: '1.2',
+        catalog_scenario_injects_count: 7,
+        catalog_scenario_changelog: 'New phishing mail',
+        catalog_scenario_payloads: [],
+      }]);
 
-    // Act
-    renderDrawer(SCENARIO);
+      // Act
+      renderDrawer({
+        ...SCENARIO,
+        catalog_scenario_published_at: '2026-01-15',
+      });
 
-    // Assert
-    expect(await screen.findByText('New phishing mail')).toBeTruthy();
-    expect(screen.getByText('What\'s new in v1.2')).toBeTruthy();
-    expect(screen.getByText('7')).toBeTruthy();
-    expect(screen.getByText('v1.2')).toBeTruthy();
-    expect(screen.getByText('Attack Scenario')).toBeTruthy();
-    expect(mocks.fetchCatalogScenarioVersions).toHaveBeenCalledWith('phishing');
-  });
-
-  it('given_aVersionWithItsFocusAndSeverity_should_showThem', async () => {
-    // Arrange
-    mocks.fetchCatalogScenarioVersions.mockResolvedValue([{
-      catalog_scenario_version: '1.2',
-      catalog_scenario_main_focus: 'endpoint-protection',
-      catalog_scenario_severity: 'high',
-    }]);
-
-    // Act
-    renderDrawer({
-      ...SCENARIO,
-      catalog_scenario_published_at: '2026-01-15',
-      catalog_scenario_category: 'custom-category',
+      // Assert
+      expect(await screen.findByText('v1.2 · 7 injects · Published 2026-01-15 · by Filigran')).toBeTruthy();
+      expect(screen.getByText('New phishing mail')).toBeTruthy();
+      expect(screen.getByText('What\'s new in v1.2')).toBeTruthy();
+      expect(screen.getByText('Attack Scenario')).toBeTruthy();
+      expect(mocks.fetchCatalogScenarioVersions).toHaveBeenCalledWith('phishing');
     });
 
-    // Assert
-    expect(await screen.findByText('endpoint-protection')).toBeTruthy();
-    expect(screen.getByText('high')).toBeTruthy();
-    expect(screen.getByText('2026-01-15')).toBeTruthy();
-    expect(screen.getByText('custom-category')).toBeTruthy();
-  });
+    it('given_aVersionWithItsFocusAndSeverity_should_showThem', async () => {
+      // Arrange
+      mocks.fetchCatalogScenarioVersions.mockResolvedValue([{
+        catalog_scenario_version: '1.2',
+        catalog_scenario_main_focus: 'endpoint-protection',
+        catalog_scenario_severity: 'high',
+        catalog_scenario_payloads: [],
+      }]);
 
-  it('given_noOptionalFactsAndNoVersions_should_showDashes', async () => {
-    // Arrange
-    mocks.fetchCatalogScenarioVersions.mockRejectedValue(new Error('unreachable'));
+      // Act
+      renderDrawer({
+        ...SCENARIO,
+        catalog_scenario_category: 'custom-category',
+      });
 
-    // Act
-    renderDrawer({
-      ...SCENARIO,
-      catalog_scenario_author: undefined,
-      catalog_scenario_category: undefined,
-      catalog_scenario_platforms: [],
+      // Assert
+      expect(await screen.findByText('endpoint-protection')).toBeTruthy();
+      expect(screen.getByText('high')).toBeTruthy();
+      expect(screen.getByText('custom-category')).toBeTruthy();
     });
 
-    // Assert
-    await waitFor(() => expect(screen.getAllByText('–')).toHaveLength(6));
-    expect(screen.getByText('-')).toBeTruthy();
-    expect(screen.queryByText(/What's new/)).toBeNull();
+    it('given_noOptionalFactsAndNoVersions_should_showTheVersionOnlyAndDashes', async () => {
+      // Arrange
+      mocks.fetchCatalogScenarioVersions.mockRejectedValue(new Error('unreachable'));
+
+      // Act
+      renderDrawer({
+        ...SCENARIO,
+        catalog_scenario_author: undefined,
+        catalog_scenario_category: undefined,
+        catalog_scenario_platforms: [],
+      });
+
+      // Assert
+      await waitFor(() => expect(screen.getAllByText('–')).toHaveLength(3));
+      expect(screen.getByText('v1.2')).toBeTruthy();
+      expect(screen.queryByText(/What's new/)).toBeNull();
+      expect(screen.queryByText('Payloads')).toBeNull();
+    });
   });
 
-  it('given_installClicked_should_installTheScenario', async () => {
-    // Arrange
-    mocks.fetchCatalogScenarioVersions.mockResolvedValue([]);
-    const onInstall = vi.fn();
-    renderDrawer(SCENARIO, onInstall);
+  describe('missing requirements', () => {
+    it('given_missingRequirements_should_linkEachToItsIntegrationAndBlockTheInstall', async () => {
+      // Arrange
+      mocks.fetchCatalogScenarioVersions.mockResolvedValue([]);
 
-    // Act
-    fireEvent.click(await screen.findByRole('button', { name: 'Install' }));
+      // Act
+      renderDrawer({
+        ...SCENARIO,
+        catalog_scenario_missing_requirements: [
+          {
+            requirement_label: 'Injector openaev_nmap',
+            requirement_integration_id: 'nmap-integration',
+          },
+          { requirement_label: 'OpenAEV >=2.0' },
+        ],
+      });
 
-    // Assert
-    expect(onInstall).toHaveBeenCalledWith(SCENARIO);
+      // Assert
+      expect(await screen.findByText('Missing to run it')).toBeTruthy();
+      expect(screen.getByText('Injector openaev_nmap')).toBeTruthy();
+      expect(screen.getByText('OpenAEV >=2.0')).toBeTruthy();
+      const links = screen.getAllByRole('link', { name: 'Enable integration' });
+      expect(links).toHaveLength(1);
+      expect(links[0].getAttribute('href')).toBe('/admin/integrations/catalog/nmap-integration');
+      expect(installButton().disabled).toBe(true);
+    });
   });
 
-  it('given_missingRequirements_should_listThemAndBlockTheInstall', async () => {
-    // Arrange
-    mocks.fetchCatalogScenarioVersions.mockResolvedValue([]);
+  describe('payloads', () => {
+    it('given_aVersionWithPayloads_should_listThemByNameOrId', async () => {
+      // Arrange
+      mocks.fetchCatalogScenarioVersions.mockResolvedValue([{
+        catalog_scenario_version: '1.2',
+        catalog_scenario_payloads: [
+          {
+            catalog_payload_external_id: 'nmap-scan',
+            catalog_payload_version: '1.0',
+            catalog_payload_name: 'Nmap scan',
+            catalog_payload_platforms: [],
+          },
+          {
+            catalog_payload_external_id: 'unnamed',
+            catalog_payload_version: '2.1',
+            catalog_payload_platforms: [],
+          },
+        ],
+      }]);
 
-    // Act
-    renderDrawer({
-      ...SCENARIO,
-      catalog_scenario_missing_requirements: ['Nmap'],
+      // Act
+      renderDrawer(SCENARIO);
+
+      // Assert
+      expect(await screen.findByText('Nmap scan · v1.0')).toBeTruthy();
+      expect(screen.getByText('unnamed · v2.1')).toBeTruthy();
+      expect(screen.getByText('Payloads')).toBeTruthy();
+    });
+  });
+
+  describe('footer', () => {
+    it('given_installClicked_should_installTheScenario', async () => {
+      // Arrange
+      mocks.fetchCatalogScenarioVersions.mockResolvedValue([]);
+      const onInstall = vi.fn();
+      renderDrawer(SCENARIO, { onInstall });
+
+      // Act
+      fireEvent.click(await screen.findByRole('button', { name: 'Install' }));
+
+      // Assert
+      expect(onInstall).toHaveBeenCalledWith(SCENARIO);
     });
 
-    // Assert
-    expect(await screen.findByText('Nmap')).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Install' }) as HTMLButtonElement).disabled).toBe(true);
+    it('given_noRightToInstall_should_disableTheInstall', async () => {
+      // Arrange
+      mocks.fetchCatalogScenarioVersions.mockResolvedValue([]);
+
+      // Act
+      renderDrawer(SCENARIO, { canInstall: false });
+
+      // Assert
+      await waitFor(() => expect(mocks.fetchCatalogScenarioVersions).toHaveBeenCalled());
+      expect(installButton().disabled).toBe(true);
+    });
+
+    it('given_cancelClicked_should_closeTheDrawer', async () => {
+      // Arrange
+      mocks.fetchCatalogScenarioVersions.mockResolvedValue([]);
+      const onClose = vi.fn();
+      renderDrawer(SCENARIO, { onClose });
+
+      // Act
+      fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+
+      // Assert
+      expect(onClose).toHaveBeenCalled();
+    });
   });
 
   it('given_noScenario_should_showNothingNorFetch', () => {
