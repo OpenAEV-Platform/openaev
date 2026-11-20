@@ -8,8 +8,10 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.api.chaining.StepMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
+import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
@@ -345,6 +347,46 @@ class StepServiceIntegrationTest extends IntegrationTest {
     assertEquals(
         2, stillLinked.size(), "the step stays linked to the preserved event's root and child");
     assertTrue(stillLinked.stream().anyMatch(c -> rootId.equals(c.getId())));
+  }
+
+  @Test
+  void given_stepWhoseEventIsDroppedInAFreshSession_should_unlinkTheEventFromTheStepOnUpdate()
+      throws JsonProcessingException, ChainingException {
+    // Arrange
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    Workflow workflow =
+        workflowComposer
+            .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+            .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+            .persist()
+            .get();
+    StepsCreateInput.StepInput createInput = buildInvalidInput(); // root + one child
+    createInput.setDataStep(injectInput);
+    Step step = spyStepService.createStepTemplate(workflow, createInput);
+    entityManager.flush();
+    entityManager.clear();
+
+    StepInput updateInput =
+        StepInput.builder()
+            .workflowId(workflow.getId())
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .conditionIds(List.of())
+            .dataStep(injectInput)
+            .build();
+
+    // Act
+    // StepApi maps the step in the same transaction, before anything flushes: the step-side links
+    // it reads must already be rid of the dropped event.
+    StepOutput output =
+        StepMapper.toOutput(spyStepService.updateStepTemplate(step.getId(), updateInput));
+    entityManager.flush();
+    entityManager.clear();
+
+    // Assert
+    assertTrue(output.getConditionIds().isEmpty(), "the output no longer lists the dropped event");
+    assertTrue(
+        conditionService.findAllConditionsByStepId(step.getId()).isEmpty(),
+        "the dropped event is no longer linked to the step");
   }
 
   @Test
