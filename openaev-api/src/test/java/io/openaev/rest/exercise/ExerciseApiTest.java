@@ -461,6 +461,40 @@ public class ExerciseApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Launching an exercise stamps and surfaces the launching user")
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_ASSESSMENT},
+        autoJoinDefaultTenant = true,
+        userFirstName = "Ash",
+        userLastName = "Ketchum",
+        userMail = "ash.ketchum@unittests.invalid")
+    void given_launchableExercise_should_returnLaunchedByUser() throws Exception {
+      // Arrange
+      Exercise exercise = getExercise(null);
+      ExerciseUpdateStartDateInput input = new ExerciseUpdateStartDateInput();
+
+      // Act
+      mvc.perform(
+              put(EXERCISE_URI + "/" + exercise.getId() + "/start-date")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert: the GET /exercises/{id} SimulationDetails resolves the launching user
+      mvc.perform(
+              get(EXERCISE_URI + "/" + exercise.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.exercise_launched_by_user.user_name").value("Ash Ketchum"))
+          .andExpect(
+              jsonPath("$.exercise_launched_by_user.user_email")
+                  .value("ash.ketchum@unittests.invalid"));
+    }
+
+    @Test
     @DisplayName("Throw license restricted error when add Tanium on scheduled scenario")
     @WithMockUser(
         withCapabilities = {Capability.MANAGE_ASSESSMENT},

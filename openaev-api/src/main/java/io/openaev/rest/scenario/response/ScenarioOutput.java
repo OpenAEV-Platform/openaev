@@ -1,6 +1,7 @@
 package io.openaev.rest.scenario.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.api.users.dto.UserSimple;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -148,4 +149,10 @@ public class ScenarioOutput {
   @JsonProperty("scenario_autonomous")
   @Schema(description = "Whether the scenario is an autonomous (AI-driven) attack-path scenario")
   private boolean autonomous;
+
+  // Not "scenario_scheduled_by": the Scenario entity sends the bare user id under that key, and
+  // both shapes merge into the same frontend store entry.
+  @JsonProperty("scenario_scheduled_by_user")
+  @Schema(description = "User who last configured the scenario's recurrence")
+  private UserSimple scheduledBy;
 }
