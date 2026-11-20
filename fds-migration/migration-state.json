@@ -869,7 +869,8 @@
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectionBar.tsx",
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveBar.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx",
+        "openaev-front/src/admin/components/integrations/Integrations.tsx"
       ]
     },
     {
@@ -984,6 +985,17 @@
       "reason": "Warning shown when another payload version of the action needs values the previous one did not.",
       "files": [
         "openaev-front/src/admin/components/common/injects/create/InjectCreationConfig.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Inline warnings with an optional action button (e.g. Dismiss) instead of the MUI Alert.",
+      "files": [
+        "openaev-front/src/admin/components/integrations/Integrations.tsx"
       ]
     }
   ],
