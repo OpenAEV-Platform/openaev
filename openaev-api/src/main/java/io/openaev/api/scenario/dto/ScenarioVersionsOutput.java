@@ -7,4 +7,4 @@ import java.util.List;
 /** Every catalogue version of an installed scenario, newest first, and the simulations it ran. */
 public record ScenarioVersionsOutput(
     @JsonProperty("scenario_versions") @NotNull List<ScenarioVersionOutput> versions,
-    @JsonProperty("scenario_simulations_count") long simulationsCount) {}
+    @JsonProperty("scenario_simulations_count") @NotNull long simulationsCount) {}
