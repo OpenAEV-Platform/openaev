@@ -32,12 +32,110 @@ public class PayloadCustomizationMerge {
   private final PayloadService payloadService;
 
   public enum Choice {
-    YOURS,
-    FILIGRAN
+    KEEP_MINE,
+    TAKE_APPLIED
+  }
+
+  /** What the update does with a field, named as the scenario update names it. */
+  public enum Status {
+    TAKE_APPLIED,
+    KEEP_MINE,
+    CONFLICT;
+
+    boolean keepsMine(Choice choice) {
+      return this == CONFLICT ? choice == Choice.KEEP_MINE : this == KEEP_MINE;
+    }
   }
 
   public record FieldUpdate(
-      CustomizableField field, JsonNode base, JsonNode filigran, JsonNode yours) {
+      CustomizableField field, JsonNode base, JsonNode filigran, JsonNode yours, Status status) {}
+
+  /** The fields either side changed, and the other keys Filigran changed. */
+  public record Update(
+      Payload current, Payload target, List<FieldUpdate> fields, List<String> otherChanges) {
+
+    Set<CustomizableBlock> conflicts() {
+      return fields.stream()
+          .filter(field -> field.status() == Status.CONFLICT)
+          .map(field -> field.field().getBlock())
+          .collect(Collectors.toSet());
+    }
+  }
+
+  /** Empty when Filigran has no newer version that runs. */
+  public Optional<Update> update(Payload current) {
+    Payload base = current.getBase();
+    return newerVersion(base).map(target -> compare(current, base, target));
+  }
+
+  /** A local payload linked to the Filigran version it copies, named as a customized copy. */
+  public Payload customizedCopy(Payload base) {
+    Payload copy = payloadService.generateDuplicatedPayload(base);
+    copy.setName(StringUtils.customizedString(base.getName()));
+    copy.setBase(base);
+    return copy;
+  }
+
+  /** The new content of the copy: the newer version, with the changes the copy keeps. */
+  public Payload merged(Update update, Map<CustomizableBlock, Choice> choices) {
+    if (!choices.keySet().containsAll(update.conflicts())) {
+      throw new BadRequestException(CONFLICT_WITHOUT_CHOICE);
+    }
+    Payload current = update.current();
+    Payload merged = customizedCopy(update.target());
+    merged.setAuthor(current.getAuthor() == null ? null : current.getAuthor().copy());
+    update.fields().stream()
+        .filter(field -> field.status().keepsMine(choices.get(field.field().getBlock())))
+        .forEach(field -> field.field().copy(current, merged));
+    return merged;
+  }
+
+  private Optional<Payload> newerVersion(Payload base) {
+    return Optional.ofNullable(base.getIdentity().getLatestVersion())
+        .map(latest -> (Payload) Hibernate.unproxy(latest))
+        .filter(latest -> SemanticVersion.ORDER.compare(latest.getVersion(), base.getVersion()) > 0)
+        .filter(latest -> !latest.isRevoked());
+  }
+
+  private Update compare(Payload current, Payload base, Payload target) {
+    List<PayloadChange> changes = payloadChangeKind.since(base, List.of(target, current));
+    PayloadChange filigran = changes.get(0);
+    PayloadChange yours = changes.get(1);
+    List<Diff> diffs =
+        Arrays.stream(CustomizableField.values())
+            .map(
+                field ->
+                    new Diff(
+                        field,
+                        filigran.before().get(field.getKey()),
+                        filigran.after().get(field.getKey()),
+                        yours.after().get(field.getKey())))
+            .filter(Diff::changed)
+            .toList();
+    Set<CustomizableBlock> conflicts = conflicts(diffs);
+    List<FieldUpdate> fields =
+        diffs.stream().map(diff -> diff.update(conflicts.contains(diff.block()))).toList();
+    List<String> otherChanges =
+        filigran.keys().stream()
+            .filter(key -> CustomizableField.ofKey(key).isEmpty())
+            .sorted()
+            .toList();
+    return new Update(current, target, fields, otherChanges);
+  }
+
+  /** The blocks both changed, to different values. */
+  private static Set<CustomizableBlock> conflicts(List<Diff> diffs) {
+    return diffs.stream().collect(Collectors.groupingBy(Diff::block)).entrySet().stream()
+        .filter(
+            block ->
+                block.getValue().stream().anyMatch(Diff::changedByFiligran)
+                    && block.getValue().stream().anyMatch(Diff::changedByYou)
+                    && block.getValue().stream().anyMatch(Diff::differs))
+        .map(Map.Entry::getKey)
+        .collect(Collectors.toSet());
+  }
+
+  private record Diff(CustomizableField field, JsonNode base, JsonNode filigran, JsonNode yours) {
 
     boolean changed() {
       return changedByFiligran() || changedByYou();
@@ -58,89 +156,11 @@ public class PayloadCustomizationMerge {
     CustomizableBlock block() {
       return field.getBlock();
     }
-  }
 
-  /** The fields either side changed, and the other keys Filigran changed. */
-  public record Update(
-      Payload current, Payload target, List<FieldUpdate> fields, List<String> otherChanges) {
-
-    /** The blocks both changed, to different values. */
-    public Set<CustomizableBlock> conflicts() {
-      Map<CustomizableBlock, List<FieldUpdate>> byBlock =
-          fields.stream().collect(Collectors.groupingBy(FieldUpdate::block));
-      return byBlock.entrySet().stream()
-          .filter(
-              block ->
-                  block.getValue().stream().anyMatch(FieldUpdate::changedByFiligran)
-                      && block.getValue().stream().anyMatch(FieldUpdate::changedByYou)
-                      && block.getValue().stream().anyMatch(FieldUpdate::differs))
-          .map(Map.Entry::getKey)
-          .collect(Collectors.toSet());
+    FieldUpdate update(boolean conflict) {
+      Status status =
+          conflict ? Status.CONFLICT : changedByYou() ? Status.KEEP_MINE : Status.TAKE_APPLIED;
+      return new FieldUpdate(field, base, filigran, yours, status);
     }
-
-    /**
-     * A conflicting block is taken whole from the side chosen; elsewhere, what you changed stays.
-     */
-    private boolean keepsYours(
-        FieldUpdate field,
-        Set<CustomizableBlock> conflicts,
-        Map<CustomizableBlock, Choice> choices) {
-      return conflicts.contains(field.block())
-          ? choices.get(field.block()) == Choice.YOURS
-          : field.changedByYou();
-    }
-  }
-
-  /** Empty when Filigran has no newer version that runs. */
-  public Optional<Update> update(Payload current) {
-    Payload base = current.getBase();
-    return newerVersion(base).map(target -> compare(current, base, target));
-  }
-
-  /** The new content of the copy: the newer version, with the changes the copy keeps. */
-  public Payload merged(Update update, Map<CustomizableBlock, Choice> choices) {
-    Set<CustomizableBlock> conflicts = update.conflicts();
-    if (!choices.keySet().containsAll(conflicts)) {
-      throw new BadRequestException(CONFLICT_WITHOUT_CHOICE);
-    }
-    Payload target = update.target();
-    Payload current = update.current();
-    Payload merged = payloadService.generateDuplicatedPayload(target);
-    merged.setName(StringUtils.customizedString(target.getName()));
-    merged.setBase(target);
-    merged.setAuthor(current.getAuthor() == null ? null : current.getAuthor().copy());
-    update.fields().stream()
-        .filter(field -> update.keepsYours(field, conflicts, choices))
-        .forEach(field -> field.field().copy(current, merged));
-    return merged;
-  }
-
-  private Optional<Payload> newerVersion(Payload base) {
-    return Optional.ofNullable(base.getIdentity().getLatestVersion())
-        .map(latest -> (Payload) Hibernate.unproxy(latest))
-        .filter(latest -> SemanticVersion.ORDER.compare(latest.getVersion(), base.getVersion()) > 0)
-        .filter(latest -> !latest.isRevoked());
-  }
-
-  private Update compare(Payload current, Payload base, Payload target) {
-    PayloadChange filigran = payloadChangeKind.between(base, target);
-    PayloadChange yours = payloadChangeKind.between(base, current);
-    List<FieldUpdate> fields =
-        Arrays.stream(CustomizableField.values())
-            .map(
-                field ->
-                    new FieldUpdate(
-                        field,
-                        filigran.before().get(field.getKey()),
-                        filigran.after().get(field.getKey()),
-                        yours.after().get(field.getKey())))
-            .filter(FieldUpdate::changed)
-            .toList();
-    List<String> otherChanges =
-        filigran.keys().stream()
-            .filter(key -> CustomizableField.ofKey(key).isEmpty())
-            .sorted()
-            .toList();
-    return new Update(current, target, fields, otherChanges);
   }
 }

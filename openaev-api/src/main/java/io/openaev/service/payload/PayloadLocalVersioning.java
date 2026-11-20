@@ -5,7 +5,6 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.hash.Hashed;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.repository.PayloadIdentityRepository;
-import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.DetectionRemediationUtils;
 import io.openaev.rest.payload.PayloadUtils;
@@ -27,9 +26,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class PayloadLocalVersioning {
 
-  public static final String LOCKED_ON_CUSTOMIZED_COPY =
-      "A customized copy only changes its commands, arguments, prerequisites and platforms";
-
   private final PayloadService payloadService;
   private final PayloadUtils payloadUtils;
   private final DetectionRemediationUtils detectionRemediationUtils;
@@ -48,17 +44,8 @@ public class PayloadLocalVersioning {
     }
     Payload candidate = candidate(current, input);
     PayloadChange change = payloadChangeKind.of(current, candidate, attackPatterns);
-    if (current.isCustomized()) {
-      refuseLockedChanges(change);
-    }
+    CustomizableField.refuseLockedChanges(current, change);
     return change.kind().map(kind -> addVersion(current, candidate, kind));
-  }
-
-  // A customized copy takes everything else from its Filigran version.
-  private static void refuseLockedChanges(PayloadChange change) {
-    if (change.keys().stream().anyMatch(key -> CustomizableField.ofKey(key).isEmpty())) {
-      throw new BadRequestException(LOCKED_ON_CUSTOMIZED_COPY);
-    }
   }
 
   // A duplicate carries the grants of the version; the input then replaces its content.

@@ -10469,8 +10469,8 @@ export interface PayloadCustomizationOutput {
 }
 
 export interface PayloadCustomizationUpdateInput {
-  /** Filigran's or yours, for every conflicting block */
-  update_choices?: Record<string, "YOURS" | "FILIGRAN">;
+  /** Keep mine or take Filigran's, for every conflicting block */
+  update_choices?: Record<string, "KEEP_MINE" | "TAKE_APPLIED">;
   /**
    * The Filigran version reviewed
    * @minLength 1
@@ -10485,6 +10485,8 @@ export interface PayloadCustomizationUpdateOutput {
   update_other_changes: string[];
   /** @minLength 1 */
   update_payload_id: string;
+  /** The release notes of the newer versions, newest first */
+  update_release_notes: PayloadReleaseNoteOutput[];
   /** @minLength 1 */
   update_version: string;
 }
@@ -10494,8 +10496,6 @@ export interface PayloadFieldUpdateOutput {
   field_base?: JsonNode;
   /** The fields of a block conflict together: one choice settles them all */
   field_block: "EXECUTION" | "PLATFORMS";
-  /** Both changed its block differently: the user chooses one side */
-  field_conflict: boolean;
   field_filigran?: JsonNode;
   field_name:
     | "COMMAND_EXECUTOR"
@@ -10505,6 +10505,8 @@ export interface PayloadFieldUpdateOutput {
     | "PLATFORMS"
     | "ARGUMENTS"
     | "PREREQUISITES";
+  /** What the update does with the field; a conflict needs a choice */
+  field_status: "TAKE_APPLIED" | "KEEP_MINE" | "CONFLICT";
   field_yours?: JsonNode;
 }
 
@@ -10688,6 +10690,13 @@ export interface PayloadPrerequisite {
   executor: string;
   /** @minLength 1 */
   get_command: string;
+}
+
+export interface PayloadReleaseNoteOutput {
+  /** @minLength 1 */
+  release_changelog: string;
+  /** @minLength 1 */
+  release_version: string;
 }
 
 export interface PayloadRevocationInput {

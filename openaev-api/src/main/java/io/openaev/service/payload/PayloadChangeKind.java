@@ -10,10 +10,10 @@ import io.openaev.service.hash.UnreadableFileException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,34 +30,40 @@ public class PayloadChangeKind {
    * rule: anything removed from a list is major.
    */
   public PayloadChange of(Payload before, Payload after, Collection<AttackPattern> afterPatterns) {
-    return compare(
-        before,
-        after,
-        files -> payloadContentHashService.canonicalTree(after, afterPatterns, files));
+    try {
+      return compare(before, after, afterPatterns, CanonicalContent.Files.BY_HASH);
+    } catch (UnreadableFileException e) {
+      return compare(before, after, afterPatterns, CanonicalContent.Files.BY_ID);
+    }
   }
 
-  /** Between two saved versions, each with the techniques of its own contract. */
-  public PayloadChange between(Payload before, Payload after) {
-    return compare(before, after, files -> payloadContentHashService.canonicalTree(after, files));
+  /**
+   * What each later saved version changed since {@code before}, whose tree is built once. Files are
+   * compared by document: reading never downloads them.
+   */
+  public List<PayloadChange> since(Payload before, List<Payload> afters) {
+    ObjectNode beforeTree =
+        payloadContentHashService.canonicalTree(before, CanonicalContent.Files.BY_ID);
+    return afters.stream()
+        .map(
+            after ->
+                new Comparison(
+                        beforeTree,
+                        payloadContentHashService.canonicalTree(
+                            after, CanonicalContent.Files.BY_ID))
+                    .change(payloadContentHashService.changes(after)))
+        .toList();
   }
 
   private PayloadChange compare(
-      Payload before, Payload after, Function<CanonicalContent.Files, ObjectNode> afterTree) {
-    Comparison comparison;
-    try {
-      comparison = compare(before, afterTree, CanonicalContent.Files.BY_HASH);
-    } catch (UnreadableFileException e) {
-      comparison = compare(before, afterTree, CanonicalContent.Files.BY_ID);
-    }
-    return comparison.change(payloadContentHashService.changes(after));
-  }
-
-  private Comparison compare(
       Payload before,
-      Function<CanonicalContent.Files, ObjectNode> afterTree,
+      Payload after,
+      Collection<AttackPattern> afterPatterns,
       CanonicalContent.Files files) {
     return new Comparison(
-        payloadContentHashService.canonicalTree(before, files), afterTree.apply(files));
+            payloadContentHashService.canonicalTree(before, files),
+            payloadContentHashService.canonicalTree(after, afterPatterns, files))
+        .change(payloadContentHashService.changes(after));
   }
 
   private record Comparison(ObjectNode before, ObjectNode after) {

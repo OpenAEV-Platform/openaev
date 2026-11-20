@@ -1040,8 +1040,8 @@ public class InjectorContractService implements DependenciesManager {
             .when(cb.isNotNull(authorOrgJoin.get("id")), cb.literal("organization"))
             .otherwise(cb.nullLiteral(String.class));
     Expression<String> payloadIdentityId = ctx.payloadJoin().get("identity").<String>get("id");
-    Expression<String> payloadBaseId =
-        ctx.payloadJoin().join("base", JoinType.LEFT).<String>get("id");
+    // The foreign key itself: no join on payloads.
+    Expression<String> payloadBaseId = ctx.payloadJoin().get("base").<String>get("id");
 
     cq.multiselect(
         injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
