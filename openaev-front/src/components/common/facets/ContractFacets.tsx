@@ -8,11 +8,15 @@ import {
 } from '@mui/icons-material';
 import { type ReactElement, useCallback, useEffect, useMemo, useState } from 'react';
 
-import { type Filter, type SearchPaginationInput } from '../../../utils/api-types';
+import {type Filter, FindingOutput, type Option, type SearchPaginationInput} from '../../../utils/api-types';
 import { type FilterHelpers } from '../queryable/filter/FilterHelpers';
 import { generateFilterId } from '../queryable/filter/FilterUtils';
 import { buildSearchPagination } from '../queryable/QueryableUtils';
 import { type FacetRow } from './FacetFilters';
+import ContractOutputElementType, {
+  CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS
+} from "../../../admin/components/findings/ContractOutputElementType";
+import FindingIcon from "../../FindingIcon";
 
 // Shared author + payload-status facet helpers for the injector-contract
 // libraries (Threat Arsenal and the inject-contract picker), so both sidebars
@@ -295,3 +299,59 @@ export const buildStatusRows = ({
   checked: statusValues.includes(status.value),
   onToggle: () => toggle(status.value),
 }));
+
+const findingTypeFacetMeta = (t: (key: string) => string): {
+  value: string;
+  label: string;
+  icon: () => ReactElement;
+}[] => {
+  return CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS
+      .map(type => ({
+        value: type,
+        label: t(ContractOutputElementType[type]),
+        icon: () => <FindingIcon findingType={type} />
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+};
+
+export const buildFindingTypeRows = ({
+  t,
+  statusValues,
+  statusCounts,
+  toggle,
+}: {
+  t: (key: string) => string;
+  statusValues: string[];
+  statusCounts: Record<string, number> | undefined;
+  toggle: (value: string) => void;
+}): FacetRow[] => findingTypeFacetMeta(t).map(findingType => ({
+  value: findingType.value,
+  label: findingType.label,
+  count: statusCounts ? statusCounts[findingType.value] ?? 0 : undefined,
+  icon: findingType.icon,
+  checked: statusValues.includes(findingType.value),
+  onToggle: () => toggle(findingType.value),
+}));
+
+export const buildAssetRows = ({
+  assetOptions,
+  statusValues,
+  toggle,
+}: {
+  assetOptions: Option[];
+  statusValues: string[];
+  toggle: (option: Option) => void;
+}): FacetRow[] => {
+  const assets = !!assetOptions && assetOptions.length ? assetOptions : [];
+  return assets
+    .filter(assetOption => assetOption.id && assetOption.label)
+    .sort((assetA, assetB) => assetA.label!.localeCompare(assetB.label!))
+    .map(assetOption => (
+      {
+        value: assetOption.id,
+        label: assetOption.label,
+        checked: statusValues.includes(assetOption.label!),
+        onToggle: () => toggle(assetOption),
+      } as FacetRow
+    ));
+};

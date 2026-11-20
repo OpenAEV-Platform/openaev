@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { type Filter, type SearchPaginationInput } from '../../../utils/api-types';
+import {type Filter, Option, type SearchPaginationInput} from '../../../utils/api-types';
 import { type FilterHelpers } from '../queryable/filter/FilterHelpers';
 import { generateFilterId } from '../queryable/filter/FilterUtils';
 
@@ -32,9 +32,63 @@ const useFacetFilterToggle = (searchPaginationInput: SearchPaginationInput, filt
     }
   }, [filterHelpers, filters]);
 
+  const setFilterValues = useCallback(
+      (key: string, values: string[]) => {
+        const existing = filters.find((f: Filter) => f.key === key);
+        if (values.length === 0) {
+          if (existing?.id) {
+            filterHelpers.handleRemoveFilterById(existing.id);
+          } else {
+            filterHelpers.handleRemoveFilterByKey(key);
+          }
+          return;
+        }
+        if (existing?.id) {
+          filterHelpers.handleUpdateValuesById(existing.id, values);
+          return;
+        }
+        filterHelpers.handleAddFilterWithEmptyValue({
+          id: generateFilterId(),
+          key,
+          operator: 'eq',
+          values,
+          mode: 'and',
+        });
+      },
+      [filterHelpers, filters],
+  );
+
+  const toggleValueWithCurrent = useCallback(
+      (key: string, current: string[], value: string) => {
+        const next = current.includes(value)
+            ? current.filter(v => v !== value)
+            : [...current, value];
+        setFilterValues(key, next);
+      },
+      [setFilterValues],
+  );
+
+  const toggleAndTranslateOptionWithCurrent = useCallback(
+      (key: string, current: string[], selectedOption: Option, options: Option[]) => {
+        if (selectedOption.id && selectedOption.label) {
+          const next = current.includes(selectedOption.label)
+              ? current.filter(v => v !== selectedOption.label)
+              : [...current, selectedOption.label];
+          const translatedNext: string[] = options
+              .filter(option => next.includes(option.label!))
+              .map(option => option.id!);
+          setFilterValues(key, translatedNext);
+        }
+      },
+      [setFilterValues],
+  );
+
   return {
     valuesOf,
     toggle,
+    toggleValueWithCurrent,
+    toggleAndTranslateOptionWithCurrent,
+    setFilterValues,
   };
 };
 
