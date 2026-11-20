@@ -140,7 +140,8 @@ public class XtmOneClient {
       String enterpriseLicensePem,
       String licenseType,
       String businessVertical,
-      List<Map<String, String>> intents) {
+      List<Map<String, String>> intents,
+      Map<String, Object> health) {
     if (!config.isConfigured()) {
       return null;
     }
@@ -158,6 +159,9 @@ public class XtmOneClient {
       // integration can be gated at all, that one says a given client will answer a prompt.
       body.put("supports_approval_prompts", true);
       body.put("intents", intents != null ? intents : List.of());
+      // Platform Health snapshot (XtmOneHealthSnapshot): optional, XTM One ignores what it cannot
+      // read, so an older XTM One simply drops the key.
+      if (health != null) body.put("health", health);
       String json = objectMapper.writeValueAsString(body);
 
       HttpPost httpPost = new HttpPost(config.getUrl() + "/api/v1/platform/register");

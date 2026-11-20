@@ -61,6 +61,7 @@ import {
   type HealthCheck,
   type Inject,
   type Scenario,
+  type ScenarioOutput,
   type Team,
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
@@ -165,7 +166,8 @@ const ScenarioHeader = ({
   }, [openScenarioAssistantQueryParam, scenarioId]);
   // Fetching data
   const { scenario, challenges, injects, teams, articles }: {
-    scenario: Scenario;
+    // The store entry is filled by the entity (ids) and by the ScenarioOutput DTO (resolved user).
+    scenario: Scenario & Pick<ScenarioOutput, 'scenario_scheduled_by_user'>;
     challenges: Challenge[];
     injects: Inject[];
     teams: Team[];
@@ -193,6 +195,17 @@ const ScenarioHeader = ({
   const hasChallenges = challenges.length > 0;
 
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
+  const scheduledBy = scenario.scenario_scheduled_by_user;
+  const scheduledByName = scheduledBy?.user_name ?? scheduledBy?.user_email;
+  // The resolved user only comes with GET /scenarios/{id}, while the bare id is kept fresh by the
+  // entity the recurrence endpoint returns and the SSE stream pushes: refetch when they disagree,
+  // so the chip follows a reschedule made here or from another browser.
+  const scheduledById = scenario.scenario_scheduled_by;
+  useEffect(() => {
+    if (scheduledById && scheduledById !== scenario.scenario_scheduled_by_user?.user_id) {
+      dispatch(fetchScenario(scenarioId));
+    }
+  }, [dispatch, scenarioId, scheduledById, scenario.scenario_scheduled_by_user?.user_id]);
   const isScenarioChaining = !!scenarioWorkflowId;
   const canOpenConfiguration = canManage && !isScenarioChaining;
 
@@ -738,6 +751,13 @@ const ScenarioHeader = ({
                 </TooltipTrigger>
                 {(scheduleLabel ?? '') && <TooltipContent>{scheduleLabel ?? ''}</TooltipContent>}
               </Tooltip>
+              {scheduledByName && (
+                <Chip
+                  startIcon={<PersonOutlined sx={{ fontSize: 14 }} />}
+                  label={`${t('Scheduled by')} ${scheduledByName}`}
+                  severity="low"
+                />
+              )}
             </>
           )}
           // The alert-toned controls sit in the body row, right-aligned, where the
