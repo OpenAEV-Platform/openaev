@@ -6674,6 +6674,7 @@ export interface GraphNodeOutput {
   node_finding_count?: number;
   node_id: string;
   node_label: string;
+  node_relation_counts?: Record<string, number>;
   node_result?: "SUCCESS" | "PENDING" | "FAILED";
   node_subtype?: string;
   node_type:
