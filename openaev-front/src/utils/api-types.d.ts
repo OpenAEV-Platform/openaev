@@ -3335,10 +3335,24 @@ export interface ConnectorInstanceLogsInput {
 }
 
 export interface ConnectorInstanceOutput {
+  /** Container image the composer deploys (image:version), absent for a built-in instance */
+  connector_image?: string;
   connector_instance_current_status: "started" | "stopped";
   /** @minLength 1 */
   connector_instance_id: string;
+  /** Whether the container is in a reboot loop */
+  connector_instance_is_in_reboot_loop?: boolean;
   connector_instance_requested_status?: "starting" | "stopping";
+  /**
+   * Container restart count, as reported by the composer
+   * @format int32
+   */
+  connector_instance_restart_count?: number;
+  /**
+   * When the container last started, as reported by the composer
+   * @format date-time
+   */
+  connector_instance_started_at?: string;
 }
 
 export interface ConnectorInstancePersisted {
