@@ -810,7 +810,11 @@ const GraphExplorerInner = ({
     }
     // One row per neighbour and relation: a membership read from both ends (a group expanded, then
     // one of its assets) is two edges of opposite direction and one relation (#9572: duplicate keys).
-    const rows = new Map<string, { node: GraphNodeOutput; type: GraphEdgeType; result?: GraphResult | null }>();
+    const rows = new Map<string, {
+      node: GraphNodeOutput;
+      type: GraphEdgeType;
+      result?: GraphResult | null;
+    }>();
     Object.values(state.edges)
       .filter(e => e.edge_source === selectedNode.node_id || e.edge_target === selectedNode.node_id)
       .forEach((e) => {

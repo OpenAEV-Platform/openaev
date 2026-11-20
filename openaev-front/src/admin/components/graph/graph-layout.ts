@@ -514,6 +514,19 @@ export const layoutBounds = (positions: Map<string, Point>, nodeWidth: number, n
   };
 };
 
+/** The positions between two frames at t in [0, 1], for the nodes of the second frame. */
+export const interpolate = (a: Map<string, Point>, b: Map<string, Point>, t: number): Map<string, Point> => {
+  const result = new Map<string, Point>();
+  b.forEach((to, id) => {
+    const from = a.get(id) ?? to;
+    result.set(id, {
+      x: from.x + (to.x - from.x) * t,
+      y: from.y + (to.y - from.y) * t,
+    });
+  });
+  return result;
+};
+
 /**
  * The move toward a layout, planned from what is committed (#9572). A new layout run (a layout button,
  * Re-run the layout, a new slice: its key differs from the run already laid out) or an empty screen
@@ -531,7 +544,11 @@ export const planMove = ({ variant, runKey, laidOut, settled, layout, nodes, edg
   nodes: GraphNodeOutput[];
   edges: GraphEdgeOutput[];
   focus?: string | null;
-}): { frames: Map<string, Point>[]; runKey: string; fit: boolean } => {
+}): {
+  frames: Map<string, Point>[];
+  runKey: string;
+  fit: boolean;
+} => {
   if (variant === 'mini') {
     return {
       frames: [miniCardLayout(nodes, edges, focus ?? '')],
@@ -567,17 +584,4 @@ export const moveAt = (from: Map<string, Point>, steps: Map<string, Point>[], t:
   const leg = Math.min(legs - 1, Math.max(0, Math.floor(at)));
   const legFrom = leg === 0 ? from : steps[leg - 1];
   return interpolate(legFrom, steps[leg], Math.min(1, at - leg));
-};
-
-/** The positions between two frames at t in [0, 1], for the nodes of the second frame. */
-export const interpolate = (a: Map<string, Point>, b: Map<string, Point>, t: number): Map<string, Point> => {
-  const result = new Map<string, Point>();
-  b.forEach((to, id) => {
-    const from = a.get(id) ?? to;
-    result.set(id, {
-      x: from.x + (to.x - from.x) * t,
-      y: from.y + (to.y - from.y) * t,
-    });
-  });
-  return result;
 };
