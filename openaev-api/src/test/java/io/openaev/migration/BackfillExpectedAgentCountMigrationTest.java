@@ -6,6 +6,10 @@ import static io.openaev.migration.V6_20261120120000000__Backfill_expected_agent
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.ExecutionStatus;
+import io.openaev.database.model.ExecutionTraceStatus;
+import io.openaev.utils.InjectStatusUtils;
+import io.openaev.utils.InjectStatusUtils.CompleteTrace;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -71,6 +75,7 @@ class BackfillExpectedAgentCountMigrationTest extends IntegrationTest {
       execute("DELETE FROM execution_traces WHERE execution_message = '" + SEED + "'");
       for (String inject : seededInjects) {
         execute("DELETE FROM injects_statuses WHERE status_inject = '" + inject + "'");
+        execute("DELETE FROM injects_assets WHERE inject_id = '" + inject + "'");
         execute("DELETE FROM injects WHERE inject_id = '" + inject + "'");
       }
       execute("DELETE FROM agents WHERE agent_asset = '" + asset + "'");
@@ -136,6 +141,66 @@ class BackfillExpectedAgentCountMigrationTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "A PARTIAL status whose succeeding agent was deleted before the upgrade gets one more agent"
+          + " than is left, so no reader sees its stored verdict")
+  void given_agentDeletedBeforeUpgrade_should_countOneMoreThanLeft() throws SQLException {
+    // Arrange: A (GREEN) failed, the succeeding RED agent was deleted with its traces
+    String status = seedStatus("PARTIAL", null, true);
+    seedTrace(status, agentA, "COMPLETE", "ERROR");
+
+    // Act
+    small.migrate(connection);
+
+    // Assert: a reader who sees A gets A's outcome, not the deleted success
+    assertThat(expectedAgentCount(status)).isEqualTo(2);
+    assertThat(readerSees(ExecutionStatus.PARTIAL, status, completeOf(agentA, "ERROR")))
+        .isEqualTo(ExecutionStatus.ERROR);
+  }
+
+  @Test
+  @DisplayName("A status sent to an asset whose traces were all purged shows NOT_VISIBLE")
+  void given_tracesPurgedBeforeUpgrade_should_countOneAgent() throws SQLException {
+    // Arrange: EXECUTED on an asset, every trace purged by the retention job
+    String status = seedStatus("EXECUTED", null, true);
+
+    // Act
+    small.migrate(connection);
+
+    // Assert
+    assertThat(expectedAgentCount(status)).isEqualTo(1);
+    assertThat(readerSees(ExecutionStatus.EXECUTED, status, List.of()))
+        .isEqualTo(ExecutionStatus.NOT_VISIBLE);
+  }
+
+  @Test
+  @DisplayName("A status set by hand, or sent to no asset, with no trace keeps 0 and its verdict")
+  void given_statusWithNoTraceAndNothingToHide_should_getZero() throws SQLException {
+    // Arrange: set by hand on an inject with an asset (no sent date), and sent to teams only
+    String setByHand = seedStatus("EXECUTED", null, false);
+    execute(
+        "INSERT INTO injects_assets (inject_id, asset_id) SELECT status_inject, '"
+            + asset
+            + "' FROM injects_statuses WHERE status_id = '"
+            + setByHand
+            + "'");
+    String toTeams = seedStatus("EXECUTED", null, false);
+    execute(
+        "UPDATE injects_statuses SET tracking_sent_date = now() WHERE status_id = '"
+            + toTeams
+            + "'");
+
+    // Act
+    small.migrate(connection);
+
+    // Assert
+    assertThat(expectedAgentCount(setByHand)).isZero();
+    assertThat(expectedAgentCount(toTeams)).isZero();
+    assertThat(readerSees(ExecutionStatus.EXECUTED, setByHand, List.of()))
+        .isEqualTo(ExecutionStatus.EXECUTED);
+  }
+
+  @Test
   @DisplayName("A row locked by another transaction is filled once the lock is released")
   void given_lockedRow_should_retryUntilReleased() throws Exception {
     // Arrange
@@ -194,6 +259,15 @@ class BackfillExpectedAgentCountMigrationTest extends IntegrationTest {
   }
 
   private String seedStatus(String name, Integer expectedAgentCount) throws SQLException {
+    return seedStatus(name, expectedAgentCount, false);
+  }
+
+  /**
+   * @param sentToAsset sent to the seeded asset: a sent date and an asset target, as a launched
+   *     inject has
+   */
+  private String seedStatus(String name, Integer expectedAgentCount, boolean sentToAsset)
+      throws SQLException {
     String inject = UUID.randomUUID().toString();
     execute(
         "INSERT INTO injects (inject_id, inject_title, inject_all_teams, inject_enabled,"
@@ -217,7 +291,27 @@ class BackfillExpectedAgentCountMigrationTest extends IntegrationTest {
             + "', "
             + expectedAgentCount
             + ")");
+    if (sentToAsset) {
+      execute(
+          "UPDATE injects_statuses SET tracking_sent_date = now() WHERE status_id = '" + id + "'");
+      execute(
+          "INSERT INTO injects_assets (inject_id, asset_id) VALUES ('"
+              + inject
+              + "', '"
+              + asset
+              + "')");
+    }
     return id;
+  }
+
+  /** The status a reader who sees {@code visible} gets, with the backfilled count. */
+  private ExecutionStatus readerSees(
+      ExecutionStatus stored, String status, List<CompleteTrace> visible) throws SQLException {
+    return InjectStatusUtils.visibleStatus(stored, expectedAgentCount(status), visible);
+  }
+
+  private static List<CompleteTrace> completeOf(String agent, String traceStatus) {
+    return List.of(new CompleteTrace(ExecutionTraceStatus.valueOf(traceStatus), agent));
   }
 
   private void seedTrace(String status, String agent, String action, String traceStatus)

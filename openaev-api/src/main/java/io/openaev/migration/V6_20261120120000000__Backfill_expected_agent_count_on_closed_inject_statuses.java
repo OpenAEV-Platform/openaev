@@ -1,11 +1,14 @@
 package io.openaev.migration;
 
+import io.openaev.database.model.ExecutionTraceStatus;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
@@ -21,9 +24,27 @@ import org.springframework.stereotype.Component;
  * <p>The count is the distinct agents with a COMPLETE trace on the status: the stored verdict is
  * computed from those traces, so an agent without one took no part in it and hides nothing. An
  * inject dispatched to no agent gets 0, which the reader's status treats like no count. In-flight
- * statuses keep no count: their agents have not all completed yet, and the COMPLETE callback falls
- * back to resolving them ({@code InjectStatusService}). The migration runs without the marking
- * filter, so it counts every agent.
+ * statuses keep no count: their agents have not all completed yet, and the close fills it ({@code
+ * InjectStatusService.updateFinalInjectStatus}). The migration runs without the marking filter, so
+ * it counts every agent.
+ *
+ * <p>Unless traces were deleted before the upgrade: an agent deletion cascades to its traces, and
+ * the retention job purged every old trace until it kept the COMPLETE ones. A count of the agents
+ * left would then match a reader who sees them all, and show that reader the stored verdict,
+ * including the deleted agents' outcome. So when the evidence is incomplete, the count is the
+ * agents left plus one: no reader sees that many, and each gets the status recomputed from the
+ * traces they see, or {@code NOT_VISIBLE} with none, as after an agent deletion on a counted
+ * status. Incomplete is either of:
+ *
+ * <ul>
+ *   <li>COMPLETE traces are left, and their verdict ({@code InjectStatusUtils.computeStatus}) is
+ *       not the stored one: a deleted agent changed it. When they agree, the stored verdict tells
+ *       nothing the traces left do not;
+ *   <li>no COMPLETE trace is left on an inject sent to assets ({@code tracking_sent_date} set, an
+ *       asset or asset group target): purged. A status set by hand has no sent date, and an inject
+ *       sent only to teams has no asset a clearance could hide; both keep 0 and their stored
+ *       status.
+ * </ul>
  *
  * <p>{@code injects_statuses} grows with the use of the platform, so this follows ADR-023: a walk
  * in physical order, one committed transaction per range of pages, a pause after each, row lock
@@ -49,18 +70,56 @@ public class V6_20261120120000000__Backfill_expected_agent_count_on_closed_injec
   private static final Duration LOG_INTERVAL = Duration.ofMinutes(1);
 
   /**
+   * The verdict of the COMPLETE traces {@code t}, as {@code InjectStatusUtils.computeStatus} gives
+   * it, by kind: {@code SUCCESS} (EXECUTED), {@code MIXED} (PARTIAL) or {@code FAILURE} (ERROR,
+   * also with no counted trace). The trace statuses come from {@link ExecutionTraceStatus}, so the
+   * two cannot drift apart.
+   */
+  private static final String VERDICT =
+      "CASE WHEN bool_or(t.execution_status IN (%1$s)) AND bool_or(t.execution_status IN (%2$s))"
+              .formatted(
+                  sqlList(ExecutionTraceStatus.SUCCESS_STATUSES),
+                  sqlList(ExecutionTraceStatus.ERROR_STATUSES))
+          + " THEN 'MIXED' WHEN bool_or(t.execution_status IN (%s)) THEN 'SUCCESS'"
+              .formatted(sqlList(ExecutionTraceStatus.SUCCESS_STATUSES))
+          + " ELSE 'FAILURE' END";
+
+  /**
+   * Whether the stored status {@code s} agrees with the verdict {@code e.verdict} of the traces
+   * left. The legacy MAYBE_PREVENTED is a failure, MAYBE_PARTIAL_PREVENTED a failure or a mix.
+   */
+  private static final String AGREES =
+      "CASE s.status_name WHEN 'EXECUTED' THEN e.verdict = 'SUCCESS'"
+          + " WHEN 'PARTIAL' THEN e.verdict = 'MIXED'"
+          + " WHEN 'MAYBE_PARTIAL_PREVENTED' THEN e.verdict <> 'SUCCESS'"
+          + " ELSE e.verdict = 'FAILURE' END";
+
+  /** No COMPLETE trace left on a status sent to an asset or an asset group. */
+  private static final String PURGED =
+      "e.traces = 0 AND s.tracking_sent_date IS NOT NULL"
+          + " AND (EXISTS (SELECT 1 FROM injects_assets a WHERE a.inject_id = s.status_inject)"
+          + " OR EXISTS (SELECT 1 FROM injects_asset_groups g WHERE g.inject_id = s.status_inject))";
+
+  /**
    * Fills the rows {@code %s} selects; returns how many it wrote and how many of them are
-   * agent-backed. The action is a literal so the count reads the partial COMPLETE index of {@code
-   * V6_20261120110000000}.
+   * agent-backed or lost evidence. The action is a literal so the traces are read from the partial
+   * COMPLETE index of {@code V6_20261120110000000}, which includes their status and agent.
    */
   private static final String FILL =
       "WITH filled AS ("
           + " UPDATE "
           + TABLE
           + " s SET status_expected_agent_count = ("
-          + " SELECT count(DISTINCT t.execution_agent_id) FROM execution_traces t"
+          + " SELECT e.agents + CASE WHEN "
+          + PURGED
+          + " OR (e.traces > 0 AND NOT ("
+          + AGREES
+          + ")) THEN 1 ELSE 0 END"
+          + " FROM (SELECT count(DISTINCT t.execution_agent_id) AS agents, count(*) AS traces, "
+          + VERDICT
+          + " AS verdict FROM execution_traces t"
           + " WHERE t.execution_inject_status_id = s.status_id"
-          + " AND t.execution_action = 'COMPLETE' AND t.execution_agent_id IS NOT NULL)"
+          + " AND t.execution_action = 'COMPLETE') e)"
           + " WHERE %s AND s.status_expected_agent_count IS NULL"
           + " AND s.status_name IN"
           + " ('EXECUTED', 'PARTIAL', 'ERROR', 'MAYBE_PREVENTED', 'MAYBE_PARTIAL_PREVENTED')"
@@ -123,7 +182,7 @@ public class V6_20261120120000000__Backfill_expected_agent_count_on_closed_injec
       }
       log.info(
           "{}: expected agent count filled on {} closed status(es), {} of them dispatched to"
-              + " agents",
+              + " agents or with lost evidence",
           TABLE,
           walked.written() + rest.written(),
           walked.agentBacked() + rest.agentBacked());
@@ -211,6 +270,14 @@ public class V6_20261120120000000__Backfill_expected_agent_count_on_closed_injec
    * {@code pages} is the size on disk and bounds the walk; the estimates only give the row density.
    */
   private record TableSize(long pages, long estimatedRows, long estimatedPages) {}
+
+  /** {@code 'A', 'B'}: enum names, never input. Sorted, so the statement is always the same. */
+  private static String sqlList(Set<ExecutionTraceStatus> statuses) {
+    return statuses.stream()
+        .map(status -> "'" + status.name() + "'")
+        .sorted()
+        .collect(Collectors.joining(", "));
+  }
 
   private static TableSize tableSize(Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement();
