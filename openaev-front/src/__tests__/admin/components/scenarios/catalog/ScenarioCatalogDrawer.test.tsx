@@ -152,15 +152,19 @@ describe('ScenarioCatalogDrawer', () => {
         catalog_scenario_missing_requirements: [
           {
             requirement_label: 'Injector openaev_nmap',
+            requirement_name: 'Nmap',
             requirement_integration_id: 'nmap-integration',
           },
-          { requirement_label: 'OpenAEV >=2.0' },
+          {
+            requirement_label: 'OpenAEV >=2.0',
+            requirement_name: 'OpenAEV >=2.0',
+          },
         ],
       });
 
       // Assert
       expect(await screen.findByText('Missing to run it')).toBeTruthy();
-      expect(screen.getByText('Injector openaev_nmap')).toBeTruthy();
+      expect(screen.getByText('Nmap')).toBeTruthy();
       expect(screen.getByText('OpenAEV >=2.0')).toBeTruthy();
       const links = screen.getAllByRole('link', { name: 'Enable integration' });
       expect(links).toHaveLength(1);
@@ -178,14 +182,19 @@ describe('ScenarioCatalogDrawer', () => {
         catalog_scenario_missing_requirements: [
           {
             requirement_label: 'Injector openaev_nmap',
+            requirement_name: 'Nmap',
             requirement_integration_id: 'nmap-integration',
             requirement_status: 'NOT_RUNNING',
           },
           {
             requirement_label: 'Injector openaev_nuclei',
+            requirement_name: 'Injector openaev_nuclei',
             requirement_status: 'NOT_DEPLOYED',
           },
-          { requirement_label: 'OpenAEV >=2.0' },
+          {
+            requirement_label: 'OpenAEV >=2.0',
+            requirement_name: 'OpenAEV >=2.0',
+          },
         ],
       });
 

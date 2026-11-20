@@ -80,7 +80,7 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
                     key={requirement.requirement_label}
                     severity="warning"
                     elevation={1}
-                    title={requirement.requirement_label}
+                    title={requirement.requirement_name}
                     action={(requirement.requirement_status || requirement.requirement_integration_id) && (
                       <div style={row}>
                         {requirement.requirement_status && <Chip label={statusLabels[requirement.requirement_status]} severity="high" />}

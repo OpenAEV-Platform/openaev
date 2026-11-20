@@ -2671,6 +2671,8 @@ export interface CatalogScenarioRequirementOutput {
   requirement_integration_id?: string;
   /** @minLength 1 */
   requirement_label: string;
+  /** @minLength 1 */
+  requirement_name: string;
   requirement_status?: "NOT_DEPLOYED" | "NOT_RUNNING";
 }
 
