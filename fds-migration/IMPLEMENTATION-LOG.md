@@ -872,3 +872,8 @@ in filigran-design-system).
 - The "Read only" switch of the custom injector contract form keeps its
   existing behaviour, including its known defect; it is not fixed here.
 - Friction / process feedback: none upstream beyond #71.
+- Review round 1: the "Limit to Local Scope" caption moves into the Switch's
+  own `label` (the separate caption is dropped, so it now uses the library
+  label text); the reporting-row Switch is named after its schedule instead of
+  an action; LIBRARY-FEEDBACK #71 numbers fixed (labelled row 38 -> 26px) and
+  the label, focus ring and light off-thumb differences recorded there.

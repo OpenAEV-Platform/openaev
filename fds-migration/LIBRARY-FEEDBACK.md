@@ -2599,6 +2599,14 @@ Both held MUI X and, with it, the `LocalizationProvider` the rest of the product
 
 **Today.** The library `Switch` is a single fixed size, 36x20 (`h-5 w-9`, no `size` prop), measured on the installed build.
 
-**Consequence.** It cannot match MUI's 40x24 small / 58x38 medium layouts, so every adoption is a visual change: a labelled form row goes from 38px to 20px high, a list-row toggle from 40x24 to 36x20. The product accepted the single size for this adoption; the `size` prop on `SwitchFieldController` is kept for callers but has no effect.
+**Consequence.** It cannot match MUI's 40x24 small / 58x38 medium layouts, so every adoption is a visual change: the control goes from 58x38 (medium) or 40x24 (small) to 36x20, a labelled form row from 38px to 26px high. The product accepted the single size for this adoption; the `size` prop on `SwitchFieldController` is kept for callers but has no effect.
 
 **Ask.** A `size` prop (at least a 24px-high `sm` for forms and list rows, matching the other controls' `sm`), or a ruling that the single size is the design for every context.
+
+**Other differences seen in the same adoption** (measured before/after in both themes; the product cannot change them without restyling the library control, so they are recorded, not fixed):
+
+- **Label.** The integrated label renders at the library's compact text (14px, `content-compact-medium`) with an 8px gap (`gap-2`) to the control; the MUI `FormControlLabel` label was larger and sat further from the track.
+- **Focus.** Keyboard focus draws the library's focus ring around the track; MUI showed a halo around the thumb.
+- **Light theme, off state.** The unchecked thumb is grey; the MUI one was white.
+
+**Ask.** A ruling on each of the three: kept as the design, or aligned in the library.

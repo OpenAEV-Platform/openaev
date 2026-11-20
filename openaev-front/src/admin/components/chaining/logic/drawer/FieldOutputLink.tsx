@@ -135,14 +135,8 @@ const FieldOutputLink: FunctionComponent<Props> = ({
                   <Switch
                     checked={link.localScope}
                     onCheckedChange={checked => onToggleLocalScope(fieldKey, checked === true)}
-                    aria-label={t('Limit to Local Scope')}
+                    label={t('Limit to Local Scope')}
                   />
-                  <Typography
-                    variant="caption"
-                    sx={{ color: 'text.secondary' }}
-                  >
-                    {t('Limit to Local Scope')}
-                  </Typography>
                   <Button type="button" priority="tertiary" size="sm" endIcon={<KeyboardArrowDown fontSize="small" />} onClick={openTypeSelector}>
                     {t('Edit links')}
                   </Button>

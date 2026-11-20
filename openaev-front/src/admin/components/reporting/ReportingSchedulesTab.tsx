@@ -289,7 +289,7 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                                 checked={schedule.reporting_schedule_enabled}
                                 disabled={!canManage}
                                 onCheckedChange={checked => toggleEnabled(schedule, checked === true)}
-                                aria-label={schedule.reporting_schedule_enabled ? t('Disable') : t('Enable')}
+                                aria-label={schedule.reporting_schedule_name || t('Schedule')}
                               />
                             </span>
                           </TooltipTrigger>
