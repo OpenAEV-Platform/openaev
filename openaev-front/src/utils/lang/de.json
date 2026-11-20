@@ -4954,6 +4954,11 @@
   "Runs": "Führt aus",
   "Used by": "Verwendet von",
   "Add a link": "Verknüpfung hinzufügen",
+  "connections": "Verbindungen",
+  "not shown": "nicht angezeigt",
+  "double-click to expand": "zum Erweitern doppelklicken",
+  "Fit the selection to the screen": "Auswahl an den Bildschirm anpassen",
+  "Select every node": "Alle Knoten auswählen",
   "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "Agenten erhalten seine ausstehenden Aufträge nicht mehr und er endet mit einem Fehler. Bereits von einem Agenten gestartete Befehle werden nicht unterbrochen.",
   "Do you want to stop this atomic testing: {title}?": "Möchten Sie diesen atomaren Test stoppen: {title}?",
   "Stop execution": "Ausführung stoppen"

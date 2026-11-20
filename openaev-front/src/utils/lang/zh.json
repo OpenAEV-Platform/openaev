@@ -4954,6 +4954,11 @@
   "Runs": "运行",
   "Used by": "被使用于",
   "Add a link": "添加链接",
+  "connections": "个连接",
+  "not shown": "未显示",
+  "double-click to expand": "双击展开",
+  "Fit the selection to the screen": "将所选内容适应屏幕",
+  "Select every node": "选择所有节点",
   "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "代理将不会收到其待处理的作业，测试将以错误结束。代理已启动的命令不会被中断。",
   "Do you want to stop this atomic testing: {title}?": "是否停止此原子测试：{title}？",
   "Stop execution": "停止执行"
