@@ -2,6 +2,7 @@ import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Divider, Menu, MenuItem } from '@mui/material';
 import { type MouseEvent, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import { uninstallCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
 import { liftPayloadRevocation, revokePayload } from '../../../actions/payloads/payload-revocation-actions';
@@ -33,13 +34,11 @@ import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 import { buildInitialValues, handleCleanupCommandValue, handleCleanupExecutorValue } from './actionFormValues';
-import PayloadNewVersionDialog from './PayloadNewVersionDialog';
 import payloadRevocationChoices from './payloadRevocationChoices';
 import PayloadRevocationDialog from './PayloadRevocationDialog';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 import PayloadVariantEditor from './variants/PayloadVariantEditor';
-import { skipsNewVersionDialog } from './versionPreferences';
 
 interface PayloadPopoverNewProps {
   actionId: string;
@@ -109,17 +108,24 @@ const ThreatArsenalActionPopover = ({
     setFetchedAction(null);
   };
 
-  const [newVersion, setNewVersion] = useState<ThreatArsenalAction | null>(null);
-  // A save that added a version offers to move what runs any older version, not only the one just
-  // edited: shown when at least one older version is still used.
+  const navigate = useNavigate();
+  // A save that added a version, while injects still run an older one: the drawer opens on its
+  // Versions tab, ready to move them ("Saved as vX" on top, nothing ticked: the user picks what moves).
+  // The one place that shows every version and inject, instead of a smaller copy of it in a dialog.
   const offerToMoveUsages = (saved: ThreatArsenalAction) => {
-    // "Don't ask me after saving": the card banner and the Versions tab still show what is left behind.
-    if (!saved.action_previous_version_id || skipsNewVersionDialog()) return;
+    if (!saved.action_previous_version_id) return;
     fetchThreatArsenalVersions(saved.action_previous_version_id).then((response: { data: PayloadVersionOutput[] }) => {
       const used = response.data.some(v => v.payload_installed
         && v.payload_id !== saved.action_payload?.payload_id
         && (v.payload_usage_count ?? 0) > 0);
-      if (used) setNewVersion(saved);
+      if (!used) return;
+      const params = new URLSearchParams({
+        action: saved.injector_contract_id,
+        tab: 'versions',
+        focus: 'migrate',
+        saved: saved.action_payload?.payload_version ?? '',
+      });
+      navigate(`/admin/threat-arsenal?${params.toString()}`);
     });
   };
 
@@ -449,15 +455,6 @@ const ThreatArsenalActionPopover = ({
           )}
         </>
       </Drawer>
-      {newVersion?.action_previous_version_id && newVersion.action_payload?.payload_id && (
-        <PayloadNewVersionDialog
-          previousActionId={newVersion.action_previous_version_id}
-          newPayloadId={newVersion.action_payload.payload_id}
-          newVersion={newVersion.action_payload.payload_version ?? ''}
-          usages={newVersion.action_previous_version_usages ?? 0}
-          onClose={() => setNewVersion(null)}
-        />
-      )}
     </>
   );
 };

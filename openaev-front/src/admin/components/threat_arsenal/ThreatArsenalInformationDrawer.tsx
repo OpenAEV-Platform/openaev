@@ -63,6 +63,8 @@ interface Props {
   initialTab?: DrawerTab;
   /** Versions tab ready to migrate the usages left on older versions (a card's Migrate link). */
   focusMigration?: boolean;
+  /** Opened right after saving this version: said on top of the Versions tab. */
+  savedVersion?: string;
 }
 
 const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
@@ -72,6 +74,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   onRunTest,
   initialTab,
   focusMigration,
+  savedVersion,
 }) => {
   const { t } = useFormatter();
   const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
@@ -260,6 +263,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
                 actionId={threatArsenalAction.injector_contract_id}
                 onChanged={loadVersions}
                 focusMigration={focusMigration}
+                savedVersion={savedVersion}
               />
             )}
             {tab === 'history' && payload && <PayloadHistoryTab actionId={threatArsenalAction.injector_contract_id} />}

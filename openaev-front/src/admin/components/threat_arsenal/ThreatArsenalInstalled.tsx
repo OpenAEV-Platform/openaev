@@ -66,6 +66,8 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
     actionId: string | null;
     tab?: 'versions';
     focusMigration: boolean;
+    /** Opened right after a save that added this version: "Saved as v…" on the Versions tab. */
+    savedVersion?: string;
   }>({
     actionId: null,
     focusMigration: false,
@@ -76,6 +78,7 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
       actionId: linkedActionId,
       tab: searchParams.get('tab') === 'versions' ? 'versions' : undefined,
       focusMigration: searchParams.get('focus') === 'migrate',
+      savedVersion: searchParams.get('saved') ?? undefined,
     };
     fetchThreatArsenalAction(linkedActionId)
       .then((result: { data: ThreatArsenalActionFullOutput }) => {
@@ -91,7 +94,7 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
         }
       })
       .catch(() => undefined);
-  }, [linkedActionId, searchParams.get('focus'), searchParams.get('tab')]);
+  }, [linkedActionId, searchParams.get('focus'), searchParams.get('tab'), searchParams.get('saved')]);
   useEffect(() => {
     if (toOpen.current) {
       installed.queryableHelpers.textSearchHelpers.handleTextSearch(toOpen.current);
@@ -224,6 +227,7 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
           threatArsenalAction={openedAction}
           initialTab={openedAction.injector_contract_id === linked.current.actionId ? linked.current.tab : undefined}
           focusMigration={openedAction.injector_contract_id === linked.current.actionId && linked.current.focusMigration}
+          savedVersion={openedAction.injector_contract_id === linked.current.actionId ? linked.current.savedVersion : undefined}
           onRunTest={setRunTestAction}
         />
       )}

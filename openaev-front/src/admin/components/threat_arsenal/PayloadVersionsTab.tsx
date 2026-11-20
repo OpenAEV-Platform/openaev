@@ -1,5 +1,5 @@
 import { Button, Checkbox, Chip, Spinner, Text } from '@filigran/design-system';
-import { ExpandLess, ExpandMore } from '@mui/icons-material';
+import { CheckCircleOutlined, ExpandLess, ExpandMore } from '@mui/icons-material';
 // fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX
 import { Alert, Box, Collapse, Pagination, Skeleton, Table, TableBody, TableCell, TableHead, TablePagination, TableRow } from '@mui/material';
 import { type FunctionComponent, type ReactNode, useEffect, useRef, useState } from 'react';
@@ -22,7 +22,7 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { USAGE_TYPE_LABELS } from './payloadUsageLabels';
 import PayloadVersionSelect from './PayloadVersionSelect';
-import { setKeptOnOlderVersions, setSkipsNewVersionDialog, skipsNewVersionDialog, useKeptOnOlderVersions } from './versionPreferences';
+import { setKeptOnOlderVersions, useKeptOnOlderVersions } from './versionPreferences';
 
 const VERSIONS_PER_PAGE = 5;
 const USAGES_PER_PAGE_OPTIONS = [10, 25, 50];
@@ -32,6 +32,8 @@ interface Props {
   onChanged?: () => void;
   /** Opened from a card's Migrate link: older versions still used are open, their usages ticked, the latest as target. */
   focusMigration?: boolean;
+  /** Opened right after a save that added this version: "Saved as v…" on top, nothing ticked. */
+  savedVersion?: string;
 }
 
 interface UsagesProps {
@@ -43,6 +45,8 @@ interface UsagesProps {
   installAction?: ReactNode;
   /** Open, with every usage ticked, ready to migrate (from a card's Migrate link). */
   focus?: boolean;
+  /** With focus, every usage ticked (a card's Move link); off right after a save: the user picks. */
+  preselect?: boolean;
   /** Another version is focused: stay folded so the focused ones stand out. */
   folded?: boolean;
   scrollIntoView?: boolean;
@@ -58,6 +62,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
   loading,
   installAction,
   focus = false,
+  preselect = true,
   folded = false,
   scrollIntoView = false,
   onMigrate,
@@ -77,7 +82,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
   const [result, setResult] = useState<PayloadVersionChangeOutput | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
   useEffect(() => {
-    setSelected(focus && canMigrate ? new Set(usages.map(usage => usage.usage_id)) : new Set());
+    setSelected(focus && preselect && canMigrate ? new Set(usages.map(usage => usage.usage_id)) : new Set());
     setPage(0);
   }, [usages]);
   useEffect(() => {
@@ -271,7 +276,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
 };
 
 // F7: every version of the payload, installed or only in the catalogue, with the injects on each one.
-const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, focusMigration = false }) => {
+const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, focusMigration = false, savedVersion }) => {
   const { t } = useFormatter();
   // Installing and moving usages both need to manage the arsenal, as the API requires.
   const canManage = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
@@ -282,8 +287,6 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, foc
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [installing, setInstalling] = useState<string | null>(null);
-  // The user said "Don't ask me after saving" in the New version dialog: offered back here.
-  const [askAfterSaving, setAskAfterSaving] = useState(() => !skipsNewVersionDialog());
 
   const listed = versions.filter(v => !!v.payload_version);
   // The version the card shows, and the injects left on the older ones: the card's banner counts them.
@@ -392,18 +395,28 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, foc
           gap: 8,
         }}
         >
-          <Text variant="content-compact" className="text-default-secondary">
-            {kept
-              ? t('Kept on their version. The card\'s banner returns with the next version.')
-              : `${olderUsages === 1 ? t('1 inject uses an older version') : t('{count} injects use an older version', { count: String(olderUsages) })}. ${t('Move them below, or keep them where they are.')}`}
-          </Text>
+          {/* Right after a save: "✓ Saved as v…" first, so the tab reads as the continuation of it. */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            minWidth: 0,
+          }}
+          >
+            {savedVersion && !kept && <CheckCircleOutlined fontSize="small" color="success" />}
+            <Text variant="content-compact" className="text-default-secondary">
+              {kept
+                ? t('Kept on their version. The card\'s banner returns with the next version.')
+                : `${savedVersion ? `${t('Saved as v{version}.', { version: savedVersion })} ` : ''}${olderUsages === 1 ? t('1 inject uses an older version') : t('{count} injects use an older version', { count: String(olderUsages) })}. ${t('{count, plural, one {Move it below, or keep it where it is.} other {Move them below, or keep them where they are.}}', { count: olderUsages })}`}
+            </Text>
+          </div>
           <Button
             size="sm"
             priority={kept ? 'tertiary' : 'secondary'}
             style={{ flexShrink: 0 }}
             onClick={() => setKeptOnOlderVersions(current.payload_action_id as string, !kept)}
           >
-            {kept ? t('Show the banner again') : t('Keep them on their version')}
+            {kept ? t('Show the banner again') : t('{count, plural, one {Keep it on its version} other {Keep them on their version}}', { count: olderUsages })}
           </Button>
         </div>
       )}
@@ -420,6 +433,7 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, foc
               loading={!!source.payload_action_id && (loadingUsages.has(source.payload_action_id) || (!usages[source.payload_action_id] && (source.payload_usage_count ?? 0) > 0))}
               installAction={installButton(source)}
               focus={isFocused(source)}
+              preselect={!savedVersion}
               folded={!!firstFocused && !isFocused(source)}
               scrollIntoView={source === firstFocused}
               onMigrate={migrate}
@@ -438,29 +452,6 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, foc
             justifyContent: 'center',
           }}
         />
-      )}
-      {canManage && !askAfterSaving && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 8,
-        }}
-        >
-          <Text variant="content-compact" className="text-default-secondary">
-            {t('After saving a new version, you are not asked to move injects.')}
-          </Text>
-          <Button
-            size="sm"
-            priority="tertiary"
-            onClick={() => {
-              setSkipsNewVersionDialog(false);
-              setAskAfterSaving(true);
-            }}
-          >
-            {t('Ask me again')}
-          </Button>
-        </div>
       )}
     </div>
   );

@@ -2,10 +2,9 @@ import { useSyncExternalStore } from 'react';
 
 // The user's own choices about older versions, kept in this browser: no API stores them yet.
 // Unreadable storage (private window, blocked site data) falls back to the defaults: the banner
-// shows and the dialog asks.
+// shows.
 
 const KEPT_KEY = 'threat-arsenal:kept-older-versions';
-const SKIP_DIALOG_KEY = 'threat-arsenal:skip-new-version-dialog';
 // Enough for every action of a large arsenal; the oldest choices drop first.
 const MAX_KEPT = 500;
 
@@ -57,8 +56,3 @@ export const useKeptOnOlderVersions = (latestActionId: string | undefined) => us
   subscribe,
   () => !!latestActionId && isKeptOnOlderVersions(latestActionId),
 );
-
-// "Don't ask me after saving": the New version dialog stays closed; the Versions tab turns it back on.
-export const skipsNewVersionDialog = () => read<boolean>(SKIP_DIALOG_KEY, (memory[SKIP_DIALOG_KEY] as boolean | undefined) ?? false);
-
-export const setSkipsNewVersionDialog = (skip: boolean) => write(SKIP_DIALOG_KEY, skip);
