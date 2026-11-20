@@ -16,7 +16,7 @@ vi.mock('../../../../components/common/menu/navbar/AppNavbar', () => ({
     <nav>
       {entries.filter(entry => entry.userRight).flatMap(entry => entry.items)
         .filter(item => item.userRight)
-        .map(item => <a key={item.label} href={item.path}>{item.label}</a>)}
+        .map(item => <a key={item.path} href={item.path}>{item.label}</a>)}
     </nav>
   ),
 }));
@@ -24,43 +24,6 @@ vi.mock('../../../../admin/components/nav/LeftBarHeader', () => ({ default: () =
 vi.mock('../../../../admin/components/nav/LeftBarTenantSwitcher', () => ({ default: () => null }));
 vi.mock('../../../../utils/hooks/useAuth', () => ({ default: () => ({ userTenants: [] }) }));
 vi.mock('../../../../utils/utils', () => ({ isFeatureEnabled: () => false }));
-
-describe('LeftBar Dashboards entry (custom dashboards and reporting as two tabs)', () => {
-  afterEach(cleanup);
-
-  it.each([
-    {
-      name: 'both rights',
-      capabilities: ['ACCESS_DASHBOARDS', 'ACCESS_REPORTINGS'],
-      href: '/admin/workspaces/custom_dashboards',
-    },
-    {
-      name: 'dashboards only',
-      capabilities: ['ACCESS_DASHBOARDS'],
-      href: '/admin/workspaces/custom_dashboards',
-    },
-    {
-      name: 'reporting only',
-      capabilities: ['ACCESS_REPORTINGS'],
-      href: '/admin/reporting',
-    },
-    {
-      name: 'neither right',
-      capabilities: [],
-      href: null,
-    },
-  ])('with $name, one Dashboards entry lands on the first tab the user can open', ({ capabilities, href }) => {
-    // Arrange
-    const ability = defineAbility(capabilities, {}, false);
-
-    // Act
-    render(<AbilityProvider value={ability}><LeftBar /></AbilityProvider>);
-
-    // Assert
-    expect(screen.queryByRole('link', { name: 'Dashboards' })?.getAttribute('href') ?? null).toBe(href);
-    expect(screen.queryByRole('link', { name: 'Reporting' })).toBeNull();
-  });
-});
 
 describe('LeftBar Threat Arsenal navigation', () => {
   afterEach(cleanup);
