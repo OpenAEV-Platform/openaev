@@ -190,7 +190,8 @@
     "Vision",
     "Website",
     "Workstation",
-    "{injects} in {scenarios}"
+    "{injects} in {scenarios}",
+    "Version v{version}"
   ],
   "es": [
     "{count} roles",
@@ -372,7 +373,8 @@
     "Version",
     "Vision",
     "~{count} injects",
-    "Local"
+    "Local",
+    "Version v{version}"
   ],
   "it": [
     "1 inject",
