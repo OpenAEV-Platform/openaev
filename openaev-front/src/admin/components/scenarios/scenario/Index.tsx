@@ -219,7 +219,7 @@ const IndexScenarioComponent: FunctionComponent<{
                 {/* Live execution of the scenario's latest simulation - available for every scenario
                     type, mirroring the simulation Execution tab. */}
                 <Route path="execution" element={errorWrapper(ScenarioExecution)()} />
-                {installedVersion && <Route path="versions" element={errorWrapper(ScenarioVersions)({ installedVersion })} />}
+                {installedVersion && <Route path="versions" element={errorWrapper(ScenarioVersions)()} />}
                 {/* Scenario-scoped custom dashboard, surfaced as the Statistics tab. */}
                 <Route path="statistics" element={errorWrapper(ScenarioStatistics)()} />
                 {/* Statistics replaced the hero dashboard quick action and the old

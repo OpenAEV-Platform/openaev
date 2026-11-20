@@ -606,7 +606,8 @@
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
         "openaev-front/src/components/common/marketplace/card/MarketplaceCardMeta.tsx",
-        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx"
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersionsTable.tsx"
       ]
     },
     {
@@ -872,8 +873,9 @@
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveBar.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx",
-        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersions.tsx",
-        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx"
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioRevisionsTable.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersionsTable.tsx"
       ]
     },
     {
