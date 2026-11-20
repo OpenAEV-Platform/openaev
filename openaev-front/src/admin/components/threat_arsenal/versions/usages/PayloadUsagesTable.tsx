@@ -6,8 +6,9 @@ import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { FDS_TABLE_SX, fdsTableSectionStyle } from '../../../../../components/common/fdsTableSpec';
 import { useFormatter } from '../../../../../components/i18n';
-import { type PayloadUsagesOutput } from '../../../../../utils/api-types';
+import { type PayloadUsageOutput, type PayloadUsagesOutput } from '../../../../../utils/api-types';
 import useCountLabel from '../../../../../utils/hooks/useCountLabel';
+import { type UseEntityToggle } from '../../../../../utils/hooks/useEntityToggle';
 import { USAGE_TYPES } from './usageTypes';
 
 const USAGES_PER_PAGE = 10;
@@ -15,11 +16,10 @@ const USAGES_PER_PAGE = 10;
 interface Props {
   usages: PayloadUsagesOutput;
   // Given, rows can be picked: the header box picks every row, on every page.
-  selected?: Set<string>;
-  onSelect?: (selected: Set<string>) => void;
+  selection?: UseEntityToggle<PayloadUsageOutput>;
 }
 
-const PayloadUsagesTable: FunctionComponent<Props> = ({ usages, selected, onSelect }) => {
+const PayloadUsagesTable: FunctionComponent<Props> = ({ usages, selection }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const counted = useCountLabel();
@@ -28,15 +28,9 @@ const PayloadUsagesTable: FunctionComponent<Props> = ({ usages, selected, onSele
 
   const rows = usages.payload_usages;
   const hidden = usages.payload_usages_hidden_count ?? 0;
-  const selection = onSelect && selected;
-  const allSelected = !!selection && rows.length > 0 && selection.size === rows.length;
-  const toggle = (id: string) => {
-    if (!selection) return;
-    const next = new Set(selection);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    onSelect(next);
-  };
+  const isSelected = (usage: PayloadUsageOutput) => !!selection && (selection.selectAll
+    ? !(usage.usage_id in selection.deSelectedElements)
+    : usage.usage_id in selection.selectedElements);
   return (
     <>
       {rows.length === 0 && hidden === 0 && (
@@ -52,8 +46,8 @@ const PayloadUsagesTable: FunctionComponent<Props> = ({ usages, selected, onSele
                 <TableCell padding="checkbox">
                   <Checkbox
                     aria-label={t('Select all')}
-                    checked={allSelected}
-                    onCheckedChange={() => onSelect(allSelected ? new Set() : new Set(rows.map(usage => usage.usage_id)))}
+                    checked={selection.selectAll && Object.keys(selection.deSelectedElements).length === 0}
+                    onCheckedChange={selection.handleToggleSelectAll}
                   />
                 </TableCell>
               )}
@@ -64,13 +58,19 @@ const PayloadUsagesTable: FunctionComponent<Props> = ({ usages, selected, onSele
           </TableHead>
           <TableBody>
             {rows.slice(page * USAGES_PER_PAGE, (page + 1) * USAGES_PER_PAGE).map(usage => (
-              <TableRow key={usage.usage_id}>
+              <TableRow
+                key={usage.usage_id}
+                hover={!!selection}
+                selected={isSelected(usage)}
+                onClick={selection ? () => selection.onToggleEntity(usage) : undefined}
+                sx={{ cursor: selection ? 'pointer' : 'default' }}
+              >
                 {selection && (
-                  <TableCell padding="checkbox">
+                  <TableCell padding="checkbox" onClick={event => event.stopPropagation()}>
                     <Checkbox
                       aria-label={usage.usage_name ?? usage.usage_id}
-                      checked={selection.has(usage.usage_id)}
-                      onCheckedChange={() => toggle(usage.usage_id)}
+                      checked={isSelected(usage)}
+                      onCheckedChange={() => selection.onToggleEntity(usage)}
                     />
                   </TableCell>
                 )}

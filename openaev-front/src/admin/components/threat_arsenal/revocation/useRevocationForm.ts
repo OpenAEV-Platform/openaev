@@ -4,7 +4,7 @@ import { liftPayloadRevocation, revokePayload } from '../../../../actions/payloa
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadVersionOutput } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
-import moveUsages from '../versions/moveUsages';
+import { moveTargets, moveUsages } from '../versions/usageMove';
 import useVersionUsages from '../versions/usages/useVersionUsages';
 
 interface Options {
@@ -35,9 +35,8 @@ const useRevocationForm = ({ open, lift, versions, currentPayloadId, onDone }: O
   const version = versions.find(v => v.payload_id === selected);
   const usages = useVersionUsages(open ? version?.payload_action_id : undefined);
 
-  const replacements = versions.filter(v => v.payload_id !== selected);
-  const defaultReplacement = (replacements.find(v => v.payload_is_latest) ?? replacements[0])?.payload_id ?? '';
-  useEffect(() => setReplacement(defaultReplacement), [defaultReplacement]);
+  const { targets: replacements, defaultTarget } = moveTargets(versions, selected);
+  useEffect(() => setReplacement(defaultTarget), [defaultTarget]);
   const shown = usages?.payload_usages ?? [];
   const canReplace = !lift && shown.length > 0 && replacements.length > 0;
   const target = replacements.find(v => v.payload_id === replacement);
