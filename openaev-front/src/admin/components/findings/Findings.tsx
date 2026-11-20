@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { searchDistinctFindings } from '../../../actions/findings/finding-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import MarketplaceBrowser from '../../../components/common/marketplace/page/MarketplaceBrowser';
-import { type ViewMode } from '../../../components/common/marketplace/toolbar/useMarketplaceView';
+import useMarketplaceView from '../../../components/common/marketplace/toolbar/useMarketplaceView';
 import { initSorting } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -21,7 +21,8 @@ const Findings = () => {
   const { t } = useFormatter();
   const theme = useTheme();
   const [loading, setLoading] = useState<boolean>(true);
-  const [mode, setMode] = useState<ViewMode>();
+  // Owned here (not in the hero) so the list/grid switch starts on the mode saved in the local storage.
+  const { viewMode, handleViewModeChange } = useMarketplaceView('findings:view-mode');
   const [findings, setFindings] = useState<AggregatedFindingOutput[]>([]);
   const [total, setTotal] = useState<number>(0);
 
@@ -67,7 +68,8 @@ const Findings = () => {
           hero={(
             <FindingHero
               activeFindings={total}
-              onViewModeChange={setMode}
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
             />
           )}
           sidebar={(
@@ -93,7 +95,7 @@ const Findings = () => {
               disablePagination={false}
               mainBoxStyle={{ marginBottom: theme.spacing(1) }}
             />
-            {mode === 'list'
+            {viewMode === 'list'
               ? (
                   <FindingListView
                     loading={loading}

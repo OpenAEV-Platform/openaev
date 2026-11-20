@@ -43,7 +43,9 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers }: Props) => {
         .filter(option => option.id && selectedOptionIds.includes(option.id))
         .map(option => option.label!);
     },
-    [filters],
+    // assetOptions load after the first render: without it, the filters restored from the local storage
+    // would never be matched against them and their checkboxes would stay unchecked.
+    [filters, assetOptions],
   );
 
   const sections: FacetSection[] = useMemo(() => {
@@ -71,7 +73,7 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers }: Props) => {
         rows: assetRows,
       },
     ];
-  }, [findingTypeValues, assetValues, assetOptions]);
+  }, [t, findingTypeValues, assetValues, assetOptions, toggleValueWithCurrent, toggleAndTranslateOptionWithCurrent]);
 
   return <FacetSidebar sections={sections} />;
 };
