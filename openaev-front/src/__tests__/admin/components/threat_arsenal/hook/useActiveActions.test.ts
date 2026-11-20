@@ -1,16 +1,12 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { bulkDeleteThreatArsenalActions, searchThreatArsenalActions } from '../../../../../actions/threat_arsenals/threatArsenal-actions';
+import { searchThreatArsenalActions } from '../../../../../actions/threat_arsenals/threatArsenal-actions';
 import useActiveActions from '../../../../../admin/components/threat_arsenal/hook/useActiveActions';
 import { type SearchPaginationInput, type ThreatArsenalAction } from '../../../../../utils/api-types';
 
 const { filterHelpers, textSearchHelpers, queryable } = vi.hoisted(() => ({
-  filterHelpers: {
-    handleClearAllFilters: vi.fn(),
-    handleRemoveFilterByKey: vi.fn(),
-    handleAddFilterWithEmptyValue: vi.fn(),
-  },
+  filterHelpers: { handleClearAllFilters: vi.fn() },
   textSearchHelpers: { handleTextSearch: vi.fn() },
   queryable: {
     searchPaginationInput: {
@@ -20,27 +16,9 @@ const { filterHelpers, textSearchHelpers, queryable } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
-  bulkDeleteThreatArsenalActions: vi.fn(() => Promise.resolve()),
-  fetchThreatArsenalAuthorCounts: vi.fn(() => Promise.resolve({ data: [] })),
-  searchThreatArsenalActions: vi.fn(() => Promise.resolve({ data: {} })),
-}));
-vi.mock('../../../../../actions/AttackPattern', () => ({ fetchAttackPatterns: vi.fn() }));
-vi.mock('../../../../../components/i18n', () => ({
-  useFormatter: () => ({
-    t: (key: string, values?: Record<string, string>) => (values
-      ? key.replace('{count}', values.count)
-      : key),
-  }),
-}));
-vi.mock('../../../../../store', () => ({ useHelper: () => [] }));
-vi.mock('../../../../../utils/hooks', () => ({ useAppDispatch: () => vi.fn() }));
-vi.mock('../../../../../utils/hooks/useDataLoader', () => ({ default: vi.fn() }));
+vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({ searchThreatArsenalActions: vi.fn(() => Promise.resolve({ data: {} })) }));
 vi.mock('../../../../../utils/bulkOperations', () => ({ useBulkOperationsFinishedCount: () => 0 }));
 vi.mock('../../../../../admin/components/common/filters/MitreFilter', () => ({ MITRE_FILTER_KEY: 'injector_contract_attack_patterns' }));
-vi.mock('../../../../../admin/components/common/domains/useDomainIconFilter', () => ({ default: () => ({ iconBarOrderedDomains: [] }) }));
-vi.mock('../../../../../admin/components/threat_arsenal/useThreatArsenalFacetCounts', () => ({ default: () => null }));
-vi.mock('../../../../../components/common/facets/ContractFacets', () => ({ useAuthorOptions: () => [] }));
 vi.mock('../../../../../components/common/queryable/useQueryableWithLocalStorage', () => ({
   useQueryableWithLocalStorage: () => ({
     searchPaginationInput: queryable.searchPaginationInput,
@@ -176,95 +154,6 @@ describe('useActiveActions', () => {
 
       // Assert
       expect(result.current.threatArsenalActions).toEqual([B, C]);
-    });
-  });
-
-  describe('selection', () => {
-    it('given_nothingSelected_should_offerToSelectAll', () => {
-      // Act
-      const { result } = renderActive();
-
-      // Assert
-      expect(result.current.selection.label).toBe('Select all');
-      expect(result.current.selection.checked).toBe(false);
-    });
-
-    it('given_oneActionSelected_should_countItAndBePartial', () => {
-      // Arrange
-      const { result } = renderActive();
-
-      // Act
-      act(() => result.current.selection.onToggleEntity(A));
-
-      // Assert
-      expect(result.current.selection.label).toBe('1 action selected');
-      expect(result.current.selection.checked).toBe('indeterminate');
-      expect(result.current.selection.isChecked(A)).toBe(true);
-      expect(result.current.selection.isChecked(B)).toBe(false);
-    });
-
-    it('given_selectAllWithOneLeftOut_should_countTheOthers', () => {
-      // Arrange
-      const { result } = renderActive();
-
-      // Act
-      act(() => result.current.selection.handleToggleSelectAll());
-      act(() => result.current.selection.onToggleEntity(B));
-
-      // Assert
-      expect(result.current.selection.label).toBe('2 actions selected');
-      expect(result.current.selection.checked).toBe('indeterminate');
-      expect(result.current.selection.isChecked(A)).toBe(true);
-      expect(result.current.selection.isChecked(B)).toBe(false);
-    });
-  });
-
-  describe('bulk delete', () => {
-    it('given_pickedActions_should_deleteThemAndClearTheSelection', () => {
-      // Arrange
-      const { result } = renderActive();
-      act(() => result.current.selection.onToggleEntity(A));
-
-      // Act
-      act(() => result.current.bulkDelete());
-
-      // Assert
-      expect(bulkDeleteThreatArsenalActions).toHaveBeenCalledWith(expect.objectContaining({
-        injector_contract_ids_to_process: ['a'],
-        injector_contract_ids_to_ignore: [],
-      }));
-      expect(result.current.selection.count).toBe(0);
-    });
-
-    it('given_selectAllWithOneLeftOut_should_deleteAllButIt', () => {
-      // Arrange
-      const { result } = renderActive();
-      act(() => result.current.selection.handleToggleSelectAll());
-      act(() => result.current.selection.onToggleEntity(C));
-
-      // Act
-      act(() => result.current.bulkDelete());
-
-      // Assert
-      expect(bulkDeleteThreatArsenalActions).toHaveBeenCalledWith(expect.objectContaining({
-        injector_contract_ids_to_process: [],
-        injector_contract_ids_to_ignore: ['c'],
-      }));
-    });
-  });
-
-  describe('orphaned actions', () => {
-    it('given_theScopeIsOff_should_filterOrphansAndSelectThemAll', () => {
-      // Arrange
-      const { result } = renderActive();
-
-      // Act
-      act(() => result.current.toggleOrphaned());
-
-      // Assert
-      expect(result.current.isOrphanedScopeActive).toBe(false);
-      expect(filterHelpers.handleAddFilterWithEmptyValue).toHaveBeenCalledTimes(2);
-      expect(result.current.selection.selectAll).toBe(true);
     });
   });
 });

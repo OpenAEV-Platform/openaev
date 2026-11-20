@@ -21,6 +21,8 @@ import ThreatArsenalSelectionBar from './bulk/ThreatArsenalSelectionBar';
 import ThreatArsenalCard from './card/ThreatArsenalCard';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
 import useActiveActions, { ACTIVE_FILTER_NAMES } from './hook/useActiveActions';
+import useActiveFacets from './hook/useActiveFacets';
+import useActiveSelection from './hook/useActiveSelection';
 import ThreatArsenalList from './list/ThreatArsenalList';
 import { THREAT_ARSENAL_SORT_OPTIONS } from './list/threatArsenalListConfig';
 import ThreatArsenalHeaderActions from './page/ThreatArsenalHeaderActions';
@@ -40,10 +42,12 @@ const ThreatArsenal = () => {
   const [isBulkDeleteDialogOpened, setBulkDeleteDialogOpened] = useState<boolean>(false);
   const { viewMode, handleViewModeChange } = useMarketplaceView('threat-arsenal:view-mode-v2');
   const active = useActiveActions();
-  const { threatArsenalActions, queryableHelpers, searchPaginationInput, totalElements, selection, loading } = active;
+  const { threatArsenalActions, queryableHelpers, searchPaginationInput, totalElements, loading } = active;
+  const facets = useActiveFacets(searchPaginationInput, queryableHelpers);
+  const selection = useActiveSelection(threatArsenalActions, totalElements, searchPaginationInput, queryableHelpers.filterHelpers);
 
   const sections = {
-    sectionKey: (action: ThreatArsenalAction) => actionDomains(action, active.domainOptions)[0]?.domain_name,
+    sectionKey: (action: ThreatArsenalAction) => actionDomains(action, facets.domainOptions)[0]?.domain_name,
     sectionLabel: (name: string | undefined) => (name ? t(name) : t('Other')),
     sectionIcon: (name: string | undefined) => (name && DOMAIN_ICON_MAP[name]?.()) || <CategoryOutlined />,
   };
@@ -69,16 +73,16 @@ const ThreatArsenal = () => {
         tabs={<ThreatArsenalTabs active="active" />}
         sidebar={(
           <ThreatArsenalSidebar
-            domainElements={active.iconBarOrderedDomains}
-            authorOptions={active.authorOptions}
-            facetCounts={active.facetCounts}
+            domainElements={facets.iconBarOrderedDomains}
+            authorOptions={facets.authorOptions}
+            facetCounts={facets.facetCounts}
             searchPaginationInput={searchPaginationInput}
             filterHelpers={queryableHelpers.filterHelpers}
           />
         )}
         toolbar={(
           <PaginationComponentV2
-            attackPatterns={active.attackPatterns}
+            attackPatterns={facets.attackPatterns}
             resultsCount
             infiniteScroll
             topBarButtons={(
@@ -114,8 +118,8 @@ const ThreatArsenal = () => {
                     checked={selection.checked}
                     disabled={threatArsenalActions.length === 0}
                     onToggle={selection.handleToggleSelectAll}
-                    onSelectOrphans={canDelete ? active.toggleOrphaned : undefined}
-                    orphansActive={active.isOrphanedScopeActive}
+                    onSelectOrphans={canDelete ? selection.toggleOrphaned : undefined}
+                    orphansActive={selection.isOrphanedScopeActive}
                   />
                 )
               : null}
@@ -185,9 +189,7 @@ const ThreatArsenal = () => {
               }
             : {
                 isExclusionMode: selection.selectAll,
-                isOnlyOneItemSelected: selection.selectAll
-                  ? Object.keys(selection.deSelectedElements).length === totalElements - 1
-                  : selection.count === 1,
+                isOnlyOneItemSelected: selection.isOnlyOne,
                 selectionCount: selection.count,
                 selectedElements: selection.selectedElements,
                 deSelectedElements: selection.deSelectedElements,
@@ -206,7 +208,7 @@ const ThreatArsenal = () => {
           handleClose={() => setBulkDeleteDialogOpened(false)}
           handleSubmit={() => {
             setBulkDeleteDialogOpened(false);
-            active.bulkDelete();
+            selection.bulkDelete();
           }}
           text={
             selection.count === 1
