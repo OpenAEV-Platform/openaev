@@ -70,7 +70,7 @@ public class CatalogListService {
   /** A version the catalogue still offers; refused when it is unknown, deprecated or revoked. */
   @Transactional(readOnly = true)
   public <T extends CatalogItem> T offered(Class<T> type, String externalId, String version) {
-    T item = released(type, externalId, version);
+    T item = version(type, externalId, version);
     if (!isOffered(item)) {
       throw new BadRequestException("This version is no longer offered");
     }
@@ -80,6 +80,10 @@ public class CatalogListService {
   /** A released version, offered or not, as one a tenant installed. */
   @Transactional(readOnly = true)
   public <T extends CatalogItem> T released(Class<T> type, String externalId, String version) {
+    return version(type, externalId, version);
+  }
+
+  private <T extends CatalogItem> T version(Class<T> type, String externalId, String version) {
     return catalogItemRepository
         .findVersion(type, externalId, version)
         .orElseThrow(() -> new ElementNotFoundException("Catalogue version not found"));
