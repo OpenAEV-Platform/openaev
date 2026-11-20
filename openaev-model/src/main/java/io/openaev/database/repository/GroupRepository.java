@@ -32,6 +32,8 @@ public interface GroupRepository
 
   Optional<Group> findByNameAndTenantIsNull(String name);
 
+  List<Group> findAllByNameAndTenantIsNull(String name);
+
   // -- Tenant-scoped --
 
   Optional<Group> findByIdAndTenantId(String id, String tenantId);
