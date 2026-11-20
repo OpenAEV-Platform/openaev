@@ -2340,7 +2340,6 @@
   "Keep the current attack path and continue from it - the orchestrator refines and extends what is already there. An AI-built scenario reopens its full reasoning history.": "Сохраните текущий attack path и продолжайте с него — оркестратор уточняет и расширяет то, что уже имеется. Сценарий, построенный с помощью ИИ, вновь открывает полную историю своего рассуждения.",
   "Keep the findings it produced, detached from it": "Сохранить созданные находки, отвязав их от удаляемого элемента",
   "Keep them on their version": "Оставить на их версии",
-  "Kept on their version. The card's banner returns with the next version.": "Оставлены на своей версии. Баннер карточки вернётся со следующей версией.",
   "Kerberoastable_account": "Kerberoastable-учетная запись",
   "Kerberoastableaccount": "Учётная запись, уязвимая для Kerberoast",
   "KerberoastableAccount": "Керберостабильная учетная запись",

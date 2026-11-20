@@ -2340,7 +2340,6 @@
   "Keep the current attack path and continue from it - the orchestrator refines and extends what is already there. An AI-built scenario reopens its full reasoning history.": "現在の attack path を維持して、そこから続行します。オーケストレーターが既存の内容を改善・拡張します。AIで構築されたシナリオでは、推論履歴全体が再表示されます。",
   "Keep the findings it produced, detached from it": "生成された検出結果を、削除する要素から切り離して保持する",
   "Keep them on their version": "現在のバージョンのままにする",
-  "Kept on their version. The card's banner returns with the next version.": "現在のバージョンのままです。カードのバナーは次のバージョンで再表示されます。",
   "Kerberoastable_account": "Kerberoast 可能なアカウント",
   "Kerberoastableaccount": "Kerberoast 可能なアカウント",
   "KerberoastableAccount": "Kerberoast 可能なアカウント",

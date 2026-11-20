@@ -2340,7 +2340,6 @@
   "Keep the current attack path and continue from it - the orchestrator refines and extends what is already there. An AI-built scenario reopens its full reasoning history.": "현재 attack path를 유지하고 이를 바탕으로 계속 진행하십시오. 오케스트레이터는 기존 내용을 정교화하고 확장합니다. AI가 구축한 시나리오는 전체 추론 이력을 다시 열어줍니다.",
   "Keep the findings it produced, detached from it": "생성된 발견 사항을 삭제되는 요소에서 분리하여 유지",
   "Keep them on their version": "현재 버전에 유지",
-  "Kept on their version. The card's banner returns with the next version.": "현재 버전에 유지됩니다. 카드 배너는 다음 버전에서 다시 표시됩니다.",
   "Kerberoastable_account": "Kerberoastable 계정",
   "Kerberoastableaccount": "케르베로스테이블 계정",
   "KerberoastableAccount": "로스터블 계정",
