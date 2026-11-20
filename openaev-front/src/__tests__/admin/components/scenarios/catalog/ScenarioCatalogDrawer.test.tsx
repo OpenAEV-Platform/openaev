@@ -21,7 +21,14 @@ vi.mock('../../../../../components/common/Drawer', () => ({
     open: boolean;
     headerActions: ReactNode;
     children: ReactNode;
-  }) => (open ? <div>{headerActions}{children}</div> : null),
+  }) => (open
+    ? (
+        <div>
+          {headerActions}
+          {children}
+        </div>
+      )
+    : null),
 }));
 
 const { default: ScenarioCatalogDrawer } = await import('../../../../../admin/components/scenarios/catalog/ScenarioCatalogDrawer');
