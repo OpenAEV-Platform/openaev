@@ -46,6 +46,18 @@ describe('CatalogHistoryTable', () => {
     // Arrange
     const history = [
       entry({
+        catalog_history_id: 'history-4',
+        catalog_history_action: 'LIFT_REVOCATION',
+        catalog_history_version: '1.1.0',
+      }),
+      entry({
+        catalog_history_id: 'history-3',
+        catalog_history_action: 'REVOKE',
+        catalog_history_mode: 'AUTO',
+        catalog_history_user: undefined,
+        catalog_history_version: '1.1.0',
+      }),
+      entry({
         catalog_history_id: 'history-2',
         catalog_history_action: 'UNINSTALL',
         catalog_history_version: '1.1.0',
@@ -62,6 +74,8 @@ describe('CatalogHistoryTable', () => {
     // Assert
     const rows = within(screen.getByRole('table', { name: 'History' })).getAllByRole('row').slice(1);
     expect(rows.map(row => within(row).getAllByRole('cell').map(cell => cell.textContent))).toEqual([
+      ['Revocation lifted', 'v1.1.0', 'Jane', '2026-11-20T10:00:00Z'],
+      ['Revoked', 'v1.1.0', 'Automatic', '2026-11-20T10:00:00Z'],
       ['Uninstalled', 'v1.1.0', 'Jane', '2026-11-20T10:00:00Z'],
       ['Installed', 'v1.0.0', 'Automatic', '2026-11-20T10:00:00Z'],
     ]);

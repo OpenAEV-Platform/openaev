@@ -10,6 +10,8 @@ import { FDS_TABLE_FRAME_STYLE, FDS_TABLE_SECTION_STYLE, FDS_TABLE_SX } from '..
 const ACTION_LABELS: Record<CatalogHistoryOutput['catalog_history_action'], string> = {
   INSTALL: 'Installed',
   UNINSTALL: 'Uninstalled',
+  REVOKE: 'Revoked',
+  LIFT_REVOCATION: 'Revocation lifted',
 };
 
 interface Props { history: CatalogHistoryOutput[] | null }

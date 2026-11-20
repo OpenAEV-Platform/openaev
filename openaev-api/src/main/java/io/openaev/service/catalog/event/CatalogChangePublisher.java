@@ -8,7 +8,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
-/** Announces a catalogue change, made by the current user if any, to whoever listens. */
+/**
+ * Announces a catalogue change, made by the current user if any, to whoever listens. Content made
+ * in the tenant has no catalogue change.
+ */
 @Component
 @RequiredArgsConstructor
 public class CatalogChangePublisher {
@@ -18,6 +21,9 @@ public class CatalogChangePublisher {
 
   public void changed(
       CatalogContent content, CatalogHistory.Action action, CatalogHistory.Mode mode) {
+    if (content.getCatalogRepository() == null) {
+      return;
+    }
     User user = userService.currentUserOrNull();
     eventPublisher.publishEvent(
         new CatalogContentChanged(

@@ -11,7 +11,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** What a tenant installed and uninstalled of a catalogue content, across its versions. */
+/**
+ * What a tenant installed, uninstalled, revoked and lifted of a catalogue content, across its
+ * versions.
+ */
 @Service
 @RequiredArgsConstructor
 public class CatalogHistoryService {

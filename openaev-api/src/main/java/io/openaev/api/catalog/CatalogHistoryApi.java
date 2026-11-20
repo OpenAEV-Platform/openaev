@@ -18,7 +18,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Who installed or uninstalled each version of a payload or a scenario, and when. */
+/**
+ * Who installed, uninstalled, revoked or lifted each version of a payload or a scenario, and when.
+ */
 @RestController
 @RequiredArgsConstructor
 public class CatalogHistoryApi {
@@ -28,7 +30,7 @@ public class CatalogHistoryApi {
 
   // -- READ --
 
-  @Operation(summary = "Installs and uninstalls of the action's payload, newest first")
+  @Operation(summary = "Installs, uninstalls and revocations of the action's payload, newest first")
   @GetMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/history")
   @Transactional(readOnly = true)
   @AccessControl(

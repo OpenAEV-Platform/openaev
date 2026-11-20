@@ -705,6 +705,11 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
           .get()
           .extracting(PayloadRevocation::getReason, PayloadRevocation::isByCatalogue)
           .containsExactly(REVOKED_BY_FILIGRAN, true);
+      assertThat(catalogHistoryRepository.findAll())
+          .filteredOn(row -> row.getAction() == CatalogHistory.Action.REVOKE)
+          .singleElement()
+          .extracting(CatalogHistory::getMode)
+          .isEqualTo(CatalogHistory.Mode.AUTO);
     }
 
     static Stream<Arguments> laterReleases() {
