@@ -4991,5 +4991,6 @@
   "targets, teams, schedule and tags": "ターゲット、チーム、スケジュール、タグ",
   "See the latest preview before applying.": "適用する前に最新のプレビューを確認してください。",
   "Show the latest preview": "最新のプレビューを表示",
-  "Try again": "再試行"
+  "Try again": "再試行",
+  "Roll back last update": "前回の更新をロールバック"
 }

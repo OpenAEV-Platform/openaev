@@ -1,8 +1,9 @@
 import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useMemo, useState } from 'react';
+import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
+import { fetchScenarioRevisions, type ScenarioRevision } from '../../../actions/catalog/scenario-catalog-actions';
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import MarketplaceCard from '../../../components/common/marketplace/MarketplaceCard';
 import MarketplaceCardBanner from '../../../components/common/marketplace/MarketplaceCardBanner';
@@ -48,6 +49,20 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
     return cron?.isValid() ? cron.toTranslatableStringArray(locale).map(element => t(element)).join(' ') : undefined;
   }, [scenario.scenario_recurrence, locale]);
   const updateAvailable = !!catalogItem && !(catalogItem.catalog_item_installed_versions ?? []).includes(catalogItem.catalog_item_version);
+  // "Roll back last update" in the menu, only right after an update: the latest revision is the one
+  // saved before it (reason UPDATE). A rollback since then already undid it, so the entry goes away.
+  // Only a catalogue scenario has revisions; one call per such card.
+  const [lastUpdate, setLastUpdate] = useState<ScenarioRevision | null>(null);
+  const [rollingBack, setRollingBack] = useState(false);
+  useEffect(() => {
+    if (!catalogItem || !canManage) return;
+    fetchScenarioRevisions(scenario.scenario_id)
+      .then(({ data }) => {
+        const latest = data.toSorted((a, b) => b.scenario_revision_number - a.scenario_revision_number)[0];
+        setLastUpdate(latest?.scenario_revision_reason === 'UPDATE' ? latest : null);
+      })
+      .catch(() => setLastUpdate(null));
+  }, [scenario.scenario_id, scenario.scenario_version, catalogItem, canManage]);
 
   return (
     <>
@@ -56,6 +71,16 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
           scenarioId={scenario.scenario_id}
           version={catalogItem.catalog_item_version}
           onClose={() => setUpdating(false)}
+          onApplied={() => navigate(`/admin/scenarios/${scenario.scenario_id}`)}
+        />
+      )}
+      {rollingBack && lastUpdate && (
+        <ScenarioUpdateDialog
+          scenarioId={scenario.scenario_id}
+          revisionId={lastUpdate.scenario_revision_id}
+          revisionNumber={lastUpdate.scenario_revision_number}
+          revisionDate={lastUpdate.scenario_revision_created_at}
+          onClose={() => setRollingBack(false)}
           onApplied={() => navigate(`/admin/scenarios/${scenario.scenario_id}`)}
         />
       )}
@@ -137,6 +162,13 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
                 ? [{
                     label: 'Update',
                     action: () => setUpdating(true),
+                    userRight: canManage,
+                  }]
+                : []), ...(lastUpdate
+                ? [{
+                    // The same preview as any rollback: nothing changes before the user confirms.
+                    label: 'Roll back last update',
+                    action: () => setRollingBack(true),
                     userRight: canManage,
                   }]
                 : [])]}
