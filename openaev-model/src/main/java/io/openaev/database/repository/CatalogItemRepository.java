@@ -6,12 +6,14 @@ import io.openaev.database.model.catalog.ContentType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface CatalogItemRepository extends JpaRepository<CatalogItem, String> {
+public interface CatalogItemRepository
+    extends JpaRepository<CatalogItem, String>, JpaSpecificationExecutor<CatalogItem> {
 
   // -- ALL ITEMS --
 
@@ -20,8 +22,10 @@ public interface CatalogItemRepository extends JpaRepository<CatalogItem, String
   Optional<CatalogItem> findByTypeAndExternalIdAndVersion(
       ContentType type, String externalId, String version);
 
-  @Query("SELECT i FROM CatalogItem i WHERE TYPE(i) = :type")
-  <T extends CatalogItem> List<T> findAllOfType(@Param("type") Class<T> type);
+  @Query(
+      "SELECT i FROM CatalogItem i WHERE TYPE(i) = :type AND i.latestOffered = true"
+          + " ORDER BY i.name")
+  <T extends CatalogItem> List<T> findAllLatestOffered(@Param("type") Class<T> type);
 
   @Query(
       "SELECT i FROM CatalogItem i WHERE TYPE(i) = :type"

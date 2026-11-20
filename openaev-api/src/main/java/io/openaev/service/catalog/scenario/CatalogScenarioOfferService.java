@@ -1,22 +1,31 @@
 package io.openaev.service.catalog.scenario;
 
+import static io.openaev.database.specification.CatalogItemSpecification.latestOffered;
+import static io.openaev.database.specification.CatalogItemSpecification.scenarioNotInstalled;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.catalog.dto.CatalogManifest.PayloadRef;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.catalog.CatalogItem;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.model.catalog.ContentType;
 import io.openaev.database.repository.ScenarioIdentityRepository;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.service.catalog.CatalogFacet;
 import io.openaev.service.catalog.CatalogListService;
 import io.openaev.service.catalog.CatalogOffer;
 import io.openaev.service.catalog.CatalogSettingsService;
 import io.openaev.service.catalog.payload.CatalogPayloadOfferService;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +33,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class CatalogScenarioOfferService implements CatalogOffer<InstallableScenarioVersion> {
+
+  private static final List<CatalogFacet> FACETS =
+      List.of(
+          CatalogFacet.of(CatalogFacet.SCENARIO_TYPE_KEY),
+          CatalogFacet.PLATFORMS,
+          CatalogFacet.of(CatalogFacet.CATEGORY_KEY),
+          CatalogFacet.of(CatalogFacet.AUTHOR_KEY));
 
   private final CatalogListService catalogListService;
   private final CatalogPayloadOfferService catalogPayloadOfferService;
@@ -49,22 +65,6 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
     return toInstallable(ctx, item);
   }
 
-  /** The latest version of every catalogue scenario the tenant does not show. */
-  @Transactional(readOnly = true)
-  public List<OfferedScenario> notInstalled(String tenantId) {
-    Set<String> installed =
-        scenarioIdentityRepository.findAllInstalledByTenantId(tenantId).stream()
-            .map(CatalogOffer::key)
-            .collect(Collectors.toSet());
-    return catalogListService.latestOffered(CatalogScenario.class).stream()
-        .filter(
-            item ->
-                !installed.contains(
-                    CatalogOffer.key(item.getRelease().getRepository(), item.getExternalId())))
-        .map(item -> new OfferedScenario(item, catalogScenarioRequirements.missing(item)))
-        .toList();
-  }
-
   /**
    * The latest version of every catalogue scenario the tenant never installed. A chained scenario,
    * whose scope an admin chooses, and one missing a requirement are left to install by hand.
@@ -84,7 +84,27 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
         : List.of();
   }
 
+  // -- SEARCH --
+
+  /** A page of the offered scenarios the tenant does not show, with what each lacks. */
+  @Transactional(readOnly = true)
+  public Page<OfferedScenario> searchNotInstalled(String tenantId, SearchPaginationInput input) {
+    return catalogScenarioRequirements.offered(
+        catalogListService.search(CatalogScenario.class, notInstalled(tenantId), input));
+  }
+
+  @Transactional(readOnly = true)
+  public Map<String, Map<String, Long>> notInstalledFacetCounts(
+      String tenantId, SearchPaginationInput input) {
+    return catalogListService.facetCounts(
+        CatalogScenario.class, notInstalled(tenantId), input, FACETS);
+  }
+
   // -- STEPS --
+
+  private static Specification<CatalogItem> notInstalled(String tenantId) {
+    return latestOffered(tenantId, CatalogScenario.class).and(scenarioNotInstalled(tenantId));
+  }
 
   private List<InstallableScenarioVersion> installableNeverInstalled(TxCtx ctx, String tenantId) {
     // An uninstalled scenario keeps its identity: it is not installed again.

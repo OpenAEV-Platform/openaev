@@ -1,15 +1,21 @@
 package io.openaev.service.catalog.payload;
 
+import static io.openaev.database.specification.CatalogItemSpecification.latestOffered;
+import static io.openaev.database.specification.CatalogItemSpecification.payloadNotInstalled;
+
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.catalog.CatalogItem;
 import io.openaev.database.model.catalog.CatalogPayload;
 import io.openaev.database.model.catalog.ContentType;
 import io.openaev.database.raw.RawInstalledPayloadVersion;
 import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.database.repository.PayloadIdentityRepository;
+import io.openaev.service.catalog.CatalogFacet;
 import io.openaev.service.catalog.CatalogListService;
 import io.openaev.service.catalog.CatalogOffer;
 import io.openaev.service.catalog.CatalogSettingsService;
 import io.openaev.utils.catalog.SemanticVersion;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -17,6 +23,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class CatalogPayloadOfferService implements CatalogOffer<InstallablePayloadVersion> {
+
+  private static final List<CatalogFacet> FACETS =
+      List.of(CatalogFacet.of(CatalogFacet.DOMAIN_KEY), CatalogFacet.PLATFORMS);
 
   private final CatalogItemRepository catalogItemRepository;
   private final PayloadIdentityRepository payloadIdentityRepository;
@@ -37,18 +48,6 @@ public class CatalogPayloadOfferService implements CatalogOffer<InstallablePaylo
   public InstallablePayloadVersion installable(TxCtx ctx, String externalId, String version) {
     return InstallablePayloadVersion.of(
         catalogListService.offered(CatalogPayload.class, externalId, version));
-  }
-
-  /** The latest offered version of every catalogue payload the tenant does not show. */
-  @Transactional(readOnly = true)
-  public List<CatalogPayload> notInstalled(String tenantId) {
-    Set<String> installed = installedVersions(tenantId).keySet();
-    return catalogListService.latestOffered(CatalogPayload.class).stream()
-        .filter(
-            item ->
-                !installed.contains(
-                    CatalogOffer.key(item.getRelease().getRepository(), item.getExternalId())))
-        .toList();
   }
 
   /** The latest offered version of every catalogue payload the tenant never installed. */
@@ -73,7 +72,26 @@ public class CatalogPayloadOfferService implements CatalogOffer<InstallablePaylo
     return versions;
   }
 
+  // -- SEARCH --
+
+  /** A page of the offered payloads the tenant does not show. */
+  @Transactional(readOnly = true)
+  public Page<CatalogPayload> searchNotInstalled(String tenantId, SearchPaginationInput input) {
+    return catalogListService.search(CatalogPayload.class, notInstalled(tenantId), input);
+  }
+
+  @Transactional(readOnly = true)
+  public Map<String, Map<String, Long>> notInstalledFacetCounts(
+      String tenantId, SearchPaginationInput input) {
+    return catalogListService.facetCounts(
+        CatalogPayload.class, notInstalled(tenantId), input, FACETS);
+  }
+
   // -- STEPS --
+
+  private static Specification<CatalogItem> notInstalled(String tenantId) {
+    return latestOffered(tenantId, CatalogPayload.class).and(payloadNotInstalled(tenantId));
+  }
 
   private List<InstallablePayloadVersion> neverInstalled(
       String tenantId, List<CatalogPayload> items) {

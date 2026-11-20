@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
 /**
@@ -29,6 +30,16 @@ public class CatalogScenarioRequirements {
   private final ObjectMapper mapper;
 
   public List<String> missing(CatalogScenario item) {
+    return missing(item, injectorTypes());
+  }
+
+  /** Each scenario of a page with what it lacks, reading the injectors once. */
+  public Page<OfferedScenario> offered(Page<CatalogScenario> page) {
+    Set<String> injectors = injectorTypes();
+    return page.map(item -> new OfferedScenario(item, missing(item, injectors)));
+  }
+
+  private List<String> missing(CatalogScenario item, Set<String> injectors) {
     Requires requires = read(item);
     List<String> missing = new ArrayList<>();
     if (requires == null) {
@@ -39,12 +50,14 @@ public class CatalogScenarioRequirements {
             requires.openaev(), platformSettingsService.getPlatformVersion())) {
       missing.add("OpenAEV " + requires.openaev());
     }
-    Set<String> injectors =
-        injectorService.findAll().stream().map(Injector::getType).collect(Collectors.toSet());
     Optional.ofNullable(requires.injectors()).orElse(List.of()).stream()
         .filter(type -> !injectors.contains(type))
         .forEach(type -> missing.add("Injector " + type));
     return missing;
+  }
+
+  private Set<String> injectorTypes() {
+    return injectorService.findAll().stream().map(Injector::getType).collect(Collectors.toSet());
   }
 
   private Requires read(CatalogScenario item) {

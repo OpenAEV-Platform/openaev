@@ -16,18 +16,22 @@ import io.openaev.database.model.catalog.CatalogPayload;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.service.catalog.AvailableActionService;
-import io.openaev.service.catalog.AvailableActions;
 import io.openaev.service.catalog.CatalogListService;
 import io.openaev.service.catalog.payload.CatalogPayloadInstaller;
 import io.openaev.service.catalog.scenario.CatalogScenarioOfferService;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /** The content catalogue of the tenant, as the collector released it. */
@@ -48,17 +52,28 @@ public class CatalogApi {
 
   // -- READ --
 
-  @Operation(summary = "Catalogue scenarios not installed, latest version")
-  @GetMapping(TENANT_CATALOG_URI + "/scenarios")
+  @Operation(summary = "Search catalogue scenarios not installed")
+  @PostMapping(TENANT_CATALOG_URI + "/scenarios/search")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
-  public List<CatalogScenarioOutput> scenarios(TxCtx ctx) {
+  public Page<CatalogScenarioOutput> searchScenarios(
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput input) {
     catalogFeature.require();
     return catalogScenarioOfferService
-        .notInstalled(writeScopeResolver.tenantForWrite(ctx, null))
-        .stream()
-        .map(catalogItemMapper::toOutput)
-        .toList();
+        .searchNotInstalled(writeScopeResolver.tenantForWrite(ctx, null), input)
+        .map(catalogItemMapper::toOutput);
+  }
+
+  @LogExecutionTime
+  @Operation(summary = "Facet counts of catalogue scenarios not installed")
+  @PostMapping(TENANT_CATALOG_URI + "/scenarios/facet-counts")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
+  public Map<String, Map<String, Long>> scenarioFacetCounts(
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput input) {
+    catalogFeature.require();
+    return catalogScenarioOfferService.notInstalledFacetCounts(
+        writeScopeResolver.tenantForWrite(ctx, null), input);
   }
 
   @Operation(summary = "Offered versions of a catalogue scenario, newest first")
@@ -73,18 +88,28 @@ public class CatalogApi {
         .toList();
   }
 
-  @Operation(summary = "Catalogue actions the tenant does not have yet")
-  @GetMapping(TENANT_CATALOG_URI + "/actions")
+  @Operation(summary = "Search catalogue actions the tenant does not have")
+  @PostMapping(TENANT_CATALOG_URI + "/actions/search")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
-  public List<AvailableActionOutput> actions(TxCtx ctx) {
+  public Page<AvailableActionOutput> searchActions(
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput input) {
     catalogFeature.require();
-    AvailableActions available =
-        availableActionService.available(writeScopeResolver.tenantForWrite(ctx, null));
-    return Stream.concat(
-            available.payloads().stream().map(AvailableActionMapper::toOutput),
-            available.contracts().stream().map(AvailableActionMapper::toOutput))
-        .toList();
+    return availableActionService
+        .search(writeScopeResolver.tenantForWrite(ctx, null), input)
+        .<AvailableActionOutput>map(
+            AvailableActionMapper::toOutput, AvailableActionMapper::toOutput);
+  }
+
+  @LogExecutionTime
+  @Operation(summary = "Facet counts of catalogue actions the tenant does not have")
+  @PostMapping(TENANT_CATALOG_URI + "/actions/facet-counts")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  public Map<String, Map<String, Long>> actionFacetCounts(
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput input) {
+    catalogFeature.require();
+    return availableActionService.facetCounts(writeScopeResolver.tenantForWrite(ctx, null), input);
   }
 
   @Operation(summary = "Offered versions of a catalogue payload, newest first")
