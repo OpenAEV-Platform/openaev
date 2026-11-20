@@ -266,7 +266,11 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Launch an Atomic Testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(
+      isAdmin = true,
+      userFirstName = "Ash",
+      userLastName = "Ketchum",
+      userMail = "ash.ketchum@unittests.invalid")
   void launchAtomicTesting() throws Exception {
     Inject atomicTesting = getAtomicTestingWrapper(null, null).persist().get();
 
@@ -275,12 +279,20 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
     mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/launch").with(csrf()))
         .andExpect(status().is2xxSuccessful())
-        .andExpect(jsonPath("$.inject_status.status_name").value("QUEUING"));
+        .andExpect(jsonPath("$.inject_status.status_name").value("QUEUING"))
+        .andExpect(jsonPath("$.inject_launched_by_user.user_name").value("Ash Ketchum"))
+        .andExpect(
+            jsonPath("$.inject_launched_by_user.user_email")
+                .value("ash.ketchum@unittests.invalid"));
   }
 
   @Test
   @DisplayName("Relaunch an Atomic Testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(
+      isAdmin = true,
+      userFirstName = "Ash",
+      userLastName = "Ketchum",
+      userMail = "ash.ketchum@unittests.invalid")
   void relaunchAtomicTesting() throws Exception {
     Inject atomicTesting =
         getAtomicTestingWrapper(InjectStatusFixture.createQueuingInjectStatus(), null)
@@ -292,6 +304,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                 post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.inject_status.status_name").value("QUEUING"))
+            .andExpect(jsonPath("$.inject_launched_by_user.user_name").value("Ash Ketchum"))
             .andReturn()
             .getResponse()
             .getContentAsString();
@@ -381,7 +394,11 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Set, carry over on relaunch, then clear the recurrence of an Atomic Testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(
+      isAdmin = true,
+      userFirstName = "Misty",
+      userLastName = "Waterflower",
+      userMail = "misty.waterflower@unittests.invalid")
   void updateAtomicTestingRecurrence() throws Exception {
     Inject atomicTesting =
         getAtomicTestingWrapper(InjectStatusFixture.createQueuingInjectStatus(), null)
@@ -401,14 +418,19 @@ public class AtomicTestingApiTest extends IntegrationTest {
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.inject_recurrence").value("0 30 9 * * *"))
         .andExpect(jsonPath("$.inject_recurrence_start").value("2030-01-01T00:00:00Z"))
-        .andExpect(jsonPath("$.inject_recurrence_end").value("2030-02-01T00:00:00Z"));
+        .andExpect(jsonPath("$.inject_recurrence_end").value("2030-02-01T00:00:00Z"))
+        .andExpect(jsonPath("$.inject_scheduled_by_user.user_name").value("Misty Waterflower"))
+        .andExpect(
+            jsonPath("$.inject_scheduled_by_user.user_email")
+                .value("misty.waterflower@unittests.invalid"));
 
-    // -- RELAUNCH: the schedule follows the duplicated inject --
+    // -- RELAUNCH: the schedule (and its scheduler) follows the duplicated inject --
     String relaunchedInject =
         mvc.perform(
                 post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.inject_recurrence").value("0 30 9 * * *"))
+            .andExpect(jsonPath("$.inject_scheduled_by_user.user_name").value("Misty Waterflower"))
             .andReturn()
             .getResponse()
             .getContentAsString();

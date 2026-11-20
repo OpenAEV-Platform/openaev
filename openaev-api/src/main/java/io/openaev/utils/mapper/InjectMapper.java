@@ -3,6 +3,7 @@ package io.openaev.utils.mapper;
 import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutputs;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.users.dto.UserSimple;
 import io.openaev.database.model.*;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -89,6 +90,19 @@ public class InjectMapper {
         .recurrence(inject.getRecurrence())
         .recurrenceStart(inject.getRecurrenceStart())
         .recurrenceEnd(inject.getRecurrenceEnd())
+        .launchedBy(toUserSimple(inject.getLaunchedBy()))
+        .scheduledBy(toUserSimple(inject.getScheduledBy()))
+        .build();
+  }
+
+  private UserSimple toUserSimple(User user) {
+    if (user == null) {
+      return null;
+    }
+    return UserSimple.builder()
+        .id(user.getId())
+        .name(user.getNameOrEmail())
+        .email(user.getEmail())
         .build();
   }
 

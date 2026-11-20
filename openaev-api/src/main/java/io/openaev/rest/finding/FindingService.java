@@ -48,6 +48,7 @@ public class FindingService {
   private final AssetRepository assetRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
+  private final AssetGroupMembershipResolver assetGroupMembershipResolver;
 
   // -- CRUD --
 
@@ -85,9 +86,23 @@ public class FindingService {
             this.findingRepository.countDistinctAssets(type, displayValue, tenantId),
             this.findingRepository.countDistinctTeams(type, displayValue, tenantId),
             this.findingRepository.countDistinctUsers(type, displayValue, tenantId),
-            this.findingRepository.countDistinctAssetGroups(type, displayValue, tenantId));
+            countDistinctAssetGroups(type, displayValue, tenantId));
 
     return this.findingMapper.toFindingSummaryOutput(finding, seen, counts);
+  }
+
+  /**
+   * The asset groups of the whole (type, value) group: those that contain one of its assets,
+   * statically or through their dynamic filter. Never the groups its injects targeted.
+   */
+  private long countDistinctAssetGroups(
+      ContractOutputType type, String displayValue, String tenantId) {
+    List<String> assetIds =
+        this.findingRepository.findDistinctAssetIds(type, displayValue, tenantId);
+    return this.assetGroupMembershipResolver.assetGroupIdsByAssetId(assetIds).values().stream()
+        .flatMap(Set::stream)
+        .distinct()
+        .count();
   }
 
   /**
