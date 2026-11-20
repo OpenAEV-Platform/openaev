@@ -3,19 +3,10 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
+import { fieldText } from './fieldUpdates';
 import sameValue from './sameValue';
 
 interface Props { value: unknown }
-
-const lineOf = (item: unknown) => {
-  if (typeof item !== 'object' || item === null) {
-    return String(item);
-  }
-  const entry = item as Record<string, unknown>;
-  return entry.key !== undefined
-    ? `${entry.key} = ${entry.default_value ?? ''}`
-    : `${entry.executor ?? ''}: ${entry.get_command ?? ''}`;
-};
 
 // A field value as text: platforms as chips, arguments and prerequisites one per line.
 const FieldUpdateValue: FunctionComponent<Props> = ({ value }) => {

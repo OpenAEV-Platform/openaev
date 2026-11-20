@@ -984,6 +984,17 @@
       "files": [
         "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionSelect.tsx"
       ]
+    },
+    {
+      "component": "RadioGroup",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "One side to keep for each conflict of an update.",
+      "files": [
+        "openaev-front/src/components/common/update/ConflictChoice.tsx"
+      ]
     }
   ],
   "migratedZones": [

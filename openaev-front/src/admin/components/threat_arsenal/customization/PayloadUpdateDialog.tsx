@@ -5,19 +5,18 @@ import {
   DialogContent,
   DialogFooter,
   DialogTitle,
-  Radio,
-  RadioGroup,
   Spinner,
   Text,
 } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
+import ConflictChoice from '../../../../components/common/update/ConflictChoice';
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadCustomizationUpdateOutput, type ThreatArsenalAction } from '../../../../utils/api-types';
-import { CUSTOMIZABLE_FIELD_LABELS, otherChangeLabel } from './fieldUpdates';
+import { CUSTOMIZABLE_FIELD_LABELS, fieldText, otherChangeLabel } from './fieldUpdates';
 import FieldUpdateValue from './FieldUpdateValue';
-import useCustomizationUpdate, { type UpdateChoice } from './useCustomizationUpdate';
+import useCustomizationUpdate from './useCustomizationUpdate';
 
 interface Props {
   actionId: string;
@@ -30,7 +29,7 @@ interface Props {
 const PayloadUpdateDialog: FunctionComponent<Props> = ({ actionId, update, onClose, onUpdated }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const { conflicts, news, kept, choices, choose, ready, applying, apply } = useCustomizationUpdate(actionId, update);
+  const { conflicts, news, kept, sides, choose, ready, applying, apply } = useCustomizationUpdate(actionId, update);
   const version = update.update_version;
   const section = {
     display: 'flex',
@@ -51,30 +50,18 @@ const PayloadUpdateDialog: FunctionComponent<Props> = ({ actionId, update, onClo
             {conflicts.length > 0 && (
               <div style={section}>
                 <Text variant="content-base">{t('Filigran changed what you changed too. Choose the value to keep for each.')}</Text>
-                {conflicts.map((field) => {
-                  const label = t(CUSTOMIZABLE_FIELD_LABELS[field.field_name]);
-                  return (
-                    <div key={field.field_name} style={section}>
-                      <Text variant="title-xs">{label}</Text>
-                      <RadioGroup
-                        aria-label={label}
-                        value={choices[field.field_name] ?? ''}
-                        onValueChange={choice => choose(field.field_name, choice as UpdateChoice)}
-                      >
-                        <Radio
-                          value="FILIGRAN"
-                          label={t('Filigran v{version}', { version })}
-                          description={<FieldUpdateValue value={field.field_filigran} />}
-                        />
-                        <Radio
-                          value="YOURS"
-                          label={t('Yours')}
-                          description={<FieldUpdateValue value={field.field_yours} />}
-                        />
-                      </RadioGroup>
-                    </div>
-                  );
-                })}
+                {conflicts.map(field => (
+                  <ConflictChoice
+                    key={field.field_name}
+                    title={t(CUSTOMIZABLE_FIELD_LABELS[field.field_name])}
+                    theirsLabel={t('Filigran v{version}', { version })}
+                    mineLabel={t('Yours')}
+                    theirs={fieldText(field.field_filigran)}
+                    mine={fieldText(field.field_yours)}
+                    selected={sides[field.field_name]}
+                    onSelect={side => choose(field.field_name, side)}
+                  />
+                ))}
               </div>
             )}
             <div style={section}>

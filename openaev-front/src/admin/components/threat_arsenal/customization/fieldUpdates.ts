@@ -17,6 +17,24 @@ export const changedByFiligran = (field: PayloadFieldUpdateOutput) => !sameValue
 
 export const changedByYou = (field: PayloadFieldUpdateOutput) => !sameValue(field.field_base, field.field_yours);
 
+const lineOf = (item: unknown) => {
+  if (typeof item !== 'object' || item === null) {
+    return String(item);
+  }
+  const entry = item as Record<string, unknown>;
+  return entry.key !== undefined
+    ? `${entry.key} = ${entry.default_value ?? ''}`
+    : `${entry.executor ?? ''}: ${entry.get_command ?? ''}`;
+};
+
+/** A field value as text: arguments and prerequisites one per line. */
+export const fieldText = (value: unknown) => {
+  if (sameValue(value, null)) {
+    return '';
+  }
+  return (Array.isArray(value) ? value.map(lineOf) : [lineOf(value)]).join('\n');
+};
+
 const OTHER_CHANGE_LABELS: Record<string, string> = {
   payload_name: 'Name',
   payload_description: 'Description',
