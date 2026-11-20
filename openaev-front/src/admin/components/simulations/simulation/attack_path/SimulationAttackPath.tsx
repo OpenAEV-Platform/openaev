@@ -2732,6 +2732,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         onToggleFullscreen={() => setFullscreen(f => !f)}
         onExportPng={graphHasContent ? requestPngExport : undefined}
         exportingPng={exportingPng}
+        graphSimulationId={simulationId ?? undefined}
         searchOptions={searchOptions}
         searchInput={searchInput}
         onSearchInputChange={setSearchInput}
