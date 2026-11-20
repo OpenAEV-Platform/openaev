@@ -3,7 +3,6 @@ package io.openaev.injectors.email.service;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.utils.base.ExternalServiceBase;
-import jakarta.annotation.PostConstruct;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,11 +26,6 @@ public class SmtpService extends ExternalServiceBase {
   private final SettingRepository settingRepository;
   private final TenantScopedTransaction tenantScopedTransaction;
 
-  @PostConstruct
-  private void init() {
-    this.testConnection();
-  }
-
   public MimeMessage createMimeMessage() {
     return this.mailSender.createMimeMessage();
   }
@@ -40,8 +34,9 @@ public class SmtpService extends ExternalServiceBase {
     this.mailSender.send(mimeMessage);
   }
 
-  // Check connection every 10 seconds
-  @Scheduled(fixedDelay = 10000, initialDelay = 10000)
+  // Check the connection right after startup, then every 10 seconds. It runs on the scheduler
+  // thread rather than at bean creation, so an unreachable SMTP server does not delay the API.
+  @Scheduled(fixedDelay = 10000, initialDelay = 0)
   public void connectionListener() {
     this.testConnection();
   }
