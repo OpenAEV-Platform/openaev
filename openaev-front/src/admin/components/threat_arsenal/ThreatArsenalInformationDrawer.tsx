@@ -11,6 +11,7 @@ import {
   type ThreatArsenalActionFullOutput,
 } from '../../../utils/api-types';
 import { isFeatureEnabled } from '../../../utils/utils';
+import { type OpenedTab } from './hook/useOpenedAction';
 import PayloadRevocationBanner from './revocation/PayloadRevocationBanner';
 import ThreatArsenalActionOverview from './ThreatArsenalActionOverview';
 import PayloadVersionsTab from './versions/PayloadVersionsTab';
@@ -50,7 +51,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   threatArsenalAction: ThreatArsenalAction | null;
-  initialTab?: 'versions';
+  initialTab?: OpenedTab;
 }
 
 const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
@@ -64,12 +65,12 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
 
   const [loading, setLoading] = useState(false);
   const [fullOutput, setFullOutput] = useState<ThreatArsenalActionFullOutput | null>(null);
-  const [tab, setTab] = useState<string>(initialTab ?? 'overview');
+  const [tab, setTab] = useState<string>(initialTab ? 'versions' : 'overview');
   const showVersions = isFeatureEnabled('CATALOG') && !!threatArsenalAction?.action_payload;
   const versions = usePayloadVersions(threatArsenalAction?.injector_contract_id ?? '', open && showVersions);
   const shownVersion = versions?.find(v => v.payload_id === threatArsenalAction?.action_payload?.payload_id);
 
-  useEffect(() => setTab(initialTab ?? 'overview'), [open, threatArsenalAction, initialTab]);
+  useEffect(() => setTab(initialTab ? 'versions' : 'overview'), [open, threatArsenalAction, initialTab]);
 
   useEffect(() => {
     // Reset state on every (re)entry so a previous in-flight fetch whose
@@ -131,7 +132,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
           )}
           <div style={{ marginTop: showVersions ? theme.spacing(2) : 0 }}>
             {tab === 'versions' && showVersions
-              ? <PayloadVersionsTab versions={versions} />
+              ? <PayloadVersionsTab versions={versions} focusMove={initialTab === 'move'} />
               : (
                   <>
                     {shownVersion?.payload_revoked && (

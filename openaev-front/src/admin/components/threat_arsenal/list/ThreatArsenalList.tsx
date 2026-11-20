@@ -22,7 +22,7 @@ interface Props {
   isChecked: (action: ThreatArsenalAction) => boolean;
   onSelect: (action: ThreatArsenalAction) => void;
   onToggle: (action: ThreatArsenalAction, event: MouseEvent<HTMLElement>) => void;
-  onUpdate: (result: ThreatArsenalAction) => void;
+  onUpdate: (result: ThreatArsenalAction, replacedId?: string) => void;
   onDuplicate: (result: ThreatArsenalAction) => void;
   onDelete: (actionId: string) => void;
   onShowVersions: (action: ThreatArsenalAction) => void;
