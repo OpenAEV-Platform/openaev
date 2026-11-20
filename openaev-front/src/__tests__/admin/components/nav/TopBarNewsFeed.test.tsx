@@ -20,7 +20,7 @@ vi.mock('../../../../utils/utils', async importOriginal => ({
   isFeatureEnabled: () => mocks.enabled,
 }));
 vi.mock('../../../../actions/news_feed/news-feed-actions', () => ({ fetchMyUnreadNewsFeedCount: mocks.fetchMyUnreadNewsFeedCount }));
-vi.mock('../../../../utils/hooks/useDataLoader', () => ({
+vi.mock('../../../../utils/stream/streamClient', () => ({
   subscribeStreamEvent: (type: string, handler: (event: MessageEvent) => void) => {
     mocks.streamHandlers.set(type, handler);
     return () => mocks.streamHandlers.delete(type);

@@ -69,8 +69,11 @@ Rules: `frontend.instructions.md` → *Design System & Layout*.
 
 ### Step 6 — Check data loading patterns
 
+- **Server data**: TanStack Query with its defaults and `queryOptions` in `actions/{feature}/{feature}-queries.ts` (keys carry every parameter, `queryFn` passes `signal`, plain calls resolving to the data, never a thunk); a migrated screen never also reads that data from Redux
+- **Live refresh**: invalidation only (`meta.live` built with `liveMeta` on queries, `useLiveMutation` for mutations), no `setQueryData` / direct `invalidateQueries`, no new `EventSource` for platform data
+  - No lint rule enforces it, so grep the diff: `git diff origin/main -- openaev-front/src | grep -nE '^\+.*(setQueryData|removeQueries|invalidateQueries|new EventSource|onStreamMessage)'`; anything outside `utils/query/liveRouter.ts`, `utils/stream/` and `useDataLoader.js` is a finding
 - **Paginated lists**: `useQueryableWithLocalStorage` + `PaginationComponentV2`
-- **Actions**: simple calls in `actions/{feature}/{feature}-actions.ts`
+- **Actions**: simple calls in the feature's action file (`actions/{feature}/{feature}-action.ts`, or the existing `-actions.ts`)
 - **Hooks**: custom hook per feature (e.g., `useOrganizations.ts`) for local state
 
 ### Step 7 — Check TypeScript

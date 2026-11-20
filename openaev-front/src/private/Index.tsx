@@ -5,6 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 import { errorWrapper } from '../components/Error';
 import NotFound from '../components/NotFound';
 import useDataLoader from '../utils/hooks/useDataLoader';
+import useLiveStream from '../utils/stream/useLiveStream';
 import Dashboard from './components/Dashboard';
 import TopBar from './components/nav/TopBar';
 
@@ -29,6 +30,8 @@ const useStyles = makeStyles()(theme => ({
 
 const Index = () => {
   const { classes } = useStyles();
+  useLiveStream();
+  // No data to load: registering keeps the stream feeding the store (e.g. the logged user's rights).
   useDataLoader();
   return (
     <div className={classes.root}>

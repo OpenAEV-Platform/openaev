@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { fetchMyUnreadNewsFeedCount } from '../../../actions/news_feed/news-feed-actions';
 import { MESSAGING$ } from '../../../utils/Environment';
-import { subscribeStreamEvent } from '../../../utils/hooks/useDataLoader';
+import { subscribeStreamEvent } from '../../../utils/stream/streamClient';
 import { isFeatureEnabled } from '../../../utils/utils';
 import { NEWS_FEED_STREAM_BATCH_MS, parseNewsFeedItemStreamEvent } from './newsFeedStream';
 

@@ -18,8 +18,7 @@ vi.mock('../../../../../../actions/attack-path/attack-path-actions', () => ({
   fetchAttackPathGraphDelta: mocks.fetchAttackPathGraphDelta,
 }));
 
-vi.mock('../../../../../../utils/hooks/useDataLoader', () => ({
-  default: vi.fn(),
+vi.mock('../../../../../../utils/stream/streamClient', () => ({
   subscribeStreamEvent: (type: string, handler: (event: MessageEvent) => void) => {
     mocks.streamHandlers.set(type, handler);
     return () => {
