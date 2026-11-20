@@ -4,15 +4,17 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type AvailableActionOutput } from '../../../../../utils/api-types';
+import { type AvailableActionOutput, type SearchPaginationInput } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 
 const mocks = vi.hoisted(() => ({
-  fetchAvailableActions: vi.fn(),
+  searchAvailableActions: vi.fn(),
+  fetchAvailableActionFacetCounts: vi.fn(),
   fetchCatalogSettings: vi.fn(),
   installAllCatalogPayloads: vi.fn(),
   installCatalogPayload: vi.fn(),
   updateCatalogSettings: vi.fn(),
+  loadMore: { current: () => {} },
 }));
 
 vi.mock('../../../../../components/i18n', () => ({
@@ -24,6 +26,7 @@ vi.mock('../../../../../components/i18n', () => ({
   }),
 }));
 vi.mock('../../../../../actions/catalog/payload-catalog-actions', () => mocks);
+vi.mock('../../../../../components/common/queryable/pagination/PaginationComponentV2', async () => ({ default: (await import('../../../../utils/FakePaginationComponentV2')).default }));
 vi.mock('../../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: () => true }) }));
 vi.mock(import('../../../../../utils/utils'), async importOriginal => ({
   ...await importOriginal(),
@@ -55,6 +58,13 @@ const NETWORK_PING: AvailableActionOutput = {
   action_platforms: ['Linux'],
 };
 
+const page = (content: AvailableActionOutput[], totalElements = content.length) => ({
+  data: {
+    content,
+    totalElements,
+  },
+});
+
 const renderPage = () => render(
   <ThemeProvider theme={createTheme()}>
     <TooltipProvider>
@@ -65,12 +75,34 @@ const renderPage = () => render(
   </ThemeProvider>,
 );
 
+const lastSearch = (): SearchPaginationInput => mocks.searchAvailableActions.mock.lastCall?.[0];
 const sectionTitles = () => Array.from(document.querySelectorAll('section > header h2')).map(heading => heading.textContent);
 
 describe('ThreatArsenalAvailable', () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.spyOn(MESSAGING$, 'notifySuccess').mockImplementation(() => undefined);
-    mocks.fetchAvailableActions.mockResolvedValue([NO_DOMAIN_DUMP, NETWORK_PING, ENDPOINT_SCAN]);
+    vi.stubGlobal('IntersectionObserver', class {
+      constructor(callback: (entries: { isIntersecting: boolean }[]) => void) {
+        mocks.loadMore.current = () => callback([{ isIntersecting: true }]);
+      }
+
+      observe() {}
+
+      disconnect() {}
+    });
+    mocks.searchAvailableActions.mockResolvedValue(page([NO_DOMAIN_DUMP, NETWORK_PING, ENDPOINT_SCAN]));
+    mocks.fetchAvailableActionFacetCounts.mockResolvedValue({
+      catalog_item_domain: {
+        Endpoint: 1,
+        Network: 1,
+      },
+      catalog_item_platforms: {
+        Windows: 2,
+        Linux: 1,
+        MacOS: 0,
+      },
+    });
     mocks.fetchCatalogSettings.mockResolvedValue({
       payload_auto_install: false,
       scenario_auto_install: true,
@@ -79,6 +111,7 @@ describe('ThreatArsenalAvailable', () => {
 
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -92,17 +125,62 @@ describe('ThreatArsenalAvailable', () => {
     expect(sectionTitles()).toEqual(['Endpoint', 'Network', 'Other']);
   });
 
-  it('given_aPlatformFacet_should_showOnlyTheActionsOfThatPlatform', async () => {
+  it('given_aSearchText_should_searchTheServerWithIt', async () => {
     // Arrange
     renderPage();
-    await waitFor(() => expect(screen.getAllByTestId('threat-arsenal-catalog-card')).toHaveLength(2));
+    await waitFor(() => expect(mocks.searchAvailableActions).toHaveBeenCalled());
+
+    // Act
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'scan' } });
+
+    // Assert
+    await waitFor(() => expect(lastSearch().textSearch).toBe('scan'));
+  });
+
+  it('given_aPlatformFacet_should_filterTheSearchAndShowItsChip', async () => {
+    // Arrange
+    renderPage();
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Linux' })).toBeTruthy());
 
     // Act
     fireEvent.click(screen.getByRole('checkbox', { name: 'Linux' }));
 
     // Assert
+    await waitFor(() => expect(screen.getByTestId('filter-chip').textContent).toBe('catalog_item_platforms = Linux'));
+    expect(lastSearch().filterGroup?.filters).toEqual([expect.objectContaining({
+      key: 'catalog_item_platforms',
+      values: ['Linux'],
+    })]);
+  });
+
+  it('given_moreActionsThanThePage_should_loadTheNextPageAtTheBottom', async () => {
+    // Arrange
+    mocks.searchAvailableActions
+      .mockResolvedValueOnce(page([ENDPOINT_SCAN, NO_DOMAIN_DUMP], 3))
+      .mockResolvedValueOnce(page([NETWORK_PING], 3));
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId('threat-arsenal-catalog-card')).toHaveLength(2));
+
+    // Act
+    mocks.loadMore.current();
+
+    // Assert
+    await waitFor(() => expect(screen.getAllByTestId('threat-arsenal-contract-catalog-card')).toHaveLength(1));
+    expect(lastSearch().page).toBe(1);
+  });
+
+  it('given_theListView_should_showOneRowPerAction', async () => {
+    // Arrange
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId('threat-arsenal-catalog-card')).toHaveLength(2));
+
+    // Act
+    fireEvent.click(screen.getByRole('radio', { name: 'List view' }));
+
+    // Assert
     expect(screen.queryAllByTestId('threat-arsenal-catalog-card')).toHaveLength(0);
-    expect(screen.getAllByTestId('threat-arsenal-contract-catalog-card')).toHaveLength(1);
+    expect(screen.getByRole('link', { name: /Ping/ }).getAttribute('href')).toBe('/admin/integrations/catalog/nmap');
+    expect(screen.getAllByRole('button', { name: 'Install' })).toHaveLength(2);
   });
 
   it('given_anInstalledPayload_should_markItInstalledAndNotify', async () => {
@@ -121,17 +199,17 @@ describe('ThreatArsenalAvailable', () => {
     expect(MESSAGING$.notifySuccess).toHaveBeenCalledWith('Scan v2.0 installed');
   });
 
-  it('given_installAll_should_notifyAndReloadTheCatalogue', async () => {
+  it('given_installAll_should_notifyAndSearchAgain', async () => {
     // Arrange
     mocks.installAllCatalogPayloads.mockResolvedValue({ installed_ids: ['scan', 'dump'] });
     renderPage();
-    await waitFor(() => expect(mocks.fetchAvailableActions).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.searchAvailableActions).toHaveBeenCalledTimes(1));
 
     // Act
     fireEvent.click(screen.getByRole('button', { name: 'Install all' }));
 
     // Assert
-    await waitFor(() => expect(mocks.fetchAvailableActions).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mocks.searchAvailableActions).toHaveBeenCalledTimes(2));
     expect(MESSAGING$.notifySuccess).toHaveBeenCalledWith('2 actions installed');
   });
 

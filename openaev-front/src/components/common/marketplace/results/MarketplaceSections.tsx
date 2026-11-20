@@ -7,7 +7,7 @@ import groupSections from './groupSections';
 import MarketplaceGrid from './MarketplaceGrid';
 import MarketplaceSectionHeader from './MarketplaceSectionHeader';
 
-interface Sections<T> {
+export interface Sections<T> {
   sectionKey: (item: T) => string | undefined;
   sectionLabel: (key: string | undefined) => string;
   sectionIcon: (key: string | undefined) => ReactNode;

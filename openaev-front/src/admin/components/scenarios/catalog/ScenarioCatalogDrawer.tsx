@@ -8,9 +8,9 @@ import ItemMainFocus from '../../../../components/ItemMainFocus';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import { type CatalogScenarioOutput, type CatalogScenarioVersionOutput } from '../../../../utils/api-types';
-import { scenarioCategories } from '../constants';
+import { scenarioCategoryLabel } from '../constants';
 import ScenarioType from '../scenario/ScenarioType';
-import { catalogScenarioType } from './catalogScenarioFilters';
+import { catalogScenarioType } from './catalogScenarioType';
 
 interface Props {
   scenario: CatalogScenarioOutput | null;
@@ -85,7 +85,7 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
         },
         {
           label: t('Category'),
-          value: category ? t(scenarioCategories.get(category) ?? category) : '–',
+          value: category ? t(scenarioCategoryLabel(category)) : '–',
         },
         {
           label: t('Main focus'),

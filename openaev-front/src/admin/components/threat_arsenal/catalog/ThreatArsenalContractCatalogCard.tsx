@@ -1,11 +1,12 @@
 import { Chip } from '@filigran/design-system';
-import { ExtensionOutlined } from '@mui/icons-material';
 import { type FunctionComponent } from 'react';
 
 import MarketplaceCard from '../../../../components/common/marketplace/card/MarketplaceCard';
 import MarketplaceCardMeta from '../../../../components/common/marketplace/card/MarketplaceCardMeta';
 import { useFormatter } from '../../../../components/i18n';
 import { type AvailableIntegrationActionOutput } from '../../../../utils/api-types';
+import AvailableActionIcon from './AvailableActionIcon';
+import { integrationUrl } from './availableActions';
 
 interface Props {
   action: AvailableIntegrationActionOutput;
@@ -20,9 +21,7 @@ const ThreatArsenalContractCatalogCard: FunctionComponent<Props> = ({ action, na
   return (
     <MarketplaceCard
       testId="threat-arsenal-contract-catalog-card"
-      icon={action.action_integration_logo_url
-        ? <img src={`/api/images/catalog/connectors/logos/${action.action_integration_logo_url}`} alt={action.action_integration_title} />
-        : <ExtensionOutlined color="primary" />}
+      icon={<AvailableActionIcon action={action} />}
       title={name}
       overline={action.action_domain ? t(action.action_domain) : undefined}
       subtitle={`${t('by')} ${action.action_integration_title}`}
@@ -34,7 +33,7 @@ const ThreatArsenalContractCatalogCard: FunctionComponent<Props> = ({ action, na
         </span>
       )}
       footerStart={<MarketplaceCardMeta platforms={action.action_platforms} />}
-      linkTo={`/admin/integrations/catalog/${action.action_integration_id}`}
+      linkTo={integrationUrl(action)}
     />
   );
 };

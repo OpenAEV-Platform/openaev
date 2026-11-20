@@ -4,10 +4,14 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type CatalogScenarioOutput } from '../../../../../utils/api-types';
+import { type CatalogScenarioOutput, type SearchPaginationInput } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 
-const mocks = vi.hoisted(() => ({ fetchCatalogScenarios: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  searchCatalogScenarios: vi.fn(),
+  fetchCatalogScenarioFacetCounts: vi.fn(),
+  loadMore: { current: () => {} },
+}));
 
 vi.mock('../../../../../components/i18n', () => ({
   useFormatter: () => ({
@@ -16,7 +20,11 @@ vi.mock('../../../../../components/i18n', () => ({
     nsd: (date: string) => date,
   }),
 }));
-vi.mock('../../../../../actions/catalog/scenario-catalog-actions', () => ({ fetchCatalogScenarios: mocks.fetchCatalogScenarios }));
+vi.mock('../../../../../actions/catalog/scenario-catalog-actions', () => ({
+  searchCatalogScenarios: mocks.searchCatalogScenarios,
+  fetchCatalogScenarioFacetCounts: mocks.fetchCatalogScenarioFacetCounts,
+}));
+vi.mock('../../../../../components/common/queryable/pagination/PaginationComponentV2', async () => ({ default: (await import('../../../../utils/FakePaginationComponentV2')).default }));
 vi.mock('../../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: () => true }) }));
 vi.mock(import('../../../../../utils/utils'), async importOriginal => ({
   ...await importOriginal(),
@@ -44,6 +52,13 @@ const scenario = (name: string, type: string): CatalogScenarioOutput => ({
 const PHISHING = scenario('Phishing', 'TIME_BASED');
 const RANSOMWARE = scenario('Ransomware', 'CHAINED');
 
+const page = (content: CatalogScenarioOutput[], totalElements = content.length) => ({
+  data: {
+    content,
+    totalElements,
+  },
+});
+
 const renderPage = () => render(
   <ThemeProvider theme={createTheme()}>
     <TooltipProvider>
@@ -54,35 +69,64 @@ const renderPage = () => render(
   </ThemeProvider>,
 );
 
+const lastSearch = (): SearchPaginationInput => mocks.searchCatalogScenarios.mock.lastCall?.[0];
 const cardTitles = () => screen.queryAllByTestId('scenario-catalog-card').map(card => card.textContent);
 
 describe('ScenariosAvailable', () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.spyOn(MESSAGING$, 'notifySuccess').mockImplementation(() => undefined);
+    vi.stubGlobal('IntersectionObserver', class {
+      constructor(callback: (entries: { isIntersecting: boolean }[]) => void) {
+        mocks.loadMore.current = () => callback([{ isIntersecting: true }]);
+      }
+
+      observe() {}
+
+      disconnect() {}
+    });
+    mocks.searchCatalogScenarios.mockResolvedValue(page([PHISHING, RANSOMWARE]));
+    mocks.fetchCatalogScenarioFacetCounts.mockResolvedValue({
+      catalog_item_scenario_type: {
+        TIME_BASED: 1,
+        CHAINED: 1,
+      },
+    });
   });
 
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  it('given_catalogueScenarios_should_showOneCardEachSortedByName', async () => {
-    // Arrange
-    mocks.fetchCatalogScenarios.mockResolvedValue([RANSOMWARE, PHISHING]);
-
+  it('given_catalogueScenarios_should_showOneCardEachNewestFirst', async () => {
     // Act
     renderPage();
 
     // Assert
     await waitFor(() => expect(cardTitles()).toHaveLength(2));
-    expect(cardTitles()[0]).toContain('Phishing');
-    expect(screen.getByTestId('marketplace-results-count').textContent).toBe('2 results');
+    expect(lastSearch().sorts).toEqual([{
+      property: 'catalog_item_published_at',
+      direction: 'DESC',
+    }]);
     expect(screen.getByText('Available').closest('a')?.getAttribute('href')).toBe('/admin/scenarios/available');
   });
 
-  it('given_aTypeFacet_should_showOnlyTheScenariosOfThatType', async () => {
+  it('given_aSearchText_should_searchTheServerWithIt', async () => {
     // Arrange
-    mocks.fetchCatalogScenarios.mockResolvedValue([RANSOMWARE, PHISHING]);
+    renderPage();
+    await waitFor(() => expect(cardTitles()).toHaveLength(2));
+
+    // Act
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'ransom' } });
+
+    // Assert
+    await waitFor(() => expect(lastSearch().textSearch).toBe('ransom'));
+  });
+
+  it('given_aTypeFacet_should_filterTheSearchAndShowItsChip', async () => {
+    // Arrange
     renderPage();
     await waitFor(() => expect(cardTitles()).toHaveLength(2));
 
@@ -90,37 +134,69 @@ describe('ScenariosAvailable', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chained' }));
 
     // Assert
-    expect(cardTitles()).toHaveLength(1);
-    expect(cardTitles()[0]).toContain('Ransomware');
+    await waitFor(() => expect(screen.getByTestId('filter-chip').textContent).toBe('catalog_item_scenario_type = CHAINED'));
+    expect(lastSearch().filterGroup?.filters).toEqual([expect.objectContaining({
+      key: 'catalog_item_scenario_type',
+      values: ['CHAINED'],
+    })]);
   });
 
-  it('given_aSearchMatchingNothing_should_offerToResetTheFilters', async () => {
+  it('given_moreScenariosThanThePage_should_loadTheNextPageAtTheBottom', async () => {
     // Arrange
-    mocks.fetchCatalogScenarios.mockResolvedValue([PHISHING]);
+    mocks.searchCatalogScenarios
+      .mockResolvedValueOnce(page([PHISHING], 2))
+      .mockResolvedValueOnce(page([RANSOMWARE], 2));
     renderPage();
     await waitFor(() => expect(cardTitles()).toHaveLength(1));
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'nothing like it' } });
+
+    // Act
+    mocks.loadMore.current();
+
+    // Assert
+    await waitFor(() => expect(cardTitles()).toHaveLength(2));
+    expect(lastSearch().page).toBe(1);
+  });
+
+  it('given_theListView_should_showOneRowPerScenario', async () => {
+    // Arrange
+    renderPage();
+    await waitFor(() => expect(cardTitles()).toHaveLength(2));
+
+    // Act
+    fireEvent.click(screen.getByRole('radio', { name: 'List view' }));
+
+    // Assert
+    expect(cardTitles()).toHaveLength(0);
+    expect(screen.getByRole('button', { name: /Ransomware/ })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Install' })).toHaveLength(2);
+  });
+
+  it('given_noMatchingScenario_should_offerToResetTheFilters', async () => {
+    // Arrange
+    mocks.searchCatalogScenarios.mockResolvedValue(page([]));
+    renderPage();
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'nothing like it' } });
     await waitFor(() => expect(screen.getByText('No scenario matches these filters.')).toBeTruthy());
 
     // Act
     fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }));
 
     // Assert
-    expect(cardTitles()).toHaveLength(1);
+    await waitFor(() => expect(lastSearch().textSearch ?? '').toBe(''));
   });
 
-  it('given_anInstalledScenario_should_removeItsCardAndNotify', async () => {
+  it('given_anInstalledScenario_should_notifyAndSearchAgain', async () => {
     // Arrange
-    mocks.fetchCatalogScenarios.mockResolvedValue([PHISHING]);
     renderPage();
-    await waitFor(() => expect(cardTitles()).toHaveLength(1));
+    await waitFor(() => expect(cardTitles()).toHaveLength(2));
+    const searches = mocks.searchCatalogScenarios.mock.calls.length;
 
     // Act
-    fireEvent.click(screen.getByRole('button', { name: 'Install' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Install' })[0]);
     fireEvent.click(screen.getByTestId('confirm-install'));
 
     // Assert
     expect(MESSAGING$.notifySuccess).toHaveBeenCalledWith('Phishing v1.0 installed');
-    expect(screen.getByText('Every catalog scenario is installed')).toBeTruthy();
+    await waitFor(() => expect(mocks.searchCatalogScenarios.mock.calls.length).toBeGreaterThan(searches));
   });
 });
