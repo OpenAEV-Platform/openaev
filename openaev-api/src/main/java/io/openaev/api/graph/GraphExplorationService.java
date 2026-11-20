@@ -66,7 +66,6 @@ public class GraphExplorationService {
     final Map<String, GraphEdgeOutput> edges = new LinkedHashMap<>();
     final Map<String, GraphResult> nodeResults = new HashMap<>();
     final Map<String, Long> failed = new HashMap<>();
-    final Map<String, Long> findings = new HashMap<>();
 
     /** The date of a node where its entity has one (see {@link GraphNodeOutput#date()}). */
     final Map<String, Instant> dates = new HashMap<>();
@@ -109,9 +108,6 @@ public class GraphExplorationService {
         nodeResults.merge(target, result, GraphResult::worst);
         nodeResults.merge(source, result, GraphResult::worst);
       }
-      if (type == GraphEdgeType.FOUND_ON) {
-        findings.merge(target, 1L, Long::sum);
-      }
     }
 
     /** Records an attack-path step of one simulation between two asset nodes. */
@@ -125,9 +121,22 @@ public class GraphExplorationService {
     }
 
     GraphOutput build(String focus, Predicate<GraphNodeOutput> visible, List<String> path) {
+      Set<String> visibleIds = new java.util.HashSet<>();
+      for (GraphNodeOutput n : nodes.values()) {
+        if (visible.test(n)) {
+          visibleIds.add(n.nodeId());
+        }
+      }
+      // A finding count counts the visible findings only: a hidden finding never shows as a number.
+      Map<String, Long> findingCounts = new HashMap<>();
+      for (GraphEdgeOutput e : edges.values()) {
+        if (e.edgeType() == GraphEdgeType.FOUND_ON && visibleIds.contains(e.source())) {
+          findingCounts.merge(e.target(), 1L, Long::sum);
+        }
+      }
       List<GraphNodeOutput> kept = new ArrayList<>();
       for (GraphNodeOutput n : nodes.values()) {
-        if (!visible.test(n)) {
+        if (!visibleIds.contains(n.nodeId())) {
           continue;
         }
         kept.add(
@@ -139,14 +148,12 @@ public class GraphExplorationService {
                 n.subtype(),
                 nodeResults.get(n.nodeId()),
                 failed.getOrDefault(n.nodeId(), 0L),
-                findings.getOrDefault(n.nodeId(), 0L),
+                findingCounts.getOrDefault(n.nodeId(), 0L),
                 dates.get(n.nodeId())));
       }
-      Set<String> ids = new java.util.HashSet<>();
-      kept.forEach(n -> ids.add(n.nodeId()));
       List<GraphEdgeOutput> keptEdges = new ArrayList<>();
       for (GraphEdgeOutput e : edges.values()) {
-        if (!ids.contains(e.source()) || !ids.contains(e.target())) {
+        if (!visibleIds.contains(e.source()) || !visibleIds.contains(e.target())) {
           continue;
         }
         Map<String, GraphResult> sims = stepSimulations.get(e.edgeId());
@@ -376,6 +383,7 @@ public class GraphExplorationService {
           k ->
               switch (node.nodeType()) {
                 case PERSON, ORGANIZATION, TEAM -> visibility.canReadPeople(node.nodeType());
+                case FINDING -> visibility.canReadFindings();
                 case SIMULATION -> visibility.canReadSimulation(node.entityId());
                 case SCENARIO -> visibility.canReadScenario(node.entityId());
                 case INJECT -> {

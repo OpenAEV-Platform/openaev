@@ -534,6 +534,11 @@ class GraphExplorationServiceTest extends IntegrationTest {
       public boolean canReadPeople(GraphNodeType type) {
         return false;
       }
+
+      @Override
+      public boolean canReadFindings() {
+        return true;
+      }
     };
   }
 
@@ -700,6 +705,11 @@ class GraphExplorationServiceTest extends IntegrationTest {
 
       @Override
       public boolean canReadPeople(GraphNodeType type) {
+        return true;
+      }
+
+      @Override
+      public boolean canReadFindings() {
         return true;
       }
     };

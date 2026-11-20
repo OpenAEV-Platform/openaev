@@ -503,7 +503,9 @@ public class GraphLandingService {
             .limit(1)
             .toList();
     add(points, Kind.LATEST_SIMULATION, GraphNodeType.SIMULATION, latest, r -> true);
-    add(points, Kind.TOP_FINDING, GraphNodeType.FINDING, topFindings(tenantIds), r -> true);
+    if (visibility.canReadFindings()) {
+      add(points, Kind.TOP_FINDING, GraphNodeType.FINDING, topFindings(tenantIds), r -> true);
+    }
     add(
         points,
         Kind.ATTACK_PATH,
