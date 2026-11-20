@@ -7531,6 +7531,7 @@ export interface InjectUpdateStatusInput {
 
 export interface Injector {
   injector_category?: string;
+  injector_commit?: string;
   /** @format date-time */
   injector_created_at: string;
   injector_custom_contracts?: boolean;
@@ -7868,6 +7869,7 @@ export interface InjectorContractUpdateMappingInput {
 export interface InjectorCreateInput {
   injector_author?: string;
   injector_category?: string;
+  injector_commit?: string;
   injector_contracts?: InjectorContractInput[];
   injector_custom_contracts?: boolean;
   injector_executor_clear_commands?: Record<string, string>;
@@ -7887,6 +7889,7 @@ export interface InjectorOutput {
   catalog?: CatalogConnectorSimpleOutput;
   connector_instance?: ConnectorInstanceOutput;
   existing_injector?: boolean;
+  injector_commit?: string;
   injector_external?: boolean;
   /**
    * Injector id
