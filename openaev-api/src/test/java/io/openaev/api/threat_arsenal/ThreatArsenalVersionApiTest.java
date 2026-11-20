@@ -2,8 +2,10 @@ package io.openaev.api.threat_arsenal;
 
 import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.injector_contract.fields.ContractText.textField;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.service.payload.PayloadVersionService.NOT_ANOTHER_VERSION;
 import static io.openaev.service.payload.PayloadVersionService.VERSION_REVOKED;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.PAYLOAD_ID;
@@ -19,6 +21,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -40,6 +43,7 @@ import io.openaev.database.repository.PayloadRevocationRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
+import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.payload.PayloadUsageMoveService;
 import io.openaev.service.payload.PayloadUsageMoveService.Moves;
@@ -620,6 +624,111 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
       assertThatThrownBy(
               () -> stepService.updateStepTemplateInjectorContract(step, versions.get(1)))
           .isInstanceOf(WorkflowNotEditableException.class);
+    }
+  }
+
+  // -- INJECT VERSION --
+
+  @Nested
+  @DisplayName("Choosing the version an inject runs")
+  class InjectVersion {
+
+    private Inject scenarioInjectOn(InjectorContract contract) {
+      InjectComposer.Composer inject =
+          injectComposer.forInject(InjectFixture.createInject(contract, "Scenario inject"));
+      scenarioComposer.forScenario(ScenarioFixture.getScenario()).withInject(inject).persist();
+      entityManager.flush();
+      return inject.get();
+    }
+
+    private ResultActions chooseInScenario(Inject inject, InjectorContract chosen)
+        throws Exception {
+      return mvc.perform(
+          put(
+                  TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
+                  DEFAULT_TENANT_UUID,
+                  inject.getScenario().getId(),
+                  inject.getId())
+              .with(csrf())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(mapper.writeValueAsString(input(inject, chosen))));
+    }
+
+    private InjectInput input(Inject inject, InjectorContract chosen) {
+      InjectInput input = new InjectInput();
+      input.setTitle(inject.getTitle());
+      input.setInjectorContract(chosen.getId());
+      input.setDependsDuration(inject.getDependsDuration());
+      return input;
+    }
+
+    @Test
+    @DisplayName("moves a scenario inject to another installed version of its payload")
+    void given_otherInstalledVersion_should_runIt() throws Exception {
+      // Arrange
+      List<String> ids = installed("1.0.0", "1.1.0");
+      Inject inject = scenarioInjectOn(contractOf(ids.get(0)));
+      String chosen = contractOf(ids.get(1)).getId();
+
+      // Act & Assert
+      chooseInScenario(inject, contractOf(ids.get(1)))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.inject_injector_contract.injector_contract_id").value(chosen));
+    }
+
+    @Test
+    @DisplayName("refuses a revoked version")
+    void given_revokedVersion_should_refuseIt() throws Exception {
+      // Arrange
+      List<String> ids = installed("1.0.0", "1.1.0");
+      Inject inject = scenarioInjectOn(contractOf(ids.get(0)));
+      InjectorContract revoked = contractOf(ids.get(1));
+      payloadRevocationRepository.save(
+          PayloadRevocation.byAdmin(payload(ids.get(1)), "Too noisy", null));
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act & Assert
+      chooseInScenario(inject, revoked).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("refuses the action of another payload")
+    void given_otherPayload_should_refuseIt() throws Exception {
+      // Arrange
+      Inject inject = scenarioInjectOn(contractOf(installed("1.0.0").getFirst()));
+
+      // Act & Assert
+      chooseInScenario(inject, localAction()).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("keeps the version of a simulation inject")
+    void given_simulationInject_should_keepItsVersion() throws Exception {
+      // Arrange
+      List<String> ids = installed("1.0.0", "1.1.0");
+      InjectorContract current = contractOf(ids.get(0));
+      InjectComposer.Composer inject =
+          injectComposer.forInject(InjectFixture.createInject(current, "Simulation inject"));
+      exerciseComposer
+          .forExercise(ExerciseFixture.createDefaultExercise())
+          .withInject(inject)
+          .persist();
+      entityManager.flush();
+
+      // Act & Assert
+      mvc.perform(
+              put(
+                      TENANT_PREFIX + "/injects/{exerciseId}/{injectId}",
+                      DEFAULT_TENANT_UUID,
+                      inject.get().getExercise().getId(),
+                      inject.get().getId())
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(mapper.writeValueAsString(input(inject.get(), contractOf(ids.get(1))))))
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.inject_injector_contract.injector_contract_id").value(current.getId()));
     }
   }
 }
