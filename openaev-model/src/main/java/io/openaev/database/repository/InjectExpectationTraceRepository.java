@@ -26,27 +26,6 @@ public interface InjectExpectationTraceRepository
       @Param("expectationIds") final Collection<String> expectationIds,
       @Param("sourceId") final String sourceId);
 
-  /** One collected alert and the inject whose expectation it answered. */
-  interface AlertInjectRow {
-    String getAlertLink();
-
-    String getInjectId();
-
-    String getInjectTitle();
-
-    String getExerciseId();
-  }
-
-  // The reverse alert lookup of the XTM counterpart contract: which injects a collected alert
-  // answered, newest alert first, so the first row per link is the pivot.
-  @Query(
-      "select t.alertLink as alertLink, i.id as injectId, i.title as injectTitle,"
-          + " e.id as exerciseId from InjectExpectationTrace t join t.injectExpectation ie"
-          + " join ie.inject i left join i.exercise e where t.alertLink in :alertLinks"
-          + " order by t.alertDate desc")
-  List<AlertInjectRow> findAlertInjectsByAlertLinkIn(
-      @Param("alertLinks") final Collection<String> alertLinks);
-
   @Query("select t from InjectExpectationTrace t where t.injectExpectation.id in :expectationIds")
   List<InjectExpectationTrace> findByInjectExpectationIdIn(
       @Param("expectationIds") final Collection<String> expectationIds);
