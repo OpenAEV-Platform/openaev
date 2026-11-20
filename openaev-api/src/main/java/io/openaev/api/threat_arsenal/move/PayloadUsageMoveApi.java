@@ -33,8 +33,8 @@ public class PayloadUsageMoveApi {
   @Operation(
       summary = "Move injects and chained steps to another version of the action's payload",
       description =
-          "Each one needs the right to update its scenario or atomic testing, and arguments the"
-              + " target version accepts; the others stay and are returned with the reason.")
+          "Each one needs the right to update its scenario or atomic testing, and the fields the"
+              + " target version needs; the others stay and are returned with the reason.")
   @PostMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/usages/move")
   @Transactional(rollbackFor = Exception.class)
   @AccessControl(
@@ -50,7 +50,6 @@ public class PayloadUsageMoveApi {
             writeScopeResolver.tenantForWrite(ctx, null),
             actionId,
             input.targetPayloadId(),
-            input.injectIds(),
-            input.stepIds()));
+            input.usageIds()));
   }
 }
