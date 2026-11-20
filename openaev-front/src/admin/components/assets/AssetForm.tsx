@@ -25,6 +25,8 @@ import TextFieldController from '../../../components/fields/TextFieldController'
 import { useFormatter } from '../../../components/i18n';
 import { type EndpointCreateInput, type EndpointInput } from '../../../utils/api-types';
 import markingIdSetsEqual from '../../../utils/markings';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { formatMacAddress } from '../../../utils/String';
 import { isFeatureEnabled } from '../../../utils/utils';
 import {
@@ -224,7 +226,8 @@ const AssetForm: FunctionComponent<Props> = ({
 
   const watchedHostname = methods.watch('asset_hostname');
 
-  const showMarkings = isFeatureEnabled('MARKING');
+  const ability = useAbility();
+  const showMarkings = isFeatureEnabled('MARKING') && ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_ASSIGNMENT);
 
   // Markings are split out of the submitted payload and reported through `onMarkingsChange`
   // instead: they don't belong to EndpointInput and are persisted through their own endpoint (see

@@ -388,11 +388,23 @@ class AssetMarkingsApiTest extends IntegrationTest {
           .andExpect(status().isForbidden());
 
       // -- ASSERT --
-      entityManager.flush();
-      assertEquals(
-          0,
-          jdbc.queryForObject(
-              "SELECT count(*) FROM assets WHERE asset_name = ?", Integer.class, input.getName()));
+      assertEquals(0, assetsNamed(input.getName()));
+    }
+
+    @Test
+    @DisplayName(
+        "given the caller lacks MANAGE_MARKING_ASSIGNMENT, should refuse and create nothing")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
+    void given_noMarkingCapability_should_forbidAndCreateNothing() throws Exception {
+      // -- ARRANGE --
+      EndpointInput input = endpointInput();
+
+      // -- ACT --
+      createAsset(ENDPOINT_CREATE_URI, input, List.of(green.getId()))
+          .andExpect(status().isForbidden());
+
+      // -- ASSERT --
+      assertEquals(0, assetsNamed(input.getName()));
     }
   }
 
@@ -436,6 +448,12 @@ class AssetMarkingsApiTest extends IntegrationTest {
     EndpointInput input = EndpointFixture.createWindowsEndpointInput(List.of());
     input.setName("asset-markings-" + uniqueDefinition());
     return input;
+  }
+
+  private int assetsNamed(String name) {
+    entityManager.flush();
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM assets WHERE asset_name = ?", Integer.class, name);
   }
 
   /** Ground truth: what actually reached the column, bypassing Hibernate's first-level cache. */

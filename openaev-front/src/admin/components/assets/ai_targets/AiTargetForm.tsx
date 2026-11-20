@@ -10,6 +10,8 @@ import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { type AiTargetCreateInput, type AiTargetInput } from '../../../../utils/api-types';
 import markingIdSetsEqual from '../../../../utils/markings';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import { zodImplement } from '../../../../utils/Zod';
 import { CRITICALITY_OPTIONS, humanizeEnum } from '../asset-categories';
@@ -101,7 +103,8 @@ const AiTargetForm: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
 
-  const showMarkings = isFeatureEnabled('MARKING');
+  const ability = useAbility();
+  const showMarkings = isFeatureEnabled('MARKING') && ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_ASSIGNMENT);
 
   const {
     register,
