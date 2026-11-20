@@ -8,6 +8,7 @@ import io.openaev.database.model.FindingOccurrence;
 import io.openaev.database.model.FindingSeverityBucket;
 import io.openaev.database.model.FindingTriageStatus;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.StableFinding;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
@@ -32,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -57,6 +59,17 @@ public class StableFindingMapper {
    * Maps a stable finding and all of its preloaded observations to the compatibility read shape.
    */
   public StableFindingOutput toOutput(StableFinding finding, List<FindingOccurrence> occurrences) {
+    return toOutput(finding, occurrences, Map.of());
+  }
+
+  /**
+   * Same, with the injectors of the occurrences preloaded by id: Source lists every injector that
+   * detected the finding, first detection first ("first, then +N").
+   */
+  public StableFindingOutput toOutput(
+      StableFinding finding,
+      List<FindingOccurrence> occurrences,
+      Map<String, Injector> injectorsById) {
     FindingOccurrence latest = occurrences.isEmpty() ? null : occurrences.getFirst();
     Inject latestInject = latest == null ? null : latest.getInject();
     Set<EndpointSimple> assets =
@@ -119,9 +132,18 @@ public class StableFindingMapper {
         .field(finding.getContractOutputKey())
         .type(finding.getType())
         .value(SensitiveValueMaskingUtils.maskIfNeeded(finding.getType(), finding.getValue()))
-        .location(locations.isEmpty() ? null : String.join(", ", locations))
-        .locationType(locationTypes.size() == 1 ? locationTypes.iterator().next() : null)
-        .locationKey(locationKeys.size() == 1 ? locationKeys.getFirst() : null)
+        .location(
+            finding.getLocation() != null
+                ? finding.getLocation()
+                : locations.isEmpty() ? null : String.join(", ", locations))
+        .locationType(
+            finding.getLocationType() != null
+                ? finding.getLocationType()
+                : locationTypes.size() == 1 ? locationTypes.iterator().next() : null)
+        .locationKey(
+            finding.getLocationKey() != null
+                ? finding.getLocationKey()
+                : locationKeys.size() == 1 ? locationKeys.getFirst() : null)
         .name(latest == null ? null : latest.getTitle())
         .title(latest == null ? null : latest.getTitle())
         .tags(finding.getTags().stream().map(tag -> tag.getId()).collect(Collectors.toSet()))
@@ -130,12 +152,17 @@ public class StableFindingMapper {
         .humanUpdatedAt(finding.getHumanUpdatedAt())
         .archivedAt(finding.getArchivedAt())
         .source(toSource(finding, latestInject))
+        .sources(toSources(finding, occurrences, injectorsById))
         .inject(toInject(latestInject))
         .injectId(latestInject == null ? null : latestInject.getId())
         .simulation(toSimulation(latestInject))
         .scenario(toScenario(latestInject))
         .assetGroups(toAssetGroups(latestInject))
-        .assets(assets)
+        .assets(
+            finding.getLocationAsset() != null
+                ? new LinkedHashSet<>(
+                    List.of(endpointMapper.toEndpointSimple(finding.getLocationAsset())))
+                : assets)
         .users(users)
         .teams(teams)
         .occurrences(occurrences.size())
@@ -153,7 +180,10 @@ public class StableFindingMapper {
         .aggregationCategory(finding.getAggregationCategory())
         .lifecycle(finding.getLifecycle())
         .outcome(latest == null ? null : persistedOutcome(latest.getOutcome()))
-        .severity(effectiveSeverity.name())
+        .severity(
+            finding.getLatestSeverity() != null
+                ? finding.getLatestSeverity()
+                : effectiveSeverity.name())
         .severityId(latest == null ? null : latest.getObservedSeverityId())
         .sourceUid(latest == null ? null : latest.getSourceFindingUid())
         .resource(latest == null ? null : latest.getResource())
@@ -315,6 +345,38 @@ public class StableFindingMapper {
 
   private static List<String> toList(String[] values) {
     return values == null ? List.of() : Arrays.asList(values);
+  }
+
+  private List<InjectorSimple> toSources(
+      StableFinding finding,
+      List<FindingOccurrence> occurrences,
+      Map<String, Injector> injectorsById) {
+    List<String> ids =
+        occurrences.stream()
+            .sorted(
+                java.util.Comparator.comparing(FindingOccurrence::getObservedAt)
+                    .thenComparing(FindingOccurrence::getId))
+            .map(FindingOccurrence::getSourceInjectorId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    if (ids.isEmpty()) {
+      return finding.getSourceInjector() == null
+          ? List.of()
+          : List.of(injectorMapper.toInjectorSimple(finding.getSourceInjector()));
+    }
+    return ids.stream()
+        .map(
+            id ->
+                injectorsById.containsKey(id)
+                    ? injectorsById.get(id)
+                    : finding.getSourceInjector() != null
+                            && id.equals(finding.getSourceInjector().getId())
+                        ? finding.getSourceInjector()
+                        : null)
+        .filter(Objects::nonNull)
+        .map(injectorMapper::toInjectorSimple)
+        .toList();
   }
 
   private InjectorSimple toSource(StableFinding finding, Inject latestInject) {

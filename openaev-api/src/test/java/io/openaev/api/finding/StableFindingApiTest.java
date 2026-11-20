@@ -94,7 +94,7 @@ class StableFindingApiTest {
               .toList();
 
       // Act / Assert
-      assertThat(endpoints).hasSize(6);
+      assertThat(endpoints).hasSize(7);
       assertThat(endpoints)
           .allSatisfy(
               endpoint -> {

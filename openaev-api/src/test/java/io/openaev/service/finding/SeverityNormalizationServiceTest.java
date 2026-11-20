@@ -82,10 +82,10 @@ class SeverityNormalizationServiceTest {
     }
 
     @Test
-    @DisplayName("Should bucket OCSF 'Informational' label as UNKNOWN")
-    void given_ocsf_informational_should_bucket_unknown() {
+    @DisplayName("Should bucket OCSF 'Informational' label as LOW")
+    void given_ocsf_informational_should_bucket_low() {
       Finding finding = findingWith(ContractOutputType.OCSF, "Informational");
-      assertEquals(FindingSeverityBucket.UNKNOWN, service.normalize(finding));
+      assertEquals(FindingSeverityBucket.LOW, service.normalize(finding));
     }
 
     @Test

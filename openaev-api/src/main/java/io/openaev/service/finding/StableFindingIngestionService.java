@@ -100,26 +100,68 @@ public class StableFindingIngestionService {
     String namespace = sourceNamespace(inject, output, source);
     Instant observedAt = observedAt(source, finding);
     StableFindingLifecycle lifecycle = lifecycle(source);
-    String key = stableKey(tenantId, namespace, output.type(), finding.getValue());
-    StableFinding stable =
-        stableFindingRepository
-            .findByKeyAndTenantId(key, tenantId)
-            .orElseGet(
-                () ->
-                    createStableFinding(
-                        inject, output, finding, namespace, key, observedAt, lifecycle));
-    mergeTags(stable, finding);
-    mergeLabelTags(stable, tenantId, labels(source, null));
+    Injector injector = sourceInjector(inject);
 
-    List<Location> locations = locations(finding, source);
-    for (Location location : locations) {
+    // US.0.0: one finding per Type + Value + Location. A detection on 3 assets is 3 findings.
+    for (Location location : locations(finding, source)) {
+      String key = stableKey(tenantId, output.type(), finding.getValue(), location);
+      StableFinding stable =
+          stableFindingRepository
+              .findByKeyAndTenantId(key, tenantId)
+              .orElseGet(
+                  () ->
+                      createStableFinding(
+                          inject,
+                          output,
+                          finding,
+                          namespace,
+                          key,
+                          observedAt,
+                          lifecycle,
+                          location));
+      mergeTags(stable, finding);
+      mergeLabelTags(stable, tenantId, labels(source, location.snapshot()));
       if (findingOccurrenceRepository.existsLiveOccurrence(
           tenantId, stable.getId(), inject.getId(), location.type(), location.key())) {
         continue;
       }
-      findingOccurrenceRepository.save(
-          occurrence(stable, inject, finding, source, location, observedAt));
+      FindingOccurrence occurrence =
+          occurrence(stable, inject, finding, source, location, observedAt);
+      occurrence.setSourceInjectorId(injector == null ? null : injector.getId());
+      findingOccurrenceRepository.save(occurrence);
       refreshStable(stable, tenantId);
+    }
+  }
+
+  /**
+   * US.0.1: a compliant (PASS) OCSF record creates no finding, but closes the open finding with the
+   * same identity (same control on the same resource). A later FAIL reopens it.
+   */
+  public void closeOnPass(
+      @NotNull Inject inject,
+      @NotNull ContractOutputContext output,
+      @NotNull List<JsonNode> passRecords,
+      @NotNull java.util.function.Function<JsonNode, String> valueExtractor) {
+    String tenantId =
+        Objects.requireNonNull(inject.getTenant(), "Inject tenant is required").getId();
+    for (JsonNode record : passRecords) {
+      String value = valueExtractor.apply(record);
+      if (value == null || value.isBlank()) {
+        continue;
+      }
+      Finding probe = new Finding();
+      probe.setType(output.type());
+      probe.setValue(value);
+      for (Location location : locations(probe, record)) {
+        stableFindingRepository
+            .findByKeyAndTenantId(stableKey(tenantId, output.type(), value, location), tenantId)
+            .filter(stable -> stable.getLifecycle() != StableFindingLifecycle.FIXED)
+            .ifPresent(
+                stable -> {
+                  stable.setLifecycle(StableFindingLifecycle.FIXED);
+                  stableFindingRepository.save(stable);
+                });
+      }
     }
   }
 
@@ -130,7 +172,8 @@ public class StableFindingIngestionService {
       String namespace,
       String key,
       Instant observedAt,
-      StableFindingLifecycle lifecycle) {
+      StableFindingLifecycle lifecycle,
+      Location location) {
     StableFinding created = new StableFinding();
     created.setKey(key);
     created.setSourceNamespace(namespace);
@@ -143,6 +186,11 @@ public class StableFindingIngestionService {
     created.setFirstSeen(observedAt);
     created.setLastSeen(observedAt);
     created.setLifecycle(lifecycle);
+    created.setLocationType(location.type());
+    created.setLocationKey(location.key());
+    created.setLocation(location.display());
+    created.setLocationAsset(location.asset());
+    created.setLocationUser(location.user());
     created.setTenant(inject.getTenant());
     if (finding.getTags() != null) {
       created.setTags(new LinkedHashSet<>(finding.getTags()));
@@ -365,9 +413,33 @@ public class StableFindingIngestionService {
     return inject.getInjectorContract().map(contract -> contract.getFirstInjector()).orElse(null);
   }
 
+  /**
+   * US.0.0 identity: tenant + Type + Value + Location. The injector is not part of it, so the same
+   * value found by two injectors on one location is one finding with two sources. Must stay equal
+   * to V6_20261120100000000__Split_stable_findings_by_location#stableKey.
+   */
   static String stableKey(
-      String tenantId, String namespace, ContractOutputType type, String value) {
-    return sha256(tenantId, namespace, type.name(), value);
+      String tenantId, ContractOutputType type, String value, Location location) {
+    return stableKey(
+        tenantId,
+        type,
+        value,
+        location.type() == null ? null : location.type().name(),
+        location.key());
+  }
+
+  static String stableKey(
+      String tenantId,
+      ContractOutputType type,
+      String value,
+      String locationType,
+      String locationKey) {
+    return sha256(
+        tenantId,
+        type.name(),
+        value,
+        locationType == null ? "" : locationType,
+        locationKey == null ? "" : locationKey);
   }
 
   private static String sha256(String... components) {

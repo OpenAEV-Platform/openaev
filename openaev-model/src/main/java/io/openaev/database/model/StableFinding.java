@@ -54,10 +54,63 @@ import org.hibernate.annotations.UuidGenerator;
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class StableFinding implements TenantBase, Auditable {
 
+  /**
+   * Severity rank of the finding, 4 (CRITICAL) to 0 (UNKNOWN), per US.1 Breakdown 2: a CVE takes
+   * the CVSS v3.1 score of the vulnerability catalog first, otherwise the severity sent by the
+   * injector (a score or a label, matched case-insensitively, Informational = LOW). Anything else,
+   * missing or invalid (negative, above 10, unknown label) is UNKNOWN. Every subquery column is
+   * qualified: Hibernate prefixes the unqualified ones with the entity alias.
+   */
+  private static final String SEVERITY_RANK_SQL =
+      """
+      (case
+        when stable_finding_type = 'CVE' and exists (
+          select 1 from vulnerabilities v
+          where lower(v.vulnerability_external_id) = lower(stable_finding_value)
+            and v.tenant_id = tenant_id
+            and v.vulnerability_cvss_v31 is not null)
+        then (
+          select max(case
+            when v.vulnerability_cvss_v31 >= 9 then 4
+            when v.vulnerability_cvss_v31 >= 7 then 3
+            when v.vulnerability_cvss_v31 >= 4 then 2
+            when v.vulnerability_cvss_v31 > 0 then 1
+            else 0
+          end)
+          from vulnerabilities v
+          where lower(v.vulnerability_external_id) = lower(stable_finding_value)
+            and v.tenant_id = tenant_id)
+        else coalesce((
+          select max(case
+            when lower(trim(o.finding_occurrence_observed_severity)) = 'critical' then 4
+            when lower(trim(o.finding_occurrence_observed_severity)) = 'high' then 3
+            when lower(trim(o.finding_occurrence_observed_severity)) = 'medium' then 2
+            when lower(trim(o.finding_occurrence_observed_severity)) = 'low' then 1
+            when lower(trim(o.finding_occurrence_observed_severity)) = 'informational' then 1
+            when trim(o.finding_occurrence_observed_severity) ~ '^[0-9]+([.][0-9]+)?$'
+              and trim(o.finding_occurrence_observed_severity)::numeric > 10 then 0
+            when trim(o.finding_occurrence_observed_severity) ~ '^[0-9]+([.][0-9]+)?$'
+              and trim(o.finding_occurrence_observed_severity)::numeric >= 9 then 4
+            when trim(o.finding_occurrence_observed_severity) ~ '^[0-9]+([.][0-9]+)?$'
+              and trim(o.finding_occurrence_observed_severity)::numeric >= 7 then 3
+            when trim(o.finding_occurrence_observed_severity) ~ '^[0-9]+([.][0-9]+)?$'
+              and trim(o.finding_occurrence_observed_severity)::numeric >= 4 then 2
+            when trim(o.finding_occurrence_observed_severity) ~ '^[0-9]+([.][0-9]+)?$'
+              and trim(o.finding_occurrence_observed_severity)::numeric > 0 then 1
+            else 0
+          end)
+          from finding_occurrences o
+          where o.finding_occurrence_stable_finding_id = stable_finding_id
+            and o.tenant_id = tenant_id), 0)
+      end)
+      """;
+
   @Id
   @GeneratedValue(generator = "UUID")
   @UuidGenerator
   @Column(name = "stable_finding_id", updatable = false, nullable = false)
+  @Queryable(sortable = true)
+  @JsonProperty("finding_id")
   @NotBlank
   private String id;
 
@@ -104,6 +157,43 @@ public class StableFinding implements TenantBase, Auditable {
   public String getSourceType() {
     return sourceInjector == null ? null : sourceInjector.getType();
   }
+
+  // -- LOCATION (US.0.0: identity = Type + Value + Location) --
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "stable_finding_location_type")
+  private FindingLocationType locationType;
+
+  /** Normalized location key: asset id, user id, team id or cloud resource path. */
+  @Column(name = "stable_finding_location_key", length = 1024)
+  private String locationKey;
+
+  /** Location as displayed: asset name, user name or cloud resource. */
+  @Column(name = "stable_finding_location", columnDefinition = "text")
+  private String location;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "stable_finding_location_asset_id")
+  @Queryable(filterable = true, dynamicValues = true, path = "locationAsset.id", label = "asset")
+  @JsonProperty("finding_assets")
+  private Asset locationAsset;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "stable_finding_location_user_id")
+  private User locationUser;
+
+  /** Asset name used by the Asset sort; findings without asset are placed last, see below. */
+  @Formula(
+      "(select lower(a.asset_name) from assets a where a.asset_id = stable_finding_location_asset_id)")
+  @Queryable(sortable = true, label = "asset")
+  @JsonProperty("finding_asset_name")
+  private String locationAssetName;
+
+  /** 1 when the finding has no asset (finding on a user or a resource): sorted first, ascending. */
+  @Formula("(case when stable_finding_location_asset_id is null then 1 else 0 end)")
+  @Queryable(sortable = true)
+  @JsonProperty("finding_asset_missing")
+  private Integer locationAssetMissing;
 
   @Enumerated(EnumType.STRING)
   @Queryable(filterable = true, sortable = true, label = "finding type")
@@ -173,58 +263,22 @@ public class StableFinding implements TenantBase, Auditable {
   @JsonProperty("finding_archived")
   private boolean archived;
 
-  // No column alias in this formula: Hibernate prefixes unqualified identifiers (an "as rank"
+  // No column alias in these formulas: Hibernate prefixes unqualified identifiers (an "as rank"
   // alias became "as sf1_0.rank") with the entity alias, which breaks the generated SQL.
   @Formula(
-      """
-      (case
-        when stable_finding_type = 'Credentials' then 'CRITICAL'
-        else (
-          case greatest(
-            coalesce((
-              select max(case
-                when lower(trim(o.finding_occurrence_observed_severity)) = 'critical' then 4
-                when lower(trim(o.finding_occurrence_observed_severity)) = 'high' then 3
-                when lower(trim(o.finding_occurrence_observed_severity)) = 'medium' then 2
-                when lower(trim(o.finding_occurrence_observed_severity)) = 'low' then 1
-                when trim(o.finding_occurrence_observed_severity) ~ '^[0-9]+([.][0-9]+)?$'
-                  and trim(o.finding_occurrence_observed_severity)::numeric >= 9 then 4
-                when trim(o.finding_occurrence_observed_severity) ~ '^[0-9]+([.][0-9]+)?$'
-                  and trim(o.finding_occurrence_observed_severity)::numeric >= 7 then 3
-                when trim(o.finding_occurrence_observed_severity) ~ '^[0-9]+([.][0-9]+)?$'
-                  and trim(o.finding_occurrence_observed_severity)::numeric >= 4 then 2
-                when trim(o.finding_occurrence_observed_severity) ~ '^[0-9]+([.][0-9]+)?$'
-                  and trim(o.finding_occurrence_observed_severity)::numeric > 0 then 1
-                else 0
-              end)
-              from finding_occurrences o
-              where o.finding_occurrence_stable_finding_id = stable_finding_id
-                and o.tenant_id = tenant_id), 0),
-            coalesce((
-              select max(case a.asset_criticality
-                when 'VERY_HIGH' then 4
-                when 'HIGH' then 3
-                when 'MEDIUM' then 2
-                when 'LOW' then 1
-                else 0
-              end)
-              from finding_occurrences o
-              join finding_occurrences_assets oa
-                on oa.finding_occurrence_id = o.finding_occurrence_id
-              join assets a on a.asset_id = oa.asset_id
-              where o.finding_occurrence_stable_finding_id = stable_finding_id
-                and o.tenant_id = tenant_id), 0))
-            when 4 then 'CRITICAL'
-            when 3 then 'HIGH'
-            when 2 then 'MEDIUM'
-            when 1 then 'LOW'
-            else 'UNKNOWN'
-          end)
-      end)
-      """)
-  @Queryable(filterable = true, sortable = true, label = "severity")
+      "(case "
+          + SEVERITY_RANK_SQL
+          + " when 4 then 'CRITICAL' when 3 then 'HIGH' when 2 then 'MEDIUM' when 1 then 'LOW'"
+          + " else 'UNKNOWN' end)")
+  @Queryable(filterable = true, label = "severity")
   @JsonProperty("finding_severity")
   private String latestSeverity;
+
+  /** Sort key of the severity: descending lists CRITICAL first and UNKNOWN last. */
+  @Formula(SEVERITY_RANK_SQL)
+  @Queryable(sortable = true, label = "severity")
+  @JsonProperty("finding_severity_rank")
+  private Integer severityRank;
 
   @Formula(
       """

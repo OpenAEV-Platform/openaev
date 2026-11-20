@@ -7,6 +7,7 @@ import { useParams } from 'react-router';
 
 import {
   fetchStableFinding,
+  fetchStableFindingSiblings,
   fetchStableFindingSummary,
   searchStableFindingOccurrences,
 } from '../../../actions/findings/finding-actions';
@@ -31,6 +32,7 @@ import AlsoDetectedOnPanel from './AlsoDetectedOnPanel';
 import FindingComments from './FindingComments';
 import FindingContextLink from './FindingContextLink';
 import FindingOccurrences from './FindingOccurrences';
+import { findingLocationLabel, findingSources, type StableFindingRow } from './FindingRowUtils';
 import FindingTriageHistory from './FindingTriageHistory';
 import getFindingTypeLabel from './FindingTypeLabel';
 import FindingVulnerabilityPanel from './FindingVulnerabilityPanel';
@@ -99,11 +101,13 @@ const FindingOverview = () => {
   const [finding, setFinding] = useState<FindingDetailOutput | null>(null);
   // Lifecycle dates and spread are computed from every occurrence of the stable Finding.
   const [summary, setSummary] = useState<StableFindingSummaryOutput | null>(null);
+  const [siblingsCount, setSiblingsCount] = useState<number | null>(null);
   const [cvssScore, setCvssScore] = useState<number | null>(null);
 
   useEffect(() => {
     fetchStableFinding(findingId).then(response => setFinding(response.data as FindingDetailOutput));
     fetchStableFindingSummary(findingId).then(response => setSummary(response.data));
+    fetchStableFindingSiblings(findingId, 0, 1).then(response => setSiblingsCount(response.data.totalElements));
   }, [findingId]);
 
   const typeLabel = useMemo(
@@ -250,8 +254,8 @@ const FindingOverview = () => {
             <HeroStat icon={FormatListNumberedOutlined} label={t('Occurrences')} value={summary?.finding_occurrences ?? '-'} />
             <HeroStat
               icon={LocationOnOutlined}
-              label={t('Asset')}
-              value={summary?.finding_locations_count ?? '-'}
+              label={t('Also detected on')}
+              value={siblingsCount ?? '-'}
               color={theme.palette.primary.main}
             />
             {isCVE && (
@@ -285,7 +289,10 @@ const FindingOverview = () => {
           </Box>
         </Field>
         <Field label={t('Field')}>{emptyFilled(finding.finding_field)}</Field>
-        <Field label={t('Source')}>{finding.finding_source?.injector_name ?? t('Manual')}</Field>
+        <Field label={t('Location')}>{findingLocationLabel(finding as unknown as StableFindingRow)}</Field>
+        <Field label={t('Source')}>
+          {findingSources(finding as unknown as StableFindingRow).map(source => source.injector_name).join(', ') || t('Manual')}
+        </Field>
         {/* Group-wide dates from the summary: the fetched row's own dates only
             cover one occurrence and would understate the group (the historical
             "first seen shows a later date" bug). */}
@@ -315,6 +322,9 @@ const FindingOverview = () => {
         <>
           <InformationGrid title={t('Cloud details')}>
             <Field label={t('Rule ID')}>{finding.finding_value}</Field>
+            {(finding as unknown as { finding_lifecycle?: string }).finding_lifecycle === 'FIXED' && (
+              <Field label={t('Status')}>{t('Fixed: a later scan found this resource compliant')}</Field>
+            )}
             <Field label={t('Check status')}>
               {finding.finding_outcome?.toUpperCase() === 'MANUAL' ? t('Manual review required') : emptyFilled(finding.finding_outcome && t('Failed'))}
             </Field>

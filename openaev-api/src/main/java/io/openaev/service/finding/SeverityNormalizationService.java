@@ -130,10 +130,9 @@ public class SeverityNormalizationService {
       case "critical" -> FindingSeverityBucket.CRITICAL;
       case "high" -> FindingSeverityBucket.HIGH;
       case "medium" -> FindingSeverityBucket.MEDIUM;
-      case "low" -> FindingSeverityBucket.LOW;
-      // OCSF's own "Informational" and "Unknown" severity labels both map to our UNKNOWN bucket:
-      // neither carries an actionable severity signal.
-      case "informational", "unknown", "other" -> FindingSeverityBucket.UNKNOWN;
+      // US.1 Breakdown 2: OCSF "Informational" is the lowest real severity, so it maps to LOW.
+      case "low", "informational" -> FindingSeverityBucket.LOW;
+      case "unknown", "other" -> FindingSeverityBucket.UNKNOWN;
       default -> null;
     };
   }

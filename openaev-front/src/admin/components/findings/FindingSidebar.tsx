@@ -1,4 +1,4 @@
-import { CloudOutlined } from '@mui/icons-material';
+import { ComputerOutlined } from '@mui/icons-material';
 import { useCallback, useMemo } from 'react';
 
 import { type FacetRow, type FacetSection, FacetSidebar } from '../../../components/common/facets/FacetFilters';
@@ -6,33 +6,14 @@ import { type FilterHelpers } from '../../../components/common/queryable/filter/
 import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
-import prowlerIcon from '../../../static/images/prowler.png';
 import { type Filter, type SearchPaginationInput } from '../../../utils/api-types';
-import { FINDING_TRIAGE_STATUS_KEYS } from '../../../utils/statusUtils';
-import InjectIcon from '../common/injects/InjectIcon';
 import getFindingTypeLabel, { getFindingTypeKey } from './FindingTypeLabel';
 import { type FindingFacetCounts } from './useFindingFacetCounts';
 
 const SEVERITY_FILTER_KEY = 'finding_severity';
 const TYPE_FILTER_KEY = 'finding_type';
-const PROVIDER_FILTER_KEY = 'finding_cloud_provider';
-const TRIAGE_FILTER_KEY = 'finding_triage_status';
-const SOURCE_FILTER_KEY = 'finding_source';
+const ASSET_FILTER_KEY = 'finding_assets';
 const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'];
-const CLOUD_PROVIDERS = [
-  {
-    value: 'aws',
-    label: 'AWS',
-  },
-  {
-    value: 'gcp',
-    label: 'GCP',
-  },
-  {
-    value: 'azure',
-    label: 'Azure',
-  },
-];
 
 interface Props {
   searchPaginationInput: SearchPaginationInput;
@@ -88,12 +69,12 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers, facetCounts }: P
     );
   }, [setValues, valuesFor]);
 
+  // US.1: the quick filters are Severity, Type and Asset, listed like the Threat Arsenal ones
+  // (every value with its count). Source, Asset group and the dates stay in the filter bar.
   const sections: FacetSection[] = useMemo(() => {
     const severityValues = valuesFor(SEVERITY_FILTER_KEY);
     const typeValues = valuesFor(TYPE_FILTER_KEY);
-    const providerValues = valuesFor(PROVIDER_FILTER_KEY);
-    const triageValues = valuesFor(TRIAGE_FILTER_KEY);
-    const sourceValues = valuesFor(SOURCE_FILTER_KEY);
+    const assetValues = valuesFor(ASSET_FILTER_KEY);
 
     const severityRows: FacetRow[] = SEVERITIES.map(severity => ({
       value: severity,
@@ -101,13 +82,6 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers, facetCounts }: P
       count: facetCounts?.severities[severity] ?? 0,
       checked: severityValues.includes(severity),
       onToggle: () => toggle(SEVERITY_FILTER_KEY, severity),
-    }));
-    const triageRows: FacetRow[] = FINDING_TRIAGE_STATUS_KEYS.map(status => ({
-      value: status,
-      label: t(status),
-      count: facetCounts?.triage_statuses?.[status] ?? 0,
-      checked: triageValues.includes(status),
-      onToggle: () => toggle(TRIAGE_FILTER_KEY, status),
     }));
     const typeRows: FacetRow[] = Object.keys(facetCounts?.types ?? {})
       .sort((left, right) => getFindingTypeLabel(t, left).localeCompare(getFindingTypeLabel(t, right)))
@@ -119,24 +93,13 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers, facetCounts }: P
         checked: typeValues.includes(type),
         onToggle: () => toggle(TYPE_FILTER_KEY, type),
       }));
-    const providerRows: FacetRow[] = CLOUD_PROVIDERS.map(provider => ({
-      value: provider.value,
-      label: provider.label,
-      count: facetCounts?.cloud_providers[provider.value] ?? 0,
-      icon: () => <CloudOutlined />,
-      checked: providerValues.includes(provider.value),
-      onToggle: () => toggle(PROVIDER_FILTER_KEY, provider.value),
-    }));
-    const sourceRows: FacetRow[] = (facetCounts?.sources ?? []).map(source => ({
-      value: source.source_id,
-      label: source.source_name,
-      count: source.source_count,
-      icon: () => source.source_name.toLowerCase().includes('prowler')
-        || source.source_type.toLowerCase().includes('prowler')
-        ? <img src={prowlerIcon} alt="" />
-        : <InjectIcon type={source.source_type} />,
-      checked: sourceValues.includes(source.source_id),
-      onToggle: () => toggle(SOURCE_FILTER_KEY, source.source_id),
+    const assetRows: FacetRow[] = (facetCounts?.assets ?? []).map(asset => ({
+      value: asset.asset_id,
+      label: asset.asset_name,
+      count: asset.asset_count,
+      icon: () => <ComputerOutlined />,
+      checked: assetValues.includes(asset.asset_id),
+      onToggle: () => toggle(ASSET_FILTER_KEY, asset.asset_id),
     }));
 
     return [
@@ -146,24 +109,14 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers, facetCounts }: P
         rows: severityRows,
       },
       {
-        id: 'triage-status',
-        label: t('Triage status'),
-        rows: triageRows,
-      },
-      {
         id: 'type',
         label: t('Type'),
         rows: typeRows,
       },
       {
-        id: 'cloud-provider',
-        label: t('Cloud provider'),
-        rows: providerRows,
-      },
-      {
-        id: 'source',
-        label: t('Source'),
-        rows: sourceRows,
+        id: 'asset',
+        label: t('Asset'),
+        rows: assetRows,
       },
     ].filter(section => section.rows.length > 0);
   }, [facetCounts, t, toggle, valuesFor]);

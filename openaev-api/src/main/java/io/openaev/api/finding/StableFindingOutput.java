@@ -42,6 +42,7 @@ public record StableFindingOutput(
     @JsonProperty("finding_human_updated_at") Instant humanUpdatedAt,
     @JsonProperty("finding_archived_at") Instant archivedAt,
     @JsonProperty("finding_source") InjectorSimple source,
+    @JsonProperty("finding_sources") List<InjectorSimple> sources,
     @JsonProperty("finding_inject") InjectSimple inject,
     @JsonProperty("finding_inject_id") String injectId,
     @JsonProperty("finding_simulation") ExerciseSimple simulation,

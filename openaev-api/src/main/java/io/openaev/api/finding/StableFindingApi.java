@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -84,6 +85,23 @@ public class StableFindingApi {
   @Operation(summary = "Get a stable finding summary")
   public StableFindingSummaryOutput summary(TxCtx ctx, @PathVariable @NotNull String id) {
     return stableFindingReadService.summary(ctx, id);
+  }
+
+  @GetMapping("/{id}/siblings")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.FINDING)
+  @LogExecutionTime
+  @Operation(
+      summary = "Also detected on",
+      description =
+          "The other findings with the same type and value, each at its own location, most"
+              + " recently seen first.")
+  public Page<StableFindingOutput> siblings(
+      TxCtx ctx,
+      @PathVariable @NotNull String id,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "20") int size) {
+    return stableFindingReadService.siblings(ctx, id, page, size);
   }
 
   @GetMapping("/{id}/locations")

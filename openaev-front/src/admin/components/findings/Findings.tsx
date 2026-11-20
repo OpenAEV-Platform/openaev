@@ -1,20 +1,10 @@
 import { searchStableFindings } from '../../../actions/findings/finding-actions';
-import Breadcrumbs from '../../../components/Breadcrumbs';
-import { useFormatter } from '../../../components/i18n';
 import FindingList from './FindingList';
 
 const Findings = () => {
-  const { t } = useFormatter();
-
   return (
     <>
-      <Breadcrumbs
-        variant="list"
-        elements={[{
-          label: t('Findings'),
-          current: true,
-        }]}
-      />
+      {/* First-level page: no breadcrumb (US.1, it appears from the second level). */}
       <FindingList
         searchDistinctFindings={searchStableFindings}
         filterLocalStorageKey="findings"

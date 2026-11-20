@@ -343,6 +343,20 @@ public class FindingService {
         contractOutputContext,
         findings,
         validSourceRecords(structuredOutputNode, contractOutputContext, validator));
+    if (contractOutputContext.type() == ContractOutputType.OCSF) {
+      stableFindingIngestionService.closeOnPass(
+          inject,
+          contractOutputContext,
+          validSourceRecords(structuredOutputNode, contractOutputContext, FindingService::isPass),
+          valueExtractor);
+    }
+  }
+
+  /** A compliant OCSF result: it creates no finding but closes the open one (US.0.1). */
+  private static boolean isPass(JsonNode record) {
+    return record != null
+        && "PASS".equalsIgnoreCase(record.path("status_code").asText(""))
+        && !record.path("metadata").path("event_code").asText("").isBlank();
   }
 
   private List<JsonNode> validSourceRecords(

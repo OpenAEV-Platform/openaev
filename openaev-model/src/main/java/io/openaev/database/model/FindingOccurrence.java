@@ -64,6 +64,13 @@ public class FindingOccurrence implements TenantBase, Auditable {
   @Column(name = "finding_occurrence_scan_id", updatable = false)
   private String scanId;
 
+  /**
+   * Injector that produced this detection. A finding lists the distinct injectors of its
+   * occurrences as Source ("first, then +N"), and the Source filter matches any of them.
+   */
+  @Column(name = "finding_occurrence_source_injector_id", updatable = false)
+  private String sourceInjectorId;
+
   @Queryable(filterable = true, sortable = true)
   @JsonProperty("finding_updated_at")
   @Column(name = "finding_occurrence_observed_at", updatable = false, nullable = false)

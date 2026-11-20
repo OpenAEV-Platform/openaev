@@ -9,27 +9,42 @@ import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import io.openaev.api.finding.FindingLocationOutput;
 import io.openaev.api.finding.FindingOccurrenceOutput;
 import io.openaev.api.finding.StableFindingFacetCountsOutput;
+import io.openaev.api.finding.StableFindingFacetCountsOutput.AssetFacetOutput;
 import io.openaev.api.finding.StableFindingFacetCountsOutput.SourceFacetOutput;
 import io.openaev.api.finding.StableFindingMapper;
 import io.openaev.api.finding.StableFindingOutput;
 import io.openaev.api.finding.StableFindingSummaryOutput;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Filters.Filter;
 import io.openaev.database.model.Filters.FilterGroup;
+import io.openaev.database.model.Filters.FilterMode;
+import io.openaev.database.model.Filters.FilterOperator;
 import io.openaev.database.model.FindingOccurrence;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.StableFinding;
 import io.openaev.database.repository.FindingOccurrenceRepository;
+import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.StableFindingRepository;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utils.pagination.SortField;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,38 +72,51 @@ public class StableFindingReadService {
   private static final String PROVIDER_FILTER = "finding_cloud_provider";
   private static final String TRIAGE_FILTER = "finding_triage_status";
   private static final String SOURCE_FILTER = "finding_source";
+  private static final String ASSET_FILTER = "finding_assets";
+  private static final String ASSET_GROUP_FILTER = "finding_asset_groups";
+  private static final Set<String> OCCURRENCE_FILTERS = Set.of(ASSET_GROUP_FILTER, SOURCE_FILTER);
+  private static final String ASSET_SORT = "finding_asset_name";
+  private static final String ASSET_MISSING_SORT = "finding_asset_missing";
+  private static final String ID_SORT = "finding_id";
+  private static final int MAX_SIBLINGS_PAGE = 100;
 
   private final StableFindingRepository stableFindingRepository;
   private final FindingOccurrenceRepository findingOccurrenceRepository;
   private final StableFindingMapper stableFindingMapper;
+  private final InjectorRepository injectorRepository;
 
   /**
    * Searches stable identities in the explicitly authorized tenant scope and bulk-loads their
-   * occurrences for constant-query mapping.
+   * occurrences for constant-query mapping. Asset group, Source and the text search look into the
+   * occurrences through EXISTS subqueries, so a finding is never listed twice.
    */
   @Transactional(readOnly = true)
   public Page<StableFindingOutput> search(TxCtx ctx, SearchPaginationInput input) {
     Set<String> tenantIds = tenantIdsFromHTTPCtx(ctx);
-    Specification<StableFinding> tenantScope =
-        (root, query, cb) -> root.get("tenant").get("id").in(tenantIds);
+    Specification<StableFinding> scope =
+        tenantScope(tenantIds).and(occurrenceFilters(input.getFilterGroup(), null));
+    SearchPaginationInput jpaInput = jpaInput(input, null);
     Page<StableFinding> page =
         buildPaginationJPA(
             (specification, pageable) ->
-                stableFindingRepository.findAll(tenantScope.and(specification), pageable),
-            input,
-            StableFinding.class);
+                stableFindingRepository.findAll(scope.and(specification), pageable),
+            jpaInput,
+            StableFinding.class,
+            searchSpecification(input.getTextSearch()));
     Map<String, List<FindingOccurrence>> occurrencesByFinding =
         occurrencesByFinding(page.getContent(), tenantIds);
+    Map<String, Injector> injectors =
+        injectorsById(occurrencesByFinding.values().stream().flatMap(List::stream).toList());
     return page.map(
         finding ->
             stableFindingMapper.toOutput(
-                finding, occurrencesByFinding.getOrDefault(finding.getId(), List.of())));
+                finding, occurrencesByFinding.getOrDefault(finding.getId(), List.of()), injectors));
   }
 
   /**
-   * Returns full-result facet counts. Each facet ignores its own selected values while preserving
-   * search text and every other filter, so users can add alternatives without a selected row
-   * collapsing all sibling counts to zero.
+   * Returns full-result facet counts for the quick filters (Severity, Type, Asset). Each facet
+   * ignores its own selected values while preserving search text and every other filter, so users
+   * can add alternatives without a selected row collapsing all sibling counts to zero.
    */
   @Transactional(readOnly = true)
   public StableFindingFacetCountsOutput facetCounts(TxCtx ctx, SearchPaginationInput input) {
@@ -109,7 +137,36 @@ public class StableFindingReadService {
                 source ->
                     new SourceFacetOutput(
                         source.id(), source.name(), source.type(), source.count()))
+            .toList(),
+        stableFindingRepository
+            .countByAsset(facetSpecification(input, tenantIds, ASSET_FILTER))
+            .values()
+            .stream()
+            .map(asset -> new AssetFacetOutput(asset.id(), asset.name(), asset.count()))
             .toList());
+  }
+
+  /**
+   * "Also detected on" (US.4): the other findings of the tenant with the same type and value, each
+   * at its own location, most recently seen first.
+   */
+  @Transactional(readOnly = true)
+  public Page<StableFindingOutput> siblings(TxCtx ctx, String id, int page, int size) {
+    Set<String> tenantIds = tenantIdsFromHTTPCtx(ctx);
+    StableFinding finding = requireFinding(id, tenantIds);
+    Page<StableFinding> siblings =
+        stableFindingRepository.findSiblings(
+            Set.of(finding.getTenant().getId()),
+            finding.getType(),
+            finding.getValue(),
+            finding.getId(),
+            PageRequest.of(page, Math.min(Math.max(size, 1), MAX_SIBLINGS_PAGE)));
+    Map<String, List<FindingOccurrence>> occurrencesByFinding =
+        occurrencesByFinding(siblings.getContent(), tenantIds);
+    return siblings.map(
+        sibling ->
+            stableFindingMapper.toOutput(
+                sibling, occurrencesByFinding.getOrDefault(sibling.getId(), List.of())));
   }
 
   /** Returns one stable identity only when its id belongs to an authorized tenant. */
@@ -117,7 +174,8 @@ public class StableFindingReadService {
   public StableFindingOutput findById(TxCtx ctx, String id) {
     Set<String> tenantIds = tenantIdsFromHTTPCtx(ctx);
     StableFinding finding = requireFinding(id, tenantIds);
-    return stableFindingMapper.toOutput(finding, findOccurrences(id, tenantIds));
+    List<FindingOccurrence> occurrences = findOccurrences(id, tenantIds);
+    return stableFindingMapper.toOutput(finding, occurrences, injectorsById(occurrences));
   }
 
   /** Returns the first/last-seen and distinct impact counters for a stable identity. */
@@ -213,24 +271,131 @@ public class StableFindingReadService {
 
   private Specification<StableFinding> facetSpecification(
       SearchPaginationInput input, Set<String> tenantIds, String excludedFilter) {
+    return tenantScope(tenantIds)
+        .and(computeFilterGroupJpa(jpaInput(input, excludedFilter).getFilterGroup()))
+        .and(occurrenceFilters(input.getFilterGroup(), excludedFilter))
+        .and(searchSpecification(input.getTextSearch()));
+  }
+
+  private static Specification<StableFinding> tenantScope(Set<String> tenantIds) {
+    return (root, query, cb) -> root.get("tenant").get("id").in(tenantIds);
+  }
+
+  /**
+   * Copy of the input for the generic JPA filters and sort: the filters on occurrences (Asset
+   * group, Source) are removed, they are applied by {@link #occurrenceFilters}; findings without
+   * asset stay last when sorting by asset, and the finding id breaks ties (stable order).
+   */
+  private static SearchPaginationInput jpaInput(
+      SearchPaginationInput input, String excludedFilter) {
+    SearchPaginationInput copy = new SearchPaginationInput();
+    copy.setPage(input.getPage());
+    copy.setSize(input.getSize());
+    copy.setTextSearch(null);
     FilterGroup source = input.getFilterGroup();
-    FilterGroup filtered =
-        source == null
-            ? null
-            : FilterGroup.builder()
-                .mode(source.getMode())
-                .filters(
-                    source.getFilters() == null
-                        ? List.of()
-                        : source.getFilters().stream()
-                            .filter(filter -> !excludedFilter.equals(filter.getKey()))
-                            .toList())
-                .build();
-    Specification<StableFinding> tenantScope =
-        (root, query, cb) -> root.get("tenant").get("id").in(tenantIds);
-    return tenantScope
-        .and(computeFilterGroupJpa(filtered))
-        .and(computeSearchJpa(input.getTextSearch()));
+    if (source != null) {
+      copy.setFilterGroup(
+          FilterGroup.builder()
+              .mode(source.getMode())
+              .filters(
+                  source.getFilters() == null
+                      ? List.of()
+                      : source.getFilters().stream()
+                          .filter(filter -> !filter.getKey().equals(excludedFilter))
+                          .filter(filter -> !OCCURRENCE_FILTERS.contains(filter.getKey()))
+                          .toList())
+              .build());
+    }
+    List<SortField> sorts = new ArrayList<>();
+    for (SortField sort : input.getSorts() == null ? List.<SortField>of() : input.getSorts()) {
+      if (ASSET_SORT.equals(sort.property())) {
+        sorts.add(new SortField(ASSET_MISSING_SORT, "ASC", null));
+      }
+      sorts.add(sort);
+    }
+    if (sorts.stream().noneMatch(sort -> ID_SORT.equals(sort.property()))) {
+      sorts.add(new SortField(ID_SORT, "ASC", null));
+    }
+    copy.setSorts(sorts);
+    return copy;
+  }
+
+  /** Asset group (groups targeted by the detecting inject, today's behaviour) and Source. */
+  private static Specification<StableFinding> occurrenceFilters(
+      FilterGroup group, String excludedFilter) {
+    if (group == null || group.getFilters() == null) {
+      return Specification.unrestricted();
+    }
+    Specification<StableFinding> result = Specification.unrestricted();
+    for (Filter filter : group.getFilters()) {
+      if (filter.getKey().equals(excludedFilter)
+          || !OCCURRENCE_FILTERS.contains(filter.getKey())
+          || filter.getValues() == null
+          || filter.getValues().isEmpty()) {
+        continue;
+      }
+      Specification<StableFinding> exists =
+          (root, query, cb) -> {
+            Subquery<String> sub = query.subquery(String.class);
+            Root<FindingOccurrence> occurrence = sub.from(FindingOccurrence.class);
+            Predicate match =
+                ASSET_GROUP_FILTER.equals(filter.getKey())
+                    ? occurrence.join("inject").join("assetGroups").get("id").in(filter.getValues())
+                    : occurrence.get("sourceInjectorId").in(filter.getValues());
+            sub.select(occurrence.get("id"))
+                .where(cb.equal(occurrence.get("stableFinding"), root), match);
+            return filter.getOperator() == FilterOperator.not_eq
+                ? cb.not(cb.exists(sub))
+                : cb.exists(sub);
+          };
+      result = group.getMode() == FilterMode.or ? result.or(exists) : result.and(exists);
+    }
+    return result;
+  }
+
+  /**
+   * Same fields as the current Findings page (US.1): the value, and the inject, simulation and
+   * scenario of any detection.
+   */
+  private static Specification<StableFinding> searchSpecification(String textSearch) {
+    if (textSearch == null || textSearch.isBlank()) {
+      return Specification.unrestricted();
+    }
+    Specification<StableFinding> onFinding = computeSearchJpa(textSearch);
+    Specification<StableFinding> onOccurrences =
+        (root, query, cb) -> {
+          String pattern = "%" + textSearch.trim().toLowerCase(Locale.ROOT) + "%";
+          Subquery<String> sub = query.subquery(String.class);
+          Root<FindingOccurrence> occurrence = sub.from(FindingOccurrence.class);
+          Join<Object, Object> inject = occurrence.join("inject", JoinType.LEFT);
+          Join<Object, Object> exercise = inject.join("exercise", JoinType.LEFT);
+          Join<Object, Object> scenario = exercise.join("scenario", JoinType.LEFT);
+          sub.select(occurrence.get("id"))
+              .where(
+                  cb.equal(occurrence.get("stableFinding"), root),
+                  cb.or(
+                      cb.like(cb.lower(inject.get("title")), pattern),
+                      cb.like(cb.lower(exercise.get("name")), pattern),
+                      cb.like(cb.lower(scenario.get("name")), pattern),
+                      cb.like(cb.lower(occurrence.get("title")), pattern)));
+          return cb.exists(sub);
+        };
+    return onFinding.or(onOccurrences);
+  }
+
+  private Map<String, Injector> injectorsById(Collection<FindingOccurrence> occurrences) {
+    List<String> ids =
+        occurrences.stream()
+            .map(FindingOccurrence::getSourceInjectorId)
+            .filter(java.util.Objects::nonNull)
+            .distinct()
+            .toList();
+    if (ids.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, Injector> byId = new LinkedHashMap<>();
+    injectorRepository.findAllByInjectorIdIn(ids).forEach(i -> byId.putIfAbsent(i.getId(), i));
+    return byId;
   }
 
   private List<FindingOccurrence> findOccurrences(String id, Set<String> tenantIds) {

@@ -10,12 +10,19 @@ export interface FindingSourceFacet {
   source_count: number;
 }
 
+export interface FindingAssetFacet {
+  asset_id: string;
+  asset_name: string;
+  asset_count: number;
+}
+
 export interface FindingFacetCounts {
   severities: Record<string, number>;
   types: Record<string, number>;
   cloud_providers: Record<string, number>;
   triage_statuses: Record<string, number>;
   sources: FindingSourceFacet[];
+  assets: FindingAssetFacet[];
 }
 
 const useFindingFacetCounts = (

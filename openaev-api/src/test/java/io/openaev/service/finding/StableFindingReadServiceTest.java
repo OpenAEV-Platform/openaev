@@ -107,7 +107,8 @@ class StableFindingReadServiceTest {
               .findAllByStableFindingIdInAndTenantIdInOrderByObservedAtDescIdDesc(
                   List.of(STABLE_ID), Set.of(TENANT_ID)))
           .thenReturn(List.of());
-      when(stableFindingMapper.toOutput(finding, List.of())).thenReturn(stableFindingOutput);
+      when(stableFindingMapper.toOutput(finding, List.of(), Map.of()))
+          .thenReturn(stableFindingOutput);
 
       // Act
       StableFindingOutput output = service.findById(ctx, STABLE_ID);

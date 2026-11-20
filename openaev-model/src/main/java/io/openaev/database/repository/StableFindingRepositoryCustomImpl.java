@@ -1,5 +1,6 @@
 package io.openaev.database.repository;
 
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.StableFinding;
 import jakarta.persistence.EntityManager;
@@ -69,6 +70,35 @@ public class StableFindingRepositoryCustomImpl implements StableFindingRepositor
                       tuple.get("name", String.class),
                       tuple.get("type", String.class),
                       tuple.get("count", Long.class)));
+            });
+    return counts;
+  }
+
+  @Override
+  public Map<String, AssetCount> countByAsset(Specification<StableFinding> specification) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    CriteriaQuery<Tuple> query = cb.createTupleQuery();
+    Root<StableFinding> root = query.from(StableFinding.class);
+    Join<StableFinding, Asset> asset = root.join("locationAsset", JoinType.INNER);
+    query.multiselect(
+        asset.get("id").alias("id"),
+        asset.get("name").alias("name"),
+        cb.countDistinct(root.get("id")).alias("count"));
+    applySpecification(specification, root, query, cb);
+    query.groupBy(asset.get("id"), asset.get("name"));
+
+    Map<String, AssetCount> counts = new LinkedHashMap<>();
+    entityManager.createQuery(query).getResultList().stream()
+        .sorted(
+            java.util.Comparator.comparing(
+                tuple -> String.valueOf(tuple.get("name", String.class)).toLowerCase()))
+        .forEach(
+            tuple -> {
+              String id = tuple.get("id", String.class);
+              counts.put(
+                  id,
+                  new AssetCount(
+                      id, tuple.get("name", String.class), tuple.get("count", Long.class)));
             });
     return counts;
   }

@@ -127,7 +127,7 @@ class StableFindingIngestionServiceTest {
   class IdentityAndFanout {
 
     @Test
-    @DisplayName("Should fan out resources and deduplicate a callback replay")
+    @DisplayName("Should create one finding per resource and deduplicate a callback replay")
     void given_multiResourceOcsf_should_fanOutAndDeduplicateReplay() throws Exception {
       // Arrange
       Inject inject = inject("tenant-a", "inject-1", "injector-1");
@@ -168,7 +168,15 @@ class StableFindingIngestionServiceTest {
 
       // Assert
       assertThat(occurrences).hasSize(2);
-      assertThat(stableFindings).hasSize(1);
+      assertThat(stableFindings).hasSize(2);
+      assertThat(stableFindings.values())
+          .extracting(StableFinding::getLocationKey)
+          .containsExactly(
+              "aws/account-a/eu-west-1/resource-a",
+              "aws-us-gov/account-b/us-gov-west-1/arn:aws:s3:::second");
+      assertThat(occurrences)
+          .extracting(FindingOccurrence::getSourceInjectorId)
+          .containsOnly("injector-1");
       assertThat(occurrences)
           .extracting(FindingOccurrence::getLocationKey)
           .containsExactly(
@@ -250,28 +258,63 @@ class StableFindingIngestionServiceTest {
     }
 
     @Test
-    @DisplayName("Should exclude location and include tenant in the stable identity")
-    void given_identityComponents_should_groupLocationsAndSeparateTenants() {
+    @DisplayName("Should identify a finding by tenant, type, value and location, not by injector")
+    void given_identityComponents_should_includeLocationAndTenant() {
       // Arrange
       String first =
           StableFindingIngestionService.stableKey(
-              "tenant-a", "injector/output", ContractOutputType.OCSF, "rule-1");
+              "tenant-a", ContractOutputType.CVE, "CVE-2026-0001", "ASSET", "asset-1");
 
       // Act
       String same =
           StableFindingIngestionService.stableKey(
-              "tenant-a", "injector/output", ContractOutputType.OCSF, "rule-1");
+              "tenant-a", ContractOutputType.CVE, "CVE-2026-0001", "ASSET", "asset-1");
       String otherLocation =
           StableFindingIngestionService.stableKey(
-              "tenant-a", "injector/output", ContractOutputType.OCSF, "rule-1");
+              "tenant-a", ContractOutputType.CVE, "CVE-2026-0001", "ASSET", "asset-2");
       String otherTenant =
           StableFindingIngestionService.stableKey(
-              "tenant-b", "injector/output", ContractOutputType.OCSF, "rule-1");
+              "tenant-b", ContractOutputType.CVE, "CVE-2026-0001", "ASSET", "asset-1");
+      String otherValue =
+          StableFindingIngestionService.stableKey(
+              "tenant-a", ContractOutputType.CVE, "CVE-2026-0002", "ASSET", "asset-1");
 
       // Assert
       assertThat(same).isEqualTo(first);
-      assertThat(otherLocation).isEqualTo(first);
+      assertThat(otherLocation).isNotEqualTo(first);
       assertThat(otherTenant).isNotEqualTo(first);
+      assertThat(otherValue).isNotEqualTo(first);
+    }
+
+    @Test
+    @DisplayName("Should merge two injectors finding the same value at the same location")
+    void given_twoInjectorsSameLocation_should_keepOneFindingWithBothSources() throws Exception {
+      // Arrange
+      ContractOutputContext output =
+          new ContractOutputContext(
+              "cves", "CVEs", ContractOutputType.CVE, true, new String[0], new String[0]);
+      Asset asset = new Asset();
+      asset.setId("asset-1");
+      asset.setName("srv-01");
+      Inject nmap = inject("tenant-a", "inject-1", "injector-nmap");
+      Inject nuclei = inject("tenant-a", "inject-2", "injector-nuclei");
+      Finding byNmap = finding(nmap, output, "CVE-2024-6387");
+      byNmap.setAssets(List.of(asset));
+      Finding byNuclei = finding(nuclei, output, "CVE-2024-6387");
+      byNuclei.setAssets(List.of(asset));
+      JsonNode source = objectMapper.readTree("\"CVE-2024-6387\"");
+
+      // Act
+      service.ingest(nmap, output, List.of(byNmap), List.of(source));
+      service.ingest(nuclei, output, List.of(byNuclei), List.of(source));
+
+      // Assert
+      assertThat(stableFindings).hasSize(1);
+      assertThat(occurrences)
+          .extracting(FindingOccurrence::getSourceInjectorId)
+          .containsExactly("injector-nmap", "injector-nuclei");
+      assertThat(stable.get().getLocationAsset()).isEqualTo(asset);
+      assertThat(stable.get().getLocation()).isEqualTo("srv-01");
     }
 
     @Test
@@ -295,7 +338,7 @@ class StableFindingIngestionServiceTest {
 
       // Assert
       assertThat(occurrences).hasSize(2);
-      assertThat(stableFindings).hasSize(1);
+      assertThat(stableFindings).hasSize(2);
       assertThat(occurrences)
           .extracting(FindingOccurrence::getLocationType)
           .containsExactly(FindingLocationType.ASSET, null);
@@ -391,6 +434,52 @@ class StableFindingIngestionServiceTest {
 
       // Assert
       assertThat(stable.get().getLifecycle()).isEqualTo(expectedLifecycle);
+    }
+
+    @Test
+    @DisplayName(
+        "Should close the finding on a PASS of the same control and resource, then reopen it")
+    void given_passThenFail_should_fixThenReopenFinding() throws Exception {
+      // Arrange
+      ContractOutputContext output = output();
+      Inject firstScan = inject("tenant-a", "inject-1", "injector-1");
+      Inject secondScan = inject("tenant-a", "inject-2", "injector-1");
+      Inject thirdScan = inject("tenant-a", "inject-3", "injector-1");
+      String record =
+          """
+          {"time_dt": "%s", "status_code": "%s", "finding_info": {"title": "Snapshot"},
+           "metadata": {"event_code": "ec2_ebs_snapshots_encrypted", "product": {"uid": "prowler"}},
+           "resources": [{"uid": "snap-0a12", "cloud_partition": "aws", "region": "eu-west-1",
+                          "account": {"uid": "123456789012"}}]}
+          """;
+      JsonNode fail = objectMapper.readTree(record.formatted("2026-11-01T08:00:00Z", "FAIL"));
+      JsonNode pass = objectMapper.readTree(record.formatted("2026-11-02T08:00:00Z", "PASS"));
+      JsonNode failAgain = objectMapper.readTree(record.formatted("2026-11-03T08:00:00Z", "FAIL"));
+
+      // Act
+      service.ingest(
+          firstScan,
+          output,
+          List.of(finding(firstScan, output, "ec2_ebs_snapshots_encrypted")),
+          List.of(fail));
+      service.closeOnPass(
+          secondScan,
+          output,
+          List.of(pass),
+          node -> node.path("metadata").path("event_code").asText());
+      StableFindingLifecycle afterPass = stable.get().getLifecycle();
+      service.ingest(
+          thirdScan,
+          output,
+          List.of(finding(thirdScan, output, "ec2_ebs_snapshots_encrypted")),
+          List.of(failAgain));
+
+      // Assert
+      assertThat(stableFindings).hasSize(1);
+      assertThat(afterPass).isEqualTo(StableFindingLifecycle.FIXED);
+      assertThat(occurrences).hasSize(2);
+      assertThat(stable.get().getLifecycle()).isEqualTo(StableFindingLifecycle.ACTIVE);
+      assertThat(stable.get().getLastSeen()).isEqualTo(Instant.parse("2026-11-03T08:00:00Z"));
     }
 
     @Test

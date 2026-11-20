@@ -1,5 +1,5 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { GridViewOutlined, InfoOutlined, ViewListOutlined } from '@mui/icons-material';
+import { FileDownloadOutlined, GridViewOutlined, InfoOutlined, ViewListOutlined } from '@mui/icons-material';
 import { Box, Button, Checkbox, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Popover, Tab, Tabs, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { Binoculars, Cog } from 'mdi-material-ui';
 import { type CSSProperties, useEffect, useMemo, useState } from 'react';
@@ -8,7 +8,6 @@ import { Link } from 'react-router';
 import { archiveFindingsBulk, fetchFindingArchiveDays, updateFindingArchiveDays } from '../../../actions/findings/finding-actions';
 import { triageFindingsBulk } from '../../../actions/findings/finding-triage-actions';
 import { type UserHelper } from '../../../actions/helper';
-import ExportButton from '../../../components/common/ExportButton';
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -19,17 +18,17 @@ import Empty from '../../../components/Empty';
 import { FDS } from '../../../components/fds-tokens.generated';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
-import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { useHelper } from '../../../store';
-import { type AggregatedFindingOutput, type FindingArchiveBulkItemOutput, type FindingTriageBulkItemOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
+import { type AggregatedFindingOutput, type FindingArchiveBulkItemOutput, type FindingTriageBulkItemOutput, type SearchPaginationInput } from '../../../utils/api-types';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import InjectIcon from '../common/injects/InjectIcon';
 import FindingBulkActionBar from './FindingBulkActionBar';
 import FindingCard from './FindingCard';
 import FindingHero from './FindingHero';
+import { findingAssetLabel, findingSources, type StableFindingRow } from './FindingRowUtils';
 import FindingSidebar from './FindingSidebar';
-import FindingTriageControl from './FindingTriageControl';
+import FindingSortSelect from './FindingSortSelect';
 import getFindingTypeLabel from './FindingTypeLabel';
 import useFindingFacetCounts from './useFindingFacetCounts';
 
@@ -43,11 +42,7 @@ const ARCHIVED_FILTER_KEY = 'finding_archived';
 type TriageStatus = NonNullable<AggregatedFindingOutput['finding_triage_status']>;
 type ArchiveTab = 'active' | 'archived';
 type ViewMode = 'grid' | 'list';
-type StableFindingListItem = AggregatedFindingOutput & {
-  finding_legacy_id?: string;
-  finding_location?: string;
-  finding_location_key?: string;
-};
+type StableFindingListItem = StableFindingRow;
 
 const VIEW_MODE_STORAGE_KEY = 'findings:view-mode';
 
@@ -72,15 +67,17 @@ interface Props {
   showArchiveTabs?: boolean;
 }
 
+// US.1 list columns: Type, Value, Asset, Source, First seen, Last seen.
 const inlineStyles: Record<string, CSSProperties> = ({
-  finding_type: { width: '10%' },
-  finding_value: { width: '18%' },
-  finding_assets: { width: '20%' },
-  finding_source: { width: '8%' },
-  finding_created_at: { width: '10%' },
-  finding_updated_at: { width: '10%' },
-  finding_triage_status: { width: '10%' },
+  finding_type: { width: '13%' },
+  finding_value: { width: '25%' },
+  finding_asset_name: { width: '22%' },
+  finding_source: { width: '14%' },
+  finding_created_at: { width: '13%' },
+  finding_updated_at: { width: '13%' },
 });
+
+const csvCell = (value: string) => (/[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
 
 const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false, showArchiveTabs = false }: Props) => {
   const bodyItemsStyles = useBodyItemsStyles();
@@ -115,16 +112,17 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     }
   };
 
+  // US.1 filter bar: the quick filters (Severity, Type, Asset) plus Value, Asset group, Source,
+  // First seen and Last seen.
   const availableFilterNames = [
-    'finding_type',
     'finding_severity',
-    'finding_cloud_provider',
+    'finding_type',
+    'finding_assets',
+    'finding_value',
+    'finding_asset_groups',
+    'finding_source',
     'finding_created_at',
     'finding_updated_at',
-    'finding_human_updated_at',
-    'finding_triage_status',
-    'finding_source',
-    'finding_source_type',
   ];
 
   const [findings, setFindings] = useState<StableFindingListItem[]>([]);
@@ -360,47 +358,45 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       ),
     },
     {
-      field: 'finding_assets',
+      field: 'finding_asset_name',
       label: 'Asset',
-      isSortable: false,
-      value: (finding: StableFindingListItem) => finding.finding_location
-        || finding.finding_location_key
-        ? (
-            <Box
-              component="span"
-              sx={{
-                fontFamily: 'monospace',
-                overflowWrap: 'anywhere',
-              }}
-            >
-              {finding.finding_location ?? finding.finding_location_key}
-            </Box>
-          )
-        : (
-            <ItemTargets
-              targets={(finding.finding_assets || []).map(asset => ({
-                target_id: asset.asset_id,
-                target_name: asset.asset_name,
-                target_type: 'ASSETS',
-                target_category: asset.asset_category,
-                target_subtype: asset.endpoint_platform,
-              })) as TargetSimple[]}
-            />
-          ),
+      isSortable: true,
+      value: (finding: StableFindingListItem) => (
+        <Box
+          component="span"
+          sx={{
+            fontFamily: 'monospace',
+            overflowWrap: 'anywhere',
+          }}
+        >
+          {findingAssetLabel(finding)}
+        </Box>
+      ),
     },
     {
       field: 'finding_source',
       label: 'Source',
       isSortable: false,
-      // Manual findings (created via the API without a real inject/injector behind them) fall
-      // back to the generic "unknown" glyph, same convention as InjectIcon when a type is missing.
-      value: (finding: AggregatedFindingOutput) => (
-        <InjectIcon
-          type={finding.finding_source?.injector_type}
-          tooltip={<>{finding.finding_source?.injector_name ?? t('Manual')}</>}
-          variant="list"
-        />
-      ),
+      // Every injector that detected the finding: the first one, then "+N" (US.1). Not sortable.
+      value: (finding: StableFindingListItem) => {
+        const sources = findingSources(finding);
+        if (sources.length === 0) return <>-</>;
+        return (
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+          }}
+          >
+            <InjectIcon
+              type={sources[0].injector_type}
+              tooltip={<>{sources.map(source => source.injector_name).join(', ')}</>}
+              variant="list"
+            />
+            {sources.length > 1 && <span>{`+${sources.length - 1}`}</span>}
+          </Box>
+        );
+      },
     },
     {
       field: 'finding_created_at',
@@ -414,30 +410,6 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       isSortable: true,
       tooltip: 'finding_last_seen_tooltip',
       value: (finding: AggregatedFindingOutput) => <>{nsdt(finding.finding_updated_at)}</>,
-    },
-    {
-      field: 'finding_triage_status',
-      label: 'Triage status',
-      isSortable: true,
-      value: (finding: StableFindingListItem) => (
-        <FindingTriageControl
-          variant="inList"
-          findingId={finding.finding_id}
-          legacyFindingId={finding.finding_legacy_id}
-          status={finding.finding_triage_status}
-          onStatusChange={(newStatus) => {
-            // Optimistic local update: avoids a full page refetch for a single-row change.
-            // If a triage-history tab is opened later for this finding, it fetches on mount
-            // (see FindingComments-style tabs), so it will never read stale data from here.
-            setFindings(current => current.map(f => (f.finding_id === finding.finding_id
-              ? {
-                  ...f,
-                  finding_triage_status: newStatus,
-                }
-              : f)));
-          }}
-        />
-      ),
     },
   ];
 
@@ -463,16 +435,52 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
   // threshold used by the "Archived" tab's server-side filter (see
   // FindingDistinctSearchService#extractArchivedSpecification). Hidden in compact mode (embedded
   // drawers).
-  const exportProps = {
-    exportType: 'FINDING',
-    exportKeys: visibleHeaders.map(h => h.field),
-    exportData: findings,
-    exportFileName: `${t('Findings')}.csv`,
+  // US.2: every finding matching the filters and search (not only the page), in the active sort,
+  // with the list columns plus Severity, whatever the view.
+  const [exporting, setExporting] = useState(false);
+  const exportCsv = () => {
+    setExporting(true);
+    const pageSize = 1000;
+    const loadPage = (page: number) => searchDistinctFindings({
+      ...facetInput,
+      page,
+      size: pageSize,
+    });
+    loadPage(0)
+      .then(async (firstPage) => {
+        const remaining = await Promise.all(
+          Array.from({ length: Math.max(firstPage.data.totalPages - 1, 0) }, (_, index) => loadPage(index + 1)),
+        );
+        const rows = [firstPage, ...remaining].flatMap(response => response.data.content);
+        const header = ['Type', 'Value', 'Asset', 'Source', 'First seen', 'Last seen', 'Severity'];
+        const lines = rows.map(finding => [
+          finding.finding_type ?? '',
+          finding.finding_value ?? '',
+          findingAssetLabel(finding),
+          findingSources(finding).map(source => source.injector_name).join(', ') || '-',
+          finding.finding_created_at ?? '',
+          finding.finding_updated_at ?? '',
+          finding.finding_severity ?? 'UNKNOWN',
+        ].map(value => csvCell(String(value))).join(','));
+        const csv = [header.join(','), ...lines].join('\r\n');
+        const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `findings_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
+      })
+      .finally(() => setExporting(false));
   };
   const actions = compact
     ? null
     : (
         <>
+          {showArchiveTabs && viewMode === 'grid' && (
+            <FindingSortSelect sortHelpers={queryableHelpers.sortHelpers} />
+          )}
           {showArchiveTabs && (
             <ToggleButtonGroup
               value={viewMode}
@@ -500,7 +508,21 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
               </ToggleButton>
             </ToggleButtonGroup>
           )}
-          <ExportButton totalElements={total} exportProps={exportProps} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={exportCsv}
+                  disabled={total === 0 || exporting}
+                  aria-label={t('Export CSV')}
+                >
+                  <FileDownloadOutlined fontSize="small" />
+                </IconButton>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{total === 0 ? t('No finding to export') : t('Export CSV')}</TooltipContent>
+          </Tooltip>
           {user?.user_admin && (
             <>
               <Tooltip>
@@ -603,24 +625,26 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       topBarButtons={showArchiveTabs ? null : actions}
       leftSlot={showArchiveTabs && viewMode === 'grid'
         ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Checkbox
-                    size="small"
-                    checked={selectAll}
-                    indeterminate={
-                      (!selectAll && numberOfSelectedElements > 0)
-                      || (selectAll && Object.keys(deSelectedElements ?? {}).length > 0)
-                    }
-                    onChange={handleToggleSelectAll}
-                    disabled={findings.length === 0}
-                    slotProps={{ input: { 'aria-label': t('Select all') } }}
-                  />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{t('Select all')}</TooltipContent>
-            </Tooltip>
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Checkbox
+                      size="small"
+                      checked={selectAll}
+                      indeterminate={
+                        (!selectAll && numberOfSelectedElements > 0)
+                        || (selectAll && Object.keys(deSelectedElements ?? {}).length > 0)
+                      }
+                      onChange={handleToggleSelectAll}
+                      disabled={findings.length === 0}
+                      slotProps={{ input: { 'aria-label': t('Select all') } }}
+                    />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{t('Select all')}</TooltipContent>
+              </Tooltip>
+            </>
           )
         : undefined}
       reloadContentCount={reloadContentCount}
@@ -737,6 +761,19 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
             </ListItem>
           ))}
       {!loading && findings.length === 0 && <Empty message={t('No finding found.')} />}
+      {!loading && findings.length > 0 && queryableHelpers.sortHelpers.getSortBy() === 'finding_severity_rank' && (
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'text.secondary',
+            display: 'block',
+            px: 2,
+            py: 1,
+          }}
+        >
+          {t('Sorted by severity (chosen in the grid view).')}
+        </Typography>
+      )}
     </List>
   );
 

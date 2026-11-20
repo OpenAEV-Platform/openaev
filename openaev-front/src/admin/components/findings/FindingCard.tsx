@@ -9,16 +9,11 @@ import { useNavigate } from 'react-router';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import prowlerIcon from '../../../static/images/prowler.png';
-import { type AggregatedFindingOutput } from '../../../utils/api-types';
 import { buildTenantApiPath } from '../../../utils/url-helper';
+import { findingAssetLabel, type StableFindingRow } from './FindingRowUtils';
 import getFindingTypeLabel from './FindingTypeLabel';
 
-type CardFinding = AggregatedFindingOutput & {
-  finding_legacy_id?: string;
-  finding_location?: string;
-  finding_location_key?: string;
-  finding_occurrences?: number;
-};
+type CardFinding = StableFindingRow;
 
 // Severity is the only colored element of the card, carried by its chip.
 const SEVERITY_CHIP: Record<string, ChipSeverity> = {
@@ -70,11 +65,8 @@ const FindingCard = ({ finding, checked, anySelected, onToggleEntity }: Props) =
   const navigate = useNavigate();
   const showCheckbox = checked || anySelected;
 
-  const locations = (finding.finding_location ?? finding.finding_location_key ?? '')
-    .split(', ')
-    .filter(location => location.length > 0);
+  const asset = findingAssetLabel(finding);
   const severity = finding.finding_severity?.toLowerCase();
-  const triageStatus = finding.finding_triage_status ?? 'UNTRIAGED';
 
   return (
     // Same frame as the Integrations catalog card (CatalogConnectorCard): neutral surface,
@@ -226,17 +218,12 @@ const FindingCard = ({ finding, checked, anySelected, onToggleEntity }: Props) =
                   whiteSpace: 'nowrap',
                 }}
               >
-                {locations.length === 0
-                  ? t('No asset')
-                  : `${locations[0]}${locations.length > 1 ? ` +${locations.length - 1}` : ''}`}
-              </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                {t('{count} occurrences', { count: finding.finding_occurrences ?? 0 })}
+                {`${t('Asset')}: ${asset}`}
               </Typography>
             </Box>
 
-            {/* Footer: severity and triage chips on the left, last detection on the right -
-                the Integration card's use-case chips | status layout. */}
+            {/* Footer: severity on the left, last detection on the right (US.1 card fields: type,
+                value, severity, asset, last seen). */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -253,7 +240,6 @@ const FindingCard = ({ finding, checked, anySelected, onToggleEntity }: Props) =
                     severity={(severity ? SEVERITY_CHIP[severity] : undefined) ?? 'neutral'}
                   />
                 )}
-                <Chip label={t(triageStatus)} />
               </Stack>
               <Tooltip>
                 <TooltipTrigger asChild>

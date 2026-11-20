@@ -18,11 +18,18 @@ public record StableFindingFacetCountsOutput(
         @JsonProperty("triage_statuses")
         Map<String, Long> triageStatuses,
     @Schema(description = "Finding counts grouped by source") @JsonProperty("sources")
-        List<SourceFacetOutput> sources) {
+        List<SourceFacetOutput> sources,
+    @Schema(description = "Finding counts grouped by location asset") @JsonProperty("assets")
+        List<AssetFacetOutput> assets) {
 
   public record SourceFacetOutput(
       @JsonProperty("source_id") String id,
       @JsonProperty("source_name") String name,
       @JsonProperty("source_type") String type,
       @JsonProperty("source_count") long count) {}
+
+  public record AssetFacetOutput(
+      @JsonProperty("asset_id") String id,
+      @JsonProperty("asset_name") String name,
+      @JsonProperty("asset_count") long count) {}
 }

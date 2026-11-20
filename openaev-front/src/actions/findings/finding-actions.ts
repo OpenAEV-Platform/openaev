@@ -16,6 +16,11 @@ export const fetchStableFindingLocations = (findingId: string) => {
   return simpleCall(`${STABLE_FINDING_URI}/${findingId}/locations`);
 };
 
+// "Also detected on" (US.4): the other findings with the same type and value, one per location.
+export const fetchStableFindingSiblings = (findingId: string, page = 0, size = 20) => {
+  return simpleCall(`${STABLE_FINDING_URI}/${findingId}/siblings?page=${page}&size=${size}`);
+};
+
 export const searchStableFindings = (searchPaginationInput: SearchPaginationInput) => {
   return simplePostCall(`${STABLE_FINDING_URI}/search`, searchPaginationInput);
 };
