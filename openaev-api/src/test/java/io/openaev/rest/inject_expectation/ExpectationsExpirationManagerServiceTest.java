@@ -20,16 +20,22 @@ import static org.mockito.Mockito.verify;
 
 import io.openaev.IntegrationTest;
 import io.openaev.aop.audit_log.AuditLogger;
-import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob;
+import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.integration.ComponentRequestEngine;
+import io.openaev.integration.impl.collectors.expiration_manager.ExpirationManagerIntegrationFactory;
 import io.openaev.model.inject.form.Expectation;
+import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.LogService;
+import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -43,6 +49,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,7 +79,15 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
   @Autowired private SecurityPlatformRepository securityPlatformRepository;
   @Autowired private InjectExpectationService injectExpectationService;
   @Autowired private ExpectationsExpirationManagerService expectationsExpirationManagerService;
-  @Autowired private ExpectationsExpirationManagerJob expectationsExpirationManagerJob;
+
+  @Autowired private ConnectorInstanceService connectorInstanceService;
+  @Autowired private CatalogConnectorService catalogConnectorService;
+  @Autowired private HttpClientFactory httpClientFactory;
+  @Autowired private ThreadPoolTaskScheduler taskScheduler;
+  @Autowired private ComponentRequestEngine componentRequestEngine;
+  @Autowired private ExpectationsExpirationManagerService fakeDetectorService;
+  @Autowired private CollectorService collectorService;
+  @Autowired private ExpectationsExpirationManagerConfig expectationsExpirationManagerConfig;
   @Autowired private CollectorRepository collectorRepository;
   @Autowired private CollectorTypeRepository collectorTypeRepository;
 
@@ -101,7 +116,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
     // Register the builtin collector for the test tenant (builtins are only registered
     // for tenants that exist at startup, not for the test tenant created by @WithMockUser)
-    expectationsExpirationManagerJob.registerForTenant(Tenant.DEFAULT_TENANT_UUID);
+    getExpirationManagerIntegrationFactory().registerForTenant(Tenant.DEFAULT_TENANT_UUID);
 
     // Use the builtin injector if already registered, otherwise create it
     savedInjector =
@@ -160,6 +175,18 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
     em.flush();
     em.clear();
+  }
+
+  private ExpirationManagerIntegrationFactory getExpirationManagerIntegrationFactory() {
+    return new ExpirationManagerIntegrationFactory(
+        connectorInstanceService,
+        catalogConnectorService,
+        httpClientFactory,
+        taskScheduler,
+        componentRequestEngine,
+        collectorService,
+        fakeDetectorService,
+        expectationsExpirationManagerConfig);
   }
 
   @Nested

@@ -13,7 +13,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob;
+import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
+import io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -22,8 +24,13 @@ import io.openaev.database.model.StepStatus;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStatus;
+import io.openaev.integration.ComponentRequestEngine;
+import io.openaev.integration.impl.collectors.expiration_manager.ExpirationManagerIntegrationFactory;
+import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
+import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.chaining.QueueChainingService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
@@ -50,6 +57,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -81,7 +89,15 @@ class WorkflowUpdateEventScopedCallersTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
-  @Autowired private ExpectationsExpirationManagerJob expectationsExpirationManagerJob;
+  @Autowired private ExpectationsExpirationManagerService expectationsExpirationManagerService;
+  @Autowired private ConnectorInstanceService connectorInstanceService;
+  @Autowired private CatalogConnectorService catalogConnectorService;
+  @Autowired private HttpClientFactory httpClientFactory;
+  @Autowired private ThreadPoolTaskScheduler taskScheduler;
+  @Autowired private ComponentRequestEngine componentRequestEngine;
+  @Autowired private CollectorService collectorService;
+  @Autowired private ExpectationsExpirationManagerService fakeDetectorService;
+  @Autowired private ExpectationsExpirationManagerConfig expectationsExpirationManagerConfig;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
@@ -106,6 +122,9 @@ class WorkflowUpdateEventScopedCallersTest extends IntegrationTest {
     // expiration collector in it.
     tenantId = tenantHelper.createTenantWithCurrentUser("update-event").getId();
     doNothing().when(queueChainingService).updateStep(anyString());
+
+    // integration factories are disabled in tests; register collector explicitly
+    registerExpirationCollector(tenantId);
   }
 
   @AfterEach
@@ -118,6 +137,18 @@ class WorkflowUpdateEventScopedCallersTest extends IntegrationTest {
           return null;
         });
     TenantContext.clearCurrentTenant();
+  }
+
+  private ExpirationManagerIntegrationFactory getExpirationManagerIntegrationFactory() {
+    return new ExpirationManagerIntegrationFactory(
+        connectorInstanceService,
+        catalogConnectorService,
+        httpClientFactory,
+        taskScheduler,
+        componentRequestEngine,
+        collectorService,
+        fakeDetectorService,
+        expectationsExpirationManagerConfig);
   }
 
   @Nested
@@ -210,13 +241,16 @@ class WorkflowUpdateEventScopedCallersTest extends IntegrationTest {
       Seeded seeded =
           seedChainedInject(InjectExpectationFixture.createDefaultDetectionInjectExpectation());
       backdatePastItsExpiration(seeded.expectationId());
-      // The job resolves the built-in collector in every tenant it visits. The default tenant
-      // registers it lazily, on its first manager start, so register it here as that start would.
-      registerExpirationCollector(Tenant.DEFAULT_TENANT_UUID);
+
       TenantContext.clearCurrentTenant();
 
       // -- Act --
-      expectationsExpirationManagerJob.run();
+      inTenant(
+          tenantId,
+          () -> {
+            expectationsExpirationManagerService.computeExpectations(tenantId);
+            return null;
+          });
 
       // -- Assert --
       verify(queueChainingService).updateStep(seeded.stepId());
@@ -237,19 +271,19 @@ class WorkflowUpdateEventScopedCallersTest extends IntegrationTest {
                       .executeUpdate());
       assertThat(updated).isEqualTo(1);
     }
+  }
 
-    private void registerExpirationCollector(String tenant) {
-      inTenant(
-          tenant,
-          () -> {
-            try {
-              expectationsExpirationManagerJob.registerForTenant(tenant);
-            } catch (Exception e) {
-              throw new IllegalStateException(e);
-            }
-            return null;
-          });
-    }
+  private void registerExpirationCollector(String tenant) {
+    inTenant(
+        tenant,
+        () -> {
+          try {
+            getExpirationManagerIntegrationFactory().registerForTenant(tenant);
+          } catch (Exception e) {
+            throw new IllegalStateException(e);
+          }
+          return null;
+        });
   }
 
   // -- helpers --

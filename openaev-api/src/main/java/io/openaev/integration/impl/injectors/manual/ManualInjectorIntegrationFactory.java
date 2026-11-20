@@ -72,7 +72,7 @@ public class ManualInjectorIntegrationFactory extends BuiltinIntegrationFactory 
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance)
+  public Integration spawn(ConnectorInstance instance, String tenantId)
       throws JsonProcessingException,
           InvocationTargetException,
           NoSuchMethodException,
@@ -82,6 +82,7 @@ public class ManualInjectorIntegrationFactory extends BuiltinIntegrationFactory 
         componentRequestEngine,
         instance,
         connectorInstanceService,
+        tenantId,
         manualContract,
         injectorContext,
         injectorService,

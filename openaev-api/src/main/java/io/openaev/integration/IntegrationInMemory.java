@@ -12,8 +12,9 @@ public abstract class IntegrationInMemory extends Integration {
   protected IntegrationInMemory(
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
-      ConnectorInstanceService connectorInstanceService) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+      ConnectorInstanceService connectorInstanceService,
+      String tenantId) {
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
   }
 
   @Override

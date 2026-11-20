@@ -133,10 +133,11 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance) {
+  public Integration spawn(ConnectorInstance instance, String tenantId) {
     return new CrowdStrikeExecutorIntegration(
         instance,
         connectorInstanceService,
+        tenantId,
         endpointService,
         agentService,
         assetGroupService,

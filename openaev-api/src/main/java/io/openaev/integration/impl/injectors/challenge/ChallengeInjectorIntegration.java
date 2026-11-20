@@ -34,6 +34,7 @@ public class ChallengeInjectorIntegration extends IntegrationInMemory {
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
+      String tenantId,
       ChallengeContract challengeContract,
       InjectorContext injectorContext,
       EmailService emailService,
@@ -41,7 +42,7 @@ public class ChallengeInjectorIntegration extends IntegrationInMemory {
       InjectExpectationService injectExpectationService,
       ChallengeRepository challengeRepository,
       UrlAccessTokenService urlAccessTokenService) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
     this.injectorService = injectorService;
     this.challengeContract = challengeContract;
     this.challengeRepository = challengeRepository;

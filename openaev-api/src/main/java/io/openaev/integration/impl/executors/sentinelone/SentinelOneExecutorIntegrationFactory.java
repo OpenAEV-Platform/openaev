@@ -133,10 +133,11 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance) {
+  public Integration spawn(ConnectorInstance instance, String tenantId) {
     return new SentinelOneExecutorIntegration(
         instance,
         connectorInstanceService,
+        tenantId,
         endpointService,
         agentService,
         assetGroupService,

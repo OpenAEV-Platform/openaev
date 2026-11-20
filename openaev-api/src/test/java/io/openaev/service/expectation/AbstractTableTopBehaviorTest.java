@@ -11,15 +11,20 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
-import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob;
+import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
+import io.openaev.integration.ComponentRequestEngine;
+import io.openaev.integration.impl.collectors.expiration_manager.ExpirationManagerIntegrationFactory;
+import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exercise.form.InjectExpectationUpdateFromUIInput;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -34,6 +39,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -50,8 +56,15 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
   @Autowired private InjectUtils injectUtils;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private ExpectationsExpirationManagerService expectationsExpirationManagerService;
-  @Autowired private ExpectationsExpirationManagerJob expectationsExpirationManagerJob;
   @Autowired private ExpectationsExpirationManagerConfig expectationsExpirationManagerConfig;
+
+  @Autowired private ConnectorInstanceService connectorInstanceService;
+  @Autowired private CatalogConnectorService catalogConnectorService;
+  @Autowired private HttpClientFactory httpClientFactory;
+  @Autowired private ThreadPoolTaskScheduler taskScheduler;
+  @Autowired private ComponentRequestEngine componentRequestEngine;
+  @Autowired private CollectorService collectorService;
+  @Autowired private ExpectationsExpirationManagerService fakeDetectorService;
 
   @Autowired private ArticleComposer articleComposer;
   @Autowired private ChannelComposer channelComposer;
@@ -71,6 +84,18 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
     injectComposer.reset();
     exerciseComposer.reset();
     expectationComposer.reset();
+  }
+
+  private ExpirationManagerIntegrationFactory getExpirationManagerIntegrationFactory() {
+    return new ExpirationManagerIntegrationFactory(
+        connectorInstanceService,
+        catalogConnectorService,
+        httpClientFactory,
+        taskScheduler,
+        componentRequestEngine,
+        collectorService,
+        fakeDetectorService,
+        expectationsExpirationManagerConfig);
   }
 
   @Nested
@@ -1459,7 +1484,7 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
       String tenantId = inject.getTenant().getId();
-      expectationsExpirationManagerJob.registerForTenant(tenantId);
+      getExpirationManagerIntegrationFactory().registerForTenant(tenantId);
 
       // Act
       expectationsExpirationManagerService.computeExpectations(tenantId);
@@ -1761,7 +1786,7 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
 
     private void expireExpectations(Inject inject) throws Exception {
       String tenantId = inject.getTenant().getId();
-      expectationsExpirationManagerJob.registerForTenant(tenantId);
+      getExpirationManagerIntegrationFactory().registerForTenant(tenantId);
       expectationsExpirationManagerService.computeExpectations(tenantId);
       entityManager.flush();
       entityManager.clear();
