@@ -4977,5 +4977,7 @@
   "What you need to do": "必要な対応",
   "Nothing to decide before applying.": "適用前に決めることはありません。",
   "{count, plural, one {After: add targets to # new inject.} other {After: add targets to # new injects.}}": "{count, plural, other {適用後: 新しいインジェクト # 件にターゲットを追加してください。}}",
-  "The current state is saved first: you can undo this from Versions.": "現在の状態が先に保存されます。バージョンから元に戻せます。"
+  "The current state is saved first: you can undo this from Versions.": "現在の状態が先に保存されます。バージョンから元に戻せます。",
+  "Before · now (v{version})": "変更前 · 現在 (v{version})",
+  "After · revision #{number} (v{version})": "変更後 · リビジョン #{number} (v{version})"
 }

@@ -4977,5 +4977,7 @@
   "What you need to do": "Что нужно сделать",
   "Nothing to decide before applying.": "Перед применением решать ничего не нужно.",
   "{count, plural, one {After: add targets to # new inject.} other {After: add targets to # new injects.}}": "{count, plural, one {Затем добавьте цели к # новому инжекту.} other {Затем добавьте цели к # новым инжектам.}}",
-  "The current state is saved first: you can undo this from Versions.": "Текущее состояние сначала сохраняется: отменить можно в разделе «Версии»."
+  "The current state is saved first: you can undo this from Versions.": "Текущее состояние сначала сохраняется: отменить можно в разделе «Версии».",
+  "Before · now (v{version})": "До · сейчас (v{version})",
+  "After · revision #{number} (v{version})": "После · ревизия № {number} (v{version})"
 }

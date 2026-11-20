@@ -246,6 +246,19 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
   // "(v2.0.0, 9 Nov 2026)": the revision's version and date, so the user knows which one it is.
   const revisionFacts = [preview?.target_version && `v${preview.target_version}`, revisionDate && fsd(revisionDate)].filter(Boolean);
   const revisionDetails = revisionFacts.length > 0 ? ` (${revisionFacts.join(', ')})` : '';
+  // A version on each side, as in the Threat Arsenal diffs. "now" stays: the current state is the
+  // installed version plus the user's edits, not exactly that version.
+  const currentVersion = preview?.current_version;
+  const beforeLabel = currentVersion ? t('Before · now (v{version})', { version: currentVersion }) : t('Before · now');
+  let afterLabel = String(t('After · v{version}', { version: version ?? '' }));
+  if (!version) {
+    afterLabel = String(preview?.target_version
+      ? t('After · revision #{number} (v{version})', {
+          number: revisionNumber ?? '',
+          version: preview.target_version,
+        })
+      : t('After · revision #{number}', { number: revisionNumber ?? '' }));
+  }
   const section = {
     display: 'flex',
     flexDirection: 'column' as const,
@@ -388,8 +401,8 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
                 {taken.length > 0 && (
                   <ChangesTable
                     changes={taken.flatMap(change => rowsOf(change, change.local ?? change.base, change.applied))}
-                    beforeLabel={t('Before · now')}
-                    afterLabel={String(version ? t('After · v{version}', { version }) : t('After · revision #{number}', { number: revisionNumber ?? '' }))}
+                    beforeLabel={String(beforeLabel)}
+                    afterLabel={String(afterLabel)}
                   />
                 )}
                 {nothingChanges && <Text variant="content-base">{t('Nothing in the content changes.')}</Text>}

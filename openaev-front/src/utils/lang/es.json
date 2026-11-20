@@ -4977,5 +4977,7 @@
   "What you need to do": "Qué debe hacer",
   "Nothing to decide before applying.": "Nada que decidir antes de aplicar.",
   "{count, plural, one {After: add targets to # new inject.} other {After: add targets to # new injects.}}": "{count, plural, one {Después: añada objetivos al # nuevo inject.} other {Después: añada objetivos a los # nuevos injects.}}",
-  "The current state is saved first: you can undo this from Versions.": "El estado actual se guarda primero: puede deshacerlo desde Versiones."
+  "The current state is saved first: you can undo this from Versions.": "El estado actual se guarda primero: puede deshacerlo desde Versiones.",
+  "Before · now (v{version})": "Antes · ahora (v{version})",
+  "After · revision #{number} (v{version})": "Después · revisión n.º {number} (v{version})"
 }

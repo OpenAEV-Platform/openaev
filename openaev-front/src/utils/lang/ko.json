@@ -4977,5 +4977,7 @@
   "What you need to do": "해야 할 일",
   "Nothing to decide before applying.": "적용 전에 결정할 것이 없습니다.",
   "{count, plural, one {After: add targets to # new inject.} other {After: add targets to # new injects.}}": "{count, plural, other {적용 후: 새 인젝트 #개에 대상을 추가하세요.}}",
-  "The current state is saved first: you can undo this from Versions.": "현재 상태가 먼저 저장됩니다. 버전에서 되돌릴 수 있습니다."
+  "The current state is saved first: you can undo this from Versions.": "현재 상태가 먼저 저장됩니다. 버전에서 되돌릴 수 있습니다.",
+  "Before · now (v{version})": "이전 · 현재 (v{version})",
+  "After · revision #{number} (v{version})": "이후 · 리비전 #{number} (v{version})"
 }
