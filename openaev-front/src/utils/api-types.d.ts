@@ -2624,6 +2624,19 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
+export interface CatalogHistoryOutput {
+  catalog_history_action: "INSTALL" | "UNINSTALL";
+  /** @format date-time */
+  catalog_history_created_at: string;
+  /** @minLength 1 */
+  catalog_history_id: string;
+  catalog_history_mode: "MANUAL" | "AUTO";
+  /** Who made the change; empty when the platform made it alone */
+  catalog_history_user?: string;
+  /** @minLength 1 */
+  catalog_history_version: string;
+}
+
 export interface CatalogInstallAllOutput {
   failed_external_ids?: string[];
   installed_ids?: string[];
@@ -11787,6 +11800,8 @@ export interface ScenarioOutput {
   scenario_all_users_number?: number;
   /** Whether the scenario is an autonomous (AI-driven) attack-path scenario */
   scenario_autonomous?: boolean;
+  /** Catalogue version installed; empty when not from the catalogue */
+  scenario_catalog_version?: string;
   /** Category of the scenario */
   scenario_category?: string;
   /**

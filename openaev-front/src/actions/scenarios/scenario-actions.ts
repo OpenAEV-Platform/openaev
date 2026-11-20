@@ -66,6 +66,8 @@ export const searchScenarios = (paginationInput: SearchPaginationInput) => {
 
 export const fetchScenarioAuthorOptions = () => simpleCall('/api/scenarios/authors/options');
 
+export const fetchScenarioHistory = (scenarioId: string) => simpleCall(`${SCENARIO_URI}/${scenarioId}/history`);
+
 export const fetchScenario = (scenarioId: string) => (dispatch: Dispatch) => {
   const uri = `${SCENARIO_URI}/${scenarioId}`;
   return getReferential(scenario, uri)(dispatch);
