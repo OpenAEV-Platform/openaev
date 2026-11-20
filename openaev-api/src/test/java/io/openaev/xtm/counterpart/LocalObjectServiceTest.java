@@ -3,6 +3,7 @@ package io.openaev.xtm.counterpart;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -24,6 +25,7 @@ import io.openaev.database.repository.InjectExpectationTraceRepository.AlertInje
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.xtm.counterpart.LocalObjectService.Access;
 import io.openaev.xtm.counterpart.LocalObjectService.Fact;
 import io.openaev.xtm.counterpart.LocalObjectService.LocalObject;
 import io.openaev.xtm.counterpart.form.LocalObjectOutput;
@@ -79,7 +81,7 @@ class LocalObjectServiceTest {
     when(assets.findAllByHostnameIn(Set.of("web-01"))).thenReturn(List.of(asset));
     when(findings.countFindingsByAssetIdIn(List.of("a-1"))).thenReturn(List.of(count("a-1", 3, 0)));
 
-    List<LocalObject> found = service.find(CounterpartKind.ASSET, List.of("  Web-01 "));
+    List<LocalObject> found = service.find(CounterpartKind.ASSET, List.of("  Web-01 "), Access.ALL);
 
     assertThat(found)
         .containsExactly(
@@ -101,11 +103,11 @@ class LocalObjectServiceTest {
     asset.setHostname("db-01");
     when(assets.findAllByHostnameIn(any())).thenReturn(List.of(asset));
 
-    assertThat(service.find(CounterpartKind.ASSET, List.of("db-01")).getFirst().facts())
+    assertThat(service.find(CounterpartKind.ASSET, List.of("db-01"), Access.ALL).getFirst().facts())
         .containsExactly(new Fact("findings", "0"));
 
     when(assets.findAllByHostnameIn(any())).thenReturn(List.of());
-    assertThat(service.find(CounterpartKind.ASSET, List.of("nowhere"))).isEmpty();
+    assertThat(service.find(CounterpartKind.ASSET, List.of("nowhere"), Access.ALL)).isEmpty();
     verify(findings, times(1)).countFindingsByAssetIdIn(any());
   }
 
@@ -120,7 +122,7 @@ class LocalObjectServiceTest {
         .thenReturn(List.of(ap, ap));
 
     List<LocalObject> found =
-        service.find(CounterpartKind.ATTACK_PATTERN, List.of("t1059", "T1059"));
+        service.find(CounterpartKind.ATTACK_PATTERN, List.of("t1059", "T1059"), Access.ALL);
 
     assertThat(found).hasSize(1);
     assertThat(found.getFirst().key()).isEqualTo("T1059");
@@ -139,7 +141,8 @@ class LocalObjectServiceTest {
     when(findings.countFindingsByTypeAndValueIn(ContractOutputType.CVE, Set.of("CVE-2024-1234")))
         .thenReturn(List.of(count("CVE-2024-1234", 5, 2)));
 
-    List<LocalObject> found = service.find(CounterpartKind.VULNERABILITY, List.of("cve-2024-1234"));
+    List<LocalObject> found =
+        service.find(CounterpartKind.VULNERABILITY, List.of("cve-2024-1234"), Access.ALL);
 
     assertThat(found).extracting(LocalObject::id).containsExactly("v-1");
     assertThat(found.getFirst().facts())
@@ -164,7 +167,8 @@ class LocalObjectServiceTest {
     when(exercises.countSimulationsByScenarioIdIn(List.of("s-new")))
         .thenReturn(List.of(simulations("s-new", 4, last)));
 
-    List<LocalObject> found = service.find(CounterpartKind.THREAT, List.of("intrusion-set--1"));
+    List<LocalObject> found =
+        service.find(CounterpartKind.THREAT, List.of("intrusion-set--1"), Access.ALL);
 
     assertThat(found).extracting(LocalObject::id).containsExactly("s-new");
     assertThat(found.getFirst().url()).isEqualTo("https://aev.example/admin/scenarios/s-new");
@@ -181,7 +185,11 @@ class LocalObjectServiceTest {
     s.setExternalReference("malware--1");
     when(scenarios.findAllByExternalReferenceInOrderByUpdatedAtDesc(any())).thenReturn(List.of(s));
 
-    assertThat(service.find(CounterpartKind.THREAT, List.of("malware--1")).getFirst().facts())
+    assertThat(
+            service
+                .find(CounterpartKind.THREAT, List.of("malware--1"), Access.ALL)
+                .getFirst()
+                .facts())
         .containsExactly(new Fact("simulations", "0"));
   }
 
@@ -236,10 +244,113 @@ class LocalObjectServiceTest {
   }
 
   @Test
+  @DisplayName("a scenario the caller cannot read is never returned, the next readable one is")
+  void threatWithoutGrant() {
+    Scenario hidden = new Scenario();
+    hidden.setId("s-hidden");
+    hidden.setName("Hidden");
+    hidden.setExternalReference("intrusion-set--1");
+    Scenario granted = new Scenario();
+    granted.setId("s-granted");
+    granted.setName("Granted");
+    granted.setExternalReference("intrusion-set--1");
+    when(scenarios.findAllByExternalReferenceInOrderByUpdatedAtDesc(any()))
+        .thenReturn(List.of(hidden, granted));
+
+    List<LocalObject> found =
+        service.find(
+            CounterpartKind.THREAT,
+            List.of("intrusion-set--1"),
+            access(Set.of("s-granted"), Set.of(), Set.of(), true));
+    assertThat(found).extracting(LocalObject::id).containsExactly("s-granted");
+
+    assertThat(
+            service.find(
+                CounterpartKind.THREAT,
+                List.of("intrusion-set--1"),
+                access(Set.of(), Set.of(), Set.of(), true)))
+        .isEmpty();
+    verify(exercises, times(1)).countSimulationsByScenarioIdIn(any());
+  }
+
+  @Test
+  @DisplayName("an alert whose simulation or atomic testing the caller cannot read is left out")
+  void alertWithoutGrant() {
+    when(traces.findAlertInjectsByAlertLinkIn(any()))
+        .thenReturn(
+            List.of(
+                row("https://edr/alert/1", "i-new", "Hidden", "x-hidden"),
+                row("https://edr/alert/1", "i-old", "Granted", "x-granted"),
+                row("https://siem/a/9", "i-9", "Atomic", null)));
+
+    List<LocalObject> found =
+        service.find(
+            CounterpartKind.ALERT,
+            List.of("https://edr/alert/1", "https://siem/a/9"),
+            access(Set.of(), Set.of("x-granted"), Set.of(), true));
+
+    assertThat(found).extracting(LocalObject::id).containsExactly("i-old");
+  }
+
+  @Test
+  @DisplayName("a caller without the findings right gets no finding counts and none are read")
+  void findingsWithoutRight() {
+    Asset asset = new Asset();
+    asset.setId("a-1");
+    asset.setHostname("web-01");
+    when(assets.findAllByHostnameIn(any())).thenReturn(List.of(asset));
+    Vulnerability v = new Vulnerability();
+    v.setId("v-1");
+    v.setExternalId("CVE-2024-1234");
+    when(vulnerabilities.getVulnerabilitiesByExternalIds(any())).thenReturn(List.of(v));
+    Access noFindings = access(Set.of(), Set.of(), Set.of(), false);
+
+    assertThat(
+            service.find(CounterpartKind.ASSET, List.of("web-01"), noFindings).getFirst().facts())
+        .isEmpty();
+    assertThat(
+            service
+                .find(CounterpartKind.VULNERABILITY, List.of("CVE-2024-1234"), noFindings)
+                .getFirst()
+                .facts())
+        .isEmpty();
+    verify(findings, never()).countFindingsByAssetIdIn(any());
+    verify(findings, never()).countFindingsByTypeAndValueIn(any(), any());
+  }
+
+  private static Access access(
+      Set<String> scenarioIds,
+      Set<String> simulationIds,
+      Set<String> atomicTestingIds,
+      boolean findings) {
+    return new Access() {
+      @Override
+      public boolean canReadScenario(String scenarioId) {
+        return scenarioIds.contains(scenarioId);
+      }
+
+      @Override
+      public boolean canReadSimulation(String simulationId) {
+        return simulationIds.contains(simulationId);
+      }
+
+      @Override
+      public boolean canReadAtomicTesting(String injectId) {
+        return atomicTestingIds.contains(injectId);
+      }
+
+      @Override
+      public boolean canReadFindings() {
+        return findings;
+      }
+    };
+  }
+
+  @Test
   @DisplayName("blank keys read nothing")
   void blankKeys() {
-    assertThat(service.find(CounterpartKind.ASSET, List.of(" ", ""))).isEmpty();
-    assertThat(service.find(CounterpartKind.ALERT, List.of(" "))).isEmpty();
+    assertThat(service.find(CounterpartKind.ASSET, List.of(" ", ""), Access.ALL)).isEmpty();
+    assertThat(service.find(CounterpartKind.ALERT, List.of(" "), Access.ALL)).isEmpty();
     verifyNoInteractions(
         assets, attackPatterns, vulnerabilities, scenarios, traces, findings, exercises);
   }
@@ -253,7 +364,8 @@ class LocalObjectServiceTest {
                 row("https://edr/alert/1", "i-new", "Dump LSASS", "x-1"),
                 row("https://edr/alert/1", "i-old", "Older", "x-0")));
 
-    List<LocalObject> found = service.find(CounterpartKind.ALERT, List.of(" https://edr/alert/1 "));
+    List<LocalObject> found =
+        service.find(CounterpartKind.ALERT, List.of(" https://edr/alert/1 "), Access.ALL);
 
     assertThat(found)
         .containsExactly(
@@ -271,7 +383,11 @@ class LocalObjectServiceTest {
     when(traces.findAlertInjectsByAlertLinkIn(any()))
         .thenReturn(List.of(row("https://siem/a/9", "i-9", "Atomic", null)));
 
-    assertThat(service.find(CounterpartKind.ALERT, List.of("https://siem/a/9")).getFirst().url())
+    assertThat(
+            service
+                .find(CounterpartKind.ALERT, List.of("https://siem/a/9"), Access.ALL)
+                .getFirst()
+                .url())
         .isEqualTo("https://aev.example/admin/atomic_testings/i-9");
   }
 
@@ -310,7 +426,7 @@ class LocalObjectServiceTest {
     asset.setHostname("laptop");
     when(assets.findAllByHostnameIn(any())).thenReturn(List.of(asset));
 
-    assertThat(service.find(CounterpartKind.ASSET, List.of("laptop")).getFirst().url())
+    assertThat(service.find(CounterpartKind.ASSET, List.of("laptop"), Access.ALL).getFirst().url())
         .isEqualTo("/admin/assets/a-2");
   }
 }

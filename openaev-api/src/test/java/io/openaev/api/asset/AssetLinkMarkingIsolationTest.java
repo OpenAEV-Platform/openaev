@@ -34,6 +34,7 @@ import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -238,7 +239,8 @@ class AssetLinkMarkingIsolationTest extends IntegrationTest {
   }
 
   private Endpoint endpoint(String name) {
-    String unique = name + "-" + uniqueDefinition();
+    // A hostname must be a valid RFC 1034 name: no colon, so not uniqueDefinition().
+    String unique = name + "-" + UUID.randomUUID().toString().substring(0, 8);
     return endpointComposer
         .forEndpoint(
             EndpointFixture.createEndpoint(

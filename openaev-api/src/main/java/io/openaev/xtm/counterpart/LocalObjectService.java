@@ -37,6 +37,11 @@ import org.springframework.stereotype.Service;
  * the caller's tenant scope and markings: a product connected with a user token sees what that user
  * sees, nothing more. Attack patterns and vulnerabilities are tenant-active tables: they are read
  * through their reviewed services (TenantActiveTableAccessArchTest), never their repositories.
+ *
+ * <p>Scenarios, simulations and atomic testings are grant-managed: the statement inspector does not
+ * filter them by grant, so every scenario and inject this lookup returns is kept only when {@link
+ * Access} says the caller can read it. Finding counts are shown only to a caller who can read
+ * findings.
  */
 @Service
 @RequiredArgsConstructor
@@ -58,6 +63,45 @@ public class LocalObjectService {
     }
   }
 
+  /**
+   * The caller's read rights on the grant-managed objects and on findings, evaluated by the
+   * controller in the request's tenant scope.
+   */
+  public interface Access {
+
+    boolean canReadScenario(String scenarioId);
+
+    boolean canReadSimulation(String simulationId);
+
+    boolean canReadAtomicTesting(String injectId);
+
+    boolean canReadFindings();
+
+    /** Everything readable: for callers that gate elsewhere. */
+    Access ALL =
+        new Access() {
+          @Override
+          public boolean canReadScenario(String scenarioId) {
+            return true;
+          }
+
+          @Override
+          public boolean canReadSimulation(String simulationId) {
+            return true;
+          }
+
+          @Override
+          public boolean canReadAtomicTesting(String injectId) {
+            return true;
+          }
+
+          @Override
+          public boolean canReadFindings() {
+            return true;
+          }
+        };
+  }
+
   static final String FACT_FINDINGS = "findings";
   static final String FACT_AFFECTED_ASSETS = "affected_assets";
   static final String FACT_SIMULATIONS = "simulations";
@@ -72,17 +116,17 @@ public class LocalObjectService {
   private final FindingRepository findingRepository;
   private final ExerciseRepository exerciseRepository;
 
-  public List<LocalObject> find(CounterpartKind kind, Collection<String> keys) {
+  public List<LocalObject> find(CounterpartKind kind, Collection<String> keys, Access access) {
     Set<String> normalised = normalise(kind, keys);
     if (normalised.isEmpty()) {
       return List.of();
     }
     return switch (kind) {
-      case ASSET -> assets(normalised);
+      case ASSET -> assets(normalised, access);
       case ATTACK_PATTERN -> attackPatterns(normalised);
-      case VULNERABILITY -> vulnerabilities(normalised);
-      case THREAT -> scenarios(normalised);
-      case ALERT -> alerts(normalised);
+      case VULNERABILITY -> vulnerabilities(normalised, access);
+      case THREAT -> scenarios(normalised, access);
+      case ALERT -> alerts(normalised, access);
     };
   }
 
@@ -100,7 +144,7 @@ public class LocalObjectService {
     return out;
   }
 
-  private List<LocalObject> assets(Set<String> hostnames) {
+  private List<LocalObject> assets(Set<String> hostnames, Access access) {
     // Hostnames are stored lower-case (Asset#setHostname), the ASSET kind normalises the same way.
     Map<String, Asset> byKey = new LinkedHashMap<>();
     for (Asset asset : assetRepository.findAllByHostnameIn(hostnames)) {
@@ -109,12 +153,15 @@ public class LocalObjectService {
     if (byKey.isEmpty()) {
       return List.of();
     }
-    // One grouped read for the findings of every matched asset.
+    boolean showFindings = access.canReadFindings();
+    // One grouped read for the findings of every matched asset, for a caller who reads findings.
     Map<String, Long> findings = new HashMap<>();
-    for (FindingCountRow row :
-        findingRepository.countFindingsByAssetIdIn(
-            byKey.values().stream().map(Asset::getId).toList())) {
-      findings.put(row.getObjectKey(), row.getFindings());
+    if (showFindings) {
+      for (FindingCountRow row :
+          findingRepository.countFindingsByAssetIdIn(
+              byKey.values().stream().map(Asset::getId).toList())) {
+        findings.put(row.getObjectKey(), row.getFindings());
+      }
     }
     List<LocalObject> out = new ArrayList<>();
     for (Asset asset : byKey.values()) {
@@ -125,9 +172,11 @@ public class LocalObjectService {
               "asset",
               asset.getName(),
               link("/admin/assets/" + asset.getId()),
-              List.of(
-                  new Fact(
-                      FACT_FINDINGS, String.valueOf(findings.getOrDefault(asset.getId(), 0L))))));
+              showFindings
+                  ? List.of(
+                      new Fact(
+                          FACT_FINDINGS, String.valueOf(findings.getOrDefault(asset.getId(), 0L))))
+                  : List.of()));
     }
     return out;
   }
@@ -148,7 +197,7 @@ public class LocalObjectService {
     return new ArrayList<>(byKey.values());
   }
 
-  private List<LocalObject> vulnerabilities(Set<String> cves) {
+  private List<LocalObject> vulnerabilities(Set<String> cves, Access access) {
     Map<String, Vulnerability> byKey = new LinkedHashMap<>();
     for (Vulnerability v : vulnerabilityService.getVulnerabilitiesByExternalIds(cves)) {
       byKey.putIfAbsent(v.getExternalId().toUpperCase(Locale.ROOT), v);
@@ -156,11 +205,14 @@ public class LocalObjectService {
     if (byKey.isEmpty()) {
       return List.of();
     }
+    boolean showFindings = access.canReadFindings();
     // One grouped read: the CVE findings of the simulations, and the assets they were found on.
     Map<String, FindingCountRow> findings = new HashMap<>();
-    for (FindingCountRow row :
-        findingRepository.countFindingsByTypeAndValueIn(ContractOutputType.CVE, byKey.keySet())) {
-      findings.put(row.getObjectKey(), row);
+    if (showFindings) {
+      for (FindingCountRow row :
+          findingRepository.countFindingsByTypeAndValueIn(ContractOutputType.CVE, byKey.keySet())) {
+        findings.put(row.getObjectKey(), row);
+      }
     }
     List<LocalObject> out = new ArrayList<>();
     byKey.forEach(
@@ -173,22 +225,28 @@ public class LocalObjectService {
                   "vulnerability",
                   v.getExternalId(),
                   link("/admin/settings/taxonomies/vulnerabilities"),
-                  List.of(
-                      new Fact(FACT_FINDINGS, String.valueOf(row == null ? 0 : row.getFindings())),
-                      new Fact(
-                          FACT_AFFECTED_ASSETS,
-                          String.valueOf(row == null ? 0 : row.getAssets())))));
+                  showFindings
+                      ? List.of(
+                          new Fact(
+                              FACT_FINDINGS, String.valueOf(row == null ? 0 : row.getFindings())),
+                          new Fact(
+                              FACT_AFFECTED_ASSETS,
+                              String.valueOf(row == null ? 0 : row.getAssets())))
+                      : List.of()));
         });
     return out;
   }
 
-  private List<LocalObject> scenarios(Set<String> stixIds) {
+  private List<LocalObject> scenarios(Set<String> stixIds, Access access) {
     // A scenario generated from OpenCTI knowledge keeps the STIX id it came from as its external
-    // reference; several scenarios may share it, the first (most recent) one is the pivot.
+    // reference; several scenarios may share it, the most recent one the caller can read is the
+    // pivot. A scenario the caller has no grant on is never returned, not even its name.
     Map<String, Scenario> byKey = new LinkedHashMap<>();
     for (Scenario s :
         scenarioRepository.findAllByExternalReferenceInOrderByUpdatedAtDesc(stixIds)) {
-      byKey.putIfAbsent(s.getExternalReference(), s);
+      if (!byKey.containsKey(s.getExternalReference()) && access.canReadScenario(s.getId())) {
+        byKey.put(s.getExternalReference(), s);
+      }
     }
     if (byKey.isEmpty()) {
       return List.of();
@@ -220,12 +278,16 @@ public class LocalObjectService {
     return out;
   }
 
-  private List<LocalObject> alerts(Set<String> alertLinks) {
+  private List<LocalObject> alerts(Set<String> alertLinks, Access access) {
     // A collected alert answered an inject expectation: the pivot is that inject, in its
-    // simulation or as an atomic testing. Rows come newest alert first; the first per link wins.
+    // simulation or as an atomic testing. Rows come newest alert first; the first readable one per
+    // link wins: an inject is read through its simulation, or as an atomic testing without one.
     Map<String, LocalObject> byKey = new LinkedHashMap<>();
     for (AlertInjectRow row :
         injectExpectationTraceRepository.findAlertInjectsByAlertLinkIn(alertLinks)) {
+      if (byKey.containsKey(row.getAlertLink()) || !canRead(row, access)) {
+        continue;
+      }
       String path =
           row.getExerciseId() == null
               ? "/admin/atomic_testings/" + row.getInjectId()
@@ -236,6 +298,12 @@ public class LocalObjectService {
               row.getAlertLink(), row.getInjectId(), "inject", row.getInjectTitle(), link(path)));
     }
     return new ArrayList<>(byKey.values());
+  }
+
+  private static boolean canRead(AlertInjectRow row, Access access) {
+    return row.getExerciseId() == null
+        ? access.canReadAtomicTesting(row.getInjectId())
+        : access.canReadSimulation(row.getExerciseId());
   }
 
   private String link(String path) {

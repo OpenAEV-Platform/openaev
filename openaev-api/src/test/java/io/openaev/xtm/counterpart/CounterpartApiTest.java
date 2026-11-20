@@ -1,12 +1,15 @@
 package io.openaev.xtm.counterpart;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.service.PermissionService;
+import io.openaev.service.UserService;
 import io.openaev.xtm.counterpart.CounterpartServiceTest.FakeProvider;
 import io.openaev.xtm.counterpart.LocalObjectService.Fact;
 import io.openaev.xtm.counterpart.LocalObjectService.LocalObject;
@@ -59,7 +62,10 @@ class CounterpartApiTest {
     localObjects = mock(LocalObjectService.class);
     api =
         new CounterpartApi(
-            new CounterpartService(List.of(provider, new SilentProvider())), localObjects);
+            new CounterpartService(List.of(provider, new SilentProvider())),
+            localObjects,
+            mock(UserService.class),
+            mock(PermissionService.class));
   }
 
   @Test
@@ -158,7 +164,7 @@ class CounterpartApiTest {
             "https://aev.example/a1",
             List.of(new Fact("findings", "3")));
     LocalObject noFacts = new LocalObject("k", "i", "T", "N", "https://aev.example/i", null);
-    when(localObjects.find(eq(CounterpartKind.ASSET), anyCollection()))
+    when(localObjects.find(eq(CounterpartKind.ASSET), anyCollection(), any()))
         .thenReturn(List.of(withFacts, noFacts));
     CounterpartLookupInput input = new CounterpartLookupInput(List.of("host-1", "k"));
 
@@ -178,10 +184,10 @@ class CounterpartApiTest {
     assertThat(api.localVulnerabilities(null, "t", input)).isEmpty();
     assertThat(api.localThreats(null, "t", input)).isEmpty();
     assertThat(api.localAlerts(null, "t", input)).isEmpty();
-    verify(localObjects).find(CounterpartKind.ATTACK_PATTERN, input.keys());
-    verify(localObjects).find(CounterpartKind.VULNERABILITY, input.keys());
-    verify(localObjects).find(CounterpartKind.THREAT, input.keys());
-    verify(localObjects).find(CounterpartKind.ALERT, input.keys());
+    verify(localObjects).find(eq(CounterpartKind.ATTACK_PATTERN), eq(input.keys()), any());
+    verify(localObjects).find(eq(CounterpartKind.VULNERABILITY), eq(input.keys()), any());
+    verify(localObjects).find(eq(CounterpartKind.THREAT), eq(input.keys()), any());
+    verify(localObjects).find(eq(CounterpartKind.ALERT), eq(input.keys()), any());
   }
 
   @Test
