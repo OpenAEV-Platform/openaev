@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -192,6 +193,46 @@ class NewsFeedItemApiTest extends IntegrationTest {
       // Assert
       assertThat(isRead(blogPost)).isTrue();
       assertThat(isRead(scenario)).isFalse();
+    }
+
+    @Test
+    @DisplayName(
+        "Given an item of a type OpenAEV does not know, should count it among the resources")
+    void given_itemOfUnknownType_should_countItAmongTheResources() throws Exception {
+      // Arrange
+      NewsFeedItem unknown =
+          NewsFeedItemFixture.createNewsFeedItem(userService.currentUser(), "hub-x");
+      ReflectionTestUtils.setField(unknown, "type", "RESOURCE_PLAYBOOK");
+      newsFeedItemRepository.save(unknown);
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      String resources = searchInCategory("RESOURCE");
+      String blogPostsCount = unreadCountInCategory("BLOG_POST");
+      String resourcesCount = unreadCountInCategory("RESOURCE");
+      mvc.perform(put(READ_ALL_URI, tenantId).param("category", "RESOURCE").with(csrf()))
+          .andExpect(status().isNoContent());
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      assertThatJson(resources).node("totalElements").isEqualTo(2);
+      assertThat(blogPostsCount).isEqualTo("1");
+      assertThat(resourcesCount).isEqualTo("2");
+      assertThat(isRead(unknown)).isTrue();
+      assertThat(isRead(scenario)).isTrue();
+      assertThat(isRead(blogPost)).isFalse();
+    }
+
+    @Test
+    @DisplayName("Given a category that does not exist, should reject the request")
+    void given_unknownCategory_should_rejectTheRequest() throws Exception {
+      // Act & Assert
+      mvc.perform(get(UNREAD_COUNT_URI, tenantId).param("category", "NOPE"))
+          .andExpect(status().isBadRequest());
+      mvc.perform(put(READ_ALL_URI, tenantId).param("category", "NOPE").with(csrf()))
+          .andExpect(status().isBadRequest());
     }
 
     private String searchInCategory(String category) throws Exception {
