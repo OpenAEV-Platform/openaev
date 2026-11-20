@@ -7,13 +7,13 @@ import { arrayOfEndpoints } from '../../../../actions/assets/asset-schema';
 import { findEndpoints, searchEndpoints } from '../../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../../actions/executors/executor-action';
 import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
+import markingsColumn from '../../../../components/common/list/markingsColumn';
 import { buildFilter } from '../../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import SelectListPicker, { type SelectListPickerElements } from '../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../components/i18n';
-import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import * as Constants from '../../../../constants/ActionTypes';
@@ -206,9 +206,7 @@ const EndpointsPicker: FunctionComponent<Props> = ({
       },
       ...(markingEnabled
         ? [{
-            field: 'asset_markings',
-            label: 'Markings',
-            value: (endpoint: EndpointOutput) => <ItemMarkings markingIds={endpoint.asset_markings} limit={1} />,
+            ...markingsColumn('asset_markings', (endpoint: EndpointOutput) => endpoint.asset_markings),
             width: 10,
           }]
         : []),

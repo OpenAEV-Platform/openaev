@@ -5,9 +5,9 @@ import { makeStyles } from 'tss-react/mui';
 
 import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
 import AssetTypeFragment from '../../../../components/common/list/fragments/AssetTypeFragment';
+import markingsColumn from '../../../../components/common/list/markingsColumn';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { type SortHelpers } from '../../../../components/common/queryable/sort/SortHelpers';
-import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type AssetOutput } from '../../../../utils/api-types';
@@ -88,14 +88,7 @@ const AssetsList = <T extends AssetOutput>({
       isSortable: true,
       value: (asset: T) => <AssetPlatformFragment platform={asset.endpoint_platform} />,
     },
-    ...(markingEnabled
-      ? [{
-          field: EndpointListItemFragments.ASSET_MARKINGS,
-          label: 'Markings',
-          isSortable: false,
-          value: (asset: T) => <ItemMarkings markingIds={asset.asset_markings} limit={1} />,
-        }]
-      : []),
+    ...(markingEnabled ? [markingsColumn(EndpointListItemFragments.ASSET_MARKINGS, (asset: T) => asset.asset_markings)] : []),
     {
       field: EndpointListItemFragments.ASSET_TAGS,
       label: 'Tags',
