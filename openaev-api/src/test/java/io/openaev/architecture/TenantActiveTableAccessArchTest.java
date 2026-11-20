@@ -317,7 +317,6 @@ import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.mapper.VulnerabilityMapper;
-import io.openaev.xtm.counterpart.LocalObjectService;
 import io.openaev.xtmhub.XtmHubService;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -1625,9 +1624,6 @@ class TenantActiveTableAccessArchTest {
               FindingSearchApi.class,
               FindingService.class,
               FindingDistinctSearchService.class,
-              // Counterpart facts (finding counts per asset or CVE), reached only from the
-              // TxCtx-carrying CounterpartApi lookups, inside their scoped read-only transaction.
-              LocalObjectService.class,
               // Reached only from those handlers, inside their scoped transaction.
               FindingMapper.class,
               // REQUIRES_NEW, so each declares its own TxCtx and the aspect scopes the new
@@ -2130,10 +2126,6 @@ class TenantActiveTableAccessArchTest {
               // Deletes jobs on workflow end; reached only from already-scoped callers (see
               // AssetAgentJobDeletionScopeTest and the activation report for the three causes).
               WorkflowEndService.class,
-              // Atomic testing stop: deletes the stopped inject's jobs with an explicit tenant
-              // (deleteAllByInjectIdsAndTenantId on the inject's own tenant), behind the scoped
-              // AtomicTestingApi#stop entrypoint.
-              io.openaev.service.AtomicTestingService.class,
               // OpenAEV executor: creates an upgrade-command job for a resolved agent, INSERT-only
               // and tenant-attributed explicitly from the agent (VALUES inserts are not blocked by
               // the inspector) - reached from the scoped scheduled-execution job runner.
@@ -4425,9 +4417,6 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.attackpath.AttackPathCausalSeedService.class,
               io.openaev.service.autonomous.AutonomousRunService.class,
               io.openaev.service.chaining.WorkflowEndService.class,
-              // Reverse counterpart lookup behind CounterpartApi (TxCtx-carrying HTTP), reading
-              // the simulation counts of the matched scenarios in the request's scope:
-              io.openaev.xtm.counterpart.LocalObjectService.class,
               // Import paths, under the TxCtx the import receives:
               io.openaev.importer.V1_DataImporter.class,
               io.openaev.service.InjectImportService.class,
@@ -4472,9 +4461,6 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.GrantService.class,
               io.openaev.service.scenario.ScenarioService.class,
               io.openaev.service.stix.SecurityCoverageService.class,
-              // Reverse counterpart lookup behind CounterpartApi (TxCtx-carrying HTTP), reading
-              // the scenarios matching the caller's keys in the request's scope:
-              io.openaev.xtm.counterpart.LocalObjectService.class,
               // Import path, under the TxCtx the import receives:
               io.openaev.service.InjectImportService.class,
               // Background: the scheduled start reads the scenario name inside its per-tenant
