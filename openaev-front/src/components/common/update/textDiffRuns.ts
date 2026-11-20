@@ -3,8 +3,8 @@
 const MAX_TOKENS = 400;
 const MAX_LINES = 1500;
 
-// Words, spaces and each punctuation sign apart: "a;" and "a |" share "a".
-const tokens = (value: string) => value.match(/[\w-]+|\s+|[^\w\s]/g) ?? [];
+// Words, spaces and each punctuation sign apart: "a;" and "a |" share "a". A dotted or slashed value (IP, version, path) stays one word.
+const tokens = (value: string) => value.match(/[\w-]+(?:[./][\w-]+)*|\s+|[^\w\s]/g) ?? [];
 
 // The length of the longest common subsequence of every pair of suffixes.
 const commonLengths = (left: string[], right: string[]) => {

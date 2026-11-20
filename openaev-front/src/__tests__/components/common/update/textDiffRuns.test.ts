@@ -5,6 +5,10 @@ import { diffRuns, lineDiff } from '../../../../components/common/update/textDif
 describe('diffRuns', () => {
   it.each([
     ['', 'nmap', []],
+    ['10.0.0.1/24', '10.0.0.2/24', [{
+      token: '10.0.0.1/24',
+      changed: true,
+    }]],
     ['scan a b', '(scan', [
       {
         token: 'scan ',
