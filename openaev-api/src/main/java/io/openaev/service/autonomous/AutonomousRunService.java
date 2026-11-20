@@ -219,10 +219,10 @@ public class AutonomousRunService {
   // GUC scope is already gone and a bare repository call would be denied by the inspector).
   private final TenantScopedTransaction tenantTx;
 
-  // Sets the ambient tenant (v1 filter and TenantContext) for a call, for two reasons: injects and
-  // injectors_contracts still carry the v1 filter and listener, which follow it, and some reads are
-  // keyed by TenantContext explicitly (ExerciseService#exercise(String), the changeExerciseStatus
-  // overload without a TxCtx).
+  // Sets the ambient tenant (TenantContext) for a call, for two reasons: TenantBaseListener, which
+  // injects carry, stamps a row written with no tenant from it, and some reads are keyed by
+  // TenantContext explicitly (ExerciseService#exercise(String), the changeExerciseStatus overload
+  // without a TxCtx).
   private final AmbientTenantBridge ambientTenantBridge;
 
   // Field-injected (not constructor) so it stays out of @RequiredArgsConstructor and null in the

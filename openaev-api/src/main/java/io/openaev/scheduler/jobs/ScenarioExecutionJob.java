@@ -137,12 +137,10 @@ public class ScenarioExecutionJob implements Job {
   }
 
   private void enableV1TenantFilter(String tenantId) {
-    // MT v1 compatibility: scenarios and simulations are v2, but the job copies a
-    // scenario's injects into a simulation through ScenarioToExerciseService, and that still reads
-    // v1 entities: Inject and InjectorContract (with its injectorLinks collection) carry the
-    // tenantFilter. The call goes with the last of their activations.
-    // The filter is enabled here for lack of the @Transactional aspect (forbidden by usage of the
-    // TenantScopedTransaction).
+    // Enables the v1 tenantFilter on the job's session. No entity or collection carries that
+    // filter, so the call narrows no read: the scenarios, simulations, injects and injector
+    // contracts the job copies are read in the tenant scope of the TenantScopedTransaction.
+    // Removing the call belongs to the v1 exit.
     entityManager
         .unwrap(Session.class)
         .enableFilter("tenantFilter")

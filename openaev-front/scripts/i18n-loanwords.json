@@ -233,6 +233,8 @@
     "Local"
   ],
   "fr": [
+    "1 inject",
+    "Versions",
     "{count} / page",
     "{count} injects",
     "{count} pts",
@@ -371,6 +373,8 @@
     "Local"
   ],
   "it": [
+    "1 inject",
+    "1 scenario",
     "Asset",
     "Audio",
     "Auto",

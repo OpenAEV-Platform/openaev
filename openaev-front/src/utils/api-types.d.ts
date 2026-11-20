@@ -2109,6 +2109,7 @@ export type AzureManagedIdentity = Value & {
   azure_environment?: string;
   /** @format byte */
   azure_requests_certificate?: Blob;
+  azure_scope?: string;
   azure_subscription_id?: string;
 };
 
@@ -2119,6 +2120,7 @@ export type AzureServicePrincipal = Value & {
   azure_environment?: string;
   /** @format byte */
   azure_requests_certificate?: Blob;
+  azure_scope?: string;
   azure_subscription_id?: string;
   azure_tenant_id?: string;
 };
@@ -3631,6 +3633,8 @@ export interface CredentialFullOutput {
   credential_azure_environment?: string;
   /** Whether an Azure requests certificate is stored; the certificate itself is never returned */
   credential_azure_requests_certificate_defined?: boolean;
+  /** Azure scope */
+  credential_azure_scope?: string;
   /** Azure subscription id */
   credential_azure_subscription_id?: string;
   /** Azure tenant id */
@@ -3763,6 +3767,11 @@ export interface CredentialInput {
   azure_client_id?: string;
   azure_client_secret?: string;
   azure_environment?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  azure_scope?: string;
   azure_subscription_id?: string;
   azure_tenant_id?: string;
   credential_auth_method:
@@ -7402,6 +7411,8 @@ export interface InjectResultOverviewOutput {
   inject_injector_contract?: AtomicInjectorContractOutput;
   /** Kill chain phases */
   inject_kill_chain_phases?: KillChainPhaseSimple[];
+  /** User who launched this inject */
+  inject_launched_by_user?: UserSimple;
   /** Indicates whether the inject is ready for use */
   inject_ready?: boolean;
   /** Recurrence cron expression for scheduled relaunch */
@@ -7416,6 +7427,8 @@ export interface InjectResultOverviewOutput {
    * @format date-time
    */
   inject_recurrence_start?: string;
+  /** User who last configured this inject's recurrence */
+  inject_scheduled_by_user?: UserSimple;
   /** status */
   inject_status?: InjectStatusSimple;
   /**
@@ -7538,6 +7551,7 @@ export interface InjectUpdateStatusInput {
 
 export interface Injector {
   injector_category?: string;
+  injector_commit?: string;
   /** @format date-time */
   injector_created_at: string;
   injector_custom_contracts?: boolean;
@@ -7875,6 +7889,7 @@ export interface InjectorContractUpdateMappingInput {
 export interface InjectorCreateInput {
   injector_author?: string;
   injector_category?: string;
+  injector_commit?: string;
   injector_contracts?: InjectorContractInput[];
   injector_custom_contracts?: boolean;
   injector_executor_clear_commands?: Record<string, string>;
@@ -7894,6 +7909,7 @@ export interface InjectorOutput {
   catalog?: CatalogConnectorSimpleOutput;
   connector_instance?: ConnectorInstanceOutput;
   existing_injector?: boolean;
+  injector_commit?: string;
   injector_external?: boolean;
   /**
    * Injector id
@@ -11831,6 +11847,8 @@ export interface ScenarioOutput {
    * @format date-time
    */
   scenario_recurrence_start?: string;
+  /** User who last configured the scenario's recurrence */
+  scenario_scheduled_by_user?: UserSimple;
   /** Severity of the scenario */
   scenario_severity?: string;
   /** Subtitle of the scenario */
@@ -12500,6 +12518,8 @@ export interface SimulationDetails {
   /** @minLength 1 */
   exercise_id: string;
   exercise_kill_chain_phases?: KillChainPhase[];
+  /** User who launched this exercise, or who last scheduled it when created unattended */
+  exercise_launched_by_user?: UserSimple;
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;
@@ -14054,6 +14074,13 @@ export interface UserOutput {
   /** @uniqueItems true */
   user_tags?: string[];
   user_tenants?: UserTenantOutput[];
+}
+
+export interface UserSimple {
+  user_email?: string;
+  /** @minLength 1 */
+  user_id: string;
+  user_name?: string;
 }
 
 export interface UserTenantOutput {
