@@ -30,6 +30,8 @@ import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
+import io.openaev.service.settings.RuntimeSetting;
+import io.openaev.service.settings.RuntimeSettingsService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.EndpointMapper;
@@ -107,12 +109,6 @@ public class EndpointService implements AuditLoggedService {
       "${executor.openaev-agent.binaries.version:${executor.openaev.binaries.version:${info.app.version:unknown}}}")
   private String agentBinaryVersion;
 
-  @Value("${executor.openaev.agent.max-simultaneous-jobs:5}")
-  private int maxSimultaneousJobs;
-
-  @Value("${executor.openaev.agent.auto-update-enabled:true}")
-  private boolean agentAutoUpdateEnabled;
-
   private final EndpointRepository endpointRepository;
   private final ExecutorRepository executorRepository;
   private final AssetGroupRepository assetGroupRepository;
@@ -124,6 +120,8 @@ public class EndpointService implements AuditLoggedService {
   private final LicenseCacheManager licenseCacheManager;
   private final TenantRepository tenantRepository;
   private final ApplicationEventPublisher eventPublisher;
+  // Max simultaneous jobs and agent auto-update: env var > Settings > Parameters > property.
+  private final RuntimeSettingsService runtimeSettingsService;
 
   // -- CRUD --
   /**
@@ -505,7 +503,7 @@ public class EndpointService implements AuditLoggedService {
     Endpoint endpoint = (Endpoint) agent.getAsset();
     if (agent.getParent() == null && !agent.getVersion().equals(version)) {
       if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())
-          && !agentAutoUpdateEnabled) {
+          && !runtimeSettingsService.booleanValue(RuntimeSetting.AGENT_AUTO_UPDATE_ENABLED)) {
         log.warn(
             String.format(
                 "A new version for the agent %s is available, his current version is %s and the new version is %s",
@@ -558,7 +556,10 @@ public class EndpointService implements AuditLoggedService {
                     : Agent.DEPLOYMENT_MODE.session.name(),
                 input.isElevated() ? Agent.PRIVILEGE.admin.name() : Agent.PRIVILEGE.standard.name(),
                 input.getExecutedByUser()),
-            PageRequest.of(0, maxSimultaneousJobs, Sort.by(Sort.Direction.ASC, "createdAt")))
+            PageRequest.of(
+                0,
+                runtimeSettingsService.intValue(RuntimeSetting.AGENT_MAX_SIMULTANEOUS_JOBS),
+                Sort.by(Sort.Direction.ASC, "createdAt")))
         .getContent();
   }
 

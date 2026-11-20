@@ -10,6 +10,8 @@ import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.custom_dashboard.form.CustomDashboardInput;
 import io.openaev.rest.custom_dashboard.form.CustomDashboardOutput;
+import io.openaev.rest.custom_dashboard.form.CustomDashboardUsageOutput;
+import io.openaev.rest.custom_dashboard.form.StarterPackDashboardsRestoreOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -95,12 +97,56 @@ public class CustomDashboardApi extends RestBehavior {
         this.customDashboardService.updateCustomDashboard(updatedCustomDashboard));
   }
 
+  @GetMapping("/{customDashboardId}/usage")
+  @Transactional
+  @AccessControl(
+      resourceId = "#customDashboardId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.DASHBOARD)
+  @Operation(
+      summary = "Get what uses a custom dashboard",
+      description =
+          "Scenarios and simulations that show the dashboard, and the tenant default dashboards"
+              + " that name it. Deleting the dashboard clears these references (only the default"
+              + " home dashboard refuses the delete): read this first to warn before a delete.")
+  @ApiResponses(
+      value = {@ApiResponse(responseCode = "200", description = "The usage of the dashboard")})
+  public ResponseEntity<CustomDashboardUsageOutput> customDashboardUsage(
+      TxCtx ctx, @PathVariable @NotBlank final String customDashboardId) {
+    return ResponseEntity.ok(this.customDashboardService.customDashboardUsage(customDashboardId));
+  }
+
+  @PostMapping("/starter-pack/restore")
+  @Transactional
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DASHBOARD)
+  @Operation(
+      summary = "Restore the starter-pack dashboards",
+      description =
+          "Re-creates the starter-pack dashboards that no longer exist, under their original"
+              + " names, and sets the default scenario and simulation dashboards back when they"
+              + " are empty. Idempotent: existing dashboards and non-empty defaults are kept.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "What the restore created and set")
+      })
+  public ResponseEntity<StarterPackDashboardsRestoreOutput> restoreStarterPackDashboards(
+      TxCtx ctx) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return ResponseEntity.ok(this.customDashboardService.restoreStarterPackDashboards(tenantId));
+  }
+
   @DeleteMapping("/{customDashboardId}")
   @Transactional
   @AccessControl(
       resourceId = "#customDashboardId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DASHBOARD)
+  @Operation(
+      summary = "Delete a custom dashboard",
+      description =
+          "Refused for the tenant default home dashboard. Scenarios, simulations and default"
+              + " scenario or simulation settings that use it are cleared: read GET"
+              + " /{customDashboardId}/usage first to warn.")
   public ResponseEntity<Void> deleteCustomDashboard(
       TxCtx ctx, @PathVariable @NotBlank final String customDashboardId) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);

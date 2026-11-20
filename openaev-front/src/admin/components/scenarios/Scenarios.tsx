@@ -24,6 +24,7 @@ import ScenariosList from './list/ScenariosList';
 import ScenariosHeaderActions from './page/ScenariosHeaderActions';
 import ScenariosHero from './page/ScenariosHero';
 import ScenariosSidebar from './page/ScenariosSidebar';
+import ScenariosTabs from './page/ScenariosTabs';
 import { type ScenarioRow } from './scenarioRow';
 
 const AVAILABLE_FILTER_NAMES = [
@@ -105,6 +106,7 @@ const Scenarios = () => {
   return (
     <MarketplaceBrowser
       hero={<ScenariosHero />}
+      tabs={<ScenariosTabs active="active" />}
       sidebar={<ScenariosSidebar searchPaginationInput={searchPaginationInput} filterHelpers={queryableHelpers.filterHelpers} />}
       toolbar={(
         <PaginationComponentV2

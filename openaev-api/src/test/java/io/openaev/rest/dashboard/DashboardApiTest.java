@@ -1095,32 +1095,46 @@ class DashboardApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Finding histogram by asset group counts each finding in its injects' groups")
+    @DisplayName("Finding histogram by asset group counts each finding in its assets' groups")
     void given_findingHistogramByAssetGroup_should_countPerGroup() throws Exception {
-      // Arrange: two findings on an inject targeting group A, one on an inject targeting B
+      // Arrange: endpoint A is in group A, endpoint B in group B. The first inject targets both
+      // groups but its two findings are on endpoint A only; the second inject's finding is on
+      // endpoint B. A finding counts in the groups of its assets, never in the inject's targets.
+      EndpointComposer.Composer endpointA =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      EndpointComposer.Composer endpointB =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
       AssetGroupComposer.Composer groupA =
-          assetGroupComposer.forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("Group A"));
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("Group A"))
+              .withAsset(endpointA);
       AssetGroupComposer.Composer groupB =
-          assetGroupComposer.forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("Group B"));
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("Group B"))
+              .withAsset(endpointB);
       exerciseComposer
           .forExercise(ExerciseFixture.createDefaultExercise())
           .withInject(
               injectComposer
                   .forInject(InjectFixture.getDefaultInject())
                   .withAssetGroup(groupA)
+                  .withAssetGroup(groupB)
                   .withFinding(
-                      findingComposer.forFinding(
-                          FindingFixture.createDefaultTextFindingWithRandomValue()))
+                      findingComposer
+                          .forFinding(FindingFixture.createDefaultTextFindingWithRandomValue())
+                          .withEndpoint(endpointA))
                   .withFinding(
-                      findingComposer.forFinding(
-                          FindingFixture.createDefaultTextFindingWithRandomValue())))
+                      findingComposer
+                          .forFinding(FindingFixture.createDefaultTextFindingWithRandomValue())
+                          .withEndpoint(endpointA)))
           .withInject(
               injectComposer
                   .forInject(InjectFixture.getDefaultInject())
                   .withAssetGroup(groupB)
                   .withFinding(
-                      findingComposer.forFinding(
-                          FindingFixture.createDefaultTextFindingWithRandomValue())))
+                      findingComposer
+                          .forFinding(FindingFixture.createDefaultTextFindingWithRandomValue())
+                          .withEndpoint(endpointB)))
           .persist();
       Widget widget =
           persistWidget(

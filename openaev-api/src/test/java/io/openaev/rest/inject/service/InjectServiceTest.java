@@ -120,6 +120,7 @@ class InjectServiceTest {
   @Mock private CollectorService collectorService;
   @Mock private InjectorService injectorService;
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
+  @Mock private io.openaev.service.settings.RuntimeSettingsService runtimeSettingsService;
   @Mock private StepTargetingService stepTargetingService;
   @Mock private ConditionService conditionService;
   @Mock private ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
@@ -177,7 +178,7 @@ class InjectServiceTest {
         injectService,
         "healthCheckUtils",
         new HealthCheckUtils(
-            new ExecutorUtils(assetAgentJobRepository),
+            new ExecutorUtils(assetAgentJobRepository, runtimeSettingsService),
             stepTargetingService,
             conditionService,
             previewFeatureService,
@@ -191,7 +192,7 @@ class InjectServiceTest {
             injectExpectationMapper,
             injectUtils,
             new HealthCheckUtils(
-                new ExecutorUtils(assetAgentJobRepository),
+                new ExecutorUtils(assetAgentJobRepository, runtimeSettingsService),
                 stepTargetingService,
                 conditionService,
                 previewFeatureService,

@@ -52,7 +52,6 @@ class JsonTypeDirtyOnLoadCoverageTest {
           "ConnectorInstanceConfiguration.value",
           "InjectDependency.injectDependencyCondition",
           "InjectStatus.payloadOutput",
-          "Scenario.autonomousConfig",
           "UserEvent.payload");
 
   @Nested

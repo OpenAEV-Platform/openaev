@@ -5,11 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.SecurityCoverageSendJobRepository;
+import io.openaev.database.repository.SettingRepository;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utilstest.RowTenantScope;
@@ -39,6 +42,8 @@ class InjectsFinalizationJobTest extends IntegrationTest {
   @Autowired private SecurityCoverageRepository securityCoverageRepository;
   @Autowired private EntityManager entityManager;
   @Autowired private RowTenantScope rowTenantScope;
+  @Autowired private SettingRepository settingRepository;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
 
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectComposer injectComposer;
@@ -366,6 +371,96 @@ class InjectsFinalizationJobTest extends IntegrationTest {
             });
       } finally {
         sweep(injectId);
+      }
+    }
+
+    private String seedAgentlessPendingInject(int minutesAgo) {
+      return seedPendingInject(
+          () -> {
+            InjectStatus statusToSave = InjectStatusFixture.createPendingInjectStatus();
+            statusToSave.setTrackingSentDate(Instant.now().minus(minutesAgo, ChronoUnit.MINUTES));
+            return injectComposer
+                .forInject(InjectFixture.getDefaultInject())
+                .withInjectStatus(injectStatusComposer.forInjectStatus(statusToSave))
+                .persist()
+                .get();
+          });
+    }
+
+    /** Writes (or, with null, removes) the platform row of the inject execution threshold. */
+    private void setThresholdSetting(String value) {
+      String key = SettingKeys.INJECT_EXECUTION_THRESHOLD_MINUTES.key();
+      tenantScopedTransaction.executeAsPlatformWrite(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> {
+            Optional<Setting> current = settingRepository.findByKeyAndTenantIsNull(key);
+            if (value == null) {
+              current.ifPresent(settingRepository::delete);
+              return;
+            }
+            Setting setting = current.orElseGet(() -> new Setting(key, value));
+            setting.setValue(value);
+            settingRepository.save(setting);
+          });
+    }
+
+    private boolean hasAgentlessTimeoutTraceNaming(InjectStatus status, int minutes) {
+      return status.getTraces().stream()
+          .anyMatch(
+              trace ->
+                  ExecutionTraceStatus.TIMEOUT.equals(trace.getStatus())
+                      && trace.getAgent() == null
+                      && trace.getMessage().contains("within the " + minutes + " minutes"));
+    }
+
+    @Test
+    @DisplayName(
+        "given threshold setting unset should time out an agentless inject past the configured"
+            + " threshold")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void given_thresholdSettingUnset_should_useConfiguredThreshold() {
+      setThresholdSetting(null);
+      String injectId = seedAgentlessPendingInject(11);
+      try {
+        job.handlePendingInject();
+        inTransaction(
+            () -> {
+              InjectStatus savedStatus = reload(injectId);
+              assertEquals(ExecutionStatus.ERROR, savedStatus.getName());
+              assertTrue(
+                  hasAgentlessTimeoutTraceNaming(
+                      savedStatus,
+                      InjectsExecutionJob.DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES));
+            });
+      } finally {
+        sweep(injectId);
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "given threshold setting changed at runtime should keep a younger inject pending and name"
+            + " the new threshold in the timeout trace")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void given_thresholdSettingChangedAtRuntime_should_applyItAtTheNextRun() {
+      String youngInjectId = seedAgentlessPendingInject(11);
+      String oldInjectId = seedAgentlessPendingInject(61);
+      try {
+        setThresholdSetting("60");
+
+        job.handlePendingInject();
+
+        inTransaction(
+            () -> {
+              assertEquals(ExecutionStatus.PENDING, reload(youngInjectId).getName());
+              InjectStatus oldStatus = reload(oldInjectId);
+              assertEquals(ExecutionStatus.ERROR, oldStatus.getName());
+              assertTrue(hasAgentlessTimeoutTraceNaming(oldStatus, 60));
+            });
+      } finally {
+        setThresholdSetting(null);
+        sweep(youngInjectId);
+        sweep(oldInjectId);
       }
     }
 

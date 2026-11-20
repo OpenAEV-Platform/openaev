@@ -2580,3 +2580,13 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 Both held MUI X and, with it, the `LocalizationProvider` the rest of the product no longer needed. Both now go through `TimeField`, as does the reporting schedule's time of day, which had held its own MUI field for `type="time"` (see #49). No time-only control is left on MUI.
 
 **The request.** The deferred `TimePicker`, or a `timeOnly` mode on `DatePicker`. **Removal condition:** an exported time-only field carrying a minute step and a minimum time; the two holds and the `LocalizationProvider` then go in one commit. **Met:** `TimePicker` ships `minutesStep`, `minTime`/`maxTime` and `timezone`, which also let the notification trigger say UTC rather than imply it.
+
+## 70. `endText` is dropped on a number field, so a numeric amount cannot carry its unit
+
+**Status.** Open. Worked around in the product: the unit goes in the label ("Inject execution threshold (minutes)").
+
+**Measured.** `InputProps.endText` documents it: "Not combinable with `endIcon` (the node hides that slot) nor with `isTypeNumber` (the node hides the stepper): a dev-only warning names the conflict and `endText` is dropped." On Settings > Parameters (Execution and agents card, PR #9416) the units "minutes" and "jobs" rendered 0 times on the three number fields.
+
+**Product need.** Sam's form rule: an amount is shown with its unit. Numeric settings (a threshold in minutes, a count of jobs) are number fields with a stepper, and the unit belongs next to the value, not only in the label.
+
+**The request.** A number field that shows both the stepper and a unit (the unit to the left of the stepper pair, or a `unit` prop the node lays out), or a ruling that the unit of a number field belongs in the label.
