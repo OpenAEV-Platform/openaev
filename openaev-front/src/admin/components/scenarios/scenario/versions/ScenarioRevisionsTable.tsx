@@ -8,6 +8,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import { type ScenarioRevisionOutput } from '../../../../../utils/api-types';
 
 const REASONS: Record<ScenarioRevisionOutput['scenario_revision_reason'], string> = {
+  INSTALL: 'Installed',
   UPDATE: 'Before an update',
   ROLLBACK: 'Before a rollback',
 };
@@ -18,7 +19,7 @@ interface Props {
   onRollBack: (revision: ScenarioRevisionOutput) => void;
 }
 
-// The content kept before each update or rollback, newest first, to roll back to.
+// The content kept at install and before each update or rollback, newest first, to roll back to.
 const ScenarioRevisionsTable: FunctionComponent<Props> = ({ revisions, canManage, onRollBack }) => {
   const { t, nsdt } = useFormatter();
   return (

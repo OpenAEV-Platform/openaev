@@ -13,10 +13,10 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
-import BeforeAfterTable from '../../../../../components/common/update/BeforeAfterTable';
+import ChangeDiff from '../../../../../components/common/update/ChangeDiff';
 import { useFormatter } from '../../../../../components/i18n';
 import { type ScenarioChangeOutput, type ScenarioPayloadVersionOutput } from '../../../../../utils/api-types';
-import { beforeAfterRow } from './scenarioChanges';
+import { changeDiffRow, elementLabel } from './scenarioChanges';
 import ScenarioConflicts from './ScenarioConflicts';
 import ScenarioUpdateSummary from './ScenarioUpdateSummary';
 import { type ScenarioUpdateTarget } from './scenarioUpdateTargets';
@@ -43,6 +43,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
   };
   const update = useScenarioUpdate(target, onApplied);
   const { preview, conflicts, taken, kept, added, removed } = update;
+  const notes = preview?.scenario_update_changelogs ?? [];
 
   const injectLine = (change: ScenarioChangeOutput, label: string, reason: string) => (
     <div
@@ -55,7 +56,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
       }}
     >
       <Chip label={label} severity={change.scenario_change_status === 'ADDED' ? 'low' : 'medium'} />
-      <Text variant="content-base">{change.scenario_change_title ?? t('Inject')}</Text>
+      <Text variant="content-base">{elementLabel(change, t)}</Text>
       <Text variant="content-caption">{change.scenario_change_status === 'ADDED' ? `${reason} · ${t('Needs targets')}` : reason}</Text>
     </div>
   );
@@ -126,14 +127,27 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
             edit={update.edit}
           />
         )}
-        {(added.length > 0 || removed.length > 0 || taken.length > 0) && (
+        {(notes.length > 0 || added.length > 0 || removed.length > 0 || taken.length > 0) && (
           <div style={column}>
             <Text variant="title-xs">{target.newsTitle}</Text>
+            {notes.map(note => (
+              <div
+                key={note.scenario_changelog_version}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `${theme.spacing(8)} minmax(0, 1fr)`,
+                  gap: theme.spacing(1.5),
+                }}
+              >
+                <Text variant="content-caption">{`v${note.scenario_changelog_version}`}</Text>
+                <Text variant="content-base">{note.scenario_changelog}</Text>
+              </div>
+            ))}
             {added.map(change => injectLine(change, t('Will be added'), target.addedReason))}
             {removed.map(change => injectLine(change, t('Will be deleted'), target.removedReason))}
             {taken.length > 0 && (
-              <BeforeAfterTable
-                rows={taken.map(change => beforeAfterRow(change, change.scenario_change_local, change.scenario_change_applied, t))}
+              <ChangeDiff
+                rows={taken.map(change => changeDiffRow(change, change.scenario_change_local, change.scenario_change_applied, t))}
                 beforeLabel={t('Before · now')}
                 afterLabel={target.afterLabel}
               />
@@ -143,8 +157,8 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
         {kept.length > 0 && (
           <div style={column}>
             <Text variant="title-xs">{target.keptTitle}</Text>
-            <BeforeAfterTable
-              rows={kept.map(change => beforeAfterRow(change, change.scenario_change_base, change.scenario_change_local, t))}
+            <ChangeDiff
+              rows={kept.map(change => changeDiffRow(change, change.scenario_change_base, change.scenario_change_local, t))}
               beforeLabel={t('Installed version')}
               afterLabel={t('Your edit')}
             />
