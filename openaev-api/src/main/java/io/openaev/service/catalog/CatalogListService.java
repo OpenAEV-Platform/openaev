@@ -30,7 +30,7 @@ public class CatalogListService {
   /** Every offered version of every catalogue item of a type. */
   @Transactional(readOnly = true)
   public <T extends CatalogItem> List<T> allOffered(Class<T> type) {
-    return all(type).stream().filter(CatalogListService::isOffered).toList();
+    return offeredOfType(type);
   }
 
   /**
@@ -39,7 +39,7 @@ public class CatalogListService {
    */
   @Transactional(readOnly = true)
   public <T extends CatalogItem> List<T> latestOfferedExcept(Class<T> type, Set<String> keys) {
-    return allOffered(type).stream()
+    return offeredOfType(type).stream()
         .collect(
             Collectors.toMap(
                 CatalogItem::getExternalId,
@@ -73,6 +73,12 @@ public class CatalogListService {
       throw new BadRequestException("This version is no longer offered");
     }
     return item;
+  }
+
+  private <T extends CatalogItem> List<T> offeredOfType(Class<T> type) {
+    return catalogItemRepository.findAllOfType(type).stream()
+        .filter(CatalogListService::isOffered)
+        .toList();
   }
 
   private static boolean isOffered(CatalogItem item) {

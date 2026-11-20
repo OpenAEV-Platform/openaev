@@ -44,11 +44,7 @@ public class CatalogPayloadOfferService implements CatalogOffer<InstallablePaylo
   @Override
   @Transactional(readOnly = true)
   public List<InstallablePayloadVersion> neverInstalled(TxCtx ctx, String tenantId) {
-    return catalogListService
-        .latestOfferedExcept(CatalogPayload.class, catalogPayloadService.knownKeys(tenantId))
-        .stream()
-        .map(InstallablePayloadVersion::of)
-        .toList();
+    return neverInstalledVersions(tenantId);
   }
 
   /**
@@ -60,12 +56,20 @@ public class CatalogPayloadOfferService implements CatalogOffer<InstallablePaylo
   public List<InstallablePayloadVersion> toAutoInstall(TxCtx ctx, String tenantId) {
     List<InstallablePayloadVersion> versions = new ArrayList<>(newerVersions(tenantId));
     if (catalogSettingsService.isAutoInstall(ctx, tenantId, ContentType.PAYLOAD)) {
-      versions.addAll(neverInstalled(ctx, tenantId));
+      versions.addAll(neverInstalledVersions(tenantId));
     }
     return versions;
   }
 
   // -- STEPS --
+
+  private List<InstallablePayloadVersion> neverInstalledVersions(String tenantId) {
+    return catalogListService
+        .latestOfferedExcept(CatalogPayload.class, catalogPayloadService.knownKeys(tenantId))
+        .stream()
+        .map(InstallablePayloadVersion::of)
+        .toList();
+  }
 
   // An uninstalled payload has no latest version: none of its versions installs itself.
   private List<InstallablePayloadVersion> newerVersions(String tenantId) {
