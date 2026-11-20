@@ -212,6 +212,20 @@ POST /api/custom-dashboards/starter-pack/restore
 
 It imports each bundled starter pack Dashboard whose name no longer exists, under its original name, and sets the default scenario and simulation Dashboards back when they are empty. A second call creates nothing. The answer lists `restored_dashboards`, `existing_dashboards` and `defaults_set`.
 
+{% if feature_visible("MARKING") %}
+Export or import marking definitions as CSV:
+
+```http
+POST /api/tenants/{tenantId}/marking_definitions/export/csv
+POST /api/tenants/{tenantId}/marking_definitions/import/csv
+```
+
+- `export/csv` takes the same body as a [search](#pagination) and returns the matching marking definitions as a CSV file.
+- `import/csv` uploads a `.csv` file of 1 MB at most as `multipart/form-data` in a `file` field. It creates the valid rows and never overwrites an existing marking definition. A bad row is skipped instead of failing the whole file. The answer reports the `import_created`, `import_skipped` and `import_ignored` counts, the `import_columns` and the outcome of every row in `import_rows`.
+
+Both calls answer `404` while the marking preview feature is off.
+{% endif %}
+
 ## What's next?
 
 - [Filters](filters.md) -- Filter format and operators
