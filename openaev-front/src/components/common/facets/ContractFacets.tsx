@@ -304,12 +304,12 @@ const findingTypeFacetMeta = (t: (key: string) => string): {
   icon: () => ReactElement;
 }[] => {
   return CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS
-    .map(type => ({
-      value: type,
-      label: t(ContractOutputElementType[type]),
-      icon: () => <FindingIcon findingType={type} />,
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+      .map(type => ({
+        value: type,
+        label: t(ContractOutputElementType[type]),
+        icon: () => <FindingIcon findingType={type} />
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
 };
 
 export const buildFindingTypeRows = ({
@@ -331,24 +331,25 @@ export const buildFindingTypeRows = ({
   onToggle: () => toggle(findingType.value),
 }));
 
-// Rows are keyed on the option id, never on its label: two assets can share a name.
 export const buildAssetRows = ({
   assetOptions,
-  selectedIds,
+  statusValues,
   toggle,
 }: {
   assetOptions: Option[];
-  selectedIds: string[];
-  toggle: (id: string) => void;
-}): FacetRow[] => assetOptions
-  .filter((option): option is Option & {
-    id: string;
-    label: string;
-  } => !!option.id && !!option.label)
-  .sort((assetA, assetB) => assetA.label.localeCompare(assetB.label))
-  .map(assetOption => ({
-    value: assetOption.id,
-    label: assetOption.label,
-    checked: selectedIds.includes(assetOption.id),
-    onToggle: () => toggle(assetOption.id),
-  }));
+  statusValues: string[];
+  toggle: (option: Option) => void;
+}): FacetRow[] => {
+  const assets = !!assetOptions && assetOptions.length ? assetOptions : [];
+  return assets
+    .filter(assetOption => assetOption.id && assetOption.label)
+    .sort((assetA, assetB) => assetA.label!.localeCompare(assetB.label!))
+    .map(assetOption => (
+      {
+        value: assetOption.id,
+        label: assetOption.label,
+        checked: statusValues.includes(assetOption.label!),
+        onToggle: () => toggle(assetOption),
+      } as FacetRow
+    ));
+};

@@ -1,14 +1,5 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { Binoculars } from 'mdi-material-ui';
-import { type CSSProperties } from 'react';
-import { Link } from 'react-router';
-
-import markingsColumn from '../../../../components/common/list/markingsColumn';
-import type { QueryableHelpers } from '../../../../components/common/queryable/QueryableHelpers';
-import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
-import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
-import Empty from '../../../../components/Empty';
+import { CSSProperties } from "react";
+import { QueryableHelpers } from "../../../../components/common/queryable/QueryableHelpers";
 import { FDS } from '../../../../components/fds-tokens.generated';
 import FindingIcon from '../../../../components/FindingIcon';
 import { useFormatter } from '../../../../components/i18n';
@@ -19,6 +10,14 @@ import { OpenCtiRowMark } from '../../../../components/xtm/XtmPivot';
 import { type AggregatedFindingOutput, type TargetSimple } from '../../../../utils/api-types';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import ContractOutputElementType from '../ContractOutputElementType';
+import useBodyItemsStyles from "../../../../components/common/queryable/style/style";
+import {Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText} from "@mui/material";
+import {Tooltip, TooltipContent, TooltipTrigger } from "@filigran/design-system";
+import markingsColumn from "../../../../components/common/list/markingsColumn";
+import SortHeadersComponentV2 from "../../../../components/common/queryable/sort/SortHeadersComponentV2";
+import {Binoculars} from "mdi-material-ui";
+import {Link} from "react-router";
+import Empty from "../../../../components/Empty";
 
 interface Props {
   loading: boolean;

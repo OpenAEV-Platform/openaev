@@ -1,30 +1,28 @@
 import { useTheme } from '@mui/material/styles';
 
-import MarketplaceSections from '../../../../components/common/marketplace/results/MarketplaceSections';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import { type AggregatedFindingOutput } from '../../../../utils/api-types';
 import FindingCard from './FindingCard';
+import CardGrid from "../../../../components/common/card/CardGrid";
 
 interface Props {
-  loading: boolean;
-  findings: AggregatedFindingOutput[];
+    loading: boolean;
+    findings: AggregatedFindingOutput[];
 }
 
 const FindingCardView = ({ loading, findings }: Props) => {
-  const { t } = useFormatter();
-  const theme = useTheme();
+    const { t } = useFormatter();
+    const theme = useTheme();
 
-  return (
-    <div style={{ marginTop: theme.spacing(1) }}>
-      <MarketplaceSections
-        items={findings}
-        loading={loading}
-        emptyState={<Empty message={t('No finding found.')} />}
-        renderItem={finding => <FindingCard key={finding.finding_id} finding={finding} />}
-      />
-    </div>
-  );
-};
+    return (
+        <>
+            <CardGrid loading={loading} style={{ marginTop: theme.spacing(1) }}>
+                {findings.map(finding => <FindingCard key={finding.finding_id} finding={finding} />)}
+            </CardGrid>
+            {!loading && findings.length === 0 && <Empty message={t('No finding found.')} />}
+        </>
+    );
+}
 
 export default FindingCardView;
