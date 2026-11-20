@@ -88,19 +88,8 @@ public class AssetMarkingsService {
             .orElseThrow(() -> new ElementNotFoundException("Asset not found: " + assetId));
 
     Set<String> uniqueMarkingIds = new LinkedHashSet<>(input.markingIds());
-    List<MarkingDefinition> markings = new ArrayList<>();
-    markingDefinitionRepository
-        .findAllByIdInTenant(uniqueMarkingIds, tenantId)
-        .forEach(markings::add);
-    if (markings.size() != uniqueMarkingIds.size()) {
-      throw new ElementNotFoundException(
-          "One or more marking definitions not found in the current tenant");
-    }
-
     User currentUser = userService.currentUser();
-    assertCanAssignMarkings(
-        markingClearanceCacheManager.findClearance(currentUser.getId(), tenantId), markings);
-    assertMarkingAssignmentCapability(tenantId, currentUser);
+    assertCanAssign(tenantId, currentUser, resolveMarkings(tenantId, uniqueMarkingIds));
 
     Set<String> removed = applyAssetMarkings(asset, uniqueMarkingIds);
     Asset saved = assetRepository.save(asset);
@@ -117,6 +106,38 @@ public class AssetMarkingsService {
           uniqueMarkingIds);
     }
     return saved;
+  }
+
+  /**
+   * Puts markings on an asset being created, before its first save, so it never exists unmarked.
+   * Same guards as {@link #updateAssetMarkings}; no marking asks for no capability.
+   */
+  public void markNewAsset(
+      @NotBlank final String tenantId, @NotNull final Asset asset, final Set<String> markingIds) {
+    if (markingIds == null || markingIds.isEmpty()) {
+      return;
+    }
+    Set<String> uniqueMarkingIds = new LinkedHashSet<>(markingIds);
+    assertCanAssign(
+        tenantId, userService.currentUser(), resolveMarkings(tenantId, uniqueMarkingIds));
+    applyAssetMarkings(asset, uniqueMarkingIds);
+  }
+
+  private List<MarkingDefinition> resolveMarkings(String tenantId, Set<String> markingIds) {
+    List<MarkingDefinition> markings = new ArrayList<>();
+    markingDefinitionRepository.findAllByIdInTenant(markingIds, tenantId).forEach(markings::add);
+    if (markings.size() != markingIds.size()) {
+      throw new ElementNotFoundException(
+          "One or more marking definitions not found in the current tenant");
+    }
+    return markings;
+  }
+
+  private void assertCanAssign(
+      String tenantId, User currentUser, List<MarkingDefinition> markings) {
+    assertCanAssignMarkings(
+        markingClearanceCacheManager.findClearance(currentUser.getId(), tenantId), markings);
+    assertMarkingAssignmentCapability(tenantId, currentUser);
   }
 
   /**
@@ -175,23 +196,10 @@ public class AssetMarkingsService {
 
     List<MarkingDefinition> markings =
         bulkDeleteExecutor.resolveInTransaction(
-            ctx,
-            () -> {
-              List<MarkingDefinition> found = new ArrayList<>();
-              markingDefinitionRepository
-                  .findAllByIdInTenant(uniqueMarkingIds, tenantId)
-                  .forEach(found::add);
-              if (found.size() != uniqueMarkingIds.size()) {
-                throw new ElementNotFoundException(
-                    "One or more marking definitions not found in the current tenant");
-              }
-              return found;
-            });
+            ctx, () -> resolveMarkings(tenantId, uniqueMarkingIds));
 
     User currentUser = userService.currentUser();
-    assertCanAssignMarkings(
-        markingClearanceCacheManager.findClearance(currentUser.getId(), tenantId), markings);
-    assertMarkingAssignmentCapability(tenantId, currentUser);
+    assertCanAssign(tenantId, currentUser, markings);
 
     List<String> assetIds = assetService.resolveBulkAssetIds(ctx, input);
 

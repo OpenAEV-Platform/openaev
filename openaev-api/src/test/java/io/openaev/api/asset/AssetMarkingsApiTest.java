@@ -1,6 +1,7 @@
 package io.openaev.api.asset;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asStringJson;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueDefinition;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -8,9 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.asset.dto.AssetBulkReplaceMarkingsInput;
 import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
@@ -22,6 +25,8 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.rest.asset.endpoint.form.EndpointInput;
+import io.openaev.utils.fixtures.AiTargetFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
@@ -32,6 +37,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -64,6 +70,8 @@ class AssetMarkingsApiTest extends IntegrationTest {
 
   private static final String ASSET_URI = "/api/assets";
   private static final String TENANT_ASSET_URI = "/api/tenants/{tenantId}/assets";
+  private static final String ENDPOINT_CREATE_URI = "/api/tenants/{tenantId}/endpoints/agentless";
+  private static final String AI_TARGET_CREATE_URI = "/api/tenants/{tenantId}/ai_targets";
 
   @Autowired private MockMvc mvc;
   @Autowired private DataSource dataSource;
@@ -330,6 +338,64 @@ class AssetMarkingsApiTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("creating an asset with markings")
+  class Creating {
+
+    @Test
+    @DisplayName("given a marking the caller holds, should create the endpoint already marked")
+    void given_heldMarking_should_createMarkedEndpoint() throws Exception {
+      // -- ACT --
+      String body =
+          createAsset(ENDPOINT_CREATE_URI, endpointInput(), List.of(green.getId()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertArrayEquals(
+          new String[] {green.getId()}, storedMarkings(JsonPath.read(body, "$.asset_id")));
+    }
+
+    @Test
+    @DisplayName("given a marking the caller holds, should create the AI target already marked")
+    void given_heldMarking_should_createMarkedAiTarget() throws Exception {
+      // -- ACT --
+      String body =
+          createAsset(
+                  AI_TARGET_CREATE_URI,
+                  AiTargetFixture.createDefaultAiTargetInput("asset-markings"),
+                  List.of(green.getId()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertArrayEquals(
+          new String[] {green.getId()}, storedMarkings(JsonPath.read(body, "$.asset_id")));
+    }
+
+    @Test
+    @DisplayName("given a marking the caller does not hold, should refuse and create nothing")
+    void given_unheldMarking_should_forbidAndCreateNothing() throws Exception {
+      // -- ARRANGE --
+      EndpointInput input = endpointInput();
+
+      // -- ACT --
+      createAsset(ENDPOINT_CREATE_URI, input, List.of(red.getId()))
+          .andExpect(status().isForbidden());
+
+      // -- ASSERT --
+      entityManager.flush();
+      assertEquals(
+          0,
+          jdbc.queryForObject(
+              "SELECT count(*) FROM assets WHERE asset_name = ?", Integer.class, input.getName()));
+    }
+  }
+
   // -- HELPERS --
 
   private ResultActions assignMarkings(List<String> markingIds) throws Exception {
@@ -354,14 +420,34 @@ class AssetMarkingsApiTest extends IntegrationTest {
             .with(csrf()));
   }
 
+  private ResultActions createAsset(String uri, Object input, List<String> markingIds)
+      throws Exception {
+    Map<String, Object> body = asStringJson(asJsonString(input), Map.class);
+    body.put("asset_markings", markingIds);
+    return mvc.perform(
+        post(uri, tenantId)
+            .content(asJsonString(body))
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON)
+            .with(csrf()));
+  }
+
+  private static EndpointInput endpointInput() {
+    EndpointInput input = EndpointFixture.createWindowsEndpointInput(List.of());
+    input.setName("asset-markings-" + uniqueDefinition());
+    return input;
+  }
+
   /** Ground truth: what actually reached the column, bypassing Hibernate's first-level cache. */
   private String[] storedMarkings() {
+    return storedMarkings(asset.getId());
+  }
+
+  private String[] storedMarkings(String assetId) {
     entityManager.flush();
     java.sql.Array array =
         jdbc.queryForObject(
-            "SELECT marking_ids FROM assets WHERE asset_id = ?",
-            java.sql.Array.class,
-            asset.getId());
+            "SELECT marking_ids FROM assets WHERE asset_id = ?", java.sql.Array.class, assetId);
     if (array == null) {
       return new String[0];
     }

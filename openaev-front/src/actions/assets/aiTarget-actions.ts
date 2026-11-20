@@ -8,12 +8,12 @@ import {
   simpleCall,
   simplePostCall,
 } from '../../utils/Action';
-import { type AiTargetInput, type Asset, type AssetUpdateMarkingsInput, type SearchPaginationInput } from '../../utils/api-types';
+import { type AiTargetCreateInput, type AiTargetInput, type Asset, type AssetUpdateMarkingsInput, type SearchPaginationInput } from '../../utils/api-types';
 import { aiTarget, arrayOfAiTargets } from './asset-schema';
 
 const AI_TARGET_URI = '/api/ai_targets';
 
-export const addAiTarget = (data: AiTargetInput) => (dispatch: Dispatch) => {
+export const addAiTarget = (data: AiTargetCreateInput) => (dispatch: Dispatch) => {
   return postReferential(aiTarget, AI_TARGET_URI, data)(dispatch);
 };
 

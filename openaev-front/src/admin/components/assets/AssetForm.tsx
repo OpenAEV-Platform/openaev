@@ -23,7 +23,7 @@ import SwitchFieldController from '../../../components/fields/SwitchFieldControl
 import TagFieldController from '../../../components/fields/TagFieldController';
 import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
-import { type EndpointInput } from '../../../utils/api-types';
+import { type EndpointCreateInput, type EndpointInput } from '../../../utils/api-types';
 import markingIdSetsEqual from '../../../utils/markings';
 import { formatMacAddress } from '../../../utils/String';
 import { isFeatureEnabled } from '../../../utils/utils';
@@ -42,11 +42,7 @@ import {
 } from './asset-categories';
 import { withoutNullValues } from './asset-stream-values';
 
-// Markings are not part of EndpointInput: they live on a dedicated, more heavily-guarded endpoint
-// (PUT /api/assets/{id}/markings, see AssetMarkingsApi) rather than the generic asset/endpoint
-// update, so they cannot ride along in the same payload. This form still hosts the field (an
-// asset already being edited has an id to assign markings against) but reports changes to it
-// separately, through `onMarkingsChange`, instead of folding them into `onSubmit`'s EndpointInput.
+// A new asset sends its markings with the create payload; an edited one through `onMarkingsChange`.
 type AssetFormValues = EndpointInput & { asset_markings?: string[] | null };
 
 interface Props {
@@ -59,7 +55,7 @@ interface Props {
    * afterwards the asset would otherwise be left with new markings but none of the rest of the
    * save applied.
    */
-  onSubmit: SubmitHandler<EndpointInput>;
+  onSubmit: SubmitHandler<EndpointCreateInput>;
   handleClose: () => void;
   editing?: boolean;
   initialValues?: Partial<EndpointInput> & { asset_markings?: string[] | null };
@@ -67,8 +63,7 @@ interface Props {
   agentless?: boolean;
   /**
    * Called on submit with the full replacement marking id list, and awaited before `onSubmit`
-   * runs (see the race explained where it's awaited). Only invoked while editing - assigning
-   * markings requires an asset id, so there is nothing to call during creation. Resolves to
+   * runs (see the race explained where it's awaited). Only invoked while editing. Resolves to
    * `false` on failure (the caller has already shown its own error notification for it) - a
    * `false` here cancels `onSubmit` too, so the form stays open on a half-applied save instead of
    * reporting success for the endpoint fields while the markings silently didn't take.
@@ -288,10 +283,7 @@ const AssetForm: FunctionComponent<Props> = ({
 
   const watchedHostname = methods.watch('asset_hostname');
 
-  // Assigning markings requires an asset id, so the picker only makes sense once the asset exists
-  // - gated on `editing` the same way the field itself is only reported through `onMarkingsChange`,
-  // and on the flag the rest of the marking UI (Endpoints list, GroupManageMarkings) is gated on.
-  const showMarkings = editing && isFeatureEnabled('MARKING');
+  const showMarkings = isFeatureEnabled('MARKING');
 
   // Markings are split out of the submitted payload and reported through `onMarkingsChange`
   // instead: they don't belong to EndpointInput and are persisted through their own endpoint (see
@@ -313,6 +305,13 @@ const AssetForm: FunctionComponent<Props> = ({
     e.preventDefault();
     e.stopPropagation();
     handleSubmit(async ({ asset_markings, ...endpointData }) => {
+      if (!editing) {
+        await onSubmit({
+          ...endpointData,
+          asset_markings: asset_markings ?? [],
+        });
+        return;
+      }
       const initialIds = defaultValues.asset_markings ?? [];
       let markingsChanged = false;
       if (showMarkings) {

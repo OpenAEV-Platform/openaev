@@ -8,17 +8,13 @@ import MarkingField from '../../../../components/fields/MarkingField';
 import TagField from '../../../../components/fields/TagField';
 import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
-import { type AiTargetInput } from '../../../../utils/api-types';
+import { type AiTargetCreateInput, type AiTargetInput } from '../../../../utils/api-types';
 import markingIdSetsEqual from '../../../../utils/markings';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import { zodImplement } from '../../../../utils/Zod';
 import { CRITICALITY_OPTIONS, humanizeEnum } from '../asset-categories';
 
-// Markings are not part of AiTargetInput: like endpoints, they live on a dedicated, more
-// heavily-guarded endpoint (PUT /api/assets/{id}/markings) rather than the generic asset update,
-// so they cannot ride along in the same payload. This form still hosts the field (an AI target
-// already being edited has an id to assign markings against) but reports changes to it
-// separately, through `onMarkingsChange`, instead of folding them into `onSubmit`'s AiTargetInput.
+// A new AI target sends its markings with the create payload; an edited one through `onMarkingsChange`.
 type AiTargetFormValues = AiTargetInput & { asset_markings?: string[] | null };
 
 interface Props {
@@ -27,7 +23,7 @@ interface Props {
    * already allows this. When markings were also changed this submit, `false` here triggers a
    * compensating revert - see `onMarkingsChange` and `handleSubmitWithMarkings`.
    */
-  onSubmit: SubmitHandler<AiTargetInput>;
+  onSubmit: SubmitHandler<AiTargetCreateInput>;
   handleClose: () => void;
   editing?: boolean;
   initialValues?: AiTargetInput & { asset_markings?: string[] | null };
@@ -105,10 +101,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
 
-  // Assigning markings requires an asset id, so the picker only makes sense once the AI target
-  // exists - gated on `editing` the same way the field itself is only reported through
-  // `onMarkingsChange`, and on the flag the rest of the marking UI is gated on.
-  const showMarkings = editing && isFeatureEnabled('MARKING');
+  const showMarkings = isFeatureEnabled('MARKING');
 
   const {
     register,
@@ -145,6 +138,13 @@ const AiTargetForm: FunctionComponent<Props> = ({
   // and its selection actually moved from what the form opened with - see AssetForm's identically
   // named handler for the full race/failure-handling rationale this mirrors.
   const handleSubmitWithMarkings = handleSubmit(async ({ asset_markings, ...aiTargetData }) => {
+    if (!editing) {
+      await onSubmit({
+        ...aiTargetData,
+        asset_markings: asset_markings ?? [],
+      });
+      return;
+    }
     const initialIds = initialValues.asset_markings ?? [];
     let markingsChanged = false;
     if (showMarkings) {
