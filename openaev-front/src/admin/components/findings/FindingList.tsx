@@ -17,11 +17,10 @@ import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
-import { OpenCrqRowMark } from '../../../components/xtm/XtmOpenCrq';
-import { OpenCtiRowMark } from '../../../components/xtm/XtmPivot';
 import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import ContractOutputElementType from './ContractOutputElementType';
+import FindingListView from "./components/FindingListView";
 
 interface Props {
   searchDistinctFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
@@ -234,64 +233,12 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
         disableFilters={compact}
         disablePagination={compact}
       />
-      <List>
-        <ListItem
-          sx={{
-            textTransform: 'uppercase',
-            paddingTop: 0,
-          }}
-        >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponentV2
-                headers={visibleHeaders}
-                inlineStylesHeaders={visibleStyles}
-                sortHelpers={queryableHelpers.sortHelpers}
-              />
-            )}
-          />
-        </ListItem>
-        {loading
-          ? <PaginatedListLoader Icon={Binoculars} headers={visibleHeaders} headerStyles={visibleStyles} />
-          : findings.map(finding => (
-              <ListItem
-                key={finding.finding_id}
-                sx={{ height: 50 }}
-                divider
-                disablePadding
-                data-testid="finding-row"
-              >
-                <ListItemButton
-                  sx={{ height: 50 }}
-                  component={Link}
-                  to={`/admin/findings/${finding.finding_id}`}
-                >
-                  <ListItemIcon>
-                    <FindingIcon findingType={finding.finding_type} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={(
-                      <div style={bodyItemsStyles.bodyItems}>
-                        {visibleHeaders.map(header => (
-                          <div
-                            key={header.field}
-                            style={{
-                              ...bodyItemsStyles.bodyItem,
-                              ...visibleStyles[header.field],
-                            }}
-                          >
-                            {header.value && header.value(finding)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-        {!loading && findings.length === 0 && <Empty message={t('No finding found.')} />}
-      </List>
+      <FindingListView
+          loading={loading}
+          findings={findings}
+          queryableHelpers={queryableHelpers}
+          hiddenFields={hiddenFields}
+      />
       {/* Compact mode has no pager: if the run produced more findings than one compact page, say so
           explicitly (with the total) so the list never reads as "this inject has N findings". */}
       {compact && !loading && total > findings.length && (
