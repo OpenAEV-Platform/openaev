@@ -1573,7 +1573,7 @@ const GraphExplorerInner = ({
           onNodeMouseEnter={(_, n) => setHovered(n.id)}
           onNodeMouseLeave={() => setHovered(null)}
           onNodeClick={interactive
-            ? (_, n) => {
+            ? (event, n) => {
                 setMenu(null);
                 if (isGroupId(n.id)) {
                   return;
@@ -1582,6 +1582,11 @@ const GraphExplorerInner = ({
                 if (pathFrom && pathFrom !== n.id) {
                   findPath(state.nodes[pathFrom], node);
                   return;
+                }
+                // A plain click selects this node alone (OpenCTI's graph), also when it was already part of
+                // a multi-selection: React Flow leaves an already selected node's selection untouched.
+                if (!event.ctrlKey && !event.metaKey) {
+                  setSelection([n.id]);
                 }
                 setSelected(n.id);
               }
