@@ -45,6 +45,7 @@ import {
 } from '../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
 import { tint } from '../../../utils/tint';
+import { isFeatureEnabled } from '../../../utils/utils';
 import expectationIconByType, { expectationTypeColor } from '../common/ExpectationIconByType';
 import { type ExpectationType, expectationTypeLabelKey } from '../common/injects/expectations/Expectation';
 import { isTechnicalExpectation } from '../common/injects/expectations/ExpectationUtils';
@@ -52,7 +53,8 @@ import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
 import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
-import { getStatusColor, getStatusLabel } from './utils/threatArsenalStatusUtils';
+import { getActionStatus, getStatusColor, getStatusLabel } from './utils/threatArsenalStatusUtils';
+import PayloadTrustLine from './versions/PayloadTrustLine';
 
 interface Props {
   action: Omit<ThreatArsenalAction, 'action_grant_resource_id'>;
@@ -119,7 +121,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
 
   const primaryDomain = domains[0];
   const accent = primaryDomain?.domain_color ?? theme.palette.primary.main;
-  const status = action.action_payload?.payload_status ?? payload?.payload_status;
+  const status = getActionStatus(action, action.action_payload?.payload_status ?? payload?.payload_status);
   const statusColor = status ? getStatusColor(theme, status) : undefined;
   const statusLabel = getStatusLabel(status);
   const name = tPick(action.action_labels);
@@ -305,6 +307,12 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
               >
                 {description}
               </Typography>
+            )}
+
+            {isFeatureEnabled('CATALOG') && (
+              <div style={{ marginTop: theme.spacing(1.5) }}>
+                <PayloadTrustLine action={action} />
+              </div>
             )}
 
             <Box sx={{
