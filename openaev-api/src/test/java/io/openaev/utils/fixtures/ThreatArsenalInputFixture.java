@@ -77,6 +77,34 @@ public class ThreatArsenalInputFixture {
         domainIds);
   }
 
+  public static ThreatArsenalActionCreateInput createDefaultFileDropAction(
+      List<String> domainIds, String fileDropFileId) {
+    return new ThreatArsenalActionCreateInput(
+        FileDrop.FILE_DROP_TYPE,
+        "My File Drop Payload",
+        PAYLOAD_SOURCE.MANUAL,
+        PAYLOAD_STATUS.VERIFIED,
+        new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Windows},
+        PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+        new EXPECTATION_TYPE[] {},
+        Collections.emptyMap(),
+        "File drop description",
+        null,
+        null,
+        null,
+        fileDropFileId,
+        null,
+        null,
+        null,
+        null,
+        null,
+        Collections.emptyList(),
+        Collections.emptyList(),
+        null,
+        null,
+        domainIds);
+  }
+
   public static ThreatArsenalActionCreateInput createCommandLineActionWithOutputParser(
       List<String> domainIds) {
     RegexGroupInput regexGroupInput = createDefaultRegexGroupInputIPV6();

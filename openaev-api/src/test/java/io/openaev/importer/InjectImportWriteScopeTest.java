@@ -75,10 +75,9 @@ import org.springframework.transaction.annotation.Transactional;
  * refused with 400.
  *
  * <p>A simulation or scenario parent is looked up in the request scope: one outside it is not found
- * (404) and nothing is written. A simulation parent is loaded by primary key and kept when its
- * tenant lies in the scope, so a member reaches it on both routes. A scenario parent is looked up
- * in the scope and, on the non-prefixed route, also follows the ambient tenant, the default one on
- * that route, until {@code scenarios} is tenant-active.
+ * (404) and nothing is written. Both are kept when their tenant lies in the scope, so a member
+ * reaches them on both routes: neither entity carries the v1 tenant filter any more, so the ambient
+ * tenant, the default one on the non-prefixed route, no longer narrows the lookup.
  *
  * <p>The row tenant is read with raw JDBC on the test connection so the statement inspector never
  * rewrites the ground-truth read. {@code domains} is armed next to {@code documents} because the
@@ -527,11 +526,10 @@ class InjectImportWriteScopeTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given_headerRouteAndParentInB_should_failClosedAndWriteNothing")
-    void given_headerRouteAndParentInB_should_failClosedAndWriteNothing() throws Exception {
+    @DisplayName("given_headerRouteAndParentInB_should_writeInjectsInB")
+    void given_headerRouteAndParentInB_should_writeInjectsInB() throws Exception {
       // Arrange: the header selects B while the ambient tenant stays on the default one. The
-      // scenario is looked up in the ambient tenant until scenarios is tenant-active, so a B
-      // scenario is not found on this route and nothing is written in any tenant.
+      // scenario is looked up in the request scope, which the header pins on B.
       tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
       String tenantB = tenantHelper.createTenantWithCurrentUser("scn-inj-header-b").getId();
       byte[] zip = injectZip();
@@ -539,10 +537,12 @@ class InjectImportWriteScopeTest extends IntegrationTest {
       TenantContext.clearCurrentTenant();
       assertThat(TenantContext.getCurrentTenant()).isEqualTo(DEFAULT_TENANT);
 
-      // Act & Assert
+      // Act
       importZip(multipart(SCENARIO_URI + "/{scenarioId}/injects/import", scenarioId), zip, tenantB)
-          .andExpect(status().isNotFound());
-      assertThat(importedInjectTenants()).isEmpty();
+          .andExpect(status().isOk());
+
+      // Assert
+      assertThat(importedInjectTenants()).containsExactly(tenantB);
     }
   }
 

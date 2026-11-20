@@ -101,10 +101,29 @@ public interface PayloadRepository
   List<Payload> findOrphansByNameAndTenantId(
       @Param("name") String name, @Param("tenantId") String tenantId);
 
+  // -- NAME --
+
+  @Query(
+      "SELECT COUNT(p) > 0 FROM Payload p WHERE p.tenant.id = :tenantId"
+          + " AND LOWER(TRIM(p.name)) = LOWER(TRIM(:name))"
+          + " AND (:payloadId IS NULL OR p.identity.id <>"
+          + " (SELECT v.identity.id FROM Payload v WHERE v.id = :payloadId))")
+  boolean existsByTenantIdAndNameOutsideVersionsOf(
+      @Param("tenantId") String tenantId,
+      @Param("name") String name,
+      @Param("payloadId") String payloadId);
+
   // -- IDENTITY --
 
   List<Payload> findAllByTenantIdAndIdentityExternalId(
       @NotNull String tenantId, @NotNull String externalId);
+
+  /** Every version of this payload in the tenant, itself included. */
+  @Query(
+      "SELECT v FROM Payload v WHERE v.tenant.id = :tenantId AND v.identity.id ="
+          + " (SELECT p.identity.id FROM Payload p WHERE p.id = :payloadId AND p.tenant.id = :tenantId)")
+  List<Payload> findAllVersionsByTenantIdAndPayloadId(
+      @Param("tenantId") @NotNull String tenantId, @Param("payloadId") @NotNull String payloadId);
 
   Optional<Payload> findByIdentityExternalIdAndIdentityRepositoryIsNull(@NotNull String externalId);
 

@@ -418,14 +418,11 @@ public class StepService {
    * @param nextStepTemplateToExecute step template to ready
    * @param workflowRun the running workflow
    * @param input json input for the execution step
-   * @param pendingCount number of steps already scheduled in the current evaluation cycle but not
-   *     yet reflected in the database
    * @return created ready execution steps (does not include delayed batches)
    */
   @Transactional(rollbackFor = Exception.class)
   public List<Step> createReadySteps(
-      Step nextStepTemplateToExecute, Workflow workflowRun, String input, int pendingCount)
-      throws ChainingException {
+      Step nextStepTemplateToExecute, Workflow workflowRun, String input) throws ChainingException {
 
     // Re-load the step template within this transaction so lazy collections can be initialized.
     // The parameter may be a detached entity loaded outside any session (e.g. from a Quartz job).
@@ -488,7 +485,9 @@ public class StepService {
     }
     List<ConditionService.ExecutionBatch> proceedingBatches = new ArrayList<>();
     Set<String> hashesToCommit = new HashSet<>();
-    int localPending = pendingCount;
+    // Batches accepted in this call, not saved as READY steps yet: the rate limit counts them on
+    // top of the READY steps already in the database.
+    int localPending = 0;
 
     for (ConditionService.ExecutionBatch batch : executionBatches) {
       // Guard: rate limit — if the rate limit is reached, delay this batch with its
@@ -1131,6 +1130,32 @@ public class StepService {
    */
   public List<Step> findAllStepTemplateByWorkflow(String idWorkflow) {
     return this.stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(idWorkflow);
+  }
+
+  /** The scenario step templates creating an inject of this contract in the tenant. */
+  @Transactional(readOnly = true)
+  public List<Step> findScenarioStepTemplatesByContract(String tenantId, String contractId) {
+    return stepRepository
+        .findTemplateStepsByInjectorContractIds(List.of(contractId), tenantId)
+        .stream()
+        .filter(step -> step.getWorkflow().getScenario() != null)
+        .toList();
+  }
+
+  /** Points a step template at another injector contract, with a fresh copy of it in its data. */
+  @Transactional(rollbackFor = Exception.class)
+  public Step updateStepTemplateInjectorContract(Step stepTemplate, InjectorContract contract) {
+    WorkflowEditability.assertLogicMapEditable(stepTemplate.getWorkflow());
+    stepTemplate.setData(
+        injectExecutionStep.withInjectorContract(stepTemplate.getData(), contract));
+    return saveStep(stepTemplate);
+  }
+
+  /** The title of the inject this step creates. */
+  public String injectTitle(Step step) {
+    JsonElement data = JsonParser.parseString(step.getData());
+    JsonElement title = data.isJsonObject() ? data.getAsJsonObject().get("inject_title") : null;
+    return title == null || title.isJsonNull() ? null : title.getAsString();
   }
 
   /**

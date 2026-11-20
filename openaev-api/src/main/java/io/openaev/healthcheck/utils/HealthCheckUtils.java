@@ -22,6 +22,7 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
+import io.openaev.service.payload.PayloadRevocationService;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.function.Function;
@@ -55,6 +56,7 @@ public class HealthCheckUtils {
   private final StepTargetingService stepTargetingService;
   private final ConditionService conditionService;
   private final PreviewFeatureService previewFeatureService;
+  private final PayloadRevocationService payloadRevocationService;
 
   /**
    * Run all mail service checks for one inject
@@ -371,8 +373,13 @@ public class HealthCheckUtils {
    * @return found healthchecks
    */
   public List<HealthCheck> runContentChecks(Inject inject) {
+    return runContentChecks(inject.getInjectorContract().orElse(null), inject);
+  }
+
+  /** Run the content checks of this inject as if it ran this injector contract. */
+  public List<HealthCheck> runContentChecks(InjectorContract injectorContract, Inject inject) {
     return runContentChecks(
-        inject.getInjectorContract().orElse(null),
+        injectorContract,
         inject.getContent(),
         inject.isAllTeams(),
         ofNullable(inject.getTeams())
@@ -766,6 +773,18 @@ public class HealthCheckUtils {
    * @param healthChecks to filter
    * @return filtered healthchecks
    */
+  /** A revoked payload version fails the injects that run it. */
+  public List<HealthCheck> runRevocationChecks(Collection<Inject> injects) {
+    return payloadRevocationService.anyRevoked(injects)
+        ? List.of(
+            new HealthCheck(
+                HealthCheck.Type.PAYLOAD,
+                HealthCheck.Detail.REVOKED,
+                HealthCheck.Status.ERROR,
+                now()))
+        : List.of();
+  }
+
   public List<HealthCheck> removeDuplicates(List<HealthCheck> healthChecks) {
     if (healthChecks == null || healthChecks.isEmpty()) {
       return Collections.emptyList();

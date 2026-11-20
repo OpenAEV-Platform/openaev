@@ -35,6 +35,10 @@ const TARGET_STATUS_FIELDS: {
     field: 'target_detection_status',
   },
   {
+    type: 'LOGGING',
+    field: 'target_logging_status',
+  },
+  {
     type: 'VULNERABILITY',
     field: 'target_vulnerability_status',
   },

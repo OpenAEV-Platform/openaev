@@ -6,9 +6,13 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { XTM_HUB_PERMISSION_REQUIRED_STORAGE_KEY } from '../../../admin/components/xtm_hub/XtmHubRedirect';
+import { type AppAbility, defineAbility } from '../../../utils/permissions/ability';
 
-const { mockDispatch, mockHelperState } = vi.hoisted(() => ({
+const ALL_HOME_CAPABILITIES = ['ACCESS_DASHBOARDS', 'ACCESS_TENANT_SETTINGS'];
+
+const { mockDispatch, mockAbility, mockHelperState } = vi.hoisted(() => ({
   mockDispatch: vi.fn(),
+  mockAbility: { current: undefined as AppAbility | undefined },
   mockHelperState: {
     tenantSettings: { platform_home_dashboard: 'dashboard-id' as string | undefined },
     me: undefined as { user_home_dashboard?: string } | undefined,
@@ -43,13 +47,16 @@ vi.mock('../../../actions/settings/tenant-settings-action', () => ({
   updateTenantSettings: vi.fn(),
 }));
 
-vi.mock('../../../admin/components/workspaces/custom_dashboards/CustomDashboardWrapper', () => ({ default: ({ noDashboardSlot }: { noDashboardSlot: ReactNode }) => <div>{noDashboardSlot}</div> }));
+vi.mock('../../../admin/components/workspaces/custom_dashboards/CustomDashboardWrapper', () => ({ default: ({ noDashboardSlot }: { noDashboardSlot: ReactNode }) => <div data-testid="custom-home-dashboard">{noDashboardSlot}</div> }));
 
 vi.mock('../../../admin/components/workspaces/custom_dashboards/NoDashboardComponent', () => ({ default: ({ actionComponent }: { actionComponent: ReactNode }) => <div>{actionComponent}</div> }));
 
 vi.mock('../../../admin/components/workspaces/custom_dashboards/SelectDashboardButton', () => ({ default: () => <div data-testid="select-dashboard-button" /> }));
 
-vi.mock('../../../utils/permissions/permissionsContext', () => ({ Can: ({ children }: { children: ReactNode }) => <>{children}</> }));
+vi.mock('../../../utils/permissions/permissionsContext', () => ({
+  Can: ({ children }: { children: ReactNode }) => <>{children}</>,
+  useAbility: () => mockAbility.current,
+}));
 
 import Home from '../../../admin/components/Home';
 
@@ -80,9 +87,74 @@ const renderHome = (route: string) => render(
   </ThemeProvider>,
 );
 
+describe('Home access', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  // Each home dashboard requires the capability of the endpoints it calls.
+  describe.each([
+    {
+      label: 'the tenant home dashboard and the tenant settings capability',
+      tenantSettings: { platform_home_dashboard: 'dashboard-id' },
+      me: undefined,
+      capabilities: ['ACCESS_TENANT_SETTINGS'],
+      dashboardTestId: 'custom-home-dashboard',
+      allowed: true,
+    },
+    {
+      label: 'the user home dashboard and the tenant settings capability',
+      tenantSettings: { platform_home_dashboard: undefined },
+      me: { user_home_dashboard: 'dashboard-id' },
+      capabilities: ['ACCESS_TENANT_SETTINGS'],
+      dashboardTestId: 'custom-home-dashboard',
+      allowed: true,
+    },
+    {
+      label: 'a custom home dashboard and only the dashboards capability',
+      tenantSettings: { platform_home_dashboard: 'dashboard-id' },
+      me: undefined,
+      capabilities: ['ACCESS_DASHBOARDS'],
+      dashboardTestId: 'custom-home-dashboard',
+      allowed: false,
+    },
+    {
+      label: 'the default home dashboard and the dashboards capability',
+      tenantSettings: { platform_home_dashboard: undefined },
+      me: undefined,
+      capabilities: ['ACCESS_DASHBOARDS'],
+      dashboardTestId: 'default-home-dashboard',
+      allowed: true,
+    },
+    {
+      label: 'the default home dashboard and only the tenant settings capability',
+      tenantSettings: { platform_home_dashboard: undefined },
+      me: undefined,
+      capabilities: ['ACCESS_TENANT_SETTINGS'],
+      dashboardTestId: 'default-home-dashboard',
+      allowed: false,
+    },
+  ])('with $label', ({ tenantSettings, me, capabilities, dashboardTestId, allowed }) => {
+    it(`renders ${allowed ? 'the dashboard' : 'the no access message'}`, () => {
+      // Arrange
+      mockHelperState.tenantSettings = tenantSettings;
+      mockHelperState.me = me;
+      mockAbility.current = defineAbility(capabilities, {}, false);
+
+      // Act
+      renderHome('/admin');
+
+      // Assert
+      expect(screen.queryByTestId(dashboardTestId) !== null).toBe(allowed);
+      expect(screen.queryByText('You dont have the right access. Please contact your administrator.') !== null).toBe(!allowed);
+    });
+  });
+});
+
 describe('Home permission dialog', () => {
   beforeEach(() => {
     mockDispatch.mockClear();
+    mockAbility.current = defineAbility(ALL_HOME_CAPABILITIES, {}, false);
     sessionStorage.clear();
   });
 

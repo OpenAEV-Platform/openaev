@@ -1,5 +1,6 @@
 package io.openaev.database.repository;
 
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawNewsFeedRecipient;
@@ -158,29 +159,42 @@ public interface UserRepository
       nativeQuery = true)
   List<RawUserAuthFlat> getUserWithAuth(@Param("userId") String userId);
 
+  /**
+   * The players of the given tenants only. Scopes the roster to the caller's resolved tenant scope
+   * (never the ambient default tenant), so a caller reads the players of the tenants it belongs to
+   * and no other. An empty scope must not reach this query; the caller returns nothing instead.
+   */
   @Query(
       value =
           "select us.user_id, us.user_email, "
               + "us.user_firstname, us.user_lastname, "
               + "us.user_country, us.user_phone, us.user_admin, "
-              // A user holds one organization per tenant: a correlated sub-query keeps the current
-              // tenant's one only, without a join that would split a multi-tenant user in groups.
               + "(select uo.organization_id from users_organizations uo "
               + "  join organizations org on org.organization_id = uo.organization_id "
               + "  where uo.user_id = us.user_id "
-              + "  and org.tenant_id = :#{#tenantContext.currentTenant} "
+              + "  and org.tenant_id in :tenantIds "
               + "  order by uo.organization_id limit 1) as user_organization, "
-              + "array_remove(array_agg(tg.tag_id), null) as user_tags "
+              // distinct: the users_tenants join can repeat a user once per in-scope tenant, which
+              // would otherwise repeat each tag once per membership.
+              + "array_remove(array_agg(distinct tg.tag_id), null) as user_tags "
               + "from users us "
               + "left join users_tags usr_tg on us.user_id = usr_tg.user_id "
               + "left join tags tg on usr_tg.tag_id = tg.tag_id "
-              + "left join users_tenants ut on us.user_id = ut.user_id "
-              + "where ut.tenant_id = :#{#tenantContext.currentTenant} "
-              // Reserved service/connector accounts are system users, never players.
+              + "join users_tenants ut on us.user_id = ut.user_id "
+              + "where ut.tenant_id in :tenantIds "
               + "and us.user_email not ilike '%@openaev.invalid' "
               + "group by us.user_id;",
       nativeQuery = true)
-  List<RawPlayer> rawAllPlayers();
+  List<RawPlayer> rawPlayersInScope(@Param("tenantIds") Collection<String> tenantIds);
+
+  /** The users who are a member of one of the given tenants. */
+  @Query("select distinct u from User u join u.tenants t where t.id in :tenantIds")
+  List<User> findPlayersInScope(@Param("tenantIds") Collection<String> tenantIds);
+
+  /** Among the given ids, the users who are a member of one of the given tenants. */
+  @Query("select distinct u from User u join u.tenants t where u.id in :ids and t.id in :tenantIds")
+  List<User> findPlayersByIdInScope(
+      @Param("ids") Collection<String> ids, @Param("tenantIds") Collection<String> tenantIds);
 
   @Query(
       value =
@@ -220,6 +234,24 @@ public interface UserRepository
       nativeQuery = true)
   List<RawPlayer> rawPlayersByScenarioId(@Param("scenarioId") String scenarioId);
 
+  /**
+   * Every platform administrator, whatever their memberships: administrators, and holders of one of
+   * the capabilities through a platform group and a platform role.
+   */
+  @Query(
+      "SELECT DISTINCT u "
+          + "FROM User u "
+          + "LEFT JOIN u.groups g "
+          + "LEFT JOIN g.roles r "
+          + "LEFT JOIN r.capabilities c "
+          + "WHERE u.admin = true "
+          + "OR (g.tenant IS NULL AND r.tenant IS NULL AND c IN :capabilities)")
+  List<User> findPlatformAdministrators(@Param("capabilities") Collection<Capability> capabilities);
+
+  /**
+   * The administrators of a tenant: members of the tenant who are administrators, or who hold one
+   * of the capabilities through a group and a role of that tenant or of the platform.
+   */
   @Query(
       "SELECT DISTINCT u "
           + "FROM User u "
@@ -227,9 +259,14 @@ public interface UserRepository
           + "LEFT JOIN u.groups g "
           + "LEFT JOIN g.roles r "
           + "LEFT JOIN r.capabilities c "
-          + "WHERE ut.id = :#{#tenantContext.currentTenant} "
-          + "AND (u.admin = true OR c IN :capabilities)")
-  List<User> adminsOrUsersHavingCapabilities(@Param("capabilities") List<String> capabilities);
+          + "WHERE ut.id = :tenantId "
+          + "AND (u.admin = true "
+          + "OR (c IN :capabilities "
+          + "AND (g.tenant IS NULL OR g.tenant.id = :tenantId) "
+          + "AND (r.tenant IS NULL OR r.tenant.id = :tenantId)))")
+  List<User> findTenantAdministrators(
+      @Param("tenantId") String tenantId,
+      @Param("capabilities") Collection<Capability> capabilities);
 
   // -- Tenant-scoped --
 

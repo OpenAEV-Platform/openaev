@@ -15,9 +15,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectTestStatusRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
@@ -39,6 +41,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -62,10 +65,13 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
   @Autowired private ObjectMapper mapper;
   @Autowired private JavaMailSender mailSender;
   @Autowired private TenantRepository tenantRepository;
+  @Autowired private InjectTestStatusRepository injectTestStatusRepository;
 
   private ScenarioComposer.Composer scenarioWrapper;
-  private InjectComposer.Composer inject1Wrapper, inject2Wrapper;
-  private InjectTestStatusComposer.Composer injectTestStatus1Wrapper, injectTestStatus2Wrapper;
+  private InjectComposer.Composer inject1Wrapper, inject2Wrapper, otherScenarioInjectWrapper;
+  private InjectTestStatusComposer.Composer injectTestStatus1Wrapper,
+      injectTestStatus2Wrapper,
+      otherScenarioInjectTestStatusWrapper;
 
   @BeforeEach
   public void setup() throws Exception {
@@ -516,6 +522,20 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
               .forScenario(ScenarioFixture.getScenario())
               .withInjects(List.of(injectComposer1, injectComposer2))
               .persist();
+
+      otherScenarioInjectTestStatusWrapper =
+          injectTestStatusComposer.forInjectTestStatus(
+              InjectTestStatusFixture.createSuccessInjectStatus());
+      otherScenarioInjectWrapper =
+          injectComposer
+              .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
+              .withInjectTestStatus(otherScenarioInjectTestStatusWrapper)
+              .persist();
+      otherScenarioInjectTestStatusWrapper.persist();
+      scenarioComposer
+          .forScenario(ScenarioFixture.getScenario())
+          .withInject(otherScenarioInjectWrapper)
+          .persist();
     }
 
     @Nested
@@ -623,6 +643,163 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
                         injectTestStatus2Wrapper.get().getId())
                     .with(csrf()))
             .andExpect(status().isOk());
+      }
+    }
+
+    @Nested
+    @DisplayName("Inject test scoped to its scenario")
+    class InjectTestScopedToScenario {
+
+      @Test
+      @DisplayName("Testing an inject of another scenario returns 404")
+      @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
+      void given_injectOfAnotherScenario_should_return404_when_testingInject() throws Exception {
+        // Act & Assert
+        mvc.perform(
+                get(
+                        SCENARIO_URI + "/{scenarioId}/injects/{injectId}/test",
+                        scenarioWrapper.get().getId(),
+                        otherScenarioInjectWrapper.get().getId())
+                    .with(csrf()))
+            .andExpect(status().isNotFound());
+      }
+
+      @Test
+      @DisplayName("Deleting a test of another scenario returns 404 and keeps it")
+      @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+      void given_testOfAnotherScenario_should_return404_when_deletingInjectTest() throws Exception {
+        // Act
+        mvc.perform(
+                delete(
+                        SCENARIO_URI + "/{scenarioId}/injects/test/{testId}",
+                        scenarioWrapper.get().getId(),
+                        otherScenarioInjectTestStatusWrapper.get().getId())
+                    .with(csrf()))
+            .andExpect(status().isNotFound());
+
+        // Assert
+        assertThat(
+                injectTestStatusRepository.existsById(
+                    otherScenarioInjectTestStatusWrapper.get().getId()))
+            .isTrue();
+      }
+
+      @Test
+      @DisplayName("Deleting a test of another scenario answers like an unknown test")
+      @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+      void given_testOfAnotherScenario_should_answerLikeUnknownTest_when_deletingInjectTest()
+          throws Exception {
+        // Arrange
+        String scenarioId = scenarioWrapper.get().getId();
+        String unknownTestId = UUID.randomUUID().toString();
+        String otherTestId = otherScenarioInjectTestStatusWrapper.get().getId();
+
+        // Act
+        String unknownTestBody =
+            mvc.perform(
+                    delete(
+                            SCENARIO_URI + "/{scenarioId}/injects/test/{testId}",
+                            scenarioId,
+                            unknownTestId)
+                        .with(csrf()))
+                .andExpect(status().isNotFound())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String otherTestBody =
+            mvc.perform(
+                    delete(
+                            SCENARIO_URI + "/{scenarioId}/injects/test/{testId}",
+                            scenarioId,
+                            otherTestId)
+                        .with(csrf()))
+                .andExpect(status().isNotFound())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // Assert: same message, only the requested id differs (the error id is random)
+        String unknownTestMessage = JsonPath.read(unknownTestBody, "$.message");
+        String otherTestMessage = JsonPath.read(otherTestBody, "$.message");
+        assertThat(otherTestMessage)
+            .isEqualTo(unknownTestMessage.replace(unknownTestId, otherTestId));
+      }
+    }
+
+    @Nested
+    @DisplayName("Through the path of another scenario or simulation")
+    class ThroughOtherPath {
+
+      @Test
+      @DisplayName(
+          "given an inject of a scenario when testing it through the path of another scenario then it is not found")
+      @WithMockUser(isAdmin = true)
+      void given_injectOfOtherScenario_should_answerNotFound() throws Exception {
+        // Arrange
+        Scenario otherScenario =
+            scenarioComposer
+                .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+                .persist()
+                .get();
+
+        // Act
+        ResultActions result =
+            mvc.perform(
+                get(
+                        SCENARIO_URI + "/{scenarioId}/injects/{injectId}/test",
+                        otherScenario.getId(),
+                        inject1Wrapper.get().getId())
+                    .with(csrf()));
+
+        // Assert
+        result.andExpect(status().isNotFound());
+      }
+
+      @Test
+      @DisplayName(
+          "given an inject of a scenario when testing it through the path of a simulation then it is not found")
+      @WithMockUser(isAdmin = true)
+      void given_injectOfScenario_should_answerNotFoundThroughSimulationPath() throws Exception {
+        // Arrange
+        Exercise simulation =
+            simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
+
+        // Act
+        ResultActions result =
+            mvc.perform(
+                get(
+                        EXERCISE_URI + "/{simulationId}/injects/{injectId}/test",
+                        simulation.getId(),
+                        inject1Wrapper.get().getId())
+                    .with(csrf()));
+
+        // Assert
+        result.andExpect(status().isNotFound());
+      }
+
+      @Test
+      @DisplayName(
+          "given a scenario id in the path of a simulation when bulk testing its injects then none is tested")
+      @WithMockUser(isAdmin = true)
+      void given_scenarioIdInSimulationPath_should_testNoInject() throws Exception {
+        // Arrange
+        String scenarioId = scenarioWrapper.get().getId();
+        InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+        input.setInjectIDsToProcess(List.of(inject1Wrapper.get().getId()));
+        input.setSimulationOrScenarioId(scenarioId);
+
+        // Act
+        ResultActions result =
+            mvc.perform(
+                post(EXERCISE_URI + "/{simulationId}/injects/test", scenarioId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(input))
+                    .with(csrf()));
+
+        // Assert
+        result
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("No inject ID is testable"));
       }
     }
 

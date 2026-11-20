@@ -12,9 +12,17 @@ import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
+import OpenCrqPivot, { OpenCrqCard } from '../../../components/xtm/XtmOpenCrq';
+import OpenCtiPivot, { OpenCtiCard } from '../../../components/xtm/XtmPivot';
 import type { FindingOutput, FindingSummaryOutput } from '../../../utils/api-types';
+import useExplorationGraph from '../../../utils/hooks/useExplorationGraph';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { emptyFilled } from '../../../utils/String';
+import ExploreInGraphButton from '../graph/ExploreInGraphButton';
 import ContractOutputElementType from './ContractOutputElementType';
+import FindingImpactSections from './FindingImpactSections';
+import { IMPACTED_ASSETS_ANCHOR } from './FindingImpactUtils';
 import FindingOccurrences from './FindingOccurrences';
 import FindingVulnerabilityPanel from './FindingVulnerabilityPanel';
 
@@ -24,7 +32,11 @@ import FindingVulnerabilityPanel from './FindingVulnerabilityPanel';
 const FindingOverview = () => {
   const { t, fldt } = useFormatter();
   const theme = useTheme();
+  const ability = useAbility();
   const { findingId } = useParams() as { findingId: string };
+  // The hero actions and the OpenCTI / OpenCRQ cards belong to the exploration graph preview
+  // feature (off by default); off, the page is the one shipped before it.
+  const graphEnabled = useExplorationGraph();
 
   const [finding, setFinding] = useState<FindingOutput | null>(null);
   // Group-wide aggregates are computed server-side: a Finding row is ONE
@@ -48,6 +60,10 @@ const FindingOverview = () => {
   }
 
   const isCVE = finding.finding_type === 'cve';
+  // The counter pivots to the impacted assets section only when there is something to open.
+  const impactedAssetsLink = (summary?.finding_assets_count ?? 0) > 0 && ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)
+    ? `#${IMPACTED_ASSETS_ANCHOR}`
+    : undefined;
 
   return (
     <Box sx={{
@@ -76,13 +92,20 @@ const FindingOverview = () => {
         iconNode={<FindingIcon findingType={finding.finding_type} />}
         overline={typeLabel}
         title={finding.finding_value}
+        action={graphEnabled ? (
+          <>
+            <ExploreInGraphButton type="FINDING" entityId={findingId} />
+            {isCVE && <OpenCtiPivot kind="vulnerabilities" objectKey={finding.finding_value} />}
+            {isCVE && <OpenCrqPivot kind="vulnerabilities" objectKey={finding.finding_value} />}
+          </>
+        ) : undefined}
         chips={cvssScore != null
           ? <Chip label={`CVSS ${cvssScore.toFixed(1)}`} severity="info" />
           : undefined}
         stats={(
           <>
             <HeroStat icon={FormatListNumberedOutlined} label={t('Occurrences')} value={summary?.finding_occurrences ?? '-'} />
-            <HeroStat icon={DevicesOutlined} label={t('Impacted assets')} value={summary?.finding_assets_count ?? '-'} color={theme.palette.primary.main} />
+            <HeroStat icon={DevicesOutlined} label={t('Impacted assets')} value={summary?.finding_assets_count ?? '-'} color={theme.palette.primary.main} to={impactedAssetsLink} />
             {/* Team / person spread only shows when the finding actually touched people
                 (e.g. phishing credentials): machine findings keep a compact stat row. */}
             {(summary?.finding_teams_count ?? 0) > 0 && (
@@ -139,6 +162,26 @@ const FindingOverview = () => {
           onCvssScore={setCvssScore}
         />
       )}
+
+      {/* The same CVE in OpenCTI: its knowledge (threats, reports) one click away, or the
+          "Connect OpenCTI" call to action when the tenant is not connected. */}
+      {graphEnabled && isCVE && (
+        <InformationGrid title={t('In OpenCTI')}>
+          <OpenCtiCard kind="vulnerabilities" objectKey={finding.finding_value} />
+        </InformationGrid>
+      )}
+
+      {/* The same CVE in OpenCRQ: the risk scenarios it drives, their annual loss expectancy and the
+          loss avoided by fixing it, or the "Connect OpenCRQ" call to action. */}
+      {graphEnabled && isCVE && (
+        <InformationGrid title={t('In OpenCRQ')}>
+          <OpenCrqCard kind="vulnerabilities" objectKey={finding.finding_value} />
+        </InformationGrid>
+      )}
+
+      {/* Pivots: the impacted assets and asset groups, and the scenarios and simulations the
+          finding was produced in, across all its occurrences. */}
+      <FindingImpactSections searchFindings={searchFindings} finding={finding} />
 
       {/* Occurrence timeline: one entry per inject that produced this finding,
           as a table or a horizontal time strip. */}

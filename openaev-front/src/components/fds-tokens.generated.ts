@@ -6,7 +6,7 @@
  * fields. Wiring: fds-migration/TOKEN-MAPPING.md.
  *
  * Source: @filigran/design-system packages/filigran-design-system/src/tokens/theme.css
- * Theme.css content hash: sha256:6053664323b9f8b5e17180cedfde9b46ff739d681f54469724d1e3169327016f
+ * Theme.css content hash: sha256:7157750c8fcccc353f3891029b6b2e1df0bf770b1138a1451744ab448196ffec
  * Regenerate (from the filigran-design-system repo, not here):
  *   pnpm generate:mui-bridge --product openaev --write-to-product
  *
@@ -18,7 +18,7 @@
 
 export const FDS_META = {
   product: "openaev",
-  themeCssHash: "sha256:6053664323b9f8b5e17180cedfde9b46ff739d681f54469724d1e3169327016f",
+  themeCssHash: "sha256:7157750c8fcccc353f3891029b6b2e1df0bf770b1138a1451744ab448196ffec",
   generator: "@filigran/design-system scripts/generate-mui-bridge.ts",
 } as const;
 
@@ -50,7 +50,7 @@ const colorsDark = {
   "--bg-elevation-heading": "#070d18",
   "--bg-elevation-heading-layer-0": "#070d18",
   "--bg-elevation-heading-layer-1": "#070d18",
-  "--bg-elevation-heading-layer-2": "#101b33",
+  "--bg-elevation-heading-layer-2": "#0d172b",
   "--bg-elevation-heading-layer-3": "#182a4e",
   "--bg-elevation-highlight": "#13213e",
   "--bg-elevation-highlight-layer-0": "#13213e",
@@ -60,7 +60,7 @@ const colorsDark = {
   "--bg-elevation-hover": "#0d172b",
   "--bg-elevation-hover-layer-0": "#0d172b",
   "--bg-elevation-hover-layer-1": "#101b33",
-  "--bg-elevation-hover-layer-2": "#070d18",
+  "--bg-elevation-hover-layer-2": "#101b33",
   "--bg-elevation-hover-layer-3": "#0d172b",
   "--bg-input-default": "#13213e",
   "--bg-input-disabled": "#313235",
@@ -182,8 +182,9 @@ const colorsDark = {
   "--text-input-error": "#f14337",
   "--text-input-helper": "#afb0b6",
   "--text-input-label": "#afb0b6",
-  "--text-input-placeholder": "#f2f2f3",
+  "--text-input-placeholder": "#afb0b6",
   "--text-input-required": "#f2f2f3",
+  "--text-input-value": "#f2f2f3",
   "--text-negative-disabled": "#62636a",
   "--text-negative-primary": "#18191b",
   "--text-negative-secondary": "#494a50"
@@ -341,8 +342,9 @@ const colorsLight = {
   "--text-input-error": "#b8180a",
   "--text-input-helper": "#494a50",
   "--text-input-label": "#494a50",
-  "--text-input-placeholder": "#18191b",
+  "--text-input-placeholder": "#494a50",
   "--text-input-required": "#18191b",
+  "--text-input-value": "#18191b",
   "--text-negative-disabled": "#95969d",
   "--text-negative-primary": "#f2f2f3",
   "--text-negative-secondary": "#afb0b6"
@@ -353,15 +355,19 @@ const colorsLight = {
  */
 const gradientsDark = {
   "--gradient-default": "linear-gradient(90deg, #070d18 0.0%, #0c1527 100.0%)",
+  "--gradient-error": "linear-gradient(90deg, #f57266 0.0%, #f14337 100.0%)",
   "--gradient-focus": "linear-gradient(90deg, #42caff 0.0%, #00f0bc 100.0%)",
   "--gradient-ia": "linear-gradient(90deg, #e3d6fa 0.0%, #a47af0 100.0%)",
+  "--gradient-success": "linear-gradient(90deg, #91f396 0.0%, #17ab1f 100.0%)",
   "--gradient-warning": "linear-gradient(90deg, #e6700f 0.0%, #f2be3a 100.0%)"
 } as const;
 const gradientsLight = {
   "--gradient-default": "linear-gradient(90deg, #f2f2f3 0.0%, #ffffff 100.0%)",
-  "--gradient-focus": "linear-gradient(90deg, #0015a8 0.0%, #009474 100.0%)",
+  "--gradient-error": "linear-gradient(90deg, #881106 0.0%, #b8180a 100.0%)",
+  "--gradient-focus": "linear-gradient(90deg, #0015a8 0.0%, #005744 100.0%)",
   "--gradient-ia": "linear-gradient(90deg, #3c108c 0.0%, #651fe5 100.0%)",
-  "--gradient-warning": "linear-gradient(90deg, #b8550a 0.0%, #f2be3a 100.0%)"
+  "--gradient-success": "linear-gradient(90deg, #094e0b 0.0%, #117916 100.0%)",
+  "--gradient-warning": "linear-gradient(90deg, #e6700f 0.0%, #f2be3a 100.0%)"
 } as const;
 
 /**

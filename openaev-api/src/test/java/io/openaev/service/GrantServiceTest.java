@@ -66,6 +66,19 @@ class GrantServiceTest {
   }
 
   @Test
+  void test_hasReadGrantInTenant_WHEN_grant_is_held_in_the_given_tenant() {
+    User user = UserFixture.getUser();
+    user.setId(USER_ID);
+    String otherTenant = "tenant-of-the-resource";
+    when(grantRepository.existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
+            USER_ID, otherTenant, RESOURCE_ID, Grant.GRANT_TYPE.OBSERVER.andHigher()))
+        .thenReturn(true);
+
+    assertTrue(grantService.hasReadGrantInTenant(RESOURCE_ID, user, otherTenant));
+    assertFalse(grantService.hasReadGrant(RESOURCE_ID, user));
+  }
+
+  @Test
   void test_hasLaunchGrant_WHEN_has_read_grant() {
     User user = UserFixture.getUser();
     user.setId(USER_ID);

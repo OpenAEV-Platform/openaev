@@ -16,6 +16,8 @@ import io.openaev.api.tenants.TenantInput;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.MinioConfig;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
@@ -50,6 +52,7 @@ class TenantServiceTest extends IntegrationTest {
 
   @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private TenantService tenantService;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   @Autowired private TenantComposer tenantComposer;
   @Autowired protected EntityManager entityManager;
@@ -159,10 +162,11 @@ class TenantServiceTest extends IntegrationTest {
     entityManager.clear();
     TenantContext.setCurrentTenant(created.getId());
 
-    // injectors is on v2 isolation (no v1 @Filter anymore) but this test's context does not
-    // activate it (application-test.properties keeps active-tables empty), so a bare findByType
-    // would return every tenant's row unfiltered: assert by explicit tenant attribution instead,
-    // using the tenant-scoped repository method kept for exactly this purpose.
+    // injectors is on v2 isolation: a read sees the rows of the transaction's scope when the table
+    // is active and every tenant's rows when it is not. Each read below sets the scope of the
+    // tenant it asserts on and filters on the tenant attribution, so both shapes give the same
+    // answer.
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(created.getId()));
     Injector emailInjector =
         injectorRepository.findAll().stream()
             .filter(i -> EmailContract.TYPE.equals(i.getType()))
@@ -179,6 +183,7 @@ class TenantServiceTest extends IntegrationTest {
     // to EMAIL_DEFAULT (the broken re-tenant/clear variants stole or deleted the source link).
     entityManager.clear();
     TenantContext.setCurrentTenant(DEFAULT_TENANT_UUID);
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(DEFAULT_TENANT_UUID));
     Injector defaultEmailInjector =
         injectorRepository.findAll().stream()
             .filter(i -> EmailContract.TYPE.equals(i.getType()))

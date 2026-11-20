@@ -24,6 +24,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.NotificationTriggerRepository;
 import io.openaev.database.repository.NotifierRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.notification.NotifierService;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -55,6 +56,7 @@ public class NotificationTriggerApiTest extends IntegrationTest {
   @Autowired private NotifierService notifierService;
   @Autowired private NotifierRepository notifierRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private TenantScopedJobRunner tenantScopedJobRunner;
 
   @AfterEach
   void afterEach() {
@@ -62,13 +64,18 @@ public class NotificationTriggerApiTest extends IntegrationTest {
   }
 
   // Explicit tenant rather than TenantContext: notifiers is v2-active, so the built-ins are
-  // provisioned and read for a named tenant, not for whatever the thread-local happens to hold.
+  // provisioned and read for a named tenant, inside that tenant's scope. The test method itself
+  // holds no transaction, so a read outside the runner would see no row.
   private String uiNotifierId() {
-    notifierService.ensureBuiltInNotifiers(Tenant.DEFAULT_TENANT_UUID);
-    return notifierRepository
-        .findFirstByTenantIdAndTypeAndBuiltInTrue(Tenant.DEFAULT_TENANT_UUID, NotifierType.UI)
-        .orElseThrow()
-        .getId();
+    return tenantScopedJobRunner.supplyInTenant(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          notifierService.ensureBuiltInNotifiers(Tenant.DEFAULT_TENANT_UUID);
+          return notifierRepository
+              .findFirstByTenantIdAndTypeAndBuiltInTrue(Tenant.DEFAULT_TENANT_UUID, NotifierType.UI)
+              .orElseThrow()
+              .getId();
+        });
   }
 
   @Test

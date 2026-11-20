@@ -30,6 +30,8 @@ import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
+import io.openaev.service.settings.RuntimeSetting;
+import io.openaev.service.settings.RuntimeSettingsService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.EndpointMapper;
@@ -107,12 +109,6 @@ public class EndpointService implements AuditLoggedService {
       "${executor.openaev-agent.binaries.version:${executor.openaev.binaries.version:${info.app.version:unknown}}}")
   private String agentBinaryVersion;
 
-  @Value("${executor.openaev.agent.max-simultaneous-jobs:5}")
-  private int maxSimultaneousJobs;
-
-  @Value("${executor.openaev.agent.auto-update-enabled:true}")
-  private boolean agentAutoUpdateEnabled;
-
   private final EndpointRepository endpointRepository;
   private final ExecutorRepository executorRepository;
   private final AssetGroupRepository assetGroupRepository;
@@ -124,6 +120,8 @@ public class EndpointService implements AuditLoggedService {
   private final LicenseCacheManager licenseCacheManager;
   private final TenantRepository tenantRepository;
   private final ApplicationEventPublisher eventPublisher;
+  // Max simultaneous jobs and agent auto-update: env var > Settings > Parameters > property.
+  private final RuntimeSettingsService runtimeSettingsService;
 
   // -- CRUD --
   /**
@@ -231,6 +229,12 @@ public class EndpointService implements AuditLoggedService {
     return fromIterable(this.endpointRepository.findAll(fromIds(endpointIds)));
   }
 
+  /** The endpoints among the given ids that belong to the given tenant. */
+  public List<Endpoint> endpoints(
+      @NotNull final List<String> endpointIds, @NotBlank final String tenantId) {
+    return this.endpointRepository.findAllByIdInTenant(endpointIds, tenantId);
+  }
+
   public List<Endpoint> endpoints(@NotNull final Specification<Endpoint> specification) {
     return fromIterable(this.endpointRepository.findAll(specification));
   }
@@ -241,9 +245,13 @@ public class EndpointService implements AuditLoggedService {
   }
 
   public void deleteEndpoint(@NotBlank final String endpointId) {
-    this.endpointRepository.deleteById(endpointId);
+    int deleted = this.endpointRepository.deleteEndpointById(endpointId);
+    if (deleted == 0) {
+      throw new ElementNotFoundException("Endpoint not found");
+    }
     // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
-    // must be notified explicitly (endpoint + vulnerable-endpoint docs would stay stale).
+    // is notified explicitly (endpoint and vulnerable-endpoint documents would stay stale).
+    // The index delete event is published only for a row the scoped DELETE removed.
     eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, endpointId));
   }
 
@@ -495,7 +503,7 @@ public class EndpointService implements AuditLoggedService {
     Endpoint endpoint = (Endpoint) agent.getAsset();
     if (agent.getParent() == null && !agent.getVersion().equals(version)) {
       if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())
-          && !agentAutoUpdateEnabled) {
+          && !runtimeSettingsService.booleanValue(RuntimeSetting.AGENT_AUTO_UPDATE_ENABLED)) {
         log.warn(
             String.format(
                 "A new version for the agent %s is available, his current version is %s and the new version is %s",
@@ -548,7 +556,10 @@ public class EndpointService implements AuditLoggedService {
                     : Agent.DEPLOYMENT_MODE.session.name(),
                 input.isElevated() ? Agent.PRIVILEGE.admin.name() : Agent.PRIVILEGE.standard.name(),
                 input.getExecutedByUser()),
-            PageRequest.of(0, maxSimultaneousJobs, Sort.by(Sort.Direction.ASC, "createdAt")))
+            PageRequest.of(
+                0,
+                runtimeSettingsService.intValue(RuntimeSetting.AGENT_MAX_SIMULTANEOUS_JOBS),
+                Sort.by(Sort.Direction.ASC, "createdAt")))
         .getContent();
   }
 

@@ -26,7 +26,9 @@ public record SecretMetadata(
     boolean awsSessionTokenPresent,
     String awsRoleArn,
     AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE awsSourceIdentityType,
+    boolean awsExternalIdDefined,
     String awsSourceProfileAccessKeyId,
+    boolean awsSourceProfileSecretAccessKeyDefined,
     String awsAccountId,
     String awsEndpointUrl,
     // AZURE
@@ -35,6 +37,7 @@ public record SecretMetadata(
     String azureTenantId,
     String azureSubscriptionId,
     String azureAuthorityHostUri,
+    String azureScope,
     boolean azureRequestsCertificateDefined,
     // GCP
     String gcpScope,
@@ -89,18 +92,40 @@ public record SecretMetadata(
         .build();
   }
 
+  /**
+   * Non-sensitive metadata of an AWS assume role secret.
+   *
+   * <p>The external id and the source profile secret access key ARE credentials and never leave the
+   * backend, not even encrypted: only booleans tell the form that they are stored, so it can render
+   * their write-only placeholders and treat an absent value as "keep the stored one".
+   *
+   * @param awsDefaultRegion default AWS region
+   * @param awsRoleArn ARN of the role to assume
+   * @param awsSourceIdentityType identity used to call STS
+   * @param awsExternalIdDefined whether an external id is currently stored
+   * @param awsSourceProfileAccessKeyId access key id of the source profile, may be null
+   * @param awsSourceProfileSecretAccessKeyDefined whether a source profile secret access key is
+   *     currently stored
+   * @param awsAccountId optional AWS account id
+   * @param awsEndpointUrl optional endpoint override
+   * @return matching metadata
+   */
   public static SecretMetadata forAwsAssumeRole(
       AwsRegion awsDefaultRegion,
       String awsRoleArn,
       AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE awsSourceIdentityType,
+      boolean awsExternalIdDefined,
       String awsSourceProfileAccessKeyId,
+      boolean awsSourceProfileSecretAccessKeyDefined,
       String awsAccountId,
       String awsEndpointUrl) {
     return SecretMetadata.builder()
         .awsDefaultRegion(awsDefaultRegion)
         .awsRoleArn(awsRoleArn)
         .awsSourceIdentityType(awsSourceIdentityType)
+        .awsExternalIdDefined(awsExternalIdDefined)
         .awsSourceProfileAccessKeyId(awsSourceProfileAccessKeyId)
+        .awsSourceProfileSecretAccessKeyDefined(awsSourceProfileSecretAccessKeyDefined)
         .awsAccountId(awsAccountId)
         .awsEndpointUrl(awsEndpointUrl)
         .build();
@@ -118,6 +143,7 @@ public record SecretMetadata(
    * @param azureTenantId Entra ID tenant id owning the service principal
    * @param azureSubscriptionId targeted subscription id, may be null
    * @param azureAuthorityHostUri optional authority host override
+   * @param azureScope optional scope a token is requested for
    * @param azureRequestsCertificateDefined whether a certificate file is currently stored
    * @return matching metadata
    */
@@ -127,6 +153,7 @@ public record SecretMetadata(
       String azureTenantId,
       String azureSubscriptionId,
       String azureAuthorityHostUri,
+      String azureScope,
       boolean azureRequestsCertificateDefined) {
     return SecretMetadata.builder()
         .azureEnvironment(azureEnvironment)
@@ -134,6 +161,7 @@ public record SecretMetadata(
         .azureTenantId(azureTenantId)
         .azureSubscriptionId(azureSubscriptionId)
         .azureAuthorityHostUri(azureAuthorityHostUri)
+        .azureScope(azureScope)
         .azureRequestsCertificateDefined(azureRequestsCertificateDefined)
         .build();
   }
@@ -148,6 +176,7 @@ public record SecretMetadata(
    * @param azureClientId client id of the user-assigned managed identity, null when system-assigned
    * @param azureSubscriptionId targeted subscription id, may be null
    * @param azureAuthorityHostUri optional authority host override
+   * @param azureScope optional scope a token is requested for
    * @param azureRequestsCertificateDefined whether a certificate file is currently stored
    * @return matching metadata
    */
@@ -156,12 +185,14 @@ public record SecretMetadata(
       String azureClientId,
       String azureSubscriptionId,
       String azureAuthorityHostUri,
+      String azureScope,
       boolean azureRequestsCertificateDefined) {
     return SecretMetadata.builder()
         .azureEnvironment(azureEnvironment)
         .azureClientId(azureClientId)
         .azureSubscriptionId(azureSubscriptionId)
         .azureAuthorityHostUri(azureAuthorityHostUri)
+        .azureScope(azureScope)
         .azureRequestsCertificateDefined(azureRequestsCertificateDefined)
         .build();
   }

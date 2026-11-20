@@ -626,6 +626,7 @@ class ImportBundleAttributionTest extends IntegrationTest {
       byte[] zip =
           declareTenantOnEveryResource(export, domainName, attackPattern.getExternalId(), tenantC);
       Map<String, Long> before = rowsOutsideTenant(tenantB);
+      onlyTenantKeepsPayloadInjectors(tenantB);
 
       // Act
       mvc.perform(
@@ -1108,6 +1109,32 @@ class ImportBundleAttributionTest extends IntegrationTest {
       }
       return false;
     }
+  }
+
+  /**
+   * {@code injectors} is not armed in this class, so the import's lookup of payload-capable
+   * injectors reads the built-in implant of every tenant the database holds (each earlier test of
+   * the class leaves its own tenant), in heap order. The built-in injectors share their ids across
+   * tenants, so linking skips every row after the first and a foreign tenant's row in first
+   * position fails the import. Production reads that lookup under the write tenant's scope; this
+   * reproduces it by leaving only {@code tenantId}'s injectors payload-capable, inside the test
+   * transaction.
+   */
+  private void onlyTenantKeepsPayloadInjectors(String tenantId) {
+    entityManager.flush();
+    entityManager
+        .unwrap(Session.class)
+        .doWork(
+            connection -> {
+              try (PreparedStatement statement =
+                  connection.prepareStatement(
+                      "UPDATE injectors SET injector_payloads = false"
+                          + " WHERE injector_payloads AND tenant_id::text <> ?")) {
+                statement.setString(1, tenantId);
+                statement.executeUpdate();
+              }
+            });
+    entityManager.clear();
   }
 
   /**

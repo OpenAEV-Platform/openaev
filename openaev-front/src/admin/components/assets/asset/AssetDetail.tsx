@@ -26,6 +26,8 @@ import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PlatformIcon from '../../../../components/PlatformIcon';
+import OpenCrqPivot from '../../../../components/xtm/XtmOpenCrq';
+import OpenCtiPivot from '../../../../components/xtm/XtmPivot';
 import { useHelper } from '../../../../store';
 import {
   type EndpointOverviewOutput,
@@ -34,13 +36,18 @@ import {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
 import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { emptyFilled, formatIp, formatMacAddress } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
+import EntityGraph from '../../graph/EntityGraph';
+import ExploreInGraphButton from '../../graph/ExploreInGraphButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
@@ -51,6 +58,7 @@ import PostureScore from '../PostureScore';
 import InjectsPlayedOverTimeChart from '../statistics/InjectsPlayedOverTimeChart';
 import PostureScoreOverTimeChart from '../statistics/PostureScoreOverTimeChart';
 import useExpectationPosture from '../useExpectationPosture';
+import AssetLinks from './AssetLinks';
 
 // The backend's EndpointOverviewOutput now also carries the AI target connection metadata and the
 // asset's markings; until the API types are regenerated (needs a backend restart) they are
@@ -80,6 +88,7 @@ const AssetDetail = () => {
 
   const [asset, setAsset] = useState<AssetOverview | null>(null);
   const [loading, setLoading] = useState(true);
+  const ability = useAbility();
 
   const loadAsset = useCallback(() => {
     setLoading(true);
@@ -138,7 +147,9 @@ const AssetDetail = () => {
   // charts without eating vertical space on the main tab. Tabs are routed
   // (/admin/assets/:id[/statistics]) so they can be deep-linked like the
   // atomic testing and scenario tabs.
-  const { currentTab, handleChangeTab } = useRoutedTabs(['overview', 'statistics'], 'overview');
+  // The Graph tab and the asset links belong to the exploration graph preview feature (off by default).
+  const graphEnabled = useExplorationGraph();
+  const { currentTab, handleChangeTab } = useRoutedTabs(graphEnabled ? ['overview', 'graph', 'statistics'] : ['overview', 'statistics'], 'overview');
 
   if (loading && !asset) {
     return <Loader />;
@@ -153,6 +164,12 @@ const AssetDetail = () => {
   }
 
   const isAiTarget = asset.asset_category === 'AI_TARGET';
+  // The OpenCTI counterpart is matched on a real identifier: the hostname (an OpenCTI System or
+  // Hostname), else the first IP or MAC address (an observable).
+  const counterpartKey = asset.asset_hostname
+    || asset.asset_ips?.[0]
+    || asset.asset_mac_addresses?.[0]
+    || null;
 
   let internetFacingLabel = '-';
   if (asset.asset_internet_facing != null) {
@@ -201,6 +218,10 @@ const AssetDetail = () => {
         title={asset.asset_name}
         action={(
           <>
+            <ExploreInGraphButton type="ASSET" entityId={id} />
+            {!isAiTarget && <OpenCtiPivot kind="assets" objectKey={counterpartKey} />}
+            {/* OpenCRQ keys its supporting assets by hostname only. */}
+            {!isAiTarget && <OpenCrqPivot kind="assets" objectKey={asset.asset_hostname} />}
             {/* Entity-scoped reports - self-hides without the reporting
                 access capability. */}
             <EntityReportsPanel
@@ -241,6 +262,12 @@ const AssetDetail = () => {
             key: 'overview',
             label: t('Overview'),
           },
+          ...(graphEnabled
+            ? [{
+                key: 'graph',
+                label: t('Graph'),
+              }]
+            : []),
           {
             key: 'statistics',
             label: t('Statistics'),
@@ -249,6 +276,8 @@ const AssetDetail = () => {
         currentTab={currentTab}
         onChange={handleChangeTab}
       />
+
+      {graphEnabled && currentTab === 'graph' && <EntityGraph type="ASSET" entityId={id} variant="embedded" />}
 
       {currentTab === 'statistics' && (
         // Two simple 50/50 time series: the posture-score evolution (same
@@ -418,6 +447,16 @@ const AssetDetail = () => {
                   )}
             </SectionBlock>
           </DetailSections>
+
+          {/* Asset-to-asset links (hosts, uses, logged on...), both directions, read-only and
+              compact; edited in the Manage links drawer only. The graph lives in the Graph tab. */}
+          {graphEnabled && (
+            <AssetLinks
+              assetId={id}
+              assetName={asset.asset_name}
+              canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS)}
+            />
+          )}
 
           {hasAgents && (
             <SectionBlock title={t('Agents')}>

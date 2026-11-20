@@ -13,6 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.DocumentRepository;
@@ -22,6 +24,7 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
 import io.openaev.rest.atomic_testing.form.InjectRecurrenceInput;
+import io.openaev.service.period.RecurrenceService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -38,14 +41,30 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Atomic testing API flows. The {@code TenantIsolation} group is the isolation test of {@code
+ * injects}: it seeds atomic testings in two tenants and asserts that a caller scoped to one tenant
+ * neither reads, finds in a search, nor deletes the other tenant's atomic testing. An atomic
+ * testing has no parent simulation or scenario, so the search refusal rests on the statement
+ * inspector over {@code injects} alone.
+ */
+@CoversTenantIsolation("injects")
 @TestInstance(PER_CLASS)
 @Transactional
 public class AtomicTestingApiTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   public static final String ATOMIC_TESTINGS_URI = "/api/atomic-testings";
 
@@ -108,7 +127,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Find an atomic testing without status")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void findAnAtomicTestingWithoutStatus() throws Exception {
     String response =
         mvc.perform(
@@ -127,7 +146,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Find an atomic testing with status, command lines and expectation Results from inject content")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void findAnAtomicTestingWithStatusAndCommandLines() throws Exception {
     String url = ATOMIC_TESTINGS_URI + "/" + INJECT_WITH_STATUS_AND_COMMAND_LINES.getId();
     String expectedInjectId = INJECT_WITH_STATUS_AND_COMMAND_LINES.getId();
@@ -223,7 +242,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Duplicate and delete an atomic testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void duplicateAndDeleteAtomicTesting() throws Exception {
     // Duplicate
     String response =
@@ -265,7 +284,12 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Launch an Atomic Testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(
+      isAdmin = true,
+      autoJoinDefaultTenant = true,
+      userFirstName = "Ash",
+      userLastName = "Ketchum",
+      userMail = "ash.ketchum@unittests.invalid")
   void launchAtomicTesting() throws Exception {
     Inject atomicTesting = getAtomicTestingWrapper(null, null).persist().get();
 
@@ -274,12 +298,21 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
     mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/launch").with(csrf()))
         .andExpect(status().is2xxSuccessful())
-        .andExpect(jsonPath("$.inject_status.status_name").value("QUEUING"));
+        .andExpect(jsonPath("$.inject_status.status_name").value("QUEUING"))
+        .andExpect(jsonPath("$.inject_launched_by_user.user_name").value("Ash Ketchum"))
+        .andExpect(
+            jsonPath("$.inject_launched_by_user.user_email")
+                .value("ash.ketchum@unittests.invalid"));
   }
 
   @Test
   @DisplayName("Relaunch an Atomic Testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(
+      isAdmin = true,
+      autoJoinDefaultTenant = true,
+      userFirstName = "Ash",
+      userLastName = "Ketchum",
+      userMail = "ash.ketchum@unittests.invalid")
   void relaunchAtomicTesting() throws Exception {
     Inject atomicTesting =
         getAtomicTestingWrapper(InjectStatusFixture.createQueuingInjectStatus(), null)
@@ -291,6 +324,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                 post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.inject_status.status_name").value("QUEUING"))
+            .andExpect(jsonPath("$.inject_launched_by_user.user_name").value("Ash Ketchum"))
             .andReturn()
             .getResponse()
             .getContentAsString();
@@ -308,10 +342,10 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Launch in place of an Atomic Testing that has findings")
-  @WithMockUser(isAdmin = true)
   class LaunchInPlaceWithFindings {
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Should delete the findings the inject wrote, and their occurrences")
     void given_injectWithFindings_should_deleteThemOnLaunch() throws Exception {
       // Arrange
@@ -347,10 +381,10 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Delete an Atomic Testing that has findings")
-  @WithMockUser(isAdmin = true)
   class DeleteWithFindings {
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Should delete the findings of the inject, and their occurrences")
     void given_injectWithFindings_should_deleteThemWithTheInject() throws Exception {
       // Arrange
@@ -380,7 +414,12 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Set, carry over on relaunch, then clear the recurrence of an Atomic Testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(
+      isAdmin = true,
+      autoJoinDefaultTenant = true,
+      userFirstName = "Misty",
+      userLastName = "Waterflower",
+      userMail = "misty.waterflower@unittests.invalid")
   void updateAtomicTestingRecurrence() throws Exception {
     Inject atomicTesting =
         getAtomicTestingWrapper(InjectStatusFixture.createQueuingInjectStatus(), null)
@@ -400,14 +439,19 @@ public class AtomicTestingApiTest extends IntegrationTest {
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.inject_recurrence").value("0 30 9 * * *"))
         .andExpect(jsonPath("$.inject_recurrence_start").value("2030-01-01T00:00:00Z"))
-        .andExpect(jsonPath("$.inject_recurrence_end").value("2030-02-01T00:00:00Z"));
+        .andExpect(jsonPath("$.inject_recurrence_end").value("2030-02-01T00:00:00Z"))
+        .andExpect(jsonPath("$.inject_scheduled_by_user.user_name").value("Misty Waterflower"))
+        .andExpect(
+            jsonPath("$.inject_scheduled_by_user.user_email")
+                .value("misty.waterflower@unittests.invalid"));
 
-    // -- RELAUNCH: the schedule follows the duplicated inject --
+    // -- RELAUNCH: the schedule (and its scheduler) follows the duplicated inject --
     String relaunchedInject =
         mvc.perform(
                 post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.inject_recurrence").value("0 30 9 * * *"))
+            .andExpect(jsonPath("$.inject_scheduled_by_user.user_name").value("Misty Waterflower"))
             .andReturn()
             .getResponse()
             .getContentAsString();
@@ -424,8 +468,81 @@ public class AtomicTestingApiTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Scheduling is Enterprise-gated with an EE-only executor, clearing is not")
+  @DisplayName("Refuse a recurrence the scheduler cannot parse, accept a cron or a period")
   @WithMockUser(isAdmin = true)
+  void updateAtomicTestingRecurrenceValidatesTheExpression() throws Exception {
+    Inject atomicTesting =
+        getAtomicTestingWrapper(InjectStatusFixture.createQueuingInjectStatus(), null)
+            .persist()
+            .get();
+    String uri = ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/recurrence";
+
+    // -- A Unix 5-field cron is refused with the accepted forms, and nothing is stored --
+    InjectRecurrenceInput unixCron = new InjectRecurrenceInput();
+    unixCron.setRecurrence("0 2 * * *");
+    unixCron.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(unixCron))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            jsonPath("$.message")
+                .value(
+                    "Unsupported recurrence expression '0 2 * * *': "
+                        + RecurrenceService.ACCEPTED_RECURRENCE_FORMS));
+    assertNull(injectRepository.findById(atomicTesting.getId()).orElseThrow().getRecurrence());
+
+    // -- A Quartz 7-field cron with a year is refused too --
+    InjectRecurrenceInput quartzCron = new InjectRecurrenceInput();
+    quartzCron.setRecurrence("0 0 2 * * ? 2030");
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(quartzCron))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isBadRequest());
+
+    // -- A Spring 6-field cron is stored --
+    InjectRecurrenceInput springCron = new InjectRecurrenceInput();
+    springCron.setRecurrence("0 0 2 * * *");
+    springCron.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(springCron))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.inject_recurrence").value("0 0 2 * * *"));
+
+    // -- An ISO 8601 period is stored --
+    InjectRecurrenceInput period = new InjectRecurrenceInput();
+    period.setRecurrence("P1D");
+    period.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(period))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.inject_recurrence").value("P1D"));
+
+    // -- A blank recurrence still clears the schedule --
+    InjectRecurrenceInput blank = new InjectRecurrenceInput();
+    blank.setRecurrence("   ");
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(blank))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.inject_recurrence").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("Scheduling is Enterprise-gated with an EE-only executor, clearing is not")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateAtomicTestingRecurrenceWithEEExecutor() throws Exception {
     Inject atomicTesting =
         getAtomicTestingWrapper(
@@ -562,7 +679,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Lock Atomic testing EE feature")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   class LockAtomicTestingEEFeature {
 
     @Test
@@ -611,7 +728,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Get the payload of an atomic testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void findPayloadOutputByInjectId() throws Exception {
     String response =
         mvc.perform(

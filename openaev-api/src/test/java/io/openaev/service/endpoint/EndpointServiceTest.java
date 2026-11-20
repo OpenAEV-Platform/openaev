@@ -3,10 +3,13 @@ package io.openaev.service.endpoint;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.context.TenantContext;
+import io.openaev.database.audit.IndexEvent;
+import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.model.Endpoint;
@@ -21,6 +24,8 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
+import io.openaev.service.settings.RuntimeSetting;
+import io.openaev.service.settings.RuntimeSettingsService;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetAgentJobFixture;
 import io.openaev.utils.mapper.EndpointMapper;
@@ -32,6 +37,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -39,7 +45,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class EndpointServiceTest {
@@ -56,12 +61,18 @@ class EndpointServiceTest {
   @Mock private EndpointMapper endpointMapper;
   @Mock private AgentServiceAccountPrivilegeService privilegeService;
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private RuntimeSettingsService runtimeSettingsService;
 
   @InjectMocks private EndpointService endpointService;
 
   @BeforeEach
   void setUp() {
-    ReflectionTestUtils.setField(endpointService, "maxSimultaneousJobs", MAX_SIMULTANEOUS_JOBS);
+    org.mockito.Mockito.lenient()
+        .when(runtimeSettingsService.intValue(RuntimeSetting.AGENT_MAX_SIMULTANEOUS_JOBS))
+        .thenReturn(MAX_SIMULTANEOUS_JOBS);
+    org.mockito.Mockito.lenient()
+        .when(runtimeSettingsService.booleanValue(RuntimeSetting.AGENT_AUTO_UPDATE_ENABLED))
+        .thenReturn(true);
   }
 
   @Nested
@@ -423,18 +434,34 @@ class EndpointServiceTest {
   }
 
   @Nested
+  @DisplayName("deleteEndpoint")
   class DeleteEndpoint {
 
     @Test
-    void shouldDeleteEndpointById() {
-      // -------- Prepare --------
-      // no special setup needed
+    @DisplayName("given a delete that removed a row, should publish the index delete event")
+    void given_deletedRow_should_publishIndexDeleteEvent() {
+      // Arrange
+      when(endpointRepository.deleteEndpointById("ep-1")).thenReturn(1);
 
-      // -------- Act --------
+      // Act
       endpointService.deleteEndpoint("ep-1");
 
-      // -------- Assert --------
-      verify(endpointRepository).deleteById("ep-1");
+      // Assert
+      ArgumentCaptor<IndexEvent> event = ArgumentCaptor.forClass(IndexEvent.class);
+      verify(eventPublisher).publishEvent(event.capture());
+      assertThat(event.getValue().getType()).isEqualTo(ModelBaseListener.DATA_DELETE);
+      assertThat(event.getValue().getId()).isEqualTo("ep-1");
+    }
+
+    @Test
+    @DisplayName("given a delete that matched no row, should throw not found and publish nothing")
+    void given_noRowMatched_should_throwNotFoundAndPublishNothing() {
+      // Arrange
+      when(endpointRepository.deleteEndpointById("ep-1")).thenReturn(0);
+
+      // Act & Assert
+      assertThrows(ElementNotFoundException.class, () -> endpointService.deleteEndpoint("ep-1"));
+      verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
   }
 

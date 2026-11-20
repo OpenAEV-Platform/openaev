@@ -19,6 +19,7 @@ import io.openaev.database.repository.CustomDashboardRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.dashboard.DashboardService;
+import io.openaev.service.ZipJsonService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.mapper.CustomDashboardMapper;
 import jakarta.persistence.EntityNotFoundException;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.io.support.ResourcePatternResolver;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Default dashboard of a simulation or scenario, resolved in the request scope")
@@ -44,6 +46,8 @@ class CustomDashboardServiceResourceScopeTest {
   @Mock private DashboardService dashboardService;
   @Mock private ScenarioRepository scenarioRepository;
   @Mock private ExerciseRepository exerciseRepository;
+  @Mock private ZipJsonService<CustomDashboard> zipJsonService;
+  @Mock private ResourcePatternResolver resourcePatternResolver;
 
   private final TxCtx ctx = TxCtx.forTenant(REQUEST_TENANT);
 
@@ -54,7 +58,9 @@ class CustomDashboardServiceResourceScopeTest {
         tenantSettingsService,
         dashboardService,
         scenarioRepository,
-        exerciseRepository);
+        exerciseRepository,
+        zipJsonService,
+        resourcePatternResolver);
   }
 
   private static Tenant tenant(String id) {

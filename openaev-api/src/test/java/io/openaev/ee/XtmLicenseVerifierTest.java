@@ -1,7 +1,9 @@
 package io.openaev.ee;
 
+import static io.openaev.ee.XtmLicenseVerifier.LICENSE_MODEL_INSTANCE_BOUND;
 import static io.openaev.ee.XtmLicenseVerifier.OID_LEGACY_PRODUCT;
 import static io.openaev.ee.XtmLicenseVerifier.OID_LEGACY_TYPE;
+import static io.openaev.ee.XtmLicenseVerifier.OID_LICENSE_MODEL;
 import static io.openaev.ee.XtmLicenseVerifier.OID_OPENAEV_SUBLICENSE;
 import static io.openaev.ee.XtmLicenseVerifier.OID_PRODUCT;
 import static io.openaev.ee.XtmLicenseVerifier.OID_TYPE;
@@ -218,6 +220,7 @@ class XtmLicenseVerifierTest {
     private String signatureAlgorithm = "SHA256withRSA";
     private String signatureAlgorithmOid = SHA256_WITH_RSA;
     private String outerSignatureAlgorithmOid;
+    private String subjectInstance = "global";
 
     LicenseCertificate() {
       text(OID_PRODUCT, "filigran xtm");
@@ -249,6 +252,12 @@ class XtmLicenseVerifierTest {
       return text(OID_TYPE, type);
     }
 
+    /** The instance the license is issued for: the subject {@code OU}. */
+    LicenseCertificate issuedFor(String subjectInstance) {
+      this.subjectInstance = subjectInstance;
+      return this;
+    }
+
     LicenseCertificate validity(Instant notBefore, Instant notAfter) {
       this.notBefore = notBefore;
       this.notAfter = notAfter;
@@ -278,7 +287,7 @@ class XtmLicenseVerifierTest {
           signatureAlgorithm,
           signatureAlgorithmOid,
           outerSignatureAlgorithmOid == null ? signatureAlgorithmOid : outerSignatureAlgorithmOid,
-          new X500Name("CN=Filigran XTM license, O=ACME, OU=global"),
+          new X500Name("CN=Filigran XTM license, O=ACME, OU=" + subjectInstance),
           licenseKeys.getPublic(),
           notBefore,
           notAfter,
@@ -803,6 +812,64 @@ class XtmLicenseVerifierTest {
       assertThatThrownBy(() -> verifyCi(pem, null))
           .isInstanceOf(XtmLicenseException.class)
           .hasMessageContaining("creation date of this instance");
+    }
+  }
+
+  @Nested
+  @DisplayName("Licence model 2 (bound to the instance of its subject)")
+  class LicenseModel2 {
+
+    private XtmLicense verifyPasted(String pem) throws XtmLicenseException {
+      return XtmLicenseVerifier.verify(pem, PLATFORM_ID, null, NOW, testCa, true);
+    }
+
+    private LicenseCertificate model2() {
+      return new LicenseCertificate().text(OID_LICENSE_MODEL, LICENSE_MODEL_INSTANCE_BOUND);
+    }
+
+    @Test
+    @DisplayName("Given a model 2 license returned by XTM One should grant whatever its subject")
+    void given_model2FromXtmOne_should_grant() throws Exception {
+      String pem = model2().issuedFor(OTHER_PLATFORM_ID).pem();
+
+      assertThat(verify(pem).globalGrant()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Given a model 2 license pasted for this platform or global should grant")
+    void given_model2PastedForThisPlatformOrGlobal_should_grant() throws Exception {
+      assertThat(verifyPasted(model2().issuedFor(PLATFORM_ID).pem())).isNotNull();
+      assertThat(verifyPasted(model2().issuedFor("global").pem())).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Given a model 2 license pasted for another instance should refuse")
+    void given_model2PastedForAnotherInstance_should_refuse() throws Exception {
+      String pem = model2().issuedFor(OTHER_PLATFORM_ID).pem();
+
+      assertThatThrownBy(() -> verifyPasted(pem))
+          .isInstanceOf(XtmLicenseException.class)
+          .hasMessageContaining("issued for another instance");
+    }
+
+    @Test
+    @DisplayName("Given a license issued before model 2 pasted for another instance should grant")
+    void given_legacyLicensePastedForAnotherInstance_should_grant() throws Exception {
+      String pem = new LicenseCertificate().issuedFor(OTHER_PLATFORM_ID).pem();
+
+      assertThat(verifyPasted(pem).globalGrant()).isTrue();
+    }
+
+    @Test
+    @DisplayName(
+        "Given a model 2 license pasted for this platform should still apply the sub-license")
+    void given_model2WithoutOpenAevSubLicense_should_refuse() throws Exception {
+      String pem =
+          model2().issuedFor(PLATFORM_ID).subLicense("[\"" + OTHER_PLATFORM_ID + "\"]").pem();
+
+      assertThatThrownBy(() -> verifyPasted(pem))
+          .isInstanceOf(XtmLicenseException.class)
+          .hasMessageContaining("does not sub-license this platform");
     }
   }
 

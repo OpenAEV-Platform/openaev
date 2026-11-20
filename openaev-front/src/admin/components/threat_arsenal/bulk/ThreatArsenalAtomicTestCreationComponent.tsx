@@ -15,9 +15,10 @@ import {
 import { type ContractElement, type ThreatArsenalContentConverted } from '../../../../utils/api-types-custom';
 import { EndpointContext } from '../../../../utils/context/endpoint/EndpointContext';
 import endpointContextForAtomicTesting from '../../../../utils/context/endpoint/EndpointContextForAtomicTesting';
-import { isNotEmptyField } from '../../../../utils/utils';
+import { isFeatureEnabled, isNotEmptyField } from '../../../../utils/utils';
 import teamContextForAtomicTesting from '../../atomic_testings/atomic_testing/context/TeamContextForAtomicTesting';
 import { TeamContext } from '../../common/Context';
+import { predefinedExpectations } from '../../common/injects/expectations/ExpectationUtils';
 import InjectForm from '../../common/injects/form/InjectForm';
 import InjectCardComponent from '../../common/injects/InjectCardComponent';
 import InjectIcon from '../../common/injects/InjectIcon';
@@ -32,6 +33,7 @@ interface Props {
 
 const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedElements, deSelectedElements, searchPaginationInput, handleClose }: Props) => {
   const { tPick } = useFormatter();
+  const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
   const navigate = useNavigate();
 
   const [selectedAction, setSelectedAction] = useState<ThreatArsenalContentConverted | null>(null);
@@ -106,7 +108,7 @@ const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedEle
                     inject_assets: [],
                     inject_asset_groups: [],
                     inject_documents: [],
-                    inject_content: { expectations: selectedAction.convertedContent.fields.find((f: ContractElement) => f.type === 'expectation')?.availableExpectations?.filter((e: { expectation_is_predefined?: boolean }) => e.expectation_is_predefined) },
+                    inject_content: { expectations: predefinedExpectations(selectedAction.convertedContent.fields.find((f: ContractElement) => f.type === 'expectation')?.availableExpectations, isLoggingEnabled) },
                   }}
                   injectorContractContent={selectedAction.convertedContent}
                   onSubmitInject={onSubmitInject}

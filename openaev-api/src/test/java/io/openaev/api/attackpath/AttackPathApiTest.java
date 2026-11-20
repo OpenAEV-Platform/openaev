@@ -16,7 +16,6 @@ import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
 import io.openaev.database.model.attackpath.AttackPathFinding;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
-import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
@@ -38,8 +37,9 @@ class AttackPathApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("GET /simulations/{id}/graph returns the AttackPathDTO for the simulation")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void graph_endpoint_returns_dto() throws Exception {
-    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-api-tenant"));
+    Tenant tenant = new Tenant(Tenant.DEFAULT_TENANT_UUID);
 
     AttackPathExecution execution = new AttackPathExecution();
     execution.setTenant(tenant);
@@ -109,8 +109,9 @@ class AttackPathApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("GET /graph?mode=collapsed returns the DB-aggregated collapsed DTO")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void graph_collapsed_mode_returns_aggregated_dto() throws Exception {
-    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-collapsed-ep"));
+    Tenant tenant = new Tenant(Tenant.DEFAULT_TENANT_UUID);
     String sim = "SIM-COLLAPSED-EP";
 
     AttackPathExecution execution = new AttackPathExecution();
@@ -147,8 +148,9 @@ class AttackPathApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("GET /simulations lists the tenant's simulations with endpoint counts")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void simulations_list_returns_summaries() throws Exception {
-    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-list-tenant"));
+    Tenant tenant = new Tenant(Tenant.DEFAULT_TENANT_UUID);
     AttackPathExecution execution = new AttackPathExecution();
     execution.setTenant(tenant);
     execution.setSimulationId("SIM-LIST");
@@ -171,8 +173,9 @@ class AttackPathApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("GET /simulations/{id}/findings?category=credentials returns a masked, paged list")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void findings_endpoint_returns_masked_page() throws Exception {
-    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-findings-api"));
+    Tenant tenant = new Tenant(Tenant.DEFAULT_TENANT_UUID);
     String sim = "SIM-FINDINGS-API";
 
     AttackPathExecution execution = new AttackPathExecution();
@@ -218,8 +221,9 @@ class AttackPathApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "GET /simulations/{id}/executions/{executionId} returns the masked Result & Terminal detail")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void execution_detail_endpoint_returns_masked_detail() throws Exception {
-    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-detail-api"));
+    Tenant tenant = new Tenant(Tenant.DEFAULT_TENANT_UUID);
     String sim = "SIM-DETAIL-API";
 
     AttackPathExecution execution = new AttackPathExecution();

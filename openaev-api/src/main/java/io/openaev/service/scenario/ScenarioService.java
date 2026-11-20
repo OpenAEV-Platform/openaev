@@ -27,6 +27,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.model.scenario.ScenarioIdentity;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.raw.RawScenario;
@@ -78,6 +79,7 @@ import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TeamOutputVisibilityUtils;
 import io.openaev.utils.TxCtxScopeUtils;
+import io.openaev.utils.author.AuthorJoins;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -177,6 +179,10 @@ public class ScenarioService {
   private final org.springframework.beans.factory.ObjectProvider<PermissionService>
       permissionServiceProvider;
 
+  private final io.openaev.service.finding.FindingDetachService findingDetachService;
+
+  // -- CREATE --
+
   /** Authored by whoever creates it, a person or a service account; no author at startup. */
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
@@ -217,13 +223,18 @@ public class ScenarioService {
     return ScenarioSimple.fromScenario(scenario);
   }
 
+  /**
+   * The scenarios resolve in {@code tenantId}, the tenant the injects are written to: a scenario of
+   * another tenant is treated like an unknown id, even when the request scope holds both tenants.
+   */
   @Transactional
   public List<ScenarioSimple> updateScenariosWithInjectorContracts(
       final TxCtx ctx,
+      @NotBlank final String tenantId,
       @NotNull final List<String> scenarioIds,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
-    List<Scenario> scenarios = this.scenarioRepository.findAllById(scenarioIds);
+    List<Scenario> scenarios = this.scenarioRepository.findAllByIdInTenant(scenarioIds, tenantId);
     this.injectService.createInjectsFromInjectorContractInput(
         ctx, null, scenarios, injectorContractSearchPaginationInput, locale);
     scenarios.forEach(
@@ -242,6 +253,8 @@ public class ScenarioService {
           hasText(defaultReplyTo) ? new ArrayList<>(List.of(defaultReplyTo)) : new ArrayList<>());
     }
   }
+
+  // -- LIST --
 
   /**
    * The scenarios the caller reads: every scenario of a tenant where it holds the access right, and
@@ -292,6 +305,8 @@ public class ScenarioService {
     return user.isAdminOrBypass() || user.getCapabilities().contains(Capability.ACCESS_ASSESSMENT);
   }
 
+  // -- SEARCH --
+
   public Page<RawPaginationScenario> scenarios(
       @NotNull final TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
@@ -315,22 +330,30 @@ public class ScenarioService {
           TxCtx ctx,
           UnaryOperator<Specification<Scenario>> deepFilterSpecification,
           Map<String, Join<Base, Base>> joinMap) {
-    User currentUser = userService.currentUser();
-    Specification<Scenario> readable =
-        permissionServiceProvider
-            .getObject()
-            .filterInEachTenant(
-                ctx,
-                () -> canAccessEveryScenario(currentUser),
-                accessRight ->
-                    SpecificationUtils.hasGrantAccess(
-                        currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
+    Specification<Scenario> readable = readable(ctx);
     return (specification, specificationCount, pageable) ->
         this.findAllWithCriteriaBuilder(
             readable.and(deepFilterSpecification.apply(specification)),
             readable.and(deepFilterSpecification.apply(specificationCount)),
             pageable,
             joinMap);
+  }
+
+  private Specification<Scenario> readable(TxCtx ctx) {
+    User currentUser = userService.currentUser();
+    return permissionServiceProvider
+        .getObject()
+        .filterInEachTenant(
+            ctx,
+            () -> canAccessEveryScenario(currentUser),
+            accessRight ->
+                SpecificationUtils.hasGrantAccess(
+                    currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
+  }
+
+  /** Authors of the scenarios the user can read, for the author filter. */
+  public List<FilterUtilsJpa.Option> authorOptions(@NotNull final TxCtx ctx) {
+    return authorService.options(Scenario.class, readable(ctx));
   }
 
   private Page<RawPaginationScenario> findAllWithCriteriaBuilder(
@@ -378,6 +401,8 @@ public class ScenarioService {
             .when(cb.isNotNull(workflowSubquery), workflowPlatformsSubquery)
             .otherwise(timeBasedPlatformExpression);
 
+    AuthorJoins author = AuthorJoins.of(scenarioRoot);
+
     // SELECT
     cq.multiselect(
             scenarioRoot.get("id").alias("scenario_id"),
@@ -389,7 +414,12 @@ public class ScenarioService {
             scenarioRoot.get("updatedAt").alias("scenario_updated_at"),
             tagIdsExpression.alias("scenario_tags"),
             platformExpression.alias("scenario_platforms"),
-            workflowSubquery.alias("scenario_workflow_id"))
+            buildDomainsSubquery(cq, cb, scenarioRoot).alias("scenario_domains"),
+            workflowSubquery.alias("scenario_workflow_id"),
+            // One author per scenario: the aggregate only lets the grouped query read it.
+            cb.greatest(author.name(cb)).alias("scenario_author_name"),
+            scenarioRoot.get("catalogVersion").alias("scenario_version"),
+            buildLastRunSubquery(cq, cb, scenarioRoot).alias("scenario_last_run_at"))
         .distinct(true);
     // Group By
     cq.groupBy(scenarioRoot.get("id"));
@@ -428,13 +458,36 @@ public class ScenarioService {
                         tuple.get("scenario_updated_at", Instant.class),
                         tuple.get("scenario_tags", String[].class),
                         tuple.get("scenario_platforms", String[].class),
-                        tuple.get("scenario_workflow_id", String.class)))
+                        tuple.get("scenario_domains", String[].class),
+                        tuple.get("scenario_workflow_id", String.class),
+                        tuple.get("scenario_author_name", String.class),
+                        tuple.get("scenario_version", String.class),
+                        tuple.get("scenario_last_run_at", Instant.class)))
             .toList();
 
     // -- Count Query --
     Long total = countQuery(cb, this.entityManager, Scenario.class, specificationCount);
 
     return new PageImpl<>(scenarios, pageable, total);
+  }
+
+  private Subquery<String[]> buildDomainsSubquery(
+      CriteriaQuery<Tuple> cq, CriteriaBuilder cb, Root<Scenario> scenarioRoot) {
+    Subquery<String[]> domainsSubquery = cq.subquery(String[].class);
+    Root<Inject> injectRoot = domainsSubquery.from(Inject.class);
+    Join<?, Domain> domainsJoin = injectRoot.join("injectorContract").join("domains");
+    return domainsSubquery
+        .select(((HibernateCriteriaBuilder) cb).arrayAgg(null, domainsJoin.<String>get("id")))
+        .where(cb.equal(injectRoot.get("scenario").get("id"), scenarioRoot.get("id")));
+  }
+
+  private Subquery<Instant> buildLastRunSubquery(
+      CriteriaQuery<Tuple> cq, CriteriaBuilder cb, Root<Scenario> scenarioRoot) {
+    Subquery<Instant> lastRunSubquery = cq.subquery(Instant.class);
+    Root<Exercise> exerciseRoot = lastRunSubquery.from(Exercise.class);
+    return lastRunSubquery
+        .select(cb.greatest(exerciseRoot.<Instant>get("start")))
+        .where(cb.equal(exerciseRoot.get("scenario").get("id"), scenarioRoot.get("id")));
   }
 
   private Subquery<String[]> buildWorkflowPlatformsSubquery(
@@ -494,12 +547,16 @@ public class ScenarioService {
     return cb.function("string_to_array", String[].class, csvPlatforms, cb.literal(","));
   }
 
+  // -- LAUNCH --
+
   public void throwIfScenarioNotLaunchable(Scenario scenario) {
     if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
     scenario.getInjects().forEach(injectService::throwIfInjectNotLaunchable);
   }
+
+  // -- RECURRENCE --
 
   /** Scenario is recurring AND end date is after now */
   public List<Scenario> recurringScenarios(@NotNull final Instant instant) {
@@ -516,6 +573,8 @@ public class ScenarioService {
                 ScenarioSpecification.recurrenceStartDateBefore(instant)
                     .or(ScenarioSpecification.recurrenceStopDateBefore(instant))));
   }
+
+  // -- READ --
 
   /**
    * Loads a scenario in the current tenant. For work that runs without a request scope and sets the
@@ -541,11 +600,10 @@ public class ScenarioService {
 
   /**
    * Loads a scenario by primary key and keeps it only when its tenant lies in the request's tenant
-   * scope. Unlike {@link #findInScope}, the load is not narrowed to the v1 ambient tenant, which is
-   * the default one on the non-prefixed route: a member reaches its own scenario in any tenant of
-   * its scope on both routes. For the callers that already loaded by primary key, so that scoping
-   * them refuses only what lies outside the scope. Transactional with the {@link TxCtx}, so the
-   * lookup carries the request scope even from a caller that opens no transaction of its own.
+   * scope. For the callers that already loaded by primary key, so that scoping them refuses only
+   * what lies outside the scope. Transactional with the {@link TxCtx}, so the lookup carries the
+   * request scope even from a caller that opens no transaction of its own: without a transaction
+   * the statement inspector has no scope to read and the load fails closed.
    */
   @Transactional(readOnly = true)
   public Optional<Scenario> findByIdInScope(
@@ -582,10 +640,10 @@ public class ScenarioService {
   }
 
   /**
-   * Reads a scenario found inside the request's tenant scope. The native read itself keys on the v1
-   * ambient tenant, the default one on the non-prefixed route, so the scope is checked first. The
-   * detail also names the scenario's workflow, read in the scenario's own tenant once access is
-   * granted (WorkflowOwnerScope).
+   * Reads a scenario found inside the request's tenant scope: the access check runs first, then the
+   * native read of the detail aggregate runs in that same scope. The workflow id and the platforms
+   * the detail names are read separately, in the scenario's own tenant (WorkflowOwnerScope), since
+   * a workflow can never move tenant.
    */
   public ScenarioOutput getScenarioById(
       @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
@@ -707,6 +765,8 @@ public class ScenarioService {
         .orElseThrow(() -> new ElementNotFoundException("Latest exercise not found"));
   }
 
+  // -- UPDATE --
+
   @Transactional
   public Scenario updateScenario(@NotNull final Scenario scenario) {
     return updateScenarioInternal(scenario, null, false);
@@ -753,6 +813,8 @@ public class ScenarioService {
     this.scenarioRepository.saveAll(scenarios);
   }
 
+  // -- DELETE --
+
   /** Validates that the scenario exists inside the request's tenant scope. Throws if not. */
   public void existsInScope(@NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
     if (!this.scenarioRepository.existsByIdAndTenantIdIn(
@@ -763,7 +825,28 @@ public class ScenarioService {
 
   @Transactional(rollbackFor = Exception.class)
   public void deleteScenario(@NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
+    deleteScenarioInScope(ctx, scenarioId, false);
+  }
+
+  /**
+   * Deletes a scenario found inside the request's tenant scope.
+   *
+   * @param keepFindings true keeps the findings its injects produced, detached from them; false
+   *     (the default) deletes them with the scenario
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteScenario(
+      @NotNull final TxCtx ctx, @NotBlank final String scenarioId, final boolean keepFindings) {
+    deleteScenarioInScope(ctx, scenarioId, keepFindings);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points (no self-invocation).
+  private void deleteScenarioInScope(
+      final TxCtx ctx, final String scenarioId, final boolean keepFindings) {
     existsInScope(ctx, scenarioId);
+    if (keepFindings) {
+      this.findingDetachService.detachFromScenarios(List.of(scenarioId));
+    }
     this.scenarioRepository.deleteById(scenarioId);
   }
 
@@ -845,19 +928,28 @@ public class ScenarioService {
             "scenarios",
             scenarioIdsToDelete,
             chunk -> {
-              // The ids were resolved under the v1 ambient tenant, the default one on the
-              // non-prefixed route, so each is checked against the request scope first.
+              // The ids come from a search resolved in another transaction, so each is checked
+              // against the request scope inside this one before it is deleted.
               chunk.forEach(id -> existsInScope(ctx, id));
               // Tear the autonomous run (simulation + timeline + XTM orchestration) down first,
               // inside the same chunk transaction, so an autonomous scenario is never left with an
               // orphaned autonomous_runs row after a bulk delete. No-op for manual scenarios.
               io.openaev.service.autonomous.AutonomousRunService autonomousRunService =
                   this.autonomousRunServiceProvider.getObject();
-              chunk.forEach(autonomousRunService::deleteForScenarioForce);
+              chunk.forEach(id -> autonomousRunService.deleteForScenarioForce(ctx, id));
+              if (input.isKeepFindings()) {
+                this.findingDetachService.detachFromScenarios(chunk);
+              }
               this.scenarioRepository.deleteAll(this.scenarioRepository.findAllById(chunk));
             });
     log.info("Bulk deleted {} scenarios by user {}", deletedIds.size(), currentUser.getId());
     return deletedIds;
+  }
+
+  // -- CATALOGUE --
+
+  public boolean isCatalogInstalled(ScenarioIdentity identity) {
+    return scenarioRepository.existsByCatalogIdentityId(identity.getId());
   }
 
   // -- EXPORT --
@@ -1240,6 +1332,8 @@ public class ScenarioService {
     return teamService.find(fromIds(modifiedTeamIds));
   }
 
+  // -- PLAYERS --
+
   public Scenario addScenarioPlayer(
       @NotNull final TxCtx ctx,
       @NotBlank final String scenarioId,
@@ -1310,11 +1404,13 @@ public class ScenarioService {
     return this.scenario(ctx, scenarioId);
   }
 
+  // -- DUPLICATE --
+
   /**
    * Duplicates a scenario in full: its authored content, plus the logic map when it is chained.
    *
    * <p>This is the entry point for the duplicate endpoint. The metadata-only {@link
-   * #getDuplicateScenario(String)} stays separate because {@code
+   * #getDuplicateScenario(TxCtx, String)} stays separate because {@code
    * AutonomousRunService.convertToManual} calls it and then copies the workflow itself - folding
    * the chaining copy into it would give that duplicate two TEMPLATE workflows.
    *
@@ -1367,6 +1463,15 @@ public class ScenarioService {
    *
    * @param scenarioId the source scenario
    * @return the persisted duplicate
+   */
+  @Transactional
+  public Scenario getDuplicateScenario(@NotNull TxCtx ctx, @NotBlank String scenarioId) {
+    return copyScenarioContent(ctx, scenarioId);
+  }
+
+  /**
+   * Same as {@link #getDuplicateScenario(TxCtx, String)} for a scenario of the current tenant, for
+   * work that runs without a request scope. No production code calls it: it stays for its tests.
    */
   @Transactional
   public Scenario getDuplicateScenario(@NotBlank String scenarioId) {
@@ -1619,6 +1724,8 @@ public class ScenarioService {
     scenario.setObjectives(duplicatedObjectives);
   }
 
+  // -- HEALTH CHECKS --
+
   /**
    * Verify all healthcheck for a given scenario id
    *
@@ -1684,6 +1791,12 @@ public class ScenarioService {
             HealthCheck.Detail.EMPTY,
             HealthCheck.Status.ERROR,
             injectsHealthChecks));
+    healthChecks.addAll(
+        healthCheckUtils.runInjectsChecksFor(
+            HealthCheck.Type.PAYLOAD,
+            HealthCheck.Detail.REVOKED,
+            HealthCheck.Status.ERROR,
+            injectsHealthChecks));
     healthChecks.addAll(healthCheckUtils.runMissingContentChecks(scenario));
     healthChecks.addAll(healthCheckUtils.runTeamsChecks(scenario));
 
@@ -1699,6 +1812,8 @@ public class ScenarioService {
 
     return healthChecks;
   }
+
+  // -- CREATE STEPS --
 
   private Scenario computeAndCreateScenario(Scenario scenario) {
     computeEmails(scenario);

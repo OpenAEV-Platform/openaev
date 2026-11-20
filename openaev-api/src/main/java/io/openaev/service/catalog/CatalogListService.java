@@ -1,10 +1,9 @@
 package io.openaev.service.catalog;
 
-import io.openaev.api.catalog.CatalogItemMapper;
-import io.openaev.api.catalog.dto.CatalogPayloadOutput;
-import io.openaev.api.catalog.dto.CatalogScenarioOutput;
 import io.openaev.database.model.catalog.CatalogItem;
 import io.openaev.database.repository.CatalogItemRepository;
+import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.catalog.SemanticVersion;
 import java.util.Comparator;
 import java.util.List;
@@ -20,20 +19,33 @@ import org.springframework.transaction.annotation.Transactional;
 public class CatalogListService {
 
   private final CatalogItemRepository catalogItemRepository;
-  private final CatalogItemMapper catalogItemMapper;
 
+  /** The latest offered version of every catalogue item of a type. */
   @Transactional(readOnly = true)
-  public List<CatalogScenarioOutput> scenarios() {
-    return latestVersions(catalogItemRepository.findAllScenarios()).stream()
-        .map(catalogItemMapper::toOutput)
+  public <T extends CatalogItem> List<T> latestOffered(Class<T> type) {
+    return latestVersions(catalogItemRepository.findAllOfType(type));
+  }
+
+  /** Every offered version of one catalogue item, newest first. */
+  @Transactional(readOnly = true)
+  public <T extends CatalogItem> List<T> offeredVersions(Class<T> type, String externalId) {
+    return catalogItemRepository.findAllVersions(type, externalId).stream()
+        .filter(CatalogListService::isOffered)
+        .sorted(Comparator.comparing(CatalogItem::getVersion, SemanticVersion.ORDER).reversed())
         .toList();
   }
 
+  /** A version the catalogue still offers; refused when it is unknown, deprecated or revoked. */
   @Transactional(readOnly = true)
-  public List<CatalogPayloadOutput> payloads() {
-    return latestVersions(catalogItemRepository.findAllPayloads()).stream()
-        .map(catalogItemMapper::toOutput)
-        .toList();
+  public <T extends CatalogItem> T offered(Class<T> type, String externalId, String version) {
+    T item =
+        catalogItemRepository
+            .findVersion(type, externalId, version)
+            .orElseThrow(() -> new ElementNotFoundException("Catalogue version not found"));
+    if (!isOffered(item)) {
+      throw new BadRequestException("This version is no longer offered");
+    }
+    return item;
   }
 
   /** A deprecated or revoked version stays out of the catalogue; installed ones are untouched. */
@@ -42,7 +54,7 @@ public class CatalogListService {
   }
 
   // The latest offered version of each item, sorted by name.
-  static <T extends CatalogItem> List<T> latestVersions(List<T> items) {
+  public static <T extends CatalogItem> List<T> latestVersions(List<T> items) {
     return items.stream()
         .filter(CatalogListService::isOffered)
         .collect(

@@ -46,7 +46,7 @@ import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
+import io.openaev.rest.scenario.ScenarioResponseHydrator;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
@@ -56,8 +56,10 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -69,6 +71,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
@@ -279,7 +283,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String logId,
       @Valid @RequestBody LogCreateInput input) {
     requireSimulationInScope(ctx, exerciseId);
-    Log log = logRepository.findById(logId).orElseThrow(ElementNotFoundException::new);
+    Log log = logOfExercise(exerciseId, logId);
     log.setUpdateAttributes(input);
     log.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     return logRepository.save(log);
@@ -296,7 +300,15 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public void deleteLog(TxCtx ctx, @PathVariable String exerciseId, @PathVariable String logId) {
     requireSimulationInScope(ctx, exerciseId);
-    logRepository.deleteById(logId);
+    logRepository.delete(logOfExercise(exerciseId, logId));
+  }
+
+  /** The log, only when it belongs to the given simulation. */
+  private Log logOfExercise(String exerciseId, String logId) {
+    return logRepository
+        .findById(logId)
+        .filter(log -> log.getExercise() != null && exerciseId.equals(log.getExercise().getId()))
+        .orElseThrow(ElementNotFoundException::new);
   }
 
   // endregion
@@ -574,7 +586,7 @@ public class ExerciseApi extends RestBehavior {
     // is resolved in the request scope by id inside it.
     String duplicateId =
         faithfulCopy.execute(ctx, () -> exerciseService.duplicateExercise(ctx, exerciseId).getId());
-    return hydrateForResponse(exerciseService.exercise(duplicateId));
+    return hydrateForResponse(exerciseService.exercise(ctx, duplicateId));
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
@@ -743,8 +755,16 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION)
   @Transactional
-  public void deleteExercise(TxCtx ctx, @PathVariable String exerciseId) {
-    exerciseService.deleteById(ctx, exerciseId);
+  public void deleteExercise(
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @Parameter(
+              description =
+                  "True keeps the findings produced by the simulation's injects, detached from"
+                      + " them. False (the default) deletes them with the simulation.")
+          @RequestParam(name = "keep_findings", required = false, defaultValue = "false")
+          boolean keepFindings) {
+    exerciseService.deleteById(ctx, exerciseId, keepFindings);
   }
 
   @Operation(
@@ -899,7 +919,10 @@ public class ExerciseApi extends RestBehavior {
     Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     exercise.setUpdatedAt(now());
     Document doc =
-        documentRepository.findById(documentId).orElseThrow(ElementNotFoundException::new);
+        exercise.getDocuments().stream()
+            .filter(linked -> documentId.equals(linked.getId()))
+            .findFirst()
+            .orElseThrow(ElementNotFoundException::new);
     // Drop the link from the exercise side as well: the response serializes exercise_documents
     // from this instance, and the removal below only rewrites the join table from the document
     // side. Loading the collection here also keeps it inside the scoped transaction.
@@ -1002,19 +1025,52 @@ public class ExerciseApi extends RestBehavior {
     return communications;
   }
 
+  private static final Pattern COMMUNICATION_ID_IN_ATTACHMENT_PATTERN =
+      Pattern.compile("/communications/([^/]+)/");
+
   @GetMapping("/api/communications/attachment")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   //
   public void downloadAttachment(TxCtx ctx, @RequestParam String file, HttpServletResponse response)
       throws IOException {
+    // The communication id is embedded in the attachment path: a primary-key lookup (bypassing the
+    // Hibernate tenant filter, same as the inject load below), avoiding a scan of every
+    // communication's attachment array. This endpoint has no tenant-prefixed route, so the ambient
+    // TenantContext always falls back to the default tenant; the explicit scope check below
+    // refuses a caller resolving (and downloading) an attachment of a tenant outside its own
+    // authorized scope, whatever tenant the path happens to name.
+    Matcher matcher = COMMUNICATION_ID_IN_ATTACHMENT_PATTERN.matcher(file);
+    if (!matcher.find()) {
+      throw new ElementNotFoundException();
+    }
+    Communication communication =
+        communicationRepository
+            .findById(matcher.group(1))
+            .filter(c -> hasAttachment(c, file))
+            .orElseThrow(ElementNotFoundException::new);
+    String tenantId = communication.getInject().getTenant().getId();
+    if (!TxCtxScopeUtils.requestReadScope(ctx).contains(tenantId)) {
+      throw new ElementNotFoundException();
+    }
+    // Attachments uploaded before the storage path fix (#7961) were written under the default
+    // tenant's prefix regardless of the inject's own tenant: fall back to it for this same
+    // communication's attachment, whose ownership is already checked above.
     FileContainer fileContainer =
-        fileService.getFileContainer(file).orElseThrow(ElementNotFoundException::new);
+        fileService
+            .getFileContainer(tenantId, file)
+            .or(() -> fileService.getFileContainer(Tenant.DEFAULT_TENANT_UUID, file))
+            .orElseThrow(ElementNotFoundException::new);
     response.addHeader(
         HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileContainer.getName());
     response.addHeader(HttpHeaders.CONTENT_TYPE, fileContainer.getContentType());
     response.setStatus(HttpServletResponse.SC_OK);
     fileContainer.getInputStream().transferTo(response.getOutputStream());
+  }
+
+  private static boolean hasAttachment(Communication communication, String file) {
+    String[] attachments = communication.getAttachments();
+    return attachments != null && Arrays.asList(attachments).contains(file);
   }
 
   // endregion
@@ -1225,10 +1281,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable @NotBlank @Schema(description = "ID of the simulation")
           final String simulationId) {
     Scenario scenario = scenarioService.scenarioFromSimulationId(ctx, simulationId);
-    KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
-    // Same open-in-view reason as hydrateForResponse: scenario_teams would serialize empty.
-    Hibernate.initialize(scenario.getTeams());
-    return scenario;
+    return ScenarioResponseHydrator.hydrateForResponse(scenario);
   }
 
   // end region

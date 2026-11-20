@@ -49,6 +49,7 @@ class XtmOneServiceTest {
   @Mock private EnterpriseEditionService eeService;
   @Mock private XtmOneEntitlementService entitlementService;
   @Mock private LicenseCacheManager licenseCacheManager;
+  @Mock private XtmOneHealthSnapshot healthSnapshot;
 
   @InjectMocks private XtmOneService xtmOneService;
 
@@ -95,6 +96,7 @@ class XtmOneServiceTest {
             any(),
             any(),
             eq("aev"),
+            any(),
             any());
     assertEquals(renamed, nameCaptor.getValue());
     // The tenant-aware resolution is scoped to the default tenant on the background tick.
@@ -122,8 +124,35 @@ class XtmOneServiceTest {
             any(),
             any(),
             eq("aev"),
+            any(),
             any());
     assertEquals(PLATFORM_NAME.defaultValue(), nameCaptor.getValue());
+  }
+
+  @Test
+  @DisplayName("Given a health snapshot should send it with the registration")
+  void given_healthSnapshot_should_sendItWithTheRegistration() {
+    // -- ARRANGE --
+    arrangeConfigured("OpenAEV");
+    Map<String, Object> snapshot = Map.of("schema_version", 1, "agents", Map.of("total", 3));
+    when(healthSnapshot.build()).thenReturn(snapshot);
+
+    // -- ACT --
+    xtmOneService.autoRegister();
+
+    // -- ASSERT --
+    verify(client)
+        .register(
+            eq("openaev"),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            any(),
+            any(),
+            eq("aev"),
+            any(),
+            eq(snapshot));
   }
 
   @Test
@@ -138,6 +167,7 @@ class XtmOneServiceTest {
     // -- ASSERT --
     verifyNoInteractions(client);
     verifyNoInteractions(entitlementService);
+    verifyNoInteractions(healthSnapshot);
   }
 
   @Test
@@ -148,7 +178,7 @@ class XtmOneServiceTest {
     Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
     Map<String, Object> answer = Map.of("ee_enabled", true);
     when(platformSettingsService.findInstanceCreationDate()).thenReturn(Optional.of(createdAt));
-    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
         .thenReturn(answer);
 
     // -- ACT --
@@ -166,7 +196,7 @@ class XtmOneServiceTest {
     // -- ARRANGE --
     arrangeConfigured("OpenAEV");
     Map<String, Object> answer = Map.of("xtm_license_pem", "pem");
-    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
         .thenReturn(answer);
     when(entitlementService.onRegistrationAnswer(eq(answer), anyString(), any(), eq(false)))
         .thenReturn(true);
@@ -203,7 +233,7 @@ class XtmOneServiceTest {
     when(eeService.getEnterpriseEditionInfo()).thenReturn(license);
     when(eeService.isLicenseActive(license)).thenCallRealMethod();
     Map<String, Object> answer = Map.of("ee_enabled", true);
-    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
         .thenReturn(answer);
 
     // -- ACT --
@@ -226,7 +256,7 @@ class XtmOneServiceTest {
     when(eeService.getEnterpriseEditionInfo()).thenReturn(license);
     when(eeService.isLicenseActive(license)).thenCallRealMethod();
     Map<String, Object> answer = Map.of("ee_enabled", true);
-    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
         .thenReturn(answer);
 
     // -- ACT --

@@ -151,10 +151,12 @@ class SharedTenantKeySchemaCrossCheckTest extends IntegrationTest {
           "kill_chain_phases_shortname_tenant_unique",
           "kill_chain_phases_tenant_unique",
           // Catalogue keys of several columns plus the tenant: (type, external id, version),
-          // (repository, release name) and (repository, external id) of a catalogue payload.
+          // (repository, release name) and (repository, external id) of a catalogue payload or
+          // scenario.
           "catalog_items_item_version_tenant_unique",
           "catalog_releases_name_tenant_unique",
           "payload_identities_catalogue_external_id_unique",
+          "scenario_identities_catalogue_external_id_unique",
           "findings_identity_unique");
 
   /**

@@ -16,6 +16,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.Assert;
 
 @Repository
 public interface ExerciseRepository
@@ -29,6 +30,21 @@ public interface ExerciseRepository
   Optional<Exercise> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  /** The simulations among the given ids that belong to the given tenant. */
+  @NotNull
+  List<Exercise> findAllByIdInAndTenantId(
+      @NotNull Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The simulations among the given ids that belong to the given tenant. Refuses a null id list, as
+   * {@code findAllById} does.
+   */
+  @NotNull
+  default List<Exercise> findAllByIdInTenant(Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 
   /**
    * By-id read keyed on a request's resolved tenant scope rather than on the v1 ambient tenant,
@@ -101,7 +117,6 @@ public interface ExerciseRepository
               + "FROM exercises ex "
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
-              + "WHERE ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawAll();
@@ -128,7 +143,6 @@ public interface ExerciseRepository
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
               + "WHERE ex.exercise_id IN (:exerciseIds) "
-              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawByExerciseIds(List<String> exerciseIds);
@@ -159,7 +173,6 @@ public interface ExerciseRepository
               + "INNER JOIN groups ON grants.grant_group = groups.group_id "
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
               + "WHERE users_groups.user_id = :userId "
-              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawAllGranted(@Param("userId") String userId);
@@ -192,7 +205,6 @@ public interface ExerciseRepository
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
               + "WHERE users_groups.user_id = :userId "
               + "AND ex.exercise_id IN (:exerciseIds) "
-              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawGrantedByExerciseIds(
@@ -210,6 +222,10 @@ public interface ExerciseRepository
               + "ex.exercise_category, ex.exercise_main_focus, ex.exercise_severity, ex.exercise_default_kill_chain, ex.exercise_start_date, "
               + "ex.exercise_end_date, ex.exercise_message_header, ex.exercise_message_footer, ex.exercise_mail_from_name, "
               + "ex.exercise_lessons_anonymized, ex.exercise_lessons_enabled, ex.exercise_autonomous, ex.exercise_custom_dashboard, ex.exercise_created_at, ex.exercise_updated_at, "
+              + "ex.exercise_launched_by, "
+              + "MAX(ulb.user_firstname) as exercise_launched_by_firstname, "
+              + "MAX(ulb.user_lastname) as exercise_launched_by_lastname, "
+              + "MAX(ulb.user_email) as exercise_launched_by_email, "
               + "MAX(se.scenario_id) as scenario_id, MAX(inj.inject_scenario) as inject_scenario, "
               + " coalesce(array_agg(emrt.exercise_reply_to) FILTER ( WHERE emrt.exercise_reply_to IS NOT NULL ), '{}') as exercise_reply_to, "
               + " coalesce(array_agg(et.tag_id) FILTER ( WHERE et.tag_id IS NOT NULL ), '{}') as exercise_tags, "
@@ -219,6 +235,7 @@ public interface ExerciseRepository
               + " coalesce(array_agg(inj.inject_id) FILTER ( WHERE inj.inject_id IS NOT NULL ), '{}') as inject_ids, "
               + " MAX(w.workflow_id) AS exercise_workflow_id "
               + "FROM exercises ex "
+              + "LEFT JOIN users ulb ON ulb.user_id = ex.exercise_launched_by "
               + "LEFT JOIN scenarios_exercises se ON se.exercise_id = ex.exercise_id "
               + "LEFT JOIN exercise_mails_reply_to emrt ON emrt.exercise_id = ex.exercise_id "
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
@@ -231,7 +248,6 @@ public interface ExerciseRepository
               + "LEFT JOIN injects inj ON ex.exercise_id = inj.inject_exercise "
               + "LEFT JOIN workflows w ON w.workflow_simulation_id = ex.exercise_id AND w.workflow_status = 'TEMPLATE' "
               + "WHERE ex.exercise_id = :exerciseId "
-              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   RawSimulationIndexing rawDetailsById(@Param("exerciseId") String exerciseId);
@@ -263,7 +279,6 @@ public interface ExerciseRepository
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
               + "WHERE s.scenario_id IN (:scenarioIds) "
-              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawAllByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
@@ -300,7 +315,6 @@ public interface ExerciseRepository
               + "WHERE s.scenario_id = :scenarioId "
               + "AND ex.exercise_status = 'FINISHED' "
               + "AND ex.exercise_end_date IS NOT NULL "
-              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id, ex.exercise_end_date "
               + "ORDER BY ex.exercise_end_date DESC "
               + "LIMIT 10 ;",
@@ -325,7 +339,6 @@ public interface ExerciseRepository
               + "FROM exercises ex "
               + "WHERE ex.exercise_status = :status "
               + "AND ex.exercise_end_date IS NOT NULL "
-              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "ORDER BY ex.exercise_end_date DESC "
               + "LIMIT :limit;",
       nativeQuery = true)
@@ -341,7 +354,6 @@ public interface ExerciseRepository
                 INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
                 INNER JOIN exercises e ON i.inject_exercise = e.exercise_id
                 WHERE (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-                AND i.tenant_id = :#{#tenantContext.currentTenant}
                 ORDER BY e.exercise_created_at DESC;
             """,
       nativeQuery = true)
@@ -359,7 +371,6 @@ public interface ExerciseRepository
                 LEFT JOIN scenarios_exercises se ON se.exercise_id = e.exercise_id
                 WHERE (se.scenario_id = :sourceId OR fa.asset_id = :sourceId)
                 AND (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-                AND i.tenant_id = :#{#tenantContext.currentTenant}
                 ORDER BY e.exercise_created_at DESC;
             """,
       nativeQuery = true)
@@ -461,4 +472,23 @@ public interface ExerciseRepository
       nativeQuery = true)
   List<RawSimulationIndexing> findForIndexing(
       @Param("from") Instant from, @Param("limit") int limit);
+
+  /**
+   * Simulations run from each of the given scenarios, with the start of the latest one: the key
+   * facts another XTM product shows next to its scenario pivot. One row per scenario with at least
+   * one simulation.
+   */
+  @Query(
+      "SELECT e.scenario.id AS scenarioId, COUNT(e) AS simulations, MAX(e.start) AS lastStart"
+          + " FROM Exercise e WHERE e.scenario.id IN :scenarioIds GROUP BY e.scenario.id")
+  List<ScenarioSimulationsRow> countSimulationsByScenarioIdIn(
+      @Param("scenarioIds") Collection<String> scenarioIds);
+
+  interface ScenarioSimulationsRow {
+    String getScenarioId();
+
+    long getSimulations();
+
+    Instant getLastStart();
+  }
 }

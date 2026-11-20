@@ -13,7 +13,6 @@ import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.service.attackpath.dto.AttackPathFindingItemDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
-import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +44,7 @@ class AttackPathFindingsListTest extends IntegrationTest {
 
   @BeforeEach
   void seed() {
-    tenant = tenantRepository.save(TenantFixture.getTenant("ap-findings-tenant"));
+    tenant = new Tenant(Tenant.DEFAULT_TENANT_UUID);
     executionId = execution("nmap", "host-x");
     // A credentials finding produced by the execution, a cve produced too, and an orphan credential
     // with no producing execution (must be excluded).

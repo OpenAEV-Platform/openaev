@@ -13,10 +13,12 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.OnDeleteAction;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.author.Authored;
 import io.openaev.database.model.author.Authorship;
+import io.openaev.database.model.catalog.CatalogContent;
+import io.openaev.database.model.catalog.ContentType;
+import io.openaev.database.model.scenario.ScenarioIdentity;
 import io.openaev.helper.InjectStatisticsHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
@@ -76,15 +78,18 @@ import org.hibernate.type.SqlTypes;
 @Data
 @Entity
 @Table(name = "scenarios")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners(ModelBaseListener.class)
+// scenarios is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter, no
+// TenantBaseListener (#6432). A create path that forgets to stamp the tenant fails loudly
+// on the NOT NULL constraint of tenant_id.
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "Scenario.tags-injects",
       attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("injects")})
 })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.SCENARIO)
-public class Scenario extends ModelBehaviour implements GrantableBase, TenantBase, Authored {
+public class Scenario extends ModelBehaviour
+    implements GrantableBase, TenantBase, Authored, CatalogContent {
 
   /** Status of scenario recurrence scheduling. */
   public enum RECURRENCE_STATUS {
@@ -303,7 +308,40 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
       name = "organization",
       joinColumns = @JoinColumn(name = "scenario_author_organization"))
   @JsonIgnore
+  @JsonProperty("scenario_author")
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      paths = {"author.user.id", "author.organization.id"},
+      clazz = String.class)
   private Authorship author;
+
+  // -- CATALOGUE --
+
+  // Where the scenario was installed from; kept out of exports, a copy is a scenario of its own.
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "scenario_catalog_identity")
+  @JsonIgnore
+  private ScenarioIdentity catalogIdentity;
+
+  @Column(name = "scenario_catalog_version")
+  @JsonIgnore
+  private String catalogVersion;
+
+  @Override
+  public ContentType getCatalogType() {
+    return ContentType.SCENARIO;
+  }
+
+  @Override
+  public String getCatalogRepository() {
+    return catalogIdentity == null ? null : catalogIdentity.getRepository();
+  }
+
+  @Override
+  public String getCatalogExternalId() {
+    return catalogIdentity == null ? null : catalogIdentity.getExternalId();
+  }
 
   // -- MESSAGE --
 
@@ -579,6 +617,23 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
             inject -> inject.getInjectorContract().map(InjectorContract::getPlatforms).stream())
         .flatMap(Arrays::stream)
         .filter(Objects::nonNull)
+        .distinct()
+        .toList();
+  }
+
+  // -- DOMAINS --
+  // Filter only: the search rows carry the domains, so a response never loads the injects for them.
+  @JsonIgnore
+  @JsonProperty("scenario_domains")
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      path = "injects.injectorContract.domains.id",
+      clazz = String[].class)
+  public List<Domain> getDomains() {
+    return getInjects().stream()
+        .flatMap(inject -> inject.getInjectorContract().stream())
+        .flatMap(contract -> contract.getDomains().stream())
         .distinct()
         .toList();
   }

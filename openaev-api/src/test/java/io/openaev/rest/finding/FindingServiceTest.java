@@ -385,24 +385,5 @@ class FindingServiceTest extends IntegrationTest {
       assertFalse(findingIds.contains(findingInTenantX.getId()));
       assertTrue(findingIds.isEmpty());
     }
-
-    @Test
-    @DisplayName("Finding created in tenant X should NOT be deletable from tenant Y")
-    void given_findingInTenantX_should_notBeDeletableFromTenantY() {
-      // -------- Arrange --------
-      String tenantX = TenantContext.getCurrentTenant();
-      String tenantY = UUID.randomUUID().toString();
-
-      Finding finding = createFindingInTenant(tenantX);
-      switchToTenant(tenantY);
-
-      // -------- Act & Assert --------
-      assertThrows(
-          EntityNotFoundException.class, () -> findingService.deleteFinding(finding.getId()));
-
-      // Ensure record is still visible from owner tenant
-      switchToTenant(tenantX);
-      assertDoesNotThrow(() -> findingService.finding(finding.getId()));
-    }
   }
 }

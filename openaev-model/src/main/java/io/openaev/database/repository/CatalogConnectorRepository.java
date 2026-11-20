@@ -10,11 +10,21 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface CatalogConnectorRepository
     extends CrudRepository<CatalogConnector, String>, JpaSpecificationExecutor<CatalogConnector> {
+
+  // -- BY IDENTITY --
+
   Optional<CatalogConnector> findByTitle(String title);
 
   Optional<CatalogConnector> findByClassName(String factoryClass);
 
+  // -- WITH ITS CONFIGURATION AND CONTRACTS --
+
   @Query(
       "SELECT c FROM CatalogConnector c LEFT JOIN FETCH c.catalogConnectorConfigurations WHERE c.slug = :slug")
   Optional<CatalogConnector> findBySlugWithConfigurations(String slug);
+
+  @Query(
+      "SELECT c FROM CatalogConnector c LEFT JOIN FETCH c.catalogConnectorConfigurations"
+          + " LEFT JOIN FETCH c.injectorContracts WHERE c.slug = :slug")
+  Optional<CatalogConnector> findBySlugWithConfigurationsAndInjectorContracts(String slug);
 }

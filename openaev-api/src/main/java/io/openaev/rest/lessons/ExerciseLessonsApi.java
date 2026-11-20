@@ -1,5 +1,7 @@
 package io.openaev.rest.lessons;
 
+import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
+import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.rest.lessons.LessonsCategoryHydration.hydrateForResponse;
@@ -18,6 +20,7 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.lessons.form.*;
 import io.openaev.security.error.AuthenticationError;
+import io.openaev.service.GrantService;
 import io.openaev.service.MailingService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -34,6 +37,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   private static final String TENANT_EXERCISE_URL = TENANT_PREFIX + "/exercises/";
 
   private final ExerciseService exerciseService;
+  private final GrantService grantService;
   private final TeamRepository teamRepository;
   private final LessonsTemplateRepository lessonsTemplateRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
@@ -423,19 +427,22 @@ public class ExerciseLessonsApi extends RestBehavior {
   public List<LessonsCategory> playerLessonsCategories(
       TxCtx ctx, @PathVariable String exerciseId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    impersonateUser(userRepository, userId); // Protection for ?
-    return lessonsCategoryRepository
-        .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
-        .stream()
-        .filter(
-            lessonsCategory ->
-                userId.isEmpty()
-                    || lessonsCategory.getTeams().stream()
-                        .anyMatch(
-                            team ->
-                                team.getUsers().stream()
-                                    .anyMatch(user -> user.getId().equals(userId.get()))))
-        .toList();
+    final User user = impersonateUser(userRepository, userId);
+    final Exercise exercise = playerExercise(ctx, exerciseId, user);
+    final boolean seesEveryCategory = canReadSimulation(exercise, user);
+    // Hydrate the lazy lessons_category_teams inside the transaction. When seesEveryCategory is
+    // true the filter never walks getTeams(), so without this the teams and users arrays serialize
+    // empty through open-in-view once the request scope is gone, as in the other handlers.
+    return hydrateForResponse(
+        lessonsCategoryRepository
+            .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
+            .stream()
+            .filter(
+                lessonsCategory ->
+                    seesEveryCategory
+                        || lessonsCategory.getTeams().stream()
+                            .anyMatch(team -> team.getUsers().contains(user)))
+            .toList());
   }
 
   @GetMapping({
@@ -448,7 +455,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   public List<LessonsQuestion> playerLessonsQuestions(
       TxCtx ctx, @PathVariable String exerciseId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    impersonateUser(userRepository, userId); // Protection for ?
+    playerExercise(ctx, exerciseId, impersonateUser(userRepository, userId));
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
         .stream()
@@ -470,7 +477,8 @@ public class ExerciseLessonsApi extends RestBehavior {
   public List<LessonsAnswer> playerLessonsAnswers(
       TxCtx ctx, @PathVariable String exerciseId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    impersonateUser(userRepository, userId); // Protection for ?
+    final User user = impersonateUser(userRepository, userId);
+    playerExercise(ctx, exerciseId, user);
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
         .stream()
@@ -488,7 +496,8 @@ public class ExerciseLessonsApi extends RestBehavior {
                                 .stream()))
         .filter(
             lessonsAnswer ->
-                userId.isEmpty() || lessonsAnswer.getUser().getId().equals(userId.get()))
+                lessonsAnswer.getUser() != null
+                    && lessonsAnswer.getUser().getId().equals(user.getId()))
         .toList();
   }
 
@@ -503,15 +512,24 @@ public class ExerciseLessonsApi extends RestBehavior {
   public LessonsAnswer createExerciseLessonsQuestion(
       TxCtx ctx,
       @PathVariable String exerciseId,
+      @PathVariable String lessonsCategoryId,
       @PathVariable String lessonsQuestionId,
       @Valid @RequestBody LessonsAnswerCreateInput input,
       @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    User user = impersonateUser(userRepository, userId);
+    final User user = impersonateUser(userRepository, userId);
+    playerExercise(ctx, exerciseId, user);
     LessonsQuestion lessonsQuestion =
         lessonsQuestionRepository
             .findById(lessonsQuestionId)
             .orElseThrow(ElementNotFoundException::new);
+    LessonsCategory lessonsCategory = lessonsQuestion.getCategory();
+    if (lessonsCategory == null
+        || lessonsCategory.getExercise() == null
+        || !exerciseId.equals(lessonsCategory.getExercise().getId())
+        || !lessonsCategoryId.equals(lessonsCategory.getId())) {
+      throw new ElementNotFoundException();
+    }
 
     Optional<LessonsAnswer> optionalAnswer =
         lessonsAnswerRepository.findByUserIdAndQuestionId(user.getId(), lessonsQuestionId);
@@ -552,5 +570,34 @@ public class ExerciseLessonsApi extends RestBehavior {
                     && question.getCategory().getExercise() != null
                     && exerciseId.equals(question.getCategory().getExercise().getId()))
         .orElseThrow(ElementNotFoundException::new);
+  }
+
+  /**
+   * Resolves the simulation of a player route within the request's tenant scope. A classically
+   * authenticated caller must be a player of the simulation or hold a read grant on it (observer or
+   * higher, so a launcher too), as {@code DocumentApi#playerDocuments} requires; an anonymous
+   * caller is already bound to the simulation by its url access token, so the token carries the
+   * authorization.
+   */
+  private Exercise playerExercise(TxCtx ctx, String exerciseId, User user)
+      throws AuthenticationError {
+    Exercise exercise =
+        exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+    if (!ANONYMOUS.equals(currentUser().getId())
+        && !canReadSimulation(exercise, user)
+        && !exercise.getUsers().contains(user)) {
+      throw new AuthenticationError("The given player is not in this exercise");
+    }
+    return exercise;
+  }
+
+  /**
+   * An administrator, or a user holding a read grant on the simulation, launcher included. A player
+   * route carries no tenant, so the user's scoped tenant is the default one: the grant is read in
+   * the tenant of the simulation, where the group that holds it lives.
+   */
+  private boolean canReadSimulation(Exercise exercise, User user) {
+    return user.isAdmin()
+        || grantService.hasReadGrantInTenant(exercise.getId(), user, exercise.getTenant().getId());
   }
 }

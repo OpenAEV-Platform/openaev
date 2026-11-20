@@ -170,7 +170,7 @@ class ExpectationApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Add results on inject expectation from UI on one agent")
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void addResultsOnOneAgentFromUI() throws Exception {
       // -- PREPARE --
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
@@ -253,7 +253,7 @@ class ExpectationApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Add results on inject expectation from UI on two agents")
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void addResultsOnTwoAgentFromUI() throws Exception {
       // -- PREPARE --
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
@@ -389,7 +389,7 @@ class ExpectationApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Delete result on asset expectation from UI cascades to all agents")
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void deleteResultOnAssetWithAgentsFromUI() throws Exception {
       // -- PREPARE --
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
@@ -471,6 +471,7 @@ class ExpectationApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Get Inject Expectations for a Specific Source")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void getInjectExpectationsForSource() throws Exception {
       // -- PREPARE --
       // Build and save expectations
@@ -529,6 +530,7 @@ class ExpectationApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Serialize signatures for collector polling endpoint")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void getInjectExpectationsForSourceReturnsSignatures() throws Exception {
       // -- PREPARE --
       ExecutableInject executableInject = newExecutableInjectWithTargets(false);
@@ -607,6 +609,7 @@ class ExpectationApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Get Prevention Inject Expectations for a Specific Source")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void getInjectPreventionExpectationsForSource() throws Exception {
       // -- PREPARE --
       // Build and save expectations for an asset with 2 agents
@@ -698,6 +701,7 @@ class ExpectationApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Get Detection Inject Expectations for a Specific Source")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void getInjectDetectionExpectationsForSource() throws Exception {
       // -- PREPARE --
       // Build and save expectations for an asset with 2 agents
@@ -788,6 +792,7 @@ class ExpectationApiTest extends IntegrationTest {
      * propagation results in 0 at higher levels.
      */
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Add results on inject expectation from one collectors on two agents")
     void updateInjectExpectationWithTwoSuccess() throws Exception {
       // -- PREPARE --
@@ -870,7 +875,7 @@ class ExpectationApiTest extends IntegrationTest {
      * propagation to asset and asset-group levels for each collector.
      */
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Add results on inject expectation from two collectors on one agent")
     void updateInjectExpectationFromTwoCollectors() throws Exception {
       // -- PREPARE --
@@ -931,6 +936,7 @@ class ExpectationApiTest extends IntegrationTest {
      * all agent expectations are not fully satisfied.
      */
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Bulk update Inject expectation from collector with success")
     void bulkUpdateInjectExpectationWithTwoSuccess() throws Exception {
       // -- PREPARE --
@@ -1042,6 +1048,7 @@ class ExpectationApiTest extends IntegrationTest {
      * even when it is a genuine agentless leaf.
      */
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("AI defense feed respects expected security platform types")
     void aiDefenseFeedRespectsExpectedSecurityPlatforms() throws Exception {
       // -- PREPARE --
@@ -1103,6 +1110,7 @@ class ExpectationApiTest extends IntegrationTest {
      * written on the agents, where the green verdict of another source still settles them.
      */
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Direct collector failure cannot clobber a parent whose agents are green")
     void directFailureOnParentKeepsChildrenVerdict() throws Exception {
       // -- PREPARE --
@@ -1159,6 +1167,7 @@ class ExpectationApiTest extends IntegrationTest {
      * parent PENDING (null score) - the agents' security platform may still answer green.
      */
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Direct collector failure keeps parent pending while agents are unanswered")
     void directFailureOnParentKeepsPendingChildren() throws Exception {
       // -- PREPARE --
@@ -1279,6 +1288,7 @@ class ExpectationApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("given_flag_on_should_return_only_unanswered_logging_leaves")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_flag_on_should_return_only_unanswered_logging_leaves() throws Exception {
       // Arrange
       setLoggingFlag(true);
@@ -1303,6 +1313,7 @@ class ExpectationApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("given_logging_expectations_should_not_be_returned_by_the_assets_route")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_logging_expectations_should_not_be_returned_by_the_assets_route() throws Exception {
       // Arrange
       setLoggingFlag(true);
@@ -1387,6 +1398,7 @@ class ExpectationApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("given_agentless_leaf_should_be_returned_only_while_not_expired")
     void given_agentless_leaf_should_be_returned_only_while_not_expired() throws Exception {
       // Arrange

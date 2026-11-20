@@ -132,6 +132,16 @@ class XtmHubServiceTest {
     lenient()
         .when(tenantTx.execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Object>>any()))
         .thenAnswer(inv -> inv.<Supplier<Object>>getArgument(1).get());
+    // The marker of a notified tenant is written in a short scoped transaction: run its work
+    // inline.
+    lenient()
+        .doAnswer(
+            inv -> {
+              inv.<Runnable>getArgument(1).run();
+              return null;
+            })
+        .when(tenantTx)
+        .execute(any(TxCtx.class), ArgumentMatchers.<Runnable>any());
     // The notification flag is written in a platform-write transaction: run its work inline.
     lenient()
         .doAnswer(
@@ -1427,7 +1437,7 @@ class XtmHubServiceTest {
       ArgumentCaptor<List<ProvisionedNewsFeedItem>> items =
           (ArgumentCaptor<List<ProvisionedNewsFeedItem>>)
               (ArgumentCaptor<?>) ArgumentCaptor.forClass(List.class);
-      verify(newsFeedItemService).createMissingItems(items.capture(), any());
+      verify(newsFeedItemService).applyProvisionedItems(items.capture(), any());
       return items.getValue();
     }
 
@@ -1436,7 +1446,7 @@ class XtmHubServiceTest {
       ArgumentCaptor<Collection<String>> tenantIds =
           (ArgumentCaptor<Collection<String>>)
               (ArgumentCaptor<?>) ArgumentCaptor.forClass(Collection.class);
-      verify(newsFeedItemService).createMissingItems(any(), tenantIds.capture());
+      verify(newsFeedItemService).applyProvisionedItems(any(), tenantIds.capture());
       return tenantIds.getValue();
     }
 
@@ -1483,7 +1493,7 @@ class XtmHubServiceTest {
       xtmHubService.syncNewsFeed();
 
       // Assert
-      verify(newsFeedItemService).createMissingItems(any(), any());
+      verify(newsFeedItemService).applyProvisionedItems(any(), any());
       assertThat(tokensSentToHub()).containsExactly(SECOND_TOKEN);
     }
 
@@ -1501,7 +1511,7 @@ class XtmHubServiceTest {
       xtmHubService.syncNewsFeed();
 
       // Assert
-      verify(newsFeedItemService).createMissingItems(any(), any());
+      verify(newsFeedItemService).applyProvisionedItems(any(), any());
       assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN);
       JsonObject body = verifySingleGraphqlPostRequestAndGetBody(graphqlPostRequestMatcher());
       assertThat(body.get("query").getAsString()).contains("consumeProvisionedNewsFeedItems");
@@ -1550,7 +1560,7 @@ class XtmHubServiceTest {
       xtmHubService.syncNewsFeed();
 
       // Assert
-      verify(newsFeedItemService).createMissingItems(any(), any());
+      verify(newsFeedItemService).applyProvisionedItems(any(), any());
       assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN, SECOND_TOKEN);
     }
 
@@ -1685,7 +1695,7 @@ class XtmHubServiceTest {
       xtmHubService.syncNewsFeed();
 
       // Assert
-      verify(newsFeedItemService).createMissingItems(any(), any());
+      verify(newsFeedItemService).applyProvisionedItems(any(), any());
       assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN, SECOND_TOKEN);
     }
 
@@ -1725,7 +1735,7 @@ class XtmHubServiceTest {
       xtmHubService.syncNewsFeed();
 
       // Assert
-      verify(newsFeedItemService).createMissingItems(any(), any());
+      verify(newsFeedItemService).applyProvisionedItems(any(), any());
       assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN, SECOND_TOKEN);
     }
 
@@ -1863,7 +1873,7 @@ class XtmHubServiceTest {
       givenHubAnswers(FIRST_TOKEN, 200, ITEMS_RESPONSE);
       doThrow(new IllegalStateException("database down"))
           .when(newsFeedItemService)
-          .createMissingItems(any(), any());
+          .applyProvisionedItems(any(), any());
 
       // Act & Assert
       assertDoesNotThrow(() -> xtmHubService.syncNewsFeed());

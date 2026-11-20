@@ -152,7 +152,7 @@ const TeamOrAssetLine: FunctionComponent<Props> = ({
               <ChallengeExpectation key={groupKey} challenge={challenge} expectation={mainExpectation} />
             );
           }
-          if (type === ExpectationType.PREVENTION || type === ExpectationType.DETECTION) {
+          if (type === ExpectationType.PREVENTION || type === ExpectationType.DETECTION || type === ExpectationType.LOGGING) {
             if (asset) {
               return (
                 <TechnicalExpectationAsset

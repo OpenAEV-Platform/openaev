@@ -6,12 +6,14 @@ import static io.openaev.database.model.Scenario.SEVERITY.critical;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static java.lang.String.valueOf;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GrantRepository;
@@ -126,14 +128,8 @@ public class ScenarioApiSearchTest extends IntegrationTest {
                 .sorts(List.of(SortField.builder().property("scenario_name").build()))
                 .build();
 
-        mvc.perform(
-                post(SCENARIO_URI + "/search")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput))
-                    .with(csrf()))
-            .andExpect(status().is2xxSuccessful())
-            .andExpect(jsonPath("$.content.[0].scenario_name").value("Crisis scenario"))
-            .andExpect(jsonPath("$.content.[1].scenario_name").value("Incident response scenario"));
+        assertSortedBefore(
+            search(searchPaginationInput), "Crisis scenario", "Incident response scenario");
       }
 
       @Test
@@ -151,14 +147,33 @@ public class ScenarioApiSearchTest extends IntegrationTest {
                             .build()))
                 .build();
 
-        mvc.perform(
-                post(SCENARIO_URI + "/search")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput))
-                    .with(csrf()))
-            .andExpect(status().is2xxSuccessful())
-            .andExpect(jsonPath("$.content.[0].scenario_name").value("Incident response scenario"))
-            .andExpect(jsonPath("$.content.[1].scenario_name").value("Crisis scenario"));
+        assertSortedBefore(
+            search(searchPaginationInput), "Incident response scenario", "Crisis scenario");
+      }
+
+      /** The names the search returns, in the order it returned them. */
+      private List<String> search(SearchPaginationInput input) throws Exception {
+        String response =
+            mvc.perform(
+                    post(SCENARIO_URI + "/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(input))
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return JsonPath.read(response, "$.content[*].scenario_name");
+      }
+
+      /**
+       * Asserts the order of the class's own two scenarios inside the page. The page is read in the
+       * caller's whole tenant scope, not in the ambient tenant alone, so it may carry rows another
+       * class committed; the sort is the subject here, the set of rows is not.
+       */
+      private void assertSortedBefore(List<String> names, String first, String second) {
+        assertThat(names).contains(first, second);
+        assertThat(names.indexOf(first)).isLessThan(names.indexOf(second));
       }
     }
 

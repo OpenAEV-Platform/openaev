@@ -72,6 +72,9 @@ class WriteAttributionDetectorSpikeTest extends IntegrationTest {
   void clearContext() {
     TenantContext.clearCurrentTenant();
     WriteAttrDetectorRecorder.stop();
+    // The deliberate wrong-tenant role write is asserted on in the test body; the gate would judge
+    // the same write again as a production one. Any other violation stays for the gate.
+    WriteAttrDetectorRecorder.discardViolations(violation -> "roles".equals(violation.table()));
   }
 
   @Test

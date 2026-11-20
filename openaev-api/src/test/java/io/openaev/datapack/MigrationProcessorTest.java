@@ -73,9 +73,17 @@ public class MigrationProcessorTest extends IntegrationTest {
     processor.createDependencyForTenant(tenant);
 
     // assert
-    assertThat(dataPackService.findByIdAndTenant(TestDataPack.class.getCanonicalName(), tenant))
+    assertThat(
+            tenantTx.execute(
+                TxCtx.forTenant(tenant.getId()),
+                () ->
+                    dataPackService.findByIdAndTenant(
+                        TestDataPack.class.getCanonicalName(), tenant)))
         .isPresent();
-    assertThat(tagRepository.findByNameAndTenantId(testDataPack.tagName, tenant.getId()))
+    assertThat(
+            tenantTx.execute(
+                TxCtx.forTenant(tenant.getId()),
+                () -> tagRepository.findByNameAndTenantId(testDataPack.tagName, tenant.getId())))
         .isPresent();
   }
 
@@ -87,15 +95,26 @@ public class MigrationProcessorTest extends IntegrationTest {
             List.of(testDataPack), Collections.emptyList(), tenantRepository, tenantTx);
     Tenant tenant = new Tenant(TenantContext.getCurrentTenant());
     // fake registering the data pack
-    dataPackService.registerDataPack(testDataPack.getPackId(), tenant);
+    tenantTx.execute(
+        TxCtx.forTenant(tenant.getId()),
+        () -> dataPackService.registerDataPack(testDataPack.getPackId(), tenant));
 
     // act
     processor.createDependencyForTenant(tenant);
 
     // assert
-    assertThat(dataPackService.findByIdAndTenant(TestDataPack.class.getCanonicalName(), tenant))
+    assertThat(
+            tenantTx.execute(
+                TxCtx.forTenant(tenant.getId()),
+                () ->
+                    dataPackService.findByIdAndTenant(
+                        TestDataPack.class.getCanonicalName(), tenant)))
         .isPresent();
     // not that we prevented the pack from processing so we shouldn't find the contents in db
-    assertThat(tagRepository.findByNameAndTenantId(testDataPack.tagName, tenant.getId())).isEmpty();
+    assertThat(
+            tenantTx.execute(
+                TxCtx.forTenant(tenant.getId()),
+                () -> tagRepository.findByNameAndTenantId(testDataPack.tagName, tenant.getId())))
+        .isEmpty();
   }
 }
