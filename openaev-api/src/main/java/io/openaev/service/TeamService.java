@@ -31,6 +31,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -187,6 +188,11 @@ public class TeamService {
   public void deleteAllDetachingInjects(@NotNull final Iterable<Team> teams) {
     teams.forEach(team -> team.getInjects().forEach(inject -> inject.getTeams().remove(team)));
     teamRepository.deleteAll(teams);
+  }
+
+  /** The teams among the given ids that belong to the given tenant. */
+  public List<Team> teams(@NotBlank final String tenantId, @NotNull final List<String> teamIds) {
+    return teamRepository.findAllByIdInTenant(teamIds, tenantId);
   }
 
   /**

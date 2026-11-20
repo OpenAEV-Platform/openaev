@@ -75,6 +75,14 @@ public interface AssetGroupRepository
           + " AND ag.id IN :ids")
   List<AssetGroup> findDistinctByInjectsSimulationIdAndIdIn(String simulationId, List<String> ids);
 
+  /**
+   * Static membership of the given assets: one {@code [asset id, asset group id]} pair per explicit
+   * link in {@code asset_groups_assets}. Dynamic membership is resolved by the service, from the
+   * group's filter.
+   */
+  @Query("SELECT a.id, ag.id FROM AssetGroup ag JOIN ag.assets a WHERE a.id IN :assetIds")
+  List<Object[]> findStaticMembershipsOfAssets(@Param("assetIds") Collection<String> assetIds);
+
   // -- PAGINATION --
 
   @Query(
@@ -140,11 +148,10 @@ public interface AssetGroupRepository
     SELECT DISTINCT ag.asset_group_id AS id, ag.asset_group_name AS label
     FROM asset_groups ag
     WHERE ag.asset_group_id IN (
-        SELECT DISTINCT iag.asset_group_id
-        FROM injects i
-        INNER JOIN finding_occurrences fo ON fo.finding_occurrence_inject_id = i.inject_id
-        INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
-        INNER JOIN injects_asset_groups iag ON iag.inject_id = i.inject_id
+        SELECT DISTINCT aga.asset_group_id
+        FROM findings f
+        INNER JOIN findings_assets fa ON fa.finding_id = f.finding_id
+        INNER JOIN asset_groups_assets aga ON aga.asset_id = fa.asset_id
     ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
     """,
       nativeQuery = true)
@@ -156,12 +163,12 @@ public interface AssetGroupRepository
     SELECT DISTINCT ag.asset_group_id AS id, ag.asset_group_name AS label
     FROM asset_groups ag
     WHERE ag.asset_group_id IN (
-        SELECT DISTINCT iag.asset_group_id
-        FROM injects i
-        INNER JOIN finding_occurrences fo ON fo.finding_occurrence_inject_id = i.inject_id
-        INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
-        LEFT JOIN findings_assets fa ON fa.finding_id = f.finding_id
-        LEFT JOIN injects_asset_groups iag ON iag.inject_id = i.inject_id
+        SELECT DISTINCT aga.asset_group_id
+        FROM findings f
+        INNER JOIN findings_assets fa ON fa.finding_id = f.finding_id
+        INNER JOIN asset_groups_assets aga ON aga.asset_id = fa.asset_id
+        LEFT JOIN finding_occurrences fo ON fo.finding_occurrence_finding_id = f.finding_id
+        LEFT JOIN injects i ON i.inject_id = fo.finding_occurrence_inject_id
         LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise
         WHERE i.inject_id = :sourceId OR i.inject_exercise = :sourceId OR se.scenario_id = :sourceId OR fa.asset_id = :sourceId
     ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))

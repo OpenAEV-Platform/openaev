@@ -317,8 +317,8 @@ import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.mapper.VulnerabilityMapper;
-import io.openaev.xtm.counterpart.LocalObjectService;
 import io.openaev.xtmhub.XtmHubService;
+import io.openaev.xtmone.XtmOneHealthSnapshot;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Method;
@@ -1243,7 +1243,9 @@ class TenantActiveTableAccessArchTest {
               // (ADR-006): safe regardless of activation:
               ScopeSnapshotService.class,
               // Background telemetry reader scoped via tenantTx.execute(TxCtx.allTenants()):
-              InventoryMetricCollector.class)
+              InventoryMetricCollector.class,
+              // XTM One health snapshot, read under tenantTx.execute(TxCtx.allTenants()):
+              XtmOneHealthSnapshot.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(CollectorRepository.class)
@@ -1268,7 +1270,9 @@ class TenantActiveTableAccessArchTest {
               // carries TxCtx):
               EndpointService.class,
               // Background telemetry reader scoped via tenantTx.execute(TxCtx.allTenants()):
-              InventoryMetricCollector.class)
+              InventoryMetricCollector.class,
+              // XTM One health snapshot, read under tenantTx.execute(TxCtx.allTenants()):
+              XtmOneHealthSnapshot.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(ExecutorRepository.class)
@@ -1301,6 +1305,8 @@ class TenantActiveTableAccessArchTest {
               ConnectorInstanceService.class,
               // Background telemetry reader scoped via tenantTx.execute(TxCtx.allTenants()):
               InventoryMetricCollector.class,
+              // XTM One health snapshot, read under tenantTx.execute(TxCtx.allTenants()):
+              XtmOneHealthSnapshot.class,
               // Runtime migration scoped with tenantTx.executeNew(TxCtx.forTenant(...)):
               V20260420_Migrate_rabbitmq_queues.class,
               // Datapack writer scoped with tenantTx.executeNew(TxCtx.forTenant(...)):
@@ -1625,9 +1631,6 @@ class TenantActiveTableAccessArchTest {
               FindingSearchApi.class,
               FindingService.class,
               FindingDistinctSearchService.class,
-              // Counterpart facts (finding counts per asset or CVE), reached only from the
-              // TxCtx-carrying CounterpartApi lookups, inside their scoped read-only transaction.
-              LocalObjectService.class,
               // Reached only from those handlers, inside their scoped transaction.
               FindingMapper.class,
               // REQUIRES_NEW, so each declares its own TxCtx and the aspect scopes the new
@@ -2103,7 +2106,10 @@ class TenantActiveTableAccessArchTest {
               ExecutableInjectService.class,
               // Quartz heartbeat monitor: reads and updates one tenant's stale agents inside
               // TenantScopedTransaction#forEachTenant.
-              AgentInactivityMonitorJob.class)
+              AgentInactivityMonitorJob.class,
+              // XTM One health snapshot: counts every tenant's agents (total, inactive) under
+              // tenantTx.execute(TxCtx.allTenants()).
+              XtmOneHealthSnapshot.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(AgentRepository.class)
@@ -4421,9 +4427,6 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.attackpath.AttackPathCausalSeedService.class,
               io.openaev.service.autonomous.AutonomousRunService.class,
               io.openaev.service.chaining.WorkflowEndService.class,
-              // Reverse counterpart lookup behind CounterpartApi (TxCtx-carrying HTTP), reading
-              // the simulation counts of the matched scenarios in the request's scope:
-              io.openaev.xtm.counterpart.LocalObjectService.class,
               // Import paths, under the TxCtx the import receives:
               io.openaev.importer.V1_DataImporter.class,
               io.openaev.service.InjectImportService.class,
@@ -4468,9 +4471,6 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.GrantService.class,
               io.openaev.service.scenario.ScenarioService.class,
               io.openaev.service.stix.SecurityCoverageService.class,
-              // Reverse counterpart lookup behind CounterpartApi (TxCtx-carrying HTTP), reading
-              // the scenarios matching the caller's keys in the request's scope:
-              io.openaev.xtm.counterpart.LocalObjectService.class,
               // Import path, under the TxCtx the import receives:
               io.openaev.service.InjectImportService.class,
               // Background: the scheduled start reads the scenario name inside its per-tenant

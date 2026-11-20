@@ -29,6 +29,7 @@ public class XtmOneService {
   private final EnterpriseEditionService eeService;
   private final XtmOneEntitlementService entitlementService;
   private final LicenseCacheManager licenseCacheManager;
+  private final XtmOneHealthSnapshot healthSnapshot;
 
   private static final List<Map<String, String>> DEFAULT_INTENTS =
       List.of(
@@ -76,7 +77,8 @@ public class XtmOneService {
    * and declared intents for agent binding. Each answer is a heartbeat that re-evaluates the
    * Enterprise Edition granted through XTM One from the license certificate it carries, never from
    * its advisory {@code ee_enabled} (see {@link XtmOneEntitlementService}). The license sent is
-   * always this platform's own: XTM One validates it on its side.
+   * always this platform's own: XTM One validates it on its side. It also carries the platform
+   * health snapshot ({@link XtmOneHealthSnapshot}), which XTM One's Platform Health page reads.
    *
    * <p>Runs outside any transaction, each read in its own: the registration is an HTTP call that
    * must not hold a database connection, and a change of the XTM license in force publishes a
@@ -142,7 +144,8 @@ public class XtmOneService {
               licensePem,
               licenseType,
               "aev",
-              DEFAULT_INTENTS);
+              DEFAULT_INTENTS,
+              healthSnapshot.build());
       if (entitlementService.onRegistrationAnswer(
           result,
           platformId,

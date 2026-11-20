@@ -3,13 +3,17 @@ package io.openaev.engine.model.finding;
 import static io.openaev.engine.EsUtils.buildRestrictions;
 import static org.springframework.util.CollectionUtils.isEmpty;
 
+import io.openaev.database.model.AssetGroupMembershipResolver;
 import io.openaev.database.raw.RawFindingIndexing;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.engine.Handler;
 import io.openaev.utils.SensitiveValueMaskingUtils;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,10 +24,17 @@ import org.springframework.util.StringUtils;
 public class FindingHandler implements Handler<EsFinding> {
 
   private FindingRepository findingRepository;
+  private AssetGroupMembershipResolver assetGroupMembershipResolver;
 
   @Autowired
   public void setFindingRepository(FindingRepository findingRepository) {
     this.findingRepository = findingRepository;
+  }
+
+  @Autowired
+  public void setAssetGroupMembershipResolver(
+      AssetGroupMembershipResolver assetGroupMembershipResolver) {
+    this.assetGroupMembershipResolver = assetGroupMembershipResolver;
   }
 
   @Override
@@ -42,7 +53,37 @@ public class FindingHandler implements Handler<EsFinding> {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
     List<RawFindingIndexing> forIndexing =
         findingRepository.findForIndexing(queryFrom, fromId, limit);
-    return forIndexing.stream().map(FindingHandler::toEsFinding).toList();
+    Map<String, Set<String>> groupsByAsset = assetGroupsOfBatch(forIndexing);
+    return forIndexing.stream().map(finding -> toEsFinding(finding, groupsByAsset)).toList();
+  }
+
+  /**
+   * The asset groups of every asset of the batch, static and dynamic, resolved in one call. The
+   * query already carries the static groups; the resolver adds the groups whose dynamic filter
+   * matches an asset of the finding.
+   */
+  private Map<String, Set<String>> assetGroupsOfBatch(List<RawFindingIndexing> batch) {
+    Set<String> assetIds = new HashSet<>();
+    batch.stream()
+        .map(RawFindingIndexing::getAsset_ids)
+        .filter(Objects::nonNull)
+        .forEach(assetIds::addAll);
+    if (assetIds.isEmpty()) {
+      return Map.of();
+    }
+    return assetGroupMembershipResolver.assetGroupIdsByAssetId(assetIds);
+  }
+
+  /**
+   * The asset groups of a finding: the groups that contain at least one of its assets, never the
+   * groups its injects targeted.
+   */
+  static Set<String> assetGroupsOf(
+      RawFindingIndexing finding, Map<String, Set<String>> groupsByAsset) {
+    Set<String> groups = new HashSet<>(orEmpty(finding.getAsset_group_ids()));
+    orEmpty(finding.getAsset_ids())
+        .forEach(assetId -> groups.addAll(groupsByAsset.getOrDefault(assetId, Set.of())));
+    return groups;
   }
 
   @Override
@@ -58,7 +99,8 @@ public class FindingHandler implements Handler<EsFinding> {
    * run on them, so indexing the cleartext would both show the secret and let a {@code contains}
    * filter guess it character by character.
    */
-  private static EsFinding toEsFinding(RawFindingIndexing finding) {
+  private static EsFinding toEsFinding(
+      RawFindingIndexing finding, Map<String, Set<String>> groupsByAsset) {
     String displayedValue = displayedValueOf(finding);
     EsFinding esFinding = new EsFinding();
     // Base
@@ -86,7 +128,7 @@ public class FindingHandler implements Handler<EsFinding> {
     esFinding.setBase_simulation_side(orEmpty(finding.getSimulation_ids()));
     esFinding.setBase_scenario_side(orEmpty(finding.getScenario_ids()));
     // A side, not a dependency: deleting an asset group leaves the finding in place.
-    esFinding.setBase_asset_groups_side(orEmpty(finding.getAsset_group_ids()));
+    esFinding.setBase_asset_groups_side(assetGroupsOf(finding, groupsByAsset));
     if (!isEmpty(finding.getAsset_ids())) {
       dependencies.addAll(finding.getAsset_ids());
       esFinding.setBase_endpoint_side(finding.getAsset_ids());

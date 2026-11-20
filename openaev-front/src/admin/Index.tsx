@@ -43,7 +43,6 @@ const ProfileNewsFeed = lazy(() => import('./components/profile/news_feed/NewsFe
 const FullTextSearch = lazy(() => import('./components/search/FullTextSearch'));
 const Findings = lazy(() => import('./components/findings/Findings'));
 const FindingOverview = lazy(() => import('./components/findings/FindingOverview'));
-const Graph = lazy(() => import('./components/graph/Graph'));
 const Exercises = lazy(() => import('./components/simulations/Simulations'));
 const IndexExercise = lazy(() => import('./components/simulations/simulation/Index'));
 const SimulationInjectCreation = lazy(() => import('./components/simulations/simulation/injects/SimulationInjectCreationRoute'));
@@ -52,6 +51,7 @@ const AtomicTestingCreation = lazy(() => import('./components/atomic_testings/At
 const IndexAtomicTesting = lazy(() => import('./components/atomic_testings/atomic_testing/Index'));
 const Scenarios = lazy(() => import('./components/scenarios/Scenarios'));
 const IndexScenario = lazy(() => import('./components/scenarios/scenario/Index'));
+const ScenariosAvailable = lazy(() => import('./components/scenarios/catalog/ScenariosAvailable'));
 const AutonomousRun = lazy(() => import('./components/autonomous/AutonomousRun'));
 const Endpoints = lazy(() => import('./components/assets/endpoints/Endpoints'));
 const AssetDetail = lazy(() => import('./components/assets/asset/AssetDetail'));
@@ -189,18 +189,6 @@ const Index = () => {
             <Route path="" element={errorWrapper(Home)()} />
             <Route path="results" element={errorWrapper(DashboardResults)()} />
             <Route path="fulltextsearch" element={errorWrapper(FullTextSearch)()} />
-            <Route
-              path="graph"
-              element={(
-                <ProtectedRoute
-                  checks={[{
-                    action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.ASSETS,
-                  }]}
-                  Component={errorWrapper(Graph)()}
-                />
-              )}
-            />
             <Route
               path="findings"
               element={(
@@ -362,6 +350,17 @@ const Index = () => {
                 />
               )}
             />
+            {isCatalogEnabled && (
+              <Route
+                path="scenarios/available"
+                element={(
+                  <ProtectedRoute
+                    checks={ASSESSMENT_ACCESS_CHECKS}
+                    Component={errorWrapper(ScenariosAvailable)()}
+                  />
+                )}
+              />
+            )}
             <Route
               path="autonomous/:runId"
               element={(
@@ -508,13 +507,13 @@ const Index = () => {
                 "teams" parent segment). Static back-compat aliases below rank
                 above the dynamic ":teamId" route in React Router. */}
             <Route path="persons" element={errorWrapper(Persons)()} />
-            <Route path="persons/:userId/*" element={errorWrapper(PersonDetail)()} />
+            <Route path="persons/:userId" element={errorWrapper(PersonDetail)()} />
             <Route path="teams" element={errorWrapper(TeamsList)()} />
             <Route path="teams/persons" element={<Navigate to="/admin/persons" replace={true} />} />
             <Route path="teams/players" element={<Navigate to="/admin/persons" replace={true} />} />
             <Route path="teams/teams" element={<Navigate to="/admin/teams" replace={true} />} />
             <Route path="teams/organizations" element={<Navigate to="/admin/organizations" replace={true} />} />
-            <Route path="teams/:teamId/*" element={errorWrapper(TeamDetail)()} />
+            <Route path="teams/:teamId" element={errorWrapper(TeamDetail)()} />
             <Route
               path="organizations"
               element={(
@@ -528,7 +527,7 @@ const Index = () => {
               )}
             />
             <Route
-              path="organizations/:organizationId/*"
+              path="organizations/:organizationId"
               element={(
                 <ProtectedRoute
                   checks={[{

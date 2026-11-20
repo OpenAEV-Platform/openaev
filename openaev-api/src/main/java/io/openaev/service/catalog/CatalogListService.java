@@ -1,7 +1,5 @@
 package io.openaev.service.catalog;
 
-import io.openaev.api.catalog.CatalogItemMapper;
-import io.openaev.api.catalog.dto.scenario.CatalogScenarioOutput;
 import io.openaev.database.model.catalog.CatalogItem;
 import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.rest.exception.BadRequestException;
@@ -21,14 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class CatalogListService {
 
   private final CatalogItemRepository catalogItemRepository;
-  private final CatalogItemMapper catalogItemMapper;
-
-  @Transactional(readOnly = true)
-  public List<CatalogScenarioOutput> scenarios() {
-    return latestVersions(catalogItemRepository.findAllScenarios()).stream()
-        .map(catalogItemMapper::toOutput)
-        .toList();
-  }
 
   /** The latest offered version of every catalogue item of a type. */
   @Transactional(readOnly = true)

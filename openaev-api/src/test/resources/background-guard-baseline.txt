@@ -138,7 +138,7 @@ io.openaev.xtmhub.XtmHubClient  # platform-global: HTTP client to the XTM Hub Gr
 io.openaev.xtmhub.XtmHubConnectivityService  # platform-global: @PostConstruct performs an HTTP HEAD reachability check against the XTM Hub URL, no DB access
 io.openaev.xtmhub.collector.XtmHubCollector  # delegates-to-XtmHubService#refreshConnectivityAllTenants: reads tenant_xtmhub_registrations (TenantBase) under tenantTx.execute(TxCtx.allTenants()) and writes each row back per-tenant under tenantTx.forEachTenant
 io.openaev.xtmone.XtmOneConfig  # touches-no-tenant-table: config bean; @PostConstruct only normalizes the URL, no DB access
-io.openaev.xtmone.XtmOneConnectivityService  # delegates-to-XtmOneService#autoRegister: platform-wide XTM One registration; reads only platform settings resolved against DEFAULT_TENANT_UUID, touches no TenantBase entity
+io.openaev.xtmone.XtmOneConnectivityService  # delegates-to-XtmOneService#autoRegister: platform-wide XTM One registration; reads only platform settings resolved against DEFAULT_TENANT_UUID; its health snapshot (XtmOneHealthSnapshot) counts injectors, collectors, executors and agents under tenantTx.execute(TxCtx.allTenants())
 
 # --- Network plumbing: DNS lookup hand-off, no entity ---------------------------------------------
 io.openaev.security.ssrf.TimeoutHostResolver  # touches-no-tenant-table: the daemon lookup threads of its bounded pool only run InetAddress.getAllByName (DNS resolution) for the report render egress guard and hand the addresses back to the caller, no entity, repository or tenant context is involved

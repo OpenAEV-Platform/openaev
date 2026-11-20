@@ -34,7 +34,6 @@ import ItemSeverity from '../../../../components/ItemSeverity';
 import ItemTags from '../../../../components/ItemTags';
 import ItemTypeAffinity from '../../../../components/ItemTypeAffinity';
 import PlatformIconGroup from '../../../../components/PlatformIconGroup';
-import { OpenCtiCard } from '../../../../components/xtm/XtmPivot';
 import octiDark from '../../../../static/images/xtm/octi_dark.png';
 import octiLight from '../../../../static/images/xtm/octi_light.png';
 import { useHelper } from '../../../../store';
@@ -567,17 +566,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
                   <KillChainTimeline phases={killChainPhases} />
                 </Field>
               </Box>
-              {/* Threat card: a scenario generated from OpenCTI keeps the source object's id in
-                  its external reference; it is resolved live (name, type, deep link), and a
-                  "Connect OpenCTI" call to action replaces it when the tenant is not connected. */}
-              {!isScenarioChaining && !isEmptyField(scenario.scenario_external_reference) && (
-                <Box sx={{ gridColumn: '1 / -1' }}>
-                  <Field label={t('Threat intelligence')}>
-                    <OpenCtiCard kind="threats" objectKey={scenario.scenario_external_reference} />
-                  </Field>
-                </Box>
-              )}
-              {!isScenarioChaining && isEmptyField(scenario.scenario_external_reference) && hasExternalUrl && (
+              {!isScenarioChaining && hasExternalUrl && (
                 <Box sx={{ gridColumn: '1 / -1' }}>
                   <Field label={t('Threat intelligence')}>
                     <Button asChild priority="secondary" size="sm">

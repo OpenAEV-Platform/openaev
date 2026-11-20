@@ -22,8 +22,6 @@ import SortHeadersComponentV2 from '../../../../components/common/queryable/sort
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type Header } from '../../../../components/common/SortHeadersList';
-import Tabs from '../../../../components/common/tabs/Tabs';
-import useRoutedTabs from '../../../../components/common/tabs/useRoutedTabs';
 import Empty from '../../../../components/Empty';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
@@ -43,8 +41,6 @@ import { TeamContext, type TeamContextType } from '../../common/Context';
 import TeamPlayers from '../../components/teams/TeamPlayers';
 import TeamPopover from '../../components/teams/TeamPopover';
 import FindingList from '../../findings/FindingList';
-import EntityGraph from '../../graph/EntityGraph';
-import ExploreInGraphButton from '../../graph/ExploreInGraphButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 
 const withFilter = (input: SearchPaginationInput, key: string, values: string[]): SearchPaginationInput => {
@@ -64,9 +60,6 @@ const withFilter = (input: SearchPaginationInput, key: string, values: string[])
   };
 };
 
-// Routed tabs (/admin/teams/:id[/graph]): the Graph tab of #9447 sits beside the overview.
-const TEAM_TABS = ['overview', 'graph'];
-
 // Business-side team overview: headline metrics, identity + organization
 // pivot, the team members (pivot to persons), the injects the team played and
 // the findings linked to the team. Compact and grid-based.
@@ -78,7 +71,6 @@ const TeamDetail = () => {
   const dispatch = useAppDispatch();
   const ability = useAbility();
   const { teamId } = useParams() as { teamId: string };
-  const { currentTab, handleChangeTab } = useRoutedTabs(TEAM_TABS, 'overview');
 
   const [managing, setManaging] = useState(false);
 
@@ -229,7 +221,6 @@ const TeamDetail = () => {
           )}
           action={(
             <>
-              <ExploreInGraphButton type="TEAM" entityId={teamId} />
               {/* Entity-scoped reports - self-hides without the reporting
                   access capability. */}
               <EntityReportsPanel
@@ -258,139 +249,112 @@ const TeamDetail = () => {
           )}
         />
 
-        <Tabs
-          entries={[
-            {
-              key: 'overview',
-              label: t('Overview'),
-            },
-            {
-              key: 'graph',
-              label: t('Graph'),
-            },
-          ]}
-          currentTab={currentTab}
-          onChange={handleChangeTab}
-        />
+        <InformationGrid title={t('Information')}>
+          <Field label={t('Description')}>
+            <ExpandableMarkdown source={team.team_description ?? ''} limit={300} />
+          </Field>
+          <Field label={t('Organization')}>
+            {team.team_organization
+              ? <Link to={`${ORGANIZATION_BASE_URL}/${team.team_organization}`}>{organizationName || team.team_organization}</Link>
+              : '-'}
+          </Field>
+          <Field label={t('Contextual')}>{team.team_contextual ? t('Yes') : t('No')}</Field>
+          <Field label={t('Tags')}>
+            <ItemTags variant="list" tags={team.team_tags ?? []} />
+          </Field>
+          <Field label={t('Creation date')}>{fldt(team.team_created_at)}</Field>
+          <Field label={t('Update date')}>{fldt(team.team_updated_at)}</Field>
+        </InformationGrid>
 
-        {currentTab === 'graph' && <EntityGraph type="TEAM" entityId={teamId} variant="embedded" />}
-
-        {currentTab === 'overview' && (
-          <>
-            <InformationGrid title={t('Information')}>
-              <Field label={t('Description')}>
-                <ExpandableMarkdown source={team.team_description ?? ''} limit={300} />
-              </Field>
-              <Field label={t('Organization')}>
-                {team.team_organization
-                  ? <Link to={`${ORGANIZATION_BASE_URL}/${team.team_organization}`}>{organizationName || team.team_organization}</Link>
-                  : '-'}
-              </Field>
-              <Field label={t('Contextual')}>{team.team_contextual ? t('Yes') : t('No')}</Field>
-              <Field label={t('Tags')}>
-                <ItemTags variant="list" tags={team.team_tags ?? []} />
-              </Field>
-              <Field label={t('Creation date')}>{fldt(team.team_created_at)}</Field>
-              <Field label={t('Update date')}>{fldt(team.team_updated_at)}</Field>
-            </InformationGrid>
-
-            {/* Mini graph: the team, its persons and organization; a click opens the Graph page
-            focused on it. */}
-            <SectionBlock title={t('Graph')}>
-              <EntityGraph type="TEAM" entityId={teamId} variant="mini" />
-            </SectionBlock>
-
-            <SectionBlock title={t('Persons')}>
-              <PaginationComponentV2
-                fetch={fetchTeamPersons}
-                searchPaginationInput={personsInput}
-                setContent={setPersons}
-                setLoading={setPersonsLoading}
-                entityPrefix="user"
-                availableFilterNames={['user_email', 'user_firstname', 'user_lastname', 'user_organization', 'user_tags']}
-                queryableHelpers={personsHelpers}
-                reloadContentCount={personsReload}
-              />
-              <List>
-                <ListItem
-                  divider={false}
-                  style={{
-                    paddingTop: 0,
-                    textTransform: 'uppercase',
-                  }}
-                  secondaryAction={<>&nbsp;</>}
-                >
-                  <ListItemIcon />
-                  <ListItemText
-                    primary={(
-                      <SortHeadersComponentV2
-                        headers={personsHeaders}
-                        inlineStylesHeaders={personsInlineStyles}
-                        sortHelpers={personsHelpers.sortHelpers}
-                      />
-                    )}
+        <SectionBlock title={t('Persons')}>
+          <PaginationComponentV2
+            fetch={fetchTeamPersons}
+            searchPaginationInput={personsInput}
+            setContent={setPersons}
+            setLoading={setPersonsLoading}
+            entityPrefix="user"
+            availableFilterNames={['user_email', 'user_firstname', 'user_lastname', 'user_organization', 'user_tags']}
+            queryableHelpers={personsHelpers}
+            reloadContentCount={personsReload}
+          />
+          <List>
+            <ListItem
+              divider={false}
+              style={{
+                paddingTop: 0,
+                textTransform: 'uppercase',
+              }}
+              secondaryAction={<>&nbsp;</>}
+            >
+              <ListItemIcon />
+              <ListItemText
+                primary={(
+                  <SortHeadersComponentV2
+                    headers={personsHeaders}
+                    inlineStylesHeaders={personsInlineStyles}
+                    sortHelpers={personsHelpers.sortHelpers}
                   />
-                </ListItem>
-                {personsLoading
-                  ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={personsHeaders} headerStyles={personsInlineStyles} />
-                  : persons.map(player => (
-                      <ListItem
-                        key={player.user_id}
-                        divider
-                        disablePadding
-                        secondaryAction={<KeyboardArrowRight color="action" />}
-                      >
-                        <ListItemButton
-                          style={{ height: 50 }}
-                          component={Link}
-                          to={`${PERSON_BASE_URL}/${player.user_id}`}
-                        >
-                          <ListItemIcon>
-                            <PersonOutlined color="primary" />
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={(
-                              <div style={bodyItemsStyles.bodyItems}>
-                                {personsHeaders.map(header => (
-                                  <div
-                                    key={header.field}
-                                    style={{
-                                      ...bodyItemsStyles.bodyItem,
-                                      ...personsInlineStyles[header.field],
-                                    }}
-                                  >
-                                    {header.value?.(player)}
-                                  </div>
-                                ))}
+                )}
+              />
+            </ListItem>
+            {personsLoading
+              ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={personsHeaders} headerStyles={personsInlineStyles} />
+              : persons.map(player => (
+                  <ListItem
+                    key={player.user_id}
+                    divider
+                    disablePadding
+                    secondaryAction={<KeyboardArrowRight color="action" />}
+                  >
+                    <ListItemButton
+                      style={{ height: 50 }}
+                      component={Link}
+                      to={`${PERSON_BASE_URL}/${player.user_id}`}
+                    >
+                      <ListItemIcon>
+                        <PersonOutlined color="primary" />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={(
+                          <div style={bodyItemsStyles.bodyItems}>
+                            {personsHeaders.map(header => (
+                              <div
+                                key={header.field}
+                                style={{
+                                  ...bodyItemsStyles.bodyItem,
+                                  ...personsInlineStyles[header.field],
+                                }}
+                              >
+                                {header.value?.(player)}
                               </div>
-                            )}
-                          />
-                        </ListItemButton>
-                      </ListItem>
-                    ))}
-                {!personsLoading && persons.length === 0 && <Empty message={t('No player in this team.')} />}
-              </List>
-            </SectionBlock>
+                            ))}
+                          </div>
+                        )}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+            {!personsLoading && persons.length === 0 && <Empty message={t('No player in this team.')} />}
+          </List>
+        </SectionBlock>
 
-            <SectionBlock title={t('Findings')}>
-              <FindingList
-                filterLocalStorageKey="team-findings"
-                searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_teams', [teamId]))}
-                contextId={teamId}
-              />
-            </SectionBlock>
+        <SectionBlock title={t('Findings')}>
+          <FindingList
+            filterLocalStorageKey="team-findings"
+            searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_teams', [teamId]))}
+            contextId={teamId}
+          />
+        </SectionBlock>
 
-            <SectionBlock title={t('Injects played')}>
-              <InjectResultList
-                fetchInjects={fetchInjectsPlayed}
-                goTo={injectResultDetailPath}
-                queryableHelpers={injectsHelpers}
-                searchPaginationInput={injectsInput}
-                contextId={teamId}
-              />
-            </SectionBlock>
-          </>
-        )}
+        <SectionBlock title={t('Injects played')}>
+          <InjectResultList
+            fetchInjects={fetchInjectsPlayed}
+            goTo={injectResultDetailPath}
+            queryableHelpers={injectsHelpers}
+            searchPaginationInput={injectsInput}
+            contextId={teamId}
+          />
+        </SectionBlock>
 
         {managing && (
           <TeamPlayers
