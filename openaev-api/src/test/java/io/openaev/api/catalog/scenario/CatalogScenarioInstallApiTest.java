@@ -65,6 +65,7 @@ import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -438,7 +439,11 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
   class Browsing {
 
     private ResultActions available() throws Exception {
-      return mvc.perform(get(TENANT_CATALOG_URI + "/scenarios", DEFAULT_TENANT_UUID));
+      return mvc.perform(
+          post(TENANT_CATALOG_URI + "/scenarios/search", DEFAULT_TENANT_UUID)
+              .with(csrf())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(mapper.writeValueAsString(new SearchPaginationInput())));
     }
 
     static Stream<Arguments> scenarioStates() {
@@ -466,7 +471,7 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       ResultActions result = available();
 
       // Assert
-      result.andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(listed));
+      result.andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(listed));
     }
 
     @Test
@@ -481,9 +486,9 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       // Assert
       result
           .andExpect(status().isOk())
-          .andExpect(jsonPath("$[0].catalog_scenario_external_id").value(SCENARIO_ID))
+          .andExpect(jsonPath("$.content[0].catalog_scenario_external_id").value(SCENARIO_ID))
           .andExpect(
-              jsonPath("$[0].catalog_scenario_missing_requirements[0]")
+              jsonPath("$.content[0].catalog_scenario_missing_requirements[0]")
                   .value("Injector openaev_unknown"));
     }
 

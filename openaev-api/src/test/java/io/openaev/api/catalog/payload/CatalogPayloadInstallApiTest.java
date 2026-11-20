@@ -455,11 +455,20 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
   @DisplayName("Browsing the catalogue")
   class Browsing {
 
-    private static final String PAYLOAD_IDS = "$[?(@.action_kind == 'PAYLOAD')].action_id";
-    private static final String INTEGRATION_IDS = "$[?(@.action_kind == 'INTEGRATION')].action_id";
+    private static final String PAYLOAD_IDS = "$.content[?(@.action_kind == 'PAYLOAD')].action_id";
+    private static final String INTEGRATION_IDS =
+        "$.content[?(@.action_kind == 'INTEGRATION')].action_id";
 
     private ResultActions read(String uri, Object... variables) throws Exception {
       return mvc.perform(get(TENANT_CATALOG_URI + uri, variables));
+    }
+
+    private ResultActions available() throws Exception {
+      return mvc.perform(
+          post(TENANT_CATALOG_URI + "/actions/search", DEFAULT_TENANT_UUID)
+              .with(csrf())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(mapper.writeValueAsString(new SearchPaginationInput())));
     }
 
     @BeforeEach
@@ -486,7 +495,7 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
       injectorRepository.save(injector);
 
       // Act
-      ResultActions result = read("/actions", DEFAULT_TENANT_UUID);
+      ResultActions result = available();
 
       // Assert
       result
@@ -518,7 +527,7 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
       }
 
       // Act
-      ResultActions result = read("/actions", DEFAULT_TENANT_UUID);
+      ResultActions result = available();
 
       // Assert
       result

@@ -33,6 +33,7 @@ public class CatalogService {
   private final CatalogItemRepository catalogItemRepository;
   private final CatalogReleaseRepository catalogReleaseRepository;
   private final CatalogItemMapper catalogItemMapper;
+  private final CatalogListService catalogListService;
   private final EntityManager entityManager;
   private final ApplicationEventPublisher eventPublisher;
 
@@ -52,6 +53,7 @@ public class CatalogService {
     CatalogRelease release = saveRelease(tenantId, manifest);
     CatalogSyncResult result = saveItems(release, checked, latest == null);
     removeItemsNotIn(release, manifest);
+    catalogListService.markLatestOffered(release.getRepository());
     eventPublisher.publishEvent(result.toEvent(tenantId));
     return result.toOutput();
   }
