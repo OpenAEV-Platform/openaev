@@ -615,16 +615,6 @@ ScenarioApi.assetGroups -> AssetGroup.assets | ATTENUATED | fixed in #8406: load
 ScenarioApi.assetGroups -> AssetGroup.tags | ATTENUATED | fixed in #8406: loaded inside the scoped transaction
 ScenarioApi.assetGroups -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.assetGroups -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
-ScenarioApi.createRunningExerciseFromScenario -> Exercise.documents | ATTENUATED | measured: initialised inside the transaction whenever written
-ScenarioApi.createRunningExerciseFromScenario -> Exercise.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
-ScenarioApi.createRunningExerciseFromScenario -> Exercise.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
-ScenarioApi.createRunningExerciseFromScenario -> Exercise.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
-ScenarioApi.createRunningExerciseFromScenario -> Exercise.getNextInjectExecution() | ATTENUATED | measured: initialised inside the transaction whenever written
-ScenarioApi.createRunningExerciseFromScenario -> Exercise.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
-ScenarioApi.createRunningExerciseFromScenario -> Exercise.injects | ATTENUATED | measured: initialised inside the transaction whenever written
-ScenarioApi.createRunningExerciseFromScenario -> Exercise.tags | ATTENUATED | measured: initialised inside the transaction whenever written
-ScenarioApi.createRunningExerciseFromScenario -> Exercise.teams | ATTENUATED | measured: initialised inside the transaction whenever written
-ScenarioApi.createRunningExerciseFromScenario -> Exercise.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.createScenario -> Scenario.documents | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.createScenario -> Scenario.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.createScenario -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
@@ -1008,6 +998,16 @@ ScenarioInjectApi.updateInjectForScenario -> Team.getUsersNumber() | NOT ESTABLI
 ScenarioInjectApi.updateInjectForScenario -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.updateInjectForScenario -> Team.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.updateInjectForScenario -> Team.users | NOT ESTABLISHED | not written by any measured test response
+ScenarioLaunchApi.launch -> Exercise.documents | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioLaunchApi.launch -> Exercise.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioLaunchApi.launch -> Exercise.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioLaunchApi.launch -> Exercise.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioLaunchApi.launch -> Exercise.getNextInjectExecution() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioLaunchApi.launch -> Exercise.getPlatforms() | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioLaunchApi.launch -> Exercise.injects | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioLaunchApi.launch -> Exercise.tags | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioLaunchApi.launch -> Exercise.teams | ATTENUATED | measured: initialised inside the transaction whenever written
+ScenarioLaunchApi.launch -> Exercise.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioLessonsApi.applyScenarioLessonsTemplate -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
 ScenarioLessonsApi.applyScenarioLessonsTemplate -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
 ScenarioLessonsApi.createScenarioLessonsCategory -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response

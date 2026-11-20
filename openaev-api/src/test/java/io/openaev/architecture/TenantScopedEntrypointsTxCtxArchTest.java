@@ -311,7 +311,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.chaining.WorkflowApi#getScopeEndpoints",
           "io.openaev.api.chaining.WorkflowApi#findScopeEndpoints",
           "io.openaev.rest.scenario.ScenarioApi#updateScenarioRecurrence",
-          "io.openaev.rest.scenario.ScenarioApi#createRunningExerciseFromScenario",
+          "io.openaev.api.scenario.ScenarioLaunchApi#launch",
           "io.openaev.rest.exercise.ExerciseApi#endpoints",
           "io.openaev.rest.exercise.ExerciseApi#endpointsByIds",
           "io.openaev.rest.exercise.ExerciseApi#updateExerciseStart",
