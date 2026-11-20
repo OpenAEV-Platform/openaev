@@ -11,20 +11,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
 
 /**
  * Brings a newer Filigran version into a customized copy: what the copy changed stays, the rest
- * follows Filigran, and a field both changed differently is a conflict the user settles.
+ * follows Filigran, and a block both changed differently is a conflict the user settles.
  */
 @Component
 @RequiredArgsConstructor
 public class PayloadCustomizationMerge {
 
   public static final String CONFLICT_WITHOUT_CHOICE =
-      "Choose Filigran's or yours for every conflicting field";
+      "Choose Filigran's or yours for every conflicting block";
 
   private final PayloadChangeKind payloadChangeKind;
   private final PayloadService payloadService;
@@ -37,30 +39,57 @@ public class PayloadCustomizationMerge {
   public record FieldUpdate(
       CustomizableField field, JsonNode base, JsonNode filigran, JsonNode yours) {
 
-    public boolean conflict() {
-      return changedByFiligran() && changedByYou() && !Objects.equals(filigran, yours);
-    }
-
     boolean changed() {
       return changedByFiligran() || changedByYou();
     }
 
-    boolean keepsYours(Choice choice) {
-      return changedByYou() && !(conflict() && choice == Choice.FILIGRAN);
-    }
-
-    private boolean changedByFiligran() {
+    boolean changedByFiligran() {
       return !Objects.equals(base, filigran);
     }
 
-    private boolean changedByYou() {
+    boolean changedByYou() {
       return !Objects.equals(base, yours);
+    }
+
+    boolean differs() {
+      return !Objects.equals(filigran, yours);
+    }
+
+    CustomizableBlock block() {
+      return field.getBlock();
     }
   }
 
   /** The fields either side changed, and the other keys Filigran changed. */
   public record Update(
-      Payload current, Payload target, List<FieldUpdate> fields, List<String> otherChanges) {}
+      Payload current, Payload target, List<FieldUpdate> fields, List<String> otherChanges) {
+
+    /** The blocks both changed, to different values. */
+    public Set<CustomizableBlock> conflicts() {
+      Map<CustomizableBlock, List<FieldUpdate>> byBlock =
+          fields.stream().collect(Collectors.groupingBy(FieldUpdate::block));
+      return byBlock.entrySet().stream()
+          .filter(
+              block ->
+                  block.getValue().stream().anyMatch(FieldUpdate::changedByFiligran)
+                      && block.getValue().stream().anyMatch(FieldUpdate::changedByYou)
+                      && block.getValue().stream().anyMatch(FieldUpdate::differs))
+          .map(Map.Entry::getKey)
+          .collect(Collectors.toSet());
+    }
+
+    /**
+     * A conflicting block is taken whole from the side chosen; elsewhere, what you changed stays.
+     */
+    private boolean keepsYours(
+        FieldUpdate field,
+        Set<CustomizableBlock> conflicts,
+        Map<CustomizableBlock, Choice> choices) {
+      return conflicts.contains(field.block())
+          ? choices.get(field.block()) == Choice.YOURS
+          : field.changedByYou();
+    }
+  }
 
   /** Empty when Filigran has no newer version that runs. */
   public Optional<Update> update(Payload current) {
@@ -69,9 +98,9 @@ public class PayloadCustomizationMerge {
   }
 
   /** The new content of the copy: the newer version, with the changes the copy keeps. */
-  public Payload merged(Update update, Map<CustomizableField, Choice> choices) {
-    if (update.fields().stream()
-        .anyMatch(field -> field.conflict() && choices.get(field.field()) == null)) {
+  public Payload merged(Update update, Map<CustomizableBlock, Choice> choices) {
+    Set<CustomizableBlock> conflicts = update.conflicts();
+    if (!choices.keySet().containsAll(conflicts)) {
       throw new BadRequestException(CONFLICT_WITHOUT_CHOICE);
     }
     Payload target = update.target();
@@ -81,7 +110,7 @@ public class PayloadCustomizationMerge {
     merged.setBase(target);
     merged.setAuthor(current.getAuthor() == null ? null : current.getAuthor().copy());
     update.fields().stream()
-        .filter(field -> field.keepsYours(choices.get(field.field())))
+        .filter(field -> update.keepsYours(field, conflicts, choices))
         .forEach(field -> field.field().copy(current, merged));
     return merged;
   }

@@ -10008,7 +10008,7 @@ export interface PayloadCustomizationOutput {
 }
 
 export interface PayloadCustomizationUpdateInput {
-  /** Filigran's or yours, for every conflicting field */
+  /** Filigran's or yours, for every conflicting block */
   update_choices?: Record<string, "YOURS" | "FILIGRAN">;
   /**
    * The Filigran version reviewed
@@ -10031,7 +10031,9 @@ export interface PayloadCustomizationUpdateOutput {
 export interface PayloadFieldUpdateOutput {
   /** The value of the base version; empty when it has none */
   field_base?: JsonNode;
-  /** Both changed it differently: the user chooses one */
+  /** The fields of a block conflict together: one choice settles them all */
+  field_block: "EXECUTION" | "PLATFORMS";
+  /** Both changed its block differently: the user chooses one side */
   field_conflict: boolean;
   field_filigran?: JsonNode;
   field_name:

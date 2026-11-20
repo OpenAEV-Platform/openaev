@@ -362,7 +362,7 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("lists what the newer version changes, and a conflict on a field both changed")
+    @DisplayName("lists what the newer version changes, the block both changed as one conflict")
     void given_newerVersion_should_listItsChangesAndConflicts() throws Exception {
       // Arrange
       JsonNode copy = customize(install(FIRST));
@@ -380,10 +380,13 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
       assertThat(update.path("update_fields").findValuesAsText("field_name"))
           .containsExactlyInAnyOrder("COMMAND_CONTENT", "CLEANUP_COMMAND");
       JsonNode command = fieldOf(update, "COMMAND_CONTENT");
+      assertThat(command.path("field_block").asText()).isEqualTo("EXECUTION");
       assertThat(command.path("field_conflict").asBoolean()).isTrue();
       assertThat(command.path("field_filigran").asText()).isEqualTo(FILIGRAN_COMMAND);
       assertThat(command.path("field_yours").asText()).isEqualTo(MY_COMMAND);
-      assertThat(fieldOf(update, "CLEANUP_COMMAND").path("field_conflict").asBoolean()).isFalse();
+      JsonNode cleanup = fieldOf(update, "CLEANUP_COMMAND");
+      assertThat(cleanup.path("field_block").asText()).isEqualTo("EXECUTION");
+      assertThat(cleanup.path("field_conflict").asBoolean()).isTrue();
     }
 
     @Test
@@ -408,11 +411,13 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
   class Update {
 
     @Test
-    @DisplayName("keeps my command and takes Filigran's other changes when I keep mine")
-    void given_keepMine_should_keepMyCommandAndTakeTheRest() throws Exception {
+    @DisplayName("keeps my whole execution block on the newer version when I keep mine")
+    void given_keepMine_should_keepMyExecutionBlock() throws Exception {
       // Arrange
       JsonNode copy = customize(install(FIRST));
-      changeCommand(copy.path("action_payload").path("payload_id").asText(), MY_COMMAND);
+      String copyId = copy.path("action_payload").path("payload_id").asText();
+      String myCleanup = ((Command) Hibernate.unproxy(payload(copyId))).getCleanupCommand();
+      changeCommand(copyId, MY_COMMAND);
       String newer = installNewerWithFiligranChanges();
 
       // Act
@@ -421,7 +426,7 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
               update(
                       copy.path("injector_contract_id").asText(),
                       newer,
-                      Map.of("COMMAND_CONTENT", "YOURS"))
+                      Map.of("EXECUTION", "YOURS"))
                   .andExpect(status().isOk()));
 
       // Assert
@@ -429,15 +434,15 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
           (Command)
               Hibernate.unproxy(payload(saved.path("action_payload").path("payload_id").asText()));
       assertThat(version.getContent()).isEqualTo(MY_COMMAND);
-      assertThat(version.getCleanupCommand()).isEqualTo(FILIGRAN_CLEANUP);
+      assertThat(version.getCleanupCommand()).isEqualTo(myCleanup);
       assertThat(version.getBase().getId()).isEqualTo(newer);
       assertThat(version.getVersion()).isEqualTo("1.1.0");
       assertThat(saved.path("action_payload_customized").asBoolean()).isTrue();
     }
 
     @Test
-    @DisplayName("takes Filigran's command when I choose Filigran's")
-    void given_takeFiligran_should_takeFiligranCommand() throws Exception {
+    @DisplayName("takes Filigran's whole execution block when I choose Filigran's")
+    void given_takeFiligran_should_takeFiligranExecutionBlock() throws Exception {
       // Arrange
       JsonNode copy = customize(install(FIRST));
       changeCommand(copy.path("action_payload").path("payload_id").asText(), MY_COMMAND);
@@ -449,7 +454,7 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
               update(
                       copy.path("injector_contract_id").asText(),
                       newer,
-                      Map.of("COMMAND_CONTENT", "FILIGRAN"))
+                      Map.of("EXECUTION", "FILIGRAN"))
                   .andExpect(status().isOk()));
 
       // Assert
@@ -457,6 +462,29 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
           (Command)
               Hibernate.unproxy(payload(saved.path("action_payload").path("payload_id").asText()));
       assertThat(version.getContent()).isEqualTo(FILIGRAN_COMMAND);
+      assertThat(version.getCleanupCommand()).isEqualTo(FILIGRAN_CLEANUP);
+    }
+
+    @Test
+    @DisplayName("takes Filigran's changes without a choice when I changed nothing")
+    void given_unchangedCopy_should_takeFiligranChangesWithoutChoice() throws Exception {
+      // Arrange
+      JsonNode copy = customize(install(FIRST));
+      entityManager.flush();
+      String newer = installNewerWithFiligranChanges();
+
+      // Act
+      JsonNode saved =
+          body(
+              update(copy.path("injector_contract_id").asText(), newer, Map.of())
+                  .andExpect(status().isOk()));
+
+      // Assert
+      Command version =
+          (Command)
+              Hibernate.unproxy(payload(saved.path("action_payload").path("payload_id").asText()));
+      assertThat(version.getContent()).isEqualTo(FILIGRAN_COMMAND);
+      assertThat(version.getCleanupCommand()).isEqualTo(FILIGRAN_CLEANUP);
     }
 
     @Test

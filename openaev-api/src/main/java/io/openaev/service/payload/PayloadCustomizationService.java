@@ -90,7 +90,7 @@ public class PayloadCustomizationService {
       String tenantId,
       String actionId,
       String targetPayloadId,
-      Map<CustomizableField, Choice> choices) {
+      Map<CustomizableBlock, Choice> choices) {
     InjectorContract action = injectorContractService.injectorContractInTenant(actionId, tenantId);
     Payload current = customized(payloadOf(action));
     if (!current.isLatest()) {

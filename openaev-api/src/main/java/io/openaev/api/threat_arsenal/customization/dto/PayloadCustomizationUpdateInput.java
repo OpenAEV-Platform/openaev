@@ -1,7 +1,7 @@
 package io.openaev.api.threat_arsenal.customization.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.service.payload.CustomizableField;
+import io.openaev.service.payload.CustomizableBlock;
 import io.openaev.service.payload.PayloadCustomizationMerge.Choice;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -12,6 +12,6 @@ public record PayloadCustomizationUpdateInput(
         @JsonProperty("update_payload_id")
         @NotBlank
         String payloadId,
-    @Schema(description = "Filigran's or yours, for every conflicting field")
+    @Schema(description = "Filigran's or yours, for every conflicting block")
         @JsonProperty("update_choices")
-        Map<CustomizableField, Choice> choices) {}
+        Map<CustomizableBlock, Choice> choices) {}
