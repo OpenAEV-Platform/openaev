@@ -11916,6 +11916,11 @@ export interface ScenarioInput {
   scenario_tags?: string[];
 }
 
+export interface ScenarioLaunchOutput {
+  /** @minLength 1 */
+  simulation_id: string;
+}
+
 export interface ScenarioOutput {
   /** Lesson anonymized state of the scenario */
   lessonsAnonymized?: boolean;
@@ -12026,12 +12031,12 @@ export interface ScenarioStatistic {
   simulations_results_latest: SimulationsResultsLatest;
 }
 
-export type ScenarioTargetsInput = CatalogScenarioInstallInput & {
+export interface ScenarioTargetsInput {
   asset_group_ids?: string[];
   asset_ids?: string[];
   manual_targets?: string[];
   team_ids?: string[];
-};
+}
 
 export interface ScenarioTeamPlayersEnableInput {
   scenario_team_players?: string[];
@@ -13873,6 +13878,13 @@ export interface ThreatArsenalFacetCountsOutput {
   /** Number of contracts per payload status under the current filters */
   statuses?: Record<string, number>;
 }
+
+export type TimeBasedScenarioInstallInput = CatalogScenarioInstallInput & {
+  asset_group_ids?: string[];
+  asset_ids?: string[];
+  manual_targets?: string[];
+  team_ids?: string[];
+};
 
 export interface Token {
   listened?: boolean;

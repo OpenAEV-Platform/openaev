@@ -37,8 +37,9 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.catalog.dto.CatalogSettingsInput;
 import io.openaev.api.catalog.dto.scenario.CatalogScenarioInstallInput;
 import io.openaev.api.catalog.dto.scenario.ChainedScenarioInstallInput;
-import io.openaev.api.catalog.dto.scenario.ScenarioTargetsInput;
+import io.openaev.api.catalog.dto.scenario.TimeBasedScenarioInstallInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
+import io.openaev.api.scenario.dto.ScenarioTargetsInput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
@@ -174,13 +175,15 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
                 SCENARIO_ID,
                 VERSION)
             .contentType(MediaType.APPLICATION_JSON)
-            // Written as the interface: the type an install names comes with the targets.
-            .content(
-                mapper.writerFor(CatalogScenarioInstallInput.class).writeValueAsString(targets)));
+            .content(mapper.writeValueAsString(targets)));
+  }
+
+  private static TimeBasedScenarioInstallInput timeBased(List<String> assetIds) {
+    return new TimeBasedScenarioInstallInput(new ScenarioTargetsInput(assetIds, null, null, null));
   }
 
   private ResultActions install() throws Exception {
-    return install(new ScenarioTargetsInput(null, null, null, null));
+    return install(timeBased(null));
   }
 
   private Scenario installedScenario(ResultActions result) throws Exception {
@@ -248,8 +251,7 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       // Act
       Scenario scenario =
           installedScenario(
-              install(new ScenarioTargetsInput(List.of(endpoint.getId()), null, null, null))
-                  .andExpect(status().isCreated()));
+              install(timeBased(List.of(endpoint.getId()))).andExpect(status().isCreated()));
 
       // Assert
       assertThat(injectsOf(scenario).getFirst().getAssets())
@@ -541,7 +543,7 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
                   .andReturn()
                   .getResponse()
                   .getContentAsString())
-          .path("exercise_id")
+          .path("simulation_id")
           .asText();
     }
 
@@ -555,8 +557,7 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       Endpoint second = endpointRepository.save(EndpointFixture.createEndpoint());
       Scenario scenario =
           installedScenario(
-              install(new ScenarioTargetsInput(List.of(first.getId()), null, null, null))
-                  .andExpect(status().isCreated()));
+              install(timeBased(List.of(first.getId()))).andExpect(status().isCreated()));
 
       // Act
       String simulationId = launch(scenario, second.getId());

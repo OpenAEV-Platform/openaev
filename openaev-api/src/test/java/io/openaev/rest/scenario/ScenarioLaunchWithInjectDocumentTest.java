@@ -78,7 +78,7 @@ class ScenarioLaunchWithInjectDocumentTest extends IntegrationTest {
             post(TENANT_SCENARIO_URI + "/{scenarioId}/exercise/running", tenant, scenario.getId())
                 .with(csrf()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.exercise_injects.length()").value(1));
+        .andExpect(jsonPath("$.simulation_id").isNotEmpty());
   }
 
   private Scenario seedScenarioWithInjectDocument() {
