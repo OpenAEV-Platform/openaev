@@ -1386,6 +1386,37 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given_nonAsciiDefinitions_should_exportUtf8BytesAndImportThemBackUnchanged")
+    void given_nonAsciiDefinitions_should_exportUtf8BytesAndImportThemBackUnchanged()
+        throws Exception {
+      // Arrange
+      Tenant tenant = tenantWithManageAndAccess("marking-export-utf8");
+      List<String> definitions = List.of("Confidentiel défense", "機密 секрет");
+      List<MarkingDefinition> persisted = new ArrayList<>();
+      for (int i = 0; i < definitions.size(); i++) {
+        persisted.add(
+            createPersistedMarkingDefinition(
+                tenant.getId(), "ZZUTF8", definitions.get(i), "#555555", i + 1, Instant.now()));
+      }
+
+      // Act
+      byte[] exported = exportBytes(tenant.getId(), new SearchPaginationInput());
+      repository.deleteAll(persisted);
+      entityManager.flush();
+      importCsv(tenant.getId(), "markings.csv", exported)
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.import_created").value(definitions.size()));
+
+      // Assert
+      for (String definition : definitions) {
+        assertThat(exported).containsSequence(definition.getBytes(StandardCharsets.UTF_8));
+        assertThat(
+                repository.findByTypeAndDefinitionAndTenantId("ZZUTF8", definition, tenant.getId()))
+            .isPresent();
+      }
+    }
+
+    @Test
     @DisplayName("given_aMixedFile_should_createTheValidRowsAndReportEveryRowWithoutOverwriting")
     void given_aMixedFile_should_createTheValidRowsAndReportEveryRowWithoutOverwriting()
         throws Exception {
@@ -1527,6 +1558,10 @@ class MarkingDefinitionApiTest extends IntegrationTest {
   }
 
   private String export(String tenantId, SearchPaginationInput input) throws Exception {
+    return new String(exportBytes(tenantId, input), StandardCharsets.UTF_8);
+  }
+
+  private byte[] exportBytes(String tenantId, SearchPaginationInput input) throws Exception {
     return mvc.perform(
             post(URI + "/export/csv", tenantId)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -1541,7 +1576,7 @@ class MarkingDefinitionApiTest extends IntegrationTest {
                     matchesPattern("attachment; filename=MarkingDefinitions\\d{12}\\.csv")))
         .andReturn()
         .getResponse()
-        .getContentAsString();
+        .getContentAsByteArray();
   }
 
   private List<String[]> parse(String csv) throws Exception {
@@ -1550,11 +1585,14 @@ class MarkingDefinitionApiTest extends IntegrationTest {
 
   private ResultActions importCsv(String tenantId, String filename, String content)
       throws Exception {
+    return importCsv(tenantId, filename, content.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private ResultActions importCsv(String tenantId, String filename, byte[] content)
+      throws Exception {
     return mvc.perform(
         multipart(URI + "/import/csv", tenantId)
-            .file(
-                new MockMultipartFile(
-                    "file", filename, "text/csv", content.getBytes(StandardCharsets.UTF_8)))
+            .file(new MockMultipartFile("file", filename, "text/csv", content))
             .with(csrf()));
   }
 

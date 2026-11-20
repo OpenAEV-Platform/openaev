@@ -24,6 +24,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -112,6 +113,9 @@ public class MarkingDefinitionApi extends RestBehavior {
       @RequestBody @Valid SearchPaginationInput searchPaginationInput,
       HttpServletResponse response) {
     service.assertFeatureEnabled();
+    // The shared writer sets only the content type: without this the response stays ISO-8859-1,
+    // which garbles accents and turns other scripts into '?' in a file the importer reads as UTF-8.
+    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
     mapperService.exportMappersCsv(
         ctx, CsvType.MARKING_DEFINITIONS, searchPaginationInput, response);
   }
