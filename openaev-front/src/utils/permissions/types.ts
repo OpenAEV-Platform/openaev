@@ -16,6 +16,7 @@ export const ACTIONS = {
   DELETE: 'DELETE',
   SEARCH: 'SEARCH',
   CREATE: 'CREATE',
+  REVOKE: 'REVOKE',
 } as const;
 
 export type Actions = typeof ACTIONS[keyof typeof ACTIONS];

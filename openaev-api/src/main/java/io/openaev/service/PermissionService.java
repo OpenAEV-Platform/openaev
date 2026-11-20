@@ -534,9 +534,7 @@ public class PermissionService {
         yield new Target(run.getParentResourceId(), run.getParentResourceType(), parentAction);
       }
       case INJECT -> {
-        // injects is not yet v2-active, so the table carries no scoping of its own (its @Filter
-        // does not apply to this find-by-id); load it in the request's read scope explicitly,
-        // resolving to not found when it is outside it.
+        // The inject resolves in the request's read scope: outside it, it is not found.
         Inject inject = injectService.inject(ctx, resourceId);
         // Parent action rule: READ stays READ, LAUNCH stays LAUNCH, the rest becomes WRITE.
         Action parentAction =

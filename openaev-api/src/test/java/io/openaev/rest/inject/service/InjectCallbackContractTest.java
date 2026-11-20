@@ -19,6 +19,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -121,6 +122,11 @@ class InjectCallbackContractTest {
             })
         .when(tenantTx)
         .execute(any(), any(Runnable.class));
+    // The owners of the batch's injects are read through the primitive's returning overload.
+    lenient()
+        .doAnswer(invocation -> invocation.getArgument(1, Supplier.class).get())
+        .when(tenantTx)
+        .execute(any(), any(Supplier.class));
   }
 
   private CallbackInvoker syncInvoker() {

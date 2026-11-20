@@ -55,9 +55,9 @@ public class AutonomousTimeoutService {
     Instant threshold = Instant.now().plusSeconds(AutonomousRunService.WINDDOWN_5M_SECONDS);
     tenantTx.forEachTenant(
         tenantId -> {
-          // The v2 GUC scope is already set by forEachTenant. The ambient tenant is still set for
-          // two reasons: injects and injectors_contracts carry the v1 filter and listener, and
-          // some reads are keyed by TenantContext explicitly (ExerciseService#exercise(String)).
+          // forEachTenant sets the v2 GUC scope. The ambient tenant is set too, for two reasons:
+          // TenantBaseListener, which injects carry, stamps a row written with no tenant from it,
+          // and some reads are keyed by TenantContext explicitly (ExerciseService#exercise).
           TenantContext.setCurrentTenant(tenantId);
           try {
             List<String> dueRunIds = runRepository.findRunIdsDueForTimeout(tenantId, threshold);

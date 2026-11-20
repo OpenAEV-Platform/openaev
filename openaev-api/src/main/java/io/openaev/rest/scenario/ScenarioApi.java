@@ -163,9 +163,9 @@ public class ScenarioApi extends RestBehavior {
   public ScenarioSimple createScenarioWithInjectorContracts(
       TxCtx ctx, @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    // The contract search and the injects are not tenant-active yet and follow the ambient tenant:
-    // align it on the write tenant so the scenario and its injects stay in one tenant on both
-    // routes.
+    // The injects take their scenario's tenant and the contract search runs in the request scope.
+    // The ambient tenant is aligned on the write tenant for any row of this path that
+    // TenantBaseListener stamps from it; removing the alignment belongs to the v1 exit.
     return ambientTenantBridge.callInTenant(
         tenantId,
         () ->
@@ -193,9 +193,9 @@ public class ScenarioApi extends RestBehavior {
     // The injects are written in one tenant, the write tenant of the request: a scope naming
     // several tenants cannot designate it and is refused, as on the create endpoint above.
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    // The contract search and the injects are not tenant-active yet and follow the ambient tenant:
-    // align it on the write tenant so the scenarios and their injects stay in one tenant on both
-    // routes.
+    // The injects take their scenario's tenant and the contract search runs in the request scope.
+    // The ambient tenant is aligned on the write tenant for any row of this path that
+    // TenantBaseListener stamps from it; removing the alignment belongs to the v1 exit.
     return ambientTenantBridge.callInTenant(
         tenantId,
         () ->

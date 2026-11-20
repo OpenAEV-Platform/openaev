@@ -24,13 +24,12 @@ import org.springframework.stereotype.Service;
  * changed, and keeps the events the queue refused so that a later publication sends them again.
  *
  * <p>The steps are looked up, and each event's tenant is read, in the tenant that owns the injects
- * named, whatever the scope the caller's transaction was opened with: a step belongs to the tenant
- * of the simulation, atomic testing or autonomous run that owns the inject, and a caller scoped to
- * another tenant would find none and leave the step waiting for the timeout job. That tenant is the
- * changed row's own, read with a projection that no tenant scope narrows, and the work runs in it
- * through {@link WorkflowOwnerScope}, on the caller's own transaction. A kept event carries the
- * tenant it was built with, so it is resent as is, from whatever scope the next publication runs
- * in.
+ * named: a step belongs to the tenant of the simulation, atomic testing or autonomous run that owns
+ * the inject. That tenant is the inject's own, read in the caller's tenant scope, and the work runs
+ * in it through {@link WorkflowOwnerScope}, on the caller's own transaction. A caller whose scope
+ * lacks an inject's tenant reads no owner for it and notifies no step: that step waits for {@code
+ * WorkflowTimeoutJob}. A kept event carries the tenant it was built with, so it is resent as is,
+ * from whatever scope the next publication runs in.
  *
  * <p>The caller must therefore run inside a transaction: the {@link WorkflowUpdateEvent} aspect
  * runs in the annotated method's transaction, and the batched callback handler publishes from each
@@ -110,9 +109,9 @@ public class WorkflowUpdateEventPublisher {
   }
 
   /**
-   * The tenants owning the given injects, read from their own {@code tenant_id} with a native
-   * projection that neither the Hibernate tenant filter nor an ambient tenant context changes, so
-   * it resolves the owner from a caller that may not be allowed to see it.
+   * The tenants owning the given injects, read from their own {@code tenant_id} in the caller's
+   * tenant scope: a caller whose scope lacks an inject's tenant gets no owner for it, and no step
+   * of that inject is notified.
    */
   private Set<String> ownerTenantsOfInjects(Set<String> injectIds) {
     if (injectIds == null || injectIds.isEmpty()) {
