@@ -23,6 +23,8 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -642,6 +644,47 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
                 assertThat(identity.getExternalId()).isEqualTo(SCENARIO_ID);
                 assertThat(identity.getId()).isEqualTo(reinstalled.getCatalogIdentity().getId());
               });
+    }
+  }
+
+  // -- HISTORY --
+
+  @Nested
+  @DisplayName("History")
+  class History {
+
+    @Test
+    @DisplayName("lists the installs and uninstalls of the scenario, newest first")
+    void given_reinstalledScenario_should_listItsHistoryNewestFirst() throws Exception {
+      // Arrange
+      publish(Map.of());
+      uninstall(installedScenario(install().andExpect(status().isCreated())));
+      Scenario reinstalled = installedScenario(install().andExpect(status().isCreated()));
+
+      // Act & Assert
+      committed(
+              get(
+                  TENANT_SCENARIO_URI + "/{scenarioId}/history",
+                  DEFAULT_TENANT_UUID,
+                  reinstalled.getId()))
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$[*].catalog_history_action")
+                  .value(contains("INSTALL", "UNINSTALL", "INSTALL")))
+          .andExpect(jsonPath("$[*].catalog_history_version").value(everyItem(is(VERSION))));
+    }
+
+    @Test
+    @DisplayName("shows the installed catalogue version on the scenario")
+    void given_installedScenario_should_showItsCatalogueVersion() throws Exception {
+      // Arrange
+      publish(Map.of());
+      Scenario scenario = installedScenario(install().andExpect(status().isCreated()));
+
+      // Act & Assert
+      committed(get(TENANT_SCENARIO_URI + "/{scenarioId}", DEFAULT_TENANT_UUID, scenario.getId()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.scenario_catalog_version").value(VERSION));
     }
   }
 }

@@ -146,6 +146,10 @@ public class ScenarioOutput {
   @Schema(description = "Workflow ID associated with the scenario")
   private String workflowId;
 
+  @JsonProperty("scenario_catalog_version")
+  @Schema(description = "Catalogue version installed; empty when not from the catalogue")
+  private String catalogVersion;
+
   @JsonProperty("scenario_autonomous")
   @Schema(description = "Whether the scenario is an autonomous (AI-driven) attack-path scenario")
   private boolean autonomous;

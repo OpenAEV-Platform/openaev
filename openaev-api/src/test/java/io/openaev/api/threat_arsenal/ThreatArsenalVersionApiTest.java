@@ -32,6 +32,7 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Step;
+import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.database.model.payload.PayloadRevocation;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -442,6 +443,50 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
           .isInstanceOf(BadRequestException.class)
           .hasMessage(VERSION_REVOKED);
     }
+  }
+
+  // -- HISTORY --
+
+  @Test
+  @DisplayName("lists who installed each version of the payload, newest first")
+  void given_installedVersions_should_listTheirInstallsNewestFirst() throws Exception {
+    // Arrange
+    List<String> ids = installed("1.0.0", "1.1.0");
+
+    // Act
+    JsonNode history =
+        body(
+            mvc.perform(
+                    get(
+                        TENANT_THREAT_ARSENAL_URL + "/{actionId}/history",
+                        DEFAULT_TENANT_UUID,
+                        contractOf(ids.getFirst()).getId()))
+                .andExpect(status().isOk()));
+
+    // Assert
+    assertThat(history.findValuesAsText("catalog_history_version"))
+        .containsExactly("1.1.0", "1.0.0");
+    assertThat(history.findValuesAsText("catalog_history_action"))
+        .containsOnly(CatalogHistory.Action.INSTALL.name());
+    assertThat(history.findValuesAsText("catalog_history_mode"))
+        .containsOnly(CatalogHistory.Mode.MANUAL.name());
+    assertThat(history.findValuesAsText("catalog_history_user")).doesNotContain("", "null");
+  }
+
+  @Test
+  @DisplayName("has no history for a payload made in the tenant")
+  void given_localPayload_should_haveNoHistory() throws Exception {
+    // Arrange
+    InjectorContract action = localAction();
+
+    // Act & Assert
+    mvc.perform(
+            get(
+                TENANT_THREAT_ARSENAL_URL + "/{actionId}/history",
+                DEFAULT_TENANT_UUID,
+                action.getId()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(0));
   }
 
   // -- SEARCH --
