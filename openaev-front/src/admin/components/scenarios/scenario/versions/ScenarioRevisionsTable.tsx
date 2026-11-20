@@ -9,8 +9,8 @@ import { type ScenarioRevisionOutput } from '../../../../../utils/api-types';
 
 const REASONS: Record<ScenarioRevisionOutput['scenario_revision_reason'], string> = {
   INSTALL: 'Installed',
-  UPDATE: 'Before an update',
-  ROLLBACK: 'Before a rollback',
+  UPDATE: 'Before update',
+  ROLLBACK: 'Before rollback',
 };
 
 interface Props {

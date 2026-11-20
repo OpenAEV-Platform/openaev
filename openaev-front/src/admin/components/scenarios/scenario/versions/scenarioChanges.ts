@@ -2,59 +2,49 @@ import { type ChangeDiffRow } from '../../../../../components/common/update/Chan
 import { type Translate } from '../../../../../components/i18n';
 import { type ScenarioChangeOutput } from '../../../../../utils/api-types';
 
-const INJECT_ELEMENT = 'inject:';
-const VARIABLES_ELEMENT = 'variables';
-const CONTENT_FIELD = 'content.';
+type ElementKind = ScenarioChangeOutput['scenario_change_element_kind'];
+type FieldKind = NonNullable<ScenarioChangeOutput['scenario_change_field_kind']>;
 
-const FIELD_LABELS: Record<string, string> = {
-  name: 'Name',
-  description: 'Description',
-  severity: 'Severity',
-  category: 'Category',
-  title: 'Title',
-  contract: 'Payload version',
-  depends_duration: 'Delay',
-  depends_on: 'Dependencies',
-};
-
-/** What a change is on: the scenario, its variables, or an inject by its title. */
-export const elementLabel = (change: ScenarioChangeOutput, t: Translate) => {
-  if (change.scenario_change_element.startsWith(INJECT_ELEMENT)) {
-    return change.scenario_change_title ? t('Inject “{title}”', { title: change.scenario_change_title }) : t('Inject');
-  }
-  return t(change.scenario_change_element === VARIABLES_ELEMENT ? 'Variables' : 'Scenario');
+const ELEMENT_LABELS: Record<ElementKind, (t: Translate, title?: string) => string> = {
+  SCENARIO: t => t('Scenario'),
+  VARIABLES: t => t('Variables'),
+  INJECT: (t, title) => (title ? t('Inject “{title}”', { title }) : t('Inject')),
 };
 
 // A variable is named by its key, an inject content field as an argument.
-const fieldLabel = (change: ScenarioChangeOutput, field: string, t: Translate) => {
-  if (change.scenario_change_element === VARIABLES_ELEMENT) {
-    return t('Variable {key}', { key: field });
-  }
-  if (field.startsWith(CONTENT_FIELD)) {
-    return t('Argument {key}', { key: field.slice(CONTENT_FIELD.length) });
-  }
-  return t(FIELD_LABELS[field] ?? field);
+const FIELD_LABELS: Record<FieldKind, (t: Translate, key: string) => string> = {
+  NAME: t => t('Name'),
+  DESCRIPTION: t => t('Description'),
+  SEVERITY: t => t('Severity'),
+  CATEGORY: t => t('Category'),
+  TITLE: t => t('Title'),
+  CONTRACT: t => t('Payload version'),
+  DEPENDS_DURATION: t => t('Delay'),
+  DEPENDS_ON: t => t('Depends on'),
+  ARGUMENT: (t, key) => t('Argument {key}', { key }),
+  VARIABLE: (t, key) => t('Variable {key}', { key }),
 };
+
+/** What a change is on: the scenario, its variables, or an inject by its title. */
+export const elementLabel = (change: ScenarioChangeOutput, t: Translate) => ELEMENT_LABELS[change.scenario_change_element_kind](t, change.scenario_change_title);
 
 /** What a change is about, as people read it: "Inject “Scan” · Title", "Variables · Variable target". */
 export const changeLabel = (change: ScenarioChangeOutput, t: Translate) => {
   const element = elementLabel(change, t);
-  const field = change.scenario_change_field;
-  return field ? `${element} · ${fieldLabel(change, field, t)}` : element;
+  const field = change.scenario_change_field_kind;
+  return field ? `${element} · ${FIELD_LABELS[field](t, change.scenario_change_field_key ?? '')}` : element;
 };
 
-/** A changed value as text: a payload version reads "v1.2.0", a structure its indented JSON. */
-export const valueText = (value: unknown): string => {
+/** A changed value as text: the payload version a contract runs reads "v1.2.0", a structure its indented JSON. */
+export const valueText = (change: ScenarioChangeOutput, value: unknown): string => {
   if (value === null || value === undefined) {
     return '';
   }
   if (typeof value === 'string') {
     return value;
   }
-  if (typeof value === 'object' && 'payload_version' in value) {
-    return `v${String(value.payload_version)}`;
-  }
-  return JSON.stringify(value, null, 2);
+  const payloadVersion = change.scenario_change_field_kind === 'CONTRACT' ? (value as { payload_version?: string }).payload_version : undefined;
+  return payloadVersion ? `v${payloadVersion}` : JSON.stringify(value, null, 2);
 };
 
 export const withStatus = (changes: ScenarioChangeOutput[], status: ScenarioChangeOutput['scenario_change_status']) => changes
@@ -64,6 +54,6 @@ export const withStatus = (changes: ScenarioChangeOutput[], status: ScenarioChan
 export const changeDiffRow = (change: ScenarioChangeOutput, before: unknown, after: unknown, t: Translate): ChangeDiffRow => ({
   id: change.scenario_change_id,
   field: changeLabel(change, t),
-  before: valueText(before),
-  after: valueText(after),
+  before: valueText(change, before),
+  after: valueText(change, after),
 });

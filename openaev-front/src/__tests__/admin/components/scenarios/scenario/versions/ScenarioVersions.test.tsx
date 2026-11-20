@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SCENARIO_URI } from '../../../../../../actions/scenarios/scenario-actions';
 import ScenarioVersions from '../../../../../../admin/components/scenarios/scenario/versions/ScenarioVersions';
-import { type ScenarioChangeOutput, type ScenarioRevisionOutput, type ScenarioUpdatePreviewOutput, type ScenarioVersionsOutput } from '../../../../../../utils/api-types';
+import { type CatalogHistoryOutput, type ScenarioChangeOutput, type ScenarioRevisionOutput, type ScenarioUpdatePreviewOutput, type ScenarioVersionsOutput } from '../../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../../utils/Environment';
 
 const mocks = vi.hoisted(() => ({
@@ -105,10 +105,16 @@ const revisions: ScenarioRevisionOutput[] = [
   },
 ];
 
+const ELEMENT_KINDS: Record<string, ScenarioChangeOutput['scenario_change_element_kind']> = {
+  scenario: 'SCENARIO',
+  variables: 'VARIABLES',
+};
+
+// A change by the ID the backend gives it: "inject:a/title", "scenario/name", "inject:b".
 const change = (id: string, status: ScenarioChangeOutput['scenario_change_status'], values: Partial<ScenarioChangeOutput> = {}): ScenarioChangeOutput => ({
   scenario_change_id: id,
-  scenario_change_element: id.split('/')[0],
-  scenario_change_field: id.split('/')[1],
+  scenario_change_element_kind: ELEMENT_KINDS[id.split('/')[0]] ?? 'INJECT',
+  scenario_change_field_kind: id.split('/')[1]?.toUpperCase() as ScenarioChangeOutput['scenario_change_field_kind'],
   scenario_change_status: status,
   scenario_change_editable: false,
   ...values,
@@ -157,6 +163,15 @@ const updatePreview: ScenarioUpdatePreviewOutput = {
   }],
 };
 
+const history: CatalogHistoryOutput[] = [{
+  catalog_history_id: 'history-1',
+  catalog_history_action: 'UPDATE',
+  catalog_history_mode: 'MANUAL',
+  catalog_history_version: '1.1.0',
+  catalog_history_user: 'Alice',
+  catalog_history_created_at: '2026-11-04',
+}];
+
 const serve = (responses: Record<string, unknown>) => mocks.simpleCall.mockImplementation((uri: string) => Promise.resolve({ data: responses[uri] ?? [] }));
 
 const renderVersions = () => render(<ScenarioVersions />);
@@ -176,8 +191,9 @@ describe('ScenarioVersions', () => {
     serve({
       [`${SCENARIO}/versions`]: versions,
       [`${SCENARIO}/revisions`]: revisions,
-      [`${SCENARIO}/versions/1.1.0/update-preview`]: updatePreview,
-      [`${SCENARIO}/revisions/revision-3/rollback-preview`]: preview([]),
+      [`${SCENARIO}/history`]: history,
+      [`${SCENARIO}/versions/1.1.0/preview`]: updatePreview,
+      [`${SCENARIO}/revisions/revision-3/preview`]: preview([]),
     });
   });
 
@@ -208,14 +224,31 @@ describe('ScenarioVersions', () => {
     const revisionsTable = await screen.findByRole('table', { name: 'Revisions' });
     await within(revisionsTable).findByText('#3');
     const newest = within(revisionsTable).getByText('#3').closest('tr') as HTMLElement;
-    expect(within(newest).getByText('Before an update')).toBeInTheDocument();
+    expect(within(newest).getByText('Before update')).toBeInTheDocument();
     expect(within(newest).getByText('v1.0.0')).toBeInTheDocument();
     expect(within(newest).getByText('Alice')).toBeInTheDocument();
     expect(within(newest).getByText('time 2026-11-03')).toBeInTheDocument();
-    expect(within(revisionsTable).getByText('Before a rollback')).toBeInTheDocument();
+    expect(within(revisionsTable).getByText('Before rollback')).toBeInTheDocument();
     const installed = within(revisionsTable).getByText('#1').closest('tr') as HTMLElement;
     expect(within(installed).getByText('Installed')).toBeInTheDocument();
     expect(within(revisionsTable).getAllByRole('button', { name: 'Roll back to this revision' })).toHaveLength(3);
+    const historyTable = await screen.findByRole('table', { name: 'History' });
+    const updated = within(historyTable).getByText('Updated').closest('tr') as HTMLElement;
+    expect(within(updated).getByText('v1.1.0')).toBeInTheDocument();
+    expect(within(updated).getByText('Alice')).toBeInTheDocument();
+  });
+
+  it('given_dataStillLoading_should_showPlaceholders', async () => {
+    // Arrange
+    mocks.simpleCall.mockImplementation(() => new Promise(() => {}));
+
+    // Act
+    renderVersions();
+
+    // Assert
+    expect(await screen.findByText('Versions')).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByText('No revision yet')).not.toBeInTheDocument();
   });
 
   it('given_noRevision_should_saySo', async () => {
@@ -266,7 +299,9 @@ describe('ScenarioVersions', () => {
     expect(within(dialog).getByText('New in v1.1.0 · Needs targets')).toBeInTheDocument();
     expect(within(dialog).getAllByRole('group', { name: 'Changes' })).toHaveLength(2);
     expect(within(dialog).getByRole('group', { name: 'Scenario · Description · 1 lines added, 1 lines removed' })).toBeInTheDocument();
-    expect(within(dialog).getByText('Your edits: the update keeps them')).toBeInTheDocument();
+    expect(within(dialog).getByText('Your edits — the update keeps them')).toBeInTheDocument();
+    expect(within(dialog).getByText('Before · Filigran v1.0.0')).toBeInTheDocument();
+    expect(within(dialog).getByText('After · your edit')).toBeInTheDocument();
     expect(within(dialog).getByText('Some injects lose a dependency: check them after applying.')).toBeInTheDocument();
     expect(apply).toBeDisabled();
 
@@ -282,7 +317,7 @@ describe('ScenarioVersions', () => {
 
     // Assert
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/versions/1.1.0/update`, {
+    expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/versions/1.1.0/updates`, {
       scenario_update_choices: {
         'inject:a/title': 'EDIT',
         'scenario/name': 'KEEP_MINE',
@@ -293,6 +328,63 @@ describe('ScenarioVersions', () => {
     expect(notifySuccess).toHaveBeenCalledWith('Scenario updated to v1.1.0');
     expect(mocks.dispatch).toHaveBeenCalledTimes(1);
     expect(mocks.simpleCall.mock.calls.filter(([uri]) => uri === `${SCENARIO}/versions`)).toHaveLength(2);
+    expect(mocks.simpleCall.mock.calls.filter(([uri]) => uri === `${SCENARIO}/history`)).toHaveLength(2);
+  });
+
+  it('given_anUpdateRefused_should_keepTheDialogOpen', async () => {
+    // Arrange
+    mocks.simplePostCall.mockRejectedValueOnce(new Error('refused'));
+    renderVersions();
+    const dialog = await open('Update');
+    await within(dialog).findByRole('radiogroup', { name: 'Inject “Scan” · Title' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Take all' }));
+
+    // Act
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Update' }));
+
+    // Assert
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Update' })).toBeEnabled());
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(notifySuccess).not.toHaveBeenCalled();
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('given_anEditStarted_should_markTheEditButtonPressed', async () => {
+    // Arrange
+    renderVersions();
+    const dialog = await open('Update');
+    await within(dialog).findByRole('radiogroup', { name: 'Inject “Scan” · Title' });
+    const edit = within(dialog).getAllByRole('button', { name: 'Edit' })[0];
+    expect(edit).toHaveAttribute('aria-pressed', 'false');
+
+    // Act
+    fireEvent.click(edit);
+
+    // Assert
+    expect(edit).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('given_aRevokedPayload_should_nameItInTheWarning', async () => {
+    // Arrange
+    serve({
+      [`${SCENARIO}/versions`]: versions,
+      [`${SCENARIO}/revisions`]: revisions,
+      [`${SCENARIO}/versions/1.1.0/preview`]: {
+        ...preview([]),
+        scenario_update_revoked_payloads: [{
+          payload_name: 'Nmap',
+          payload_version: '1.0.0',
+        }],
+      },
+    });
+    renderVersions();
+
+    // Act
+    const dialog = await open('Update');
+
+    // Assert
+    expect(await within(dialog).findByText('Runs a revoked payload version: its injects will fail')).toBeInTheDocument();
+    expect(within(dialog).getByText('Nmap v1.0.0')).toBeInTheDocument();
   });
 
   it('given_conflicts_should_takeAllInOneClick', async () => {
@@ -306,7 +398,7 @@ describe('ScenarioVersions', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Update' }));
 
     // Assert
-    await waitFor(() => expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/versions/1.1.0/update`, {
+    await waitFor(() => expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/versions/1.1.0/updates`, {
       scenario_update_choices: {
         'inject:a/title': 'TAKE_APPLIED',
         'scenario/name': 'TAKE_APPLIED',
@@ -329,7 +421,7 @@ describe('ScenarioVersions', () => {
 
     // Assert
     await waitFor(() => expect(notifySuccess).toHaveBeenCalledWith('Scenario rolled back'));
-    expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/revisions/revision-3/rollback`, {
+    expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/revisions/revision-3/rollbacks`, {
       scenario_update_choices: {},
       scenario_update_edits: {},
     });

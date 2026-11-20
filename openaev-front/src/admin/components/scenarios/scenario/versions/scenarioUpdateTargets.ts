@@ -21,13 +21,16 @@ export interface ScenarioUpdateTarget {
   removedReason: string;
   afterLabel: string;
   keptTitle: string;
+  // The version the client's own edits are measured from.
+  installedVersion: string;
+  revokedSeverity: 'error' | 'warning';
   applyLabel: string;
   appliedMessage: string;
   preview: () => Promise<ScenarioUpdatePreviewOutput>;
   apply: (input: ScenarioUpdateInput) => Promise<unknown>;
 }
 
-export const updateTarget = (scenarioId: string, version: string, t: Translate): ScenarioUpdateTarget => ({
+export const updateTarget = (scenarioId: string, version: string, installedVersion: string, t: Translate): ScenarioUpdateTarget => ({
   title: t('Update to Filigran v{version}', { version }),
   summaryTitle: t('In this update'),
   takenLabel: count => t('Changes from Filigran: {count}', { count }),
@@ -38,14 +41,16 @@ export const updateTarget = (scenarioId: string, version: string, t: Translate):
   addedReason: t('New in v{version}', { version }),
   removedReason: t('Removed in v{version}', { version }),
   afterLabel: t('After · v{version}', { version }),
-  keptTitle: t('Your edits: the update keeps them'),
+  keptTitle: t('Your edits — the update keeps them'),
+  installedVersion,
+  revokedSeverity: 'error',
   applyLabel: t('Update'),
   appliedMessage: t('Scenario updated to v{version}', { version }),
   preview: () => previewScenarioUpdate(scenarioId, version),
   apply: input => updateScenario(scenarioId, version, input),
 });
 
-export const rollbackTarget = (scenarioId: string, revision: ScenarioRevisionOutput, t: Translate): ScenarioUpdateTarget => {
+export const rollbackTarget = (scenarioId: string, revision: ScenarioRevisionOutput, installedVersion: string, t: Translate): ScenarioUpdateTarget => {
   const number = String(revision.scenario_revision_number);
   return {
     title: t('Roll back to revision #{number}', { number }),
@@ -58,7 +63,9 @@ export const rollbackTarget = (scenarioId: string, revision: ScenarioRevisionOut
     addedReason: t('In revision #{number}', { number }),
     removedReason: t('Not in revision #{number}', { number }),
     afterLabel: t('After · revision #{number}', { number }),
-    keptTitle: t('Your edits: the rollback keeps them'),
+    keptTitle: t('Your edits — the rollback keeps them'),
+    installedVersion,
+    revokedSeverity: 'warning',
     applyLabel: t('Roll back'),
     appliedMessage: t('Scenario rolled back'),
     preview: () => previewScenarioRollback(scenarioId, revision.scenario_revision_id),
