@@ -15,7 +15,7 @@ vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
 vi.mock('../../../../../actions/InjectorContracts', () => ({ directFetchInjectorContract: mockFetchContract }));
 
 vi.mock('../../../../../utils/utils', async importOriginal => ({
-  ...(await importOriginal<typeof import('../../../../../utils/utils')>()),
+  ...(await importOriginal() as Record<string, unknown>),
   isFeatureEnabled: mockFeatureEnabled,
 }));
 

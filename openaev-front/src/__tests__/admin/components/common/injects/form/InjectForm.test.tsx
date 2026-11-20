@@ -4,7 +4,7 @@ import { useFormContext } from 'react-hook-form';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import InjectForm from '../../../../../../admin/components/common/injects/form/InjectForm';
-import { type Inject } from '../../../../../../utils/api-types';
+import { type Inject, type InjectInput } from '../../../../../../utils/api-types';
 import { type ContractElement, type InjectorContractConverted } from '../../../../../../utils/api-types-custom';
 
 vi.mock('../../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (value: string) => value }) }));
@@ -19,14 +19,12 @@ vi.mock('../../../../../../admin/components/common/Context', () => ({
 }));
 
 vi.mock('@filigran/design-system', () => ({
-  Button: ({ children, onClick, disabled, type, ...rest }: {
+  Button: (props: {
     children: ReactNode;
     onClick?: () => void;
     disabled?: boolean;
-    type?: 'button' | 'submit';
-    'data-testid'?: string;
-  }) => (
-    <button type={type ?? 'button'} onClick={onClick} disabled={disabled} data-testid={rest['data-testid']}>{children}</button>
+  } & Record<string, unknown>) => (
+    <button type="button" onClick={props.onClick} disabled={props.disabled} data-testid={props['data-testid'] as string | undefined}>{props.children}</button>
   ),
 }));
 
@@ -75,7 +73,7 @@ describe('InjectForm', () => {
 
   it.each([true, false])('given another contract (creation: %s), should keep the typed values and only the new contract arguments', async (isCreation) => {
     // Arrange
-    const onSubmitInject = vi.fn(() => Promise.resolve());
+    const onSubmitInject = vi.fn<(data: InjectInput) => Promise<void>>(() => Promise.resolve());
     const form = (content: InjectorContractConverted['convertedContent']) => (
       <InjectForm
         handleClose={() => {}}
