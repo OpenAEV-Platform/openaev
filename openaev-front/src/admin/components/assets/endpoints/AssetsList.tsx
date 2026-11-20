@@ -66,11 +66,12 @@ const AssetsList = <T extends AssetOutput>({
     return renderActions(asset);
   };
 
+  const nameWidth = markingEnabled ? '25%' : '30%';
   const inlineStyles: Record<string, CSSProperties> = {
-    asset_name: { width: compact ? '40%' : '30%' },
+    asset_name: { width: compact ? '40%' : nameWidth },
     asset_platform: { width: compact ? '10%' : '20%' },
     asset_markings: { width: '25%' },
-    asset_tags: { width: markingEnabled ? '10%' : '30%' },
+    asset_tags: { width: markingEnabled ? '15%' : '30%' },
     asset_type: { width: markingEnabled ? '15%' : '20%' },
   };
 
@@ -99,7 +100,7 @@ const AssetsList = <T extends AssetOutput>({
       field: EndpointListItemFragments.ASSET_TAGS,
       label: 'Tags',
       isSortable: false,
-      value: (asset: T) => <ItemTags variant="list" tags={asset.asset_tags ?? []} />,
+      value: (asset: T) => <ItemTags variant={markingEnabled ? 'reduced-view' : 'list'} tags={asset.asset_tags ?? []} />,
     },
     {
       field: EndpointListItemFragments.ASSET_TYPE,
