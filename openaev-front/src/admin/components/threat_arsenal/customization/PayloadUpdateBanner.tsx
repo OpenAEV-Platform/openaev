@@ -3,24 +3,23 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
-import { type ThreatArsenalAction } from '../../../../utils/api-types';
+import { type PayloadCustomizationOutput, type ThreatArsenalAction } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import useCanUpdateAction from '../hook/useCanUpdateAction';
 import PayloadNewVersionDialog from '../versions/PayloadNewVersionDialog';
 import useNewVersionNotice from '../versions/useNewVersionNotice';
 import PayloadUpdateDialog from './PayloadUpdateDialog';
-import useCustomization from './useCustomization';
 
 interface Props {
   action: ThreatArsenalAction;
+  customization: PayloadCustomizationOutput | null;
   onUpdate?: (action: ThreatArsenalAction, replacedId?: string) => void;
 }
 
 // On a customized copy: the newer Filigran version it can take, reviewed in a dialog.
-const PayloadUpdateBanner: FunctionComponent<Props> = ({ action, onUpdate }) => {
+const PayloadUpdateBanner: FunctionComponent<Props> = ({ action, customization, onUpdate }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const customization = useCustomization(action);
   const canUpdate = useCanUpdateAction(action);
   const [reviewing, setReviewing] = useState(false);
   const { notice, afterSave, closeNotice } = useNewVersionNotice(action.injector_contract_id, onUpdate);

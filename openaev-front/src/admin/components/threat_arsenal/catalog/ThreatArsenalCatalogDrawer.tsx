@@ -1,11 +1,12 @@
 import { Button, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
-import { fetchCatalogPayloadVersions, installCatalogPayload } from '../../../../actions/catalog/payload-catalog-actions';
+import { installCatalogPayload } from '../../../../actions/catalog/payload-catalog-actions';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import { type AvailablePayloadActionOutput, type CatalogPayloadOutput } from '../../../../utils/api-types';
+import { type AvailablePayloadActionOutput } from '../../../../utils/api-types';
 import CatalogPayloadVersionPreview from './CatalogPayloadVersionPreview';
+import useCatalogPayloadVersions from './useCatalogPayloadVersions';
 
 interface Props {
   action: AvailablePayloadActionOutput | null;
@@ -17,19 +18,11 @@ interface Props {
 // A payload of the Available tab: its latest version first, any other offered version on demand.
 const ThreatArsenalCatalogDrawer: FunctionComponent<Props> = ({ action, canInstall, onClose, onInstalled }) => {
   const { t } = useFormatter();
-  const [versions, setVersions] = useState<CatalogPayloadOutput[]>([]);
+  const versions = useCatalogPayloadVersions(action?.action_id);
   const [shownVersion, setShownVersion] = useState('');
   const [installing, setInstalling] = useState(false);
 
-  useEffect(() => {
-    setVersions([]);
-    setShownVersion(action?.action_payload_version ?? '');
-    if (action) {
-      fetchCatalogPayloadVersions(action.action_id)
-        .then(setVersions)
-        .catch(() => undefined);
-    }
-  }, [action]);
+  useEffect(() => setShownVersion(action?.action_payload_version ?? ''), [action]);
 
   const shown = versions.find(version => version.catalog_payload_version === shownVersion);
 

@@ -5,17 +5,18 @@ import { type PayloadCustomizationOutput, type ThreatArsenalAction } from '../..
 import { isFeatureEnabled } from '../../../../utils/utils';
 
 /** The Filigran version a customized copy is built from, and the update it can take. */
-const useCustomization = (action: ThreatArsenalAction) => {
+const useCustomization = (action: ThreatArsenalAction | null) => {
   const [customization, setCustomization] = useState<PayloadCustomizationOutput | null>(null);
-  const customized = isFeatureEnabled('CATALOG') && !!action.action_payload_customized;
+  const actionId = action?.injector_contract_id;
+  const customized = isFeatureEnabled('CATALOG') && !!action?.action_payload_customized;
 
   useEffect(() => {
     setCustomization(null);
-    if (customized) {
-      fetchThreatArsenalCustomization(action.injector_contract_id)
+    if (customized && actionId) {
+      fetchThreatArsenalCustomization(actionId)
         .then(({ data }: { data: PayloadCustomizationOutput }) => setCustomization(data));
     }
-  }, [action.injector_contract_id, customized]);
+  }, [actionId, customized]);
 
   return customization;
 };

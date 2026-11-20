@@ -33,6 +33,24 @@ describe('PayloadTrustLine', () => {
     expect(screen.queryByText(/^v/)).toBeNull();
   });
 
+  it('given usages on other versions and a newer Filigran base should show both', () => {
+    // Act
+    renderInApp(<PayloadTrustLine action={anAction({ action_payload_customized: true })} toMove={3} newBase="2.1.0" />);
+
+    // Assert
+    expect(screen.getByText('3 to move')).toBeTruthy();
+    expect(screen.getByText('New base v2.1.0')).toBeTruthy();
+  });
+
+  it('given nothing to move and no newer base should show neither', () => {
+    // Act
+    renderInApp(<PayloadTrustLine action={anAction()} toMove={0} />);
+
+    // Assert
+    expect(screen.queryByText(/to move/)).toBeNull();
+    expect(screen.queryByText(/New base/)).toBeNull();
+  });
+
   it('given an action without payload should show nothing', () => {
     // Act
     renderInApp(<PayloadTrustLine action={anAction({ action_payload: undefined })} />);
