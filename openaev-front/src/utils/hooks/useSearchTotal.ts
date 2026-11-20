@@ -8,14 +8,16 @@ import { type SearchPaginationInput } from '../api-types';
 // to surface headline counts (findings, injects played, ...) without loading
 // the full lists. Returns null while loading (callers render '-') and 0 on
 // error. Pass a memoized (useCallback) search function: the probe re-runs on
-// every identity change.
+// every identity change. Disabled, it asks nothing and stays null.
 const useSearchTotal = (
   search: (input: SearchPaginationInput) => Promise<{ data: { totalElements?: number } }>,
+  enabled = true,
 ): number | null => {
   const [total, setTotal] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
     setTotal(null);
+    if (!enabled) return undefined;
     search(buildSearchPagination({ size: 1 }))
       .then((result) => {
         if (!cancelled) setTotal(result.data.totalElements ?? 0);
@@ -26,7 +28,7 @@ const useSearchTotal = (
     return () => {
       cancelled = true;
     };
-  }, [search]);
+  }, [search, enabled]);
   return total;
 };
 

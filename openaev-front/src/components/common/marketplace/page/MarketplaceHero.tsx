@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
-interface Stat {
+export interface MarketplaceHeroStat {
   id: string;
   label: string;
   value: number;
@@ -14,7 +14,7 @@ interface Stat {
 interface Props {
   title: string;
   subtitle?: string;
-  stats?: Stat[];
+  stats?: MarketplaceHeroStat[];
   action?: ReactNode;
 }
 
