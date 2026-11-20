@@ -37,18 +37,22 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.ExerciseResponseHydrator;
 import io.openaev.rest.exercise.form.LessonsInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.scenario.form.*;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.autonomous.AutonomousRunService;
+import io.openaev.service.catalog.scenario.targeting.TargetChoice;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.period.RecurrenceService;
 import io.openaev.service.scenario.ReachabilityAssertions;
+import io.openaev.service.scenario.ScenarioLaunchService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
@@ -108,6 +112,8 @@ public class ScenarioApi extends RestBehavior {
   private final AmbientTenantBridge ambientTenantBridge;
   private final LicenseCacheManager licenseCacheManager;
   private final FaithfulCopyTransaction faithfulCopy;
+  private final ExerciseService exerciseService;
+  private final ScenarioLaunchService scenarioLaunchService;
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @Transactional
@@ -755,6 +761,19 @@ public class ScenarioApi extends RestBehavior {
       scenario.setLessonsEnabled(input.getLessonsEnabled());
     }
     return hydrateForResponse(scenarioRepository.save(scenario));
+  }
+
+  // Legacy route for existing clients; the tenant route is ScenarioLaunchApi#launch.
+  @PostMapping(SCENARIO_URI + "/{scenarioId}/exercise/running")
+  @Transactional
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.LAUNCH,
+      resourceType = ResourceType.SCENARIO)
+  public Exercise createRunningExerciseFromScenario(
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
+    String simulationId = scenarioLaunchService.launch(ctx, scenarioId, TargetChoice.NONE);
+    return ExerciseResponseHydrator.hydrateForResponse(exerciseService.exercise(ctx, simulationId));
   }
 
   @PostMapping({
