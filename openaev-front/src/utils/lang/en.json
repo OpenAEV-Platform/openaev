@@ -4967,5 +4967,6 @@
   "Stop execution": "Stop execution",
   "Select every node of this type": "Select every node of this type",
   "Zoom to this node": "Zoom to this node",
-  "Find the path between them": "Find the path between them"
+  "Find the path between them": "Find the path between them",
+  "Grey means never tested: no simulation has scored an expectation on these assets yet. It does not mean safe.": "Grey means never tested: no simulation has scored an expectation on these assets yet. It does not mean safe."
 }

@@ -4967,5 +4967,6 @@
   "Stop execution": "実行を停止",
   "Select every node of this type": "この種類のノードをすべて選択",
   "Zoom to this node": "このノードにズーム",
-  "Find the path between them": "2つの間のパスを探す"
+  "Find the path between them": "2つの間のパスを探す",
+  "Grey means never tested: no simulation has scored an expectation on these assets yet. It does not mean safe.": "グレーは未テストを意味します。これらのアセットで期待値を評価したシミュレーションはまだありません。安全という意味ではありません。"
 }

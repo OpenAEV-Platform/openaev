@@ -4967,5 +4967,6 @@
   "Stop execution": "停止执行",
   "Select every node of this type": "选择此类型的所有节点",
   "Zoom to this node": "缩放到此节点",
-  "Find the path between them": "查找它们之间的路径"
+  "Find the path between them": "查找它们之间的路径",
+  "Grey means never tested: no simulation has scored an expectation on these assets yet. It does not mean safe.": "灰色表示从未测试：尚无模拟对这些资产的预期进行评分。这并不代表安全。"
 }

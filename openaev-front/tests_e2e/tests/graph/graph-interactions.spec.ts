@@ -268,4 +268,64 @@ test.describe('Exploration graph interactions', () => {
 
     expect(problems).toEqual([]);
   });
+
+  test('the estate overview fills the canvas: packed bubbles, no overlap, selection card, grey explained', async ({ page }) => {
+    const problems = watchConsole(page);
+    await page.goto(tenantUrl('/admin/graph?view=overview'));
+    const canvas = page.getByTestId('graph-overview');
+    const bubbles = page.locator('[data-testid^="graph-overview-group-"]');
+    await expect(bubbles.first()).toBeVisible();
+    // The seeded group when the overview shows it (it keeps the 40 largest groups), else the first bubble.
+    const seededBubble = page.getByTestId(`graph-overview-group-${seeded.groupId}`);
+    const bubble = (await seededBubble.count()) > 0 ? seededBubble : bubbles.first();
+
+    // Every bubble sits inside the canvas, no two overlap, and the pack spans the canvas on one side.
+    const geometry = await canvas.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const circles = Array.from(element.querySelectorAll('[data-testid^="graph-overview-group-"]')).map((b) => {
+        const r = b.getBoundingClientRect();
+        return {
+          x: r.left + r.width / 2,
+          y: r.top + r.height / 2,
+          r: r.width / 2,
+        };
+      });
+      return {
+        box: {
+          left: box.left,
+          top: box.top,
+          width: box.width,
+          height: box.height,
+        },
+        circles,
+      };
+    });
+    geometry.circles.forEach((c) => {
+      expect(c.x - c.r).toBeGreaterThanOrEqual(geometry.box.left - 1);
+      expect(c.y - c.r).toBeGreaterThanOrEqual(geometry.box.top - 1);
+      expect(c.x + c.r).toBeLessThanOrEqual(geometry.box.left + geometry.box.width + 1);
+      expect(c.y + c.r).toBeLessThanOrEqual(geometry.box.top + geometry.box.height + 1);
+    });
+    for (let i = 0; i < geometry.circles.length; i += 1) {
+      for (let j = i + 1; j < geometry.circles.length; j += 1) {
+        const a = geometry.circles[i];
+        const b = geometry.circles[j];
+        expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(a.r + b.r - 1);
+      }
+    }
+    const spanX = Math.max(...geometry.circles.map(c => c.x + c.r)) - Math.min(...geometry.circles.map(c => c.x - c.r));
+    const spanY = Math.max(...geometry.circles.map(c => c.y + c.r)) - Math.min(...geometry.circles.map(c => c.y - c.r));
+    expect(spanX >= geometry.box.width * 0.9 || spanY >= geometry.box.height * 0.9).toBe(true);
+
+    // The grey state is explained, and a click selects a bubble.
+    await expect(page.getByTestId('graph-overview-not-tested-help')).toBeVisible();
+    await bubble.click();
+    await expect(bubble).toHaveAttribute('aria-pressed', 'true');
+
+    // A double-click unfolds the group in the graph.
+    await bubble.dblclick();
+    await expect(page).toHaveURL(/focus=asset_group|\/admin\/assets/);
+
+    expect(problems).toEqual([]);
+  });
 });

@@ -4967,5 +4967,6 @@
   "Stop execution": "Arrêter l'exécution",
   "Select every node of this type": "Sélectionner tous les nœuds de ce type",
   "Zoom to this node": "Zoomer sur ce nœud",
-  "Find the path between them": "Trouver le chemin entre eux"
+  "Find the path between them": "Trouver le chemin entre eux",
+  "Grey means never tested: no simulation has scored an expectation on these assets yet. It does not mean safe.": "Gris signifie jamais testé : aucune simulation n'a encore évalué d'attente sur ces actifs. Cela ne veut pas dire sûr."
 }

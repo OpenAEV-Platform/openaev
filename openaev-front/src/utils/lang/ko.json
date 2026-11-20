@@ -4967,5 +4967,6 @@
   "Stop execution": "실행 중지",
   "Select every node of this type": "이 유형의 모든 노드 선택",
   "Zoom to this node": "이 노드로 확대",
-  "Find the path between them": "둘 사이의 경로 찾기"
+  "Find the path between them": "둘 사이의 경로 찾기",
+  "Grey means never tested: no simulation has scored an expectation on these assets yet. It does not mean safe.": "회색은 테스트되지 않음을 의미합니다. 이 자산에 대해 기대치를 평가한 시뮬레이션이 아직 없습니다. 안전하다는 뜻이 아닙니다."
 }
