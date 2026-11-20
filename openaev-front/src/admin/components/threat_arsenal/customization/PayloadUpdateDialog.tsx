@@ -14,6 +14,7 @@ import { type FunctionComponent } from 'react';
 import ConflictChoice from '../../../../components/common/update/ConflictChoice';
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadCustomizationUpdateOutput, type ThreatArsenalAction } from '../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../utils/Environment';
 import { CUSTOMIZABLE_FIELD_LABELS, fieldText, otherChangeLabel } from './fieldUpdates';
 import FieldUpdateValue from './FieldUpdateValue';
 import useCustomizationUpdate from './useCustomizationUpdate';
@@ -31,6 +32,10 @@ const PayloadUpdateDialog: FunctionComponent<Props> = ({ actionId, update, onClo
   const theme = useTheme();
   const { conflicts, news, kept, sides, choose, ready, applying, apply } = useCustomizationUpdate(actionId, update);
   const version = update.update_version;
+  const updated = (action: ThreatArsenalAction) => {
+    MESSAGING$.notifySuccess(t('Updated to Filigran v{version}', { version }));
+    onUpdated(action);
+  };
   const section = {
     display: 'flex',
     flexDirection: 'column',
@@ -91,7 +96,7 @@ const PayloadUpdateDialog: FunctionComponent<Props> = ({ actionId, update, onClo
         </DialogBody>
         <DialogFooter>
           <Button priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
-          <Button disabled={applying || !ready} onClick={() => apply().then(onUpdated)}>
+          <Button disabled={applying || !ready} onClick={() => apply().then(updated)}>
             {applying ? <Spinner size="sm" /> : t('Update')}
           </Button>
         </DialogFooter>

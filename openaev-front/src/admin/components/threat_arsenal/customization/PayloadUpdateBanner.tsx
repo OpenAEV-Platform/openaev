@@ -4,7 +4,6 @@ import { type FunctionComponent, useState } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadCustomizationOutput, type ThreatArsenalAction } from '../../../../utils/api-types';
-import { MESSAGING$ } from '../../../../utils/Environment';
 import useCanUpdateAction from '../hook/useCanUpdateAction';
 import PayloadNewVersionDialog from '../versions/PayloadNewVersionDialog';
 import useNewVersionNotice from '../versions/useNewVersionNotice';
@@ -25,9 +24,8 @@ const PayloadUpdateBanner: FunctionComponent<Props> = ({ action, customization, 
   const { notice, afterSave, closeNotice } = useNewVersionNotice(action.injector_contract_id, onUpdate);
   const update = customization?.customization_update;
 
-  const updated = (saved: ThreatArsenalAction, version: string) => {
+  const updated = (saved: ThreatArsenalAction) => {
     setReviewing(false);
-    MESSAGING$.notifySuccess(t('Updated to Filigran v{version}', { version }));
     afterSave(saved);
   };
 
@@ -49,7 +47,7 @@ const PayloadUpdateBanner: FunctionComponent<Props> = ({ action, customization, 
           actionId={action.injector_contract_id}
           update={update}
           onClose={() => setReviewing(false)}
-          onUpdated={saved => updated(saved, update.update_version)}
+          onUpdated={updated}
         />
       )}
       {notice && <PayloadNewVersionDialog action={notice.action} olderVersions={notice.olderVersions} onClose={closeNotice} />}

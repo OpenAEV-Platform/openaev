@@ -16,6 +16,7 @@ import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import {
+  type PayloadCustomizationOutput,
   type ThreatArsenalAction,
   type ThreatArsenalActionFullOutput,
 } from '../../../utils/api-types';
@@ -25,7 +26,9 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download, isFeatureEnabled } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
+import CustomizationBaseLine from './customization/CustomizationBaseLine';
 import fetchFiligranValues from './customization/filigranValues';
+import PayloadUpdateDialog from './customization/PayloadUpdateDialog';
 import useCanUpdateAction from './hook/useCanUpdateAction';
 import PayloadRevocationDialog from './revocation/PayloadRevocationDialog';
 import usePayloadRevocation from './revocation/usePayloadRevocation';
@@ -56,6 +59,8 @@ const ThreatArsenalActionPopover = ({
   const [deletion, setDeletion] = useState(false);
   const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
   const [filigranValues, setFiligranValues] = useState<ActionFormValues | undefined>(undefined);
+  const [customization, setCustomization] = useState<PayloadCustomizationOutput | null>(null);
+  const [reviewing, setReviewing] = useState(false);
 
   const { t, tPick } = useFormatter();
   const ability = useAbility();
@@ -88,7 +93,9 @@ const ThreatArsenalActionPopover = ({
   const handleOpenEdit = async () => {
     handlePopoverClose();
     const response = await fetchThreatArsenalAction(actionId);
-    setFiligranValues(customized ? await fetchFiligranValues(actionId) : undefined);
+    const filigran = customized ? await fetchFiligranValues(actionId) : undefined;
+    setFiligranValues(filigran?.values);
+    setCustomization(filigran?.customization ?? null);
     setFetchedAction(response.data as ThreatArsenalActionFullOutput);
     setOpenEdit(true);
   };
@@ -97,6 +104,13 @@ const ThreatArsenalActionPopover = ({
     setOpenEdit(false);
     setFetchedAction(null);
     setFiligranValues(undefined);
+    setCustomization(null);
+  };
+
+  const updatedToFiligran = (saved: ThreatArsenalAction) => {
+    setReviewing(false);
+    handleCloseEdit();
+    afterSave(saved);
   };
 
   const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
@@ -210,7 +224,7 @@ const ThreatArsenalActionPopover = ({
         )}
         <MenuItem onClick={handleExportJsonSingle} disabled={disableJsonExport}>{t('Export')}</MenuItem>
         {hasUpdateCapability && (
-          <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{t('Update')}</MenuItem>
+          <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{customized ? t('Edit customization') : t('Update')}</MenuItem>
         )}
         {hasDeleteCapability && (
           <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
@@ -285,6 +299,7 @@ const ThreatArsenalActionPopover = ({
         title={`${t('Update the action :')} ${name}`}
       >
         <>
+          {customization && <CustomizationBaseLine customization={customization} onReview={() => setReviewing(true)} />}
           {fetchedAction && !!payloadId && (
             <SnapshotRemediationProvider>
               <ThreatArsenalActionForm
@@ -309,6 +324,14 @@ const ThreatArsenalActionPopover = ({
               editing
               onSubmit={onSubmitInjectorContractEdit}
               handleClose={handleCloseEdit}
+            />
+          )}
+          {reviewing && customization?.customization_update && (
+            <PayloadUpdateDialog
+              actionId={actionId}
+              update={customization.customization_update}
+              onClose={() => setReviewing(false)}
+              onUpdated={updatedToFiligran}
             />
           )}
         </>
