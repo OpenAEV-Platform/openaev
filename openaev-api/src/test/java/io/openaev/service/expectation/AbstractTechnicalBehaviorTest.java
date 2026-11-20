@@ -12,13 +12,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import io.openaev.IntegrationTest;
+import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
+import io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.impl.collectors.expiration_manager.ExpirationManagerIntegrationFactory;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -33,6 +39,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -53,7 +60,14 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private CollectorService collectorService;
-  @Autowired private ExpirationManagerIntegrationFactory expirationManagerIntegrationFactory;
+
+  @Autowired private ConnectorInstanceService connectorInstanceService;
+  @Autowired private CatalogConnectorService catalogConnectorService;
+  @Autowired private HttpClientFactory httpClientFactory;
+  @Autowired private ThreadPoolTaskScheduler taskScheduler;
+  @Autowired private ComponentRequestEngine componentRequestEngine;
+  @Autowired private ExpectationsExpirationManagerService fakeDetectorService;
+  @Autowired private ExpectationsExpirationManagerConfig expectationsExpirationManagerConfig;
 
   @BeforeEach
   void setUp() {
@@ -69,6 +83,17 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
   }
 
   // -- Shared helpers --
+  private ExpirationManagerIntegrationFactory getExpirationManagerIntegrationFactory() {
+    return new ExpirationManagerIntegrationFactory(
+        connectorInstanceService,
+        catalogConnectorService,
+        httpClientFactory,
+        taskScheduler,
+        componentRequestEngine,
+        collectorService,
+        fakeDetectorService,
+        expectationsExpirationManagerConfig);
+  }
 
   private Exercise persistDefaultExercise() {
     return exerciseComposer
@@ -1882,7 +1907,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
       /** Expires the agents with the expiration collector: silence means "Not vulnerable" */
       private void expireAgents(AssetWithAgents target) throws Exception {
         String tenantId = target.inject().getTenant().getId();
-        expirationManagerIntegrationFactory.registerForTenant(tenantId);
+        getExpirationManagerIntegrationFactory().registerForTenant(tenantId);
         Collector expirationCollector = collectorService.collector(COLLECTOR_ID, tenantId);
         injectExpectationService.expireExpectations(
             List.of(target.agentOne(), target.agentTwo(), target.asset()), expirationCollector);
