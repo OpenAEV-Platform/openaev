@@ -1,6 +1,7 @@
 package io.openaev.rest.inject;
 
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
+import static io.openaev.utils.MarkingUtils.markingIds;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -106,6 +107,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
             endpoint.getName(),
             endpoint.getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
             endpoint.getPlatform().name());
+    target.setMarkings(markingIds(endpoint));
     if (endpoint.getCategory() != null) {
       target.setTargetCategory(endpoint.getCategory().name());
     }
