@@ -1,3 +1,4 @@
+import { type SxProps, type Theme } from '@mui/material/styles';
 import { type CSSProperties } from 'react';
 
 import LIB_SURFACE_BORDER from './libSurfaceBorder';
@@ -5,10 +6,14 @@ import LIB_SURFACE_BORDER from './libSurfaceBorder';
 // FDS-WORKAROUND: MUI Table dressed as the Figma DS Table — remove when the library ships Table
 // The frame carries LIB_SURFACE_LAYER: the border needs its scope.
 
-/** `sx` of a MUI Table: compact rows (40px), header cells content-compact-bold. */
-export const FDS_TABLE_SX = {
+/** Row heights of the library Table spec, in pixels. */
+const ROW_HEIGHT = 40;
+const GROUP_ROW_HEIGHT = 44;
+
+/** `sx` of a MUI Table: compact rows, header cells content-compact-bold. */
+export const FDS_TABLE_SX: SxProps<Theme> = {
   '& .MuiTableCell-root': {
-    padding: '8px',
+    p: 1,
     borderBottom: LIB_SURFACE_BORDER,
     color: 'var(--text-default-primary)',
     fontFamily: 'var(--font-content-compact)',
@@ -16,27 +21,27 @@ export const FDS_TABLE_SX = {
     lineHeight: 'var(--leading-content-compact)',
   },
   '& .MuiTableHead-root .MuiTableCell-root': {
-    height: 40,
+    height: ROW_HEIGHT,
     fontWeight: 'var(--font-weight-content-compact-bold)',
   },
-  '& .MuiTableBody-root .MuiTableRow-root': { height: 40 },
+  '& .MuiTableBody-root .MuiTableRow-root': { height: ROW_HEIGHT },
 };
 
 /** The frame around a table and its group rows. */
-export const FDS_TABLE_FRAME_STYLE: CSSProperties = {
+export const fdsTableFrameStyle = (theme: Theme): CSSProperties => ({
   border: LIB_SURFACE_BORDER,
-  borderRadius: 4,
+  borderRadius: theme.shape.borderRadius,
   overflow: 'hidden',
-};
+});
 
-/** Table group row: bold label, count in the secondary ink, chevron on the right (44px). */
-export const FDS_GROUP_ROW_STYLE: CSSProperties = {
+/** Table group row: bold label, count in the secondary ink, chevron on the right. */
+export const fdsGroupRowStyle = (theme: Theme): CSSProperties => ({
   display: 'flex',
   alignItems: 'center',
-  gap: 8,
+  gap: theme.spacing(1),
   width: '100%',
-  minHeight: 44,
-  padding: '10px 16px',
+  minHeight: GROUP_ROW_HEIGHT,
+  padding: theme.spacing(1.25, 2),
   boxSizing: 'border-box',
   background: 'none',
   border: 'none',
@@ -44,10 +49,10 @@ export const FDS_GROUP_ROW_STYLE: CSSProperties = {
   color: 'inherit',
   textAlign: 'left',
   cursor: 'pointer',
-};
+});
 
 /** A line of text inside the table, aligned with its cells. */
-export const FDS_TABLE_SECTION_STYLE: CSSProperties = {
-  padding: '12px 16px',
+export const fdsTableSectionStyle = (theme: Theme): CSSProperties => ({
+  padding: theme.spacing(1.5, 2),
   borderBottom: LIB_SURFACE_BORDER,
-};
+});

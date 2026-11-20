@@ -1,9 +1,10 @@
 import { Text } from '@filigran/design-system';
 // fds:keep-mui the library has no Table yet; dressed to its spec by FDS_TABLE_SX
 import { Table, TableBody, TableCell, TableHead, TablePagination, TableRow } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
-import { FDS_TABLE_SECTION_STYLE, FDS_TABLE_SX } from '../../../../../components/common/fdsTableSpec';
+import { FDS_TABLE_SX, fdsTableSectionStyle } from '../../../../../components/common/fdsTableSpec';
 import { useFormatter } from '../../../../../components/i18n';
 import { type PayloadUsagesOutput } from '../../../../../utils/api-types';
 import useCountLabel from '../../../../../utils/hooks/useCountLabel';
@@ -15,6 +16,7 @@ interface Props { usages: PayloadUsagesOutput }
 
 const PayloadUsagesTable: FunctionComponent<Props> = ({ usages }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
   const counted = useCountLabel();
   const [page, setPage] = useState(0);
   useEffect(() => setPage(0), [usages]);
@@ -24,7 +26,7 @@ const PayloadUsagesTable: FunctionComponent<Props> = ({ usages }) => {
   return (
     <>
       {rows.length === 0 && hidden === 0 && (
-        <div style={FDS_TABLE_SECTION_STYLE}>
+        <div style={fdsTableSectionStyle(theme)}>
           <Text variant="content-compact" className="text-default-secondary">{t('No inject uses this version')}</Text>
         </div>
       )}
@@ -59,7 +61,7 @@ const PayloadUsagesTable: FunctionComponent<Props> = ({ usages }) => {
         />
       )}
       {hidden > 0 && (
-        <div style={FDS_TABLE_SECTION_STYLE}>
+        <div style={fdsTableSectionStyle(theme)}>
           <Text variant="content-compact" className="text-default-secondary">
             {counted(hidden, '1 other inject you cannot see', '{count} other injects you cannot see')}
           </Text>
