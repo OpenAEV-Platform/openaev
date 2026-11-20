@@ -3,9 +3,10 @@ import { useEffect, useState } from 'react';
 import { fetchThreatArsenalUsages } from '../../../../../actions/threat_arsenals/threatArsenal-actions';
 import { type PayloadUsagesOutput, type PayloadVersionOutput } from '../../../../../utils/api-types';
 
-/** The usages of every version, by payload id; null until all are loaded. */
-const useVersionsUsages = (versions: PayloadVersionOutput[] | null) => {
+/** The usages of each version, by payload id: null until all are loaded, loaded again when `reloadKey` changes. */
+const useUsagesByVersion = (versions: PayloadVersionOutput[] | null, reloadKey = 0) => {
   const [usages, setUsages] = useState<Record<string, PayloadUsagesOutput> | null>(null);
+  const loadedIds = versions?.map(version => version.payload_id).join();
 
   useEffect(() => {
     setUsages(null);
@@ -22,9 +23,9 @@ const useVersionsUsages = (versions: PayloadVersionOutput[] | null) => {
     return () => {
       cancelled = true;
     };
-  }, [versions]);
+  }, [loadedIds, reloadKey]);
 
   return usages;
 };
 
-export default useVersionsUsages;
+export default useUsagesByVersion;

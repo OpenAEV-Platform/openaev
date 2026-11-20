@@ -6,7 +6,7 @@ import { type FunctionComponent, useEffect, useReducer, useRef, useState } from 
 import { fdsGroupRowStyle, fdsTableFrameStyle } from '../../../../components/common/fdsTableSpec';
 import { LIB_SURFACE_LAYER } from '../../../../components/common/libSurfaceBorder';
 import { useFormatter } from '../../../../components/i18n';
-import { type PayloadVersionOutput } from '../../../../utils/api-types';
+import { type PayloadUsagesOutput, type PayloadVersionOutput } from '../../../../utils/api-types';
 import useCountLabel from '../../../../utils/hooks/useCountLabel';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -16,23 +16,22 @@ import PayloadUsageMoveResult from './usages/PayloadUsageMoveResult';
 import PayloadUsagesTable from './usages/PayloadUsagesTable';
 import { usageCount } from './usages/usageCounts';
 import useUsageMove from './usages/useUsageMove';
-import useVersionUsages from './usages/useVersionUsages';
+import useUsagesByVersion from './usages/useUsagesByVersion';
 
 interface VersionProps {
   version: PayloadVersionOutput;
   versions: PayloadVersionOutput[];
+  usages: PayloadUsagesOutput | null;
   canMove: boolean;
-  reloadKey: number;
   onMoved: () => void;
   // Opened from the New version dialog: an older version in use opens with every usage ticked; the latest stays folded.
   focusMove: boolean;
 }
 
-const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, canMove, reloadKey, onMoved, focusMove }) => {
+const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, usages, canMove, onMoved, focusMove }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const counted = useCountLabel();
-  const usages = useVersionUsages(version.payload_action_id, reloadKey);
   const [expanded, setExpanded] = useState(version.payload_is_latest && !focusMove);
   const move = useUsageMove({
     source: version,
@@ -86,8 +85,9 @@ interface Props {
 const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, focusMove = false }) => {
   const theme = useTheme();
   const canMove = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
-  // A move changes the usages of two versions: each version loads its own again.
+  // A move changes the usages of two versions: they are all loaded again.
   const [reloadKey, reload] = useReducer((key: number) => key + 1, 0);
+  const usages = useUsagesByVersion(versions, reloadKey);
 
   if (versions === null) {
     return <Skeleton className="h-24" />;
@@ -106,8 +106,8 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, focusMove = fa
             key={version.payload_id}
             version={version}
             versions={versions}
+            usages={usages?.[version.payload_id] ?? null}
             canMove={canMove}
-            reloadKey={reloadKey}
             onMoved={reload}
             focusMove={focusMove}
           />
