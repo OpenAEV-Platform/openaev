@@ -1,7 +1,6 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.ExecutionTrace;
-import io.openaev.database.model.ExecutionTraceAction;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -65,17 +64,21 @@ public interface ExecutionTraceRepository
       @Param("injectId") String injectId, @Param("targetId") String targetId);
 
   /**
-   * The status and agent of every trace of the given injects that carries the given action, one row
-   * per trace the reader may see: {@code [injectId, ExecutionTraceStatus, agentId or null]}. The
-   * marking filter on {@code execution_traces} drops the traces of agents above the reader's
-   * clearance.
+   * The status and agent of every COMPLETE trace of the given injects, one row per trace the reader
+   * may see: {@code [injectId, ExecutionTraceStatus, agentId or null]}. The marking filter on
+   * {@code execution_traces} drops the traces of agents above the reader's clearance.
+   *
+   * <p>The action is a literal, not a parameter, so the planner can always use the partial index
+   * {@code idx_execution_traces_complete_inject_status}: a cached generic plan does not know the
+   * value of a parameter, and so cannot prove the index's {@code WHERE execution_action =
+   * 'COMPLETE'}.
    */
   @Query(
       "SELECT s.inject.id, t.status, t.agent.id FROM ExecutionTrace t JOIN t.injectStatus s"
-          + " WHERE s.inject.id IN :injectIds AND t.action = :action")
-  List<Object[]> findStatusesAndAgentsByInjectIdsAndAction(
-      @Param("injectIds") Collection<String> injectIds,
-      @Param("action") ExecutionTraceAction action);
+          + " WHERE s.inject.id IN :injectIds"
+          + " AND t.action = io.openaev.database.model.ExecutionTraceAction.COMPLETE")
+  List<Object[]> findCompleteStatusesAndAgentsByInjectIds(
+      @Param("injectIds") Collection<String> injectIds);
 
   /**
    * Deletes one bounded batch of execution traces older than the given threshold. Batched so the

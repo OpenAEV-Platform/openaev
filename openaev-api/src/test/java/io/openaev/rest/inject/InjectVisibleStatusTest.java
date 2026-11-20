@@ -7,6 +7,8 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueDefinition;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -27,6 +29,8 @@ import io.openaev.database.model.InjectStatus;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExecutionTraceFixture;
@@ -63,6 +67,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -96,6 +101,8 @@ class InjectVisibleStatusTest extends IntegrationTest {
   @Autowired private ExecutionTraceComposer executionTraceComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private MarkingClearanceCacheManager clearanceCache;
+  // A mock, not a spy: isFeatureEnabled is @Cacheable, so a spy's stub goes through the cache
+  @MockitoBean private PreviewFeatureService previewFeatureService;
   @PersistenceContext private EntityManager entityManager;
 
   private JdbcTemplate jdbc;
@@ -109,6 +116,9 @@ class InjectVisibleStatusTest extends IntegrationTest {
 
   @BeforeEach
   void seed() {
+    // As the test properties: MARKING only
+    when(previewFeatureService.isFeatureEnabled(any()))
+        .thenAnswer(call -> call.getArgument(0) == PreviewFeature.MARKING);
     jdbc = new JdbcTemplate(dataSource);
     tenantGroupComposer.reset();
     markingDefinitionComposer.reset();
@@ -367,6 +377,58 @@ class InjectVisibleStatusTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("with the MARKING preview feature off")
+  class MarkingOff {
+
+    @BeforeEach
+    void turnMarkingOff() {
+      grant(tlpGreen);
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)).thenReturn(false);
+    }
+
+    @Test
+    @DisplayName("given a status its traces do not explain, should show the stored one everywhere")
+    void given_markingOff_should_showTheStoredStatus() throws Exception {
+      // Arrange
+      Inject atomicTesting = partialInjectWithOneTrace(null);
+      ExerciseComposer.Composer simulation = simulation();
+      Inject simulationInject = partialInjectWithOneTrace(simulation);
+
+      // Act
+      String page = search();
+      String atomicTestingPage = getJson(ATOMIC_TESTING_URI + "/" + atomicTesting.getId());
+      String injectStatus = getJson(INJECT_STATUS_URI + "?injectId=" + atomicTesting.getId());
+      String simulationInjects = getJson(simulationInjectsUri(simulation.get()));
+      String single = getJson(INJECT_URI + "/" + simulationInject.getId());
+
+      // Assert
+      assertThat(statusInPage(page, atomicTesting)).isEqualTo("PARTIAL");
+      assertThat(JsonPath.<String>read(atomicTestingPage, "$.inject_status.status_name"))
+          .isEqualTo("PARTIAL");
+      assertThat(JsonPath.<String>read(injectStatus, "$.status_name")).isEqualTo("PARTIAL");
+      assertThat(statusInList(simulationInjects, simulationInject)).isEqualTo("PARTIAL");
+      assertThat(JsonPath.<String>read(single, "$.inject_status.status_name")).isEqualTo("PARTIAL");
+    }
+
+    @Test
+    @DisplayName("given closed injects in the page, should run no recompute query")
+    void given_closedInjects_should_runNoRecomputeQuery() throws Exception {
+      // Arrange: the same page, only the stored statuses change between the reads
+      List<Inject> injects = List.of(partialInjectOnRedAndGreen(), partialInjectOnRedAndGreen());
+      search();
+      storeStatus(injects, "PENDING");
+      long noneClosed = statementsOf(() -> searchUnchecked());
+      storeStatus(injects, "PARTIAL");
+
+      // Act
+      long closed = statementsOf(() -> searchUnchecked());
+
+      // Assert
+      assertThat(closed).as("no query for the closed injects").isEqualTo(noneClosed);
+    }
+  }
+
   // -- HELPERS --
 
   /** An atomic testing on a RED and a GREEN endpoint: the RED agent succeeded, the GREEN failed. */
@@ -383,6 +445,23 @@ class InjectVisibleStatusTest extends IntegrationTest {
             new Run(tlpGreen, ExecutionTraceFixture.createDefaultExecutionTraceError())),
         null,
         simulation);
+  }
+
+  /**
+   * A PARTIAL status over two agents, with the COMPLETE trace of the GREEN agent only: a recompute
+   * reads ERROR whatever the clearance, the stored status reads PARTIAL.
+   */
+  private Inject partialInjectWithOneTrace(ExerciseComposer.Composer simulation) {
+    Inject inject =
+        injectWithRuns(
+            InjectStatusFixture.createPartialInjectStatus(),
+            List.of(new Run(tlpGreen, ExecutionTraceFixture.createDefaultExecutionTraceError())),
+            null,
+            simulation);
+    jdbc.update(
+        "UPDATE injects_statuses SET status_expected_agent_count = 2 WHERE status_inject = ?",
+        inject.getId());
+    return inject;
   }
 
   private ExerciseComposer.Composer simulation() {

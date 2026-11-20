@@ -99,6 +99,7 @@ class InjectServiceTest {
   @Mock private GrantRepository grantRepository;
   @Mock private InjectUtils injectUtils;
   @Mock private InjectStatusMapper injectStatusMapper;
+  @Mock private InjectVisibleStatusService injectVisibleStatusService;
   @Mock private PayloadMapper payloadMapper;
   @Mock private InjectExpectationMapper injectExpectationMapper;
   @Mock private InjectorContractService injectorContractService;
@@ -195,7 +196,8 @@ class InjectServiceTest {
                 conditionService,
                 previewFeatureService,
                 payloadRevocationService),
-            mapper));
+            mapper,
+            injectVisibleStatusService));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }

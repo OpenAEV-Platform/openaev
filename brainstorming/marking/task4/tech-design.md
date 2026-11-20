@@ -891,7 +891,7 @@ there, not endpoint by endpoint.
 | 1 | `InjectSearchService.execInjects` + `setComputedAttribute` | Atomic testing list, simulation inject list, injects of an asset / asset group / team / player / organization | Criteria join `inject → status`, `status.name` | One batched JPQL query on the COMPLETE traces of the page's closed injects dispatched to agents | +1 query per page, only when the page holds such an inject |
 | 2 | `InjectStatusMapper` (`toInjectStatusSimple`, `toInjectStatusOutput`, `toInjectStatusOutputWithAllTraces`) | Atomic testing header and target results (`InjectResultOverviewOutput`), Execution details, `GET /injects/status`, attack path badge | `status.getName()` | From `status.getTraces()`, loaded in the reader's transaction, so already filtered | None |
 | 3 | `AttackPathGraphService.applyExecutionStatuses` → `InjectStatusRepository.findStatusNamesByInjectIds`, and `executionDetail` | Simulation attack path: node status, execution detail panel | JPQL `istatus.name`; the status row | Same batched query as #1 (`InjectVisibleStatusService`); the detail from the status row's traces and E | +1 query per graph, only with such an inject |
-| 4 | JPA entity `Inject` serialized (`inject_status`) | Simulation timeline (`GET /exercises/{id}/injects`): ExecutionBoard, ExecutionOverview (error count), ExecutionFlowStrip; the inject edit drawer (`GET /injects/{id}`) and the single-inject responses of `SimulationInjectApi` (activation, trigger, status, teams), which refresh the same front store | Jackson on `InjectStatus.name` | `InjectMapper.toJsonWithVisibleStatus`: the entity is serialized in the reader's transaction, then `inject_status.status_name` is replaced in the JSON, as the stream does (#5). The entity is not changed (#7092) and gets no computed getter; the OpenAPI schema stays `Inject`, so the front and the API types do not change. A full output DTO would mirror 46 fields, computed getters included | None: the traces are already loaded for `status_traces` |
+| 4 | JPA entity `Inject` serialized (`inject_status`) | Simulation timeline (`GET /exercises/{id}/injects`): ExecutionBoard, ExecutionOverview (error count), ExecutionFlowStrip; the inject edit drawer (`GET /injects/{id}`) and the single-inject responses of `SimulationInjectApi` (activation, trigger, status, teams), which refresh the same front store | Jackson on `InjectStatus.name` | `InjectMapper.toJsonWithVisibleStatus`: the entity is serialized in the reader's transaction, then `inject_status.status_name` is replaced in the JSON, as the stream does (#5). The entity is not changed (#7092) and gets no computed getter; the OpenAPI schema stays `Inject`, so the front and the API types do not change. The `Inject` shape is a public contract (Swagger, collectors), so a smaller output comes with new endpoints ([#9439](https://github.com/OpenAEV-Platform/openaev/issues/9439)) | None: the traces are already loaded for `status_traces` |
 | 5 | SSE stream | Live updates of the timeline (`publishInjectStatusUpdate`) | The publisher's payload, built at full clearance | In `StreamVisibility.payloadFor(clearance)`, after `inject_status.status_traces` is pruned for the reader: pure JSON, no query | None |
 
 Not recomputed: the system consumers above, `InjectTestStatus` (a test sent to the user themselves, no asset),
@@ -996,19 +996,22 @@ sequenceDiagram
 ```
 
 - **Cost**: one extra query per page, only when it holds a closed inject dispatched to agents: an `IN` over those
-  inject ids, one row per COMPLETE trace, on the index of `execution_traces(execution_inject_status_id)`. Never one
-  query per row.
+  inject ids, one row per COMPLETE trace, on the partial COMPLETE index (see "Measured" below). Never one query
+  per row.
+- **MARKING preview feature off**: every place shows the stored status, with no query and no recompute
+  (`InjectVisibleStatusService`, on the switch the stream uses).
 - **Single rule**: `computeStatus(List<ExecutionTrace>)` and `visibleStatus` both delegate to
   `computeStatusFromTraceStatuses(List<ExecutionTraceStatus>)`, so a stored and a recomputed verdict can only
   differ by the traces they see.
-- **Nothing visible**: the stored verdict tells the reader something about hidden targets (some passed, some
-  failed). Kept until the PO decides what to show instead.
-- **Filter on status**: the lists' filter is an SQL predicate on `status.name`, so it still matches the stored
-  verdict. Recomputing it in SQL: see "Filtering and sorting on the reader's status" below.
+- **Nothing visible**: `NOT_VISIBLE` (row 5 of the rule), which says nothing about the hidden targets.
+- **Filter on status**: the lists' filter is an SQL predicate on `status.name`, so it matches the stored verdict
+  and leaks it ("status = PARTIAL" returns an inject the reader sees as ERROR: a hidden target succeeded), as
+  the sort does. To be addressed in [#9538](https://github.com/OpenAEV-Platform/openaev/issues/9538).
+  Recomputing it in SQL: see "Filtering and sorting on the reader's status" below.
 
-### Filtering and sorting on the reader's status (PO question 2, option C): server-side impact
+### Filtering and sorting on the reader's status: server-side impact
 
-**Who uses it today.** No screen filters or sorts the inject lists on the status: the status filter is not in
+**Who uses it.** No screen filters or sorts the inject lists on the status: the status filter is not in
 `availableFilterNames` of `InjectResultList.tsx` (atomic testings, simulation overview, asset, asset group, team,
 person, organization) nor of `common/injects/Injects.tsx`, and the status column is `isSortable: false`. The
 filter and sort exist in the API only (`@Queryable(filterable, sortable, path = "status.name")` on
@@ -1036,7 +1039,7 @@ The statement inspector rewrites `execution_traces` inside a WHERE, scalar or EX
 **Cost model.** Unlike the page recompute (20 rows, one query), a filter is evaluated on every row matching the
 other filters, not only the page, and twice (page query and `countQuery`). A sort computes it for every row.
 
-| Step | Per closed inject dispatched to agents | Today's index |
+| Step | Per closed inject dispatched to agents | Index before the partial COMPLETE index |
 |---|---|---|
 | Find the traces of the status | every trace of the inject (≈ agents × ~6: START, job retrieval, EXECUTION…, COMPLETE) | `idx_execution_traces_inject_status` |
 | Keep COMPLETE | ≈ agents rows | none, filtered after the index scan |
@@ -1044,9 +1047,9 @@ other filters, not only the page, and twice (page query and `countQuery`). A sor
 
 Rows in flight or without agents cost nothing more (the `CASE` short-circuits).
 
-Order of magnitude, to be measured: a tenant with 10,000 closed atomic testings, 50 agents each →
+Order of magnitude, estimated before measuring: a tenant with 10,000 closed atomic testings, 50 agents each →
 10,000 × 300 ≈ 3,000,000 index entries read and 10,000 × 50 × 2 = 1,000,000 PK lookups per statement, two
-statements per request: likely several seconds, against tens of milliseconds today. Recomputing every closed
+statements per request: likely several seconds, against tens of milliseconds for a filter on the stored status. Recomputing every closed
 inject (not only PARTIAL) is what `NOT_VISIBLE` costs here: the subquery can no longer be limited to PARTIAL rows.
 A tenant with few agents per inject barely notices.
 
@@ -1056,7 +1059,8 @@ A tenant with few agents per inject barely notices.
    every other search is unchanged.
 2. **Partial covering index**: `CREATE INDEX ... ON execution_traces (execution_inject_status_id) INCLUDE
    (execution_status, execution_agent_id) WHERE execution_action = 'COMPLETE'`. The scan reads one row per agent
-   instead of every trace (÷ ~6). Write cost: COMPLETE rows only (~1 insert in 6) on a hot-write table.
+   instead of every trace (÷ ~6). Write cost: COMPLETE rows only (~1 insert in 6) on a hot-write table. Added
+   (`V6_20261118100000000__Add_complete_trace_index_on_execution_traces`): it also serves the page recompute.
 3. **Split the predicate**: `status = X` becomes `(<rows 1, 2> AND stored = X) OR (<closed with agents> AND
    <subquery> = X)`, so the subquery never runs on in-flight injects or injects without agents.
 4. Not available: skipping the recompute for a reader who sees everything. Clearance is an explicit list of
@@ -1064,12 +1068,68 @@ A tenant with few agents per inject barely notices.
 5. Rejected: storing per-marking verdicts on the status row. Re-marking an asset would make them stale; the marked
    row must stay the single source of truth (`MarkingDerivedTables`).
 
-**Before deciding**: `EXPLAIN (ANALYZE, BUFFERS)` of the filtered search on a tenant with ≥ 100k traces
-(performance rules), with and without index 2, for an admin and for a restricted reader.
+**Decision**: measured below. Filtering and sorting on the reader's status are not shipped: about 1.5 s per
+request, for a filter no screen offers. They wait for a cheaper marking check (conclusion 3). The filter and sort
+on the stored verdict leak it: to be addressed in
+[#9538](https://github.com/OpenAEV-Platform/openaev/issues/9538)
+([ADR-024](../../../adr/ADR-024-inject-execution-status-computed-at-read-from-the-reader-s-clearance.md)).
 
-**Recommendation**: C is correct and isolated (cost only on a status filter or sort), but no screen offers that
-filter today. Ship C with mitigations 1–3 when a screen needs it, or now if API clients rely on it; measure first
-either way.
+#### Measured
+
+Setup: a clone of the dev database, PostgreSQL 17 with default settings (`shared_buffers` 128MB, `work_mem` 4MB,
+`jit` on), 10,000 atomic testings (80% closed on A agents, 10% in flight, 10% without agent), about 6 traces per
+agent, half the assets RED; the statements written by hand in the shape the app emits, with the marking predicate
+of `MarkingDimension`. Best of 3 runs, AMBER reader. The admin costs the same: their clearance is an explicit list,
+so the marking predicate runs for them too (mitigation 4). Scripts and results:
+[`perf-11.11/`](perf-11.11/README.md).
+
+The time is given with JIT as configured (on) and without it, because JIT compilation adds 300–380 ms to any
+statement whose estimated cost crosses `jit_optimize_above_cost`, and the marking subqueries are estimated
+expensive.
+
+| Statement (ms, JIT on / off) | A = 10, no index | A = 50, no index | A = 50, partial COMPLETE index |
+|---|---|---|---|
+| **Every read**: extra query, page of 20 | 0.7 / 0.7 | 32 / 3 | 1.9 / 1.9 |
+| Extra query, page of 100 | 31 / 2.7 | 323 / 13 | 10 / 9 |
+| Extra query, 500 injects (simulation overview, attack path) | 34 / 14 | 362 / 68 | 78 / 46 |
+| Filter on the stored status, page + count | 2.5 | 2.8 | 2.6 |
+| Filter on the reader's status, page + count | 413 / 415 | 2,228 / 2,219 | 1,562 / 1,507 |
+| Same, split predicate (mitigation 3), page + count | 929 / 217 | 1,830 / 1,121 | 1,441 / 776 |
+| Same, on candidates only (stored ERROR or PARTIAL), page + count | 2,125 / 1,545 | 3,434 / 2,885 | 2,897 / 2,357 |
+| Sort on the stored status | 4.5 | 4.5 | 4.4 |
+| Sort on the reader's status | 498 / 204 | 1,406 / 1,096 | 1,044 / 772 |
+
+Insert of 100,000 traces (one in six COMPLETE): 1.10–1.31 s with or without the partial index, the difference
+within the noise between runs.
+
+What the plans show:
+
+- **The marking predicate is the cost, not the trace scan.** The filter on the reader's status checks it once per COMPLETE trace of every closed
+  inject matching the other filters: 400,000 checks at A = 50 (an `agents` and an `assets` index lookup each,
+  2.4M of the 2.43M buffers read), for 500 distinct agents. The predicate sits in an `OR` (`execution_agent_id IS
+  NULL OR EXISTS ...`), so PostgreSQL cannot turn it into a join and runs it row by row. The cost grows linearly
+  with the COMPLETE traces of closed injects: about 0.75 s per statement at A = 50 with the index, two statements
+  per request.
+- **The partial COMPLETE index** removes the scan of the non-COMPLETE traces (about 30% of the extra query without
+  JIT) and brings the extra query's estimated cost under the JIT threshold, which is most of its time without it. On the filter it
+  saves about 30%, the marking checks stay.
+- **The split predicate** (mitigation 3) makes the page fast (8–11 ms without JIT): the page stops at 20
+  matches. The count still checks every candidate row.
+- **The candidates prefilter** is slower: the planner underestimates the rows the `CASE` keeps and picks nested
+  loops. Dropped.
+- **JIT** dominates the cheap statements whose estimate is high: the extra query on a page of 100 at A = 50 runs
+  in 13 ms and compiles for 310 ms.
+
+Conclusions:
+
+1. **Every read** (the reader's status in the lists): fine with the partial COMPLETE index (2 ms for a page of 20,
+   10 ms for 100, 46–78 ms for a simulation of 500 injects at A = 50). Without it, JIT can add about 300 ms to a
+   page of 100 or a simulation overview. The index is worth adding whether or not the status filter ships.
+2. **Filtering on the reader's status costs about 1.5 s per request at A = 50** (0.4 s at A = 10), most of it in the count, for an admin as for
+   a restricted reader. Acceptable only for an API filter nobody uses from a screen; not for a screen.
+3. **To make that filter cheaper**, the marking check would have to run once per agent rather than once per trace (for
+   example: the agents the reader can see, computed once and joined). That changes the shape the statement
+   inspector generates, so it is a change to the marking rewrite, not to this filter.
 
 ### Read path: inject page, header and execution details
 

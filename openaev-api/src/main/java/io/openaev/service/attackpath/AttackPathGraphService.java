@@ -50,7 +50,6 @@ import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingVerdictsDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
 import io.openaev.service.attackpath.dto.ConsumedFindingKeyDTO;
-import io.openaev.utils.InjectStatusUtils;
 import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.openaev.utils.mapper.PayloadMapper;
 import java.time.Instant;
@@ -365,7 +364,7 @@ public class AttackPathGraphService {
             ? null
             : injectStatusRepository
                 .findByInjectId(injectId)
-                .map(InjectStatusUtils::visibleStatus)
+                .map(injectVisibleStatusService::visibleStatus)
                 .map(Enum::name)
                 .orElse(null),
         e.getExecutedAt() == null ? null : e.getExecutedAt().toString(),

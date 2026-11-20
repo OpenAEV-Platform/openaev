@@ -546,143 +546,13 @@ What leaks today, on the "Execution details" tab (`AtomicTestingExecutionDetails
 
 ## Chunk 11 — UX enhancement: global inject status from what the user can see
 
-**Status**: 🟡 in progress on `issue-8559/execution-status`: #1, #2, #3 and #5 implemented and tested (steps
-11.1 to 11.6), with `NOT_VISIBLE` (11.10, question 1 option B), and #4 (simulation timeline, 11.9).
-Question 2 still open.
+**Status**: 🟡 in review on `issue-8559/execution-status` (#8559). Decision: [ADR-024](../../../adr/ADR-024-inject-execution-status-computed-at-read-from-the-reader-s-clearance.md); design and measures: [tech design](tech-design.md#values-shown-to-a-reader-with-less-clearance-chunks-10-and-11).
 
-The global inject status can look odd when the user does not see all the assets, because it is computed over
-every asset.
-
-Design: [tech-design, "Values shown to a reader with less clearance"](tech-design.md#values-shown-to-a-reader-with-less-clearance-chunks-10-and-11).
-
-**Decision**: `injects_statuses.status_name` keeps storing the verdict over every executed agent (the system
-verdict). Background consumers rely on it (inject dependencies, chaining engine, simulation auto-finish,
-ES). Only what is **displayed** to a reader is recomputed, from the COMPLETE traces they can see.
-
-**Where the status reaches a reader**: five places, listed with their recompute and cost in the tech design
-("Where the status reaches a reader: five places"). This chunk covers all five.
-
-**Rule implemented today** (steps 11.1 to 11.6): only a stored PARTIAL is recomputed, from the COMPLETE traces the
-reader can see; EXECUTED and ERROR are kept. **Rule to implement with question 1** (step 11.10, tech design "The
-rule: recompute only when the reader misses agents"): compare the visible agents with `status_expected_agent_count`,
-which also turns EXECUTED and ERROR into `NOT_VISIBLE` when every agent is hidden. In both, the admin view never
-changes, including for statuses set directly (manual update, `failInjectStatus`, simulation stop).
-
-### Questions for the PO
-
-Context: an admin cleared `TLP:RED` launches an inject on a RED and a GREEN asset. A user cleared `TLP:AMBER` sees
-only the GREEN target. The status they are shown is now recomputed from the GREEN agent only: if RED succeeded and
-GREEN failed, the admin reads PARTIAL and the AMBER user ERROR.
-
-**Question 1 — every target hidden.** The AMBER user sees none of the inject's targets (all RED). What does their
-status chip say? The stored value tells them the outcome on targets they cannot see: EXECUTED if the RED agents all
-succeeded, ERROR if they all failed, PARTIAL if mixed.
-
-| Option | AMBER user sees | Effect |
-|---|---|---|
-| A. Keep the stored value (current code) | EXECUTED / ERROR / PARTIAL | Tells them the outcome on the hidden targets |
-| **B. A neutral value: `NOT_VISIBLE` (preferred path)** | "Not visible" | Says nothing about hidden targets; a new value in the API and the UI |
-| C. ERROR | ERROR | Wrong: nothing failed for them, they cannot see it |
-
-Preferred path B, what it implies:
-
-- `NOT_VISIBLE` is a display value, never stored: `injects_statuses.status_name` keeps the system verdict. It is
-  added to `ExecutionStatus` with `@Hidden`, like the deprecated `MAYBE_*` values: out of the filter picker (never
-  stored, a filter on it would match nothing) and out of the generated API types; the front gets its label, colour
-  and tooltip.
-- **It needs one more input than the traces.** The marking filter removes rows without saying so: "every trace is
-  hidden from me" and "there is no trace" look the same. Some injects close with no agent trace at all, for
-  everyone: a status set by hand, a close by the platform (`failInjectStatus`, simulation stop). The rule
-  therefore compares what the reader sees with `status_expected_agent_count` (E), the agents the inject was
-  dispatched to, already stored at launch and never filtered:
-
-  | Condition | Shown |
-  |---|---|
-  | In flight, or E = 0 (no agent: manual, mail, agentless injector) | stored |
-  | Closed by the platform (a COMPLETE error trace with no agent) | stored |
-  | The reader sees the COMPLETE trace of every agent (V = E) | stored: same as the admin |
-  | The reader sees no agent (V = 0) | `NOT_VISIBLE` |
-  | The reader sees some agents (0 < V < E) | recomputed from the visible ones |
-
-  Exact because every dispatched agent ends with exactly one COMPLETE trace of its own (result, `TIMEOUT`,
-  `ASSET_CLEARANCE_RESTRICTED`, dispatch error); details and examples in the tech design, "The rule: recompute only
-  when the reader misses agents".
-- Unlike the current code, this recomputes EXECUTED and ERROR too, not only PARTIAL: 2 RED agents that both
-  succeeded read EXECUTED for the admin and `NOT_VISIBLE` for the AMBER user.
-
-**Question 2 — filtering on the status.** The API filter and sort on the status (`inject_status`, an SQL predicate
-on the stored `status.name`) keep matching the stored verdict: "status = ERROR" does not return the inject the
-AMBER user sees as ERROR, because it is stored PARTIAL.
-
-| Option | Cost |
-|---|---|
-| A. Accept the mismatch, document it | None |
-| B. Hide the status filter from restricted readers | Small; removes a feature for them |
-| **C. Filter and sort on the reader's status (preferred path)** | Server cost when a status filter or sort is used, see the study |
-
-Study of C: tech design, "Filtering and sorting on the reader's status". In short:
-
-- **No screen uses it today**: the inject lists do not offer the status filter, and the column is not sortable. It
-  only serves API clients; dashboards filter in ES (Chunk 13).
-- **Cost only when used**: per request, every closed inject dispatched to agents matching the other filters, not
-  just the page, is recomputed, twice (page and count). With many agents per inject that is likely seconds instead
-  of milliseconds, to be measured. `NOT_VISIBLE` (question 1, B) makes it costlier: every closed inject needs the
-  subquery, not only the PARTIAL ones.
-- **Mitigations**: build the expression only when the filter or sort is present; a partial index on the COMPLETE
-  traces (one row per agent instead of all traces); skip the subquery for in-flight injects and injects without
-  agents.
-- **Decision needed**: ship C now (API clients rely on the filter) or when a screen offers it; in both cases after
-  an `EXPLAIN ANALYZE` on realistic volumes.
-
-### Steps
-
-- **11.1** Failing tests first, on the five-place table:
-  - #1 atomic testing search: RED agent COMPLETE `EXECUTED`, GREEN agent COMPLETE `ERROR`, stored `PARTIAL`.
-    The `TLP:AMBER` user reads `ERROR`, the RED user reads `PARTIAL`. One extra statement per page (Hibernate
-    `Statistics`), none when the page holds no PARTIAL inject.
-  - #2 `GET /injects/status` and the atomic testing header: same expectations.
-  - #5 `StreamVisibilityServiceTest`: `payloadFor(AMBER)` carries `ERROR`, `payloadFor(RED)` `PARTIAL`.
-- **11.2** `InjectStatusUtils`: `computeStatusFromTraceStatuses(List<ExecutionTraceStatus>)`, which the existing
-  `computeStatus(List<ExecutionTrace>)` delegates to, and `visibleStatus(stored, visibleCompleteStatuses)`.
-- **11.3** `ExecutionTraceRepository`: JPQL projection `(inject id, trace status)` of the COMPLETE traces of
-  given injects. Marking filtering comes from the derived table `execution_traces → agents → assets`.
-  Exposed through a service, not injected in `InjectSearchService` / `AttackPathGraphService` directly.
-- **11.4** #1 `InjectSearchService.setComputedAttribute` and #3 `AttackPathGraphService.applyExecutionStatuses`:
-  one call for the PARTIAL injects of the page or graph, then `visibleStatus` per row.
-- **11.5** #2 `InjectStatusMapper`: `visibleStatus` from the traces already loaded, no extra query.
-- **11.6** #5 `StreamVisibility.payloadFor`: recompute `inject_status.status_name` on the reader's copy, after
-  pruning.
-- **11.7** Check: admin unchanged; inject dependencies, chaining and auto-finish still read the stored verdict
-  (`InjectsExecutionJob:312`, `InjectExecutionStep:660`, `ExerciseRepository.thatMustBeFinished`).
-- **11.8** Depends on Chunk 4: until it ships, an agent-less COMPLETE trace naming a RED asset is still visible
-  and still counted.
-- **11.9** ✅ done. #4, the endpoints that return the `Inject` entity into the simulation's front store:
-  - `GET /exercises/{id}/injects` (timeline), `GET /injects/{id}` (edit drawer) and the single-inject responses of
-    `SimulationInjectApi` (activation, trigger, status, teams) return `InjectMapper.toJsonWithVisibleStatus`: the
-    entity's JSON, built in the reader's transaction, with `inject_status.status_name` replaced by `visibleStatus`.
-    No setter on the entity (#7092); `@ApiResponse` keeps the `Inject` schema, so the API types and the front do
-    not change. A full output DTO was ruled out: 46 fields, computed getters included, to keep in sync by hand.
-  - Not covered: the bulk update response (`Propagation.SUPPORTS`, the traces would load outside the reader's
-    transaction); the front reads it with `simplePutCall`, so it never reaches the timeline's store.
-  - Tests (`InjectVisibleStatusTest`, renamed from `AtomicTestingVisibleStatusTest`): GREEN reader, timeline list
-    ERROR for RED success + GREEN failure, `NOT_VISIBLE` for 2 RED agents, `GET /injects/{id}` ERROR; RED reader,
-    stored PARTIAL on both.
-- **11.10** ✅ done. Question 1, option B:
-  - `ExecutionStatus.NOT_VISIBLE` (`@Hidden`), never written by the write path; front label, colour, tooltip and
-    translations; the attack path badge treats it as terminal. The API types do not change.
-  - `InjectStatusUtils.visibleStatus` takes the rule of the tech design (E = `status_expected_agent_count`, V =
-    agents with a visible COMPLETE trace) instead of "PARTIAL only".
-  - Inputs: `InjectStatusMapper` and the attack path detail read E on the `InjectStatus` entity; the batched query of
-    `InjectVisibleStatusService` returns `(inject id, trace status, agent id, E)` for every closed inject with E > 0,
-    not only PARTIAL; the stream counts the agents with a COMPLETE trace before and after pruning.
-  - Tests: 2 RED agents that succeeded → admin EXECUTED, AMBER `NOT_VISIBLE`; RED success + GREEN failure → admin
-    PARTIAL, AMBER ERROR; a status set by hand → the same for both; a simulation stopped before the agents
-    answered → ERROR for both.
-- **11.11** Once question 2 is answered (preferred C): measure first (`EXPLAIN ANALYZE`, ≥ 100k traces, with and
-  without the partial COMPLETE index), then a specification for the `inject_status` filter and sort key on the
-  reader's status, built only when the key is present. Tests: the AMBER user filtering "status = ERROR" gets the
-  inject; the statement count without the filter is unchanged.
-  Notification triggers filtered on `inject_status` are not covered here: Chunk 15 (#8924).
+- ✅ The reader's status in the five places (searches, status mappers, attack path, inject entity JSON, stream), one rule, `NOT_VISIBLE` when every agent is hidden.
+- ✅ Partial index on the COMPLETE traces (measured in [`perf-11.11/`](perf-11.11/README.md)); MARKING off: no query, no recompute.
+- ⏸ Filter and sort on the reader's status: about 1.5 s per request at 50 agents per inject, waits for a cheaper marking check.
+- ➡ The filter and sort on the stored status leak it: [#9538](https://github.com/OpenAEV-Platform/openaev/issues/9538).
+- ➡ Smaller outputs instead of the inject entity routes: Chunk 16 (#9439). Notifications: Chunk 15 (#8924).
 
 ## Chunk 12 — UX enhancement: platforms in the scenario list for a user
 
@@ -763,7 +633,7 @@ can mention an asset and where to check the recipient's clearance; see the issue
   hand.
 - A trigger has several recipients (owner, or targeted users and group members), possibly with different
   clearances, so "the reader's status" is per recipient, not per trigger.
-- **Cost**: small, unlike the lists (Chunk 11, question 2). Matching checks one inject by id per event, so the
+- **Cost**: small, unlike the lists (Chunk 11, filter on the reader's status). Matching checks one inject by id per event, so the
   reader's status adds one query on that inject's COMPLETE traces per trigger and per distinct clearance among its
   recipients (`MarkingClearanceCacheManager.findClearance`), then `InjectStatusUtils.visibleStatus` in Java.
 
@@ -773,3 +643,22 @@ can mention an asset and where to check the recipient's clearance; see the issue
 |---|---|
 | A. Remove `inject_status` from the Inject trigger form | Front only, plus a migration of the saved triggers that use it |
 | B. Match each recipient on the status they see | Matching, `recordEvents` and dispatch go from per trigger to per group of recipients with the same clearance |
+
+## Chunk 16 — Inject outputs: small DTOs on new endpoints, deprecate the routes that return the entity
+
+**Issue**: [#9439](https://github.com/OpenAEV-Platform/openaev/issues/9439). **Status**: not started; out of
+scope of the Chunk 11 PR.
+
+Chunk 11 (#4) returns the reader's status on six routes that serialize the `Inject` entity, through
+`InjectMapper.toJsonWithVisibleStatus` (`ObjectNode`): `GET /injects/{id}`, `GET /exercises/{id}/injects`, and the
+activation, trigger, status and teams updates of `SimulationInjectApi`. It keeps their shape, since it is a public
+contract: Swagger documents the `Inject` schema and four AI collectors (hiddenlayer, cisco-ai-defense,
+lakera-guard, prompt-security) call `GET /injects/{id}`. Replacing the entity by `InjectOutput` there removes keys,
+so it breaks clients.
+
+- New endpoints in `io.openaev.api`, under `TENANT_PREFIX`, with records holding what each screen reads, relations
+  as ids, and the reader's status (`InjectVisibleStatusService`).
+- The front moves to them; the legacy routes are marked `@Deprecated` in OpenAPI and removed after the deprecation
+  period, in a release flagged as breaking.
+- Removes `toJsonWithVisibleStatus` and the `ObjectNode` returns with the legacy routes.
+

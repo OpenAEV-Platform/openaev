@@ -1,11 +1,11 @@
 package io.openaev.utils.mapper;
 
-import static io.openaev.utils.InjectStatusUtils.visibleStatus;
 import static io.openaev.utils.mapper.AgentMapper.toAgentOutput;
 
 import io.openaev.database.model.*;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.inject.output.InjectTestStatusOutput;
+import io.openaev.service.InjectVisibleStatusService;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 public class InjectStatusMapper {
 
   private final AgentMapper agentMapper;
+  private final InjectVisibleStatusService injectVisibleStatusService;
 
   public InjectStatusOutput toInjectStatusOutput(Optional<InjectStatus> injectStatus) {
     return injectStatus
@@ -23,7 +24,7 @@ public class InjectStatusMapper {
                 this.<InjectStatusOutput>buildInjectStatusOutput(
                     InjectStatusOutput.builder().build(),
                     status,
-                    visibleStatus(status),
+                    injectVisibleStatusService.visibleStatus(status),
                     status.getTraces().stream().filter(ExecutionTrace::isGlobal).toList()))
         .orElseGet(() -> InjectStatusOutput.builder().build());
   }
@@ -39,7 +40,7 @@ public class InjectStatusMapper {
             status -> {
               InjectStatusOutput output = InjectStatusOutput.builder().build();
               output.setId(status.getId());
-              output.setName(visibleStatus(status).name());
+              output.setName(injectVisibleStatusService.visibleStatus(status).name());
               output.setTraces(toExecutionTracesOutput(status.getTraces()));
               output.setTrackingSentDate(status.getTrackingSentDate());
               output.setTrackingEndDate(status.getTrackingEndDate());
@@ -84,7 +85,7 @@ public class InjectStatusMapper {
             status ->
                 InjectStatusSimple.builder()
                     .id(status.getId())
-                    .name(visibleStatus(status).name())
+                    .name(injectVisibleStatusService.visibleStatus(status).name())
                     .trackingSentDate(status.getTrackingSentDate())
                     .trackingEndDate(status.getTrackingEndDate())
                     .build())
