@@ -510,10 +510,10 @@ class InHandlerPermissionTenantTest extends ProductionTablesIntegrationTest {
   }
 
   /**
-   * On the plain route the ambient tenant stays the default one while the scope names B alone, and
-   * the scenarios, isolated by the ambient tenant until their table is activated, are those of the
-   * default tenant. The list decides on them with the rights the caller holds in the default
-   * tenant, which the request's own load, scoped to B, holds none of.
+   * Scenarios are read in the scope of the request, like every active table. On the plain route
+   * selecting B the scope names B alone, so the list holds B's scenarios and decides on each of
+   * them with the rights the caller holds in B, whatever it holds in the default tenant that stays
+   * the ambient one.
    */
   @Nested
   @DisplayName("Scenario list on the plain route")
@@ -521,20 +521,38 @@ class InHandlerPermissionTenantTest extends ProductionTablesIntegrationTest {
   class ScenarioListOnThePlainRoute {
 
     @Test
-    @DisplayName("given the right in the default tenant only should list its scenario selecting B")
-    void given_rightInTheDefaultTenantOnly_should_listItsScenarioSelectingB() throws Exception {
+    @DisplayName("given the right in the default tenant only should not list a scenario of B")
+    void given_rightInTheDefaultTenantOnly_should_notListAScenarioOfB() throws Exception {
       // -- ARRANGE --
-      Scenario scenario = createDefaultCrisisScenario();
-      scenario.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
-      String scenarioId = scenarioComposer.forScenario(scenario).persist().get().getId();
-      // A request starts with an empty persistence context: the caller is loaded in its scope.
-      entityManager.flush();
-      entityManager.clear();
+      String scenarioId = persistScenarioOfB();
+
+      // -- ACT & ASSERT --
+      mvc.perform(inB(get(SCENARIO_URI)))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$[?(@.scenario_id == '" + scenarioId + "')]").isEmpty());
+    }
+
+    @Test
+    @DisplayName("given the right in B should list a scenario of B")
+    void given_rightInB_should_listAScenarioOfB() throws Exception {
+      // -- ARRANGE --
+      grantInB(Capability.ACCESS_ASSESSMENT);
+      String scenarioId = persistScenarioOfB();
 
       // -- ACT & ASSERT --
       mvc.perform(inB(get(SCENARIO_URI)))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$[?(@.scenario_id == '" + scenarioId + "')]").isNotEmpty());
+    }
+
+    private String persistScenarioOfB() {
+      Scenario scenario = createDefaultCrisisScenario();
+      scenario.setTenant(new Tenant(tenantB));
+      String scenarioId = scenarioComposer.forScenario(scenario).persist().get().getId();
+      // A request starts with an empty persistence context: the caller is loaded in its scope.
+      entityManager.flush();
+      entityManager.clear();
+      return scenarioId;
     }
   }
 
