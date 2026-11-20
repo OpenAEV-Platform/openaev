@@ -2788,13 +2788,13 @@ class TenantActiveTableAccessArchTest {
               HasPayloadIdentity.class,
               InjectorContract.class,
               io.openaev.database.repository.PayloadIdentityRepository.class,
+              // Reads the newest Filigran version of a copy, on TxCtx-carrying entrypoints:
+              io.openaev.service.payload.PayloadCustomizationMerge.class,
               CatalogPayloadService.class,
               // Locks the identity of the payload it saves, on TxCtx-carrying update entrypoints:
               io.openaev.service.payload.PayloadLocalVersioning.class,
               // Moves the latest version of the identity of the payload being deleted:
               PayloadLatestVersionListener.class,
-              // Reads the newest Filigran version of a copy, on TxCtx-carrying entrypoints:
-              io.openaev.service.payload.PayloadCustomizationMerge.class,
               // Reads the identity it is handed by the catalogue, to describe the change:
               io.openaev.service.catalog.event.CatalogChangePublisher.class)
           .should()
