@@ -1,19 +1,16 @@
-import { Alert, Button, Spinner, Text } from '@filigran/design-system';
+import { Alert, Button, Chip, Spinner, Text } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
+import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
 
-import { fetchCatalogScenarioVersions } from '../../../../actions/catalog/scenario-catalog-actions';
 import { Field } from '../../../../components/common/detail/EntityDetailCommon';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import ItemCategory from '../../../../components/ItemCategory';
-import ItemMainFocus from '../../../../components/ItemMainFocus';
-import ItemSeverity from '../../../../components/ItemSeverity';
 import PlatformIconGroup from '../../../../components/PlatformIconGroup';
-import { type CatalogScenarioOutput, type CatalogScenarioVersionOutput } from '../../../../utils/api-types';
+import { type CatalogScenarioOutput, type CatalogScenarioRequirementOutput } from '../../../../utils/api-types';
 import { catalogConnectorUrl } from '../../integrations/catalog_connectors/catalog-facets';
-import { scenarioCategories } from '../constants';
+import ScenarioForm from '../ScenarioForm';
+import useCatalogScenarioVersion from './useCatalogScenarioVersion';
 
 interface Props {
   scenario: CatalogScenarioOutput | null;
@@ -27,30 +24,17 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
   const { t, nsd } = useFormatter();
   const theme = useTheme();
   const missing = scenario?.catalog_scenario_missing_requirements ?? [];
-  const category = scenario?.catalog_scenario_category;
-  const [shown, setShown] = useState<CatalogScenarioVersionOutput | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    setShown(null);
-    if (!scenario) return undefined;
-    let active = true;
-    setLoading(true);
-    fetchCatalogScenarioVersions(scenario.catalog_scenario_external_id)
-      .then((versions) => {
-        if (active) setShown(versions.find(version => version.catalog_scenario_version === scenario.catalog_scenario_version) ?? null);
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [scenario]);
-
-  const ofVersion = (value: ReactNode): ReactNode => (loading ? <Spinner size="sm" /> : value);
+  const { shown, loading, formValues } = useCatalogScenarioVersion(scenario);
+  const statusLabels: Record<NonNullable<CatalogScenarioRequirementOutput['requirement_status']>, string> = {
+    NOT_DEPLOYED: t('Not deployed'),
+    NOT_RUNNING: t('Not running'),
+  };
   const payloads = shown?.catalog_scenario_payloads ?? [];
+  const row = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing(1),
+  } as const;
   const column = {
     display: 'flex',
     flexDirection: 'column',
@@ -71,10 +55,8 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
         }}
         >
           <div style={{
-            display: 'flex',
-            alignItems: 'center',
+            ...row,
             flexWrap: 'wrap',
-            gap: theme.spacing(1),
           }}
           >
             <PlatformIconGroup platforms={scenario.catalog_scenario_platforms} width={16} />
@@ -87,27 +69,9 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
               ].filter(Boolean).join(' · ')}
             </Text>
           </div>
-          {scenario.catalog_scenario_description && <Text variant="content-base">{scenario.catalog_scenario_description}</Text>}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            gap: theme.spacing(2),
-          }}
-          >
-            <Field label={t('Category')}>
-              {category ? <ItemCategory category={category} label={t(scenarioCategories.get(category) ?? category)} /> : '–'}
-            </Field>
-            <Field label={t('Main focus')}>
-              {ofVersion(shown?.catalog_scenario_main_focus
-                ? <ItemMainFocus mainFocus={shown.catalog_scenario_main_focus} label={t(shown.catalog_scenario_main_focus)} size="small" />
-                : '–')}
-            </Field>
-            <Field label={t('Severity')}>
-              {ofVersion(shown?.catalog_scenario_severity
-                ? <ItemSeverity severity={shown.catalog_scenario_severity} label={t(shown.catalog_scenario_severity)} />
-                : '–')}
-            </Field>
-          </div>
+          {loading || !formValues
+            ? <Spinner size="sm" />
+            : <ScenarioForm key={`${scenario.catalog_scenario_external_id}:${scenario.catalog_scenario_version}`} readOnly initialValues={formValues} />}
           {missing.length > 0 && (
             <Field label={t('Missing to run it')}>
               <div style={column}>
@@ -117,10 +81,15 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
                     severity="warning"
                     elevation={1}
                     title={requirement.requirement_label}
-                    action={requirement.requirement_integration_id && (
-                      <Button asChild size="sm" priority="secondary">
-                        <Link to={catalogConnectorUrl(requirement.requirement_integration_id)} target="_blank">{t('Enable integration')}</Link>
-                      </Button>
+                    action={(requirement.requirement_status || requirement.requirement_integration_id) && (
+                      <div style={row}>
+                        {requirement.requirement_status && <Chip label={statusLabels[requirement.requirement_status]} severity="high" />}
+                        {requirement.requirement_integration_id && (
+                          <Button asChild size="sm" priority="secondary">
+                            <Link to={catalogConnectorUrl(requirement.requirement_integration_id)} target="_blank">{t('Enable integration')}</Link>
+                          </Button>
+                        )}
+                      </div>
                     )}
                   />
                 ))}
@@ -144,9 +113,8 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
             </Field>
           )}
           <div style={{
-            display: 'flex',
+            ...row,
             justifyContent: 'flex-end',
-            gap: theme.spacing(1),
           }}
           >
             <Button type="button" priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
