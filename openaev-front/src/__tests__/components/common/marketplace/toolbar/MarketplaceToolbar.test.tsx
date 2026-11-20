@@ -48,11 +48,11 @@ describe('MarketplaceToolbar', () => {
     // Act
     renderToolbar({
       placeholder: 'Search the catalog...',
-      actions: <button type="button">Grid</button>,
+      actions: <button type="button" aria-label="Grid view" />,
     });
 
     // Assert
     expect(screen.getByPlaceholderText('Search the catalog...')).toBeTruthy();
-    expect(screen.getByTestId('marketplace-results-count').parentElement?.textContent).toContain('Grid');
+    expect(screen.getByTestId('marketplace-results-count').parentElement?.contains(screen.getByRole('button', { name: 'Grid view' }))).toBe(true);
   });
 });
