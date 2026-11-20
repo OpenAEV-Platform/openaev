@@ -8,6 +8,7 @@ import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.exception.InjectContentRefusedException;
+import io.openaev.injector_contract.fields.ContractFieldType;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import lombok.extern.slf4j.Slf4j;
@@ -38,29 +39,23 @@ public class InjectContentGuard {
         continue;
       }
       boolean single = SINGLE.equals(field.path(CONTRACT_ELEMENT_CONTENT_CARDINALITY).asText());
-      String type = field.path(CONTRACT_ELEMENT_CONTENT_TYPE).asText();
-      ContractFieldShape.of(type)
-          .ifPresent(shape -> check(shape, inject, key, type, value, single));
+      ContractFieldType.fromLabel(field.path(CONTRACT_ELEMENT_CONTENT_TYPE).asText())
+          .ifPresent(type -> check(type, inject, key, value, single));
     }
   }
 
   private static void check(
-      ContractFieldShape shape,
-      Inject inject,
-      String key,
-      String type,
-      JsonNode value,
-      boolean single) {
-    if (shape.refuses(value, single)) {
+      ContractFieldType type, Inject inject, String key, JsonNode value, boolean single) {
+    if (type.refuses(value, single)) {
       throw InjectContentRefusedException.singleValueExpected(key);
     }
-    if (!shape.accepts(value, single)) {
+    if (!type.accepts(value, single)) {
       log.warn(
           "Inject {} of contract {}: field '{}' ({}) holds an unexpected value",
           inject.getId(),
           inject.getInjectorContract().map(InjectorContract::getId).orElse(null),
           key,
-          type);
+          type.label);
     }
   }
 }
