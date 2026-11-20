@@ -326,7 +326,7 @@ Tuning parameters applicable to both engines:
 | engine.number-of-replicas                | ENGINE_NUMBER_OF_REPLICAS                | 1             | Number of replica shards of each index. Applied when an index is created. |
 | engine.max-result-window                 | ENGINE_MAX_RESULT_WINDOW                 | 100000        | `max_result_window` setting of each index (maximum depth of pagination). Applied when an index is created. |
 | engine.max-fields-size                   | ENGINE_MAX_FIELDS_SIZE                   | 4096          | Maximum number of fields of an index mapping (`mapping.total_fields.limit`). Applied when an index is created. |
-| engine.max-primary-shard-docs            | ENGINE_MAX_PRIMARY_SHARD_DOCS            | 75000000      | Rollover condition of the index lifecycle policy: maximum number of documents in a primary shard. |
+| engine.max-primary-shard-docs            | ENGINE_MAX_PRIMARY_SHARD_DOCS            | 75000000      | Document-count rollover threshold: documents in the largest primary shard for Elasticsearch (`max_primary_shard_docs`), or total documents across the index for OpenSearch (`min_doc_count`). |
 | engine.max-primary-shards-size           | ENGINE_MAX_PRIMARY_SHARDS_SIZE           | 50Gb          | Rollover condition of the index lifecycle policy: maximum size of a primary shard. |
 | engine.search-cap                        | ENGINE_SEARCH_CAP                        | 500           | Maximum number of results a search across the platform indices returns. |
 
