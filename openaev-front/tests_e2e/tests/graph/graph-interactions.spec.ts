@@ -122,7 +122,8 @@ test.describe('Exploration graph interactions', () => {
     await settled(page);
     const node = (index: number) => page.locator(`.react-flow__node[data-id="ASSET:${seeded.assetIds[index]}"]`);
     const ringed = page.locator('[data-testid^="graph-node-"][data-selected="true"]');
-    const panel = page.getByTestId('graph-side-panel');
+    // The persistent Drawer's root is a zero-size docked box (its paper is absolutely positioned): assert on the paper.
+    const panel = page.getByTestId('graph-side-panel').locator('.MuiDrawer-paper');
 
     // The focus anchor has its own mark, never the selection ring.
     await expect(page.locator('[data-testid^="graph-node-"][data-anchor="true"]')).toHaveCount(1);
