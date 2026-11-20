@@ -1,4 +1,4 @@
-package io.openaev.api.catalog.dto.action;
+package io.openaev.api.catalog.action.dto;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
