@@ -13,6 +13,8 @@ import FindingIcon from '../../../../components/FindingIcon';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTargets from '../../../../components/ItemTargets';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
+import { OpenCrqRowMark } from '../../../../components/xtm/XtmOpenCrq';
+import { OpenCtiRowMark } from '../../../../components/xtm/XtmPivot';
 import { type AggregatedFindingOutput, type TargetSimple } from '../../../../utils/api-types';
 import ContractOutputElementType from '../ContractOutputElementType';
 
@@ -59,31 +61,46 @@ const FindingListView = ({ loading, findings, queryableHelpers, hiddenFields = [
       // Findings are technical values (ports, sockets, hostnames, credentials...): render them
       // as inline code, mirroring the <pre> block of the finding overview page.
       value: (finding: AggregatedFindingOutput) => (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Box
-              component="code"
-              sx={theme => ({
-                display: 'inline-block',
-                maxWidth: '95%',
-                padding: '2px 8px',
-                borderRadius: 1,
-                backgroundColor: theme.palette.background.accent,
-                border: `1px solid ${theme.palette.divider}`,
-                fontFamily: 'Consolas, monaco, monospace',
-                fontSize: FDS.scalars['--text-3'],
-                lineHeight: '18px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                verticalAlign: 'middle',
-              })}
-            >
-              {finding.finding_value}
-            </Box>
-          </TooltipTrigger>
-          {finding.finding_value && <TooltipContent>{finding.finding_value}</TooltipContent>}
-        </Tooltip>
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          // 4 px between the value chip and its OpenCTI mark, as on every chip followed by a mark.
+          gap: 0.5,
+        }}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Box
+                component="code"
+                sx={theme => ({
+                  display: 'inline-block',
+                  maxWidth: '95%',
+                  padding: '2px 8px',
+                  borderRadius: 1,
+                  backgroundColor: theme.palette.background.accent,
+                  border: `1px solid ${theme.palette.divider}`,
+                  fontFamily: 'Consolas, monaco, monospace',
+                  fontSize: FDS.scalars['--text-3'],
+                  lineHeight: '18px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  verticalAlign: 'middle',
+                })}
+              >
+                {finding.finding_value}
+              </Box>
+            </TooltipTrigger>
+            {finding.finding_value && <TooltipContent>{finding.finding_value}</TooltipContent>}
+          </Tooltip>
+          {/* A CVE finding also known in OpenCTI or OpenCRQ carries the product mark linking to it. */}
+          {finding.finding_type === 'cve' && (
+            <>
+              <OpenCtiRowMark kind="vulnerabilities" objectKey={finding.finding_value} />
+              <OpenCrqRowMark kind="vulnerabilities" objectKey={finding.finding_value} />
+            </>
+          )}
+        </Box>
       ),
     },
     {
