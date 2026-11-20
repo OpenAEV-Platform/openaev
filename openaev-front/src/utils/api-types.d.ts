@@ -6644,6 +6644,7 @@ export interface ImportReport {
 }
 
 export interface ImportReportRow {
+  import_row_params: Record<string, string>;
   /** @format int32 */
   import_row_position: number;
   import_row_reason?: string;
