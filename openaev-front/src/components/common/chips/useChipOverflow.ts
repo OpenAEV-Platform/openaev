@@ -13,6 +13,8 @@ const useChipOverflow = (items: string[]) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chipRefs = useRef<(HTMLElement | null)[]>([]);
   const overflowRef = useRef<HTMLElement | null>(null);
+  // The labels themselves, not their number: labels replaced by as many others have other widths.
+  const itemsKey = JSON.stringify(items);
 
   const calculateVisibleCount = useCallback(() => {
     if (!containerRef.current) return;
@@ -37,9 +39,9 @@ const useChipOverflow = (items: string[]) => {
       visibleChips += 1;
     }
 
-    // One chip always shows: a lone "+3" says less than a use case and a count.
+    // One chip always shows: a bare "+3" says less than a label and a count.
     setVisibleCount(Math.max(1, visibleChips));
-  }, [items.length]);
+  }, [itemsKey]);
 
   useEffect(() => {
     const container = containerRef.current;

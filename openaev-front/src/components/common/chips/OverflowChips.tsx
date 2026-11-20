@@ -1,6 +1,4 @@
 import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-// The layout of the use-case chips this component comes from, kept as is so that their measures do not change
-import { Box, Stack } from '@mui/material';
 
 import useChipOverflow from './useChipOverflow';
 
@@ -21,13 +19,13 @@ const OverflowChips = ({ labels }: Props) => {
   const hiddenLabels = labels.slice(visibleCount).join(', ');
 
   return (
-    <Stack
+    <div
       ref={containerRef}
-      direction="row"
-      spacing={1}
-      sx={{
-        overflow: 'hidden',
+      style={{
+        display: 'flex',
         flexWrap: 'nowrap',
+        gap: 8,
+        overflow: 'hidden',
         position: 'relative',
         minWidth: 0,
       }}
@@ -35,14 +33,14 @@ const OverflowChips = ({ labels }: Props) => {
       {labels.map((label, index) => {
         const isVisible = index < visibleCount;
         return (
-          <Box
+          <div
             // two chips may carry the same label
             key={`${index}-${label}`}
-            ref={(el: HTMLDivElement | null) => {
-              chipRefs.current[index] = el;
+            ref={(element) => {
+              chipRefs.current[index] = element;
             }}
             // Fixed-size chips, so the overflow count is measurable.
-            sx={{
+            style={{
               flexShrink: 0,
               maxWidth: '100%',
               minWidth: 0,
@@ -60,14 +58,16 @@ const OverflowChips = ({ labels }: Props) => {
               </TooltipTrigger>
               {label && <TooltipContent>{label}</TooltipContent>}
             </Tooltip>
-          </Box>
+          </div>
         );
       })}
       {/* Always mounted, so its width is known before anything is hidden; it is
           only taken out of the flow while there is nothing to count. */}
-      <Box
-        ref={overflowRef}
-        sx={{
+      <div
+        ref={(element) => {
+          overflowRef.current = element;
+        }}
+        style={{
           flexShrink: 0,
           visibility: hiddenCount > 0 ? 'visible' : 'hidden',
           position: hiddenCount > 0 ? 'relative' : 'absolute',
@@ -79,8 +79,8 @@ const OverflowChips = ({ labels }: Props) => {
           </TooltipTrigger>
           {hiddenLabels && <TooltipContent>{hiddenLabels}</TooltipContent>}
         </Tooltip>
-      </Box>
-    </Stack>
+      </div>
+    </div>
   );
 };
 
