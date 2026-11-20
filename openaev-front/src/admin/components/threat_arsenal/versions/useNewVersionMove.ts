@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { type ThreatArsenalAction } from '../../../../utils/api-types';
 import { type OlderVersionInUse } from './usages/usageCounts';
 import useNotifyMoves from './usages/useNotifyMoves';
-import { moveUsages } from './usageMove';
+import { moveUsages } from './usages/usageMove';
 
 /** Picks the usages left on older versions, by version or all at once, and moves them to the new one. Nothing is picked first. */
 const useNewVersionMove = (action: ThreatArsenalAction, olderVersions: OlderVersionInUse[]) => {
