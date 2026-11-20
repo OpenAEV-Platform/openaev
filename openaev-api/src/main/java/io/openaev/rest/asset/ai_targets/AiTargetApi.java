@@ -5,6 +5,8 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.asset.AssetMarkingsService;
+import io.openaev.api.asset.dto.AiTargetCreateInput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -42,6 +44,7 @@ public class AiTargetApi {
   static final String TENANT_AI_TARGET_URI = TENANT_PREFIX + "/ai_targets";
 
   private final TenantWriteScopeResolver writeScopeResolver;
+  private final AssetMarkingsService assetMarkingsService;
   private final AiTargetRepository aiTargetRepository;
   private final TagRepository tagRepository;
 
@@ -83,13 +86,16 @@ public class AiTargetApi {
   @PostMapping({AI_TARGET_URI, TENANT_AI_TARGET_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
-  public Asset createAiTarget(TxCtx ctx, @Valid @RequestBody final AiTargetInput input) {
+  public Asset createAiTarget(TxCtx ctx, @Valid @RequestBody final AiTargetCreateInput input) {
     // An AI target is a third discriminator of the assets table, alongside endpoint and security
     // platform: the owning tenant is resolved from the request scope rather than left to the v1
     // listener's thread-local.
     Asset aiTarget = new Asset();
-    aiTarget.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
-    return this.aiTargetRepository.save(prepareAiTarget(aiTarget, input));
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    aiTarget.setTenant(new Tenant(tenantId));
+    prepareAiTarget(aiTarget, input);
+    assetMarkingsService.markNewAsset(tenantId, aiTarget, input.getMarkingIds());
+    return this.aiTargetRepository.save(aiTarget);
   }
 
   @GetMapping({AI_TARGET_URI + "/{aiTargetId}", TENANT_AI_TARGET_URI + "/{aiTargetId}"})
