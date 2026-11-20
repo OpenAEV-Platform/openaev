@@ -206,10 +206,16 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
     return List.of(first, second);
   }
 
-  private List<String> usageIds(InjectorContract action) {
-    return payloadVersionService.usages(DEFAULT_TENANT_UUID, action.getId()).usages().stream()
-        .map(usage -> usage.id())
-        .toList();
+  private List<String> usageIds(InjectorContract action) throws Exception {
+    JsonNode usages =
+        body(
+            mvc.perform(
+                    get(
+                        TENANT_THREAT_ARSENAL_URL + "/{actionId}/usages",
+                        DEFAULT_TENANT_UUID,
+                        action.getId()))
+                .andExpect(status().isOk()));
+    return usages.path("payload_usages").findValuesAsText("usage_id");
   }
 
   private ResultActions moveRequest(
