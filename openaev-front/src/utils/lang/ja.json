@@ -3011,6 +3011,7 @@
   "Notes": "備考",
   "Nothing added yet.": "まだ何も追加されていません。",
   "Nothing in flight right now.": "現在実行中のものはありません。",
+  "Every node of the graph is hidden": "グラフのすべてのノードが非表示です",
   "Nothing to show in the graph yet": "グラフに表示するものはまだありません",
   "Nothing to start from yet: run a simulation to see where the estate is exposed.": "起点はまだありません。シミュレーションを実行して、露出している箇所を確認してください。",
   "Notification center": "通知センター",

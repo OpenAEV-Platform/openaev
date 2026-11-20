@@ -3011,6 +3011,7 @@
   "Notes": "Примечания",
   "Nothing added yet.": "Пока ничего не добавлено.",
   "Nothing in flight right now.": "Сейчас ничего не выполняется.",
+  "Every node of the graph is hidden": "Все узлы графа скрыты",
   "Nothing to show in the graph yet": "В графе пока нечего показать",
   "Nothing to start from yet: run a simulation to see where the estate is exposed.": "Отправных точек пока нет: запустите симуляцию, чтобы увидеть, где инфраструктура уязвима.",
   "Notification center": "Центр уведомлений",
