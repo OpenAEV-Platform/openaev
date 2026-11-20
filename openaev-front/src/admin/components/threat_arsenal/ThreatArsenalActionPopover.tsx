@@ -18,7 +18,6 @@ import { useFormatter } from '../../../components/i18n';
 import {
   type ThreatArsenalAction,
   type ThreatArsenalActionFullOutput,
-  type ThreatArsenalActionUpdateInput,
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
 import { MESSAGING$ } from '../../../utils/Environment';
@@ -26,13 +25,12 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download, isFeatureEnabled } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
-import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 import fetchFiligranValues from './customization/filigranValues';
 import useCanUpdateAction from './hook/useCanUpdateAction';
 import PayloadRevocationDialog from './revocation/PayloadRevocationDialog';
 import usePayloadRevocation from './revocation/usePayloadRevocation';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
-import { type ActionFormValues, buildInitialValues } from './utils/actionFormValues';
+import { type ActionFormValues, buildInitialValues, toActionInput } from './utils/actionFormValues';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 import PayloadNewVersionDialog from './versions/PayloadNewVersionDialog';
 import useNewVersionNotice from './versions/useNewVersionNotice';
@@ -44,13 +42,6 @@ interface PayloadPopoverNewProps {
   onDuplicate?: (action: ThreatArsenalAction) => void;
   onShowVersions?: (action: ThreatArsenalAction) => void;
 }
-
-const handleCleanupCommandValue = (value: string): string | null => (value === '' ? null : value);
-
-const handleCleanupExecutorValue = (executor: string, command: string): string | null => {
-  if (executor !== '' && handleCleanupCommandValue(command) !== null) return executor;
-  return null;
-};
 
 const ThreatArsenalActionPopover = ({
   action,
@@ -109,27 +100,7 @@ const ThreatArsenalActionPopover = ({
   };
 
   const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
-    const inputValues: ThreatArsenalActionUpdateInput = {
-      ...data,
-      action_cleanup_executor: handleCleanupExecutorValue(
-        data.action_cleanup_executor as string ?? '',
-        data.action_cleanup_command as string ?? '',
-      ),
-      action_cleanup_command: handleCleanupCommandValue(data.action_cleanup_command as string ?? ''),
-      action_detection_remediations: Object.entries(data.remediations ?? {})
-        .filter(([, value]) => value)
-        .map(([key, value]) => {
-          const remediation = value as unknown as DetectionRemediationForm;
-          return {
-            detection_remediation_security_platform: key,
-            detection_remediation_values: remediation.content,
-            detection_remediation_id: remediation.remediationId,
-            author_rule: remediation.author_rule,
-          };
-        }),
-    } as ThreatArsenalActionUpdateInput;
-
-    const response = await updateThreatArsenalAction(actionId, inputValues);
+    const response = await updateThreatArsenalAction(actionId, toActionInput(data));
     handleCloseEdit();
     if (response.data) {
       afterSave(response.data as ThreatArsenalAction);
