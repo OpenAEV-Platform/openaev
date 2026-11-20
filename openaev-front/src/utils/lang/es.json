@@ -4983,5 +4983,8 @@
   "Why this version is unsafe": "Por qué esta versión no es segura",
   "Saved as v{version}.": "Guardada como v{version}.",
   "{count, plural, one {Move it below, or keep it where it is.} other {Move them below, or keep them where they are.}}": "{count, plural, one {Muévalo abajo o déjelo donde está.} other {Muévalos abajo o déjelos donde están.}}",
-  "{count, plural, one {Keep it on its version} other {Keep them on their version}}": "{count, plural, one {Mantenerlo en su versión} other {Mantenerlos en su versión}}"
+  "{count, plural, one {Keep it on its version} other {Keep them on their version}}": "{count, plural, one {Mantenerlo en su versión} other {Mantenerlos en su versión}}",
+  "{count, plural, one {# inject still uses} other {# injects still use}} {versions}.": "{count, plural, one {# inject todavía usa} other {# injects todavía usan}} {versions}.",
+  "{count, plural, one {Keep it on v{version}} other {Keep them on v{version}}}": "{count, plural, one {Mantenerlo en v{version}} other {Mantenerlos en v{version}}}",
+  "What changed in v{version}": "Qué cambió en v{version}"
 }

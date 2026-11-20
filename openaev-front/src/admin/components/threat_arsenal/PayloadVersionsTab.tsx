@@ -7,13 +7,15 @@ import { type FunctionComponent, type ReactNode, useEffect, useRef, useState } f
 import { installCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
 import {
   changeThreatArsenalVersion,
+  fetchThreatArsenalHistory,
   fetchThreatArsenalUsages,
   fetchThreatArsenalVersions,
 } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
-import { SkeletonRows } from '../../../components/common/content_versions/ContentVersionsTable';
+import { ChangesTable, type HistoryChange, SkeletonRows } from '../../../components/common/content_versions/ContentVersionsTable';
 import { FDS_GROUP_ROW_STYLE, FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../../../components/common/fdsTableSpec';
 import { useFormatter } from '../../../components/i18n';
 import {
+  type ContentHistoryOutput,
   type PayloadUsageOutput,
   type PayloadVersionChangeOutput,
   type PayloadVersionOutput,
@@ -295,6 +297,31 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, foc
     .filter(v => v.payload_installed && v !== current)
     .reduce((sum, v) => sum + (v.payload_usage_count ?? 0), 0);
   const kept = useKeptOnOlderVersions(current?.payload_action_id);
+  // The older versions the injects are still on, named: "1 inject still uses v1.8.0".
+  const olderVersions = versions.filter(v => v.payload_installed && v !== current && (v.payload_usage_count ?? 0) > 0);
+  const olderVersionNames = olderVersions.map(v => `v${v.payload_version}`).join(', ');
+  const keepLabel = olderVersions.length === 1
+    ? t('{count, plural, one {Keep it on v{version}} other {Keep them on v{version}}}', {
+        count: olderUsages,
+        version: olderVersions[0].payload_version ?? '',
+      })
+    : t('{count, plural, one {Keep it on its version} other {Keep them on their version}}', { count: olderUsages });
+  // Right after a save: what it changed, from the history entry of the saved version.
+  const afterSave = !!savedVersion && !kept;
+  const [savedChanges, setSavedChanges] = useState<HistoryChange[]>([]);
+  const [savedFrom, setSavedFrom] = useState<string | undefined>();
+  const [changesOpen, setChangesOpen] = useState(true);
+  useEffect(() => {
+    setSavedChanges([]);
+    setSavedFrom(undefined);
+    if (!savedVersion) return;
+    fetchThreatArsenalHistory(actionId).then((response) => {
+      const entry = (response.data as ContentHistoryOutput[]).find(e => e.content_history_version === savedVersion
+        && ((e.content_history_details as { changes?: HistoryChange[] } | undefined)?.changes?.length ?? 0) > 0);
+      setSavedChanges((entry?.content_history_details as { changes?: HistoryChange[] } | undefined)?.changes ?? []);
+      setSavedFrom(entry?.content_history_from_version ?? undefined);
+    }).catch(() => setSavedChanges([]));
+  }, [actionId, savedVersion]);
   // From a card's Migrate link: the older installed versions something still runs.
   const isFocused = (v: PayloadVersionOutput) => focusMigration && !v.payload_is_latest && !!v.payload_installed && (v.payload_usage_count ?? 0) > 0;
   const firstFocused = listed.find(isFocused);
@@ -386,38 +413,91 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, foc
     >
       {loading && versions.length === 0 && [0, 1].map(key => <Skeleton key={key} variant="rounded" height={96} />)}
       {/* Moving is not always wanted: some teams keep scenarios on an older version on purpose. Keeping
-          them removes the card's banner until the next version; the choice can be undone here. */}
+          them removes the card's banner until the next version; the choice can be undone here. The tab
+          is the same from the card and after a save: a save only adds "Saved as" and what it changed. */}
       {olderUsages > 0 && current?.payload_action_id && (
         <div style={{
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 8,
+          flexDirection: 'column',
+          gap: 12,
+          ...(afterSave
+            ? {
+                ...FDS_TABLE_FRAME_STYLE,
+                padding: 16,
+              }
+            : {}),
         }}
         >
-          {/* Right after a save: "✓ Saved as v…" first, so the tab reads as the continuation of it. */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'space-between',
             gap: 8,
-            minWidth: 0,
           }}
           >
-            {savedVersion && !kept && <CheckCircleOutlined fontSize="small" color="success" />}
-            <Text variant="content-compact" className="text-default-secondary">
-              {kept
-                ? t('Kept on their version. The card\'s banner returns with the next version.')
-                : `${savedVersion ? `${t('Saved as v{version}.', { version: savedVersion })} ` : ''}${olderUsages === 1 ? t('1 inject uses an older version') : t('{count} injects use an older version', { count: String(olderUsages) })}. ${t('{count, plural, one {Move it below, or keep it where it is.} other {Move them below, or keep them where they are.}}', { count: olderUsages })}`}
-            </Text>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              minWidth: 0,
+            }}
+            >
+              {afterSave && <CheckCircleOutlined fontSize="small" color="success" />}
+              <Text variant="content-compact" className={afterSave ? undefined : 'text-default-secondary'}>
+                {kept
+                  ? t('Kept on their version. The card\'s banner returns with the next version.')
+                  : `${afterSave ? `${t('Saved as v{version}.', { version: savedVersion })} ` : ''}${t('{count, plural, one {# inject still uses} other {# injects still use}} {versions}.', {
+                    count: olderUsages,
+                    versions: olderVersionNames,
+                  })} ${t('{count, plural, one {Move it below, or keep it where it is.} other {Move them below, or keep them where they are.}}', { count: olderUsages })}`}
+              </Text>
+            </div>
+            <Button
+              size="sm"
+              priority={kept ? 'tertiary' : 'secondary'}
+              style={{ flexShrink: 0 }}
+              onClick={() => setKeptOnOlderVersions(current.payload_action_id as string, !kept)}
+            >
+              {kept ? t('Show the banner again') : keepLabel}
+            </Button>
           </div>
-          <Button
-            size="sm"
-            priority={kept ? 'tertiary' : 'secondary'}
-            style={{ flexShrink: 0 }}
-            onClick={() => setKeptOnOlderVersions(current.payload_action_id as string, !kept)}
-          >
-            {kept ? t('Show the banner again') : t('{count, plural, one {Keep it on its version} other {Keep them on their version}}', { count: olderUsages })}
-          </Button>
+          {/* What the save changed, open: whether to move the injects depends on it. Same block as History. */}
+          {afterSave && savedChanges.length > 0 && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+            >
+              <button
+                type="button"
+                aria-expanded={changesOpen}
+                onClick={() => setChangesOpen(!changesOpen)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  padding: 0,
+                  border: 0,
+                  background: 'none',
+                  color: 'inherit',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <Text variant="content-compact-bold">{t('What changed in v{version}', { version: savedVersion })}</Text>
+                {changesOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+              </button>
+              {changesOpen && (
+                <ChangesTable
+                  changes={savedChanges}
+                  beforeLabel={savedFrom ? String(t('Before · v{version}', { version: savedFrom })) : undefined}
+                  afterLabel={String(t('After · v{version}', { version: savedVersion }))}
+                />
+              )}
+            </div>
+          )}
         </div>
       )}
       {/* One DS table: each version a group row, its injects the rows under it. */}

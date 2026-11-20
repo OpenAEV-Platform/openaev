@@ -4983,5 +4983,8 @@
   "Why this version is unsafe": "此版本不安全的原因",
   "Saved as v{version}.": "已保存为 v{version}。",
   "{count, plural, one {Move it below, or keep it where it is.} other {Move them below, or keep them where they are.}}": "{count, plural, other {在下方移动，或保持不变。}}",
-  "{count, plural, one {Keep it on its version} other {Keep them on their version}}": "{count, plural, other {保留在当前版本}}"
+  "{count, plural, one {Keep it on its version} other {Keep them on their version}}": "{count, plural, other {保留在当前版本}}",
+  "{count, plural, one {# inject still uses} other {# injects still use}} {versions}.": "{count, plural, other {# 个注入仍在使用}} {versions}。",
+  "{count, plural, one {Keep it on v{version}} other {Keep them on v{version}}}": "{count, plural, other {保留在 v{version}}}",
+  "What changed in v{version}": "v{version} 中的更改"
 }

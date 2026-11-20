@@ -4983,5 +4983,8 @@
   "Why this version is unsafe": "このバージョンが安全でない理由",
   "Saved as v{version}.": "v{version} として保存しました。",
   "{count, plural, one {Move it below, or keep it where it is.} other {Move them below, or keep them where they are.}}": "{count, plural, other {下で移動するか、そのままにしてください。}}",
-  "{count, plural, one {Keep it on its version} other {Keep them on their version}}": "{count, plural, other {現在のバージョンのままにする}}"
+  "{count, plural, one {Keep it on its version} other {Keep them on their version}}": "{count, plural, other {現在のバージョンのままにする}}",
+  "{count, plural, one {# inject still uses} other {# injects still use}} {versions}.": "{count, plural, other {# 件のインジェクトがまだ}} {versions} を使用しています。",
+  "{count, plural, one {Keep it on v{version}} other {Keep them on v{version}}}": "{count, plural, other {v{version} のままにする}}",
+  "What changed in v{version}": "v{version} の変更点"
 }
