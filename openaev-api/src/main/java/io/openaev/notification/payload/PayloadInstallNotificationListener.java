@@ -45,7 +45,7 @@ public class PayloadInstallNotificationListener {
   private List<ContentNotification> notifications(CatalogContentChanged event) {
     List<Payload> versions =
         payloadService.versions(event.tenantId(), event.externalId()).stream()
-            .filter(version -> event.repository().equals(version.getIdentity().getRepository()))
+            .filter(version -> event.repository().equals(version.getCatalogRepository()))
             .toList();
     Payload installed =
         versions.stream()
