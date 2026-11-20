@@ -1,21 +1,12 @@
-import {
-  Combobox,
-  ComboboxChips,
-  ComboboxClear,
-  ComboboxContent,
-  ComboboxControls,
-  ComboboxField,
-  ComboboxInput,
-  ComboboxLabel,
-  ComboboxTrigger,
-  Input,
-  Text,
-} from '@filigran/design-system';
+import { Text } from '@filigran/design-system';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { searchAssetGroups } from '../../../../actions/asset_groups/assetgroup-action';
 import { searchEndpoints } from '../../../../actions/assets/endpoint-actions';
 import { searchTeams } from '../../../../actions/teams/team-actions';
+import SearchAutocompleteField from '../../../../components/fields/SearchAutocompleteField';
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import {
   type AssetGroupOutput,
@@ -58,39 +49,25 @@ interface TargetFieldProps {
 
 const TargetField: FunctionComponent<TargetFieldProps> = ({ label, value, onChange, search }) => {
   const { t } = useFormatter();
-  const [options, setOptions] = useState<Option[]>([]);
-  const [inputValue, setInputValue] = useState('');
+  const [found, setFound] = useState<Option[]>([]);
+  const [text, setText] = useState('');
 
   useEffect(() => {
-    search(inputValue).then(setOptions).catch(() => setOptions([]));
-  }, [inputValue]);
+    search(text).then(setFound).catch(() => setFound([]));
+  }, [text]);
 
+  // The chosen targets stay among the options, so their chips keep their names whatever the search finds.
+  const options = [...value, ...found.filter(option => !value.some(chosen => chosen.id === option.id))];
   return (
-    <Combobox<Option>
+    <SearchAutocompleteField
       multiple
+      label={label}
+      placeholder={t('Search')}
       options={options}
-      value={value}
-      getOptionLabel={option => option.label}
-      isOptionEqualToValue={(option, other) => option.id === other.id}
-      inputValue={inputValue}
-      onInputChange={(text, meta) => {
-        if (meta.cause === 'type') {
-          setInputValue(text);
-        }
-      }}
-      onValueChange={next => onChange(next as Option[])}
-    >
-      <ComboboxLabel>{label}</ComboboxLabel>
-      <ComboboxField>
-        <ComboboxChips />
-        <ComboboxInput placeholder={t('Search')} />
-        <ComboboxControls>
-          <ComboboxClear />
-          <ComboboxTrigger />
-        </ComboboxControls>
-      </ComboboxField>
-      <ComboboxContent emptyMessage={t('No available options')} />
-    </Combobox>
+      value={value.map(option => option.id)}
+      onChange={(ids: string[]) => onChange(ids.flatMap(id => options.filter(option => option.id === id)))}
+      onInputChange={setText}
+    />
   );
 };
 
@@ -102,6 +79,7 @@ interface Props {
 // Each target goes to every inject that takes its kind; the targets already on the injects stay.
 const ScenarioTargetsFields: FunctionComponent<Props> = ({ value, onChange }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
   const change = (field: Partial<ScenarioTargets>) => onChange({
     ...value,
     ...field,
@@ -110,27 +88,19 @@ const ScenarioTargetsFields: FunctionComponent<Props> = ({ value, onChange }) =>
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      gap: 16,
+      gap: theme.spacing(2),
     }}
     >
       <Text variant="content-caption">{t('Each target is added to every inject that takes its kind; the targets already set stay.')}</Text>
       <TargetField label={t('Assets')} value={value.assets} onChange={assets => change({ assets })} search={searchAssetOptions} />
       <TargetField label={t('Asset groups')} value={value.assetGroups} onChange={assetGroups => change({ assetGroups })} search={searchAssetGroupOptions} />
       <TargetField label={t('Teams')} value={value.teams} onChange={teams => change({ teams })} search={searchTeamOptions} />
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 4,
-      }}
-      >
-        <Text variant="content-compact">{t('Manual targets')}</Text>
-        <Input
-          aria-label={t('Manual targets')}
-          placeholder="10.0.0.12, 10.20.0.0/24, app.example.com"
-          value={value.manual}
-          onChange={event => change({ manual: event.target.value })}
-        />
-      </div>
+      <TextFieldFds
+        label={t('Manual targets')}
+        placeholder="10.0.0.12, 10.20.0.0/24, app.example.com"
+        value={value.manual}
+        onChange={event => change({ manual: event.target.value })}
+      />
     </div>
   );
 };

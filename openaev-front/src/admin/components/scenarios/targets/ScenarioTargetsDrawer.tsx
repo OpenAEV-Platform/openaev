@@ -1,4 +1,5 @@
 import { Button, Text } from '@filigran/design-system';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 
 import Drawer from '../../../../components/common/Drawer';
@@ -18,6 +19,7 @@ interface Props {
 
 const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, description, withTargets, submitLabel, onSubmit, onClose }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
   const [targets, setTargets] = useState<ScenarioTargets>(NO_TARGETS);
   const [submitting, setSubmitting] = useState(false);
 
@@ -33,7 +35,7 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, description, w
       <div style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 24,
+        gap: theme.spacing(3),
       }}
       >
         <Text variant="content-base">{description}</Text>
@@ -41,7 +43,7 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, description, w
         <div style={{
           display: 'flex',
           justifyContent: 'flex-end',
-          gap: 8,
+          gap: theme.spacing(1),
         }}
         >
           <Button type="button" priority="secondary" onClick={onClose}>{t('Cancel')}</Button>

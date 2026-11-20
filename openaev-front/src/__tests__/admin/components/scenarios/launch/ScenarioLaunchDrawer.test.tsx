@@ -1,80 +1,90 @@
-import { cleanup, render } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type ScenarioRow } from '../../../../../admin/components/scenarios/scenarioRow';
 import { type ScenarioTargets } from '../../../../../admin/components/scenarios/targets/scenarioTargets';
+import { MESSAGING$ } from '../../../../../utils/Environment';
 
-const { launchScenario, navigate, notifySuccess, drawerProps } = vi.hoisted(() => ({
-  launchScenario: vi.fn((_scenarioId: string, _targets?: unknown) => Promise.resolve({ simulation_id: 'simulation-id' })),
+const mocks = vi.hoisted(() => ({
+  launchScenario: vi.fn(),
   navigate: vi.fn(),
-  notifySuccess: vi.fn(),
-  drawerProps: { onSubmit: undefined as undefined | ((targets: ScenarioTargets) => Promise<unknown>) },
 }));
 
-vi.mock('react-router', () => ({ useNavigate: () => navigate }));
-vi.mock('../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (s: string) => s }) }));
-vi.mock('../../../../../actions/scenarios/scenario-actions', () => ({ launchScenario }));
-vi.mock('../../../../../utils/Environment', () => ({ MESSAGING$: { notifySuccess } }));
+vi.mock(import('react-router'), async importOriginal => ({
+  ...await importOriginal(),
+  useNavigate: () => mocks.navigate,
+}));
+vi.mock('../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (key: string) => key }) }));
+vi.mock('../../../../../actions/scenarios/scenario-actions', () => ({ launchScenario: mocks.launchScenario }));
 vi.mock('../../../../../admin/components/scenarios/targets/ScenarioTargetsDrawer', () => ({
-  default: (props: { onSubmit: (targets: ScenarioTargets) => Promise<unknown> }) => {
-    drawerProps.onSubmit = props.onSubmit;
-    return null;
-  },
+  default: ({ withTargets, onSubmit }: {
+    withTargets: boolean;
+    onSubmit: (targets: ScenarioTargets) => Promise<unknown>;
+  }) => (
+    <button
+      type="button"
+      data-testid="submit"
+      data-with-targets={String(withTargets)}
+      onClick={() => onSubmit({
+        assets: [{
+          id: 'asset-1',
+          label: 'Web server',
+        }],
+        assetGroups: [],
+        teams: [],
+        manual: '10.0.0.1, app.example.com',
+      })}
+    />
+  ),
 }));
 
-// Imported after the mocks so the component picks them up.
 const { default: ScenarioLaunchDrawer } = await import('../../../../../admin/components/scenarios/launch/ScenarioLaunchDrawer');
 
-const TARGETS: ScenarioTargets = {
-  assets: [{
-    id: 'asset-id',
-    label: 'Asset',
-  }],
-  assetGroups: [],
-  teams: [],
-  manual: 'host.local',
-};
-
-const launchWith = async (scenario: { scenario_workflow_id?: string }) => {
-  render(
-    <ScenarioLaunchDrawer
-      scenario={{
-        scenario_id: 'scenario-id',
-        scenario_name: 'Scenario',
-        ...scenario,
-      } as ScenarioRow}
-      onClose={vi.fn()}
-    />,
-  );
-  await drawerProps.onSubmit?.(TARGETS);
-};
+const scenario = (workflowId?: string) => ({
+  scenario_id: 'scenario-1',
+  scenario_name: 'Phishing',
+  scenario_workflow_id: workflowId,
+}) as ScenarioRow;
 
 describe('ScenarioLaunchDrawer', () => {
+  beforeEach(() => {
+    vi.spyOn(MESSAGING$, 'notifySuccess').mockImplementation(() => undefined);
+    mocks.launchScenario.mockResolvedValue({ simulation_id: 'simulation-1' });
+  });
+
   afterEach(() => {
     cleanup();
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
-  it('launches the scenario with the chosen targets and opens the simulation', async () => {
+  it('given_aTimeBasedScenario_should_launchWithTheTargetsAndOpenTheSimulationOverview', async () => {
+    // Arrange
+    render(<ScenarioLaunchDrawer scenario={scenario()} onClose={vi.fn()} />);
+
     // Act
-    await launchWith({});
+    fireEvent.click(screen.getByTestId('submit'));
 
     // Assert
-    expect(launchScenario).toHaveBeenCalledWith('scenario-id', {
-      asset_ids: ['asset-id'],
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/admin/simulations/simulation-1'));
+    expect(screen.getByTestId('submit').getAttribute('data-with-targets')).toBe('true');
+    expect(mocks.launchScenario).toHaveBeenCalledWith('scenario-1', {
+      asset_ids: ['asset-1'],
       asset_group_ids: [],
       team_ids: [],
-      manual_targets: ['host.local'],
+      manual_targets: ['10.0.0.1', 'app.example.com'],
     });
-    expect(notifySuccess).toHaveBeenCalledWith('New simulation successfully created and started');
-    expect(navigate).toHaveBeenCalledWith('/admin/simulations/simulation-id');
+    expect(MESSAGING$.notifySuccess).toHaveBeenCalledWith('New simulation successfully created and started');
   });
 
-  it('opens a chained simulation on its attack path', async () => {
+  it('given_aChainedScenario_should_takeNoTargetsAndOpenTheAttackPath', async () => {
+    // Arrange
+    render(<ScenarioLaunchDrawer scenario={scenario('workflow-1')} onClose={vi.fn()} />);
+
     // Act
-    await launchWith({ scenario_workflow_id: 'workflow-id' });
+    fireEvent.click(screen.getByTestId('submit'));
 
     // Assert
-    expect(navigate).toHaveBeenCalledWith('/admin/simulations/simulation-id/attack-path');
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/admin/simulations/simulation-1/attack-path'));
+    expect(screen.getByTestId('submit').getAttribute('data-with-targets')).toBe('false');
   });
 });
