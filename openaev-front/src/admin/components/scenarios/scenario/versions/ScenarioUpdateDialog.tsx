@@ -96,6 +96,8 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
   const [choices, setChoices] = useState<Record<string, ScenarioMergeChoice>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [applying, setApplying] = useState(false);
+  // Kept edits whose content is open ("View").
+  const [viewing, setViewing] = useState<Set<string>>(new Set());
   // Release notes of the versions this update brings, newest first.
   const [notes, setNotes] = useState<{
     version: string;
@@ -226,6 +228,13 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
 
   const taken = preview?.changes.filter(change => change.status === 'TAKE_APPLIED') ?? [];
   const kept = preview?.changes.filter(change => change.status === 'KEEP_MINE') ?? [];
+  // One row per kept field, with the user's value (what stays after applying).
+  const keptRows = kept.flatMap(change => rowsOf(change, change.base, change.local).map((item, index) => ({
+    key: `${change.id}-${index}`,
+    field: item.field,
+    value: item.after,
+    code: 'code' in item && !!item.code,
+  })));
   const section = {
     display: 'flex',
     flexDirection: 'column' as const,
@@ -430,14 +439,63 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
                   )}
                 </div>
               )}
-              {kept.length > 0 && (
-                <div style={section}>
-                  <Text variant="title-xs">{version ? t('Your edits — the update keeps them') : t('Your edits — the rollback keeps them')}</Text>
-                  <ChangesTable
-                    changes={kept.flatMap(change => rowsOf(change, change.base, change.local))}
-                    beforeLabel={String(t('Before · Filigran v{version}', { version: preview.current_version }))}
-                    afterLabel={t('After · your edit')}
-                  />
+              {/* Idea A: a diff here only shows what the update or rollback changes. A kept edit does not
+                  change, so it is one quiet row, and its content opens as plain text (no + / −). */}
+              {keptRows.length > 0 && (
+                <div style={section} data-testid="scenario-update-kept">
+                  <Text variant="title-xs">{t('Your edits, kept as they are')}</Text>
+                  <Text variant="content-caption">
+                    {version ? t('The update doesn\'t change them.') : t('The rollback doesn\'t change them.')}
+                  </Text>
+                  {keptRows.map((item) => {
+                    const open = viewing.has(item.key);
+                    return (
+                      <div key={item.key} style={section}>
+                        <div style={row}>
+                          <Chip label={t('Kept')} />
+                          <Text variant="content-base">{item.field}</Text>
+                          {item.code
+                            ? (
+                                <Button
+                                  size="sm"
+                                  priority="tertiary"
+                                  style={{ marginLeft: 'auto' }}
+                                  aria-expanded={open}
+                                  onClick={() => setViewing((previous) => {
+                                    const next = new Set(previous);
+                                    if (open) next.delete(item.key);
+                                    else next.add(item.key);
+                                    return next;
+                                  })}
+                                >
+                                  {open ? t('Hide') : t('View')}
+                                </Button>
+                              )
+                            : <Text variant="content-caption">{item.value || t('(empty)')}</Text>}
+                        </div>
+                        {item.code && open && (
+                          <pre
+                            tabIndex={0}
+                            aria-label={item.field}
+                            style={{
+                              margin: 0,
+                              maxHeight: 320,
+                              overflow: 'auto',
+                              padding: '8px 12px',
+                              borderRadius: 4,
+                              border: '1px solid var(--border-elevation-subtle-soft)',
+                              fontFamily: 'var(--font-content-code), ui-monospace, monospace',
+                              fontSize: 'var(--text-content-code)',
+                              lineHeight: '22px',
+                              color: 'var(--text-default-primary)',
+                            }}
+                          >
+                            {item.value || t('(empty)')}
+                          </pre>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               {preview.warnings.length > 0 && (

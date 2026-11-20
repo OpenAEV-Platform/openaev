@@ -306,7 +306,6 @@
   "After": "After",
   "After · revision #{number}": "After · revision #{number}",
   "After · v{version}": "After · v{version}",
-  "After · your edit": "After · your edit",
   "agent": "agent",
   "Agent": "Agent",
   "Agent delegation": "Agent delegation",
@@ -647,7 +646,6 @@
   "Basic Information": "Basic Information",
   "BEFORE": "BEFORE",
   "Before": "Before",
-  "Before · Filigran v{version}": "Before · Filigran v{version}",
   "Before · now": "Before · now",
   "Before · v{version}": "Before · v{version}",
   "Before payload version change": "Before payload version change",
@@ -4918,8 +4916,6 @@
   "Your controls stopped almost every validated attack.": "Your controls stopped almost every validated attack.",
   "Your defenses met almost every validated expectation on the assets of this group.": "Your defenses met almost every validated expectation on the assets of this group.",
   "Your defenses met almost every validated expectation on this asset.": "Your defenses met almost every validated expectation on this asset.",
-  "Your edits — the rollback keeps them": "Your edits — the rollback keeps them",
-  "Your edits — the update keeps them": "Your edits — the update keeps them",
   "Your edits kept: {count}": "Your edits kept: {count}",
   "Your Enterprise Edition license is expired. Please contact your Filigran representative.": "Your Enterprise Edition license is expired. Please contact your Filigran representative.",
   "Your Enterprise Edition license will expire in less than 3 months.": "Your Enterprise Edition license will expire in less than 3 months.",
@@ -4976,5 +4972,10 @@
   "{count} injects use an older version": "{count} injects use an older version",
   "Move them below, or keep them where they are.": "Move them below, or keep them where they are.",
   "Kept on their version. The card's banner returns with the next version.": "Kept on their version. The card's banner returns with the next version.",
-  "Revoked: fails until the revocation is lifted.": "Revoked: fails until the revocation is lifted."
+  "Revoked: fails until the revocation is lifted.": "Revoked: fails until the revocation is lifted.",
+  "Your edits, kept as they are": "Your edits, kept as they are",
+  "The update doesn't change them.": "The update doesn't change them.",
+  "The rollback doesn't change them.": "The rollback doesn't change them.",
+  "Kept": "Kept",
+  "Hide": "Hide"
 }

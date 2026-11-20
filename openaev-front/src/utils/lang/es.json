@@ -306,7 +306,6 @@
   "After": "Después",
   "After · revision #{number}": "Después · revisión n.º {number}",
   "After · v{version}": "Después · v{version}",
-  "After · your edit": "Después · su cambio",
   "agent": "agente",
   "Agent": "Agente",
   "Agent delegation": "Delegación de agentes",
@@ -647,7 +646,6 @@
   "Basic Information": "Información básica",
   "BEFORE": "ANTES",
   "Before": "Antes",
-  "Before · Filigran v{version}": "Antes · Filigran v{version}",
   "Before · now": "Antes · ahora",
   "Before · v{version}": "Antes · v{version}",
   "Before payload version change": "Antes del cambio de versión del payload",
@@ -4918,8 +4916,6 @@
   "Your controls stopped almost every validated attack.": "Sus controles detuvieron casi todos los ataques validados.",
   "Your defenses met almost every validated expectation on the assets of this group.": "Sus defensas cumplieron casi todas las expectativas validadas en los activos de este grupo.",
   "Your defenses met almost every validated expectation on this asset.": "Sus defensas cumplieron casi todas las expectativas validadas en este activo.",
-  "Your edits — the rollback keeps them": "Sus cambios — la reversión los conserva",
-  "Your edits — the update keeps them": "Sus cambios — la actualización los conserva",
   "Your edits kept: {count}": "Sus cambios conservados: {count}",
   "Your Enterprise Edition license is expired. Please contact your Filigran representative.": "Su licencia Enterprise Edition ha caducado. Póngase en contacto con su representante de Filigran.",
   "Your Enterprise Edition license will expire in less than 3 months.": "Su licencia Enterprise Edition caducará en menos de 3 meses.",
@@ -4976,5 +4972,10 @@
   "{count} injects use an older version": "{count} injects usan una versión anterior",
   "Move them below, or keep them where they are.": "Muévalos abajo o déjelos donde están.",
   "Kept on their version. The card's banner returns with the next version.": "Mantenidos en su versión. El banner de la tarjeta vuelve con la próxima versión.",
-  "Revoked: fails until the revocation is lifted.": "Revocada: falla hasta que se levante la revocación."
+  "Revoked: fails until the revocation is lifted.": "Revocada: falla hasta que se levante la revocación.",
+  "Your edits, kept as they are": "Sus cambios, conservados tal cual",
+  "The update doesn't change them.": "La actualización no los cambia.",
+  "The rollback doesn't change them.": "La reversión no los cambia.",
+  "Kept": "Conservado",
+  "Hide": "Ocultar"
 }

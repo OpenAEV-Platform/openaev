@@ -306,7 +306,6 @@
   "After": "Nachher",
   "After · revision #{number}": "Nachher · Revision #{number}",
   "After · v{version}": "Nachher · v{version}",
-  "After · your edit": "Nachher · Ihre Änderung",
   "agent": "agent",
   "Agent": "Agent",
   "Agent delegation": "Agenten-Delegierung",
@@ -647,7 +646,6 @@
   "Basic Information": "Grundlegende Informationen",
   "BEFORE": "VOR",
   "Before": "Vorher",
-  "Before · Filigran v{version}": "Vorher · Filigran v{version}",
   "Before · now": "Vorher · jetzt",
   "Before · v{version}": "Vorher · v{version}",
   "Before payload version change": "Vor dem Wechsel der Payload-Version",
@@ -4918,8 +4916,6 @@
   "Your controls stopped almost every validated attack.": "Ihre Schutzmaßnahmen haben fast jeden validierten Angriff abgewehrt.",
   "Your defenses met almost every validated expectation on the assets of this group.": "Ihre Verteidigung hat fast jede validierte Erwartung auf den Assets dieser Gruppe erfüllt.",
   "Your defenses met almost every validated expectation on this asset.": "Ihre Verteidigung hat fast jede validierte Erwartung auf diesem Asset erfüllt.",
-  "Your edits — the rollback keeps them": "Ihre Änderungen — das Zurücksetzen behält sie",
-  "Your edits — the update keeps them": "Ihre Änderungen — das Update behält sie",
   "Your edits kept: {count}": "Ihre beibehaltenen Änderungen: {count}",
   "Your Enterprise Edition license is expired. Please contact your Filigran representative.": "Ihre Enterprise-Edition-Lizenz ist abgelaufen. Bitte wenden Sie sich an Ihren Filigran-Ansprechpartner.",
   "Your Enterprise Edition license will expire in less than 3 months.": "Ihre Enterprise-Edition-Lizenz läuft in weniger als 3 Monaten ab.",
@@ -4976,5 +4972,10 @@
   "{count} injects use an older version": "{count} Injects nutzen eine ältere Version",
   "Move them below, or keep them where they are.": "Verschieben Sie sie unten oder belassen Sie sie, wo sie sind.",
   "Kept on their version. The card's banner returns with the next version.": "Auf ihrer Version belassen. Das Banner der Karte erscheint mit der nächsten Version wieder.",
-  "Revoked: fails until the revocation is lifted.": "Widerrufen: schlägt fehl, bis der Widerruf aufgehoben wird."
+  "Revoked: fails until the revocation is lifted.": "Widerrufen: schlägt fehl, bis der Widerruf aufgehoben wird.",
+  "Your edits, kept as they are": "Ihre Änderungen, unverändert beibehalten",
+  "The update doesn't change them.": "Das Update ändert sie nicht.",
+  "The rollback doesn't change them.": "Das Zurücksetzen ändert sie nicht.",
+  "Kept": "Beibehalten",
+  "Hide": "Ausblenden"
 }

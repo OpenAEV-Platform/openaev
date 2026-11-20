@@ -306,7 +306,6 @@
   "After": "Après",
   "After · revision #{number}": "Après · révision n°{number}",
   "After · v{version}": "Après · v{version}",
-  "After · your edit": "Après · votre modification",
   "agent": "agent",
   "Agent": "Agent",
   "Agent delegation": "Délégation d’agent",
@@ -647,7 +646,6 @@
   "Basic Information": "Informations de base",
   "BEFORE": "AVANT",
   "Before": "Avant",
-  "Before · Filigran v{version}": "Avant · Filigran v{version}",
   "Before · now": "Avant · maintenant",
   "Before · v{version}": "Avant · v{version}",
   "Before payload version change": "Avant changement de version de payload",
@@ -4918,8 +4916,6 @@
   "Your controls stopped almost every validated attack.": "Vos contrôles ont bloqué la quasi-totalité des attaques validées.",
   "Your defenses met almost every validated expectation on the assets of this group.": "Vos défenses ont rempli presque tous les attendus validés sur les actifs de ce groupe.",
   "Your defenses met almost every validated expectation on this asset.": "Vos défenses ont rempli presque tous les attendus validés sur cet actif.",
-  "Your edits — the rollback keeps them": "Vos modifications — le retour arrière les conserve",
-  "Your edits — the update keeps them": "Vos modifications — la mise à jour les conserve",
   "Your edits kept: {count}": "Vos modifications conservées : {count}",
   "Your Enterprise Edition license is expired. Please contact your Filigran representative.": "Votre licence Enterprise Edition a expiré. Veuillez contacter votre représentant Filigran.",
   "Your Enterprise Edition license will expire in less than 3 months.": "Votre licence Enterprise Edition expirera dans moins de 3 mois.",
@@ -4976,5 +4972,10 @@
   "{count} injects use an older version": "{count} injects utilisent une version antérieure",
   "Move them below, or keep them where they are.": "Déplacez-les ci-dessous, ou laissez-les où ils sont.",
   "Kept on their version. The card's banner returns with the next version.": "Gardés sur leur version. Le bandeau de la carte revient avec la prochaine version.",
-  "Revoked: fails until the revocation is lifted.": "Révoquée : échoue jusqu'à la levée de la révocation."
+  "Revoked: fails until the revocation is lifted.": "Révoquée : échoue jusqu'à la levée de la révocation.",
+  "Your edits, kept as they are": "Vos modifications, conservées telles quelles",
+  "The update doesn't change them.": "La mise à jour ne les modifie pas.",
+  "The rollback doesn't change them.": "Le retour arrière ne les modifie pas.",
+  "Kept": "Conservé",
+  "Hide": "Masquer"
 }
