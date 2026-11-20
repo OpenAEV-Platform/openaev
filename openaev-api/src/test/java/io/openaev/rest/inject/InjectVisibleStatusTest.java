@@ -267,12 +267,15 @@ class InjectVisibleStatusTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given an inject closed by the platform, should show the stored ERROR")
-    void given_closedByPlatform_should_showTheStoredStatus() throws Exception {
-      // Arrange: the RED agent succeeded, then the platform closed the inject with a trace of its
-      // own
+    @DisplayName(
+        "given an inject closed by the platform after a hidden success, should show the platform's"
+            + " ERROR, not the stored PARTIAL")
+    void given_closedByPlatformAfterHiddenSuccess_should_showThePlatformError() throws Exception {
+      // Arrange: the RED agent succeeded, then the platform closed the inject with an error trace
+      // of
+      // its own: the stored verdict counts both
       InjectStatus status = InjectStatusFixture.createSuccessStatus();
-      status.setName(ExecutionStatus.ERROR);
+      status.setName(ExecutionStatus.PARTIAL);
       Inject inject =
           injectWithRuns(
               status,

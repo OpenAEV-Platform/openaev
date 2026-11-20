@@ -14,8 +14,7 @@ import org.springframework.stereotype.Component;
  * is computed from ({@code InjectVisibleStatusService}): every inject list reads them for its
  * closed injects. A COMPLETE trace is about one trace in six, so the index is read one row per
  * agent instead of every trace of the inject, and the planner's estimate stays under the JIT
- * thresholds (measurement: {@code brainstorming/marking/task4/tech-design.md}, "Measured (step
- * 11.11)").
+ * thresholds (measurement: {@code brainstorming/marking/task4/tech-design.md}, "Measured").
  *
  * <p>{@code execution_traces} is written constantly, so the index is built {@code CONCURRENTLY}:
  * inserts go on during the build. That cannot run in a transaction, hence {@link
@@ -23,7 +22,7 @@ import org.springframework.stereotype.Component;
  * {@code IF NOT EXISTS} would keep: it is dropped and built again.
  */
 @Component
-public class V6_20261118100000000__Add_complete_trace_index_on_execution_traces
+public class V6_20261120110000000__Add_complete_trace_index_on_execution_traces
     extends BaseJavaMigration {
 
   public static final String INDEX = "idx_execution_traces_complete_inject_status";

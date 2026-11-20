@@ -116,12 +116,32 @@ class InjectStatusUtilsTest {
     }
 
     @Test
-    @DisplayName("Given an inject closed by the platform should return the stored status")
-    void given_closedByPlatform_should_returnStored() {
+    @DisplayName(
+        "Given a platform error trace and a hidden success should return the visible ERROR, not"
+            + " the stored PARTIAL")
+    void given_platformErrorAndHiddenSuccess_should_returnVisibleError() {
       // -- ACT --
+      // Stored PARTIAL counts the hidden RED agent's success with the platform's error
       ExecutionStatus result =
           InjectStatusUtils.visibleStatus(
-              ExecutionStatus.ERROR, 2, List.of(of(null, INTERRUPTED), of(GREEN_AGENT, EXECUTED)));
+              ExecutionStatus.PARTIAL, 1, List.of(of(null, INTERRUPTED)));
+
+      // -- ASSERT --
+      assertThat(result).isEqualTo(ExecutionStatus.ERROR);
+    }
+
+    @Test
+    @DisplayName(
+        "Given more visible agents than dispatched ones should recompute from the visible traces")
+    void given_moreVisibleAgentsThanDispatched_should_recompute() {
+      // -- ACT --
+      // One RED agent dispatched, hidden, which succeeded; two agents never dispatched reported
+      // anyway
+      ExecutionStatus result =
+          InjectStatusUtils.visibleStatus(
+              ExecutionStatus.EXECUTED,
+              1,
+              List.of(of(GREEN_AGENT, ERROR), of("undispatched-agent", ERROR)));
 
       // -- ASSERT --
       assertThat(result).isEqualTo(ExecutionStatus.ERROR);

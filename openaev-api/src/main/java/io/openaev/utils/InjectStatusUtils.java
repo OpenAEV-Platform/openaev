@@ -67,16 +67,22 @@ public class InjectStatusUtils {
    *
    * <ul>
    *   <li>In flight, or dispatched to no agent: the stored status, nothing can be hidden.
-   *   <li>Closed by the platform (a COMPLETE error trace with no agent): the stored status.
-   *   <li>Every agent visible: the stored status, as the admin sees it, including a status set
-   *       without traces.
+   *   <li>Exactly the dispatched agents visible: the stored status, as the admin sees it, including
+   *       a status set without traces.
    *   <li>No counted trace visible: {@link ExecutionStatus#NOT_VISIBLE}, which tells nothing about
    *       the hidden agents.
-   *   <li>Otherwise: recomputed from the visible COMPLETE traces.
+   *   <li>Otherwise: recomputed from the visible COMPLETE traces, those with no agent included (the
+   *       platform's own, which the marking filter never hides).
    * </ul>
    *
-   * @param expectedAgentCount the agents the inject was dispatched to, null before the count
-   *     existed
+   * <p>No other shortcut returns the stored status: a COMPLETE trace of the platform can close an
+   * inject whose stored verdict also counts hidden agents, and more visible agents than dispatched
+   * ones means an agent reported without being dispatched, so the count no longer proves that none
+   * is hidden.
+   *
+   * @param expectedAgentCount the agents the inject was dispatched to; null when it was dispatched
+   *     to none, or launched before the count existed and still in flight (the closed ones are
+   *     backfilled by {@code V6_20261120120000000})
    * @param visibleCompleteTraces the COMPLETE traces the reader can see
    */
   public static ExecutionStatus visibleStatus(
@@ -86,16 +92,13 @@ public class InjectStatusUtils {
     if (!stored.isClosed() || expectedAgentCount == null || expectedAgentCount == 0) {
       return stored;
     }
-    boolean closedByPlatform =
-        visibleCompleteTraces.stream()
-            .anyMatch(trace -> trace.agentId() == null && trace.status().isError());
     long visibleAgents =
         visibleCompleteTraces.stream()
             .map(CompleteTrace::agentId)
             .filter(Objects::nonNull)
             .distinct()
             .count();
-    if (closedByPlatform || visibleAgents >= expectedAgentCount) {
+    if (visibleAgents == expectedAgentCount) {
       return stored;
     }
     List<ExecutionTraceStatus> visibleStatuses =

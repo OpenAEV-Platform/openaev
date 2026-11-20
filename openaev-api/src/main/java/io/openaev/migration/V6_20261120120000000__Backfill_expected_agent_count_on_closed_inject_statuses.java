@@ -1,0 +1,245 @@
+package io.openaev.migration;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.time.Duration;
+import lombok.extern.slf4j.Slf4j;
+import org.flywaydb.core.api.migration.BaseJavaMigration;
+import org.flywaydb.core.api.migration.Context;
+import org.springframework.stereotype.Component;
+
+/**
+ * Fills {@code status_expected_agent_count} on the closed inject statuses that have none: the
+ * injects launched before {@code V5_22} added the column. The status a reader sees compares that
+ * count with the agents whose COMPLETE trace the reader's clearance shows ({@code
+ * InjectStatusUtils.visibleStatus}); without it, the stored verdict is shown, including the outcome
+ * on agents the reader may not see.
+ *
+ * <p>The count is the distinct agents with a COMPLETE trace on the status: the stored verdict is
+ * computed from those traces, so an agent without one took no part in it and hides nothing. An
+ * inject dispatched to no agent gets 0, which the reader's status treats like no count. In-flight
+ * statuses keep no count: their agents have not all completed yet, and the COMPLETE callback falls
+ * back to resolving them ({@code InjectStatusService}). The migration runs without the marking
+ * filter, so it counts every agent.
+ *
+ * <p>{@code injects_statuses} grows with the use of the platform, so this follows ADR-023: a walk
+ * in physical order, one committed transaction per range of pages, a pause after each, row lock
+ * requests under a short {@code lock_timeout} with retry, and a final pass for the rows a
+ * concurrent update moved behind the walk. Every step is guarded by {@code
+ * status_expected_agent_count IS NULL}, so an interrupted run finishes on the next start. It writes
+ * one integer on the legacy closed rows only, so its WAL is bounded by those rows and does not need
+ * the WAL-lag pacing of a whole-table rewrite.
+ */
+@Slf4j
+@Component
+public class V6_20261120120000000__Backfill_expected_agent_count_on_closed_inject_statuses
+    extends BaseJavaMigration {
+
+  public static final String TABLE = "injects_statuses";
+
+  static final int TARGET_ROWS_PER_BATCH = 10_000;
+  static final long UNKNOWN_DENSITY_PAGES_PER_BATCH = 100;
+  static final int PAUSE_MILLIS = 200;
+  static final String LOCK_TIMEOUT = "5s";
+  static final int LOCK_RETRY_MILLIS = 5_000;
+  private static final String LOCK_NOT_AVAILABLE = "55P03";
+  private static final Duration LOG_INTERVAL = Duration.ofMinutes(1);
+
+  /**
+   * Fills the rows {@code %s} selects; returns how many it wrote and how many of them are
+   * agent-backed. The action is a literal so the count reads the partial COMPLETE index of {@code
+   * V6_20261120110000000}.
+   */
+  private static final String FILL =
+      "WITH filled AS ("
+          + " UPDATE "
+          + TABLE
+          + " s SET status_expected_agent_count = ("
+          + " SELECT count(DISTINCT t.execution_agent_id) FROM execution_traces t"
+          + " WHERE t.execution_inject_status_id = s.status_id"
+          + " AND t.execution_action = 'COMPLETE' AND t.execution_agent_id IS NOT NULL)"
+          + " WHERE %s AND s.status_expected_agent_count IS NULL"
+          + " AND s.status_name IN"
+          + " ('EXECUTED', 'PARTIAL', 'ERROR', 'MAYBE_PREVENTED', 'MAYBE_PARTIAL_PREVENTED')"
+          + " RETURNING s.status_expected_agent_count AS agents)"
+          + " SELECT count(*) AS written, count(*) FILTER (WHERE agents > 0) AS agent_backed"
+          + " FROM filled";
+
+  static final String RANGE_FILL = FILL.formatted("s.ctid >= ?::tid AND s.ctid < ?::tid");
+  private static final String FINAL_FILL = FILL.formatted("true");
+
+  private final Long pagesPerBatchOverride;
+  private final int pauseMillis;
+  private final String lockTimeout;
+  private final int lockRetryMillis;
+
+  public V6_20261120120000000__Backfill_expected_agent_count_on_closed_inject_statuses() {
+    this(null, PAUSE_MILLIS, LOCK_TIMEOUT, LOCK_RETRY_MILLIS);
+  }
+
+  V6_20261120120000000__Backfill_expected_agent_count_on_closed_inject_statuses(
+      Long pagesPerBatchOverride, int pauseMillis, String lockTimeout, int lockRetryMillis) {
+    this.pagesPerBatchOverride = pagesPerBatchOverride;
+    this.pauseMillis = pauseMillis;
+    this.lockTimeout = lockTimeout;
+    this.lockRetryMillis = lockRetryMillis;
+  }
+
+  /** {@link #UNKNOWN_DENSITY_PAGES_PER_BATCH} when the table has no statistics yet. */
+  static long pagesPerBatch(long estimatedRows, long estimatedPages, int targetRowsPerBatch) {
+    if (estimatedRows <= 0 || estimatedPages <= 0) {
+      return UNKNOWN_DENSITY_PAGES_PER_BATCH;
+    }
+    double rowsPerPage = (double) estimatedRows / estimatedPages;
+    long pages = Math.round(targetRowsPerBatch / Math.max(rowsPerPage, 1.0));
+    return Math.max(1, pages);
+  }
+
+  @Override
+  public boolean canExecuteInTransaction() {
+    return false;
+  }
+
+  @Override
+  public void migrate(Context context) throws Exception {
+    migrate(context.getConnection());
+  }
+
+  /** Puts {@code connection} in autocommit mode: each range commits on its own. */
+  void migrate(Connection connection) throws SQLException {
+    connection.setAutoCommit(true);
+    try (Statement statement = connection.createStatement()) {
+      // A constant of this class, never input.
+      statement.execute("SET lock_timeout = '" + lockTimeout + "'");
+    }
+    try {
+      Fill walked = walk(connection);
+      Fill rest;
+      try (PreparedStatement update = connection.prepareStatement(FINAL_FILL)) {
+        rest = fillWithLockRetry(update, "the final pass");
+      }
+      log.info(
+          "{}: expected agent count filled on {} closed status(es), {} of them dispatched to"
+              + " agents",
+          TABLE,
+          walked.written() + rest.written(),
+          walked.agentBacked() + rest.agentBacked());
+    } finally {
+      try (Statement statement = connection.createStatement()) {
+        statement.execute("RESET lock_timeout");
+      }
+    }
+  }
+
+  /** Rows written by a fill, and how many of them have at least one agent. */
+  record Fill(long written, long agentBacked) {
+    Fill plus(Fill other) {
+      return new Fill(written + other.written, agentBacked + other.agentBacked);
+    }
+  }
+
+  private Fill walk(Connection connection) throws SQLException {
+    TableSize size = tableSize(connection);
+    long pagesPerBatch =
+        Math.max(
+            1,
+            pagesPerBatchOverride != null
+                ? pagesPerBatchOverride
+                : pagesPerBatch(
+                    size.estimatedRows(), size.estimatedPages(), TARGET_ROWS_PER_BATCH));
+    log.info(
+        "{}: {} page(s) on disk, about {} row(s), {} page(s) per batch",
+        TABLE,
+        size.pages(),
+        size.estimatedRows(),
+        pagesPerBatch);
+    Fill total = new Fill(0, 0);
+    long startedAt = System.nanoTime();
+    long nextLogAt = startedAt + LOG_INTERVAL.toNanos();
+    try (PreparedStatement update = connection.prepareStatement(RANGE_FILL)) {
+      for (long page = 0; page < size.pages(); page += pagesPerBatch) {
+        update.setString(1, tid(page));
+        update.setString(2, tid(page + pagesPerBatch));
+        total = total.plus(fillWithLockRetry(update, "page " + page));
+        if (System.nanoTime() - nextLogAt >= 0) {
+          log.info(
+              "{}: page {} of {} walked, {} row(s) filled",
+              TABLE,
+              Math.min(page + pagesPerBatch, size.pages()),
+              size.pages(),
+              total.written());
+          nextLogAt = System.nanoTime() + LOG_INTERVAL.toNanos();
+        }
+        sleep(pauseMillis);
+      }
+    }
+    log.info(
+        "{}: {} row(s) filled by the walk, {} s",
+        TABLE,
+        total.written(),
+        Duration.ofNanos(System.nanoTime() - startedAt).toSeconds());
+    return total;
+  }
+
+  /**
+   * Runs {@code update} again each time it times out on a row lock another transaction holds: a
+   * waiting lock request makes the next writer of that row wait behind it.
+   */
+  private Fill fillWithLockRetry(PreparedStatement update, String what) throws SQLException {
+    while (true) {
+      try (ResultSet result = update.executeQuery()) {
+        result.next();
+        return new Fill(result.getLong("written"), result.getLong("agent_backed"));
+      } catch (SQLException e) {
+        if (!LOCK_NOT_AVAILABLE.equals(e.getSQLState())) {
+          throw e;
+        }
+        log.info("{}: {} waits for a row lock another transaction holds, retrying", TABLE, what);
+        sleep(lockRetryMillis);
+      }
+    }
+  }
+
+  private static String tid(long page) {
+    return "(" + page + ",0)";
+  }
+
+  /**
+   * {@code pages} is the size on disk and bounds the walk; the estimates only give the row density.
+   */
+  private record TableSize(long pages, long estimatedRows, long estimatedPages) {}
+
+  private static TableSize tableSize(Connection connection) throws SQLException {
+    try (Statement statement = connection.createStatement();
+        ResultSet result =
+            statement.executeQuery(
+                "SELECT pg_relation_size(oid) / current_setting('block_size')::bigint,"
+                    + " reltuples::bigint, relpages::bigint FROM pg_class WHERE oid = '"
+                    + TABLE
+                    + "'::regclass")) {
+      result.next();
+      return new TableSize(result.getLong(1), result.getLong(2), result.getLong(3));
+    }
+  }
+
+  private static void sleep(int millis) {
+    if (millis <= 0) {
+      return;
+    }
+    try {
+      Thread.sleep(millis);
+    } catch (InterruptedException e) {
+      // Stop here: the next start resumes from the rows left with no count.
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException(TABLE + " expected agent count backfill interrupted", e);
+    }
+  }
+
+  /* ROLLBACK
+   No rollback: the count is what the platform writes at launch since V5_22. Clearing it would
+   show the stored verdict of the legacy injects to every reader again.
+  */
+}

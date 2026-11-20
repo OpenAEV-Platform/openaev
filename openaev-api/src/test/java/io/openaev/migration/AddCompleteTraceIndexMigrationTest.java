@@ -1,6 +1,6 @@
 package io.openaev.migration;
 
-import static io.openaev.migration.V6_20261118100000000__Add_complete_trace_index_on_execution_traces.INDEX;
+import static io.openaev.migration.V6_20261120110000000__Add_complete_trace_index_on_execution_traces.INDEX;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -27,10 +27,10 @@ import org.springframework.beans.factory.annotation.Autowired;
  * {@literal @}AfterEach} runs it once more so the shared database ends with a valid index.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@DisplayName("Migration V6_20261118100000000: partial COMPLETE index on execution_traces")
+@DisplayName("Migration V6_20261120110000000: partial COMPLETE index on execution_traces")
 class AddCompleteTraceIndexMigrationTest extends IntegrationTest {
 
-  @Autowired private V6_20261118100000000__Add_complete_trace_index_on_execution_traces migration;
+  @Autowired private V6_20261120110000000__Add_complete_trace_index_on_execution_traces migration;
   @Autowired private DataSource dataSource;
 
   private Connection connection;

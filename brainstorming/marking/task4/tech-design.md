@@ -910,7 +910,8 @@ hidden.
 
 The rule compares the visible traces with a count the marking filter does not hide:
 `injects_statuses.status_expected_agent_count` (E), the agents the inject was dispatched to, stored at launch
-(`ExecutionExecutorService`: dispatched agents + agents above the launcher's clearance).
+(`ExecutionExecutorService`: dispatched agents + agents above the launcher's clearance). Null for the injects launched before
+`V5_22`, which added the column: the closed ones are backfilled (row 2).
 
 **Why E is exact.** Every agent counted in E ends with exactly one COMPLETE trace of its own: its result, a
 `TIMEOUT` written by `InjectsFinalizationJob` when it does not answer, `ASSET_CLEARANCE_RESTRICTED` when it is above
@@ -923,25 +924,31 @@ With V = the number of distinct agents whose COMPLETE trace the reader sees:
 | # | Condition | Shown | Why |
 |---|---|---|---|
 | 1 | Stored QUEUING / EXECUTING / PENDING / DRAFT | stored | Lifecycle, not a verdict |
-| 2 | E is null or 0 | stored | No agent dispatched (manual, mail, agentless injectors): the marking filter hides nothing |
-| 3 | A visible COMPLETE error trace with no agent | stored | Closed by the platform, not by its agents |
-| 4 | V = E | stored | The reader sees every agent: same as the admin, including for statuses set directly |
-| 5 | V = 0 | `NOT_VISIBLE` | Every agent is hidden: say nothing about them |
-| 6 | 0 < V < E | recomputed from the visible COMPLETE traces | Some agents are hidden |
+| 2 | E is null or 0 | stored | No agent dispatched (manual, mail, agentless injectors): the marking filter hides nothing. Injects launched before `V5_22` had no E: `V6_20261120120000000` backfills the closed ones with their distinct agents with a COMPLETE trace, the agents the stored verdict was computed from |
+| 3 | V = E | stored | The reader sees every agent: same as the admin, including for statuses set directly |
+| 4 | No visible COMPLETE trace counts | `NOT_VISIBLE` | Every agent is hidden: say nothing about them |
+| 5 | Otherwise | recomputed from the visible COMPLETE traces, the platform's (no agent) included | Some agents are hidden |
+
+No other shortcut returns the stored verdict. A COMPLETE error of the platform can close an inject whose stored
+verdict also counts hidden agents (an injector reporting with no agent while hidden agents already completed: a
+hidden EXECUTED plus the platform's ERROR is stored PARTIAL), so it is recomputed with the rest (row 5). V > E means
+an agent reported without being dispatched (the callback does not check it), so the count no longer proves that
+none is hidden: row 5 too, not row 3.
 
 Examples, RED admin and AMBER reader:
 
 | Inject | Stored | Admin (V = E) | AMBER |
 |---|---|---|---|
-| 2 RED agents, both succeed | EXECUTED | EXECUTED (row 4) | `NOT_VISIBLE` (row 5) |
-| RED succeeds, GREEN fails | PARTIAL | PARTIAL (row 4) | ERROR (row 6) |
+| 2 RED agents, both succeed | EXECUTED | EXECUTED (row 3) | `NOT_VISIBLE` (row 4) |
+| RED succeeds, GREEN fails | PARTIAL | PARTIAL (row 3) | ERROR (row 5) |
 | Status set by hand, no agent | EXECUTED | EXECUTED (row 2) | EXECUTED (row 2) |
-| Simulation stopped before the agents answered | ERROR | ERROR (row 3) | ERROR (row 3) |
+| Simulation stopped before the agents answered | ERROR | ERROR (row 5: no agent completed, the platform's trace) | ERROR (row 5) |
+| RED succeeds, then the platform closes with an error | PARTIAL | PARTIAL (row 3) | ERROR (row 5) |
 
 `NOT_VISIBLE` is a display value: it is never stored, `status_name` keeps the system verdict.
 
 **Before Chunk 4**: an agent-less COMPLETE trace naming a RED asset (agentless injector) is still visible. It
-counts in row 3 only when it is an error, and E is 0 for those injects (row 2), so it does not change the result.
+is counted in row 5 like the others, and E is 0 for those injects (row 2), so it does not change the result.
 
 **Inputs per place.** The REST places need E and the agent of each visible COMPLETE trace: `InjectStatus` carries E
 (`@JsonIgnore`, read on the entity) and its traces; the batched query of #1 and #3 returns `(inject id, trace
@@ -1003,7 +1010,7 @@ sequenceDiagram
 - **Single rule**: `computeStatus(List<ExecutionTrace>)` and `visibleStatus` both delegate to
   `computeStatusFromTraceStatuses(List<ExecutionTraceStatus>)`, so a stored and a recomputed verdict can only
   differ by the traces they see.
-- **Nothing visible**: `NOT_VISIBLE` (row 5 of the rule), which says nothing about the hidden targets.
+- **Nothing visible**: `NOT_VISIBLE` (row 4 of the rule), which says nothing about the hidden targets.
 - **Filter on status**: the lists' filter is an SQL predicate on `status.name`, so it matches the stored verdict
   and leaks it ("status = PARTIAL" returns an inject the reader sees as ERROR: a hidden target succeeded), as
   the sort does. To be addressed in [#9538](https://github.com/OpenAEV-Platform/openaev/issues/9538).
@@ -1023,7 +1030,7 @@ the reader's status:
 ```sql
 CASE WHEN s.status_name NOT IN ('EXECUTED', 'PARTIAL', 'ERROR')
        OR coalesce(s.status_expected_agent_count, 0) = 0 THEN s.status_name     -- rows 1, 2
-     ELSE (SELECT <rows 3 to 6 from: bool_or(no agent AND error), count(DISTINCT agent),
+     ELSE (SELECT <rows 3 to 5 from: count(DISTINCT agent),
                    bool_or(counted success), bool_or(counted error), s.status_expected_agent_count>
            FROM execution_traces t
            WHERE t.execution_inject_status_id = s.status_id
@@ -1060,7 +1067,7 @@ A tenant with few agents per inject barely notices.
 2. **Partial covering index**: `CREATE INDEX ... ON execution_traces (execution_inject_status_id) INCLUDE
    (execution_status, execution_agent_id) WHERE execution_action = 'COMPLETE'`. The scan reads one row per agent
    instead of every trace (÷ ~6). Write cost: COMPLETE rows only (~1 insert in 6) on a hot-write table. Added
-   (`V6_20261118100000000__Add_complete_trace_index_on_execution_traces`): it also serves the page recompute.
+   (`V6_20261120110000000__Add_complete_trace_index_on_execution_traces`): it also serves the page recompute.
 3. **Split the predicate**: `status = X` becomes `(<rows 1, 2> AND stored = X) OR (<closed with agents> AND
    <subquery> = X)`, so the subquery never runs on in-flight injects or injects without agents.
 4. Not available: skipping the recompute for a reader who sees everything. Clearance is an explicit list of
