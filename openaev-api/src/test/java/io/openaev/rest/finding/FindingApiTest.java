@@ -18,6 +18,7 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -30,6 +31,7 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mapper.FindingMapper;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
@@ -91,6 +93,10 @@ class FindingApiTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private TenantScopedTransaction tenantTx;
+  @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private MarkingClearanceCacheManager markingClearanceCacheManager;
+  @Autowired private TestUserHolder testUserHolder;
 
   /**
    * Scopes the test's own transaction, for the tests that query the repository directly instead of
@@ -101,6 +107,23 @@ class FindingApiTest extends IntegrationTest {
    */
   private void scopeToAmbientTenant() {
     tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(TenantContext.getCurrentTenant()));
+  }
+
+  private MarkingDefinition persistClearedMarking() {
+    MarkingDefinition marking =
+        markingDefinitionComposer
+            .forMarkingDefinition(MarkingDefinitionFixture.createDefaultMarkingDefinition())
+            .withTenantId(Tenant.DEFAULT_TENANT_UUID)
+            .persist()
+            .get();
+    // The caller sees a marked asset only through a group holding its marking.
+    Group group = TenantGroupFixture.getGroup("finding-markings-" + UUID.randomUUID());
+    group.setMarkings(new HashSet<>(Set.of(marking)));
+    group.setUsers(new ArrayList<>(List.of(testUserHolder.get())));
+    tenantGroupComposer.forGroup(group).persist();
+    entityManager.flush();
+    markingClearanceCacheManager.evictForUser(testUserHolder.get().getId());
+    return marking;
   }
 
   @BeforeEach
@@ -120,6 +143,8 @@ class FindingApiTest extends IntegrationTest {
     endpointComposer.reset();
     assetGroupComposer.reset();
     injectorContractComposer.reset();
+    markingDefinitionComposer.reset();
+    tenantGroupComposer.reset();
   }
 
   @Nested
@@ -956,6 +981,8 @@ class FindingApiTest extends IntegrationTest {
     @DisplayName("Search global findings")
     @Test
     public void given_a_search_input_should_return_page_of_findings() throws Exception {
+      MarkingDefinition marking = persistClearedMarking();
+      savedEndpoint.setMarkingIds(new String[] {marking.getId()});
       Finding savedFinding =
           findingComposer
               .forFinding(FindingFixture.createDefaultTextFinding())
@@ -982,6 +1009,9 @@ class FindingApiTest extends IntegrationTest {
           .andExpect(jsonPath("$.content.[0].finding_value").value("text_value"))
           .andExpect(
               jsonPath("$.content.[0].finding_assets.[0].asset_id").value(savedEndpoint.getId()))
+          .andExpect(
+              jsonPath("$.content.[0].finding_assets.[0].asset_markings.[0]")
+                  .value(marking.getId()))
           .andExpect(
               jsonPath("$.content.[0].finding_inject.inject_id")
                   .value(savedFinding.getInject().getId()))

@@ -5150,6 +5150,11 @@ export interface EndpointSimple {
    */
   asset_id: string;
   /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
+  /**
    * Asset name
    * @minLength 1
    */
