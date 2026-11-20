@@ -4,13 +4,13 @@ import { Dialog, DialogActions, DialogContent, DialogContentText, Divider, Menu,
 import { type MouseEvent, useState } from 'react';
 
 import {
+  customizeThreatArsenalAction,
   deleteThreatArsenalAction,
   duplicateThreatArsenalAction,
   exportThreatArsenalAction,
   fetchThreatArsenalAction,
   updateThreatArsenalAction,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
-import { customizeThreatArsenalAction } from '../../../actions/threat_arsenals/threatArsenal-customization-actions';
 import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';

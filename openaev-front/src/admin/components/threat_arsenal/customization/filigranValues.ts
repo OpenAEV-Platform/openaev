@@ -1,5 +1,4 @@
-import { fetchThreatArsenalAction } from '../../../../actions/threat_arsenals/threatArsenal-actions';
-import { fetchThreatArsenalCustomization } from '../../../../actions/threat_arsenals/threatArsenal-customization-actions';
+import { fetchThreatArsenalAction, fetchThreatArsenalCustomization } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import { type PayloadCustomizationOutput, type ThreatArsenalActionFullOutput } from '../../../../utils/api-types';
 import { buildInitialValues } from '../utils/actionFormValues';
 

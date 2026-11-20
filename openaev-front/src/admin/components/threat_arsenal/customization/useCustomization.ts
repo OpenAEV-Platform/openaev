@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { fetchThreatArsenalCustomization } from '../../../../actions/threat_arsenals/threatArsenal-customization-actions';
+import { fetchThreatArsenalCustomization } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import { type PayloadCustomizationOutput, type ThreatArsenalAction } from '../../../../utils/api-types';
 import { isFeatureEnabled } from '../../../../utils/utils';
 

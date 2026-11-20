@@ -10,7 +10,7 @@ import { expectNoMuiControls } from '../../../../utils/designSystemAssertions';
 const mocks = vi.hoisted(() => ({ updateCustomization: vi.fn() }));
 
 vi.mock('../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (message: string, values?: Record<string, string>) => message.replace(/\{(\w+)\}/g, (_, key: string) => values?.[key] ?? key) }) }));
-vi.mock('../../../../../actions/threat_arsenals/threatArsenal-customization-actions', () => ({ updateThreatArsenalCustomization: mocks.updateCustomization }));
+vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({ updateThreatArsenalCustomization: mocks.updateCustomization }));
 
 const update: PayloadCustomizationUpdateOutput = {
   update_payload_id: 'filigran-1.1.0',
