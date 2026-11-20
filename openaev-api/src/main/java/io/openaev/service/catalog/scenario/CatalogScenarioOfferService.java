@@ -4,8 +4,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.catalog.dto.CatalogManifest.PayloadRef;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.catalog.CatalogPayload;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.model.catalog.ContentType;
+import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.database.repository.ScenarioIdentityRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.catalog.CatalogListService;
@@ -30,6 +32,7 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   private final CatalogScenarioRequirements catalogScenarioRequirements;
   private final CatalogSettingsService catalogSettingsService;
   private final ScenarioIdentityRepository scenarioIdentityRepository;
+  private final CatalogItemRepository catalogItemRepository;
   private final ObjectMapper mapper;
 
   // -- LIST --
@@ -41,12 +44,25 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   @Transactional(readOnly = true)
   public InstallableScenarioVersion installable(TxCtx ctx, String externalId, String version) {
     CatalogScenario item = catalogListService.offered(CatalogScenario.class, externalId, version);
-    List<String> missing = catalogScenarioRequirements.missing(item);
+    List<MissingRequirement> missing = catalogScenarioRequirements.missing(item);
     if (!missing.isEmpty()) {
       throw new BadRequestException(
-          "Missing to install this scenario: " + String.join(", ", missing));
+          "Missing to install this scenario: "
+              + missing.stream().map(MissingRequirement::label).collect(Collectors.joining(", ")));
     }
     return toInstallable(ctx, item);
+  }
+
+  /** The catalogue payloads a scenario version runs, as its release names them. */
+  @Transactional(readOnly = true)
+  public List<CatalogPayload> payloads(CatalogScenario item) {
+    return payloadRefs(item).stream()
+        .flatMap(
+            ref ->
+                catalogItemRepository
+                    .findVersion(CatalogPayload.class, ref.externalId(), ref.version())
+                    .stream())
+        .toList();
   }
 
   /** The latest version of every catalogue scenario the tenant does not show. */

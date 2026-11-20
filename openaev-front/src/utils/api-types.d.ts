@@ -2657,7 +2657,7 @@ export interface CatalogScenarioOutput {
   catalog_scenario_description?: string;
   /** @minLength 1 */
   catalog_scenario_external_id: string;
-  catalog_scenario_missing_requirements: string[];
+  catalog_scenario_missing_requirements: CatalogScenarioRequirementOutput[];
   catalog_scenario_name?: string;
   catalog_scenario_platforms: string[];
   /** @format date-time */
@@ -2667,11 +2667,18 @@ export interface CatalogScenarioOutput {
   catalog_scenario_version: string;
 }
 
+export interface CatalogScenarioRequirementOutput {
+  requirement_integration_id?: string;
+  /** @minLength 1 */
+  requirement_label: string;
+}
+
 export interface CatalogScenarioVersionOutput {
   catalog_scenario_changelog?: string;
   /** @format int32 */
   catalog_scenario_injects_count?: number;
   catalog_scenario_main_focus?: string;
+  catalog_scenario_payloads: CatalogPayloadOutput[];
   /** @format date-time */
   catalog_scenario_published_at?: string;
   catalog_scenario_severity?: string;

@@ -69,7 +69,10 @@ public class CatalogApi {
       TxCtx ctx, @PathVariable String externalId) {
     catalogFeature.require();
     return catalogListService.offeredVersions(CatalogScenario.class, externalId).stream()
-        .map(catalogItemMapper::toVersionOutput)
+        .map(
+            version ->
+                catalogItemMapper.toVersionOutput(
+                    version, catalogScenarioOfferService.payloads(version)))
         .toList();
   }
 
