@@ -553,7 +553,7 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
     @Test
     @WithMockUser(withCapabilities = {Capability.ACCESS_THREAT_ARSENALS})
     @DisplayName("keeps the usages of a scenario the user cannot update")
-    void given_readOnlyScenario_should_keepItsUsages() {
+    void given_readOnlyScenario_should_keepItsUsages() throws Exception {
       // Arrange
       List<InjectorContract> versions = localVersions();
       String scenarioId = scenarioRunning(versions.get(0));
