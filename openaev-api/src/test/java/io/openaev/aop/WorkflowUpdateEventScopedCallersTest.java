@@ -122,6 +122,9 @@ class WorkflowUpdateEventScopedCallersTest extends IntegrationTest {
     // expiration collector in it.
     tenantId = tenantHelper.createTenantWithCurrentUser("update-event").getId();
     doNothing().when(queueChainingService).updateStep(anyString());
+
+    // integration factories are disabled in tests; register collector explicitly
+    registerExpirationCollector(tenantId);
   }
 
   @AfterEach
@@ -238,13 +241,16 @@ class WorkflowUpdateEventScopedCallersTest extends IntegrationTest {
       Seeded seeded =
           seedChainedInject(InjectExpectationFixture.createDefaultDetectionInjectExpectation());
       backdatePastItsExpiration(seeded.expectationId());
-      // The job resolves the built-in collector in every tenant it visits. The default tenant
-      // registers it lazily, on its first manager start, so register it here as that start would.
-      registerExpirationCollector(Tenant.DEFAULT_TENANT_UUID);
+
       TenantContext.clearCurrentTenant();
 
       // -- Act --
-      expectationsExpirationManagerService.computeExpectations(Tenant.DEFAULT_TENANT_UUID);
+      inTenant(
+          tenantId,
+          () -> {
+            expectationsExpirationManagerService.computeExpectations(tenantId);
+            return null;
+          });
 
       // -- Assert --
       verify(queueChainingService).updateStep(seeded.stepId());
@@ -265,19 +271,19 @@ class WorkflowUpdateEventScopedCallersTest extends IntegrationTest {
                       .executeUpdate());
       assertThat(updated).isEqualTo(1);
     }
+  }
 
-    private void registerExpirationCollector(String tenant) {
-      inTenant(
-          tenant,
-          () -> {
-            try {
-              getExpirationManagerIntegrationFactory().registerForTenant(tenant);
-            } catch (Exception e) {
-              throw new IllegalStateException(e);
-            }
-            return null;
-          });
-    }
+  private void registerExpirationCollector(String tenant) {
+    inTenant(
+        tenant,
+        () -> {
+          try {
+            getExpirationManagerIntegrationFactory().registerForTenant(tenant);
+          } catch (Exception e) {
+            throw new IllegalStateException(e);
+          }
+          return null;
+        });
   }
 
   // -- helpers --
