@@ -4,7 +4,7 @@ import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.api.catalog.CatalogFeature;
+import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.api.catalog.CatalogItemMapper;
 import io.openaev.api.catalog.dto.CatalogInstallAllOutput;
 import io.openaev.api.catalog.dto.CatalogInstallOutput;
@@ -13,6 +13,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.catalog.payload.CatalogPayloadInstaller;
 import io.openaev.service.catalog.payload.CatalogPayloadService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,13 +29,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Adds catalogue payloads to the tenant's Threat Arsenal, and takes them out. */
 @RestController
+@RequirePreviewFeature(PreviewFeature.CATALOG)
 @RequiredArgsConstructor
 public class CatalogPayloadInstallApi {
 
   private final CatalogPayloadInstaller catalogPayloadInstaller;
   private final CatalogPayloadService catalogPayloadService;
   private final TenantWriteScopeResolver writeScopeResolver;
-  private final CatalogFeature catalogFeature;
   private final CatalogItemMapper catalogItemMapper;
 
   // -- CREATE --
@@ -46,7 +47,6 @@ public class CatalogPayloadInstallApi {
   @Transactional(propagation = Propagation.SUPPORTS)
   public CatalogInstallOutput installPayload(
       TxCtx ctx, @PathVariable String externalId, @PathVariable String version) {
-    catalogFeature.require();
     Payload payload =
         catalogPayloadInstaller.install(
             ctx, writeScopeResolver.tenantForWrite(ctx, null), externalId, version);
@@ -60,7 +60,6 @@ public class CatalogPayloadInstallApi {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
   @Transactional(propagation = Propagation.SUPPORTS)
   public CatalogInstallAllOutput installAllPayloads(TxCtx ctx) {
-    catalogFeature.require();
     return catalogItemMapper.toOutput(
         catalogPayloadInstaller.installAll(ctx, writeScopeResolver.tenantForWrite(ctx, null)));
   }
@@ -76,7 +75,6 @@ public class CatalogPayloadInstallApi {
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.THREAT_ARSENAL)
   @Transactional(propagation = Propagation.SUPPORTS)
   public void uninstallPayload(TxCtx ctx, @PathVariable String payloadId) {
-    catalogFeature.require();
     catalogPayloadService.uninstall(ctx, writeScopeResolver.tenantForWrite(ctx, null), payloadId);
   }
 }

@@ -5,6 +5,7 @@ import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.api.catalog.dto.CatalogSyncOutput;
 import io.openaev.config.TenantWriteScopeResolver;
@@ -12,6 +13,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.catalog.CatalogFileService;
 import io.openaev.service.catalog.CatalogSyncService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 /** Receives the catalogue releases the collector pushes. */
 @RestController
+@RequirePreviewFeature(PreviewFeature.CATALOG)
 @RequiredArgsConstructor
 public class CatalogSyncApi {
 
@@ -34,7 +37,6 @@ public class CatalogSyncApi {
   private final CatalogSyncService catalogSyncService;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final ObjectMapper mapper;
-  private final CatalogFeature catalogFeature;
 
   // -- CREATE --
 
@@ -51,7 +53,6 @@ public class CatalogSyncApi {
       @RequestPart("manifest") MultipartFile manifestFile,
       @RequestPart(value = "archives", required = false) List<MultipartFile> archiveFiles)
       throws Exception {
-    catalogFeature.require();
     String writeTenantId = writeScopeResolver.tenantForWrite(ctx, null);
     CatalogManifest manifest = readManifest(manifestFile);
     if (manifest == null) {

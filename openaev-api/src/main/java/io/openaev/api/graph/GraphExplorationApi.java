@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.api.graph.dto.GraphEdgeType;
 import io.openaev.api.graph.dto.GraphNodeType;
 import io.openaev.api.graph.dto.GraphOutput;
@@ -14,6 +15,7 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.utils.TxCtxScopeUtils;
@@ -48,6 +50,7 @@ import org.springframework.web.server.ResponseStatusException;
  * predicate in every read of {@link GraphExplorationService} plus the {@link TxCtx} scope.
  */
 @RestController
+@RequirePreviewFeature(PreviewFeature.EXPLORATION_GRAPH)
 @RequiredArgsConstructor
 @RequestMapping(GraphExplorationApi.GRAPH_URI)
 @Tag(name = "Exploration graph", description = "Lazy slices of the exposure graph of a tenant")
@@ -59,7 +62,6 @@ public class GraphExplorationApi extends RestBehavior {
   private final GraphLandingService landingService;
   private final UserService userService;
   private final PermissionService permissionService;
-  private final GraphFeature graphFeature;
 
   /**
    * The top exposure story of the landing (#9447): one connected subgraph of about 30 nodes, the
@@ -71,7 +73,6 @@ public class GraphExplorationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   @Operation(summary = "The top exposure story of the graph landing")
   public GraphOutput story(TxCtx ctx) {
-    graphFeature.require();
     return landingService.story(scope(ctx), visibility(ctx));
   }
 
@@ -82,7 +83,6 @@ public class GraphExplorationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   @Operation(summary = "The aggregated estate overview of the graph landing")
   public GraphOverviewOutput overview(TxCtx ctx) {
-    graphFeature.require();
     return landingService.overview(scope(ctx), visibility(ctx));
   }
 
@@ -93,7 +93,6 @@ public class GraphExplorationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   @Operation(summary = "The starting points of the graph landing")
   public GraphStartingPointsOutput startingPoints(TxCtx ctx) {
-    graphFeature.require();
     return landingService.startingPoints(scope(ctx), visibility(ctx));
   }
 
@@ -104,7 +103,6 @@ public class GraphExplorationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   @Operation(summary = "The exposure hot paths of the tenant")
   public GraphOutput hotPaths(TxCtx ctx, @RequestParam(defaultValue = "15") int limit) {
-    graphFeature.require();
     return graphService.hotPaths(scope(ctx), limit, visibility(ctx));
   }
 
@@ -124,7 +122,6 @@ public class GraphExplorationApi extends RestBehavior {
       @PathVariable String entityId,
       @RequestParam(required = false) List<String> edges,
       @RequestParam(defaultValue = "50") int limit) {
-    graphFeature.require();
     return graphService.neighbourhood(
         scope(ctx), type(entityType), entityId, edgeTypes(edges), limit, visibility(ctx));
   }
@@ -141,7 +138,6 @@ public class GraphExplorationApi extends RestBehavior {
       @RequestParam String fromId,
       @RequestParam String toType,
       @RequestParam String toId) {
-    graphFeature.require();
     return graphService.path(
         scope(ctx), type(fromType), fromId, type(toType), toId, visibility(ctx));
   }
