@@ -7,6 +7,7 @@ import { type FunctionComponent } from 'react';
 import { type CatalogHistoryOutput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
 import { FDS_TABLE_SX, fdsTableFrameStyle, fdsTableSectionStyle } from '../fdsTableSpec';
+import { LIB_SURFACE_LAYER } from '../libSurfaceBorder';
 
 const ACTION_LABELS: Record<CatalogHistoryOutput['catalog_history_action'], string> = {
   INSTALL: 'Installed',
@@ -28,7 +29,7 @@ const CatalogHistoryTable: FunctionComponent<Props> = ({ history }) => {
     ? t('Automatic')
     : entry.catalog_history_user ?? '-');
   return (
-    <div style={fdsTableFrameStyle(theme)}>
+    <div className={LIB_SURFACE_LAYER} style={fdsTableFrameStyle(theme)}>
       {history.length === 0
         ? (
             <div style={fdsTableSectionStyle(theme)}>
