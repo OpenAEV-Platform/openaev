@@ -4956,5 +4956,7 @@
   "Add a link": "Добавить связь",
   "connections": "связей",
   "not shown": "не показано",
-  "double-click to expand": "дважды щёлкните, чтобы развернуть"
+  "double-click to expand": "дважды щёлкните, чтобы развернуть",
+  "Fit the selection to the screen": "Вписать выделение в экран",
+  "Select every node": "Выбрать все узлы"
 }

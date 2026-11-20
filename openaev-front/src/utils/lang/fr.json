@@ -4956,5 +4956,7 @@
   "Add a link": "Ajouter un lien",
   "connections": "connexions",
   "not shown": "non affichées",
-  "double-click to expand": "double-cliquez pour développer"
+  "double-click to expand": "double-cliquez pour développer",
+  "Fit the selection to the screen": "Ajuster la sélection à l'écran",
+  "Select every node": "Sélectionner tous les nœuds"
 }

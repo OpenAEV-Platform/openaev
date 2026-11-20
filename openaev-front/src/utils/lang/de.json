@@ -4956,5 +4956,7 @@
   "Add a link": "Verknüpfung hinzufügen",
   "connections": "Verbindungen",
   "not shown": "nicht angezeigt",
-  "double-click to expand": "zum Erweitern doppelklicken"
+  "double-click to expand": "zum Erweitern doppelklicken",
+  "Fit the selection to the screen": "Auswahl an den Bildschirm anpassen",
+  "Select every node": "Alle Knoten auswählen"
 }

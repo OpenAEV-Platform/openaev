@@ -199,4 +199,30 @@ test.describe('Exploration graph interactions', () => {
 
     expect(problems).toEqual([]);
   });
+
+  test('the OpenCTI keyboard shortcuts: Ctrl+A selects every node, + zooms, Shift+F frames the selection', async ({ page }) => {
+    const problems = watchConsole(page);
+    await page.goto(tenantUrl(`/admin/graph?focus=asset_group:${seeded.groupId}`));
+    await expect(page.locator('.react-flow__node')).toHaveCount(5);
+    await settled(page);
+    const ringed = page.locator('[data-testid^="graph-node-"][data-selected="true"]');
+    const viewport = () => page.locator('.react-flow__viewport').evaluate(v => (v as HTMLElement).style.transform);
+
+    // A click puts the focus in the graph; Ctrl+A then selects the five nodes.
+    await page.locator(`.react-flow__node[data-id="ASSET:${seeded.assetIds[0]}"]`).click();
+    await page.keyboard.press('Control+a');
+    await expect(ringed).toHaveCount(5);
+
+    const before = await viewport();
+    await page.keyboard.press('+');
+    await expect.poll(viewport, { message: '+ zooms in' }).not.toBe(before);
+
+    const zoomed = await viewport();
+    await page.keyboard.press('Escape');
+    await page.locator(`.react-flow__node[data-id="ASSET:${seeded.assetIds[1]}"]`).click();
+    await page.keyboard.press('Shift+F');
+    await expect.poll(viewport, { message: 'Shift+F frames the selected node' }).not.toBe(zoomed);
+
+    expect(problems).toEqual([]);
+  });
 });

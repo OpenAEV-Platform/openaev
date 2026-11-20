@@ -220,13 +220,18 @@ const SHORTCUTS: [string, string][] = [
   ['E', 'Expand the selected node'],
   ['P', 'Pin or unpin the selected node'],
   ['H', 'Hide the selected node'],
+  ['Shift+H', 'Show hidden nodes'],
   ['F', 'Fit to screen'],
+  ['Shift+F', 'Fit the selection to the screen'],
+  ['+', 'Zoom in'],
+  ['-', 'Zoom out'],
   ['L', 'Re-run the layout'],
   ['N', 'Select the neighbours of the selection'],
   ['Delete', 'Remove the selection from the view'],
   ['Shift+drag', 'Select an area'],
   ['S', LASSO_LABEL],
   ['Ctrl+click', 'Add a node to the selection'],
+  ['Ctrl+A', 'Select every node'],
   ['Esc', 'Clear the selection'],
   ['Ctrl+Z', 'Undo'],
   ['?', 'Show this list'],
@@ -1428,11 +1433,34 @@ const GraphExplorerInner = ({
       undo();
       return;
     }
+    // OpenCTI's graph shortcuts: Ctrl+A selects every node, Shift+F frames the selection, Shift+H
+    // shows the hidden nodes, + and - zoom.
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'a') {
+      event.preventDefault();
+      setSelection(drawnNodes.filter(n => !isGroupId(n.node_id)).map(n => n.node_id));
+      return;
+    }
     if (event.ctrlKey || event.metaKey || event.altKey) {
       return;
     }
     const key = event.key.toLowerCase();
-    if (key === '?') {
+    let framed: string[] = selection;
+    if (framed.length === 0 && selected) {
+      framed = [selected];
+    }
+    if (event.shiftKey && key === 'f' && framed.length > 0) {
+      fitView({
+        ...fitOptions,
+        nodes: framed.map(id => ({ id })),
+        duration: 300,
+      });
+    } else if (event.shiftKey && key === 'h') {
+      commit(showHidden);
+    } else if (key === '+' || key === '=') {
+      zoomIn({ duration: 200 });
+    } else if (key === '-' || key === '_') {
+      zoomOut({ duration: 200 });
+    } else if (key === '?') {
       setShortcutsOpen(true);
     } else if (key === 'f') {
       fitToScreen();
