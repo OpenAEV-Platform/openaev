@@ -878,7 +878,8 @@
         "openaev-front/src/admin/components/threat_arsenal/versions/AskAfterSavingChoice.tsx",
         "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateDialog.tsx",
         "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateBanner.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/customization/RevertToFiligran.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/customization/RevertToFiligran.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalInformationDrawer.tsx"
       ]
     },
     {
