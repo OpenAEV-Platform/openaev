@@ -78,6 +78,12 @@ import org.springframework.transaction.interceptor.TransactionAspectSupport;
 @Slf4j
 public class InjectExecutionStep implements ActionStep {
 
+  private static final ObjectMapper STEP_DATA_MAPPER =
+      new ObjectMapper()
+          .findAndRegisterModules()
+          .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+  private static final String STEP_INJECTOR_CONTRACT = "inject_injector_contract";
+
   private final InjectorContractService injectorContractService;
   private final UserService userService;
   private final AssetService assetService;
@@ -790,14 +796,21 @@ public class InjectExecutionStep implements ActionStep {
     if (inject.getContent() == null || inject.getContent().isEmpty()) {
       inject.setContent(resolveBaseInjectContent(inject, injectorContract));
     }
-    ObjectMapper om =
-        new ObjectMapper()
-            .findAndRegisterModules()
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     try {
-      return om.writeValueAsString(inject);
+      return STEP_DATA_MAPPER.writeValueAsString(inject);
     } catch (JsonProcessingException e) {
       throw new ChainingException("New step (TEMPLATE): Error processing Inject to JSON", e);
+    }
+  }
+
+  /** The step data with this injector contract in place of the one it was built with. */
+  public String withInjectorContract(String data, InjectorContract contract) {
+    try {
+      ObjectNode inject = (ObjectNode) STEP_DATA_MAPPER.readTree(data);
+      inject.set(STEP_INJECTOR_CONTRACT, STEP_DATA_MAPPER.valueToTree(contract));
+      return STEP_DATA_MAPPER.writeValueAsString(inject);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Unreadable step data", e);
     }
   }
 

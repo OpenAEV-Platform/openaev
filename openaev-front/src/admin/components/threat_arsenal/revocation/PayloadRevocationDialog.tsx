@@ -1,4 +1,4 @@
-import { Button, Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogTitle, Spinner, Text, Textarea } from '@filigran/design-system';
+import { Button, Checkbox, Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogTitle, Spinner, Text, Textarea } from '@filigran/design-system';
 import { OpenInNewOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
@@ -16,7 +16,7 @@ interface Props {
   open: boolean;
   name: string;
   lift: boolean;
-  // The versions this dialog can revoke, or lift.
+  // The versions this dialog can revoke, or lift. Revoking, the others are where its injects can go.
   versions: PayloadVersionOutput[];
   currentPayloadId: string;
   // The action of the card: the list shows the latest version of each payload only.
@@ -29,7 +29,10 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, lift, v
   const { t } = useFormatter();
   const counted = useCountLabel();
   const theme = useTheme();
-  const { selected, setSelected, version, usages, reason, setReason, canSubmit, submitting, submit } = useRevocationForm({
+  const {
+    selected, setSelected, version, usages, reason, setReason, canReplace, replace, setReplace, replacement, setReplacement, replacements,
+    canSubmit, submitting, submit,
+  } = useRevocationForm({
     open,
     lift,
     versions,
@@ -107,6 +110,18 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, lift, v
                 </div>
               )}
             </div>
+            {canReplace && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing(1.5),
+                flexWrap: 'wrap',
+              }}
+              >
+                <Checkbox checked={replace} onCheckedChange={checked => setReplace(checked === true)} label={t('Move them first to')} />
+                <PayloadVersionSelect value={replacement} versions={replacements} onChange={setReplacement} />
+              </div>
+            )}
             {!lift && (
               <Textarea
                 aria-label={t('Reason')}
