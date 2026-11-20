@@ -61,7 +61,7 @@ const IndexScenarioComponent: FunctionComponent<{
   // Attack path only exists for workflow-backed (chained) scenarios, never
   // for time-based ones.
   const isChained = !!scenario.scenario_workflow_id;
-  const fromCatalog = isFeatureEnabled('CATALOG') && !!scenario.scenario_catalog_version;
+  const fromCatalog = isFeatureEnabled('CATALOG') && !!scenario.scenario_version;
   // The AI cockpit (right-hand reasoning panel + read-only Scope/Logic) is live only while a run
   // is ACTIVE. A settled run unlocks Scope/Logic again; the overview itself always stays the
   // normal scenario page with the AI outcome layered on top (see overviewElement).

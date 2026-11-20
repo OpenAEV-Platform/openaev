@@ -11804,8 +11804,6 @@ export interface ScenarioOutput {
   scenario_all_users_number?: number;
   /** Whether the scenario is an autonomous (AI-driven) attack-path scenario */
   scenario_autonomous?: boolean;
-  /** Catalogue version installed; empty when not from the catalogue */
-  scenario_catalog_version?: string;
   /** Category of the scenario */
   scenario_category?: string;
   /**
@@ -11885,6 +11883,8 @@ export interface ScenarioOutput {
    * @format int64
    */
   scenario_users_number?: number;
+  /** Catalogue version installed, empty for a scenario of the tenant */
+  scenario_version?: string;
   /** Workflow ID associated with the scenario */
   scenario_workflow_id?: string;
 }

@@ -684,7 +684,7 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       // Act & Assert
       committed(get(TENANT_SCENARIO_URI + "/{scenarioId}", DEFAULT_TENANT_UUID, scenario.getId()))
           .andExpect(status().isOk())
-          .andExpect(jsonPath("$.scenario_catalog_version").value(VERSION));
+          .andExpect(jsonPath("$.scenario_version").value(VERSION));
     }
   }
 }

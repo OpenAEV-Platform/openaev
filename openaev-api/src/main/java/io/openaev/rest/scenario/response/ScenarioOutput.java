@@ -56,6 +56,10 @@ public class ScenarioOutput {
   @Schema(description = "Type affinity of the scenario")
   private String typeAffinity;
 
+  @JsonProperty("scenario_version")
+  @Schema(description = "Catalogue version installed, empty for a scenario of the tenant")
+  private String catalogVersion;
+
   @JsonProperty("scenario_external_url")
   @Schema(description = "External URL of the scenario")
   private String externalUrl;
@@ -145,10 +149,6 @@ public class ScenarioOutput {
   @JsonProperty("scenario_workflow_id")
   @Schema(description = "Workflow ID associated with the scenario")
   private String workflowId;
-
-  @JsonProperty("scenario_catalog_version")
-  @Schema(description = "Catalogue version installed; empty when not from the catalogue")
-  private String catalogVersion;
 
   @JsonProperty("scenario_autonomous")
   @Schema(description = "Whether the scenario is an autonomous (AI-driven) attack-path scenario")
