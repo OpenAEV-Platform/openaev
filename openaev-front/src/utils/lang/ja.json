@@ -4982,12 +4982,14 @@
   "The update didn't apply. Nothing was changed.": "更新は適用されませんでした。何も変更されていません。",
   "The rollback didn't apply. Nothing was changed.": "ロールバックは適用されませんでした。何も変更されていません。",
   "The scenario changed since this preview. Nothing was changed.": "このプレビュー以降にシナリオが変更されました。何も変更されていません。",
-  "Close this dialog and open it again to see the latest preview.": "このダイアログを閉じて再度開くと、最新のプレビューが表示されます。",
   "Try again, or contact your administrator if it keeps failing.": "もう一度お試しください。失敗が続く場合は管理者にお問い合わせください。",
   "Variables ({count})": "変数 ({count})",
   "{count, plural, one {# variable} other {# variables}}": "{count, plural, other {変数 # 件}}",
   "{count, plural, one {# inject edit} other {# inject edits}}": "{count, plural, other {インジェクトの編集 # 件}}",
   "{count, plural, one {# scenario edit} other {# scenario edits}}": "{count, plural, other {シナリオの編集 # 件}}",
   "{count, plural, one {# inject of yours} other {# injects of yours}}": "{count, plural, other {あなたのインジェクト # 件}}",
-  "targets, teams, schedule and tags": "ターゲット、チーム、スケジュール、タグ"
+  "targets, teams, schedule and tags": "ターゲット、チーム、スケジュール、タグ",
+  "See the latest preview before applying.": "適用する前に最新のプレビューを確認してください。",
+  "Show the latest preview": "最新のプレビューを表示",
+  "Try again": "再試行"
 }

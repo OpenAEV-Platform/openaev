@@ -4982,12 +4982,14 @@
   "The update didn't apply. Nothing was changed.": "La mise à jour n’a pas été appliquée. Rien n’a été modifié.",
   "The rollback didn't apply. Nothing was changed.": "Le retour arrière n’a pas été appliqué. Rien n’a été modifié.",
   "The scenario changed since this preview. Nothing was changed.": "Le scénario a changé depuis cet aperçu. Rien n’a été modifié.",
-  "Close this dialog and open it again to see the latest preview.": "Fermez cette fenêtre et rouvrez-la pour voir l’aperçu à jour.",
   "Try again, or contact your administrator if it keeps failing.": "Réessayez, ou contactez votre administrateur si l’échec persiste.",
   "Variables ({count})": "Variables ({count})",
   "{count, plural, one {# variable} other {# variables}}": "{count, plural, one {# variable} other {# variables}}",
   "{count, plural, one {# inject edit} other {# inject edits}}": "{count, plural, one {# modification d’inject} other {# modifications d’injects}}",
   "{count, plural, one {# scenario edit} other {# scenario edits}}": "{count, plural, one {# modification du scénario} other {# modifications du scénario}}",
   "{count, plural, one {# inject of yours} other {# injects of yours}}": "{count, plural, one {# de vos injects} other {# de vos injects}}",
-  "targets, teams, schedule and tags": "cibles, équipes, planification et tags"
+  "targets, teams, schedule and tags": "cibles, équipes, planification et tags",
+  "See the latest preview before applying.": "Consultez l’aperçu à jour avant d’appliquer.",
+  "Show the latest preview": "Afficher l’aperçu à jour",
+  "Try again": "Réessayer"
 }

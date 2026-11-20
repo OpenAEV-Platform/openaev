@@ -4982,12 +4982,14 @@
   "The update didn't apply. Nothing was changed.": "更新未应用。未做任何更改。",
   "The rollback didn't apply. Nothing was changed.": "回滚未应用。未做任何更改。",
   "The scenario changed since this preview. Nothing was changed.": "自此预览以来场景已更改。未做任何更改。",
-  "Close this dialog and open it again to see the latest preview.": "关闭此对话框并重新打开以查看最新预览。",
   "Try again, or contact your administrator if it keeps failing.": "请重试；如果仍然失败，请联系管理员。",
   "Variables ({count})": "变量 ({count})",
   "{count, plural, one {# variable} other {# variables}}": "{count, plural, other {# 个变量}}",
   "{count, plural, one {# inject edit} other {# inject edits}}": "{count, plural, other {# 处注入修改}}",
   "{count, plural, one {# scenario edit} other {# scenario edits}}": "{count, plural, other {# 处场景修改}}",
   "{count, plural, one {# inject of yours} other {# injects of yours}}": "{count, plural, other {您的 # 个注入}}",
-  "targets, teams, schedule and tags": "目标、团队、计划和标签"
+  "targets, teams, schedule and tags": "目标、团队、计划和标签",
+  "See the latest preview before applying.": "应用前请查看最新预览。",
+  "Show the latest preview": "显示最新预览",
+  "Try again": "重试"
 }

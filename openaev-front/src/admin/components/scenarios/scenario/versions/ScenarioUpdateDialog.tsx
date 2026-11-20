@@ -13,7 +13,7 @@ import {
 import { ArrowForwardOutlined, CheckCircleOutlined, ExpandMoreOutlined } from '@mui/icons-material';
 // fds:keep-mui the library has no Accordion yet (frontend.instructions.md lists it as still MUI)
 import { Accordion, AccordionDetails, AccordionSummary } from '@mui/material';
-import { Fragment, type FunctionComponent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
 import {
@@ -156,12 +156,8 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
   const [choices, setChoices] = useState<Record<string, ScenarioMergeChoice>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [applying, setApplying] = useState(false);
-  // When applying fails: said in the dialog, by the button, so the click never looks like nothing.
+  // When applying fails, the dialog shows only that, small: the preview is no longer what matters.
   const [applyError, setApplyError] = useState<'changed' | 'failed' | null>(null);
-  const applyErrorRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (applyError) applyErrorRef.current?.scrollIntoView({ block: 'nearest' });
-  }, [applyError]);
   // Kept edits whose content is open ("View").
   const [viewing, setViewing] = useState<Set<string>>(new Set());
   // Release notes of the versions this update brings, newest first.
@@ -174,9 +170,11 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
     : { revision_id: revisionId };
   const theirs = version ? t('Filigran version v{version}', { version }) : t('Revision #{number}', { number: revisionNumber ?? '' });
 
-  useEffect(() => {
+  const loadPreview = () => {
+    setPreview(null);
     previewScenarioUpdate(scenarioId, target).then(({ data }) => setPreview(data));
-  }, [scenarioId, version, revisionId]);
+  };
+  useEffect(loadPreview, [scenarioId, version, revisionId]);
 
   useEffect(() => {
     if (!version || !preview) return;
@@ -325,6 +323,8 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
       .finally(() => setApplying(false));
   };
 
+  let applyLabel = String(version ? t('Update') : t('Roll back'));
+  if (applyError) applyLabel = String(t('Try again'));
   let applyErrorTitle = String(version ? t('The update didn\'t apply. Nothing was changed.') : t('The rollback didn\'t apply. Nothing was changed.'));
   if (applyError === 'changed') applyErrorTitle = String(t('The scenario changed since this preview. Nothing was changed.'));
   const taken = preview?.changes.filter(change => change.status === 'TAKE_APPLIED') ?? [];
@@ -400,14 +400,24 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
 
   return (
     <Dialog open onOpenChange={open => !open && onClose()}>
-      <DialogContent size="lg">
+      <DialogContent size={applyError ? 'sm' : 'lg'}>
         <DialogTitle>
           {version
             ? t('Update to Filigran v{version}', { version })
             : t('Roll back to revision #{number}', { number: revisionNumber ?? '' })}
         </DialogTitle>
         <DialogBody>
-          {!preview ? <Text variant="content-base">{t('Loading')}</Text> : (
+          {applyError && (
+            <Alert
+              severity="error"
+              title={applyErrorTitle}
+              description={applyError === 'changed'
+                ? t('See the latest preview before applying.')
+                : t('Try again, or contact your administrator if it keeps failing.')}
+            />
+          )}
+          {!applyError && !preview && <Text variant="content-base">{t('Loading')}</Text>}
+          {!applyError && preview && (
             <div style={{
               display: 'flex',
               flexDirection: 'column',
@@ -717,25 +727,25 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
                   </Section>
                 )}
               </div>
-              {applyError && (
-                <div ref={applyErrorRef}>
-                  <Alert
-                    severity="error"
-                    title={applyErrorTitle}
-                    description={applyError === 'changed'
-                      ? t('Close this dialog and open it again to see the latest preview.')
-                      : t('Try again, or contact your administrator if it keeps failing.')}
-                  />
-                </div>
-              )}
             </div>
           )}
         </DialogBody>
         <DialogFooter>
-          <Button priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
-          <Button onClick={apply} disabled={!preview || !ready || applying}>
-            {version ? t('Update') : t('Roll back')}
-          </Button>
+          <Button priority="secondary" onClick={onClose}>{applyError ? t('Close') : t('Cancel')}</Button>
+          {applyError === 'changed' && (
+            <Button onClick={() => {
+              setApplyError(null);
+              loadPreview();
+            }}
+            >
+              {t('Show the latest preview')}
+            </Button>
+          )}
+          {applyError !== 'changed' && (
+            <Button onClick={apply} disabled={!preview || !ready || applying}>
+              {applyLabel}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

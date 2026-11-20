@@ -4982,12 +4982,14 @@
   "The update didn't apply. Nothing was changed.": "The update didn't apply. Nothing was changed.",
   "The rollback didn't apply. Nothing was changed.": "The rollback didn't apply. Nothing was changed.",
   "The scenario changed since this preview. Nothing was changed.": "The scenario changed since this preview. Nothing was changed.",
-  "Close this dialog and open it again to see the latest preview.": "Close this dialog and open it again to see the latest preview.",
   "Try again, or contact your administrator if it keeps failing.": "Try again, or contact your administrator if it keeps failing.",
   "Variables ({count})": "Variables ({count})",
   "{count, plural, one {# variable} other {# variables}}": "{count, plural, one {# variable} other {# variables}}",
   "{count, plural, one {# inject edit} other {# inject edits}}": "{count, plural, one {# inject edit} other {# inject edits}}",
   "{count, plural, one {# scenario edit} other {# scenario edits}}": "{count, plural, one {# scenario edit} other {# scenario edits}}",
   "{count, plural, one {# inject of yours} other {# injects of yours}}": "{count, plural, one {# inject of yours} other {# injects of yours}}",
-  "targets, teams, schedule and tags": "targets, teams, schedule and tags"
+  "targets, teams, schedule and tags": "targets, teams, schedule and tags",
+  "See the latest preview before applying.": "See the latest preview before applying.",
+  "Show the latest preview": "Show the latest preview",
+  "Try again": "Try again"
 }
