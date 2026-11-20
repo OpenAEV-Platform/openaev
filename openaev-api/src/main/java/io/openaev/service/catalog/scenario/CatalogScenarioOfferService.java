@@ -8,6 +8,7 @@ import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.model.catalog.ContentType;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.catalog.CatalogListService;
+import io.openaev.service.catalog.CatalogOffer;
 import io.openaev.service.catalog.CatalogSettingsService;
 import io.openaev.service.catalog.payload.CatalogPayloadOfferService;
 import java.io.IOException;

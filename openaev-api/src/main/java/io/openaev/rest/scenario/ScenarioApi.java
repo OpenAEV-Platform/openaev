@@ -775,7 +775,7 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
-  @Operation(summary = "Start a simulation from the scenario, the targets sent added to it only")
+  @Operation(summary = "Start a simulation, with targets for it only")
   public Exercise createRunningExerciseFromScenario(
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
