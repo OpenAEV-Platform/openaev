@@ -204,6 +204,55 @@ class PayloadUtilsTest {
     verify(documentService, never()).document(any());
   }
 
+  @Test
+  void given_documentShadowedByEarlierTextArgument_should_notCheckTheDiscardedDefault() {
+    // Arrange: copyProperties keeps the first argument of a key, so the Document is discarded
+    DocumentService documentService = mock(DocumentService.class);
+    PayloadUtils payloadUtils = payloadUtils(documentService);
+    List<PayloadArgument> requested =
+        List.of(textArgument("file", "text"), documentArgument("file", "foreign-doc"));
+
+    // Act
+    payloadUtils.validateDocumentArguments(requested, List.of(), "tenant-1");
+
+    // Assert
+    verify(documentService, never()).documentInTenant(any(), any());
+  }
+
+  @Test
+  void given_storedDocumentShadowedByTextArgument_should_checkTheNowEffectiveDocument() {
+    // Arrange: the stored Document default was shadowed by the Text under the same key, so the
+    // effective stored argument is the Text and the requested Document is a new default
+    DocumentService documentService = mock(DocumentService.class);
+    PayloadUtils payloadUtils = payloadUtils(documentService);
+    List<PayloadArgument> stored =
+        List.of(textArgument("file", "text"), documentArgument("file", "foreign-doc"));
+    List<PayloadArgument> requested = List.of(documentArgument("file", "foreign-doc"));
+
+    // Act
+    payloadUtils.validateDocumentArguments(requested, stored, "tenant-1");
+
+    // Assert
+    verify(documentService).documentInTenant("foreign-doc", "tenant-1");
+  }
+
+  private static PayloadUtils payloadUtils(DocumentService documentService) {
+    return new PayloadUtils(
+        mock(EnterpriseEditionService.class),
+        mock(LicenseCacheManager.class),
+        mock(OutputParserService.class),
+        mock(DetectionRemediationUtils.class),
+        documentService);
+  }
+
+  private static PayloadArgument textArgument(String key, String defaultValue) {
+    PayloadArgument argument = new PayloadArgument();
+    argument.setType(PrimitiveType.Text);
+    argument.setKey(key);
+    argument.setDefaultValue(defaultValue);
+    return argument;
+  }
+
   private static PayloadArgument documentArgument(String key, String defaultValue) {
     PayloadArgument argument = new PayloadArgument();
     argument.setType(PrimitiveType.Document);

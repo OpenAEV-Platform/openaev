@@ -262,21 +262,28 @@ public class PayloadUtils {
     if (requested == null) {
       return;
     }
+    // Both lists go through the first-key-wins rule of copyProperties before the type and the
+    // default are read: a shadowed argument is not the one stored or sent.
     Map<String, String> storedDefaults = new HashMap<>();
-    if (stored != null) {
-      stored.stream()
-          .filter(argument -> PrimitiveType.Document == argument.getType())
-          .forEach(
-              argument ->
-                  storedDefaults.putIfAbsent(argument.getKey(), argument.getDefaultValue()));
-    }
-    requested.stream()
+    effectiveArgumentsByKey(stored).stream()
+        .filter(argument -> PrimitiveType.Document == argument.getType())
+        .forEach(argument -> storedDefaults.put(argument.getKey(), argument.getDefaultValue()));
+    effectiveArgumentsByKey(requested).stream()
         .filter(argument -> PrimitiveType.Document == argument.getType())
         .filter(argument -> StringUtils.hasText(argument.getDefaultValue()))
         .filter(
             argument -> !argument.getDefaultValue().equals(storedDefaults.get(argument.getKey())))
         .forEach(
             argument -> documentService.documentInTenant(argument.getDefaultValue(), tenantId));
+  }
+
+  private static Collection<PayloadArgument> effectiveArgumentsByKey(
+      List<PayloadArgument> arguments) {
+    Map<String, PayloadArgument> byKey = new LinkedHashMap<>();
+    if (arguments != null) {
+      arguments.forEach(argument -> byKey.putIfAbsent(argument.getKey(), argument));
+    }
+    return byKey.values();
   }
 
   public Payload copyProperties(PayloadCreateInput payloadInput, Payload target) {
