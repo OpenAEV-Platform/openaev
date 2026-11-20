@@ -45,11 +45,21 @@ const KINDS: Record<DiffLine['kind'], {
 
 const BORDER = '1px solid var(--border-elevation-subtle-soft)';
 
-const lineText = (line: DiffLine) => {
-  if (line.counterpart === undefined) {
+interface ShownLine extends DiffLine {
+  // The words of the line, those that changed marked; only on a line paired with another.
+  runs?: ReturnType<typeof diffRuns>;
+}
+
+const shownLines = (before: string, after: string): ShownLine[] => lineDiff(before, after).map(line => ({
+  ...line,
+  runs: line.counterpart === undefined ? undefined : diffRuns(line.text, line.counterpart),
+}));
+
+const lineText = (line: ShownLine) => {
+  if (!line.runs) {
     return line.text || ' ';
   }
-  return diffRuns(line.text, line.counterpart).map(({ token, changed }, index) => (changed
+  return line.runs.map(({ token, changed }, index) => (changed
     ? (
         <mark
           key={index}
@@ -71,7 +81,7 @@ interface FieldDiffProps { row: ChangeDiffRow }
 const FieldDiff = ({ row }: FieldDiffProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const lines = useMemo(() => lineDiff(row.before, row.after), [row.before, row.after]);
+  const lines = useMemo(() => shownLines(row.before, row.after), [row.before, row.after]);
   const added = lines.filter(line => line.kind === 'added').length;
   const removed = lines.filter(line => line.kind === 'removed').length;
   const gutter: CSSProperties = {
@@ -106,9 +116,9 @@ const FieldDiff = ({ row }: FieldDiffProps) => {
       >
         <Text variant="content-base-bold">{row.field}</Text>
         <Text variant="content-compact-bold" aria-hidden>
-          <span style={{ color: 'var(--color-feedback-success-primary)' }}>{`+${added}`}</span>
+          <span style={{ color: KINDS.added.color }}>{`+${added}`}</span>
           {' '}
-          <span style={{ color: 'var(--color-feedback-error-primary)' }}>{`−${removed}`}</span>
+          <span style={{ color: KINDS.removed.color }}>{`−${removed}`}</span>
         </Text>
       </div>
       <div style={{

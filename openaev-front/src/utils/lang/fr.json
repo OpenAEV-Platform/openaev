@@ -4882,6 +4882,7 @@
   "What must succeed or fail for this inject to be scored.": "Ce qui doit réussir ou échouer pour que cet inject soit évalué.",
   "What will fail:": "Ce qui échouera :",
   "What worked well": "Ce qui a bien fonctionné",
+  "What's new in Filigran v{version}": "Nouveautés de Filigran v{version}",
   "What's new in v{version}": "Nouveautés de la v{version}",
   "When": "Quand",
   "When enabled, credentials submitted by recipients (username and password) are captured and tracked per target. When disabled, only the submission event is recorded - passwords are never stored.": "Lorsque cette option est activée, les identifiants soumis par les destinataires (nom d'utilisateur et mot de passe) sont capturés et suivis par cible. Lorsqu'elle est désactivée, seul l'événement de soumission est enregistré - les mots de passe ne sont jamais stockés.",

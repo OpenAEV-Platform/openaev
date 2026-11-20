@@ -4882,6 +4882,7 @@
   "What must succeed or fail for this inject to be scored.": "이 인젝트가 채점되기 위해 성공하거나 실패해야 하는 항목.",
   "What will fail:": "실패할 항목:",
   "What worked well": "잘된 점",
+  "What's new in Filigran v{version}": "Filigran v{version}의 새로운 기능",
   "What's new in v{version}": "v{version}의 새로운 기능",
   "When": "시기",
   "When enabled, credentials submitted by recipients (username and password) are captured and tracked per target. When disabled, only the submission event is recorded - passwords are never stored.": "활성화하면 수신자가 제출한 자격 증명(사용자 이름 및 비밀번호)이 대상별로 캡처되고 추적됩니다. 비활성화하면 제출 이벤트만 기록되며 비밀번호는 절대 저장되지 않습니다.",
