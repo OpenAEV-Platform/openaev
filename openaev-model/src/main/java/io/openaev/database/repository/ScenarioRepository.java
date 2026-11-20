@@ -426,6 +426,14 @@ public interface ScenarioRepository
 
   boolean existsByIdAndTenantIdIn(@NotNull String id, @NotNull Collection<String> tenantIds);
 
+  /**
+   * Scenarios generated from the given external references (the STIX id of the threat knowledge
+   * they came from), most recently updated first, scoped by the transaction alone. Used by the XTM
+   * counterpart lookup another product runs on its threat objects.
+   */
+  List<Scenario> findAllByExternalReferenceInOrderByUpdatedAtDesc(
+      @NotNull Collection<String> externalReferences);
+
   // -- CATALOGUE --
 
   boolean existsByCatalogIdentityId(String identityId);

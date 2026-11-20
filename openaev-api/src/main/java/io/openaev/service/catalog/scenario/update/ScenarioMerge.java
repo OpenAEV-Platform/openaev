@@ -85,6 +85,18 @@ public final class ScenarioMerge {
       return field == null ? element : element + "/" + field;
     }
 
+    public ScenarioElementKind elementKind() {
+      return ScenarioContentReader.elementKind(element);
+    }
+
+    public ScenarioFieldKind fieldKind() {
+      return field == null ? null : ScenarioContentReader.fieldKind(element, field);
+    }
+
+    public String fieldKey() {
+      return field == null ? null : fieldKind().key(field);
+    }
+
     public boolean editable() {
       return field != null
           && !FIXED_FIELDS.contains(field)

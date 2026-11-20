@@ -23,6 +23,8 @@ import ItemCriticality from '../../../../components/ItemCriticality';
 import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
+import { OpenCrqRowMark } from '../../../../components/xtm/XtmOpenCrq';
+import { OpenCtiRowMark } from '../../../../components/xtm/XtmPivot';
 import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { type AssetBulkProcessingInput, type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
@@ -194,7 +196,22 @@ const Endpoints = () => {
       field: EndpointListItemFragments.ASSET_NAME,
       label: 'Name',
       isSortable: true,
-      value: (endpoint: EndpointOutput) => endpoint.asset_name,
+      value: (endpoint: EndpointOutput) => (
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+        }}
+        >
+          {endpoint.asset_name}
+          {endpoint.asset_category !== 'AI_TARGET' && (
+            <>
+              <OpenCtiRowMark kind="assets" objectKey={endpoint.asset_hostname} />
+              <OpenCrqRowMark kind="assets" objectKey={endpoint.asset_hostname} />
+            </>
+          )}
+        </span>
+      ),
     },
     {
       field: 'asset_category',

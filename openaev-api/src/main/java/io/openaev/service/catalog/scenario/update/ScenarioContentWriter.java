@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -101,7 +102,10 @@ public class ScenarioContentWriter {
                 wanted.put(element.getKey().substring(INJECT.length()), element.getValue());
               }
             });
-    Map<String, InjectorContract> contracts = new HashMap<>();
+    String tenantId = scenario.getTenant().getId();
+    Map<ScenarioPayloadRef, InjectorContract> payloadContracts =
+        payloadContracts(tenantId, content);
+    Map<String, InjectorContract> otherContracts = new HashMap<>();
     List<Inject> written = new ArrayList<>();
     wanted.forEach(
         (key, element) -> {
@@ -111,9 +115,7 @@ public class ScenarioContentWriter {
           inject.setDependsDuration(element.path(DEPENDS_DURATION).asLong(0));
           inject.setInjectorContract(
               element.has(CONTRACT)
-                  ? contracts.computeIfAbsent(
-                      element.get(CONTRACT).toString(),
-                      ref -> contract(scenario.getTenant().getId(), element.get(CONTRACT)))
+                  ? contract(tenantId, element.get(CONTRACT), payloadContracts, otherContracts)
                   : null);
           inject.setContent(content(inject.getContent(), element));
           written.add(inject);
@@ -135,22 +137,48 @@ public class ScenarioContentWriter {
     return inject;
   }
 
-  private InjectorContract contract(String tenantId, JsonNode ref) {
-    if (!ref.has(PAYLOAD_EXTERNAL_ID)) {
-      return injectorContractService.injectorContractInTenant(
-          ref.path(INJECTOR_CONTRACT_ID).asText(), tenantId);
+  private InjectorContract contract(
+      String tenantId,
+      JsonNode ref,
+      Map<ScenarioPayloadRef, InjectorContract> payloadContracts,
+      Map<String, InjectorContract> otherContracts) {
+    if (!ScenarioPayloadRef.names(ref)) {
+      return otherContracts.computeIfAbsent(
+          ref.path(INJECTOR_CONTRACT_ID).asText(),
+          id -> injectorContractService.injectorContractInTenant(id, tenantId));
     }
-    String externalId = ref.path(PAYLOAD_EXTERNAL_ID).asText();
-    String version = ref.path(PAYLOAD_VERSION).asText();
-    Payload payload =
-        payloadService.versions(tenantId, externalId).stream()
-            .filter(candidate -> version.equals(candidate.getVersion()))
-            .findFirst()
-            .orElseThrow(
-                () -> new BadRequestException("Payload version not installed: " + version));
-    return injectorContractService
-        .injectorContractsOfPayloads(tenantId, List.of(payload.getId()))
-        .get(payload.getId());
+    ScenarioPayloadRef payload = ScenarioPayloadRef.of(ref);
+    InjectorContract contract = payloadContracts.get(payload);
+    if (contract == null) {
+      throw new BadRequestException("Payload version not installed: " + payload.version());
+    }
+    return contract;
+  }
+
+  // The action of every payload version the content runs, read in two queries.
+  private Map<ScenarioPayloadRef, InjectorContract> payloadContracts(
+      String tenantId, ObjectNode content) {
+    Set<ScenarioPayloadRef> refs = ScenarioPayloadRef.in(content);
+    if (refs.isEmpty()) {
+      return Map.of();
+    }
+    Map<ScenarioPayloadRef, Payload> installed =
+        new HashMap<>(
+            ScenarioPayloadRef.byRef(
+                payloadService.versions(tenantId, ScenarioPayloadRef.externalIds(refs))));
+    installed.keySet().retainAll(refs);
+    Map<String, InjectorContract> byPayload =
+        injectorContractService.injectorContractsOfPayloads(
+            tenantId, installed.values().stream().map(Payload::getId).toList());
+    Map<ScenarioPayloadRef, InjectorContract> contracts = new HashMap<>();
+    installed.forEach(
+        (ref, payload) -> {
+          InjectorContract contract = byPayload.get(payload.getId());
+          if (contract != null) {
+            contracts.put(ref, contract);
+          }
+        });
+    return contracts;
   }
 
   // The fields of the merged content, and the targets the client chose.

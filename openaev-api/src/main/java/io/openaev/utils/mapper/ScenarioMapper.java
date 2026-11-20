@@ -123,6 +123,7 @@ public class ScenarioMapper {
                 rawScenario.getScenario_scheduled_by_firstname(),
                 rawScenario.getScenario_scheduled_by_lastname(),
                 rawScenario.getScenario_scheduled_by_email()))
+        .catalogVersion(rawScenario.getScenario_catalog_version())
         .build();
   }
 

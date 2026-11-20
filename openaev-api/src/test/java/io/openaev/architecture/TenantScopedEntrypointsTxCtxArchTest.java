@@ -693,6 +693,9 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.payload.PayloadRevocationApi#lift",
           // injects, steps: moving the usages of a payload version to another version.
           "io.openaev.api.threat_arsenal.move.PayloadUsageMoveApi#moveUsages",
+          // catalog_history: the History tabs of an action and of a scenario.
+          "io.openaev.api.catalog.CatalogHistoryApi#payloadHistory",
+          "io.openaev.api.catalog.CatalogHistoryApi#scenarioHistory",
           // scenario_revisions, scenarios, catalog_items, payloads: a catalogue scenario updated
           // to a version or rolled back to a revision.
           "io.openaev.api.scenario.ScenarioUpdateApi#revisions",
