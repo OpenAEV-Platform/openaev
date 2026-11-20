@@ -41,6 +41,7 @@ import io.openaev.api.payload.dto.PayloadRevocationInput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.DetectionRemediation;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
@@ -255,9 +256,11 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
   }
 
   private void runByInject(String payloadId) {
-    injectRepository.save(
+    Inject inject =
         InjectFixture.createInject(
-            injectorContractRepository.findById(contractOf(payloadId)).orElseThrow(), "Inject"));
+            injectorContractRepository.findById(contractOf(payloadId)).orElseThrow(), "Inject");
+    inject.setTenant(new Tenant(DEFAULT_TENANT_UUID));
+    injectRepository.save(inject);
     entityManager.flush();
   }
 

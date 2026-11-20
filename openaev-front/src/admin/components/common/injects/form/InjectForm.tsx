@@ -113,8 +113,12 @@ const InjectForm = ({
     'expectations',
   ];
 
-  const getInitialValues = (): Record<string, FieldValue> => {
+  // From the inject, or from what was typed: then only the contract's own arguments are kept.
+  const getInitialValues = (typed?: InjectInputForm): Record<string, FieldValue> => {
     const duration = splitDuration(defaultInject?.inject_depends_duration || 0);
+    const contractKeys = new Set(injectorContractContent?.fields.map(field => field.key));
+    const typedContent = Object.entries((typed?.inject_content ?? {}) as Record<string, FieldValue>)
+      .filter(([key]) => !injectorContractContent || contractKeys.has(key));
     const initialValues = {
       ...defaultInject,
       inject_content: (defaultInject?.inject_content ?? {}) as Record<string, FieldValue>,
@@ -125,6 +129,10 @@ const InjectForm = ({
       inject_all_teams: defaultInject?.inject_all_teams ?? false,
       inject_teams: defaultInject?.inject_teams ?? [],
       inject_injector: (defaultInject as Inject)?.inject_injector ?? (Object.keys(injectorNames).length > 0 ? Object.keys(injectorNames)[0] : ''),
+      ...(typed && {
+        ...(typed as Record<string, FieldValue>),
+        inject_content: Object.fromEntries(typedContent),
+      }),
     };
 
     // Enrich initialValues with default contract value
@@ -452,29 +460,12 @@ const InjectForm = ({
     }
   }, [injectorContractContent]);
 
-  // Update mode:
-  // In update mode, we want to initialize the form with the current inject values,
-  // but we do NOT want to reset again if injectorContractContent changes later,
-  // otherwise user edits would be lost.
+  // The first contract fills the form from the inject; another one (a version, or on creation the chosen contract) keeps what was typed.
   useEffect(() => {
-    if (!isCreation) {
-      const initialValues = getInitialValues();
-      reset(initialValues);
-      setDefaultValues(initialValues);
-    }
-  }, []);
-
-  // Create mode:
-  // In create mode, when the user selects a new contract, we need to reset
-  // the form with the new default values provided by this contract.
-  // This ensures the form is pre-filled according to the selected contract.
-  useEffect(() => {
-    if (isCreation) {
-      const initialValues = getInitialValues();
-      reset(initialValues);
-      setDefaultValues(initialValues);
-    }
-  }, [injectorContractContent, isCreation]);
+    const values = getInitialValues(Object.keys(defaultValues).length > 0 ? getValues() : undefined);
+    reset(values);
+    setDefaultValues(values);
+  }, [injectorContractContent]);
 
   if (Object.keys(defaultValues).length === 0) {
     return <Loader variant="inElement" />;

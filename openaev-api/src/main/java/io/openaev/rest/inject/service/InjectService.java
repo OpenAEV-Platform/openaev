@@ -303,8 +303,9 @@ public class InjectService {
 
   /**
    * The tenant of each given inject, as {@code [inject_id, tenant_id]} rows read from the inject's
-   * own column by a native projection that no tenant scope narrows. For the callers that resolve an
-   * inject's owner before acting in its tenant; an unknown inject is absent from the result.
+   * own column, in the caller's tenant scope. For the callers that resolve an inject's owner before
+   * acting in its tenant; an unknown inject and an inject outside the scope are absent from the
+   * result.
    */
   public List<Object[]> findTenantIdsByInjectIds(Collection<String> injectIds) {
     return injectRepository.findTenantIdsByInjectIds(injectIds);
@@ -324,10 +325,8 @@ public class InjectService {
   /**
    * Looks an inject up by id inside the request's tenant scope: the path tenant on the tenant
    * route, the {@code X-Tenant-Ids} selector or the caller's memberships on the non-prefixed route.
-   * Loads by primary key, which Hibernate filters do not apply to, then keeps the row only when its
-   * tenant lies in the request's scope: a derived query such as {@code findByIdAndTenantIdIn} would
-   * instead run under Inject's still-active v1 filter, which the non-prefixed route keys on the
-   * default tenant regardless of the resolved scope.
+   * The by-id load runs under the transaction's tenant scope, and the row is kept only when its
+   * tenant lies in the request's scope.
    *
    * <p>Carries its own read-only transaction so the request's tenant scope reaches the lookup even
    * when the caller runs under {@code Propagation.SUPPORTS} with no transaction already open: the
@@ -390,9 +389,10 @@ public class InjectService {
   /**
    * Tenant gate of the implant endpoints, run before {@link #checkAgentTargetsInject} and {@link
    * #checkAgentMayReportOnInject}: the inject must belong to a tenant of the request's scope. Reads
-   * the inject's tenant column only, by primary key and outside the v1 tenant filter, then compares
-   * it with the scope in Java, the test {@link #findInScope} applies, without loading the inject:
-   * it runs on every implant callback, under the per-inject lock.
+   * the inject's tenant column only, by primary key, then compares it with the scope in Java, the
+   * test {@link #findInScope} applies, without loading the inject: it runs on every implant
+   * callback, under the per-inject lock. The read itself is narrowed to the request's scope, so an
+   * inject of another tenant is not found and is refused like an unknown one.
    *
    * <p>An unknown inject and an inject of another tenant are refused alike (403, the message of the
    * agent checks), so the implant endpoints do not reveal whether an inject id exists.
@@ -1190,9 +1190,7 @@ public class InjectService {
                   injectDependency
                       .getCompositeId()
                       .setInjectParent(
-                          injectRepository
-                              .findById(entry.getRelationship().getInjectParentId())
-                              .orElse(null));
+                          parentInTenantOf(inject, entry.getRelationship().getInjectParentId()));
                   injectDependency.setInjectDependencyCondition(
                       new InjectDependencyConditions.InjectDependencyCondition());
                   injectDependency
@@ -1292,6 +1290,19 @@ public class InjectService {
     inject.setDocuments(injectDocuments);
 
     return inject;
+  }
+
+  /**
+   * Resolves a dependency parent named in a request body in the tenant of the inject written. A
+   * parent of another tenant is answered like an unknown id.
+   *
+   * @throws ElementNotFoundException when no inject of that tenant carries the id
+   */
+  private Inject parentInTenantOf(final Inject inject, final String parentInjectId) {
+    return this.injectRepository
+        .findByIdAndTenantId(parentInjectId, inject.getTenant().getId())
+        .orElseThrow(
+            () -> new ElementNotFoundException("Inject not found with id: " + parentInjectId));
   }
 
   public Inject updateInjectActivation(

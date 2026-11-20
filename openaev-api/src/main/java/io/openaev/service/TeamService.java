@@ -85,11 +85,19 @@ public class TeamService {
   }
 
   /**
-   * Loads a team in scope with its tags, simulations, scenarios, injects and communications, for
-   * the endpoint that returns the raw entity. It is serialized open-in-view after the commit, when
-   * a lazy load on a v2-active table fails closed to an empty array: the team edit form, filled
-   * from that response, then saved the empty tag list and erased the team's tags. Simulations and
-   * scenarios are tenant tables too, and the team page counts them from the same response.
+   * Loads a team in scope with the collections its raw response serializes, see {@link
+   * #withResponseCollections}.
+   */
+  public Team teamInScopeWithCollections(@NotNull final TxCtx ctx, @NotNull final String teamId) {
+    return withResponseCollections(teamInScope(ctx, teamId));
+  }
+
+  /**
+   * Initializes the tags, simulations, scenarios, injects and communications of a team that an
+   * endpoint answers as a raw entity. The entity is serialized open-in-view after the commit, when
+   * a lazy load on a v2-active table reads nothing; initializing the collections in the transaction
+   * gives the response the team's tags, which the team edit form saves back, and the simulations
+   * and scenarios the team page counts.
    *
    * <p>The team's injects are the ones of its simulations and scenarios that target it: each
    * inject's eager {@code teams} reads the isolated {@code teams} table, so loaded after the commit
@@ -99,8 +107,7 @@ public class TeamService {
    * the batch-fetched dependencies of the injects, which grow with their number in batches of the
    * configured batch size); the response then finds them initialized.
    */
-  public Team teamInScopeWithCollections(@NotNull final TxCtx ctx, @NotNull final String teamId) {
-    Team team = teamInScope(ctx, teamId);
+  public Team withResponseCollections(@NotNull final Team team) {
     Hibernate.initialize(team.getTags());
     Hibernate.initialize(team.getExercises());
     Hibernate.initialize(team.getScenarios());

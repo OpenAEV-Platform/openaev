@@ -55,14 +55,6 @@ io.openaev.database.model.User#scopedTenantId | TenantContext.getCurrentTenant |
 io.openaev.database.model.attackpath.AttackPathExecution | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.attackpath.AttackPathFinding | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.attackpath.AttackPathGraphVersion | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
-io.openaev.database.repository.AssetGroupRepository#findAllBySimulationOrScenarioIdAndName | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.EndpointRepository#findAllBySimulationOrScenarioIdAndName | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ExerciseRepository#findAllOptionByNameLinkedToFindings | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ExerciseRepository#findAllOptionByNameLinkedToFindingsWithContext | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.InjectRepository#findAllByTitleLinkedToFindings | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.InjectRepository#findAllByTitleLinkedToFindingsWithContext | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.InjectRepository#findAllIdsForChallengeId | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.InjectRepository#findContentTargetContentsByExerciseIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
 io.openaev.debug.DebugTenantSource#currentTenant | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
 io.openaev.executors.caldera.service.CalderaExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
 io.openaev.executors.caldera.service.CalderaExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes

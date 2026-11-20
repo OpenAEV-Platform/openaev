@@ -270,7 +270,7 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
               would leave the Overview empty. Fall back to the connector's own
               (per-type) description so the tab always shows at least that. */}
           {catalogConnector
-            ? <ConnectorCatalogInfo catalogConnector={catalogConnector} />
+            ? <ConnectorCatalogInfo catalogConnector={catalogConnector} runningCommit={connector?.commit} />
             : <ConnectorBuiltinInfo description={builtinDescription ? t(builtinDescription) : undefined} />}
           {extraInfoComponent}
         </>

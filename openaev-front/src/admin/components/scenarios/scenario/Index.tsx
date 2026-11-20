@@ -18,6 +18,7 @@ import {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import AutonomousReasoningPanel from '../../autonomous/AutonomousReasoningPanel';
@@ -25,6 +26,7 @@ import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
 import { useAutonomousRunForScenario } from '../../autonomous/useAutonomousRunForSimulation';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
+import EntityGraph from '../../graph/EntityGraph';
 import injectContextForScenario from './ScenarioContext';
 import ScenarioHeader from './ScenarioHeader';
 import buildScenarioTabs from './scenarioTabs';
@@ -59,6 +61,7 @@ const IndexScenarioComponent: FunctionComponent<{
   // Attack path only exists for workflow-backed (chained) scenarios, never
   // for time-based ones.
   const isChained = !!scenario.scenario_workflow_id;
+  const graphEnabled = useExplorationGraph();
   // The AI cockpit (right-hand reasoning panel + read-only Scope/Logic) is live only while a run
   // is ACTIVE. A settled run unlocks Scope/Logic again; the overview itself always stays the
   // normal scenario page with the AI outcome layered on top (see overviewElement).
@@ -131,6 +134,7 @@ const IndexScenarioComponent: FunctionComponent<{
         <TabsList>
           {buildScenarioTabs({
             isChained,
+            graphEnabled,
             lessonsEnabled: scenario.scenario_lessons_enabled,
             t,
           }).map(([suffix, label]) => {
@@ -216,6 +220,8 @@ const IndexScenarioComponent: FunctionComponent<{
                 <Route path="execution" element={errorWrapper(ScenarioExecution)()} />
                 {/* Scenario-scoped custom dashboard, surfaced as the Statistics tab. */}
                 <Route path="statistics" element={errorWrapper(ScenarioStatistics)()} />
+                {/* The scenario's graph: its injects, their targets and the latest results. */}
+                {graphEnabled && <Route path="graph" element={<EntityGraph type="SCENARIO" entityId={scenario.scenario_id} variant="embedded" />} />}
                 {/* Statistics replaced the hero dashboard quick action and the old
                     Analysis tab; keep redirects for old links. */}
                 <Route path="dashboard" element={<Navigate to={`/admin/scenarios/${scenario.scenario_id}/statistics`} replace />} />
