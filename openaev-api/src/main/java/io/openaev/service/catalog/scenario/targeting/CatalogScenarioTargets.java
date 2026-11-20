@@ -49,6 +49,25 @@ public class CatalogScenarioTargets {
   }
 
   /**
+   * The kinds of target an inject takes, none when it takes no target, and whether it has one: an
+   * inject with a target selector has a target of the kind it selects.
+   */
+  public InjectTargets targetsOf(Inject inject) {
+    InjectorContract contract = inject.getInjectorContract().orElse(null);
+    if (contractContent.hasField(contract, TARGET_SELECTOR_CONTENT_KEY)) {
+      return new InjectTargets(
+          inject,
+          TargetKind.SELECTABLE,
+          TargetKind.selectedOn(inject).filter(kind -> kind.isSetOn(inject)).isPresent());
+    }
+    List<TargetKind> kinds =
+        TargetKind.FIELDS.stream()
+            .filter(kind -> contractContent.hasField(contract, kind.field()))
+            .toList();
+    return new InjectTargets(inject, kinds, kinds.stream().anyMatch(kind -> kind.isSetOn(inject)));
+  }
+
+  /**
    * The chosen ids the current reader resolves in the tenant: one they are not cleared for is
    * dropped, like an unknown one.
    */

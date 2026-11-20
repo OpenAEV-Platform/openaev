@@ -1,6 +1,7 @@
 package io.openaev.api.catalog.dto.scenario;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.api.catalog.dto.payload.CatalogPayloadOutput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -15,7 +16,12 @@ public record CatalogScenarioOutput(
     @JsonProperty("catalog_scenario_author") String author,
     @JsonProperty("catalog_scenario_type") @NotNull String scenarioType,
     @JsonProperty("catalog_scenario_category") String category,
+    @JsonProperty("catalog_scenario_main_focus") String mainFocus,
+    @JsonProperty("catalog_scenario_severity") String severity,
+    @JsonProperty("catalog_scenario_changelog") String changelog,
+    @JsonProperty("catalog_scenario_injects_count") Integer injectsCount,
     @JsonProperty("catalog_scenario_platforms") @NotNull String[] platforms,
     @JsonProperty("catalog_scenario_published_at") Instant publishedAt,
     @JsonProperty("catalog_scenario_missing_requirements") @NotNull
-        List<CatalogScenarioRequirementOutput> missingRequirements) {}
+        List<CatalogScenarioRequirementOutput> missingRequirements,
+    @JsonProperty("catalog_scenario_payloads") @NotNull List<CatalogPayloadOutput> payloads) {}

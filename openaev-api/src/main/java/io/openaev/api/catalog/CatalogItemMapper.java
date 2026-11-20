@@ -123,29 +123,30 @@ public class CatalogItemMapper {
         version.getAuthor(),
         CatalogScenarioType.of(version.getScenarioType()).name(),
         version.getCategory(),
+        version.getMainFocus(),
+        version.getSeverity(),
+        version.getChangelog(),
+        version.getInjectsCount(),
         version.getPlatforms(),
         version.getPublishedAt(),
-        offered.missingRequirements().stream()
-            .map(CatalogItemMapper::toRequirementOutput)
-            .toList());
+        offered.missingRequirements().stream().map(CatalogItemMapper::toRequirementOutput).toList(),
+        offered.payloads().stream().map(this::toOutput).toList());
   }
 
-  private static CatalogScenarioRequirementOutput toRequirementOutput(
+  public static CatalogScenarioRequirementOutput toRequirementOutput(
       MissingRequirement requirement) {
     return new CatalogScenarioRequirementOutput(
         requirement.label(), requirement.name(), requirement.integrationId(), requirement.status());
   }
 
-  public CatalogScenarioVersionOutput toVersionOutput(
-      CatalogScenario version, List<CatalogPayload> payloads) {
+  public CatalogScenarioVersionOutput toVersionOutput(CatalogScenario version) {
     return new CatalogScenarioVersionOutput(
         version.getVersion(),
         version.getPublishedAt(),
         version.getChangelog(),
         version.getMainFocus(),
         version.getSeverity(),
-        version.getInjectsCount(),
-        payloads.stream().map(this::toOutput).toList());
+        version.getInjectsCount());
   }
 
   public CatalogPayloadOutput toOutput(CatalogPayload version) {

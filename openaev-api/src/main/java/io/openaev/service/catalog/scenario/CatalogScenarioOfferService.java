@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.catalog.dto.CatalogManifest.PayloadRef;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.catalog.CatalogPayload;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.model.catalog.ContentType;
@@ -15,7 +16,10 @@ import io.openaev.service.catalog.CatalogSettingsService;
 import io.openaev.service.catalog.payload.CatalogPayloadOfferService;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -51,16 +55,17 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
     return toInstallable(ctx, item);
   }
 
-  /** The catalogue payloads a scenario version runs, as its release names them. */
+  /** What the installed version of a catalogue scenario lacks to run; nothing for a local one. */
   @Transactional(readOnly = true)
-  public List<CatalogPayload> payloads(CatalogScenario item) {
-    return payloadRefs(item).stream()
-        .flatMap(
-            ref ->
-                catalogListService
-                    .version(CatalogPayload.class, ref.externalId(), ref.version())
-                    .stream())
-        .toList();
+  public List<MissingRequirement> missingToRun(Scenario scenario) {
+    if (scenario.getCatalogExternalId() == null) {
+      return List.of();
+    }
+    return catalogListService
+        .version(
+            CatalogScenario.class, scenario.getCatalogExternalId(), scenario.getCatalogVersion())
+        .map(item -> catalogScenarioRequirements.checkerWithStatus().missing(item))
+        .orElse(List.of());
   }
 
   /** The latest version of every catalogue scenario the tenant does not show. */
@@ -70,13 +75,17 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
         scenarioIdentityRepository.findAllInstalledByTenantId(tenantId).stream()
             .map(CatalogOffer::key)
             .collect(Collectors.toSet());
+    List<CatalogScenario> offered =
+        catalogListService.latestOffered(CatalogScenario.class).stream()
+            .filter(
+                item ->
+                    !installed.contains(
+                        CatalogOffer.key(item.getRelease().getRepository(), item.getExternalId())))
+            .toList();
     CatalogScenarioRequirements.Checker checker = catalogScenarioRequirements.checkerWithStatus();
-    return catalogListService.latestOffered(CatalogScenario.class).stream()
-        .filter(
-            item ->
-                !installed.contains(
-                    CatalogOffer.key(item.getRelease().getRepository(), item.getExternalId())))
-        .map(item -> new OfferedScenario(item, checker.missing(item)))
+    Map<String, CatalogPayload> released = releasedPayloads(offered);
+    return offered.stream()
+        .map(item -> new OfferedScenario(item, checker.missing(item), payloadsOf(item, released)))
         .toList();
   }
 
@@ -131,6 +140,36 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
             .map(
                 ref -> catalogPayloadOfferService.installable(ctx, ref.externalId(), ref.version()))
             .toList());
+  }
+
+  // Every version of the payloads these releases name, read at once.
+  private Map<String, CatalogPayload> releasedPayloads(List<CatalogScenario> items) {
+    Set<String> externalIds =
+        items.stream()
+            .flatMap(item -> payloadRefs(item).stream())
+            .map(PayloadRef::externalId)
+            .collect(Collectors.toSet());
+    if (externalIds.isEmpty()) {
+      return Map.of();
+    }
+    return catalogListService.versions(CatalogPayload.class, externalIds).stream()
+        .collect(
+            Collectors.toMap(
+                payload -> versionKey(payload.getExternalId(), payload.getVersion()),
+                Function.identity(),
+                (first, other) -> first));
+  }
+
+  private List<CatalogPayload> payloadsOf(
+      CatalogScenario item, Map<String, CatalogPayload> released) {
+    return payloadRefs(item).stream()
+        .map(ref -> released.get(versionKey(ref.externalId(), ref.version())))
+        .filter(Objects::nonNull)
+        .toList();
+  }
+
+  private static String versionKey(String externalId, String version) {
+    return externalId + "@" + version;
   }
 
   private List<PayloadRef> payloadRefs(CatalogScenario item) {
