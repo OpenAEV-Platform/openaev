@@ -1394,7 +1394,8 @@ class MarkingDefinitionApiTest extends IntegrationTest {
       // One type per row: the caller holds no marking, so a second definition of a type the file
       // just created would be above its clearance.
       List<String> types = List.of("ZZUTF8A", "ZZUTF8B");
-      List<String> definitions = List.of("Confidentiel défense", "機密 секрет");
+      // Upper case, as the platform stores them: create and import both normalise the value.
+      List<String> definitions = List.of("CONFIDENTIEL DÉFENSE", "機密 СЕКРЕТ");
       List<MarkingDefinition> persisted = new ArrayList<>();
       for (int i = 0; i < definitions.size(); i++) {
         persisted.add(

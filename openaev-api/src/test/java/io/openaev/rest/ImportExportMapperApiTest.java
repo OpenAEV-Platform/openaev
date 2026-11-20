@@ -168,7 +168,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
   @ParameterizedTest(name = "export of {0}")
   @EnumSource(
       value = CsvType.class,
-      names = {"MARKING_DEFINITIONS", "INJECTOR_CONTRACTS"})
+      names = {"MARKING_DEFINITIONS"})
   @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_aTypeWithItsOwnApi_should_refuseTheMapperExport(CsvType csvType) throws Exception {
     // -- EXECUTE / ASSERT --

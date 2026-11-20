@@ -62,8 +62,7 @@ public class MapperApi extends RestBehavior {
 
   // These two forward a client-supplied csvType under the mapper capability: a type with its own
   // endpoint is reached there, under its own capability, never through this one.
-  private static final Set<CsvType> TYPES_WITH_DEDICATED_API =
-      Set.of(CsvType.INJECTOR_CONTRACTS, CsvType.MARKING_DEFINITIONS);
+  private static final Set<CsvType> TYPES_WITH_DEDICATED_API = Set.of(CsvType.MARKING_DEFINITIONS);
 
   private final ImportMapperRepository importMapperRepository;
   private final MapperService mapperService;
