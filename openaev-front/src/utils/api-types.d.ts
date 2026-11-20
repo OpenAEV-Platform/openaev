@@ -12311,6 +12311,7 @@ export interface ScenarioChallengesReader {
 export interface ScenarioChangeOutput {
   scenario_change_applied?: JsonNode;
   scenario_change_base?: JsonNode;
+  scenario_change_editable: boolean;
   /** @minLength 1 */
   scenario_change_element: string;
   scenario_change_field?: string;
@@ -12460,6 +12461,12 @@ export interface ScenarioOutput {
   scenario_workflow_id?: string;
 }
 
+export interface ScenarioPayloadVersionOutput {
+  payload_name?: string;
+  /** @minLength 1 */
+  payload_version: string;
+}
+
 export interface ScenarioReachabilityAssertionInput {
   /** True to make the scenario a reachability assertion: only read-only injects may run on its schedule */
   scenario_reachability_assertion?: boolean;
@@ -12524,7 +12531,15 @@ export interface ScenarioTeamUserOutput {
 }
 
 export interface ScenarioUpdateInput {
-  scenario_update_choices?: Record<string, "KEEP_MINE" | "TAKE_APPLIED">;
+  scenario_update_choices?: Record<string, "KEEP_MINE" | "TAKE_APPLIED" | "EDIT">;
+  scenario_update_edits?: Record<string, string>;
+}
+
+export interface ScenarioUpdatePreviewOutput {
+  scenario_update_changes: ScenarioChangeOutput[];
+  scenario_update_lost_dependencies: string[];
+  scenario_update_payloads_to_install: ScenarioPayloadVersionOutput[];
+  scenario_update_revoked_payloads: ScenarioPayloadVersionOutput[];
 }
 
 export interface ScenarioUpdateTagsInput {

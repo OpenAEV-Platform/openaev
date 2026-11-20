@@ -8,6 +8,7 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.catalog.SemanticVersion;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -62,6 +63,12 @@ public class CatalogListService {
   @Transactional(readOnly = true)
   public <T extends CatalogItem> List<T> versions(Class<T> type, String externalId) {
     return newestFirst(catalogItemRepository.findAllVersions(type, externalId));
+  }
+
+  /** Every released version of these catalogue items, in no order. */
+  @Transactional(readOnly = true)
+  public <T extends CatalogItem> List<T> versions(Class<T> type, Collection<String> externalIds) {
+    return catalogItemRepository.findAllVersionsIn(type, externalIds);
   }
 
   /** Every offered version of one catalogue item, newest first. */

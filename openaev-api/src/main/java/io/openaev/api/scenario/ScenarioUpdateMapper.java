@@ -3,13 +3,17 @@ package io.openaev.api.scenario;
 import static java.util.stream.Collectors.joining;
 
 import io.openaev.api.scenario.dto.ScenarioChangeOutput;
+import io.openaev.api.scenario.dto.ScenarioPayloadVersionOutput;
 import io.openaev.api.scenario.dto.ScenarioRevisionOutput;
+import io.openaev.api.scenario.dto.ScenarioUpdatePreviewOutput;
 import io.openaev.api.scenario.dto.ScenarioVersionOutput;
 import io.openaev.api.scenario.dto.ScenarioVersionsOutput;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.repository.ScenarioRevisionRepository.RevisionRow;
 import io.openaev.service.catalog.scenario.update.NumberedRevision;
 import io.openaev.service.catalog.scenario.update.ScenarioMerge;
+import io.openaev.service.catalog.scenario.update.ScenarioPayloadCheck;
+import io.openaev.service.catalog.scenario.update.ScenarioPreview;
 import io.openaev.service.catalog.scenario.update.ScenarioVersions;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -25,9 +29,22 @@ public class ScenarioUpdateMapper {
         change.field(),
         change.title(),
         change.status(),
+        change.editable(),
         change.base(),
         change.applied(),
         change.local());
+  }
+
+  public static ScenarioUpdatePreviewOutput toOutput(ScenarioPreview preview) {
+    return new ScenarioUpdatePreviewOutput(
+        preview.merge().changes().stream().map(ScenarioUpdateMapper::toOutput).toList(),
+        preview.payloads().toInstall().stream().map(ScenarioUpdateMapper::toOutput).toList(),
+        preview.payloads().revoked().stream().map(ScenarioUpdateMapper::toOutput).toList(),
+        preview.merge().lostDependencies());
+  }
+
+  private static ScenarioPayloadVersionOutput toOutput(ScenarioPayloadCheck.Version version) {
+    return new ScenarioPayloadVersionOutput(version.name(), version.version());
   }
 
   public static ScenarioVersionsOutput toOutput(ScenarioVersions versions) {

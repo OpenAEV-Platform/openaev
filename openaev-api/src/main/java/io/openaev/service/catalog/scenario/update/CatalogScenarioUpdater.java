@@ -35,33 +35,42 @@ public class CatalogScenarioUpdater {
 
   // -- UPDATE --
 
-  public ScenarioMerge.Result previewUpdate(TxCtx ctx, String scenarioId, String version) {
+  public ScenarioPreview previewUpdate(TxCtx ctx, String scenarioId, String version) {
     InstalledScenario installed = catalogScenarioUpdateService.installed(ctx, scenarioId);
     return catalogScenarioUpdateService.preview(
         ctx, toRelease(ctx, installed, offered(ctx, installed, version)));
   }
 
   public void update(
-      TxCtx ctx, String scenarioId, String version, Map<String, ScenarioMerge.Choice> choices) {
+      TxCtx ctx,
+      String scenarioId,
+      String version,
+      Map<String, ScenarioMerge.Choice> choices,
+      Map<String, String> edits) {
     InstalledScenario installed = catalogScenarioUpdateService.installed(ctx, scenarioId);
     InstallableScenarioVersion released = offered(ctx, installed, version);
     catalogScenarioUpdateService.apply(
         ctx,
         toRelease(ctx, installed, released),
         catalogFileService.payloadFiles(released.payloads()),
-        choices);
+        choices,
+        edits);
   }
 
   // -- ROLLBACK --
 
-  public ScenarioMerge.Result previewRollback(TxCtx ctx, String scenarioId, String revisionId) {
+  public ScenarioPreview previewRollback(TxCtx ctx, String scenarioId, String revisionId) {
     return catalogScenarioUpdateService.preview(ctx, toRevision(ctx, scenarioId, revisionId));
   }
 
   public void rollback(
-      TxCtx ctx, String scenarioId, String revisionId, Map<String, ScenarioMerge.Choice> choices) {
+      TxCtx ctx,
+      String scenarioId,
+      String revisionId,
+      Map<String, ScenarioMerge.Choice> choices,
+      Map<String, String> edits) {
     catalogScenarioUpdateService.apply(
-        ctx, toRevision(ctx, scenarioId, revisionId), Map.of(), choices);
+        ctx, toRevision(ctx, scenarioId, revisionId), Map.of(), choices, edits);
   }
 
   // -- STEPS --
