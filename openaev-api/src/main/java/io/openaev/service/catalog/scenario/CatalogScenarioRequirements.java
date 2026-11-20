@@ -7,11 +7,13 @@ import io.openaev.database.model.Injector;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.service.InjectorService;
 import io.openaev.service.PlatformSettingsService;
+import io.openaev.service.catalog.scenario.MissingRequirement.Status;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.utils.catalog.VersionConstraint;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -32,42 +34,56 @@ public class CatalogScenarioRequirements {
   private final CatalogConnectorService catalogConnectorService;
   private final ObjectMapper mapper;
 
-  public List<MissingRequirement> missing(CatalogScenario item) {
-    return missing(item, injectorTypes());
+  /** Checks scenarios to install against what this platform has, read once. */
+  public Checker checker() {
+    return new Checker(integrationId -> null);
   }
 
-  /** What each scenario of a list lacks, reading the injectors once. */
-  public Function<CatalogScenario, List<MissingRequirement>> missingForEach() {
-    Set<String> injectors = injectorTypes();
-    return item -> missing(item, injectors);
+  /** Checks scenarios to list, also telling whether each missing integration is deployed. */
+  public Checker checkerWithStatus() {
+    Set<String> deployed = catalogConnectorService.deployedInstanceCounts().keySet();
+    return new Checker(
+        integrationId -> Status.of(integrationId != null && deployed.contains(integrationId)));
   }
 
-  private List<MissingRequirement> missing(CatalogScenario item, Set<String> injectors) {
-    Requires requires = read(item);
-    List<MissingRequirement> missing = new ArrayList<>();
-    if (requires == null) {
+  public class Checker {
+    private final String platformVersion = platformSettingsService.getPlatformVersion();
+    private final Set<String> injectors =
+        injectorService.findAll().stream().map(Injector::getType).collect(Collectors.toSet());
+    // An injector is enabled from the catalogue integration of the same slug, when there is one.
+    private final Map<String, String> integrationsBySlug =
+        catalogConnectorService.findAll().stream()
+            .filter(connector -> connector.getSlug() != null)
+            .collect(
+                Collectors.toMap(
+                    CatalogConnector::getSlug, CatalogConnector::getId, (first, other) -> first));
+    private final Function<String, Status> integrationStatus;
+
+    private Checker(Function<String, Status> integrationStatus) {
+      this.integrationStatus = integrationStatus;
+    }
+
+    public List<MissingRequirement> missing(CatalogScenario item) {
+      Requires requires = read(item);
+      List<MissingRequirement> missing = new ArrayList<>();
+      if (requires == null) {
+        return missing;
+      }
+      if (requires.openaev() != null
+          && !VersionConstraint.allows(requires.openaev(), platformVersion)) {
+        missing.add(new MissingRequirement("OpenAEV " + requires.openaev(), null, null));
+      }
+      Optional.ofNullable(requires.injectors()).orElse(List.of()).stream()
+          .filter(type -> !injectors.contains(type))
+          .forEach(type -> missing.add(injector(type)));
       return missing;
     }
-    if (requires.openaev() != null
-        && !VersionConstraint.allows(
-            requires.openaev(), platformSettingsService.getPlatformVersion())) {
-      missing.add(new MissingRequirement("OpenAEV " + requires.openaev(), null));
+
+    private MissingRequirement injector(String type) {
+      String integrationId = integrationsBySlug.get(type);
+      return new MissingRequirement(
+          "Injector " + type, integrationId, integrationStatus.apply(integrationId));
     }
-    Optional.ofNullable(requires.injectors()).orElse(List.of()).stream()
-        .filter(type -> !injectors.contains(type))
-        .forEach(type -> missing.add(injector(type)));
-    return missing;
-  }
-
-  private Set<String> injectorTypes() {
-    return injectorService.findAll().stream().map(Injector::getType).collect(Collectors.toSet());
-  }
-
-  // An injector is enabled from the catalogue integration of the same slug, when there is one.
-  private MissingRequirement injector(String type) {
-    return new MissingRequirement(
-        "Injector " + type,
-        catalogConnectorService.findBySlug(type).map(CatalogConnector::getId).orElse(null));
   }
 
   private Requires read(CatalogScenario item) {

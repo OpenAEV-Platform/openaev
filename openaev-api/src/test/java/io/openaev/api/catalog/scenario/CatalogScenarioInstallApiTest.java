@@ -19,6 +19,7 @@ import static io.openaev.utils.fixtures.CatalogReleaseFixture.scenarioFileName;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.scenarioItem;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.scenarioPackage;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.syncRequest;
+import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultConnectorInstance;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createDefaultMarkingDefinition;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,6 +68,7 @@ import io.openaev.utils.fixtures.CatalogReleaseFixture.ReleasedPayload;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
+import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -120,11 +122,13 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
   @Autowired private CatalogScenarioInstaller catalogScenarioInstaller;
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
+  @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private DataSource dataSource;
 
   @BeforeEach
   void attachToDefaultTenant() {
     markingDefinitionComposer.reset();
+    connectorInstanceComposer.reset();
     catalogConnectorComposer.reset();
     tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT_UUID);
     injectorFixture.getWellKnownOaevImplantInjector();
@@ -508,7 +512,10 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
           .andExpect(
               jsonPath(
                       "$.content[0].catalog_scenario_missing_requirements[0].requirement_integration_id")
-                  .doesNotExist());
+                  .doesNotExist())
+          .andExpect(
+              jsonPath("$.content[0].catalog_scenario_missing_requirements[0].requirement_status")
+                  .value("NOT_DEPLOYED"));
     }
 
     @Test
@@ -533,7 +540,34 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
           .andExpect(
               jsonPath(
                       "$.content[0].catalog_scenario_missing_requirements[0].requirement_integration_id")
-                  .value(integration.getId()));
+                  .value(integration.getId()))
+          .andExpect(
+              jsonPath("$.content[0].catalog_scenario_missing_requirements[0].requirement_status")
+                  .value("NOT_DEPLOYED"));
+    }
+
+    @Test
+    @DisplayName("tells a missing injector whose integration is deployed but not running")
+    void given_missingInjectorDeployedInTheTenant_should_sayItIsNotRunning() throws Exception {
+      // Arrange
+      connectorInstanceComposer
+          .forConnectorInstance(createDefaultConnectorInstance())
+          .withCatalogConnector(
+              catalogConnectorComposer.forCatalogConnector(
+                  createDefaultCatalogConnectorManagedByXtmComposer(
+                      "openaev_stopped", ConnectorType.INJECTOR)))
+          .persist();
+      publish(Map.of("requires", Map.of("injectors", List.of("openaev_stopped"))));
+
+      // Act
+      ResultActions result = available();
+
+      // Assert
+      result
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.content[0].catalog_scenario_missing_requirements[0].requirement_status")
+                  .value("NOT_RUNNING"));
     }
 
     @Test
