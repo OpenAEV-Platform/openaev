@@ -373,8 +373,13 @@ public class HealthCheckUtils {
    * @return found healthchecks
    */
   public List<HealthCheck> runContentChecks(Inject inject) {
+    return runContentChecks(inject.getInjectorContract().orElse(null), inject);
+  }
+
+  /** Run the content checks of this inject as if it ran this injector contract. */
+  public List<HealthCheck> runContentChecks(InjectorContract injectorContract, Inject inject) {
     return runContentChecks(
-        inject.getInjectorContract().orElse(null),
+        injectorContract,
         inject.getContent(),
         inject.isAllTeams(),
         ofNullable(inject.getTeams())

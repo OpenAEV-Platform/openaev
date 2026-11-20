@@ -7,6 +7,7 @@ import { aUsage, aVersion, renderInApp, someUsages } from '../threatArsenalTestU
 const { fetchUsages } = vi.hoisted(() => ({ fetchUsages: vi.fn() }));
 
 vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({ fetchThreatArsenalUsages: fetchUsages }));
+vi.mock('../../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: () => false }) }));
 
 const latest = aVersion({
   payload_id: 'payload-v2',
@@ -54,7 +55,7 @@ describe('PayloadVersionsTab', () => {
     expect(latestRow.getAttribute('aria-expanded')).toBe('true');
     expect(olderRow.getAttribute('aria-expanded')).toBe('false');
     expect(screen.getByText('Revoked')).toBeTruthy();
-    expect(screen.getByText('These injects will fail.')).toBeTruthy();
+    expect(screen.getByText('These injects will fail. Move them to another version.')).toBeTruthy();
     expect(screen.getByText('Dump credentials')).toBeTruthy();
     expect(screen.getByText('1 other inject you cannot see')).toBeTruthy();
     expect(screen.queryByText('Old inject')).toBeNull();
@@ -83,6 +84,6 @@ describe('PayloadVersionsTab', () => {
 
     // Assert
     expect(screen.queryByText('Dump credentials')).toBeNull();
-    expect(screen.queryByText('These injects will fail.')).toBeNull();
+    expect(screen.queryByText('These injects will fail. Move them to another version.')).toBeNull();
   });
 });

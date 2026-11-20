@@ -2,7 +2,7 @@ import type { Dispatch } from 'redux';
 
 import { getReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import type {
-  InjectorContractSearchPaginationInput, SearchPaginationInput,
+  InjectorContractSearchPaginationInput, PayloadUsageMoveInput, SearchPaginationInput,
   ThreatArsenalActionCreateInput, ThreatArsenalActionUpdateInput,
 } from '../../utils/api-types';
 import { arrayOfSecurityPlatforms } from '../assets/asset-schema';
@@ -34,6 +34,8 @@ export const updateThreatArsenalAction = (actionId: string, data: ThreatArsenalA
 export const fetchThreatArsenalVersions = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/versions`);
 
 export const fetchThreatArsenalUsages = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/usages`);
+
+export const moveThreatArsenalUsages = (actionId: string, input: PayloadUsageMoveInput) => simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/usages/move`, input);
 
 export const duplicateThreatArsenalAction = (actionId: string) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}/duplicate`;
