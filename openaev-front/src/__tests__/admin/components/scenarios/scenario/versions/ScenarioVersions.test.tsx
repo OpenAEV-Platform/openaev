@@ -253,7 +253,7 @@ describe('ScenarioVersions', () => {
   it('given_aPreviewStillLoading_should_closeOnCancelWithoutApplying', async () => {
     // Arrange
     renderVersions();
-    await screen.findByText('v1.1.0');
+    await screen.findByRole('button', { name: 'Update' });
     mocks.simpleCall.mockReturnValueOnce(new Promise(() => {}));
     const dialog = await open('Update');
     expect(within(dialog).getByRole('button', { name: 'Update' })).toBeDisabled();
