@@ -1,11 +1,13 @@
 export default function buildScenarioTabs(params: {
   isChained: boolean;
   lessonsEnabled: boolean | undefined;
+  versionsEnabled: boolean;
   t: (value: string) => string;
 }): [string, string][] {
   const {
     isChained,
     lessonsEnabled,
+    versionsEnabled,
     t,
   } = params;
 
@@ -30,5 +32,6 @@ export default function buildScenarioTabs(params: {
     ['/findings', t('Findings')],
     ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
     ['/statistics', t('Statistics')],
+    ...(versionsEnabled ? [['/versions', t('Versions')] as [string, string]] : []),
   ];
 }

@@ -188,7 +188,8 @@
     "Video",
     "Vision",
     "Website",
-    "Workstation"
+    "Workstation",
+    "Version v{version}"
   ],
   "es": [
     "{count} roles",
@@ -368,7 +369,8 @@
     "Version",
     "Vision",
     "~{count} injects",
-    "Local"
+    "Local",
+    "Version v{version}"
   ],
   "it": [
     "1 inject",
