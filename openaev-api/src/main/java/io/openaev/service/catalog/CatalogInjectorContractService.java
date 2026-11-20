@@ -78,6 +78,28 @@ public class CatalogInjectorContractService {
   @Transactional(readOnly = true)
   public List<CatalogConnectorInjectorContract> notRegistered(
       String tenantId, SearchPaginationInput input) {
+    return matching(tenantId, input);
+  }
+
+  /** The number of listed contracts per value of each facet, under the other filters. */
+  @Transactional(readOnly = true)
+  public Map<String, Map<String, Long>> notRegisteredFacetCounts(
+      String tenantId, SearchPaginationInput input) {
+    Map<String, Map<String, Long>> counts = new LinkedHashMap<>();
+    for (Facet facet : Facet.values()) {
+      counts.put(
+          facet.key,
+          matching(tenantId, withoutFilter(input, facet.key)).stream()
+              .flatMap(contract -> facet.values.apply(contract).stream())
+              .collect(groupingBy(Function.identity(), LinkedHashMap::new, counting())));
+    }
+    return counts;
+  }
+
+  // -- STEPS --
+
+  private List<CatalogConnectorInjectorContract> matching(
+      String tenantId, SearchPaginationInput input) {
     if (!Facet.answers(input)) {
       return List.of();
     }
@@ -89,20 +111,5 @@ public class CatalogInjectorContractService {
             .and(filters)
             .and(computeSearchJpa(translated.getTextSearch())),
         BY_INTEGRATION);
-  }
-
-  /** The number of listed contracts per value of each facet, under the other filters. */
-  @Transactional(readOnly = true)
-  public Map<String, Map<String, Long>> notRegisteredFacetCounts(
-      String tenantId, SearchPaginationInput input) {
-    Map<String, Map<String, Long>> counts = new LinkedHashMap<>();
-    for (Facet facet : Facet.values()) {
-      counts.put(
-          facet.key,
-          notRegistered(tenantId, withoutFilter(input, facet.key)).stream()
-              .flatMap(contract -> facet.values.apply(contract).stream())
-              .collect(groupingBy(Function.identity(), LinkedHashMap::new, counting())));
-    }
-    return counts;
   }
 }
