@@ -4953,5 +4953,8 @@
   "Has a session from": "Ha una sessione di",
   "Runs": "Esegue",
   "Used by": "Utilizzato da",
-  "Add a link": "Aggiungi un collegamento"
+  "Add a link": "Aggiungi un collegamento",
+  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "Gli agenti non riceveranno i suoi job in sospeso e terminerà in errore. I comandi già avviati da un agente non vengono interrotti.",
+  "Do you want to stop this atomic testing: {title}?": "Vuoi interrompere questo test atomico: {title}?",
+  "Stop execution": "Interrompi l'esecuzione"
 }

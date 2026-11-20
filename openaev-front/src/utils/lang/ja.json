@@ -4953,5 +4953,8 @@
   "Has a session from": "セッション元",
   "Runs": "実行対象",
   "Used by": "使用元",
-  "Add a link": "リンクを追加"
+  "Add a link": "リンクを追加",
+  "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "エージェントは保留中のジョブを受け取らず、テストはエラーで終了します。エージェントがすでに開始したコマンドは中断されません。",
+  "Do you want to stop this atomic testing: {title}?": "このアトミックテストを停止しますか: {title}?",
+  "Stop execution": "実行を停止"
 }
