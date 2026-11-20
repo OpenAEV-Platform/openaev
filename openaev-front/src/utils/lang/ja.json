@@ -4764,6 +4764,7 @@
   "What must succeed or fail for this inject to be scored.": "このインジェクトが採点されるために成功または失敗すべき条件。",
   "What will fail:": "失敗するもの：",
   "What worked well": "うまくいったこと",
+  "What's new in Filigran v{version}": "Filigran v{version} の新機能",
   "What's new in v{version}": "v{version} の新機能",
   "When": "時期",
   "When enabled, credentials submitted by recipients (username and password) are captured and tracked per target. When disabled, only the submission event is recorded - passwords are never stored.": "有効にすると、受信者が送信した認証情報（ユーザー名とパスワード）がターゲットごとにキャプチャされ追跡されます。無効にすると、送信イベントのみが記録され、パスワードは保存されません。",

@@ -4764,6 +4764,7 @@
   "What must succeed or fail for this inject to be scored.": "What must succeed or fail for this inject to be scored.",
   "What will fail:": "What will fail:",
   "What worked well": "What worked well",
+  "What's new in Filigran v{version}": "What's new in Filigran v{version}",
   "What's new in v{version}": "What's new in v{version}",
   "When": "When",
   "When enabled, credentials submitted by recipients (username and password) are captured and tracked per target. When disabled, only the submission event is recorded - passwords are never stored.": "When enabled, credentials submitted by recipients (username and password) are captured and tracked per target. When disabled, only the submission event is recorded - passwords are never stored.",
