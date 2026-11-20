@@ -2680,9 +2680,29 @@ export interface CatalogScenarioInstallInput {
 }
 
 export interface CatalogScenarioOutput {
+  catalog_scenario_author?: string;
+  catalog_scenario_category?: string;
+  catalog_scenario_description?: string;
   /** @minLength 1 */
   catalog_scenario_external_id: string;
+  catalog_scenario_missing_requirements: string[];
   catalog_scenario_name?: string;
+  catalog_scenario_platforms: string[];
+  /** @format date-time */
+  catalog_scenario_published_at?: string;
+  catalog_scenario_type: string;
+  /** @minLength 1 */
+  catalog_scenario_version: string;
+}
+
+export interface CatalogScenarioVersionOutput {
+  catalog_scenario_changelog?: string;
+  /** @format int32 */
+  catalog_scenario_injects_count?: number;
+  catalog_scenario_main_focus?: string;
+  /** @format date-time */
+  catalog_scenario_published_at?: string;
+  catalog_scenario_severity?: string;
   /** @minLength 1 */
   catalog_scenario_version: string;
 }
@@ -11896,6 +11916,11 @@ export interface ScenarioInput {
   scenario_tags?: string[];
 }
 
+export interface ScenarioLaunchOutput {
+  /** @minLength 1 */
+  simulation_id: string;
+}
+
 export interface ScenarioOutput {
   /** Lesson anonymized state of the scenario */
   lessonsAnonymized?: boolean;
@@ -12004,6 +12029,13 @@ export interface ScenarioSimple {
 
 export interface ScenarioStatistic {
   simulations_results_latest: SimulationsResultsLatest;
+}
+
+export interface ScenarioTargetsInput {
+  asset_group_ids?: string[];
+  asset_ids?: string[];
+  manual_targets?: string[];
+  team_ids?: string[];
 }
 
 export interface ScenarioTeamPlayersEnableInput {

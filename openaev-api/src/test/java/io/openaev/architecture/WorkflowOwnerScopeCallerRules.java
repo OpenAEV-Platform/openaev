@@ -17,7 +17,6 @@ import io.openaev.rest.exercise.ExerciseApi;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.rest.injector_contract.InjectorContractService;
-import io.openaev.rest.scenario.ScenarioApi;
 import io.openaev.runner.InitAdminCommandLineRunner;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.scheduler.jobs.QueueChainingJob;
@@ -26,6 +25,7 @@ import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowUpdateEventPublisher;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.scenario.ScenarioLaunchService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.xtmhub.XtmHubService;
 import java.util.Map;
@@ -129,7 +129,7 @@ final class WorkflowOwnerScopeCallerRules {
               + " the request scope or, for work without a request, findByIdAndTenantId on the"
               + " ambient tenant, or the duplicate copyExercise built from one, which carries its"
               + " tenant",
-          ScenarioApi.class,
+          ScenarioLaunchService.class,
           "the launch passes the scenario from ScenarioService#scenario(TxCtx, String),"
               + " findByIdAndTenantIdIn on the request scope",
           ScenarioService.class,

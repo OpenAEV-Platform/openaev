@@ -49,6 +49,22 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
     return toInstallable(ctx, item);
   }
 
+  /** The latest version of every catalogue scenario the tenant does not show. */
+  @Transactional(readOnly = true)
+  public List<OfferedScenario> notInstalled(String tenantId) {
+    Set<String> installed =
+        scenarioIdentityRepository.findAllInstalledByTenantId(tenantId).stream()
+            .map(CatalogOffer::key)
+            .collect(Collectors.toSet());
+    return catalogListService.latestOffered(CatalogScenario.class).stream()
+        .filter(
+            item ->
+                !installed.contains(
+                    CatalogOffer.key(item.getRelease().getRepository(), item.getExternalId())))
+        .map(item -> new OfferedScenario(item, catalogScenarioRequirements.missing(item)))
+        .toList();
+  }
+
   /**
    * The latest version of every catalogue scenario the tenant never installed. A chained scenario,
    * whose scope an admin chooses, and one missing a requirement are left to install by hand.
