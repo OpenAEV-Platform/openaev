@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { fieldText } from '../../../../../admin/components/threat_arsenal/customization/fieldUpdates';
+import { blockText, fieldText } from '../../../../../admin/components/threat_arsenal/customization/fieldUpdates';
+import { type PayloadFieldUpdateOutput } from '../../../../../utils/api-types';
 
 describe('fieldText', () => {
   it.each([
@@ -18,5 +19,27 @@ describe('fieldText', () => {
   ])('given_%s_should_readAsText', (_, value, text) => {
     // Act & Assert
     expect(fieldText(value)).toBe(text);
+  });
+});
+
+describe('blockText', () => {
+  const field = (name: PayloadFieldUpdateOutput['field_name'], value: string): PayloadFieldUpdateOutput => ({
+    field_name: name,
+    field_block: 'EXECUTION',
+    field_filigran: value,
+    field_conflict: true,
+  });
+
+  it('given_oneField_should_readAsItsValue', () => {
+    // Act & Assert
+    expect(blockText([field('COMMAND_CONTENT', 'whoami')], f => f.field_filigran, f => f.field_name)).toBe('whoami');
+  });
+
+  it('given_severalFields_should_readEachUnderItsLabel', () => {
+    // Act
+    const text = blockText([field('COMMAND_CONTENT', 'whoami'), field('CLEANUP_COMMAND', 'del out.txt')], f => f.field_filigran, f => f.field_name);
+
+    // Assert
+    expect(text).toBe('COMMAND_CONTENT\nwhoami\n\nCLEANUP_COMMAND\ndel out.txt');
   });
 });

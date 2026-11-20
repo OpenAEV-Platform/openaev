@@ -5,9 +5,10 @@ import { type ConflictSide } from '../../../../components/common/update/Conflict
 import {
   type PayloadCustomizationUpdateInput,
   type PayloadCustomizationUpdateOutput,
+  type PayloadFieldUpdateOutput,
   type ThreatArsenalAction,
 } from '../../../../utils/api-types';
-import { changedByFiligran, changedByYou, type CustomizableField } from './fieldUpdates';
+import { changedByFiligran, changedByYou, type CustomizableBlock } from './fieldUpdates';
 
 type Choices = NonNullable<PayloadCustomizationUpdateInput['update_choices']>;
 
@@ -16,25 +17,34 @@ const CHOICE_OF_SIDE: Record<ConflictSide, Choices[string]> = {
   mine: 'YOURS',
 };
 
-/** The fields of an update by what happens to them, and the choice made on each conflict. */
+interface ConflictBlock {
+  block: CustomizableBlock;
+  fields: PayloadFieldUpdateOutput[];
+}
+
+/** The fields of an update by what happens to them, and the choice made on each conflicting block. */
 const useCustomizationUpdate = (actionId: string, update: PayloadCustomizationUpdateOutput) => {
   const [sides, setSides] = useState<Record<string, ConflictSide>>({});
   const [applying, setApplying] = useState(false);
 
-  const conflicts = update.update_fields.filter(field => field.field_conflict);
+  const conflicting = update.update_fields.filter(field => field.field_conflict);
+  const conflicts: ConflictBlock[] = [...new Set(conflicting.map(field => field.field_block))].map(block => ({
+    block,
+    fields: conflicting.filter(field => field.field_block === block),
+  }));
   const news = update.update_fields.filter(field => !field.field_conflict && changedByFiligran(field));
   const kept = update.update_fields.filter(field => !field.field_conflict && !changedByFiligran(field) && changedByYou(field));
 
-  const choose = (field: CustomizableField, side: ConflictSide) => setSides(previous => ({
+  const choose = (block: CustomizableBlock, side: ConflictSide) => setSides(previous => ({
     ...previous,
-    [field]: side,
+    [block]: side,
   }));
 
   const apply = (): Promise<ThreatArsenalAction> => {
     setApplying(true);
     return updateThreatArsenalCustomization(actionId, {
       update_payload_id: update.update_payload_id,
-      update_choices: Object.fromEntries(Object.entries(sides).map(([field, side]) => [field, CHOICE_OF_SIDE[side]])),
+      update_choices: Object.fromEntries(Object.entries(sides).map(([block, side]) => [block, CHOICE_OF_SIDE[side]])),
     })
       .then(({ data }: { data: ThreatArsenalAction }) => data)
       .finally(() => setApplying(false));
@@ -46,7 +56,7 @@ const useCustomizationUpdate = (actionId: string, update: PayloadCustomizationUp
     kept,
     sides,
     choose,
-    ready: conflicts.every(field => sides[field.field_name]),
+    ready: conflicts.every(({ block }) => sides[block]),
     applying,
     apply,
   };

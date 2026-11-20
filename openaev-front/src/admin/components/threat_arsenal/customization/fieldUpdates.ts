@@ -3,6 +3,8 @@ import sameValue from './sameValue';
 
 export type CustomizableField = PayloadFieldUpdateOutput['field_name'];
 
+export type CustomizableBlock = PayloadFieldUpdateOutput['field_block'];
+
 export const CUSTOMIZABLE_FIELD_LABELS: Record<CustomizableField, string> = {
   COMMAND_EXECUTOR: 'Executor',
   COMMAND_CONTENT: 'Command',
@@ -34,6 +36,15 @@ export const fieldText = (value: unknown) => {
   }
   return (Array.isArray(value) ? value.map(lineOf) : [lineOf(value)]).join('\n');
 };
+
+/** One side of a conflicting block as text: each field under its label when the block has several. */
+export const blockText = (
+  fields: PayloadFieldUpdateOutput[],
+  valueOf: (field: PayloadFieldUpdateOutput) => unknown,
+  labelOf: (field: PayloadFieldUpdateOutput) => string,
+) => (fields.length === 1
+  ? fieldText(valueOf(fields[0]))
+  : fields.map(field => `${labelOf(field)}\n${fieldText(valueOf(field))}`).join('\n\n'));
 
 const OTHER_CHANGE_LABELS: Record<string, string> = {
   payload_name: 'Name',
