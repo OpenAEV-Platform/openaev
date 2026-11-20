@@ -5,10 +5,12 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.scenario.ScenarioRevision;
 import io.openaev.database.repository.ScenarioRevisionRepository;
+import io.openaev.database.repository.ScenarioRevisionRepository.RevisionRow;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.UserService;
 import io.openaev.service.scenario.ScenarioService;
 import java.util.List;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,11 +26,16 @@ public class ScenarioRevisionService {
 
   // -- LIST --
 
+  /** The revisions of a scenario, newest first. */
   @Transactional(readOnly = true)
-  public List<ScenarioRevision> revisions(TxCtx ctx, String scenarioId) {
+  public List<NumberedRevision> revisions(TxCtx ctx, String scenarioId) {
     Scenario scenario = scenarioService.scenario(ctx, scenarioId);
-    return scenarioRevisionRepository.findAllByTenantIdAndScenarioIdOrderByCreatedAtDesc(
-        scenario.getTenant().getId(), scenario.getId());
+    List<RevisionRow> newestFirst =
+        scenarioRevisionRepository.findRowsByTenantIdAndScenarioId(
+            scenario.getTenant().getId(), scenario.getId());
+    return IntStream.range(0, newestFirst.size())
+        .mapToObj(index -> new NumberedRevision(newestFirst.size() - index, newestFirst.get(index)))
+        .toList();
   }
 
   @Transactional(readOnly = true)

@@ -7,6 +7,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.VariableService;
 import io.openaev.service.catalog.CatalogListService;
@@ -14,7 +15,6 @@ import io.openaev.service.catalog.event.CatalogChangePublisher;
 import io.openaev.service.catalog.payload.CatalogPayloadService;
 import io.openaev.service.catalog.payload.InstallablePayloadVersion;
 import io.openaev.service.scenario.ScenarioService;
-import io.openaev.utils.catalog.SemanticVersion;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +38,7 @@ public class CatalogScenarioUpdateService {
   private final ScenarioService scenarioService;
   private final CatalogListService catalogListService;
   private final InjectService injectService;
+  private final ExerciseService exerciseService;
   private final VariableService variableService;
   private final CatalogPayloadService catalogPayloadService;
   private final ScenarioRevisionService scenarioRevisionService;
@@ -52,15 +53,24 @@ public class CatalogScenarioUpdateService {
     return installedScenario(ctx, scenarioId);
   }
 
-  /** The versions the catalogue offers after the installed one, newest first. */
   @Transactional(readOnly = true)
-  public List<CatalogScenario> newerVersions(TxCtx ctx, String scenarioId) {
+  public ScenarioVersions versions(TxCtx ctx, String scenarioId) {
     InstalledScenario installed = installedScenario(ctx, scenarioId);
-    return catalogListService
-        .offeredVersions(CatalogScenario.class, installed.externalId())
-        .stream()
-        .filter(item -> SemanticVersion.ORDER.compare(item.getVersion(), installed.version()) > 0)
-        .toList();
+    List<CatalogScenario> versions =
+        catalogListService.versions(CatalogScenario.class, installed.externalId());
+    return new ScenarioVersions(
+        versions,
+        installed.version(),
+        latestOffered(versions),
+        exerciseService.countByScenario(installed.tenantId(), installed.scenarioId()));
+  }
+
+  private static String latestOffered(List<CatalogScenario> newestFirst) {
+    return newestFirst.stream()
+        .filter(version -> version.getStatus().isOffered())
+        .map(CatalogScenario::getVersion)
+        .findFirst()
+        .orElse(null);
   }
 
   private InstalledScenario installedScenario(TxCtx ctx, String scenarioId) {

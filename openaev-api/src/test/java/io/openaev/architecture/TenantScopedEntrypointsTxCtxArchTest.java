@@ -708,7 +708,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // scenario_revisions, scenarios, catalog_items, payloads: a catalogue scenario updated
           // to a version or rolled back to a revision.
           "io.openaev.api.scenario.ScenarioUpdateApi#revisions",
-          "io.openaev.api.scenario.ScenarioUpdateApi#newerVersions",
+          "io.openaev.api.scenario.ScenarioUpdateApi#versions",
           "io.openaev.api.scenario.ScenarioUpdateApi#previewUpdate",
           "io.openaev.api.scenario.ScenarioUpdateApi#previewRollback",
           "io.openaev.api.scenario.ScenarioUpdateApi#update",
