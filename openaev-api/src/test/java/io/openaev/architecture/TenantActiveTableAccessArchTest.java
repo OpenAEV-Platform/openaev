@@ -3230,6 +3230,11 @@ class TenantActiveTableAccessArchTest {
         "keyed by the payload entity"),
     allow(
         io.openaev.rest.payload.service.PayloadService.class,
+        "saveAndRebuildContract",
+        "findInjectorContractByPayload",
+        "keyed by the payload entity"),
+    allow(
+        io.openaev.rest.payload.service.PayloadService.class,
         "synchroniseInjectorContractBasedOnPayload",
         "addContractToPayloadsInjectors",
         "joins the injector and the contract on the same tenant"),

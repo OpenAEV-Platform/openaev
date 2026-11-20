@@ -101,6 +101,9 @@ public interface PayloadRepository
   List<Payload> findOrphansByNameAndTenantId(
       @Param("name") String name, @Param("tenantId") String tenantId);
 
+  List<Payload> findAllByTenantIdAndIdentitySource(
+      String tenantId, Payload.PAYLOAD_SOURCE identitySource);
+
   // -- NAME --
 
   @Query(
