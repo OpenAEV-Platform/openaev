@@ -137,7 +137,7 @@ public class AccessControlAuditLogAspect {
       // captureEntitySnapshots). Kept outside the catch below: a write failing here is the
       // request's own failure, not an audit one. Swallowed, it would leave the transaction
       // rollback-only and the commit would fail with an UnexpectedRollbackException hiding it.
-      entityManager.flush();
+      flushIfJoinedToTransaction();
       try {
         JsonNode resultNode = getOutputNode(result);
 
@@ -211,12 +211,23 @@ public class AccessControlAuditLogAspect {
    */
   private Map<String, AuditLogContext.EntitySnapshot> captureEntitySnapshots() {
     try {
-      entityManager.flush();
+      flushIfJoinedToTransaction();
       return AuditLogContext.consumeAllSnapshots();
     } catch (Exception e) {
       log.debug("[AUDIT] Failed to capture entity snapshots: {}", e.getMessage());
       AuditLogContext.clear();
       return null;
+    }
+  }
+
+  /**
+   * Skipped outside a transaction: endpoints in {@code Propagation.SUPPORTS} (catalog sync,
+   * install) commit their writes in inner transactions before returning, whose flush has already
+   * recorded the snapshots, and {@code flush()} would throw a {@code TransactionRequiredException}.
+   */
+  private void flushIfJoinedToTransaction() {
+    if (entityManager.isJoinedToTransaction()) {
+      entityManager.flush();
     }
   }
 
