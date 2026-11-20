@@ -3,10 +3,11 @@
 <p align="center">
   <a href="https://github.com/OpenAEV-Platform/openaev/stargazers"><img src="https://img.shields.io/github/stars/OpenAEV-Platform/openaev?style=flat-square&labelColor=0A0C1C&logo=github&logoColor=white&color=001BDA" alt="stars"></a>
   <a href="https://github.com/OpenAEV-Platform/openaev/releases/latest"><img src="https://img.shields.io/github/v/release/OpenAEV-Platform/openaev?style=flat-square&labelColor=0A0C1C&color=001BDA" alt="release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0%20%2B%20EE-001BDA?style=flat-square&labelColor=0A0C1C" alt="license"></a>
-  <a href="https://docs.openaev.io"><img src="https://img.shields.io/badge/docs-docs.openaev.io-001BDA?style=flat-square&labelColor=0A0C1C" alt="docs"></a>
   <a href="https://hub.docker.com/r/openaev/platform"><img src="https://img.shields.io/docker/pulls/openaev/platform?style=flat-square&labelColor=0A0C1C&logo=docker&logoColor=white&color=001BDA" alt="docker pulls"></a>
-  <a href="https://community.filigran.io"><img src="https://img.shields.io/badge/slack-community-001BDA?style=flat-square&labelColor=0A0C1C&logo=slack&logoColor=white" alt="slack"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0%20%2B%20EE-001BDA?style=flat-square&labelColor=0A0C1C" alt="license"></a>
+  <a href="https://github.com/OpenAEV-Platform/openaev/actions/workflows/core-ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/OpenAEV-Platform/openaev/core-ci.yml?branch=main&label=CI&style=flat-square&labelColor=0A0C1C&logo=githubactions&logoColor=white&color=001BDA" alt="CI"></a>
+  <a href="https://docs.openaev.io"><img src="https://img.shields.io/badge/docs-docs.openaev.io-001BDA?style=flat-square&labelColor=0A0C1C" alt="docs"></a>
+  <a href="https://community.filigran.io"><img src="https://img.shields.io/badge/community-slack-001BDA?style=flat-square&labelColor=0A0C1C&logo=slack&logoColor=white" alt="community"></a>
 </p>
 
 <p align="center"><b>The open source adversarial exposure validation platform: prove which threats get through your defenses.</b></p>
