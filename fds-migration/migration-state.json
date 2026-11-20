@@ -886,7 +886,8 @@
         "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/VersionsTabNote.tsx",
         "openaev-front/src/admin/components/threat_arsenal/catalog/CatalogPayloadInstallAction.tsx",
-        "openaev-front/src/admin/components/scenarios/catalog/CatalogScenarioAction.tsx"
+        "openaev-front/src/admin/components/scenarios/catalog/CatalogScenarioAction.tsx",
+        "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogDrawer.tsx"
       ]
     },
     {
@@ -1049,6 +1050,17 @@
       "reason": "The one banner of a Threat Arsenal card, a direct child of the library Card: a revoked version, or injects left on an older version.",
       "files": [
         "openaev-front/src/admin/components/threat_arsenal/card/useThreatArsenalCardBanner.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Inline notice with its action: each thing a catalogue scenario lacks, with the button that opens the integration to enable.",
+      "files": [
+        "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogDrawer.tsx"
       ]
     }
   ],
