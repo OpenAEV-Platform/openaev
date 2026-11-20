@@ -3,12 +3,14 @@ package io.openaev.api.catalog;
 import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.api.catalog.dto.CatalogSettingsInput;
 import io.openaev.api.catalog.dto.CatalogSettingsOutput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.catalog.CatalogSettings;
 import io.openaev.service.catalog.CatalogSettingsService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** The catalogue settings of the tenant. */
 @RestController
+@RequirePreviewFeature(PreviewFeature.CATALOG)
 @RequiredArgsConstructor
 public class CatalogSettingsApi {
 
@@ -29,7 +32,6 @@ public class CatalogSettingsApi {
 
   private final CatalogSettingsService catalogSettingsService;
   private final TenantWriteScopeResolver writeScopeResolver;
-  private final CatalogFeature catalogFeature;
 
   // -- READ --
 
@@ -39,7 +41,6 @@ public class CatalogSettingsApi {
   // Shown on the Threat Arsenal page: every user of the tenant reads it.
   @AccessControl(skipRBAC = true)
   public CatalogSettingsOutput settings(TxCtx ctx) {
-    catalogFeature.require();
     return toOutput(
         catalogSettingsService.settings(ctx, writeScopeResolver.tenantForWrite(ctx, null)));
   }
@@ -54,7 +55,6 @@ public class CatalogSettingsApi {
   @Transactional(rollbackFor = Exception.class)
   public CatalogSettingsOutput updateSettings(
       TxCtx ctx, @Valid @RequestBody CatalogSettingsInput input) {
-    catalogFeature.require();
     return toOutput(
         catalogSettingsService.update(
             ctx,
