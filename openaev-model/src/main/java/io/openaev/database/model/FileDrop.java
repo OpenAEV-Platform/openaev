@@ -26,7 +26,7 @@ public class FileDrop extends Payload {
   @JsonProperty("payload_type")
   private String type = FILE_DROP_TYPE;
 
-  @Hashed
+  @Hashed(change = Hashed.Change.MINOR)
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "file_drop_file")
   @JsonSerialize(using = MonoIdSerializer.class)

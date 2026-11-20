@@ -1,7 +1,7 @@
 import { Alert, Chip, Skeleton, Text } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useReducer, useState } from 'react';
+import { type FunctionComponent, useEffect, useReducer, useRef, useState } from 'react';
 
 import { fdsGroupRowStyle, fdsTableFrameStyle } from '../../../../components/common/fdsTableSpec';
 import { LIB_SURFACE_LAYER } from '../../../../components/common/libSurfaceBorder';
@@ -10,6 +10,7 @@ import { type PayloadVersionOutput } from '../../../../utils/api-types';
 import useCountLabel from '../../../../utils/hooks/useCountLabel';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import AskAfterSavingChoice from './AskAfterSavingChoice';
 import PayloadUsageMoveBar from './usages/PayloadUsageMoveBar';
 import PayloadUsageMoveResult from './usages/PayloadUsageMoveResult';
 import PayloadUsagesTable from './usages/PayloadUsagesTable';
@@ -23,23 +24,35 @@ interface VersionProps {
   canMove: boolean;
   reloadKey: number;
   onMoved: () => void;
+  // Opened from the New version dialog: an older version in use opens with every usage ticked; the latest stays folded.
+  focusMove: boolean;
 }
 
-const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, canMove, reloadKey, onMoved }) => {
+const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, canMove, reloadKey, onMoved, focusMove }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const counted = useCountLabel();
   const usages = useVersionUsages(version.payload_action_id, reloadKey);
-  const [expanded, setExpanded] = useState(version.payload_is_latest);
+  const [expanded, setExpanded] = useState(version.payload_is_latest && !focusMove);
   const move = useUsageMove({
     source: version,
     versions,
     usages,
     onMoved,
   });
+  const focused = useRef(false);
+  const row = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (focusMove && canMove && !version.payload_is_latest && usages && usageCount(usages) > 0 && !focused.current) {
+      focused.current = true;
+      setExpanded(true);
+      move.selection.setSelectedElements(Object.fromEntries(usages.payload_usages.map(usage => [usage.usage_id, usage])));
+      row.current?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [usages, focusMove]);
 
   return (
-    <div>
+    <div ref={row}>
       <button type="button" style={fdsGroupRowStyle(theme)} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
         <Text variant="content-base-bold">{`v${version.payload_version}`}</Text>
         {usages && (
@@ -65,9 +78,12 @@ const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, ca
   );
 };
 
-interface Props { versions: PayloadVersionOutput[] | null }
+interface Props {
+  versions: PayloadVersionOutput[] | null;
+  focusMove?: boolean;
+}
 
-const PayloadVersionsTab: FunctionComponent<Props> = ({ versions }) => {
+const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, focusMove = false }) => {
   const theme = useTheme();
   const canMove = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
   // A move changes the usages of two versions: each version loads its own again.
@@ -77,17 +93,26 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ versions }) => {
     return <Skeleton className="h-24" />;
   }
   return (
-    <div className={LIB_SURFACE_LAYER} style={fdsTableFrameStyle(theme)}>
-      {versions.map(version => (
-        <PayloadVersion
-          key={version.payload_id}
-          version={version}
-          versions={versions}
-          canMove={canMove}
-          reloadKey={reloadKey}
-          onMoved={reload}
-        />
-      ))}
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: theme.spacing(2),
+    }}
+    >
+      {canMove && <AskAfterSavingChoice />}
+      <div className={LIB_SURFACE_LAYER} style={fdsTableFrameStyle(theme)}>
+        {versions.map(version => (
+          <PayloadVersion
+            key={version.payload_id}
+            version={version}
+            versions={versions}
+            canMove={canMove}
+            reloadKey={reloadKey}
+            onMoved={reload}
+            focusMove={focusMove}
+          />
+        ))}
+      </div>
     </div>
   );
 };
