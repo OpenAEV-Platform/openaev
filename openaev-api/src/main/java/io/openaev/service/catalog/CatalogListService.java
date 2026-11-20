@@ -61,15 +61,21 @@ public class CatalogListService {
   /** Every released version of one catalogue item, offered or not, newest first. */
   @Transactional(readOnly = true)
   public <T extends CatalogItem> List<T> versions(Class<T> type, String externalId) {
-    return catalogItemRepository.findAllVersions(type, externalId).stream()
-        .sorted(Comparator.comparing(CatalogItem::getVersion, SemanticVersion.ORDER).reversed())
-        .toList();
+    return newestFirst(catalogItemRepository.findAllVersions(type, externalId));
   }
 
   /** Every offered version of one catalogue item, newest first. */
   @Transactional(readOnly = true)
   public <T extends CatalogItem> List<T> offeredVersions(Class<T> type, String externalId) {
-    return versions(type, externalId).stream().filter(CatalogListService::isOffered).toList();
+    return newestFirst(catalogItemRepository.findAllVersions(type, externalId)).stream()
+        .filter(CatalogListService::isOffered)
+        .toList();
+  }
+
+  private static <T extends CatalogItem> List<T> newestFirst(List<T> versions) {
+    return versions.stream()
+        .sorted(Comparator.comparing(CatalogItem::getVersion, SemanticVersion.ORDER).reversed())
+        .toList();
   }
 
   /** A version the catalogue still offers; refused when it is unknown, deprecated or revoked. */
