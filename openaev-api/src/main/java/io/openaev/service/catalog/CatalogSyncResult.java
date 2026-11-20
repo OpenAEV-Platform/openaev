@@ -3,6 +3,7 @@ package io.openaev.service.catalog;
 import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.api.catalog.dto.CatalogSyncOutput;
 import io.openaev.api.catalog.dto.CatalogSyncOutput.Refusal;
+import io.openaev.notification.catalog.CatalogEvents.AddedVersion;
 import io.openaev.notification.catalog.CatalogEvents.CatalogReleaseApplied;
 import io.openaev.notification.catalog.CatalogEvents.RefusedVersion;
 import java.util.ArrayList;
@@ -14,15 +15,15 @@ final class CatalogSyncResult {
 
   private final CatalogManifest manifest;
   private final List<Refusal> refused = new ArrayList<>();
-  private int added;
+  private final List<AddedVersion> added = new ArrayList<>();
   private int unchanged;
 
   CatalogSyncResult(CatalogManifest manifest) {
     this.manifest = manifest;
   }
 
-  void added() {
-    added++;
+  void added(AddedVersion version) {
+    added.add(version);
   }
 
   void unchanged() {
@@ -33,11 +34,13 @@ final class CatalogSyncResult {
     refused.add(new Refusal(externalId, version, reason));
   }
 
-  CatalogReleaseApplied toEvent(String tenantId) {
+  CatalogReleaseApplied toEvent(String tenantId, boolean firstSync) {
     Map<String, String> names = manifest.names();
     return new CatalogReleaseApplied(
         tenantId,
         manifest.release(),
+        firstSync,
+        added,
         refused.stream()
             .map(
                 r ->
@@ -50,6 +53,6 @@ final class CatalogSyncResult {
 
   CatalogSyncOutput toOutput() {
     return new CatalogSyncOutput(
-        manifest.release(), manifest.releaseApprover(), true, added, unchanged, refused);
+        manifest.release(), manifest.releaseApprover(), true, added.size(), unchanged, refused);
   }
 }

@@ -4,6 +4,7 @@ import { searchThreatArsenalActions } from '../../../../actions/threat_arsenals/
 import MarketplaceHero from '../../../../components/common/marketplace/page/MarketplaceHero';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../../components/i18n';
+import { THREAT_ARSENAL_BASE_URL } from '../../../../constants/BaseUrls';
 
 interface Props { action: ReactNode }
 
@@ -27,7 +28,7 @@ const ThreatArsenalHero: FunctionComponent<Props> = ({ action }) => {
         label: t('Active'),
         value: active,
         icon: 'layers-2',
-        to: '/admin/threat-arsenal',
+        to: THREAT_ARSENAL_BASE_URL,
       }]}
       action={action}
     />
