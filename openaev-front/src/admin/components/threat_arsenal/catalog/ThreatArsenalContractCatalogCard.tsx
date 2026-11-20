@@ -5,7 +5,7 @@ import MarketplaceCard from '../../../../components/common/marketplace/card/Mark
 import MarketplaceCardMeta from '../../../../components/common/marketplace/card/MarketplaceCardMeta';
 import { useFormatter } from '../../../../components/i18n';
 import { type AvailableIntegrationActionOutput } from '../../../../utils/api-types';
-import AvailableActionIcon from './AvailableActionIcon';
+import { IntegrationActionIcon } from './AvailableActionIcon';
 import { integrationUrl } from './availableActions';
 
 interface Props {
@@ -21,7 +21,7 @@ const ThreatArsenalContractCatalogCard: FunctionComponent<Props> = ({ action, na
   return (
     <MarketplaceCard
       testId="threat-arsenal-contract-catalog-card"
-      icon={<AvailableActionIcon action={action} />}
+      icon={<IntegrationActionIcon action={action} />}
       title={name}
       overline={action.action_domain ? t(action.action_domain) : undefined}
       subtitle={`${t('by')} ${action.action_integration_title}`}
