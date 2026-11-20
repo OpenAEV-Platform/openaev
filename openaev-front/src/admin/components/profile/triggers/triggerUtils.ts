@@ -1,6 +1,7 @@
 import { type ChipSeverity } from '@filigran/design-system';
 
 import { type NotificationTriggerInput } from '../../../../utils/api-types';
+import { operationLabel } from '../notifications/notificationUtils';
 
 export type TriggerEventType = NonNullable<NotificationTriggerInput['notification_trigger_event_types']>[number];
 
@@ -12,6 +13,8 @@ export interface TriggerResourceTypeOption {
   entityPrefix?: string;
   label: string;
   eventTypes: TriggerEventType[];
+  // Offered only with the catalogue preview on.
+  catalogEventTypes?: TriggerEventType[];
 }
 
 export const TRIGGER_RESOURCE_TYPES: TriggerResourceTypeOption[] = [
@@ -20,6 +23,7 @@ export const TRIGGER_RESOURCE_TYPES: TriggerResourceTypeOption[] = [
     entityPrefix: 'scenario',
     label: 'Scenario',
     eventTypes: [...LIFECYCLE_EVENT_TYPES, 'SCORE_DEGRADATION'],
+    catalogEventTypes: ['PAYLOAD_REVOKED', 'NEW_PAYLOAD_VERSION'],
   },
   {
     value: 'SIMULATION',
@@ -68,6 +72,7 @@ export const TRIGGER_RESOURCE_TYPES: TriggerResourceTypeOption[] = [
     entityPrefix: 'payload',
     label: 'Payload',
     eventTypes: LIFECYCLE_EVENT_TYPES,
+    catalogEventTypes: ['REVOKED', 'REVOCATION_LIFTED', 'INSTALLED_AUTOMATICALLY'],
   },
   {
     value: 'VULNERABILITY',
@@ -95,40 +100,49 @@ export const TRIGGER_RESOURCE_TYPES: TriggerResourceTypeOption[] = [
   },
   {
     value: 'CATALOG_SYNC',
-    label: 'Catalog sync',
-    eventTypes: ['SYNC_BLOCKED'],
+    label: 'Filigran catalog',
+    eventTypes: [],
+    catalogEventTypes: ['RELEASE_RECEIVED', 'SYNC_BLOCKED'],
   },
 ];
 
-export const resourceTypeLabel = (value?: string) =>
-  TRIGGER_RESOURCE_TYPES.find(option => option.value === value)?.label ?? value ?? '-';
+const optionOf = (value?: string) => TRIGGER_RESOURCE_TYPES.find(option => option.value === value);
 
-export const resourceTypeEntityPrefix = (value?: string) =>
-  TRIGGER_RESOURCE_TYPES.find(option => option.value === value)?.entityPrefix;
+export const resourceTypeLabel = (value?: string) => optionOf(value)?.label ?? value ?? '-';
 
-export const eventTypesOf = (resourceType?: string): TriggerEventType[] =>
-  TRIGGER_RESOURCE_TYPES.find(option => option.value === resourceType)?.eventTypes ?? LIFECYCLE_EVENT_TYPES;
+export const resourceTypeEntityPrefix = (value?: string) => optionOf(value)?.entityPrefix;
 
-const EVENT_TYPE_LABELS: Record<string, string> = {
-  SCORE_DEGRADATION: 'Score degradation',
-  SYNC_BLOCKED: 'Sync blocked',
-  CRITICAL_ASSET_REACHED: 'Critical asset reached',
+export const eventTypesOf = (resourceType: string | undefined, catalogEnabled: boolean): TriggerEventType[] => {
+  const option = optionOf(resourceType);
+  if (!option) return LIFECYCLE_EVENT_TYPES;
+  return catalogEnabled ? [...option.eventTypes, ...(option.catalogEventTypes ?? [])] : option.eventTypes;
 };
 
-export const eventTypeLabel = (eventType: string) =>
-  EVENT_TYPE_LABELS[eventType] ?? eventType.charAt(0) + eventType.slice(1).toLowerCase();
+export const triggerResourceTypes = (catalogEnabled: boolean) =>
+  TRIGGER_RESOURCE_TYPES.filter(option => eventTypesOf(option.value, catalogEnabled).length > 0);
+
+export const eventTypeLabel = (eventType: string) => (LIFECYCLE_EVENT_TYPES.includes(eventType as TriggerEventType)
+  ? eventType.charAt(0) + eventType.slice(1).toLowerCase()
+  : operationLabel(eventType));
 
 /** Chip severity of a trigger event type; every event type of TRIGGER_RESOURCE_TYPES has an explicit case. */
 export const eventTypeSeverity = (eventType: string): ChipSeverity => {
   switch (eventType) {
     case 'CREATE':
+    case 'REVOCATION_LIFTED':
+    case 'INSTALLED_AUTOMATICALLY':
       return 'low';
     case 'UPDATE':
+    case 'RELEASE_RECEIVED':
       return 'info';
     case 'DELETE':
       return 'critical';
     case 'SCORE_DEGRADATION':
+    case 'NEW_PAYLOAD_VERSION':
       return 'medium';
+    case 'PAYLOAD_REVOKED':
+    case 'REVOKED':
+      return 'high';
     case 'SYNC_BLOCKED':
       return 'critical';
     case 'CRITICAL_ASSET_REACHED':

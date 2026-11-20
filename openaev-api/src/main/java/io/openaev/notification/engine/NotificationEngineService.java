@@ -318,15 +318,6 @@ public class NotificationEngineService {
 
   private String buildMessage(
       NotificationResourceCatalog entry, NotificationTriggerEventType eventType, String label) {
-    String operation =
-        switch (eventType) {
-          case CREATE -> "created";
-          case UPDATE -> "updated";
-          case DELETE -> "deleted";
-          case SCORE_DEGRADATION -> "score degraded";
-          case SYNC_BLOCKED -> "sync blocked";
-          case CRITICAL_ASSET_REACHED -> "critical asset reached";
-        };
-    return "[" + resourceLabel(entry.getResourceType()) + "] " + label + " " + operation;
+    return "[" + resourceLabel(entry.getResourceType()) + "] " + label + " " + eventType.getLabel();
   }
 }

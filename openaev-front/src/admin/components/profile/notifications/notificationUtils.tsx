@@ -12,6 +12,7 @@ import {
   SECURITY_PLATFORM_BASE_URL,
   SIMULATION_BASE_URL,
   TEAM_BASE_URL,
+  THREAT_ARSENAL_BASE_URL,
 } from '../../../../constants/BaseUrls';
 import { type NotificationOutput } from '../../../../utils/api-types';
 
@@ -54,8 +55,14 @@ export const OPERATION_COLORS: Record<string, string> = {
   UPDATE: deepPurple[500],
   DELETE: red[500],
   SCORE_DEGRADATION: orange[500],
+  PAYLOAD_REVOKED: red[500],
+  REVOKED: red[500],
   SYNC_BLOCKED: red[500],
   CRITICAL_ASSET_REACHED: red[500],
+  REVOCATION_LIFTED: green[500],
+  NEW_PAYLOAD_VERSION: orange[500],
+  INSTALLED_AUTOMATICALLY: green[500],
+  RELEASE_RECEIVED: deepPurple[500],
   MULTIPLE: indigo[500],
 };
 
@@ -68,6 +75,12 @@ export const OPERATION_LABELS: Record<string, string> = {
   UPDATE: 'Modification',
   DELETE: 'Deletion',
   SCORE_DEGRADATION: 'Score degradation',
+  PAYLOAD_REVOKED: 'Payload revoked',
+  REVOKED: 'Revoked',
+  REVOCATION_LIFTED: 'Revocation lifted',
+  NEW_PAYLOAD_VERSION: 'New action version available',
+  INSTALLED_AUTOMATICALLY: 'Installed automatically',
+  RELEASE_RECEIVED: 'Release received',
   SYNC_BLOCKED: 'Sync blocked',
   CRITICAL_ASSET_REACHED: 'Critical asset reached',
   MULTIPLE: 'Multiple',
@@ -86,6 +99,8 @@ export const operationIcon = (operation: string): ReactNode => {
     case 'DELETE':
       return <BellRemoveOutline style={{ color }} />;
     case 'SCORE_DEGRADATION':
+    case 'PAYLOAD_REVOKED':
+    case 'REVOKED':
     case 'SYNC_BLOCKED':
     case 'CRITICAL_ASSET_REACHED':
       return <BellAlertOutline style={{ color }} />;
@@ -96,9 +111,8 @@ export const operationIcon = (operation: string): ReactNode => {
   }
 };
 
-// Resource types with a dedicated detail page. Types without a standalone
-// detail route (payload, vulnerability, document, challenge) are deliberately
-// absent: their notifications are not navigable.
+// Resource types with a page to open. Types without one (vulnerability, document, challenge) are
+// absent: their notifications are not navigable. A payload opens the Threat Arsenal.
 const RESOURCE_TYPE_URLS: Record<string, (id: string) => string> = {
   SCENARIO: id => `${SCENARIO_BASE_URL}/${id}`,
   SIMULATION: id => `${SIMULATION_BASE_URL}/${id}`,
@@ -109,6 +123,7 @@ const RESOURCE_TYPE_URLS: Record<string, (id: string) => string> = {
   TEAM: id => `${TEAM_BASE_URL}/${id}`,
   PLAYER: id => `${PERSON_BASE_URL}/${id}`,
   SECURITY_PLATFORM: id => `${SECURITY_PLATFORM_BASE_URL}/${id}`,
+  PAYLOAD: () => THREAT_ARSENAL_BASE_URL,
 };
 
 /**
