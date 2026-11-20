@@ -4,7 +4,7 @@ import { XTM_HUB_DEFAULT_URL } from '../../../../utils/Environment';
 export const NEWS_FEED_BLOG_POST_TYPE = 'BLOG_POST';
 
 // The path comes from XTM Hub data: only a link that stays on the XTM Hub origin is rendered.
-export const buildHubUrl = (urlPath: string, hubUrl: string): string | null => {
+const buildHubUrl = (urlPath: string, hubUrl: string): string | null => {
   try {
     const base = new URL(hubUrl);
     const url = new URL(urlPath, base);
@@ -35,6 +35,15 @@ export const buildBlogPostHubUrl = (urlPath: string | undefined, configuredHubUr
   }
   return url.toString();
 };
+
+/** The metadata of a blogpost that XTM Hub sends, and the card displays. */
+export const NEWS_FEED_METADATA_KEYS = {
+  DESCRIPTION: 'description',
+  IMAGE_URL: 'image_url',
+  IMAGE_ALT: 'image_alt',
+  AUTHOR_NAMES: 'author_names',
+  READ_MINUTES: 'read_minutes',
+} as const;
 
 /** The value of a metadata, `undefined` when it is missing or empty: every metadata is optional. */
 export const getNewsFeedMetadataValue = (metadata: NewsFeedItemMetadataOutput[] | undefined, key: string): string | undefined => {
