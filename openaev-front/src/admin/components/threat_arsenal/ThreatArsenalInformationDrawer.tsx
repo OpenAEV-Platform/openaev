@@ -11,6 +11,7 @@ import {
   type ThreatArsenalActionFullOutput,
 } from '../../../utils/api-types';
 import { isFeatureEnabled } from '../../../utils/utils';
+import PayloadUpdateBanner from './customization/PayloadUpdateBanner';
 import { type OpenedTab } from './hook/useOpenedAction';
 import PayloadRevocationBanner from './revocation/PayloadRevocationBanner';
 import ThreatArsenalActionOverview from './ThreatArsenalActionOverview';
@@ -52,6 +53,7 @@ interface Props {
   onClose: () => void;
   threatArsenalAction: ThreatArsenalAction | null;
   initialTab?: OpenedTab;
+  onUpdate?: (action: ThreatArsenalAction, replacedId?: string) => void;
 }
 
 const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
@@ -59,6 +61,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   onClose,
   threatArsenalAction,
   initialTab,
+  onUpdate,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -135,6 +138,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
               ? <PayloadVersionsTab versions={versions} focusMove={initialTab === 'move'} />
               : (
                   <>
+                    <PayloadUpdateBanner action={threatArsenalAction} onUpdate={onUpdate} />
                     {shownVersion?.payload_revoked && (
                       <div style={{ marginBottom: theme.spacing(2) }}>
                         <PayloadRevocationBanner version={shownVersion} />

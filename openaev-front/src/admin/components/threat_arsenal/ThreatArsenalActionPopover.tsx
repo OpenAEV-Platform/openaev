@@ -3,6 +3,7 @@ import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Divider, Menu, MenuItem } from '@mui/material';
 import { type MouseEvent, useState } from 'react';
 
+import { customizeThreatArsenalAction } from '../../../actions/threat_arsenals/threatArsenal-customization-actions';
 import {
   deleteThreatArsenalAction,
   duplicateThreatArsenalAction,
@@ -20,14 +21,18 @@ import {
   type ThreatArsenalActionUpdateInput,
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
+import { MESSAGING$ } from '../../../utils/Environment';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { download } from '../../../utils/utils';
+import { download, isFeatureEnabled } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
+import fetchFiligranValues from './customization/filigranValues';
+import useCanUpdateAction from './hook/useCanUpdateAction';
 import PayloadRevocationDialog from './revocation/PayloadRevocationDialog';
 import usePayloadRevocation from './revocation/usePayloadRevocation';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
+import { type ActionFormValues, buildInitialValues } from './utils/actionFormValues';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 import PayloadNewVersionDialog from './versions/PayloadNewVersionDialog';
 import useNewVersionNotice from './versions/useNewVersionNotice';
@@ -39,54 +44,6 @@ interface PayloadPopoverNewProps {
   onDuplicate?: (action: ThreatArsenalAction) => void;
   onShowVersions?: (action: ThreatArsenalAction) => void;
 }
-
-const buildInitialValues
-  = (action: ThreatArsenalActionFullOutput, actionName: string): Partial<ThreatArsenalActionCreateCustomInput> & {
-    action_id?: string;
-    payload_id?: string;
-  } => {
-    const remediations: Record<string, DetectionRemediationForm> = {};
-    action.action_detection_remediations?.forEach((remediation) => {
-      remediations[remediation.detection_remediation_security_platform ?? ''] = {
-        content: remediation.detection_remediation_values ?? '',
-        remediationId: remediation.detection_remediation_id ?? '',
-        author_rule: remediation.author_rule,
-      };
-    });
-
-    return {
-      action_id: action.action_id,
-      action_name: actionName,
-      action_description: action.action_description,
-      action_type: action.action_type as ThreatArsenalActionCreateCustomInput['action_type'],
-      command_executor: action.command_executor as string | undefined,
-      command_content: action.command_content as string | undefined,
-      dns_resolution_hostname: action.dns_resolution_hostname as string | undefined,
-      action_arguments: action.action_arguments?.map(arg => ({
-        ...arg,
-        type: String(arg.type) === 'targeted_asset' ? 'targeted-asset' : arg.type,
-        description: arg.description ?? undefined,
-        separator: arg.separator ?? undefined,
-      })),
-      action_prerequisites: action.action_prerequisites,
-      file_drop_file: action.file_drop_file as string | undefined,
-      action_attack_patterns: action.action_attack_patterns,
-      action_tags: action.action_tags as string[] | undefined,
-      action_expectations: action.action_expectations ?? ['PREVENTION', 'DETECTION'],
-      action_expected_security_platforms: action.action_expected_security_platforms ?? {},
-      action_execution_arch: action.action_execution_arch,
-      action_output_parsers: action.action_output_parsers as ThreatArsenalActionCreateCustomInput['action_output_parsers'],
-      action_platforms: action.action_platforms,
-      executable_file: action.executable_file as string | undefined,
-      action_cleanup_executor: action.action_cleanup_executor ?? '',
-      action_cleanup_command: action.action_cleanup_command ?? '',
-      remediations: remediations as ThreatArsenalActionCreateCustomInput['remediations'],
-      action_domains: action.action_domains,
-    } as Partial<ThreatArsenalActionCreateCustomInput> & {
-      action_id?: string;
-      payload_id?: string;
-    };
-  };
 
 const handleCleanupCommandValue = (value: string): string | null => (value === '' ? null : value);
 
@@ -107,6 +64,7 @@ const ThreatArsenalActionPopover = ({
   const [openDuplicate, setOpenDuplicate] = useState(false);
   const [deletion, setDeletion] = useState(false);
   const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
+  const [filigranValues, setFiligranValues] = useState<ActionFormValues | undefined>(undefined);
 
   const { t, tPick } = useFormatter();
   const ability = useAbility();
@@ -119,6 +77,8 @@ const ThreatArsenalActionPopover = ({
   // Dummy injectors were removed (#6779): an action whose injector is not registered has no injector type.
   const isUnregistered = action.action_injector_type == null;
   const isFromCollector = action.action_payload?.payload_collector_type != null;
+  const catalog = isFeatureEnabled('CATALOG');
+  const customized = catalog && !!action.action_payload_customized;
   const disableUpdate = isFromCollector || isUnregistered;
   const disableDuplicate = action.action_payload == null || isUnregistered;
   const disableJsonExport = action.action_payload == null || isUnregistered;
@@ -137,6 +97,7 @@ const ThreatArsenalActionPopover = ({
   const handleOpenEdit = async () => {
     handlePopoverClose();
     const response = await fetchThreatArsenalAction(actionId);
+    setFiligranValues(customized ? await fetchFiligranValues(actionId) : undefined);
     setFetchedAction(response.data as ThreatArsenalActionFullOutput);
     setOpenEdit(true);
   };
@@ -144,6 +105,7 @@ const ThreatArsenalActionPopover = ({
   const handleCloseEdit = () => {
     setOpenEdit(false);
     setFetchedAction(null);
+    setFiligranValues(undefined);
   };
 
   const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
@@ -215,8 +177,19 @@ const ThreatArsenalActionPopover = ({
     handleCloseDuplicate();
   };
 
+  // -- Customize --
+  const submitCustomize = async () => {
+    handlePopoverClose();
+    const response = await customizeThreatArsenalAction(actionId);
+    if (response.data) {
+      onDuplicate?.(response.data as ThreatArsenalAction);
+      MESSAGING$.notifySuccess(t('Customized copy created: it keeps getting Filigran updates'));
+    }
+  };
+
   const hasDuplicateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
-  const hasUpdateCapability = hasDuplicateCapability || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, grantResourceId);
+  const hasUpdateCapability = useCanUpdateAction(action);
+  const canCustomize = hasDuplicateCapability && catalog && !!action.action_payload_managed && !action.action_payload_revoked;
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, grantResourceId);
 
   const duplicateOff = !hasDuplicateCapability || !!disableDuplicate;
@@ -231,7 +204,7 @@ const ThreatArsenalActionPopover = ({
       onShowVersions?.(changed);
     },
   );
-  const allDisabled = duplicateOff && !!disableJsonExport && updateOff && deleteOff && !canRevoke;
+  const allDisabled = duplicateOff && !!disableJsonExport && updateOff && deleteOff && !canRevoke && !canCustomize;
 
   // -- Export --
   const handleExportJsonSingle = async () => {
@@ -260,6 +233,9 @@ const ThreatArsenalActionPopover = ({
       >
         {hasDuplicateCapability && (
           <MenuItem onClick={handleOpenDuplicate} disabled={disableDuplicate}>{t('Duplicate')}</MenuItem>
+        )}
+        {canCustomize && (
+          <MenuItem onClick={submitCustomize}>{t('Customize')}</MenuItem>
         )}
         <MenuItem onClick={handleExportJsonSingle} disabled={disableJsonExport}>{t('Export')}</MenuItem>
         {hasUpdateCapability && (
@@ -344,6 +320,7 @@ const ThreatArsenalActionPopover = ({
                 onSubmit={onSubmitEdit}
                 handleClose={handleCloseEdit}
                 editing
+                filigranValues={filigranValues}
                 initialValues={{
                   ...buildInitialValues(fetchedAction, tPick(fetchedAction.action_labels)),
                   payload_id: payloadId,

@@ -303,6 +303,10 @@ const ThreatArsenal = () => {
           onClose={closeAction}
           threatArsenalAction={openedAction}
           initialTab={openedTab}
+          onUpdate={(result, replacedId) => {
+            updateAction(result, replacedId);
+            openAction(result);
+          }}
         />
       )}
 

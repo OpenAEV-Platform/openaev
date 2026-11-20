@@ -53,10 +53,14 @@ describe('threatArsenalStatusUtils', () => {
 
   describe('getPayloadSourceLabel', () => {
     it.each([
-      [true, 'Filigran'],
-      [false, 'Local'],
-    ])('given managed %s should read %s', (managed, label) => {
-      expect(getPayloadSourceLabel(anAction({ action_payload_managed: managed }))).toBe(label);
+      [true, false, 'Filigran'],
+      [false, true, 'Customized'],
+      [false, false, 'Local'],
+    ])('given managed %s and customized %s should read %s', (managed, customized, label) => {
+      expect(getPayloadSourceLabel(anAction({
+        action_payload_managed: managed,
+        action_payload_customized: customized,
+      }))).toBe(label);
     });
   });
 });
