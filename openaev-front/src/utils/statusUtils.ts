@@ -20,6 +20,11 @@ const EXPECTATION_RESULT_LABELS: Record<string, Record<ExpectationResult, string
     PARTIAL: 'Partially Detected',
     FAILED: 'Not Detected',
   },
+  LOGGING: {
+    SUCCESS: 'Logged',
+    PARTIAL: 'Partially Logged',
+    FAILED: 'Not Logged',
+  },
   VULNERABILITY: {
     SUCCESS: 'Not vulnerable',
     PARTIAL: 'Partially Vulnerable',

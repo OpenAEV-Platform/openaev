@@ -5,16 +5,38 @@ import { ExpectationType, HUMAN_EXPECTATION_TYPES, type InjectExpectationsStore,
 export const FAILED = 'Failed';
 export const SUCCESS = 'Successful';
 
-export const isAutomatic = (type: string) => {
-  return [ExpectationType.ARTICLE.toString(), ExpectationType.PREVENTION.toString(), ExpectationType.DETECTION.toString(), ExpectationType.VULNERABILITY.toString()].includes(type);
-};
+const AUTOMATIC_EXPECTATION_TYPES: InjectExpectationOutput['inject_expectation_type'][] = [
+  ExpectationType.ARTICLE,
+  ExpectationType.PREVENTION,
+  ExpectationType.DETECTION,
+  ExpectationType.LOGGING,
+  ExpectationType.VULNERABILITY,
+];
+
+export const isAutomatic = (type: InjectExpectationOutput['inject_expectation_type']) => AUTOMATIC_EXPECTATION_TYPES.includes(type);
 
 // Single source of truth for expectation-type icons (shared coherent set).
 export const typeIcon = (type: string) => expectationIconByType(type);
 
-export const isTechnicalExpectation = (type: string) => TECHNICAL_EXPECTATION_TYPES.includes(type);
+export const isTechnicalExpectation = (type: InjectExpectationOutput['inject_expectation_type']) => TECHNICAL_EXPECTATION_TYPES.includes(type);
 
-export const isManualExpectation = (type: string) => HUMAN_EXPECTATION_TYPES.includes(type);
+export const isManualExpectation = (type: InjectExpectationOutput['inject_expectation_type']) => HUMAN_EXPECTATION_TYPES.includes(type);
+
+// A contract keeps the Logging expectation it was synchronised with while the preview feature was
+// on: new content must not take it from the contract once the feature is off.
+export const enabledExpectations = <T extends { expectation_type: string }>(
+  expectations: T[] | undefined,
+  isLoggingEnabled: boolean,
+): T[] => (expectations ?? []).filter(expectation => isLoggingEnabled || expectation.expectation_type !== ExpectationType.LOGGING);
+
+// The contract expectations a new inject starts with.
+export const predefinedExpectations = <T extends {
+  expectation_type: string;
+  expectation_is_predefined?: boolean;
+}>(
+  expectations: T[] | undefined,
+  isLoggingEnabled: boolean,
+): T[] => enabledExpectations(expectations, isLoggingEnabled).filter(expectation => expectation.expectation_is_predefined);
 
 /**
  * Returns a formatted label for the source of an expectation result.

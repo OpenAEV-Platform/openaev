@@ -122,10 +122,10 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
 
   // Every expectation type present in the data becomes a defense gate, in
   // attack-lifecycle order (exploit the vulnerability, then prevention blocks,
-  // then detection catches); unknown / future dynamic types simply append.
+  // then detection catches, then logging records); unknown / future dynamic types simply append.
   const layers = useMemo(() => {
     const rank = (key: string) => {
-      const order = ['VULNERABILITY', 'PREVENTION', 'DETECTION', 'MANUAL', 'CHALLENGE', 'ARTICLE'];
+      const order = ['VULNERABILITY', 'PREVENTION', 'DETECTION', 'LOGGING', 'MANUAL', 'CHALLENGE', 'ARTICLE'];
       const idx = order.indexOf(key.toUpperCase());
       return idx === -1 ? order.length : idx;
     };

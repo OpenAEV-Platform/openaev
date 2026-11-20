@@ -3446,13 +3446,17 @@ export interface CredentialBulkProcessingInput {
 }
 
 export interface CredentialContractField {
+  accepted_formats?: string[];
   choices?: string[];
   default_value?: string;
+  endpoint?: boolean;
+  field_description?: string;
   field_name: string;
   field_type?: "text" | "password" | "select" | "number" | "checkbox" | "file";
   mandatory_condition_field?: string;
   mandatory_condition_value?: string;
   required?: boolean;
+  reset_on_endpoint_change?: boolean;
   visible_condition_field?: string;
   visible_condition_value?: string;
 }
@@ -3533,6 +3537,8 @@ export interface CredentialFullOutput {
     | "us-gov-west-1";
   /** AWS endpoint URL override */
   credential_aws_endpoint_url?: string;
+  /** Whether an AWS external id is stored; the external id itself is never returned */
+  credential_aws_external_id_defined?: boolean;
   /** AWS role ARN */
   credential_aws_role_arn?: string;
   /** AWS session token present */
@@ -3543,6 +3549,8 @@ export interface CredentialFullOutput {
     | "INSTANCE_DEFAULT";
   /** AWS source profile access key id */
   credential_aws_source_profile_access_key_id?: string;
+  /** Whether an AWS source profile secret access key is stored; the key itself is never returned */
+  credential_aws_source_profile_secret_access_key_defined?: boolean;
   /** Azure authority host URI */
   credential_azure_authority_host_uri?: string;
   /** Azure client id */
@@ -5299,6 +5307,8 @@ export interface EsEntities {
 }
 
 export interface EsFinding {
+  /** @uniqueItems true */
+  base_asset_groups_side?: string[];
   /** @format date-time */
   base_created_at?: string;
   base_dependencies?: string[];
@@ -5957,6 +5967,7 @@ export interface Exercise {
 export interface ExerciseBulkProcessingInput {
   exercise_ids_to_ignore?: string[];
   exercise_ids_to_process?: string[];
+  keep_findings?: boolean;
   search_pagination_input?: SearchPaginationInput;
 }
 
@@ -6202,40 +6213,6 @@ export interface Filter {
 export interface FilterGroup {
   filters?: Filter[];
   mode: "and" | "or";
-}
-
-export interface FindingInput {
-  /** @minLength 1 */
-  finding_field: string;
-  finding_inject_id?: string;
-  finding_labels?: string[];
-  finding_type:
-    | "text"
-    | "action_output"
-    | "number"
-    | "port"
-    | "portscan"
-    | "ipv4"
-    | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "email"
-    | "share"
-    | "file"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
-  /** @minLength 1 */
-  finding_value: string;
 }
 
 export interface FindingOutput {
@@ -6758,6 +6735,14 @@ export interface InjectAuthorisation {
   /** @format date-time */
   inject_authorisation_issued_at?: string;
   inject_id?: string;
+}
+
+export interface InjectBulkDeleteInput {
+  inject_ids_to_ignore?: string[];
+  inject_ids_to_process?: string[];
+  keep_findings?: boolean;
+  search_pagination_input?: SearchPaginationInput;
+  simulation_or_scenario_id?: string;
 }
 
 export interface InjectBulkProcessingInput {
@@ -7701,6 +7686,8 @@ export interface InjectorContractInput {
 export interface InjectorContractSearchPaginationInput {
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
+  /** Sort by primary domain first, so the results come in domain sections */
+  group_by_primary_domain?: boolean;
   /** Include the injector contract content on the returned object if set to true */
   include_content_details?: boolean;
   /** Allow the return of a full object if true, partial object if false */
@@ -10231,9 +10218,52 @@ export interface PayloadUpsertInput {
   payload_type: string;
 }
 
+export interface PayloadUsageOutput {
+  /** @minLength 1 */
+  usage_id: string;
+  usage_name?: string;
+  usage_scenario_id?: string;
+  usage_scenario_name?: string;
+  /** @minLength 1 */
+  usage_type: "inject" | "atomic_testing" | "step";
+}
+
+export interface PayloadUsagesOutput {
+  payload_usages: PayloadUsageOutput[];
+  /** @format int32 */
+  payload_usages_hidden_count?: number;
+}
+
+export interface PayloadVersionOutput {
+  /**
+   * The Threat Arsenal action of this version
+   * @minLength 1
+   */
+  payload_action_id: string;
+  /** @minLength 1 */
+  payload_id: string;
+  payload_is_latest: boolean;
+  payload_revocation_reason?: string;
+  payload_revoked: boolean;
+  /** @format date-time */
+  payload_revoked_at?: string;
+  /** The admin who revoked it; empty when revoked by the catalogue */
+  payload_revoked_by?: string;
+  /** Revoked by the catalogue: the tenant cannot lift it */
+  payload_revoked_by_catalogue: boolean;
+  /** @minLength 1 */
+  payload_version: string;
+}
+
 export interface PayloadsDeprecateInput {
   collector_id: string;
   payload_external_ids: string[];
+}
+
+export interface PhishingConfirmInput {
+  /** @format int64 */
+  dwell_ms?: number;
+  webdriver?: boolean;
 }
 
 export interface PhishingEmailTemplate {
@@ -10329,6 +10359,8 @@ export interface PhishingLandingPageReader {
   phishing_landing_page_html?: string;
   phishing_landing_page_logo_dark?: string;
   phishing_landing_page_logo_light?: string;
+  /** @format int64 */
+  phishing_landing_page_min_dwell_ms: number;
   phishing_landing_page_name?: string;
   phishing_landing_page_primary_color_dark?: string;
   phishing_landing_page_primary_color_light?: string;
@@ -10886,9 +10918,14 @@ export interface RawPaginationImportMapper {
 }
 
 export interface RawPaginationScenario {
+  scenario_author_name?: string;
   scenario_category?: string;
   scenario_description?: string;
+  /** @uniqueItems true */
+  scenario_domains?: string[];
   scenario_id?: string;
+  /** @format date-time */
+  scenario_last_run_at?: string;
   scenario_name?: string;
   /** @uniqueItems true */
   scenario_platforms?: string[];
@@ -10898,6 +10935,7 @@ export interface RawPaginationScenario {
   scenario_tags?: string[];
   /** @format date-time */
   scenario_updated_at?: string;
+  scenario_version?: string;
   scenario_workflow_id?: string;
 }
 
@@ -11517,6 +11555,7 @@ export interface ScenarioAndInjectorContractsInputs {
 }
 
 export interface ScenarioBulkProcessingInput {
+  keep_findings?: boolean;
   scenario_ids_to_ignore?: string[];
   scenario_ids_to_process?: string[];
   search_pagination_input?: SearchPaginationInput;
@@ -13111,6 +13150,12 @@ export interface ThreatArsenalAction {
   action_labels?: Record<string, string>;
   /** Payload attached */
   action_payload?: PayloadSimple;
+  /** The attached payload comes from the Filigran catalogue */
+  action_payload_managed?: boolean;
+  /** The attached payload version is revoked in the tenant */
+  action_payload_revoked?: boolean;
+  /** Version of the attached payload */
+  action_payload_version?: string;
   /** Platforms */
   action_platforms?: (
     | "Linux"

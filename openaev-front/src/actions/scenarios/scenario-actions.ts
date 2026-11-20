@@ -62,6 +62,8 @@ export const searchScenarios = (paginationInput: SearchPaginationInput) => {
   return simplePostCall(uri, data);
 };
 
+export const fetchScenarioAuthorOptions = () => simpleCall('/api/scenarios/authors/options');
+
 export const fetchScenario = (scenarioId: string) => (dispatch: Dispatch) => {
   const uri = `${SCENARIO_URI}/${scenarioId}`;
   return getReferential(scenario, uri)(dispatch);
@@ -75,8 +77,8 @@ export const updateScenario = (
   return putReferential(scenario, uri, data)(dispatch);
 };
 
-export const deleteScenario = (scenarioId: Scenario['scenario_id']) => (dispatch: Dispatch) => {
-  const uri = `${SCENARIO_URI}/${scenarioId}`;
+export const deleteScenario = (scenarioId: Scenario['scenario_id'], keepFindings = false) => (dispatch: Dispatch) => {
+  const uri = `${SCENARIO_URI}/${scenarioId}${keepFindings ? '?keep_findings=true' : ''}`;
   return delReferential(uri, scenario.key, scenarioId)(dispatch);
 };
 

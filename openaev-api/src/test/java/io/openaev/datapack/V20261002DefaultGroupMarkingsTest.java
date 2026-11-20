@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.DataPack;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
@@ -19,6 +20,7 @@ import io.openaev.utils.fixtures.tenants.TenantFixture;
 import jakarta.persistence.EntityManager;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -109,8 +111,7 @@ class V20261002DefaultGroupMarkingsTest extends IntegrationTest {
     processor.createDependencyForTenant(tenant);
 
     // Assert
-    assertThat(dataPackService.findByIdAndTenant(groupMarkingsDataPack.getPackId(), tenant))
-        .isPresent();
+    assertThat(findRegisteredPack(tenant)).isPresent();
     assertGroupHasMarking(tenant, "Admin", "TLP:RED");
     assertGroupHasMarking(tenant, "Manager", "TLP:AMBER");
     assertGroupHasMarking(tenant, "Observer", "TLP:GREEN");
@@ -141,8 +142,7 @@ class V20261002DefaultGroupMarkingsTest extends IntegrationTest {
     processor.createDependencyForTenant(tenant);
 
     // Assert: not registered, so a later retry (once groups exist) still runs this pack.
-    assertThat(dataPackService.findByIdAndTenant(groupMarkingsDataPack.getPackId(), tenant))
-        .isEmpty();
+    assertThat(findRegisteredPack(tenant)).isEmpty();
   }
 
   @Test
@@ -172,8 +172,7 @@ class V20261002DefaultGroupMarkingsTest extends IntegrationTest {
     processor.createDependencyForTenant(tenant);
 
     // Assert: registered, since the default tenant's missing groups are by design.
-    assertThat(dataPackService.findByIdAndTenant(groupMarkingsDataPack.getPackId(), tenant))
-        .isPresent();
+    assertThat(findRegisteredPack(tenant)).isPresent();
   }
 
   @Test
@@ -201,8 +200,7 @@ class V20261002DefaultGroupMarkingsTest extends IntegrationTest {
     processor.createDependencyForTenant(tenant);
 
     // Assert: not registered, so a later retry (once markings exist) still runs this pack.
-    assertThat(dataPackService.findByIdAndTenant(groupMarkingsDataPack.getPackId(), tenant))
-        .isEmpty();
+    assertThat(findRegisteredPack(tenant)).isEmpty();
   }
 
   private void seedGroup(Tenant tenant, String name) {
@@ -225,10 +223,24 @@ class V20261002DefaultGroupMarkingsTest extends IntegrationTest {
     markingDefinitionRepository.save(marking);
   }
 
+  private Optional<DataPack> findRegisteredPack(Tenant tenant) {
+    return tenantTx.execute(
+        TxCtx.forTenant(tenant.getId()),
+        () -> dataPackService.findByIdAndTenant(groupMarkingsDataPack.getPackId(), tenant));
+  }
+
   private void assertGroupHasMarking(Tenant tenant, String groupName, String definition) {
-    Group group = groupRepository.findByNameAndTenantId(groupName, tenant.getId()).orElseThrow();
-    assertThat(group.getMarkings())
-        .extracting(MarkingDefinition::getDefinition)
-        .containsExactly(definition);
+    List<String> definitions =
+        tenantTx.execute(
+            TxCtx.forTenant(tenant.getId()),
+            () ->
+                groupRepository
+                    .findByNameAndTenantId(groupName, tenant.getId())
+                    .orElseThrow()
+                    .getMarkings()
+                    .stream()
+                    .map(MarkingDefinition::getDefinition)
+                    .toList());
+    assertThat(definitions).containsExactly(definition);
   }
 }

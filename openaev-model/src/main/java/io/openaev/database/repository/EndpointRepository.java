@@ -5,6 +5,7 @@ import io.openaev.database.model.Endpoint;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -14,10 +15,22 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.Assert;
 
 @Repository
 public interface EndpointRepository
     extends CrudRepository<Endpoint, String>, JpaSpecificationExecutor<Endpoint> {
+
+  List<Endpoint> findAllByIdInAndTenantId(Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The endpoints among the given ids that belong to the given tenant. Refuses a null id list, as
+   * {@code findAllById} does.
+   */
+  default List<Endpoint> findAllByIdInTenant(Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 
   // Asset.activityStatus is a @Formula property, so Hibernate expects a result-set column literally
   // named "activityStatus" when hydrating an Endpoint from a native query. A bare "select e.*" does

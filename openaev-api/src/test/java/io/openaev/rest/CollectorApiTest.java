@@ -100,6 +100,9 @@ public class CollectorApiTest extends IntegrationTest {
   @DisplayName("Retrieve collectors")
   class GetCollectors {
     @Test
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_TENANT_SETTINGS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Should retrieve all collectors")
     void shouldRetrieveAllCollectors() throws Exception {
       Collector collector = getCollector("CS");
@@ -138,6 +141,9 @@ public class CollectorApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_TENANT_SETTINGS},
+        autoJoinDefaultTenant = true)
     @DisplayName(
         "Given an instance-configured name, should expose it in the output without dirtying the collector entity")
     void givenInstanceConfiguredName_shouldNotDirtyCollectorEntity() throws Exception {
@@ -186,6 +192,9 @@ public class CollectorApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_TENANT_SETTINGS},
+        autoJoinDefaultTenant = true)
     @DisplayName(
         "Given queryParams include_next to true should retrieve all collectors and and pending collectors")
     void givenQueryParamsIncludeNextToTrue_shouldRetrieveAllCollectorsAndPendingCollectors()

@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.BaseInjectExpectation;
@@ -45,6 +47,7 @@ import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
+import io.openaev.utilstest.RowTenantScope;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -82,6 +85,8 @@ import org.springframework.transaction.annotation.Transactional;
 class AttackObservationIndexingTest extends IntegrationTest {
 
   @Autowired private AttackObservationHandler attackObservationHandler;
+  @Autowired private RowTenantScope rowTenantScope;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
@@ -1487,13 +1492,21 @@ class AttackObservationIndexingTest extends IntegrationTest {
       twinContract.setTenant(otherTenant);
       twinInjector.setTenantId(otherTenant.getId());
       twinContract.addInjector(twinInjector);
-      injectorContractComposer
-          .forInjectorContract(twinContract)
-          .withAttackPattern(attackPatternComposer.forAttackPattern(otherAttackPattern))
-          .persist();
+      // The twin contract and its injector link belong to tenant B: saved in B's scope, as a write
+      // for B runs in production.
+      rowTenantScope.write(
+          otherTenant.getId(),
+          () ->
+              injectorContractComposer
+                  .forInjectorContract(twinContract)
+                  .withAttackPattern(attackPatternComposer.forAttackPattern(otherAttackPattern))
+                  .persist());
       flushAndClear();
 
       // -- ACT --
+      // Production indexes under the all-tenants scope (EngineSyncExecutionJob): tenant B rows are
+      // read too, which the correlation has to exclude from tenant A's document.
+      tenantTx.setScopeOnCurrentTransaction(TxCtx.allTenants());
       List<EsAttackObservation> docs =
           attackObservationHandler.fetch(FROM, 5000).stream()
               .filter(es -> es.getBase_asset_side().equals(endpointWrapper.get().getId()))

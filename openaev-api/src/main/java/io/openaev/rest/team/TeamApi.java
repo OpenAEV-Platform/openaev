@@ -217,8 +217,7 @@ public class TeamApi extends RestBehavior {
   public Team upsertTeam(
       @RequireTenantSelector TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
     if (input.getContextual() && input.getExerciseIds().toArray().length > 1) {
-      throw new UnsupportedOperationException(
-          "Contextual team can only be associated to one exercise");
+      throw new BadRequestException("Contextual team can only be associated to one exercise");
     }
     String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
     Optional<Team> team =

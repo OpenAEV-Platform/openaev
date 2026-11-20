@@ -107,7 +107,7 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
 
   @DisplayName("Send surveys for exercise lessons")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void sendExerciseLessonsTest() throws Exception {
 
     // -- PREPARE --
