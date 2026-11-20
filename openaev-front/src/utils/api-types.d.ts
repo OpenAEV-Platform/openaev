@@ -10327,6 +10327,17 @@ export interface PayloadUpsertInput {
   payload_type: string;
 }
 
+export interface PayloadUsageMoveInput {
+  /** @minLength 1 */
+  target_payload_id: string;
+  usage_ids: string[];
+}
+
+export interface PayloadUsageMoveOutput {
+  moved_ids: string[];
+  refused: PayloadUsageRefusal[];
+}
+
 export interface PayloadUsageOutput {
   /** @minLength 1 */
   usage_id: string;
@@ -10335,6 +10346,12 @@ export interface PayloadUsageOutput {
   usage_scenario_name?: string;
   /** @minLength 1 */
   usage_type: "inject" | "atomic_testing" | "step";
+}
+
+export interface PayloadUsageRefusal {
+  reason: "NOT_ON_THIS_VERSION" | "MISSING_RIGHT" | "NOT_COMPATIBLE";
+  /** @minLength 1 */
+  usage_id: string;
 }
 
 export interface PayloadUsagesOutput {
