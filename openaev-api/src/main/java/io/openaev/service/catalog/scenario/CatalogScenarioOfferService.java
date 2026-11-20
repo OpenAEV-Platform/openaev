@@ -6,16 +6,12 @@ import io.openaev.api.catalog.dto.CatalogManifest.PayloadRef;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.model.catalog.ContentType;
-import io.openaev.database.repository.ScenarioIdentityRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.catalog.CatalogListService;
-import io.openaev.service.catalog.CatalogOffer;
 import io.openaev.service.catalog.CatalogSettingsService;
 import io.openaev.service.catalog.payload.CatalogPayloadOfferService;
 import java.io.IOException;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,7 +25,7 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   private final CatalogPayloadOfferService catalogPayloadOfferService;
   private final CatalogScenarioRequirements catalogScenarioRequirements;
   private final CatalogSettingsService catalogSettingsService;
-  private final ScenarioIdentityRepository scenarioIdentityRepository;
+  private final CatalogScenarioService catalogScenarioService;
   private final ObjectMapper mapper;
 
   // -- LIST --
@@ -52,15 +48,9 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   /** The latest version of every catalogue scenario the tenant does not show. */
   @Transactional(readOnly = true)
   public List<OfferedScenario> notInstalled(String tenantId) {
-    Set<String> installed =
-        scenarioIdentityRepository.findAllInstalledByTenantId(tenantId).stream()
-            .map(CatalogOffer::key)
-            .collect(Collectors.toSet());
-    return catalogListService.latestOffered(CatalogScenario.class).stream()
-        .filter(
-            item ->
-                !installed.contains(
-                    CatalogOffer.key(item.getRelease().getRepository(), item.getExternalId())))
+    return catalogListService
+        .latestOfferedExcept(CatalogScenario.class, catalogScenarioService.installedKeys(tenantId))
+        .stream()
         .map(item -> new OfferedScenario(item, catalogScenarioRequirements.missing(item)))
         .toList();
   }
@@ -72,7 +62,13 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   @Override
   @Transactional(readOnly = true)
   public List<InstallableScenarioVersion> neverInstalled(TxCtx ctx, String tenantId) {
-    return installableNeverInstalled(ctx, tenantId);
+    return catalogListService
+        .latestOfferedExcept(CatalogScenario.class, catalogScenarioService.knownKeys(tenantId))
+        .stream()
+        .filter(item -> CatalogScenarioType.of(item.getScenarioType()).installedInBulk())
+        .filter(item -> catalogScenarioRequirements.missing(item).isEmpty())
+        .map(item -> toInstallable(ctx, item))
+        .toList();
   }
 
   /** What a release brings to install by itself: the scenarios never installed, when asked. */
@@ -80,28 +76,11 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   @Transactional(readOnly = true)
   public List<InstallableScenarioVersion> toAutoInstall(TxCtx ctx, String tenantId) {
     return catalogSettingsService.isAutoInstall(ctx, tenantId, ContentType.SCENARIO)
-        ? installableNeverInstalled(ctx, tenantId)
+        ? neverInstalled(ctx, tenantId)
         : List.of();
   }
 
   // -- STEPS --
-
-  private List<InstallableScenarioVersion> installableNeverInstalled(TxCtx ctx, String tenantId) {
-    // An uninstalled scenario keeps its identity: it is not installed again.
-    Set<String> known =
-        scenarioIdentityRepository.findAllByTenantId(tenantId).stream()
-            .map(CatalogOffer::key)
-            .collect(Collectors.toSet());
-    return catalogListService.latestOffered(CatalogScenario.class).stream()
-        .filter(
-            item ->
-                !known.contains(
-                    CatalogOffer.key(item.getRelease().getRepository(), item.getExternalId())))
-        .filter(item -> CatalogScenarioType.of(item.getScenarioType()).installedInBulk())
-        .filter(item -> catalogScenarioRequirements.missing(item).isEmpty())
-        .map(item -> toInstallable(ctx, item))
-        .toList();
-  }
 
   private InstallableScenarioVersion toInstallable(TxCtx ctx, CatalogScenario item) {
     return new InstallableScenarioVersion(

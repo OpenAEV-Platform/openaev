@@ -61,7 +61,8 @@ public class CatalogScenarioInstallApi {
                 writeScopeResolver.tenantForWrite(ctx, null),
                 externalId,
                 version,
-                CatalogScenarioInstallMapper.toChoice(input))
+                // No body: the service applies the empty choice of the scenario's own type.
+                input == null ? null : input.toChoice())
             .getId());
   }
 

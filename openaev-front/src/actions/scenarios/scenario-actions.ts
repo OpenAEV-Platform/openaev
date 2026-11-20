@@ -20,7 +20,6 @@ import {
   type LessonsQuestionUpdateInput, type Pagination,
   type Scenario, type ScenarioAndInjectorContractsInputs, type ScenarioBulkProcessingInput, type ScenarioIdsAndInjectorContractsInputs,
   type ScenarioInput,
-  type ScenarioLaunchOutput,
   type ScenarioRecurrenceInput,
   type ScenarioTargetsInput,
   type ScenarioTeamPlayersEnableInput,
@@ -123,13 +122,13 @@ export const duplicateScenario = (scenarioId: string) => (dispatch: Dispatch) =>
 
 // -- SCENARIO TO EXERCISE
 
-export const createRunningExerciseFromScenario = (scenarioId: string) => {
-  const uri = `${SCENARIO_URI}/${scenarioId}/exercise/running`;
-  return simplePostCall(uri);
-};
+// A launch sends the targets alone, without the scenario type an install names.
+export type LaunchTargetsInput = Omit<ScenarioTargetsInput, 'scenario_type'>;
 
-export const launchScenario = (scenarioId: string, input: ScenarioTargetsInput): Promise<ScenarioLaunchOutput> => simplePostCall(`${SCENARIO_URI}/${scenarioId}/launch`, input)
-  .then(({ data }: { data: ScenarioLaunchOutput }) => data);
+export const createRunningExerciseFromScenario = (scenarioId: string, targets?: LaunchTargetsInput) => {
+  const uri = `${SCENARIO_URI}/${scenarioId}/exercise/running`;
+  return simplePostCall(uri, targets);
+};
 
 // -- TEAMS --
 
