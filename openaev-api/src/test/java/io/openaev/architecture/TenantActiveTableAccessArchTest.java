@@ -1353,7 +1353,7 @@ class TenantActiveTableAccessArchTest {
   // STILL PRE_EXISTING_UNVERIFIED_CALLERS (tracked follow-up: injector-phase3b-associations),
   // not a claim of safety. Do not add to this list without verifying the caller runs inside a
   // tenant-scoped transaction; fix it and move it to the reviewed-safe list above instead.
-  //  - ScenarioToExerciseService: ScenarioLaunchApi#launch is fixed, but
+  //  - ScenarioToExerciseService: ScenarioApi#createRunningExerciseFromScenario is fixed, but
   //    ScenarioExecutionJob (the recurring-scenario cron job) still calls it under a single
   //    cross-tenant @Transactional with only the v1 TenantContext bridge set per scenario — no
   //    v2 TxCtx/TenantScopedTransaction at all. This is a real Phase 5b gap (background writer

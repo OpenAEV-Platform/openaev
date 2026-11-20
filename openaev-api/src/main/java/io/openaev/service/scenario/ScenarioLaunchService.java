@@ -4,6 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static java.time.Instant.now;
 import static java.time.temporal.ChronoUnit.MINUTES;
 
+import io.openaev.api.catalog.CatalogFeature;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
@@ -37,11 +38,16 @@ public class ScenarioLaunchService {
   private final UserRepository userRepository;
   private final InjectService injectService;
   private final CatalogScenarioTargets catalogScenarioTargets;
+  private final CatalogFeature catalogFeature;
 
   /** The id of the simulation started; the targets go to its injects, never to the scenario. */
   @Transactional
   public String launch(TxCtx ctx, String scenarioId, TargetChoice targets)
       throws ChainingException {
+    // Targets chosen at launch come with the catalogue.
+    if (!targets.isEmpty()) {
+      catalogFeature.require();
+    }
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     String launchedById = currentUser().getId();
     // The scenario's workflow is read, and its simulation's started, in the scenario's own tenant
