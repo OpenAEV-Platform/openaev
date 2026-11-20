@@ -30,6 +30,7 @@ import io.openaev.api.custom_dashboard.CustomDashboardApiExporter;
 import io.openaev.api.custom_dashboard.CustomDashboardApiImporter;
 import io.openaev.api.custom_domain.CustomDomainService;
 import io.openaev.api.detection_remediation.DetectionRemediationApi;
+import io.openaev.api.expectations.ExpectationsDriftService;
 import io.openaev.api.marking_definition.MarkingDefinitionApi;
 import io.openaev.api.notification.NotificationApi;
 import io.openaev.api.notification_trigger.NotificationTriggerMapper;
@@ -83,6 +84,7 @@ import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.ImportMapperRepository;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.KillChainPhaseRepository;
@@ -124,6 +126,7 @@ import io.openaev.database.repository.autonomous.AutonomousObjectiveTemplateRepo
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.engine.model.attackpattern.AttackPatternHandler;
 import io.openaev.engine.model.finding.FindingHandler;
+import io.openaev.engine.model.inject.InjectHandler;
 import io.openaev.engine.model.securitydomain.SecurityDomainHandler;
 import io.openaev.engine.model.vulnerableendpoint.VulnerableEndpointHandler;
 import io.openaev.executors.Executor;
@@ -142,6 +145,7 @@ import io.openaev.helper.InjectHelper;
 import io.openaev.importer.V1_DataImporter;
 import io.openaev.injectors.challenge.ChallengeExecutor;
 import io.openaev.injectors.channel.ChannelExecutor;
+import io.openaev.injectors.email.service.ImapService;
 import io.openaev.injectors.phishing.PhishingExecutor;
 import io.openaev.injectors.phishing.service.PhishingEmailTemplateService;
 import io.openaev.injectors.phishing.service.PhishingLandingPageService;
@@ -181,6 +185,8 @@ import io.openaev.rest.challenge.ChallengeApi;
 import io.openaev.rest.challenge.ScenarioChallengeApi;
 import io.openaev.rest.challenge.SimulationChallengeApi;
 import io.openaev.rest.channel.ChannelApi;
+import io.openaev.rest.channel.ExerciseArticleApi;
+import io.openaev.rest.channel.ScenarioArticleApi;
 import io.openaev.rest.channel.output.ArticleOutput;
 import io.openaev.rest.collector.CollectorApi;
 import io.openaev.rest.collector.service.CollectorService;
@@ -206,15 +212,19 @@ import io.openaev.rest.finding.FindingDistinctSearchService;
 import io.openaev.rest.finding.FindingSearchApi;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.rest.finding.FindingWriter;
+import io.openaev.rest.helper.TeamHelper;
 import io.openaev.rest.inject.InjectApi;
 import io.openaev.rest.inject.ScenarioInjectApi;
 import io.openaev.rest.inject.SimulationInjectApi;
 import io.openaev.rest.inject.exports.InjectsFileExport;
 import io.openaev.rest.inject.service.ExecutableInjectService;
+import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectExecutionService;
+import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.ScenarioInjectService;
+import io.openaev.rest.inject.service.SimulationInjectService;
 import io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi;
 import io.openaev.rest.injector.InjectorApi;
 import io.openaev.rest.injector_contract.InjectorContractApi;
@@ -249,14 +259,18 @@ import io.openaev.rest.user.PlayerApi;
 import io.openaev.rest.user.PlayerService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.scheduler.jobs.AgentInactivityMonitorJob;
+import io.openaev.scheduler.jobs.AtomicTestingExecutionJob;
 import io.openaev.scheduler.jobs.ComchecksExecutionJob;
+import io.openaev.scheduler.jobs.InjectsFinalizationJob;
 import io.openaev.search.FullTextSearchService;
 import io.openaev.service.AgentService;
+import io.openaev.service.AtomicTestingService;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.ChannelService;
 import io.openaev.service.DataPackService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.EsAttackPathService;
+import io.openaev.service.GrantService;
 import io.openaev.service.InjectExpectationTraceService;
 import io.openaev.service.InjectImportService;
 import io.openaev.service.InjectTestStatusService;
@@ -297,8 +311,10 @@ import io.openaev.service.notification.NotificationService;
 import io.openaev.service.notification.NotificationTriggerService;
 import io.openaev.service.notification.NotifierService;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.phishing.PhishingLandingPagePublicLookupService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.stix.SecurityCoverageInjectService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
 import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
@@ -312,11 +328,14 @@ import io.openaev.utils.InjectUtils;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.DocumentMapper;
+import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.FindingMapper;
+import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.mapper.VulnerabilityMapper;
+import io.openaev.xtm.counterpart.LocalObjectService;
 import io.openaev.xtmhub.XtmHubService;
 import io.openaev.xtmone.XtmOneHealthSnapshot;
 import java.io.FileInputStream;
@@ -445,7 +464,8 @@ class TenantActiveTableAccessArchTest {
           "scenario_identities",
           "payload_revocations",
           "exercises",
-          "scenarios");
+          "scenarios",
+          "injects");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -1631,6 +1651,9 @@ class TenantActiveTableAccessArchTest {
               FindingSearchApi.class,
               FindingService.class,
               FindingDistinctSearchService.class,
+              // Counterpart facts (finding counts per asset or CVE), reached only from the
+              // TxCtx-carrying CounterpartApi lookups, inside their scoped read-only transaction.
+              LocalObjectService.class,
               // Reached only from those handlers, inside their scoped transaction.
               FindingMapper.class,
               // REQUIRES_NEW, so each declares its own TxCtx and the aspect scopes the new
@@ -2136,10 +2159,6 @@ class TenantActiveTableAccessArchTest {
               // Deletes jobs on workflow end; reached only from already-scoped callers (see
               // AssetAgentJobDeletionScopeTest and the activation report for the three causes).
               WorkflowEndService.class,
-              // Atomic testing stop: deletes the stopped inject's jobs with an explicit tenant
-              // (deleteAllByInjectIdsAndTenantId on the inject's own tenant), behind the scoped
-              // AtomicTestingApi#stop entrypoint.
-              io.openaev.service.AtomicTestingService.class,
               // OpenAEV executor: creates an upgrade-command job for a resolved agent, INSERT-only
               // and tenant-attributed explicitly from the agent (VALUES inserts are not blocked by
               // the inspector) - reached from the scoped scheduled-execution job runner.
@@ -4358,7 +4377,9 @@ class TenantActiveTableAccessArchTest {
           .that()
           .doNotBelongToAnyOf(
               // Written by the catalogue events, inside the scoped transaction that raises them:
-              io.openaev.service.catalog.event.CatalogHistoryListener.class)
+              io.openaev.service.catalog.event.CatalogHistoryListener.class,
+              // Read by tenant, inside the scoped transaction of the history routes:
+              io.openaev.service.catalog.history.CatalogHistoryService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(io.openaev.database.repository.CatalogHistoryRepository.class)
@@ -4431,6 +4452,9 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.attackpath.AttackPathCausalSeedService.class,
               io.openaev.service.autonomous.AutonomousRunService.class,
               io.openaev.service.chaining.WorkflowEndService.class,
+              // Reverse counterpart lookup behind CounterpartApi (TxCtx-carrying HTTP), reading
+              // the simulation counts of the matched scenarios in the request's scope:
+              io.openaev.xtm.counterpart.LocalObjectService.class,
               // Import paths, under the TxCtx the import receives:
               io.openaev.importer.V1_DataImporter.class,
               io.openaev.service.InjectImportService.class,
@@ -4475,6 +4499,9 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.GrantService.class,
               io.openaev.service.scenario.ScenarioService.class,
               io.openaev.service.stix.SecurityCoverageService.class,
+              // Reverse counterpart lookup behind CounterpartApi (TxCtx-carrying HTTP), reading
+              // the scenarios matching the caller's keys in the request's scope:
+              io.openaev.xtm.counterpart.LocalObjectService.class,
               // Import path, under the TxCtx the import receives:
               io.openaev.service.InjectImportService.class,
               // Background: the scheduled start reads the scenario name inside its per-tenant
@@ -4487,5 +4514,73 @@ class TenantActiveTableAccessArchTest {
           .areAssignableTo(io.openaev.database.repository.ScenarioRepository.class)
           .because(
               "scenarios is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule injects_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              InjectApi.class,
+              ScenarioInjectApi.class,
+              SimulationInjectApi.class,
+              ScenarioChallengeApi.class,
+              SimulationChallengeApi.class,
+              ExerciseArticleApi.class,
+              ScenarioArticleApi.class,
+              ExerciseApi.class,
+              // Services and helpers behind those entrypoints, reading in the scope the entrypoint
+              // opened:
+              InjectService.class,
+              InjectDuplicateService.class,
+              InjectExecutionService.class,
+              InjectIndexCleanupService.class,
+              InjectStatusService.class,
+              ScenarioInjectService.class,
+              SimulationInjectService.class,
+              InjectImportService.class,
+              InjectTestStatusService.class,
+              BatchingInjectStatusService.class,
+              ExerciseService.class,
+              ScenarioService.class,
+              ScenarioToExerciseService.class,
+              ChallengeService.class,
+              AtomicTestingService.class,
+              AttackPathGraphService.class,
+              AutonomousRunService.class,
+              SecurityCoverageInjectService.class,
+              ExpectationsDriftService.class,
+              TeamHelper.class,
+              InjectHelper.class,
+              ExerciseMapper.class,
+              InjectExpectationMapper.class,
+              // The ATOMIC_TESTING grant check reads the ambient (v1) tenant via
+              // User#scopedTenantId(), not this read's own TxCtx. Not a cross-tenant leak: every
+              // by-id read of an inject behind it is refused in the request's tenant scope
+              // independently of the grant.
+              GrantService.class,
+              // Background jobs on the tenant-scoped primitive: candidates read under
+              // TxCtx.allTenants(), each tenant's rows under TxCtx.forTenant:
+              AtomicTestingExecutionJob.class,
+              InjectsFinalizationJob.class,
+              // Background entry points already converted to the tenant-scoped primitive
+              // (TxCtx.forTenant of the resolved inject's own tenant):
+              ImapService.class,
+              PhishingTrackingService.class,
+              // Import path: resolves the write tenant explicitly before reusing or creating rows:
+              V1_DataImporter.class,
+              // Telemetry gauge, counted under TxCtx.allTenants() through countAcrossAllTenants:
+              ProductInventoryMetricCollector.class,
+              // Background indexing fetch path, under the sweep's allTenants() scope:
+              InjectHandler.class,
+              // Reached only from the threat arsenal usages endpoint, a read-only transaction
+              // that carries a TxCtx and passes the one tenant of its scope to the query:
+              PayloadVersionService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(InjectRepository.class)
+          .because(
+              "injects is tenant-active: an accessor without a tenant scope silently reads zero"
                   + " rows. New accessors must carry a scope and be allowlisted here");
 }

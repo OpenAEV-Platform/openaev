@@ -13,8 +13,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.FindingOccurrenceRepository;
@@ -40,14 +41,30 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Atomic testing API flows. The {@code TenantIsolation} group is the isolation test of {@code
+ * injects}: it seeds atomic testings in two tenants and asserts that a caller scoped to one tenant
+ * neither reads, finds in a search, nor deletes the other tenant's atomic testing. An atomic
+ * testing has no parent simulation or scenario, so the search refusal rests on the statement
+ * inspector over {@code injects} alone.
+ */
+@CoversTenantIsolation("injects")
 @TestInstance(PER_CLASS)
 @Transactional
 public class AtomicTestingApiTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   public static final String ATOMIC_TESTINGS_URI = "/api/atomic-testings";
 
@@ -66,7 +83,6 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @Autowired private FindingComposer findingComposer;
   @Autowired private FindingRepository findingRepository;
   @Autowired private FindingOccurrenceRepository findingOccurrenceRepository;
-  @Autowired private AssetAgentJobRepository assetAgentJobRepository;
 
   @Autowired private MockMvc mvc;
   @Autowired private InjectRepository injectRepository;
@@ -111,7 +127,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Find an atomic testing without status")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void findAnAtomicTestingWithoutStatus() throws Exception {
     String response =
         mvc.perform(
@@ -130,7 +146,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Find an atomic testing with status, command lines and expectation Results from inject content")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void findAnAtomicTestingWithStatusAndCommandLines() throws Exception {
     String url = ATOMIC_TESTINGS_URI + "/" + INJECT_WITH_STATUS_AND_COMMAND_LINES.getId();
     String expectedInjectId = INJECT_WITH_STATUS_AND_COMMAND_LINES.getId();
@@ -226,7 +242,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Duplicate and delete an atomic testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void duplicateAndDeleteAtomicTesting() throws Exception {
     // Duplicate
     String response =
@@ -270,6 +286,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @DisplayName("Launch an Atomic Testing")
   @WithMockUser(
       isAdmin = true,
+      autoJoinDefaultTenant = true,
       userFirstName = "Ash",
       userLastName = "Ketchum",
       userMail = "ash.ketchum@unittests.invalid")
@@ -292,6 +309,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @DisplayName("Relaunch an Atomic Testing")
   @WithMockUser(
       isAdmin = true,
+      autoJoinDefaultTenant = true,
       userFirstName = "Ash",
       userLastName = "Ketchum",
       userMail = "ash.ketchum@unittests.invalid")
@@ -323,88 +341,11 @@ public class AtomicTestingApiTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Stop a running Atomic Testing")
-  @WithMockUser(isAdmin = true)
-  class StopAtomicTesting {
-
-    @Test
-    @DisplayName(
-        "Should withdraw its agent jobs and end it in ERROR with a trace naming who stopped it")
-    void given_runningAtomicTesting_should_stopIt() throws Exception {
-      // Arrange
-      AgentComposer.Composer agentWrapper =
-          agentComposer.forAgent(
-              AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor()));
-      Inject atomicTesting =
-          injectComposer
-              .forInject(InjectFixture.getDefaultInject())
-              .withEndpoint(
-                  endpointComposer
-                      .forEndpoint(EndpointFixture.createEndpoint())
-                      .withAgent(agentWrapper))
-              .withInjectStatus(
-                  injectStatusComposer.forInjectStatus(
-                      InjectStatusFixture.createPendingInjectStatus()))
-              .persist()
-              .get();
-      AssetAgentJob job = AssetAgentJobFixture.createDefaultAssetAgentJob(agentWrapper.get());
-      job.setInject(atomicTesting);
-      job.setTenant(atomicTesting.getTenant());
-      String jobId = assetAgentJobRepository.save(job).getId();
-      entityManager.flush();
-      entityManager.clear();
-
-      // Act
-      mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/stop").with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andExpect(jsonPath("$.inject_status.status_name").value("ERROR"));
-
-      // Assert
-      entityManager.flush();
-      entityManager.clear();
-      assertThat(assetAgentJobRepository.findById(jobId)).isEmpty();
-      InjectStatus stopped =
-          injectRepository.findById(atomicTesting.getId()).orElseThrow().getStatus().orElseThrow();
-      assertThat(stopped.getName()).isEqualTo(ExecutionStatus.ERROR);
-      assertThat(stopped.getTrackingEndDate()).isNotNull();
-      assertThat(stopped.getTraces())
-          .anySatisfy(
-              trace -> {
-                assertThat(trace.getStatus()).isEqualTo(ExecutionTraceStatus.INTERRUPTED);
-                assertThat(trace.getAction()).isEqualTo(ExecutionTraceAction.COMPLETE);
-                assertThat(trace.getMessage()).startsWith("Atomic testing stopped by ");
-              });
-    }
-
-    @Test
-    @DisplayName("Should refuse an atomic testing that is not running")
-    void given_notRunningAtomicTesting_should_refuseToStopIt() throws Exception {
-      // Arrange
-      Inject draft = getAtomicTestingWrapper(null, null).persist().get();
-      entityManager.flush();
-      entityManager.clear();
-
-      // Act and assert
-      mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + draft.getId() + "/stop").with(csrf()))
-          .andExpect(status().isBadRequest());
-      entityManager.flush();
-      entityManager.clear();
-      assertThat(
-              injectRepository
-                  .findById(draft.getId())
-                  .orElseThrow()
-                  .getStatus()
-                  .map(InjectStatus::getName))
-          .contains(ExecutionStatus.DRAFT);
-    }
-  }
-
-  @Nested
   @DisplayName("Launch in place of an Atomic Testing that has findings")
-  @WithMockUser(isAdmin = true)
   class LaunchInPlaceWithFindings {
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Should delete the findings the inject wrote, and their occurrences")
     void given_injectWithFindings_should_deleteThemOnLaunch() throws Exception {
       // Arrange
@@ -440,10 +381,10 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Delete an Atomic Testing that has findings")
-  @WithMockUser(isAdmin = true)
   class DeleteWithFindings {
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Should delete the findings of the inject, and their occurrences")
     void given_injectWithFindings_should_deleteThemWithTheInject() throws Exception {
       // Arrange
@@ -475,6 +416,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @DisplayName("Set, carry over on relaunch, then clear the recurrence of an Atomic Testing")
   @WithMockUser(
       isAdmin = true,
+      autoJoinDefaultTenant = true,
       userFirstName = "Misty",
       userLastName = "Waterflower",
       userMail = "misty.waterflower@unittests.invalid")
@@ -600,7 +542,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Scheduling is Enterprise-gated with an EE-only executor, clearing is not")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateAtomicTestingRecurrenceWithEEExecutor() throws Exception {
     Inject atomicTesting =
         getAtomicTestingWrapper(
@@ -737,7 +679,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Lock Atomic testing EE feature")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   class LockAtomicTestingEEFeature {
 
     @Test
@@ -786,7 +728,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Get the payload of an atomic testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void findPayloadOutputByInjectId() throws Exception {
     String response =
         mvc.perform(
