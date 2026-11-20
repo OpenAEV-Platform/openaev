@@ -133,6 +133,8 @@ class ScenarioNotificationEventHandlerTest {
       // Detection is cross-tenant: the scenario's tenant is only known once it has been read.
       verify(tenantTx).execute(txCtxCaptor.capture(), any(Supplier.class));
       assertEquals(TxCtx.allTenants(), txCtxCaptor.getValue());
+      ArgumentCaptor<Supplier<StreamVisibility>> visibility =
+          ArgumentCaptor.forClass(Supplier.class);
       verify(notificationEngineService)
           .handleEventWithMessage(
               eq(NotificationResourceCatalog.SCENARIO),
@@ -140,7 +142,8 @@ class ScenarioNotificationEventHandlerTest {
               eq(TENANT_ID),
               eq(NotificationTriggerEventType.SCORE_DEGRADATION),
               anyString(),
-              eq(StreamVisibility.UNFILTERED));
+              visibility.capture());
+      assertThat(visibility.getValue().get()).isEqualTo(StreamVisibility.UNFILTERED);
     }
 
     @Test

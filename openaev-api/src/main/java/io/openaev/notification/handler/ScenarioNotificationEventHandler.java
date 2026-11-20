@@ -56,7 +56,7 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
         degradation.tenantId(),
         NotificationTriggerEventType.SCORE_DEGRADATION,
         degradation.message(),
-        StreamVisibility.UNFILTERED);
+        () -> StreamVisibility.UNFILTERED);
   }
 
   /** Compares the two most recent finished simulations of the scenario. */

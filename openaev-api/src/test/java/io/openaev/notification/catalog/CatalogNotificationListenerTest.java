@@ -60,6 +60,7 @@ class CatalogNotificationListenerTest {
 
   private String sentMessage(String release, NotificationTriggerEventType eventType) {
     ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<Supplier<StreamVisibility>> visibility = ArgumentCaptor.forClass(Supplier.class);
     verify(engine)
         .handleEventWithMessage(
             eq(NotificationResourceCatalog.CATALOG_SYNC),
@@ -67,7 +68,8 @@ class CatalogNotificationListenerTest {
             eq(TENANT),
             eq(eventType),
             message.capture(),
-            eq(StreamVisibility.UNFILTERED));
+            visibility.capture());
+    assertThat(visibility.getValue().get()).isEqualTo(StreamVisibility.UNFILTERED);
     return message.getValue();
   }
 
