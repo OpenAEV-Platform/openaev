@@ -3,6 +3,7 @@ package io.openaev.api.graph;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.graph.dto.GraphEdgeType;
 import io.openaev.api.graph.dto.GraphNodeType;
 import io.openaev.api.graph.dto.GraphOutput;
@@ -16,6 +17,8 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.utils.TxCtxScopeUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -40,15 +43,17 @@ import org.springframework.web.server.ResponseStatusException;
  *
  * <p>Access: the endpoint capability is ASSET READ (the graph is an exploration of the exposure
  * surface); every simulation, scenario and inject node is then kept only when the caller can read
- * it, evaluated in the tenant scope of the request. Tenant isolation is an explicit predicate in
- * every read of {@link GraphExplorationService} plus the {@link TxCtx} scope.
+ * it, and every finding node only when the caller reads findings, evaluated in the tenant scope of
+ * the request. The routes exist under the tenant prefix only. Tenant isolation is an explicit
+ * predicate in every read of {@link GraphExplorationService} plus the {@link TxCtx} scope.
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping({GraphExplorationApi.GRAPH_URI, TENANT_PREFIX + "/graph"})
+@RequestMapping(GraphExplorationApi.GRAPH_URI)
+@Tag(name = "Exploration graph", description = "Lazy slices of the exposure graph of a tenant")
 public class GraphExplorationApi extends RestBehavior {
 
-  public static final String GRAPH_URI = "/api/graph";
+  public static final String GRAPH_URI = TENANT_PREFIX + "/graph";
 
   private final GraphExplorationService graphService;
   private final GraphLandingService landingService;
@@ -60,36 +65,44 @@ public class GraphExplorationApi extends RestBehavior {
    * The top exposure story of the landing (#9447): one connected subgraph of about 30 nodes, the
    * worst attack path, else the most exposed asset. Empty when nothing failed.
    */
+  @LogExecutionTime
   @GetMapping("/story")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @Operation(summary = "The top exposure story of the graph landing")
   public GraphOutput story(TxCtx ctx) {
     graphFeature.require();
     return landingService.story(scope(ctx), visibility(ctx));
   }
 
   /** The aggregated estate overview of the landing (#9447): asset-group bubbles, not nodes. */
+  @LogExecutionTime
   @GetMapping("/overview")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @Operation(summary = "The aggregated estate overview of the graph landing")
   public GraphOverviewOutput overview(TxCtx ctx) {
     graphFeature.require();
     return landingService.overview(scope(ctx), visibility(ctx));
   }
 
   /** The starting-points rail of the landing (#9447). */
+  @LogExecutionTime
   @GetMapping("/starting-points")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @Operation(summary = "The starting points of the graph landing")
   public GraphStartingPointsOutput startingPoints(TxCtx ctx) {
     graphFeature.require();
     return landingService.startingPoints(scope(ctx), visibility(ctx));
   }
 
   /** The risk-first landing view of #9388: exposure hot paths (kept for compatibility). */
+  @LogExecutionTime
   @GetMapping("/hot-paths")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @Operation(summary = "The exposure hot paths of the tenant")
   public GraphOutput hotPaths(TxCtx ctx, @RequestParam(defaultValue = "15") int limit) {
     graphFeature.require();
     return graphService.hotPaths(scope(ctx), limit, visibility(ctx));
@@ -100,9 +113,11 @@ public class GraphExplorationApi extends RestBehavior {
    * {@link GraphEdgeType}); empty means all. {@code limit} caps each relation (at most {@value
    * GraphExplorationService#MAX_LIMIT}); {@code graph_truncated} says when more exists.
    */
+  @LogExecutionTime
   @GetMapping("/{entityType}/{entityId}/neighbourhood")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @Operation(summary = "One entity of the graph and its first ring")
   public GraphOutput neighbourhood(
       TxCtx ctx,
       @PathVariable String entityType,
@@ -115,9 +130,11 @@ public class GraphExplorationApi extends RestBehavior {
   }
 
   /** A shortest path between two entities, bounded; an empty path when none is found. */
+  @LogExecutionTime
   @GetMapping("/path")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @Operation(summary = "A shortest path between two entities of the graph")
   public GraphOutput path(
       TxCtx ctx,
       @RequestParam String fromType,
@@ -188,6 +205,11 @@ public class GraphExplorationApi extends RestBehavior {
           case TEAM -> can(null, ResourceType.TEAM);
           default -> true;
         };
+      }
+
+      @Override
+      public boolean canReadFindings() {
+        return can(null, ResourceType.FINDING);
       }
 
       private boolean can(String id, ResourceType type) {
