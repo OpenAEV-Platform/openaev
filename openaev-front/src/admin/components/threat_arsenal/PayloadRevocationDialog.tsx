@@ -1,6 +1,6 @@
-import { Button, Checkbox, Spinner, Text, Textarea } from '@filigran/design-system';
+import { Alert, Button, Checkbox, Spinner, Text, Textarea } from '@filigran/design-system';
 import { OpenInNewOutlined } from '@mui/icons-material';
-import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -121,6 +121,61 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
     setReason('');
   };
 
+  const versionLabel = version?.payload_version ?? '';
+  // The button says what happens: moving the injects first is part of the action.
+  let submitLabel = String(lift ? t('Lift revocation') : t('Revoke'));
+  if (moving) submitLabel = String(t('{count, plural, one {Move # inject and revoke} other {Move # injects and revoke}}', { count: injectCount }));
+  // Where the version is used, one click away (new tab, the dialog stays).
+  const usedLink = version?.payload_action_id && (
+    <Button asChild priority="secondary" size="sm">
+      <Link
+        to={`/admin/threat-arsenal?action=${encodeURIComponent(version.payload_action_id)}&tab=versions`}
+        target="_blank"
+        rel="noopener"
+      >
+        {t('See where')}
+        <OpenInNewOutlined fontSize="small" style={{ marginLeft: 4 }} />
+      </Link>
+    </Button>
+  );
+  // The impact in one message, its tone matching reality: a warning when something fails, a check when
+  // nothing does. Lifting says what runs again.
+  const renderImpact = () => {
+    if (!version) return null;
+    if (lift) {
+      return (
+        <Alert
+          severity="info"
+          title={t('v{version} runs again in this tenant.', { version: versionLabel })}
+          description={[
+            inherited ? t('It was revoked through its Filigran base.') : null,
+            injectCount > 0 && usages !== null ? impact : null,
+          ].filter(Boolean).join(' · ') || undefined}
+          action={injectCount > 0 ? usedLink : undefined}
+        />
+      );
+    }
+    if (injectCount === 0) {
+      return (
+        <Alert
+          severity="success"
+          title={t('Nothing fails: v{version} isn\'t used.', { version: versionLabel })}
+          description={otherUsage > 0
+            ? t('{count, plural, one {# inject keeps running on another version.} other {# injects keep running on other versions.}}', { count: otherUsage })
+            : undefined}
+        />
+      );
+    }
+    return (
+      <Alert
+        severity="warning"
+        title={t('Revoked versions don\'t run. What uses v{version} will fail:', { version: versionLabel })}
+        description={usages === null ? <Spinner size="sm" /> : impact}
+        action={usedLink}
+      />
+    );
+  };
+
   return (
     <Dialog
       open={open}
@@ -130,65 +185,57 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
       fullWidth
       maxWidth="sm"
     >
-      <DialogTitle>{`${t(lift ? 'Lift revocation' : 'Revoke')} ${name}`}</DialogTitle>
+      {/* A short title; the payload's name below it, on one line (in full on hover). */}
+      <DialogTitle>
+        {t(lift ? 'Lift a revocation' : 'Revoke a version')}
+        <Text
+          variant="content-base"
+          className="text-default-secondary"
+          title={name}
+          style={{
+            display: 'block',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {name}
+        </Text>
+      </DialogTitle>
       <DialogContent>
-        <DialogContentText style={{ marginBottom: 12 }}>
-          {lift
-            ? t(inherited ? 'Revoked through its Filigran base. Lifting it lets this version run again in this tenant.' : 'The chosen version runs again in this tenant.')
-            : t('Revoked versions don\'t run. Anything using this version will fail until you lift the revocation.')}
-        </DialogContentText>
-        {versions?.length === 0 ? (
-          <Text variant="content-base">{lift ? t('No version is revoked in this tenant.') : t('No version left to revoke.')}</Text>
-        ) : (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            marginBottom: 16,
-          }}
-          >
-            <PayloadVersionSelect
-              value={version?.payload_version ?? ''}
-              options={(versions ?? []).map(v => ({
-                version: v.payload_version ?? '',
-                latest: v.payload_is_latest,
-                installed: true,
-                revoked: lift,
-              }))}
-              onChange={value => setSelected(versions?.find(v => v.payload_version === value)?.payload_id ?? '')}
-              loading={versions === null}
-            />
-            {version && (
-              <Text variant="content-caption">
-                {injectCount === 1 ? t('Used by 1 inject') : t('Used by {count} injects', { count: String(injectCount) })}
-              </Text>
-            )}
-          </div>
-        )}
-        {version && injectCount === 0 && (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-            marginBottom: 16,
-          }}
-          >
-            <Text variant="content-base-bold">{lift ? t('Runs again in:') : t('What will fail:')}</Text>
-            <Text variant="content-base">
-              {t('Nothing fails: v{version} isn\'t used.', { version: version.payload_version ?? '' })}
-              {otherUsage > 0 && ` ${t('{count, plural, one {# inject keeps running on another version.} other {# injects keep running on other versions.}}', { count: otherUsage })}`}
-            </Text>
-          </div>
-        )}
-        {version && injectCount > 0 && (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-            marginBottom: 16,
-          }}
-          >
-            <Text variant="content-base-bold">{lift ? t('Runs again in:') : t('What will fail:')}</Text>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+          paddingTop: 4,
+        }}
+        >
+          {versions?.length === 0 ? (
+            <Text variant="content-base">{lift ? t('No version is revoked in this tenant.') : t('No version left to revoke.')}</Text>
+          ) : (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}
+            >
+              <Text variant="content-base">{t('Version')}</Text>
+              <PayloadVersionSelect
+                value={versionLabel}
+                options={(versions ?? []).map(v => ({
+                  version: v.payload_version ?? '',
+                  latest: v.payload_is_latest,
+                  installed: true,
+                  revoked: lift,
+                }))}
+                onChange={value => setSelected(versions?.find(v => v.payload_version === value)?.payload_id ?? '')}
+                loading={versions === null}
+              />
+            </div>
+          )}
+          {renderImpact()}
+          {/* The safe way, right under the impact: move the injects first, so nothing fails. */}
+          {canReplace && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -196,58 +243,34 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
               flexWrap: 'wrap',
             }}
             >
-              {usages === null ? <Spinner size="sm" /> : <Text variant="content-base">{impact}</Text>}
-              {version.payload_action_id && (
-                <Link
-                  to={`/admin/threat-arsenal?action=${encodeURIComponent(version.payload_action_id)}&tab=versions`}
-                  target="_blank"
-                  rel="noopener"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
-                >
-                  {t('See where it is used')}
-                  <OpenInNewOutlined fontSize="inherit" />
-                </Link>
-              )}
+              <Checkbox
+                checked={replace}
+                onCheckedChange={checked => setReplace(checked === true)}
+                label={t('{count, plural, one {Move it first to} other {Move them first to}}', { count: injectCount })}
+              />
+              <PayloadVersionSelect
+                value={replacement}
+                options={replacements.map(v => ({
+                  version: v.payload_version ?? '',
+                  latest: v.payload_is_latest,
+                  installed: true,
+                }))}
+                onChange={setReplacement}
+              />
+              <Text variant="content-caption" className="text-default-secondary">{t('so nothing fails')}</Text>
             </div>
-            {canReplace && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                flexWrap: 'wrap',
-              }}
-              >
-                <Checkbox
-                  checked={replace}
-                  onCheckedChange={checked => setReplace(checked === true)}
-                  label={t('Move them first to')}
-                />
-                <PayloadVersionSelect
-                  value={replacement}
-                  options={replacements.map(v => ({
-                    version: v.payload_version ?? '',
-                    latest: v.payload_is_latest,
-                    installed: true,
-                  }))}
-                  onChange={setReplacement}
-                />
-              </div>
-            )}
-          </div>
-        )}
-        {needsReason && versions?.length !== 0 && (
-          <Textarea
-            aria-label={t(inherited ? 'Why this customized version is safe to run' : 'Reason')}
-            placeholder={t(inherited ? 'Why this customized version is safe to run' : 'Reason')}
-            minRows={3}
-            value={reason}
-            onChange={event => setReason(event.target.value)}
-          />
-        )}
+          )}
+          {needsReason && versions?.length !== 0 && (
+            <Textarea
+              label={t(inherited ? 'Why this customized version is safe to run' : 'Reason')}
+              required
+              placeholder={t(inherited ? 'Why this customized version is safe to run' : 'Why this version is unsafe')}
+              minRows={2}
+              value={reason}
+              onChange={event => setReason(event.target.value)}
+            />
+          )}
+        </div>
       </DialogContent>
       <DialogActions>
         <Button type="button" priority="secondary" onClick={close}>{t('Cancel')}</Button>
@@ -257,7 +280,7 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
           disabled={(needsReason && reason.trim() === '') || !version || !moveReady || submitting}
           onClick={submit}
         >
-          {submitting ? <Spinner size="sm" /> : t(lift ? 'Lift revocation' : 'Revoke')}
+          {submitting ? <Spinner size="sm" /> : submitLabel}
         </Button>
       </DialogActions>
     </Dialog>
