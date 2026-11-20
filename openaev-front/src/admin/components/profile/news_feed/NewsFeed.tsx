@@ -12,7 +12,7 @@ import NewsFeedBlogPosts from './NewsFeedBlogPosts';
 import NewsFeedHubBanner, { type NewsFeedHubBannerVariant } from './NewsFeedHubBanner';
 import NewsFeedSettings from './NewsFeedSettings';
 import NewsFeedTabs, { type NewsFeedTab } from './NewsFeedTabs';
-import { NEWS_FEED_BLOG_POST_TYPE } from './newsFeedUtils';
+import { NEWS_FEED_BLOG_POST_TYPE, NEWS_FEED_CATEGORIES } from './newsFeedUtils';
 import useMarkNewsFeedItemsRead, { ALL_NEWS_FEED_ITEMS, type NewsFeedItemsToMark } from './useMarkNewsFeedItemsRead';
 import useNewsFeedSettings from './useNewsFeedSettings';
 import useNewsFeedVisitKey from './useNewsFeedVisitKey';
@@ -44,7 +44,7 @@ const NewsFeedPage = ({ tab }: Props) => {
     saving,
     updateSubscribedTypes,
   } = useNewsFeedSettings();
-  const unreadBlogPostsCount = useNewsFeedUnreadCount('BLOG_POST');
+  const unreadBlogPostsCount = useNewsFeedUnreadCount(NEWS_FEED_CATEGORIES.BLOG_POST);
 
   const isBlogPostAvailable = settings?.news_feed_settings_available_types.includes(NEWS_FEED_BLOG_POST_TYPE) ?? false;
   let displayedTab: NewsFeedTab | undefined = tab;
@@ -55,7 +55,9 @@ const NewsFeedPage = ({ tab }: Props) => {
   // Only the visit of the page of the news feed marks the items read, once it knows what it shows: the blogposts it
   // shows and the resources, which no tab shows, each category on its own as on OpenCTI, so that the top bar counter
   // goes back to 0. Without blogposts, no tab shows any item: every item at once.
-  const itemsToMark: NewsFeedItemsToMark = isBlogPostAvailable ? ['BLOG_POST', 'RESOURCE'] : ALL_NEWS_FEED_ITEMS;
+  const itemsToMark: NewsFeedItemsToMark = isBlogPostAvailable
+    ? [NEWS_FEED_CATEGORIES.BLOG_POST, NEWS_FEED_CATEGORIES.RESOURCE]
+    : ALL_NEWS_FEED_ITEMS;
   useMarkNewsFeedItemsRead(tab === 'blog_posts' && settings !== null, visitKey, itemsToMark);
 
   let bannerVariant: NewsFeedHubBannerVariant | null = null;

@@ -17,6 +17,7 @@ import {
 
 // Blog titles can be long: the library truncates the card title on one line, here it is displayed in full instead,
 // in a smaller size so that it stays compact.
+// FDS-WORKAROUND: restyles the internal `.truncate` span of `CardTitle` to wrap the title — remove when `CardTitle` can wrap — see no upstream issue yet
 const FullTitle = styled('div')({
   'minWidth': 0,
   '& .truncate': {

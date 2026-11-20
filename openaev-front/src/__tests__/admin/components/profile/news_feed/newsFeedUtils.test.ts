@@ -18,7 +18,7 @@ describe('newsFeedUtils', () => {
         news_feed_item_metadata_value: 'A description',
       },
       {
-        news_feed_item_metadata_key: 'empty',
+        news_feed_item_metadata_key: 'image_alt',
         news_feed_item_metadata_value: '',
       },
     ];
@@ -27,7 +27,7 @@ describe('newsFeedUtils', () => {
       expect(getNewsFeedMetadataValue(metadata, 'description')).toBe('A description');
     });
 
-    it.each(['empty', 'unknown'])('returns undefined for the key %s', (key) => {
+    it.each(['image_alt', 'read_minutes'] as const)('returns undefined for the empty or missing key %s', (key) => {
       expect(getNewsFeedMetadataValue(metadata, key)).toBeUndefined();
     });
 

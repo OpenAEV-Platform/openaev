@@ -12,7 +12,7 @@ import SimpleError from '../../../../components/SimpleError';
 import type { NewsFeedItemOutput } from '../../../../utils/api-types';
 import useAuth from '../../../../utils/hooks/useAuth';
 import NewsFeedBlogPostCard from './NewsFeedBlogPostCard';
-import { buildNewsFeedBlogSeeAllUrl } from './newsFeedUtils';
+import { buildNewsFeedBlogSeeAllUrl, NEWS_FEED_CATEGORIES } from './newsFeedUtils';
 import useNewsFeedStreamRefresh from './useNewsFeedStreamRefresh';
 
 // XTM Hub provisions the latest blogposts only: a safety net, not a pagination.
@@ -35,7 +35,7 @@ const NewsFeedBlogPosts = () => {
 
   const loadBlogPosts = () => {
     const requestId = ++latestRequest.current;
-    searchMyNewsFeedItems(BLOG_POSTS_SEARCH, false, 'BLOG_POST')
+    searchMyNewsFeedItems(BLOG_POSTS_SEARCH, false, NEWS_FEED_CATEGORIES.BLOG_POST)
       .then(({ data }) => {
         if (mounted.current && requestId === latestRequest.current) {
           setBlogPosts(data.content);

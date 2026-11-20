@@ -1,7 +1,15 @@
+import type { NewsFeedCategory } from '../../../../actions/news_feed/news-feed-actions';
 import type { NewsFeedItemMetadataOutput } from '../../../../utils/api-types';
 import { XTM_HUB_DEFAULT_URL } from '../../../../utils/Environment';
 
+/** The news feed type of the blogposts. */
 export const NEWS_FEED_BLOG_POST_TYPE = 'BLOG_POST';
+
+/** The categories the items are read, and counted unread, by: not types, RESOURCE gathers every other type. */
+export const NEWS_FEED_CATEGORIES = {
+  BLOG_POST: 'BLOG_POST',
+  RESOURCE: 'RESOURCE',
+} as const satisfies Record<NewsFeedCategory, NewsFeedCategory>;
 
 // The path comes from XTM Hub data: only a link that stays on the XTM Hub origin is rendered.
 const buildHubUrl = (urlPath: string, hubUrl: string): string | null => {
@@ -46,7 +54,9 @@ export const NEWS_FEED_METADATA_KEYS = {
 } as const;
 
 /** The value of a metadata, `undefined` when it is missing or empty: every metadata is optional. */
-export const getNewsFeedMetadataValue = (metadata: NewsFeedItemMetadataOutput[] | undefined, key: string): string | undefined => {
+type NewsFeedMetadataKey = typeof NEWS_FEED_METADATA_KEYS[keyof typeof NEWS_FEED_METADATA_KEYS];
+
+export const getNewsFeedMetadataValue = (metadata: NewsFeedItemMetadataOutput[] | undefined, key: NewsFeedMetadataKey): string | undefined => {
   const value = metadata?.find(entry => entry.news_feed_item_metadata_key === key)?.news_feed_item_metadata_value;
   return value || undefined;
 };
