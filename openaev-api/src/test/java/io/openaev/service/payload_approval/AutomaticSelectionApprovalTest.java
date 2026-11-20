@@ -173,6 +173,62 @@ class AutomaticSelectionApprovalTest extends IntegrationTest {
       assertThat(found).contains(approved.getId(), payloadLess.getId());
       assertThat(found).doesNotContain(pending.getId());
     }
+
+    @Test
+    @DisplayName("given_twoApprovedVersionsOfOneAction_should_returnOnlyTheLatestApprovedVersion")
+    void given_twoApprovedVersionsOfOneAction_should_returnOnlyTheLatestApprovedVersion() {
+      // -- ARRANGE --
+      String cve = VulnerabilityFixture.getRandomExternalVulnerabilityId();
+      VulnerabilityComposer.Composer vulnerability =
+          vulnerabilityComposer
+              .forVulnerability(VulnerabilityFixture.createVulnerabilityInput(cve))
+              .persist();
+      Payload firstVersion = payload(Payload.PAYLOAD_APPROVAL_STATUS.APPROVED);
+      firstVersion.setVersion("1.0.0");
+      InjectorContract older =
+          contract(firstVersion).withVulnerability(vulnerability).persist().get();
+      Payload secondVersion = payload(Payload.PAYLOAD_APPROVAL_STATUS.APPROVED);
+      secondVersion.setIdentity(firstVersion.getIdentity());
+      secondVersion.setVersion("1.0.1");
+      InjectorContract latest =
+          contract(secondVersion).withVulnerability(vulnerability).persist().get();
+
+      // -- ACT --
+      Set<String> found = vulnerabilityContracts(cve);
+
+      // -- ASSERT --
+      assertThat(found).contains(latest.getId());
+      assertThat(found).doesNotContain(older.getId());
+    }
+
+    @Test
+    @DisplayName("given_uninstalledApprovedAction_should_notReturnIt")
+    void given_uninstalledApprovedAction_should_notReturnIt() {
+      // -- ARRANGE --
+      String cve = VulnerabilityFixture.getRandomExternalVulnerabilityId();
+      VulnerabilityComposer.Composer vulnerability =
+          vulnerabilityComposer
+              .forVulnerability(VulnerabilityFixture.createVulnerabilityInput(cve))
+              .persist();
+      Payload approved = payload(Payload.PAYLOAD_APPROVAL_STATUS.APPROVED);
+      InjectorContract uninstalled =
+          contract(approved).withVulnerability(vulnerability).persist().get();
+      approved.getIdentity().setUninstalled(true);
+
+      // -- ACT --
+      Set<String> found = vulnerabilityContracts(cve);
+
+      // -- ASSERT --
+      assertThat(found).doesNotContain(uninstalled.getId());
+    }
+
+    private Set<String> vulnerabilityContracts(String cve) {
+      return injectorContractRepository
+          .findInjectorContractsByVulnerabilityIdIn(Set.of(cve.toLowerCase()), 5)
+          .stream()
+          .map(InjectorContract::getId)
+          .collect(Collectors.toSet());
+    }
   }
 
   @Nested

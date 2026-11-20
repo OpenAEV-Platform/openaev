@@ -425,19 +425,6 @@ public class ThreatArsenalService {
     return input;
   }
 
-  /**
-   * Duplicates an existing threat arsenal action.
-   *
-   * <p>Delegates the duplication to the payload service and maps the result back to a {@link
-   * ThreatArsenalAction}. Native injector contracts (no payload) cannot be duplicated: they must be
-   * reused by id. Returning 404 here used to look like a missing id and sent agents hunting for a
-   * different contract or inventing a weaker original Command.
-   *
-   * @param actionId the ID of the action to duplicate
-   * @return the newly created threat arsenal action copy
-   * @throws BadRequestException if the injector contract is not payload-based
-   */
-  @Transactional(rollbackFor = Exception.class)
   // -- APPROVAL --
 
   /**
@@ -445,6 +432,7 @@ public class ThreatArsenalService {
    * approved version replaces an approved version still in use, the output names that version's
    * action and its usages, so the approver can move them (the "new version" dialog).
    */
+  @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalApprovalDecisionOutput approve(
       String actionId, ThreatArsenalApproveInput input) {
     Payload version = payloadForDecision(actionId);
@@ -533,6 +521,19 @@ public class ThreatArsenalService {
     return payloadService.payloadForDecision(injectorContract.getPayload().getId());
   }
 
+  /**
+   * Duplicates an existing threat arsenal action.
+   *
+   * <p>Delegates the duplication to the payload service and maps the result back to a {@link
+   * ThreatArsenalAction}. Native injector contracts (no payload) cannot be duplicated: they must be
+   * reused by id. Returning 404 here used to look like a missing id and sent agents hunting for a
+   * different contract or inventing a weaker original Command.
+   *
+   * @param actionId the ID of the action to duplicate
+   * @return the newly created threat arsenal action copy
+   * @throws BadRequestException if the injector contract is not payload-based
+   */
+  @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction duplicate(String actionId) {
     // resolve the payload ID from the injector contract
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);

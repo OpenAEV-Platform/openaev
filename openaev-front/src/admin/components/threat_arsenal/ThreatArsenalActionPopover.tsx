@@ -29,11 +29,13 @@ import {
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
 import { MESSAGING$ } from '../../../utils/Environment';
+import { type Error as ApiError } from '../../../utils/error/errorHandlerUtil';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { toActionUpdateInput } from './actionFormValues';
+import useApprovalDecisionError from './approval/useApprovalDecisionError';
 import ThreatArsenalDraftEditor from './drafts/ThreatArsenalDraftEditor';
 import PayloadNewVersionDialog from './PayloadNewVersionDialog';
 import payloadVersionDecisionChoices from './payloadVersionDecisionChoices';
@@ -91,6 +93,7 @@ const ThreatArsenalActionPopover = ({
   const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
 
   const { t, tPick } = useFormatter();
+  const onDecisionError = useApprovalDecisionError();
   const ability = useAbility();
 
   // -- Popover --
@@ -255,7 +258,11 @@ const ThreatArsenalActionPopover = ({
   // -- Approval: an approver takes a decision back, on the version they pick --
   const submitRejection = async (rejectedId: string, reason: string) => {
     const actionOf = versions.find(v => v.payload_id === rejectedId)?.payload_action_id ?? actionId;
-    const response = await rejectThreatArsenalAction(actionOf, { approval_reason: reason });
+    const response = await rejectThreatArsenalAction(actionOf, { approval_reason: reason }, false).catch((error: ApiError) => {
+      if (error?.status === 403) setRejecting(false);
+      onDecisionError(error);
+      throw error;
+    });
     if (rejectedId === payloadId) {
       onApprovalChange?.((response.data as ThreatArsenalApprovalDecisionOutput).action_approval_status);
     }
@@ -264,7 +271,11 @@ const ThreatArsenalActionPopover = ({
 
   const submitReopen = async (reopenedId: string, note: string) => {
     const actionOf = versions.find(v => v.payload_id === reopenedId)?.payload_action_id ?? actionId;
-    const response = await reopenThreatArsenalAction(actionOf, { approval_comment: note || undefined });
+    const response = await reopenThreatArsenalAction(actionOf, { approval_comment: note || undefined }, false).catch((error: ApiError) => {
+      if (error?.status === 403) setReopening(false);
+      onDecisionError(error);
+      throw error;
+    });
     if (reopenedId === payloadId) {
       onApprovalChange?.((response.data as ThreatArsenalApprovalDecisionOutput).action_approval_status);
     }
