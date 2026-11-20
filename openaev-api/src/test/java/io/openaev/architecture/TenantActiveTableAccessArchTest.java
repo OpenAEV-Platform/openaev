@@ -2159,6 +2159,10 @@ class TenantActiveTableAccessArchTest {
               // Deletes jobs on workflow end; reached only from already-scoped callers (see
               // AssetAgentJobDeletionScopeTest and the activation report for the three causes).
               WorkflowEndService.class,
+              // Atomic testing stop: deletes the stopped inject's jobs with an explicit tenant
+              // (deleteAllByInjectIdsAndTenantId on the inject's own tenant), behind the scoped
+              // AtomicTestingApi#stop entrypoint.
+              io.openaev.service.AtomicTestingService.class,
               // OpenAEV executor: creates an upgrade-command job for a resolved agent, INSERT-only
               // and tenant-attributed explicitly from the agent (VALUES inserts are not blocked by
               // the inspector) - reached from the scoped scheduled-execution job runner.
