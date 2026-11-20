@@ -7,7 +7,6 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.rest.exception.BadRequestException;
-import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.catalog.CatalogListService;
 import io.openaev.service.catalog.event.CatalogChangePublisher;
@@ -31,14 +30,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CatalogScenarioUpdateService {
 
-  public static final String NOT_INSTALLED = "This scenario was not installed from the catalogue";
   public static final String CHANGED_MEANWHILE = "The scenario changed meanwhile: try again";
   public static final String CONFLICT_LEFT = "Choose a side for each conflict";
 
   private final ScenarioService scenarioService;
   private final CatalogListService catalogListService;
   private final InjectService injectService;
-  private final ExerciseService exerciseService;
   private final CatalogPayloadService catalogPayloadService;
   private final ScenarioRevisionService scenarioRevisionService;
   private final ScenarioPayloadCheckService scenarioPayloadCheckService;
@@ -46,43 +43,6 @@ public class CatalogScenarioUpdateService {
   private final CatalogChangePublisher changePublisher;
 
   // -- LIST --
-
-  @Transactional(readOnly = true)
-  public InstalledScenario installed(TxCtx ctx, String scenarioId) {
-    return installedScenario(ctx, scenarioId);
-  }
-
-  @Transactional(readOnly = true)
-  public ScenarioVersions versions(TxCtx ctx, String scenarioId) {
-    InstalledScenario installed = installedScenario(ctx, scenarioId);
-    List<CatalogScenario> versions =
-        catalogListService.versions(CatalogScenario.class, installed.externalId());
-    return new ScenarioVersions(
-        versions,
-        installed.version(),
-        latestOffered(versions),
-        exerciseService.countByScenario(installed.tenantId(), installed.scenarioId()));
-  }
-
-  private static String latestOffered(List<CatalogScenario> newestFirst) {
-    return newestFirst.stream()
-        .filter(version -> version.getStatus().isOffered())
-        .map(CatalogScenario::getVersion)
-        .findFirst()
-        .orElse(null);
-  }
-
-  private InstalledScenario installedScenario(TxCtx ctx, String scenarioId) {
-    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
-    if (scenario.getCatalogIdentity() == null) {
-      throw new BadRequestException(NOT_INSTALLED);
-    }
-    return new InstalledScenario(
-        scenario.getId(),
-        scenario.getTenant().getId(),
-        scenario.getCatalogExternalId(),
-        scenario.getCatalogVersion());
-  }
 
   /** What the content changes, and its conflicts, none of them chosen yet. */
   @Transactional(readOnly = true)

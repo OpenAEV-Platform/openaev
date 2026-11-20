@@ -16,6 +16,7 @@ import io.openaev.service.catalog.scenario.targeting.CatalogScenarioTargets;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
@@ -138,6 +139,23 @@ public class ScenarioContentReader {
                     inject.getDependsOn().stream().map(this::dependency).toList(),
                     inject.getContent())));
     return canonical(content);
+  }
+
+  static ScenarioElementKind elementKind(String element) {
+    if (element.startsWith(INJECT)) {
+      return ScenarioElementKind.INJECT;
+    }
+    return VARIABLES.equals(element) ? ScenarioElementKind.VARIABLES : ScenarioElementKind.SCENARIO;
+  }
+
+  static ScenarioFieldKind fieldKind(String element, String field) {
+    if (VARIABLES.equals(element)) {
+      return ScenarioFieldKind.VARIABLE;
+    }
+    if (field.startsWith(CONTENT)) {
+      return ScenarioFieldKind.ARGUMENT;
+    }
+    return ScenarioFieldKind.valueOf(field.toUpperCase(Locale.ROOT));
   }
 
   /** The ID of an inject in its package, or its own when the client added it. */

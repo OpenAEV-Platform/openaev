@@ -12312,9 +12312,19 @@ export interface ScenarioChangeOutput {
   scenario_change_applied?: JsonNode;
   scenario_change_base?: JsonNode;
   scenario_change_editable: boolean;
-  /** @minLength 1 */
-  scenario_change_element: string;
-  scenario_change_field?: string;
+  scenario_change_element_kind: "SCENARIO" | "VARIABLES" | "INJECT";
+  scenario_change_field_key?: string;
+  scenario_change_field_kind?:
+    | "NAME"
+    | "DESCRIPTION"
+    | "SEVERITY"
+    | "CATEGORY"
+    | "TITLE"
+    | "CONTRACT"
+    | "DEPENDS_DURATION"
+    | "DEPENDS_ON"
+    | "ARGUMENT"
+    | "VARIABLE";
   /** @minLength 1 */
   scenario_change_id: string;
   scenario_change_local?: JsonNode;

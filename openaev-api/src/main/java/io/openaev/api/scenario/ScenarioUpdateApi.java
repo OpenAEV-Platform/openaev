@@ -12,8 +12,8 @@ import io.openaev.api.scenario.dto.ScenarioVersionsOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService;
 import io.openaev.service.catalog.scenario.update.CatalogScenarioUpdater;
+import io.openaev.service.catalog.scenario.update.InstalledScenarioService;
 import io.openaev.service.catalog.scenario.update.ScenarioRevisionService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -36,7 +36,7 @@ public class ScenarioUpdateApi {
 
   private final CatalogScenarioUpdater catalogScenarioUpdater;
   private final ScenarioRevisionService scenarioRevisionService;
-  private final CatalogScenarioUpdateService catalogScenarioUpdateService;
+  private final InstalledScenarioService installedScenarioService;
   private final CatalogFeature catalogFeature;
 
   // -- READ --
@@ -64,7 +64,7 @@ public class ScenarioUpdateApi {
       resourceType = ResourceType.SCENARIO)
   public ScenarioVersionsOutput versions(TxCtx ctx, @PathVariable String scenarioId) {
     catalogFeature.require();
-    return ScenarioUpdateMapper.toOutput(catalogScenarioUpdateService.versions(ctx, scenarioId));
+    return ScenarioUpdateMapper.toOutput(installedScenarioService.versions(ctx, scenarioId));
   }
 
   @LogExecutionTime
@@ -72,7 +72,7 @@ public class ScenarioUpdateApi {
       summary = "What updating to a catalogue version changes",
       description =
           "The scenario's own changes stay; a field both changed is a conflict to choose.")
-  @GetMapping(TENANT_SCENARIO_URI + "/{scenarioId}/versions/{version}/update-preview")
+  @GetMapping(TENANT_SCENARIO_URI + "/{scenarioId}/versions/{version}/preview")
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(
       resourceId = "#scenarioId",
@@ -87,7 +87,7 @@ public class ScenarioUpdateApi {
 
   @LogExecutionTime
   @Operation(summary = "What rolling back to a revision changes")
-  @GetMapping(TENANT_SCENARIO_URI + "/{scenarioId}/revisions/{revisionId}/rollback-preview")
+  @GetMapping(TENANT_SCENARIO_URI + "/{scenarioId}/revisions/{revisionId}/preview")
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(
       resourceId = "#scenarioId",
@@ -106,7 +106,7 @@ public class ScenarioUpdateApi {
   @Operation(
       summary = "Update a catalogue scenario to a version",
       description = "Refused while a conflict has no side chosen. Keeps a revision first.")
-  @PostMapping(TENANT_SCENARIO_URI + "/{scenarioId}/versions/{version}/update")
+  @PostMapping(TENANT_SCENARIO_URI + "/{scenarioId}/versions/{version}/updates")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(
@@ -126,7 +126,7 @@ public class ScenarioUpdateApi {
   @Operation(
       summary = "Roll a catalogue scenario back to a revision",
       description = "Refused while a conflict has no side chosen. Keeps a revision first.")
-  @PostMapping(TENANT_SCENARIO_URI + "/{scenarioId}/revisions/{revisionId}/rollback")
+  @PostMapping(TENANT_SCENARIO_URI + "/{scenarioId}/revisions/{revisionId}/rollbacks")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(
