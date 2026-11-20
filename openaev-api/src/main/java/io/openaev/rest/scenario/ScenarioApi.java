@@ -11,8 +11,6 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.api.catalog.CatalogFeature;
-import io.openaev.api.catalog.dto.scenario.ScenarioTargetsInput;
 import io.openaev.api.expectations.ExpectationsDriftService;
 import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
@@ -38,21 +36,17 @@ import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exercise.ExerciseResponseHydrator;
 import io.openaev.rest.exercise.form.LessonsInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
-import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.scenario.form.*;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.autonomous.AutonomousRunService;
-import io.openaev.service.catalog.scenario.targeting.TargetChoice;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.period.RecurrenceService;
-import io.openaev.service.scenario.ScenarioLaunchService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
@@ -110,9 +104,6 @@ public class ScenarioApi extends RestBehavior {
   private final AmbientTenantBridge ambientTenantBridge;
   private final LicenseCacheManager licenseCacheManager;
   private final FaithfulCopyTransaction faithfulCopy;
-  private final ExerciseService exerciseService;
-  private final ScenarioLaunchService scenarioLaunchService;
-  private final CatalogFeature catalogFeature;
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @Transactional
@@ -716,29 +707,6 @@ public class ScenarioApi extends RestBehavior {
       scenario.setLessonsEnabled(input.getLessonsEnabled());
     }
     return hydrateForResponse(scenarioRepository.save(scenario));
-  }
-
-  @PostMapping({
-    SCENARIO_URI + "/{scenarioId}/exercise/running",
-    TENANT_SCENARIO_URI + "/{scenarioId}/exercise/running"
-  })
-  @Transactional
-  @AccessControl(
-      resourceId = "#scenarioId",
-      actionPerformed = Action.LAUNCH,
-      resourceType = ResourceType.SCENARIO)
-  @Operation(summary = "Start a simulation, with targets for it only")
-  public Exercise createRunningExerciseFromScenario(
-      TxCtx ctx,
-      @PathVariable @NotBlank final String scenarioId,
-      @Valid @RequestBody(required = false) final ScenarioTargetsInput targets)
-      throws ChainingException {
-    TargetChoice choice = targets == null ? TargetChoice.NONE : targets.toChoice();
-    if (!choice.isEmpty()) {
-      catalogFeature.require();
-    }
-    String simulationId = scenarioLaunchService.launch(ctx, scenarioId, choice);
-    return ExerciseResponseHydrator.hydrateForResponse(exerciseService.exercise(ctx, simulationId));
   }
 
   @PostMapping({
