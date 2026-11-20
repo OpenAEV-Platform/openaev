@@ -96,6 +96,12 @@ public class PlatformGroupService {
     return groupRepository.findByNameAndTenantIsNull(name);
   }
 
+  /** Every platform group of this name, as the name is not unique. */
+  @Transactional(readOnly = true)
+  public List<Group> findAllByName(@NotBlank final String name) {
+    return groupRepository.findAllByNameAndTenantIsNull(name);
+  }
+
   @Transactional(readOnly = true)
   public Page<Group> search(@NotNull SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(

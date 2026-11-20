@@ -296,6 +296,39 @@ public class UserMappingServiceTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "When removed from the idp group and several tenant groups share the name, revoke them all")
+  public void given_duplicateGroupNames_should_revokeEveryOneWithoutFailingTheLogin() {
+
+    // -- ARRANGE ---
+    String object =
+        "[{\"tenantId\": \"%1$s\",\"idpGroup\": \"observer1\",\"userGroup\": \"twinOAEV\",\"autoCreate\": \"false\"}]"
+            .formatted(TenantContext.getCurrentTenant());
+    Group twin1 = TenantGroupFixture.getGroup("twinOAEV");
+    twin1.setRoles(new ArrayList<>());
+    tenantGroupComposer.forGroup(twin1).persist();
+    Group twin2 = TenantGroupFixture.getGroup("twinOAEV");
+    twin2.setRoles(new ArrayList<>());
+    tenantGroupComposer.forGroup(twin2).persist();
+    entityManager.flush();
+    entityManager.clear();
+    User user = UserFixture.getUser();
+    user.getUnscopedGroups().addAll(List.of(twin1, twin2));
+    userComposer.forUser(user).persist();
+    entityManager.flush();
+    entityManager.clear();
+
+    // ---- ACT ----
+    userMappingService.mapCurrentUserWithGroup(object, user, List.of("another-idp-group"));
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
+
+    // -- ASSERT --
+    assertThat(user.getUnscopedGroups().size()).isEqualTo(0);
+  }
+
+  @Test
   @DisplayName("With a tenant ID the group is a tenant group, without it a platform group")
   public void whenTenantIdIsSet_useTenantGroup_otherwisePlatformGroup() {
 

@@ -153,11 +153,17 @@ public class UserMappingService {
         .orElse(false);
   }
 
-  /** The user left the group in the identity provider. */
+  /** The user left the group in the identity provider: every group of that name is left. */
   private boolean revokeGroup(User user, String userGroup, Tenant tenant) {
-    return findGroup(userGroup, tenant)
-        .map(g -> userGroupMembershipService.removeMembership(user.getId(), g.getId()))
-        .orElse(false);
+    List<Group> groups =
+        tenant == null
+            ? platformGroupService.findAllByName(userGroup)
+            : tenantGroupService.findByTenantIdAndName(tenant.getId(), userGroup);
+    boolean changed = false;
+    for (Group group : groups) {
+      changed |= userGroupMembershipService.removeMembership(user.getId(), group.getId());
+    }
+    return changed;
   }
 
   /** A mapping with a tenant targets a group of that tenant, otherwise a platform group. */

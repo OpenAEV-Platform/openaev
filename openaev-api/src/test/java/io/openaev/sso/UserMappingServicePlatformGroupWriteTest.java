@@ -41,9 +41,15 @@ class UserMappingServicePlatformGroupWriteTest extends ProductionTablesIntegrati
 
   private String userId;
   private String groupId;
+  private final List<String> twinGroupIds = new java.util.ArrayList<>();
 
   @AfterEach
   void cleanup() {
+    twinGroupIds.forEach(
+        id -> {
+          jdbc.update("DELETE FROM users_groups WHERE group_id = ?", id);
+          jdbc.update("DELETE FROM groups WHERE group_id = ?", id);
+        });
     if (groupId != null) {
       jdbc.update("DELETE FROM users_groups WHERE group_id = ?", groupId);
       jdbc.update("DELETE FROM groups WHERE group_id = ?", groupId);
@@ -86,5 +92,43 @@ class UserMappingServicePlatformGroupWriteTest extends ProductionTablesIntegrati
     assertThat(created.getTenant()).isNull();
     assertThat(created.getName()).isEqualTo(mappingName);
     assertThat(groupRepository.findByIdAndTenantIsNull(groupId)).isPresent();
+  }
+
+  @Test
+  @DisplayName("given_duplicatePlatformGroupNames_should_revokeEveryOneOnIdpRemoval")
+  void given_duplicatePlatformGroupNames_should_revokeEveryOneOnIdpRemoval() {
+    // Arrange: the name is not unique, so the user can hold two platform groups carrying it
+    User user =
+        userRepository.save(
+            UserFixture.getUser(
+                "sso",
+                "platform-twins",
+                "sso-platform-twins-" + UUID.randomUUID() + "@unittests.invalid"));
+    userId = user.getId();
+    String name = "sso-twin-group-" + UUID.randomUUID();
+    for (int i = 0; i < 2; i++) {
+      String id = UUID.randomUUID().toString();
+      twinGroupIds.add(id);
+      jdbc.update(
+          "INSERT INTO groups (group_id, group_name, tenant_id) VALUES (?, ?, NULL)", id, name);
+      jdbc.update("INSERT INTO users_groups (user_id, group_id) VALUES (?, ?)", userId, id);
+    }
+    String mapping =
+        "[{\"idpGroup\": \"idp-group\",\"userGroup\": \"%s\",\"autoCreate\": \"false\"}]"
+            .formatted(name);
+
+    // Act: the idp no longer lists the user in the mapped group
+    tenantScopedTransaction.execute(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> {
+          userMappingService.mapCurrentUserWithGroup(mapping, user, List.of("other-idp-group"));
+          return null;
+        });
+
+    // Assert
+    Integer remaining =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM users_groups WHERE user_id = ?", Integer.class, userId);
+    assertThat(remaining).isZero();
   }
 }
