@@ -58,14 +58,14 @@ const ScenarioConflicts: FunctionComponent<Props> = ({ target, conflicts, choice
           title={changeLabel(conflict, t)}
           theirsLabel={target.theirsLabel}
           mineLabel={t('Yours')}
-          theirs={valueText(conflict.scenario_change_applied)}
-          mine={valueText(conflict.scenario_change_local)}
+          theirs={valueText(conflict, conflict.scenario_change_applied)}
+          mine={valueText(conflict, conflict.scenario_change_local)}
           selected={SIDES[choices[id]]}
           onSelect={side => choose(id, side === 'theirs' ? 'TAKE_APPLIED' : 'KEEP_MINE')}
         />
         {conflict.scenario_change_editable && (
           <div>
-            <Button size="sm" priority={editing ? 'primary' : 'tertiary'} onClick={() => startEdit(conflict)}>
+            <Button size="sm" priority={editing ? 'primary' : 'tertiary'} aria-pressed={editing} onClick={() => startEdit(conflict)}>
               {t('Edit')}
             </Button>
           </div>
@@ -103,7 +103,7 @@ const ScenarioConflicts: FunctionComponent<Props> = ({ target, conflicts, choice
           <Button size="sm" priority="secondary" onClick={() => chooseAll('TAKE_APPLIED')}>{t('Take all')}</Button>
         </div>
       </div>
-      {conflicts.map(conflict => (conflict.scenario_change_field ? fieldConflict(conflict) : removedConflict(conflict)))}
+      {conflicts.map(conflict => (conflict.scenario_change_field_kind ? fieldConflict(conflict) : removedConflict(conflict)))}
     </div>
   );
 };

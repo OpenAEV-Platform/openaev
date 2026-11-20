@@ -45,7 +45,7 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
   const startEdit = (conflict: ScenarioChangeOutput) => {
     choose(conflict.scenario_change_id, 'EDIT');
     setEdits(previous => ({
-      [conflict.scenario_change_id]: valueText(conflict.scenario_change_local),
+      [conflict.scenario_change_id]: valueText(conflict, conflict.scenario_change_local),
       ...previous,
     }));
   };
@@ -64,6 +64,8 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
         MESSAGING$.notifySuccess(target.appliedMessage);
         onApplied();
       })
+      // The call already shows why it was refused; the dialog stays open to try again.
+      .catch(() => undefined)
       .finally(() => setApplying(false));
   };
 

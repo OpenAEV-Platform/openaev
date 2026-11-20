@@ -103,7 +103,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
         <Alert severity="info" title={t('Your targets, teams, schedule and tags stay as they are.')} />
         {preview.scenario_update_revoked_payloads.length > 0 && (
           <Alert
-            severity="warning"
+            severity={target.revokedSeverity}
             title={t('Runs a revoked payload version: its injects will fail')}
             description={payloadNames(preview.scenario_update_revoked_payloads)}
           />
@@ -159,8 +159,8 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
             <Text variant="title-xs">{target.keptTitle}</Text>
             <ChangeDiff
               rows={kept.map(change => changeDiffRow(change, change.scenario_change_base, change.scenario_change_local, t))}
-              beforeLabel={t('Installed version')}
-              afterLabel={t('Your edit')}
+              beforeLabel={t('Before · Filigran v{version}', { version: target.installedVersion })}
+              afterLabel={t('After · your edit')}
             />
           </div>
         )}
