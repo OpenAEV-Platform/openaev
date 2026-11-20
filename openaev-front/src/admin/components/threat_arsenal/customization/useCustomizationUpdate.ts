@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { updateThreatArsenalCustomization } from '../../../../actions/threat_arsenals/threatArsenal-customization-actions';
+import { updateThreatArsenalCustomization } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import { type ConflictSide } from '../../../../components/common/update/ConflictChoice';
 import {
   type PayloadCustomizationUpdateInput,
