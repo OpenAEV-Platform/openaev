@@ -71,7 +71,7 @@ class GraphFeatureGateTest extends IntegrationTest {
     mvc.perform(
             post(LOCAL_ASSETS, DEFAULT_TENANT_UUID)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"keys\":[\"srv-01\"]}")
+                .content("{\"counterpart_keys\":[\"srv-01\"]}")
                 .with(csrf()))
         .andExpect(status().isNotFound());
   }
