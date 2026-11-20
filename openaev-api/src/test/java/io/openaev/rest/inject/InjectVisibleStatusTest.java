@@ -55,6 +55,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import javax.sql.DataSource;
 import org.hibernate.SessionFactory;
@@ -87,6 +88,7 @@ class InjectVisibleStatusTest extends IntegrationTest {
 
   private static final String ATOMIC_TESTING_SEARCH_URI = ATOMIC_TESTING_URI + "/search";
   private static final String INJECT_STATUS_URI = INJECT_URI + "/status";
+  private static final int STATEMENT_COUNT_RUNS = 3;
 
   @Autowired private MockMvc mvc;
   @Autowired private DataSource dataSource;
@@ -378,6 +380,31 @@ class InjectVisibleStatusTest extends IntegrationTest {
       assertThat(statusInList(injects, inject)).isEqualTo("PARTIAL");
       assertThat(JsonPath.<String>read(single, "$.inject_status.status_name")).isEqualTo("PARTIAL");
     }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSESSMENT})
+    @DisplayName("given NOT_VISIBLE set by hand, should refuse it and keep the stored status")
+    void given_notVisibleSetByHand_should_refuseIt() throws Exception {
+      // Arrange
+      ExerciseComposer.Composer simulation = simulation();
+      Inject inject = partialInjectOnRedAndGreen(simulation);
+
+      // Act
+      mvc.perform(
+              post(simulationInjectsUri(simulation.get()) + "/" + inject.getId() + "/status")
+                  .content(asJsonString(Map.of("status", "NOT_VISIBLE")))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // Assert
+          .andExpect(status().isBadRequest());
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT status_name FROM injects_statuses WHERE status_inject = ?",
+                  String.class,
+                  inject.getId()))
+          .isEqualTo("PARTIAL");
+    }
   }
 
   @Nested
@@ -582,13 +609,21 @@ class InjectVisibleStatusTest extends IntegrationTest {
     return statuses.getFirst();
   }
 
+  /**
+   * The fewest statements {@code call} prepares over a few runs: the statistics count every thread
+   * of the session factory, so a query of a background job can land in one run, never in all.
+   */
   private long statementsOf(Supplier<String> call) {
     Statistics stats =
         entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
     stats.setStatisticsEnabled(true);
-    stats.clear();
-    call.get();
-    return stats.getPrepareStatementCount();
+    long fewest = Long.MAX_VALUE;
+    for (int run = 0; run < STATEMENT_COUNT_RUNS; run++) {
+      stats.clear();
+      call.get();
+      fewest = Math.min(fewest, stats.getPrepareStatementCount());
+    }
+    return fewest;
   }
 
   /** Grants markings to the group the user belongs to, and drops the cached clearance. */

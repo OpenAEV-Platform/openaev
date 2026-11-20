@@ -101,7 +101,7 @@ const injectStatusTooltipMap: Record<string, string> = {
   QUEUING: 'The inject is queued and waiting to be dispatched. Execution will begin based on scheduling order.',
   EXECUTING: 'The inject is currently being executed across target.',
   PENDING: 'The inject has been scheduled but execution has not started yet. The platform is waiting for the execution window or for agent availability before dispatching.',
-  NOT_VISIBLE: 'Your marking clearance does not cover any target of this inject, so its result is not shown.',
+  NOT_VISIBLE: 'No target of this inject is visible to you: your marking clearance does not cover them, or they were deleted.',
 };
 
 export const getInjectStatusTooltip = (status: string): string => {

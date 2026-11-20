@@ -84,7 +84,12 @@ public interface ExecutionTraceRepository
    * Deletes one bounded batch of execution traces older than the given threshold. Batched so the
    * retention job never holds a long transaction or large lock set on this hot-write table.
    *
-   * @param threshold traces created strictly before this instant are deleted
+   * <p>COMPLETE traces are kept: one per agent, they are the evidence the status of an inject is
+   * computed from, and the status a reader sees reads a missing one as an agent their clearance
+   * hides ({@code InjectStatusUtils.visibleStatus}).
+   *
+   * @param threshold traces created strictly before this instant are deleted, COMPLETE ones
+   *     excepted
    * @param batchSize maximum number of traces deleted in this batch
    * @return the number of deleted traces
    */
@@ -94,7 +99,8 @@ public interface ExecutionTraceRepository
       value =
           "DELETE FROM execution_traces WHERE execution_trace_id IN ("
               + "SELECT execution_trace_id FROM execution_traces "
-              + "WHERE execution_created_at < :threshold LIMIT :batchSize)",
+              + "WHERE execution_created_at < :threshold AND execution_action <> 'COMPLETE'"
+              + " LIMIT :batchSize)",
       nativeQuery = true)
   int deleteBatchOlderThan(
       @Param("threshold") Instant threshold, @Param("batchSize") int batchSize);

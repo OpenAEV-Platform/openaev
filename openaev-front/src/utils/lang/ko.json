@@ -14,7 +14,7 @@
   "Filigran license": "Filigran 라이선스",
   "Filigran license (through XTM One)": "Filigran 라이선스 (XTM One 경유)",
   "Not visible": "표시 안 됨",
-  "Your marking clearance does not cover any target of this inject, so its result is not shown.": "마킹 권한이 이 인젝트의 어떤 대상도 포함하지 않으므로 결과가 표시되지 않습니다.",
+  "No target of this inject is visible to you: your marking clearance does not cover them, or they were deleted.": "이 인젝트의 대상 중 볼 수 있는 대상이 없습니다. 마킹 권한이 해당 대상을 포함하지 않거나 대상이 삭제되었습니다.",
   "{count} actions installed": "{count}개 작업 설치됨",
   "{name} v{version} installed": "{name} v{version} 설치됨",
   "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.": "“예, 항상”을 선택하면 설정이 저장됩니다. 그러면 해당 도구는 사용자가 취소할 때까지 — 아무도 지켜보지 않는 예약된 실행을 포함하여 — 별도의 확인 없이 실행됩니다.",

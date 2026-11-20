@@ -24,6 +24,7 @@ import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectAuthorisationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
@@ -98,14 +99,21 @@ public class InjectStatusService {
     return this.injectStatusRepository.findByInjectId(injectId);
   }
 
+  /**
+   * @throws BadRequestException for {@link ExecutionStatus#NOT_VISIBLE}, a value shown to a reader
+   *     and never stored
+   */
   @Transactional(rollbackFor = Exception.class)
   public Inject updateInjectStatus(String injectId, InjectUpdateStatusInput input) {
+    ExecutionStatus newStatus = ExecutionStatus.fromName(input.getStatus());
+    if (newStatus == ExecutionStatus.NOT_VISIBLE) {
+      throw new BadRequestException("NOT_VISIBLE is not a status an inject can be set to");
+    }
     Inject inject = injectRepository.findById(injectId).orElseThrow();
     ExecutionStatus previousStatus = inject.getStatus().map(InjectStatus::getName).orElse(null);
     // build status
     InjectStatus injectStatus = new InjectStatus();
     injectStatus.setInject(inject);
-    ExecutionStatus newStatus = ExecutionStatus.fromName(input.getStatus());
     injectStatus.setName(newStatus);
     // Save status for inject
     inject.setStatus(injectStatus);

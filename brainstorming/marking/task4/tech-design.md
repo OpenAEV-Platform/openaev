@@ -932,8 +932,8 @@ With V = the number of distinct agents whose COMPLETE trace the reader sees:
 No other shortcut returns the stored verdict. A COMPLETE error of the platform can close an inject whose stored
 verdict also counts hidden agents (an injector reporting with no agent while hidden agents already completed: a
 hidden EXECUTED plus the platform's ERROR is stored PARTIAL), so it is recomputed with the rest (row 5). V > E means
-an agent reported without being dispatched (the callback does not check it), so the count no longer proves that
-none is hidden: row 5 too, not row 3.
+an agent reported without being dispatched (the callback accepts an agent whose asset is a target, dispatched or
+not), so the count no longer proves that none is hidden: row 5 too, not row 3.
 
 Examples, RED admin and AMBER reader:
 
@@ -946,6 +946,33 @@ Examples, RED admin and AMBER reader:
 | RED succeeds, then the platform closes with an error | PARTIAL | PARTIAL (row 3) | ERROR (row 5) |
 
 `NOT_VISIBLE` is a display value: it is never stored, `status_name` keeps the system verdict.
+
+**Deleted traces.** The rule reads a missing COMPLETE trace as hidden. Two paths delete them, for every reader:
+
+- **Agent deletion**: `execution_traces.execution_agent_id` is `ON DELETE CASCADE`. An agent goes with its endpoint
+  or its executor (cascade), when it leaves its endpoint (`orphanRemoval`), or in the Caldera stale-agent cleanup.
+- **Retention** (`ExecutionTraceRetentionJob`, off by default): it deleted every trace older than N days, so every
+  old inject showed `NOT_VISIBLE` to everyone. It now keeps the COMPLETE traces, one per agent (about one trace in
+  six): the evidence the status is computed from. The START / EXECUTION traces and their outputs still go.
+
+After an agent deletion E is unchanged, so every reader, the admin included, sees the status computed from the
+remaining targets (row 5), or `NOT_VISIBLE` when none remains. It matches the target list, where a deleted endpoint
+no longer shows. The stored verdict keeps the full outcome for the system, the dashboards and the index.
+`NOT_VISIBLE`'s tooltip names both causes: the reader's clearance, or deleted targets.
+
+| Inject, then | Stored | Admin | AMBER |
+|---|---|---|---|
+| GREEN fails, RED succeeds; the GREEN endpoint is deleted | PARTIAL | EXECUTED (row 5) | `NOT_VISIBLE` (row 4) |
+| One RED agent succeeds; its endpoint is deleted | EXECUTED | `NOT_VISIBLE` (row 4) | `NOT_VISIBLE` (row 4) |
+
+Rejected:
+
+- **Lower E when an agent is deleted** (a trigger on `agents`): the admin keeps the stored verdict, but a reader for
+  whom the deleted agent was the only hidden one gets it too, with that agent's outcome; a single RED agent deleted
+  drops E to 0, and row 2 then shows the stored verdict to everyone.
+- **Lower E and keep the deleted agent's markings on the status**, checked against the reader's clearance: exact,
+  but a column, two triggers (the endpoint's markings are gone by the time its agents cascade) and a clearance
+  check in the four mappers and the batched query, for a history whose target no longer exists.
 
 **Before Chunk 4**: an agent-less COMPLETE trace naming a RED asset (agentless injector) is still visible. It
 is counted in row 5 like the others, and E is 0 for those injects (row 2), so it does not change the result.

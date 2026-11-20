@@ -14,7 +14,7 @@
   "Filigran license": "Filigran license",
   "Filigran license (through XTM One)": "Filigran license (through XTM One)",
   "Not visible": "Not visible",
-  "Your marking clearance does not cover any target of this inject, so its result is not shown.": "Your marking clearance does not cover any target of this inject, so its result is not shown.",
+  "No target of this inject is visible to you: your marking clearance does not cover them, or they were deleted.": "No target of this inject is visible to you: your marking clearance does not cover them, or they were deleted.",
   "{count} actions installed": "{count} actions installed",
   "{name} v{version} installed": "{name} v{version} installed",
   "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.": "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.",

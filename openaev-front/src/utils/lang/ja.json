@@ -14,7 +14,7 @@
   "Filigran license": "Filigran ライセンス",
   "Filigran license (through XTM One)": "Filigran ライセンス (XTM One 経由)",
   "Not visible": "表示不可",
-  "Your marking clearance does not cover any target of this inject, so its result is not shown.": "マーキングのクリアランスがこのインジェクトのどのターゲットもカバーしていないため、結果は表示されません。",
+  "No target of this inject is visible to you: your marking clearance does not cover them, or they were deleted.": "このインジェクトのターゲットはどれも表示できません。マーキングのクリアランスがそれらをカバーしていないか、削除されています。",
   "{count} actions installed": "{count} 件のアクションをインストールしました",
   "{name} v{version} installed": "{name} v{version} をインストールしました",
   "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.": "「はい、常に」を選択すると、設定が保存されます。その後、このツールは、あなたが許可を取り消すまで、確認のメッセージを表示することなく実行されます。これは、誰も監視していないスケジュールされた実行の場合も同様です。",
