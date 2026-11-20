@@ -22,6 +22,8 @@ import com.opencsv.bean.StatefulBeanToCsv;
 import com.opencsv.bean.StatefulBeanToCsvBuilder;
 import com.opencsv.exceptions.CsvDataTypeMismatchException;
 import com.opencsv.exceptions.CsvRequiredFieldEmptyException;
+import io.openaev.api.marking_definition.MarkingDefinitionMapper;
+import io.openaev.api.marking_definition.dto.MarkingDefinitionCsvRow;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -40,6 +42,10 @@ import io.openaev.rest.mapper.form.*;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.rest.tag.form.TagExportImport;
+import io.openaev.service.import_report.ImportResult;
+import io.openaev.service.marking_definition.MarkingCsvParser;
+import io.openaev.service.marking_definition.MarkingDefinitionService;
+import io.openaev.service.marking_definition.MarkingRow;
 import io.openaev.service.utils.CustomColumnPositionStrategy;
 import io.openaev.utils.CopyObjectListUtils;
 import io.openaev.utils.CsvType;
@@ -53,6 +59,7 @@ import jakarta.validation.constraints.NotNull;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -78,6 +85,7 @@ public class MapperService {
   private final EndpointService endpointService;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final UserService userService;
+  private final MarkingDefinitionService markingDefinitionService;
 
   private final TagService tagService;
   private final ObjectMapper objectMapper;
@@ -354,18 +362,27 @@ public class MapperService {
   /**
    * Export CSV with options and return the file
    *
+   * @param ctx scope of the request, for the exports that are limited to one tenant
    * @param csvType used to know which entity list we want to export
    * @param input used to know which filter we want to apply to get the entity list to export
    * @param response used to return the file
    */
   public void exportMappersCsv(
-      CsvType csvType, SearchPaginationInput input, HttpServletResponse response) {
-    CsvExportConfig<?> exportConfig = resolveCsvExportConfig(csvType);
+      TxCtx ctx, CsvType csvType, SearchPaginationInput input, HttpServletResponse response) {
+    CsvExportConfig<?> exportConfig = resolveCsvExportConfig(ctx, csvType);
     exportMappersCsv(exportConfig, input, response);
   }
 
-  private CsvExportConfig<?> resolveCsvExportConfig(CsvType csvType) {
+  private CsvExportConfig<?> resolveCsvExportConfig(TxCtx ctx, CsvType csvType) {
     return switch (csvType) {
+      case MARKING_DEFINITIONS -> {
+        // Resolved here, outside the wrapper of the export: an ambiguous scope is a 400.
+        String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+        yield new CsvExportConfig<>(
+            "MarkingDefinitions",
+            MarkingDefinitionCsvRow.class,
+            input -> getMarkingDefinitionsToExport(tenantId, input));
+      }
       case ENDPOINTS ->
           new CsvExportConfig<>(
               "Endpoints", EndpointExportImport.class, this::getEndpointsToExport);
@@ -453,6 +470,13 @@ public class MapperService {
       exports.add(endpointExport);
     }
     return exports;
+  }
+
+  private List<MarkingDefinitionCsvRow> getMarkingDefinitionsToExport(
+      String tenantId, SearchPaginationInput input) {
+    return markingDefinitionService.exportAll(tenantId, input).stream()
+        .map(MarkingDefinitionMapper::toCsvRow)
+        .toList();
   }
 
   private List<InjectorContractExport> getInjectorContractsToExport(SearchPaginationInput input) {
@@ -568,9 +592,16 @@ public class MapperService {
    *
    * @param file file to import
    * @param csvType entity to know which columns format we use for the import
+   * @return what became of every row for the imports that report it, {@code null} for the others
    * @throws Exception exception if problem during the import
    */
-  public void importMappersCsv(TxCtx ctx, MultipartFile file, CsvType csvType) throws Exception {
+  public ImportResult importMappersCsv(TxCtx ctx, MultipartFile file, CsvType csvType)
+      throws Exception {
+    // Read by column name and row by row, not by position into a bean that fails on the first bad
+    // row, and a file-level refusal must reach the client as it is: no temp file, no wrapping.
+    if (csvType == CsvType.MARKING_DEFINITIONS) {
+      return importMarkingDefinitionsCsv(ctx, file);
+    }
     File tempFile = createTempFile("openaev-import-" + now().getEpochSecond(), ".csv");
     FileUtils.copyInputStreamToFile(file.getInputStream(), tempFile);
 
@@ -602,6 +633,18 @@ public class MapperService {
     } finally {
       tempFile.delete();
     }
+    return null;
+  }
+
+  private ImportResult importMarkingDefinitionsCsv(TxCtx ctx, MultipartFile file) {
+    List<MarkingRow> rows;
+    try (InputStream content = file.getInputStream()) {
+      rows = MarkingCsvParser.parse(content);
+    } catch (IOException e) {
+      throw new BadRequestException("The file could not be read");
+    }
+    return markingDefinitionService.importAll(
+        writeScopeResolver.tenantForWrite(ctx, null), userService.currentUser().getId(), rows);
   }
 
   private void importEndpointsCsv(

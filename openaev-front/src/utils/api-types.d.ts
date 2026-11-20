@@ -6911,6 +6911,26 @@ export interface ImportPostSummary {
   import_id: string;
 }
 
+export interface ImportReport {
+  import_columns: string[];
+  /** @format int32 */
+  import_created: number;
+  /** @format int32 */
+  import_ignored: number;
+  import_rows: ImportReportRow[];
+  /** @format int32 */
+  import_skipped: number;
+}
+
+export interface ImportReportRow {
+  import_row_params: Record<string, string>;
+  /** @format int32 */
+  import_row_position: number;
+  import_row_reason?: string;
+  import_row_status: "CREATED" | "SKIPPED" | "IGNORED";
+  import_row_values: Record<string, string>;
+}
+
 export interface ImportResult {
   missingActions?: MissingImportedAction[];
 }

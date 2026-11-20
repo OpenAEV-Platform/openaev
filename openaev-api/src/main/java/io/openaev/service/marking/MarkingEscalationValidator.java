@@ -3,6 +3,7 @@ package io.openaev.service.marking;
 import io.openaev.context.MarkingCtx;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.rest.exception.ForbiddenException;
+import io.openaev.rest.exception.MarkingAboveClearanceException;
 import java.util.Collection;
 import java.util.List;
 import java.util.OptionalInt;
@@ -64,17 +65,31 @@ public final class MarkingEscalationValidator {
    * @param held the definitions the caller's clearance covers in the tenant being written to
    * @param type the type of the definition being placed
    * @param order the order it is being placed at
-   * @throws ForbiddenException when the order is above the caller's clearance on the type
+   * @throws MarkingAboveClearanceException when the order is above the caller's clearance on the
+   *     type
    */
   public static void assertCanDefineMarking(
       Collection<MarkingDefinition> held, String type, int order) {
-    OptionalInt highestHeld =
-        held.stream()
-            .filter(definition -> type.equals(definition.getType()))
-            .mapToInt(MarkingDefinition::getOrder)
-            .max();
-    if (highestHeld.isEmpty() || order > highestHeld.getAsInt()) {
-      throw new ForbiddenException("Cannot define a marking above your own clearance");
+    if (!isWithinClearance(held, type, order)) {
+      throw new MarkingAboveClearanceException();
     }
+  }
+
+  /**
+   * The rule of {@link #assertCanDefineMarking} without the exception, for a caller that reports a
+   * refusal instead of failing: the order is at or below the highest order the caller holds on the
+   * type, and a caller holding none of the type is above it.
+   */
+  public static boolean isWithinClearance(
+      Collection<MarkingDefinition> held, String type, int order) {
+    return highestHeldOrder(held, type).stream().anyMatch(highest -> order <= highest);
+  }
+
+  /** The highest order held on the type, empty when none of it is held. */
+  public static OptionalInt highestHeldOrder(Collection<MarkingDefinition> held, String type) {
+    return held.stream()
+        .filter(definition -> type.equals(definition.getType()))
+        .mapToInt(MarkingDefinition::getOrder)
+        .max();
   }
 }

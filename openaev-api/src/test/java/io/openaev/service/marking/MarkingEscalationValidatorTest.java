@@ -2,18 +2,25 @@ package io.openaev.service.marking;
 
 import static io.openaev.service.marking.MarkingEscalationValidator.assertCanAssignMarkings;
 import static io.openaev.service.marking.MarkingEscalationValidator.assertCanDefineMarking;
+import static io.openaev.service.marking.MarkingEscalationValidator.highestHeldOrder;
+import static io.openaev.service.marking.MarkingEscalationValidator.isWithinClearance;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.context.MarkingCtx;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.rest.exception.ForbiddenException;
+import io.openaev.rest.exception.MarkingAboveClearanceException;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /**
  * The clearance-escalation guard (design Q7).
@@ -150,7 +157,7 @@ class MarkingEscalationValidatorTest {
               () -> assertCanDefineMarking(heldUpToAmber, MarkingDefinition.TYPE_TLP, 4));
 
       // -- ASSERT --
-      assertTrue(thrown.getMessage().contains("above your own clearance"), thrown.getMessage());
+      assertEquals(MarkingAboveClearanceException.CODE, thrown.getMessage());
     }
 
     @Test
@@ -186,6 +193,55 @@ class MarkingEscalationValidatorTest {
       // -- ACT / ASSERT --
       assertDoesNotThrow(
           () -> assertCanDefineMarking(heldUpToAmber, MarkingDefinition.TYPE_TLP, 0));
+    }
+  }
+
+  @Nested
+  @DisplayName("isWithinClearance: the same rule, answered instead of thrown")
+  class WithinClearance {
+
+    private final List<MarkingDefinition> heldUpToAmber =
+        List.of(
+            createMarkingDefinition(MarkingDefinition.TYPE_TLP, "TLP:GREEN", 2, "#000000"),
+            createMarkingDefinition(MarkingDefinition.TYPE_TLP, "TLP:AMBER", 3, "#000000"));
+
+    @ParameterizedTest(name = "{0} at order {1} is within the clearance: {2}")
+    @CsvSource({"TLP,0,true", "TLP,3,true", "TLP,4,false", "PAP,0,false"})
+    @DisplayName("given a clearance up to TLP:AMBER, should answer as assertCanDefineMarking does")
+    void given_clearanceUpToAmber_should_answerLikeTheAssertion(
+        String type, int order, boolean expected) {
+      // -- ACT --
+      boolean within = isWithinClearance(heldUpToAmber, type, order);
+
+      // -- ASSERT --
+      assertEquals(expected, within);
+      assertEquals(
+          expected,
+          assertDoesNotThrowOrFalse(() -> assertCanDefineMarking(heldUpToAmber, type, order)));
+    }
+
+    @Test
+    @DisplayName("given no clearance, should be above whatever the order")
+    void given_noClearance_should_beAbove() {
+      // -- ACT / ASSERT --
+      assertFalse(isWithinClearance(List.of(), MarkingDefinition.TYPE_TLP, 0));
+    }
+
+    @Test
+    @DisplayName("given a type, should give the highest order held on it, and nothing for another")
+    void given_type_should_giveHighestHeldOrder() {
+      // -- ACT / ASSERT --
+      assertEquals(3, highestHeldOrder(heldUpToAmber, MarkingDefinition.TYPE_TLP).getAsInt());
+      assertTrue(highestHeldOrder(heldUpToAmber, "PAP").isEmpty());
+    }
+
+    private boolean assertDoesNotThrowOrFalse(Runnable assertion) {
+      try {
+        assertion.run();
+        return true;
+      } catch (ForbiddenException e) {
+        return false;
+      }
     }
   }
 }

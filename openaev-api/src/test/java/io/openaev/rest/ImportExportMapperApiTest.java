@@ -13,6 +13,7 @@ import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.EndpointRepository;
+import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.helper.StreamHelper;
 import io.openaev.utils.CsvType;
@@ -22,12 +23,15 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -41,6 +45,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private TagRepository tagRepository;
+  @Autowired private MarkingDefinitionRepository markingDefinitionRepository;
   @Autowired private TenantScopedTransaction tenantTx;
 
   private <T> T inDefaultTenant(Supplier<T> work) {
@@ -157,5 +162,53 @@ public class ImportExportMapperApiTest extends IntegrationTest {
         .andReturn()
         .getResponse()
         .getContentAsString();
+  }
+
+  @DisplayName("A csv type with its own API is refused on the mapper endpoints")
+  @ParameterizedTest(name = "export of {0}")
+  @EnumSource(
+      value = CsvType.class,
+      names = {"MARKING_DEFINITIONS"})
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void given_aTypeWithItsOwnApi_should_refuseTheMapperExport(CsvType csvType) throws Exception {
+    // -- EXECUTE / ASSERT --
+    this.mvc
+        .perform(
+            MockMvcRequestBuilders.post("/api/mappers/export/csv?csvType=" + csvType)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(new SearchPaginationInput()))
+                .with(csrf()))
+        .andExpect(status().isBadRequest());
+  }
+
+  @DisplayName("A marking definitions file is refused on the mapper import, nothing is created")
+  @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void given_markingDefinitionsFile_should_refuseTheMapperImportAndCreateNothing()
+      throws Exception {
+    // -- PREPARE --
+    MockMultipartFile csvFile =
+        new MockMultipartFile(
+            "file",
+            "markings.csv",
+            "text/csv",
+            "type,definition,color,order\nGUARDTEST,GUARDTEST:A,#123456,1\n"
+                .getBytes(StandardCharsets.UTF_8));
+
+    // -- EXECUTE --
+    this.mvc
+        .perform(
+            MockMvcRequestBuilders.multipart(
+                    "/api/mappers/import/csv?csvType=" + CsvType.MARKING_DEFINITIONS)
+                .file(csvFile)
+                .with(csrf()))
+        .andExpect(status().isBadRequest());
+
+    // -- ASSERT --
+    assertFalse(
+        inDefaultTenant(
+            () ->
+                markingDefinitionRepository.existsByTypeAndDefinitionAndTenantIdExcludingId(
+                    "GUARDTEST", "GUARDTEST:A", Tenant.DEFAULT_TENANT_UUID, null)));
   }
 }

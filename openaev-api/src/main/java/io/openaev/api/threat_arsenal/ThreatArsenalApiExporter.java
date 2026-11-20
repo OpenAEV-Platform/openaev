@@ -41,7 +41,7 @@ public class ThreatArsenalApiExporter {
       TxCtx ctx,
       @RequestBody @Valid final SearchPaginationInput input,
       HttpServletResponse response) {
-    mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response);
+    mapperService.exportMappersCsv(ctx, CsvType.INJECTOR_CONTRACTS, input, response);
   }
 
   @Operation(
