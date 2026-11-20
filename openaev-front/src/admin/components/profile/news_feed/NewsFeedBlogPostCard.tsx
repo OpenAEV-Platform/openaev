@@ -54,8 +54,14 @@ const NewsFeedBlogPostCard = ({ item }: Props) => {
     <Card
       padding={0}
       gap={0}
-      // clips the image to the rounded corners of the card
-      style={{ overflow: 'hidden' }}
+      // overflow clips the image to the rounded corners of the card; the column fills the grid cell so that the
+      // footer sticks to the bottom of every card of a row
+      style={{
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+      }}
       // The article is on the Filigran blog: it opens in a new tab, never in the platform.
       onClick={href ? () => window.open(href, '_blank', 'noopener,noreferrer') : undefined}
     >
@@ -78,6 +84,7 @@ const NewsFeedBlogPostCard = ({ item }: Props) => {
         flexDirection: 'column',
         gap: 16,
         padding: 24,
+        flex: 1,
       }}
       >
         <CardHeader>
@@ -119,7 +126,7 @@ const NewsFeedBlogPostCard = ({ item }: Props) => {
           </div>
         </CardHeader>
         {description && <CardContent>{description}</CardContent>}
-        <CardFooter>
+        <CardFooter style={{ marginTop: 'auto' }}>
           <div style={{
             flex: 1,
             minWidth: 0,
