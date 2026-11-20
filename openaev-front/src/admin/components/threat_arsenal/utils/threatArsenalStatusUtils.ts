@@ -45,4 +45,8 @@ export const getActionStatus = (
   payloadStatus = action.action_payload?.payload_status,
 ): PayloadStatus | undefined => (isShownRevoked(action) ? 'REVOKED' : payloadStatus);
 
-export const getPayloadSourceLabel = (action: Pick<ThreatArsenalAction, 'action_payload_managed'>) => (action.action_payload_managed ? 'Filigran' : 'Local');
+// Where the payload comes from: Filigran's catalogue, a copy customized from it, or this platform.
+export const getPayloadSourceLabel = (action: Pick<ThreatArsenalAction, 'action_payload_managed' | 'action_payload_customized'>) => {
+  if (action.action_payload_managed) return 'Filigran';
+  return action.action_payload_customized ? 'Customized' : 'Local';
+};

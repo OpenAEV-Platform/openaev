@@ -6,7 +6,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { type ThreatArsenalAction } from '../../../../utils/api-types';
 import { getPayloadSourceLabel } from '../utils/threatArsenalStatusUtils';
 
-interface Props { action: Pick<ThreatArsenalAction, 'action_payload' | 'action_payload_version' | 'action_payload_managed'> }
+interface Props { action: Pick<ThreatArsenalAction, 'action_payload' | 'action_payload_version' | 'action_payload_managed' | 'action_payload_customized'> }
 
 // What runs and from whom: the payload version and its source.
 const PayloadTrustLine: FunctionComponent<Props> = ({ action }) => {
