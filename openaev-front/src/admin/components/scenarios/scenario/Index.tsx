@@ -20,7 +20,6 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
-import { isFeatureEnabled } from '../../../../utils/utils';
 import AutonomousReasoningPanel from '../../autonomous/AutonomousReasoningPanel';
 import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
@@ -42,7 +41,6 @@ const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
 const ScenarioStatistics = lazy(() => import('./analysis/ScenarioAnalysis'));
 const ScenarioAttackPath = lazy(() => import('./attack_path/ScenarioAttackPath'));
 const ScenarioExecution = lazy(() => import('./execution/ScenarioExecution'));
-const ScenarioHistory = lazy(() => import('./history/ScenarioHistory'));
 
 const IndexScenarioComponent: FunctionComponent<{
   scenario: ScenarioOutput;
@@ -61,7 +59,6 @@ const IndexScenarioComponent: FunctionComponent<{
   // Attack path only exists for workflow-backed (chained) scenarios, never
   // for time-based ones.
   const isChained = !!scenario.scenario_workflow_id;
-  const fromCatalog = isFeatureEnabled('CATALOG') && !!scenario.scenario_version;
   // The AI cockpit (right-hand reasoning panel + read-only Scope/Logic) is live only while a run
   // is ACTIVE. A settled run unlocks Scope/Logic again; the overview itself always stays the
   // normal scenario page with the AI outcome layered on top (see overviewElement).
@@ -135,7 +132,6 @@ const IndexScenarioComponent: FunctionComponent<{
           {buildScenarioTabs({
             isChained,
             lessonsEnabled: scenario.scenario_lessons_enabled,
-            fromCatalog,
             t,
           }).map(([suffix, label]) => {
             const path = `/admin/scenarios/${scenario.scenario_id}${suffix}`;
@@ -220,7 +216,6 @@ const IndexScenarioComponent: FunctionComponent<{
                 <Route path="execution" element={errorWrapper(ScenarioExecution)()} />
                 {/* Scenario-scoped custom dashboard, surfaced as the Statistics tab. */}
                 <Route path="statistics" element={errorWrapper(ScenarioStatistics)()} />
-                {fromCatalog && <Route path="history" element={errorWrapper(ScenarioHistory)()} />}
                 {/* Statistics replaced the hero dashboard quick action and the old
                     Analysis tab; keep redirects for old links. */}
                 <Route path="dashboard" element={<Navigate to={`/admin/scenarios/${scenario.scenario_id}/statistics`} replace />} />
