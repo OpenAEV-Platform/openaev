@@ -6,6 +6,9 @@
 # A production fail-closed read NOT listed here fails the gate: scope the path, or add it here with
 # a reason. Test-caller and fixture reads are auto-waived (not listed).
 #
+# A line may end with " tables=<t1>,<t2>": it then waives a read at its site only when every active
+# table the read names is listed, so a read of another table at the same site fails the gate.
+#
 # Lines starting with # and blank lines are ignored.
 
 # SCOPED-OK - SecurityCoverageJob reads the pending send jobs under TxCtx.allTenants() and loads,
@@ -82,3 +85,26 @@ io.openaev.rest.injector_contract.InjectorContractService.createDependencyForTen
 # that scope is set, by every test that creates a tenant through TenantIsolationTestHelper whatever
 # the test itself is about (DomainApiTest, ChallengeDocumentsBulkLoadTest, ...).
 io.openaev.service.InjectorService.createNewBuiltinInjector
+
+# BENIGN - roles activation (#9147). The token and login loads read the user with no scope: a token
+# request before any transaction (PlainTokenExtractor), and the admin session the tests open
+# (createAdminSession has no production caller). The roles of the user's groups come back without
+# its tenant roles, and the principal these loads build holds the id, the admin flag and the
+# language only: no capability is evaluated from them. The capabilities are read later, by the
+# request's own user load in its scope. Waived for roles only.
+io.openaev.service.UserService.findByToken tables=roles
+io.openaev.service.UserService.createAdminSession tables=roles
+
+# BENIGN - roles activation (#9147). The platform role and platform group endpoints run in the scope
+# of their caller, empty for a platform operator who belongs to no tenant. They read platform roles
+# only: the platform role service reads the rows with no tenant, and the eager roles of a platform
+# group are platform roles (the database refuses a link of a tenant role to a platform group). A
+# platform role is readable with no scope (DualScopeRolesBootTest, PinsUnscopedPlatformRead), so
+# these reads return every row they look for. Pinned by PlatformRoleApiTest and by
+# GroupPrivilegeCheckHiddenRolesTest (ReadablePlatformRoles). Waived for roles only.
+io.openaev.service.platform.groups.PlatformGroupService.findById tables=roles
+io.openaev.service.platform.groups.PlatformGroupService.lambda$search$1 tables=roles
+io.openaev.service.platform.roles.PlatformRoleService.findById tables=roles
+io.openaev.service.platform.roles.PlatformRoleService.findByIds tables=roles
+io.openaev.service.platform.roles.PlatformRoleService.lambda$search$2 tables=roles
+io.openaev.service.platform.roles.PlatformRoleService.delete tables=roles

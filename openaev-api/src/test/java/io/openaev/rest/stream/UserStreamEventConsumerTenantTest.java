@@ -1,15 +1,18 @@
 package io.openaev.rest.stream;
 
 import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
+import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.PlatformWriteJdbc.inPlatformWriteTransaction;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -22,10 +25,9 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.DefaultOpenAEVPrincipal;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.audit.ModelBaseListener;
@@ -73,8 +75,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
@@ -104,7 +104,9 @@ import reactor.core.Disposable;
  *       tenant and no screen reads them from the stream;
  *   <li>{@code user_grants}, {@code user_home_dashboard}: sent to the user they belong to only;
  *   <li>{@code user_groups}, {@code user_capabilities}, {@code user_is_*} but {@code
- *       user_is_player}: derived from the groups of tenant T and the platform groups.
+ *       user_is_player}: derived from the groups of tenant T and the platform groups;
+ *   <li>{@code user_groups}, {@code user_capabilities} and every {@code user_is_*}: left out when
+ *       the write was made in another tenant, so the consumer keeps what it holds.
  * </ul>
  *
  * <p>{@code unscopedGroups}, {@code user_communications} and {@code team_exercises_users} are never
@@ -120,13 +122,7 @@ import reactor.core.Disposable;
 @RecordApplicationEvents
 @WithMockUser(isAdmin = true)
 @DisplayName("A user event carries the links of the consumer's tenant")
-public class UserStreamEventConsumerTenantTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String PLATFORM_USER_URI = "/api/platform-users";
@@ -134,6 +130,7 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
   private static final String CAPABILITY_OF_A = "ACCESS_ASSESSMENT";
   private static final String CAPABILITY_OF_B = "ACCESS_PAYLOADS";
   private static final String CAPABILITY_OF_PLATFORM = "ACCESS_TEAMS_AND_PLAYERS";
+  private static final String CAPABILITY_OF_DEFAULT = "MANAGE_ASSESSMENT";
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
@@ -168,6 +165,7 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
   private String groupA;
   private String groupB;
   private String groupPlatform;
+  private String groupDefault;
   private final List<String> roles = new ArrayList<>();
   private final List<String> grants = new ArrayList<>();
   private final List<String> createdUserIds = new ArrayList<>();
@@ -342,7 +340,7 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     for (String dashboard : present(dashboardA)) {
       deleteWhere("DELETE FROM custom_dashboards WHERE custom_dashboard_id = ?", dashboard);
     }
-    for (String group : present(groupA, groupB, groupPlatform)) {
+    for (String group : present(groupA, groupB, groupPlatform, groupDefault)) {
       deleteWhere("DELETE FROM groups_roles WHERE group_id = ?", group);
       deleteWhere("DELETE FROM groups WHERE group_id = ?", group);
     }
@@ -817,6 +815,25 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     soft(() -> hardAssertFlags(consumer, planner, observer));
   }
 
+  /**
+   * The fields derived from the groups and their roles, left out when written in another tenant.
+   */
+  private static final List<String> GROUP_DERIVED_FIELDS =
+      List.of(
+          "user_groups",
+          "user_capabilities",
+          "user_is_planner",
+          "user_is_observer",
+          "user_is_manager",
+          "user_is_player",
+          "user_is_external",
+          "user_is_only_player",
+          "user_is_admin_or_bypass");
+
+  private void assertGroupDerivedFieldsLeftOut(Consumer consumer) {
+    GROUP_DERIVED_FIELDS.forEach(field -> assertLeftOut(consumer, field));
+  }
+
   /** {@code user_is_player} as the consumer received it: absent when {@code expected} is null. */
   private void assertIsPlayer(Consumer consumer, Boolean expected) {
     soft(() -> hardAssertIsPlayer(consumer, expected));
@@ -1119,14 +1136,16 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
       assertGrants(self, Map.of(simulationA, "PLANNER", simulationB, "OBSERVER"));
       assertGrants(selfInB, Map.of(simulationB, "OBSERVER"));
       assertFlags(self, true, true);
-      assertFlags(selfInB, false, true);
+      assertGroupDerivedFieldsLeftOut(selfInB);
       assertValue(self, "user_home_dashboard", dashboardA);
       assertValue(selfInB, "user_home_dashboard", dashboardA);
       for (Consumer consumer : List.of(other, ofB, ofDefault)) {
         assertLeftOut(consumer, "user_grants");
         assertLeftOut(consumer, "user_home_dashboard");
-        assertFlags(consumer, consumer == other, true);
       }
+      assertFlags(other, true, true);
+      assertGroupDerivedFieldsLeftOut(ofB);
+      assertGroupDerivedFieldsLeftOut(ofDefault);
     }
 
     @Test
@@ -1145,11 +1164,10 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
         assertLeftOut(consumer, "user_teams");
         assertLeftOut(consumer, "user_tags");
         assertLeftOut(consumer, "user_organization");
-        assertIds(consumer, "user_groups", List.of(groupB, groupPlatform));
-        assertCapabilities(consumer, CAPABILITY_OF_B, CAPABILITY_OF_PLATFORM);
+        assertGroupDerivedFieldsLeftOut(consumer);
       }
-      assertNoIdOutsideTheScope(other, groupB, groupPlatform);
-      assertNoIdOutsideTheScope(self, groupB, groupPlatform, simulationB, dashboardA);
+      assertNoIdOutsideTheScope(other);
+      assertNoIdOutsideTheScope(self, simulationB, dashboardA);
     }
 
     @Test
@@ -1167,9 +1185,8 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
       assertLeftOut(ofDefault, "user_teams");
       assertLeftOut(ofDefault, "user_tags");
       assertLeftOut(ofDefault, "user_organization");
-      assertIds(ofDefault, "user_groups", List.of(groupPlatform));
-      assertCapabilities(ofDefault, CAPABILITY_OF_PLATFORM);
-      assertNoIdOutsideTheScope(ofDefault, groupPlatform);
+      assertGroupDerivedFieldsLeftOut(ofDefault);
+      assertNoIdOutsideTheScope(ofDefault);
     }
 
     @Test
@@ -1191,14 +1208,14 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
       // -- ASSERT --
       for (Consumer consumer : List.of(ofA, ofB, ofDefault)) {
         assertDelivered(consumer, teamMember, events, "user_firstname", NEW_NAME);
-        assertFlags(consumer, false, false);
       }
+      assertFlags(ofA, false, false);
       assertIds(ofA, "user_teams", List.of(teamA));
       assertIsPlayer(ofA, true);
       assertLeftOut(ofB, "user_teams");
-      assertIsPlayer(ofB, null);
+      assertGroupDerivedFieldsLeftOut(ofB);
       assertLeftOut(ofDefault, "user_teams");
-      assertIsPlayer(ofDefault, null);
+      assertGroupDerivedFieldsLeftOut(ofDefault);
     }
 
     @Test
@@ -1217,12 +1234,12 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
       // -- ASSERT --
       for (Consumer consumer : List.of(ofA, ofB)) {
         assertDelivered(consumer, teamMemberOfB, events, "user_firstname", NEW_NAME);
-        assertFlags(consumer, false, false);
       }
+      assertFlags(ofA, false, false);
       assertIds(ofA, "user_teams", List.of());
       assertIsPlayer(ofA, false);
       assertLeftOut(ofB, "user_teams");
-      assertIsPlayer(ofB, null);
+      assertGroupDerivedFieldsLeftOut(ofB);
     }
 
     @Test
@@ -1445,8 +1462,9 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("A user with no role is a player for the tenant that holds a team of it only")
-    void given_platformUpdateOfARoleFreeUser_should_sendIsPlayerPerConsumerTenant()
+    @DisplayName(
+        "A user with no role updated from the platform: the consumers of the default tenant receive user_is_player, the others keep the value they hold")
+    void given_platformUpdateOfARoleFreeUser_should_sendIsPlayerToTheConsumersOfTheDefaultTenant()
         throws Exception {
       // -- PREPARE --
       User teamMember = roleFreeUserInTeams(List.of(Tenant.DEFAULT_TENANT_UUID, tenantA), teamA);
@@ -1462,12 +1480,185 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
       assertEquals(Tenant.DEFAULT_TENANT_UUID, events.getFirst().getTenantId());
       for (Consumer consumer : List.of(ofA, ofDefault)) {
         assertDelivered(consumer, teamMember, events, "user_firstname", NEW_NAME);
-        assertFlags(consumer, false, false);
       }
+      assertFlags(ofDefault, false, false);
       assertIds(ofDefault, "user_teams", List.of());
       assertIsPlayer(ofDefault, false);
       assertIds(ofA, "user_teams", List.of(teamA));
-      assertIsPlayer(ofA, true);
+      assertGroupDerivedFieldsLeftOut(ofA);
+    }
+  }
+
+  @Nested
+  @DisplayName("User updated from the platform with the scope of tenant A selected by the header")
+  class UpdatedFromThePlatformInA {
+
+    private static final String NEW_NAME = "Written-by-the-platform-in-a";
+
+    private List<BaseEvent> updateFromThePlatformScopedToA() throws Exception {
+      UserInput input =
+          new UserInput(
+              player.getEmail(),
+              NEW_NAME,
+              "User",
+              null,
+              null,
+              null,
+              null,
+              null,
+              List.of(tagA),
+              false,
+              List.of(Tenant.DEFAULT_TENANT_UUID, tenantA));
+      return writeAndStream(
+          player.getId(),
+          () ->
+              mvc.perform(
+                      json(
+                          put(PLATFORM_USER_URI + "/" + player.getId())
+                              .header(TENANT_HEADER, tenantA),
+                          input))
+                  .andExpect(status().is2xxSuccessful()));
+    }
+
+    @Test
+    @DisplayName(
+        "The event is attributed to A, where the roles were read: the consumers of A receive the groups, capabilities and flags, the consumers of the default tenant receive none of them")
+    void given_platformUpdateScopedToA_should_attributeTheEventToTheTenantTheRolesWereReadIn()
+        throws Exception {
+      // -- PREPARE --
+      Consumer ofA = consumerOfA();
+      Consumer ofDefault = consumerOfDefault();
+
+      // -- EXECUTE --
+      List<BaseEvent> events = updateFromThePlatformScopedToA();
+
+      // -- ASSERT --
+      assertEquals(tenantA, events.getFirst().getTenantId());
+      for (Consumer consumer : List.of(ofA, ofDefault)) {
+        assertDelivered(consumer, events, "user_firstname", NEW_NAME);
+      }
+      assertIds(ofA, "user_groups", List.of(groupA, groupPlatform));
+      assertCapabilities(ofA, CAPABILITY_OF_A, CAPABILITY_OF_PLATFORM);
+      assertFlags(ofA, true, true);
+      assertGroupDerivedFieldsLeftOut(ofDefault);
+    }
+  }
+
+  @Nested
+  @DisplayName("User updated from the platform by an operator who belongs to no tenant")
+  class UpdatedFromThePlatformByAnOperatorOfNoTenant {
+
+    @Test
+    @DisplayName(
+        "The event is attributed to no tenant: the consumers of every tenant receive the user with the groups, capabilities and flags left out")
+    void given_operatorOfNoTenant_should_attributeTheEventToNoTenant() throws Exception {
+      // -- PREPARE --
+      Consumer ofA = consumerOfA();
+      Consumer ofDefault = consumerOfDefault();
+      User operatorRecord = UserFixture.getUserWithDefaultEmail();
+      operatorRecord.setAdmin(true);
+      User operator = userComposer.forUser(operatorRecord).persist().get();
+      createdUserIds.add(operator.getId());
+      UserInput input =
+          new UserInput(
+              player.getEmail(),
+              "Written-by-an-operator-of-no-tenant",
+              "User",
+              null,
+              null,
+              null,
+              null,
+              null,
+              List.of(),
+              false,
+              List.of(Tenant.DEFAULT_TENANT_UUID, tenantA));
+
+      // -- EXECUTE --
+      List<BaseEvent> events =
+          writeAndStream(
+              player.getId(),
+              () -> {
+                mvc.perform(
+                        json(
+                            put(PLATFORM_USER_URI + "/" + player.getId())
+                                .with(authentication(buildAuthenticationToken(operator))),
+                            input))
+                    .andExpect(status().is2xxSuccessful());
+              });
+
+      // -- ASSERT --
+      assertNull(events.getFirst().getTenantId());
+      for (Consumer consumer : List.of(ofA, ofDefault)) {
+        assertDelivered(consumer, events, "user_firstname", "Written-by-an-operator-of-no-tenant");
+        assertGroupDerivedFieldsLeftOut(consumer);
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("User created from the platform with the scope of tenant A selected by the header")
+  class CreatedFromThePlatformInA {
+
+    @Test
+    @DisplayName(
+        "The event is attributed to A, where the roles were read: the consumers of A receive the groups, capabilities and flags, the consumers of the default tenant receive none of them")
+    void given_platformCreationScopedToA_should_attributeTheEventToTheTenantTheRolesWereReadIn()
+        throws Exception {
+      // -- PREPARE --
+      groupDefault = insertGroup(Tenant.DEFAULT_TENANT_UUID, CAPABILITY_OF_DEFAULT);
+      jdbc.update(
+          "UPDATE groups SET group_default_user_assign = true WHERE group_id = ?", groupDefault);
+      jdbc.update("UPDATE groups SET group_default_user_assign = true WHERE group_id = ?", groupA);
+      jdbc.update(
+          "UPDATE groups SET group_default_user_assign = true WHERE group_id = ?", groupPlatform);
+      Consumer ofA = consumerOfA();
+      Consumer ofDefault = consumerOfDefault();
+      String email = "stream-platform-created-" + UUID.randomUUID() + "@filigran.io";
+      UserInput input =
+          new UserInput(
+              email,
+              "Created-by-the-platform-in-a",
+              "User",
+              null,
+              null,
+              null,
+              null,
+              null,
+              List.of(),
+              false,
+              List.of(Tenant.DEFAULT_TENANT_UUID, tenantA));
+
+      // -- EXECUTE --
+      TenantContext.clearCurrentTenant();
+      long publishedBefore = applicationEvents.stream(BaseEvent.class).count();
+      String response =
+          mvc.perform(json(post(PLATFORM_USER_URI).header(TENANT_HEADER, tenantA), input))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String createdId = mapper.readTree(response).path("user_id").asText();
+      createdUserIds.add(createdId);
+      List<BaseEvent> events =
+          applicationEvents.stream(BaseEvent.class)
+              .skip(publishedBefore)
+              .filter(
+                  event ->
+                      event.getInstance() instanceof User user && createdId.equals(user.getId()))
+              .toList();
+      assertFalse(events.isEmpty(), "The creation must have published an event for the user");
+      events.forEach(
+          event -> {
+            TenantContext.clearCurrentTenant();
+            stream.listenDatabaseUpdate(event);
+          });
+
+      // -- ASSERT --
+      assertNothingFailedToStream();
+      assertEquals(tenantA, events.getFirst().getTenantId());
+      assertIds(ofA, "user_groups", List.of(groupA, groupPlatform));
+      assertCapabilities(ofA, CAPABILITY_OF_A, CAPABILITY_OF_PLATFORM);
+      assertGroupDerivedFieldsLeftOut(ofDefault);
     }
   }
 

@@ -10,8 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -35,8 +34,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -51,17 +48,11 @@ import org.springframework.test.web.servlet.MockMvc;
 @WithMockUser(isAdmin = false)
 @DisplayName(
     "Reading an autonomous run by id leaves the run untouched in every tenant of the scope")
-class AutonomousRunScopeAuthorizationTest extends IntegrationTest {
+class AutonomousRunScopeAuthorizationTest extends ProductionTablesIntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
   private static final String RUN_BY_ID_URI = AUTONOMOUS_URI + "/{runId}";
   private static final Set<Capability> SIMULATION_READ = Set.of(Capability.ACCESS_ASSESSMENT);
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbcTemplate;

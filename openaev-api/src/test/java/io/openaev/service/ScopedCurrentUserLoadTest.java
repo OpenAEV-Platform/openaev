@@ -8,9 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.aop.AccessControl;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -40,7 +39,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -59,8 +57,6 @@ import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 import org.springframework.orm.jpa.EntityManagerHolder;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -81,7 +77,7 @@ import org.springframework.web.bind.annotation.RestController;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Import(ScopedCurrentUserLoadTest.CapabilityProbe.class)
 @DisplayName("Current user load with roles active")
-class ScopedCurrentUserLoadTest extends IntegrationTest {
+class ScopedCurrentUserLoadTest extends ProductionTablesIntegrationTest {
 
   private static final String PROBE_PATH = "/test-roles-scoped-load";
   private static final String GUARDED_URI = "/api" + PROBE_PATH + "/guarded";
@@ -95,19 +91,6 @@ class ScopedCurrentUserLoadTest extends IntegrationTest {
 
   /** A capability no guard checks, held through a tenant role only. */
   private static final Capability TENANT_ONLY_CAPABILITY = Capability.ACCESS_ASSESSMENT;
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    // The production list with roles on it, as the activation will have it
-    registry.add(
-        "openaev.tenant.active-tables",
-        () ->
-            String.join(
-                ",",
-                Stream.concat(ProductionActiveTables.names().stream(), Stream.of("roles"))
-                    .distinct()
-                    .toList()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

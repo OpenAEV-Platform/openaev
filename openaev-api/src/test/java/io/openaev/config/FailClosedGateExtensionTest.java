@@ -108,6 +108,86 @@ class FailClosedGateExtensionTest {
   }
 
   /**
+   * A baseline line may name the tables it waives ({@code <signature> tables=<t1>,<t2>}): the read
+   * at that site is waived only when every active table it names is listed. The login and token
+   * loads read {@code roles} with no scope on purpose; a read of another table at the same site is
+   * a different question and stays offending.
+   */
+  @Nested
+  @DisplayName("waivers limited to tables")
+  class TableQualifiedWaivers {
+
+    private static final String TOKEN_LOAD = "io.openaev.service.UserService.findByToken";
+
+    private Violation read(String tables, String caller) {
+      return new Violation(tables, caller, "select ... where can_access_tenant(r.tenant_id, true)");
+    }
+
+    @Test
+    @DisplayName("given_aReadOfTheListedTable_should_beWaived")
+    void given_aReadOfTheListedTable_should_beWaived() {
+      // Act
+      List<String> offending =
+          FailClosedGateExtension.offendingSignatures(List.of(read("roles", TOKEN_LOAD + ":810")));
+
+      // Assert
+      assertTrue(
+          offending.isEmpty(), "a read of roles at the token load is waived, got " + offending);
+    }
+
+    @Test
+    @DisplayName("given_aReadOfAnotherTableAtTheSameSite_should_beOffending")
+    void given_aReadOfAnotherTableAtTheSameSite_should_beOffending() {
+      // Act
+      List<String> offending =
+          FailClosedGateExtension.offendingSignatures(
+              List.of(read("marking_definitions", TOKEN_LOAD + ":810")));
+
+      // Assert
+      assertEquals(List.of(TOKEN_LOAD), offending);
+    }
+
+    @Test
+    @DisplayName("given_aReadOfTheListedTableAndAnother_should_beOffending")
+    void given_aReadOfTheListedTableAndAnother_should_beOffending() {
+      // Act
+      List<String> offending =
+          FailClosedGateExtension.offendingSignatures(
+              List.of(read("roles,marking_definitions", TOKEN_LOAD + ":810")));
+
+      // Assert
+      assertEquals(List.of(TOKEN_LOAD), offending);
+    }
+
+    @Test
+    @DisplayName("given_aReadWithNoTableLabel_should_beOffending")
+    void given_aReadWithNoTableLabel_should_beOffending() {
+      // Act
+      List<String> offending =
+          FailClosedGateExtension.offendingSignatures(
+              List.of(read("(gated)", TOKEN_LOAD + ":810")));
+
+      // Assert
+      assertEquals(List.of(TOKEN_LOAD), offending);
+    }
+
+    @Test
+    @DisplayName("given_aLineWithNoTables_should_waiveEveryTableAtItsSite")
+    void given_aLineWithNoTables_should_waiveEveryTableAtItsSite() {
+      // Act
+      List<String> offending =
+          FailClosedGateExtension.offendingSignatures(
+              List.of(
+                  read(
+                      "marking_definitions",
+                      "io.openaev.rest.collector.service.CollectorService.securityPlatformCollectors:206")));
+
+      // Assert
+      assertTrue(offending.isEmpty(), "a line with no tables waives its site, got " + offending);
+    }
+  }
+
+  /**
    * The gate asserts per test in the normal pipeline and reports instead under a shadow mode. Three
    * directions, because a gate measured in two of them is not measured: the normal path still
    * fails, the shadow path does not fail, and a signature new to the armed mode's own list still

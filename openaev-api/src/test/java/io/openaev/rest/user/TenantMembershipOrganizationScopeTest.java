@@ -12,9 +12,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.users.dto.UserInput;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tenant;
@@ -39,8 +38,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,13 +56,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("Organization of a user on the X-Tenant-Ids route")
-public class TenantMembershipOrganizationScopeTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+public class TenantMembershipOrganizationScopeTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
 

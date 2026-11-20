@@ -596,4 +596,10 @@ class ImportMapperActivationConfigTest {
   void prodConfigActivatesScenarios() throws Exception {
     assertActiveTableEntry("scenarios");
   }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains roles")
+  void prodConfigActivatesRoles() throws Exception {
+    assertActiveTableEntry("roles");
+  }
 }

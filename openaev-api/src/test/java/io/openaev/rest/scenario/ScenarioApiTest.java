@@ -288,7 +288,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Requesting non existing scenario by ID fails gracefully")
   @Test
-  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void failsafeNonExistScenarioId() throws Exception {
     // -- EXECUTE --
     this.mvc

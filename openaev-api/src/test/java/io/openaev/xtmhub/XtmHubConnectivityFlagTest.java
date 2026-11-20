@@ -4,8 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
@@ -27,8 +26,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
@@ -40,13 +37,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @WithMockUser(isAdmin = true)
 @ExtendWith(DefaultTenantExtension.class)
 @DisplayName("XtmHubService connectivity flag with parameters active")
-class XtmHubConnectivityFlagTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class XtmHubConnectivityFlagTest extends ProductionTablesIntegrationTest {
 
   private static final String FLAG = SettingKeys.XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key();
 

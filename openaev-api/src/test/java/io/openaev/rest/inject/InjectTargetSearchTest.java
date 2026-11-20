@@ -12,8 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.utils.FilterUtilsJpa;
@@ -29,21 +28,13 @@ import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @TestInstance(PER_CLASS)
 @DisplayName("Searching inject targets tests")
-public class InjectTargetSearchTest extends IntegrationTest {
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
-
+public class InjectTargetSearchTest extends ProductionTablesIntegrationTest {
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectorContractComposer injectContractComposer;
   @Autowired private PayloadComposer payloadComposer;

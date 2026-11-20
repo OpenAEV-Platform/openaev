@@ -724,6 +724,9 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return 404 when exercise does not exist")
+    @WithMockUser(
+        withCapabilities = {Capability.DELETE_ASSESSMENT, Capability.MANAGE_ASSESSMENT},
+        autoJoinDefaultTenant = true)
     void given_nonExistentExercise_should_returnNotFound() throws Exception {
       // Arrange
       String nonExistentId = UUID.randomUUID().toString();

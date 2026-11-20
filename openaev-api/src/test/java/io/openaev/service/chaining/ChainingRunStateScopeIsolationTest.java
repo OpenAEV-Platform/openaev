@@ -3,9 +3,8 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.StepDelayQueue;
@@ -24,8 +23,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * Isolation of {@code workflow_states} and {@code steps_delay_queue} on their own rows, at the
@@ -45,13 +42,7 @@ import org.springframework.test.context.DynamicPropertySource;
 @CoversTenantIsolation({"workflow_states", "steps_delay_queue"})
 @WithMockUser(isAdmin = true)
 @DisplayName("workflow_states and steps_delay_queue refuse another tenant's row on a run")
-class ChainingRunStateScopeIsolationTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class ChainingRunStateScopeIsolationTest extends ProductionTablesIntegrationTest {
 
   @Autowired private WorkflowStateStore workflowStateStore;
   @Autowired private StepDelayQueueService stepDelayQueueService;
