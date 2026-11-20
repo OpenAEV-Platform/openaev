@@ -52,4 +52,13 @@ export const collapseToHighestPerType = (
     .sort((a, b) => b.marking_definition_order - a.marking_definition_order);
 };
 
+// Most restrictive first within a type (TLP:RED at the top), for the marking pickers.
+export const sortMarkings = (markings: MarkingDefinitionOutput[]): MarkingDefinitionOutput[] =>
+  [...markings].sort((a, b) => {
+    if (a.marking_definition_type !== b.marking_definition_type) {
+      return a.marking_definition_type.localeCompare(b.marking_definition_type);
+    }
+    return b.marking_definition_order - a.marking_definition_order;
+  });
+
 export default markingIdSetsEqual;

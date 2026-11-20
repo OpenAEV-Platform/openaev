@@ -10,6 +10,7 @@ import { fetchAttackPatterns } from '../actions/AttackPattern';
 import { fetchDomains } from '../actions/domains/domain-actions';
 import { type LoggedHelper } from '../actions/helper';
 import { fetchKillChainPhases } from '../actions/KillChainPhase';
+import { fetchMarkingDefinitions } from '../actions/marking_definitions/marking-definition-actions';
 import { fetchTags } from '../actions/tags/tag-action';
 import { errorWrapper } from '../components/Error';
 import Loader from '../components/Loader';
@@ -120,6 +121,7 @@ const Index = () => {
   const chatbotTransition = useChatbotContentTransition(theme);
   const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
   const isCatalogEnabled = isFeatureEnabled('CATALOG');
+  const isMarkingEnabled = isFeatureEnabled('MARKING');
 
   const { currentUserTenant } = useAuth();
 
@@ -147,7 +149,10 @@ const Index = () => {
     dispatch(fetchKillChainPhases());
     dispatch(fetchTags());
     dispatch(fetchDomains());
-  }, [currentUserTenant?.tenant_id]);
+    if (isMarkingEnabled) {
+      dispatch(fetchMarkingDefinitions());
+    }
+  }, [currentUserTenant?.tenant_id, isMarkingEnabled]);
   const { bannerHeight, bannerHeightNumber } = useBannerSettings(settings);
   const [goToGettingStarted, setGoToGettingStarted] = useLocalStorage<boolean>(GETTING_STARTED_LOCAL_STORAGE_KEY, true);
   useEffect(() => {
