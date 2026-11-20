@@ -1,8 +1,11 @@
+import { createTheme } from '@mui/material/styles';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   getActionStatus,
   getPayloadSourceLabel,
+  getStatusColor,
+  getStatusLabel,
   isShownRevoked,
 } from '../../../../../admin/components/threat_arsenal/utils/threatArsenalStatusUtils';
 import { anAction } from '../threatArsenalTestUtils';
@@ -14,6 +17,48 @@ vi.mock('../../../../../utils/utils', () => ({ isFeatureEnabled: () => flags.cat
 describe('threatArsenalStatusUtils', () => {
   afterEach(() => {
     flags.catalog = true;
+  });
+
+  describe('getStatusColor', () => {
+    it.each(['light', 'dark'] as const)('given_the_%s_theme_should_returnTheShadeOfThatTheme', (mode) => {
+      // Arrange
+      const theme = createTheme({ palette: { mode } });
+
+      // Act
+      const colour = getStatusColor(theme, 'UNVERIFIED');
+
+      // Assert
+      expect(colour).toBe(theme.palette.warning.main);
+    });
+
+    it.each([undefined, null, 'UNKNOWN'])('given_%s_should_returnTheDisabledColour', (status) => {
+      // Arrange
+      const theme = createTheme();
+
+      // Act
+      const colour = getStatusColor(theme, status);
+
+      // Assert
+      expect(colour).toBe(theme.palette.text.disabled);
+    });
+  });
+
+  describe('getStatusLabel', () => {
+    it('given_aKnownStatus_should_returnItsLabel', () => {
+      // Act
+      const label = getStatusLabel('REVOKED');
+
+      // Assert
+      expect(label).toBe('Revoked');
+    });
+
+    it.each([undefined, null, '', 'UNKNOWN'])('given_%s_should_returnNull', (status) => {
+      // Act
+      const label = getStatusLabel(status);
+
+      // Assert
+      expect(label).toBeNull();
+    });
   });
 
   describe('isShownRevoked', () => {
