@@ -566,7 +566,10 @@ const GraphExplorerInner = ({
     selected: selection.includes(n.node_id),
     data: {
       node: n,
-      focused: n.node_id === state.focus || n.node_id === selected || selection.includes(n.node_id),
+      // ONE style for "selected" (the node of the side panel and the multi-selection), as OpenCTI's
+      // graph; the focus anchor, the entity the view is centred on, gets its own quieter mark.
+      focused: n.node_id === selected || selection.includes(n.node_id),
+      anchor: n.node_id === state.focus,
       pinned: state.pinned.includes(n.node_id),
       matched: matches.has(n.node_id),
       dimmed: (matches.size > 0 && !matches.has(n.node_id))
@@ -648,6 +651,15 @@ const GraphExplorerInner = ({
     if (picked) {
       setSelection(Array.from(picked));
     }
+  };
+
+  /**
+   * Clears the selection as OpenCTI's graph does on a click on the empty canvas or on Esc: no node
+   * stays selected and the side panel closes.
+   */
+  const clearSelection = () => {
+    setSelection([]);
+    setSelected(null);
   };
 
   /** Adds the neighbours of every selected node to the selection (OpenCTI: Select neighbours). */
@@ -1107,6 +1119,7 @@ const GraphExplorerInner = ({
 
   const panel = selectedNode && interactive && (
     <Drawer
+      data-testid="graph-side-panel"
       anchor="right"
       variant="persistent"
       open={panelOpen}
@@ -1411,8 +1424,8 @@ const GraphExplorerInner = ({
       relayout();
     } else if (key === 's') {
       setLassoOn(!lassoOn);
-    } else if (key === 'escape' && (selection.length > 0 || lassoOn)) {
-      setSelection([]);
+    } else if (key === 'escape' && (selection.length > 0 || lassoOn || selected)) {
+      clearSelection();
       setLassoOn(false);
       setLasso(null);
     } else if (key === 'n' && (selection.length > 0 || selectedNode)) {
@@ -1516,7 +1529,7 @@ const GraphExplorerInner = ({
           onPaneContextMenu={interactive ? event => openMenu(event, {}) : undefined}
           onPaneClick={() => {
             setMenu(null);
-            setSelection([]);
+            clearSelection();
           }}
           panOnScroll={false}
           fitView

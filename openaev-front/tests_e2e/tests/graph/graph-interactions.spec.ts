@@ -115,6 +115,47 @@ test.describe('Exploration graph interactions', () => {
     expect(problems).toEqual([]);
   });
 
+  test('a click selects one node alone, the canvas and Esc clear it, Ctrl+click adds to it', async ({ page }) => {
+    const problems = watchConsole(page);
+    await page.goto(tenantUrl(`/admin/graph?focus=asset_group:${seeded.groupId}`));
+    await expect(page.locator('.react-flow__node')).toHaveCount(5);
+    await settled(page);
+    const node = (index: number) => page.locator(`.react-flow__node[data-id="ASSET:${seeded.assetIds[index]}"]`);
+    const ringed = page.locator('[data-testid^="graph-node-"][data-selected="true"]');
+    const panel = page.getByTestId('graph-side-panel');
+
+    // The focus anchor has its own mark, never the selection ring.
+    await expect(page.locator('[data-testid^="graph-node-"][data-anchor="true"]')).toHaveCount(1);
+
+    // A plain click on A then on B: B alone is selected (OpenCTI's graph).
+    await node(0).click();
+    await expect(ringed).toHaveCount(1);
+    await node(1).click();
+    await expect(ringed).toHaveCount(1);
+    await expect(node(1).locator('[data-selected="true"]')).toHaveCount(1);
+    await expect(panel).toBeVisible();
+
+    // A click on the empty canvas clears the selection and closes the panel.
+    const pane = await page.locator('.react-flow__pane').boundingBox();
+    await page.mouse.click((pane?.x ?? 0) + 12, (pane?.y ?? 0) + (pane?.height ?? 400) / 2);
+    await expect(ringed).toHaveCount(0);
+    await expect(panel).toHaveCount(0);
+
+    // Esc does the same.
+    await node(2).click();
+    await expect(ringed).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    await expect(ringed).toHaveCount(0);
+    await expect(panel).toHaveCount(0);
+
+    // Ctrl+click adds a node to the selection: both stay selected.
+    await node(0).click();
+    await node(3).click({ modifiers: ['Control'] });
+    await expect(ringed).toHaveCount(2);
+
+    expect(problems).toEqual([]);
+  });
+
   test('an expand keeps the nodes on screen still and undo restores the view', async ({ page }) => {
     const problems = watchConsole(page);
     await page.goto(tenantUrl(`/admin/graph?focus=asset_group:${seeded.groupId}`));

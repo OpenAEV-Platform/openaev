@@ -13,7 +13,10 @@ import { type GraphNodeOutput, NODE_TYPE_LABEL, NODE_TYPE_PLURAL } from './graph
 
 export interface GraphEntityNodeData extends Record<string, unknown> {
   node: GraphNodeOutput;
+  /** Selected (the node of the side panel or of the multi-selection): the one selection ring. */
   focused: boolean;
+  /** The entity the view is centred on: a quieter dashed mark, never the selection ring. */
+  anchor?: boolean;
   pinned: boolean;
   matched: boolean;
   dimmed: boolean;
@@ -33,7 +36,13 @@ const SIZE = NODE_CIRCLE_SIZE;
 const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  const { node, focused, pinned, matched, dimmed, highlighted, truncated, groupCount, inOpenCti, inOpenCrq } = data;
+  const { node, focused, anchor, pinned, matched, dimmed, highlighted, truncated, groupCount, inOpenCti, inOpenCrq } = data;
+  let outline = 'none';
+  if (focused || matched || highlighted) {
+    outline = `3px solid ${matched ? theme.palette.secondary.main : theme.palette.primary.main}`;
+  } else if (anchor) {
+    outline = `2px dashed ${theme.palette.text.secondary}`;
+  }
   const marks = [
     ...(inOpenCti
       ? [{
@@ -65,6 +74,8 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
       <TooltipTrigger asChild>
         <Box
           data-testid={`graph-node-${node.node_id}`}
+          data-selected={focused ? 'true' : 'false'}
+          data-anchor={anchor ? 'true' : 'false'}
           sx={{
             display: 'flex',
             flexDirection: 'column',
@@ -92,7 +103,7 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
                 backgroundColor: theme.palette.background.paper,
                 color: theme.palette.text.primary,
                 border: `2px ${groupCount ? 'dashed' : 'solid'} ${ring}`,
-                outline: focused || matched || highlighted ? `3px solid ${matched ? theme.palette.secondary.main : theme.palette.primary.main}` : 'none',
+                outline,
                 outlineOffset: 2,
                 boxShadow: highlighted ? `0 0 12px ${theme.palette.error.main}` : 'none',
               }}
