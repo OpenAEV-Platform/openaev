@@ -43,15 +43,9 @@ const ScenarioType: FunctionComponent<Props> = ({ type }) => {
   );
 };
 
-// A scenario with a chaining workflow is chained.
-const scenarioTypeOf = (scenario: { scenario_workflow_id?: string }): ScenarioTypeValue => (
-  scenario.scenario_workflow_id ? SCENARIO_TYPE_CHAINED : SCENARIO_TYPE_TIME_BASED
-);
-
 // Cards and rows are links over their whole surface: a tooltip would never show, so the type is the icon's title.
-export const ScenarioTypeIcon: FunctionComponent<{ scenario: { scenario_workflow_id?: string } }> = ({ scenario }) => {
+export const ScenarioTypeIcon: FunctionComponent<{ type: ScenarioTypeValue }> = ({ type }) => {
   const { t } = useFormatter();
-  const type = scenarioTypeOf(scenario);
   const { Icon } = TYPE_STYLES[type];
   return <Icon color="primary" titleAccess={t(type)} />;
 };

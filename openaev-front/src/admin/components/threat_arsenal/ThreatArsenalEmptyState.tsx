@@ -9,13 +9,21 @@ import { useFormatter } from '../../../components/i18n';
 interface Props {
   hasFilters: boolean;
   onResetFilters: () => void;
+  // What an empty list without filters says, when it is not the Active tab.
+  empty?: {
+    title: string;
+    description: string;
+  };
 }
 
 const ThreatArsenalEmptyState: FunctionComponent<Props> = ({
   hasFilters,
   onResetFilters,
+  empty,
 }) => {
   const { t } = useFormatter();
+  const emptyTitle = empty?.title ?? t('Your threat arsenal is empty');
+  const emptyDescription = empty?.description ?? t('Create your first action or import an existing arsenal to get started.');
   const theme = useTheme();
   const accent = theme.palette.primary.main;
 
@@ -60,7 +68,7 @@ const ThreatArsenalEmptyState: FunctionComponent<Props> = ({
           marginBottom: 1,
         }}
       >
-        {hasFilters ? t('No actions match your filters') : t('Your threat arsenal is empty')}
+        {hasFilters ? t('No actions match your filters') : emptyTitle}
       </Typography>
       <Typography
         variant="body2"
@@ -72,7 +80,7 @@ const ThreatArsenalEmptyState: FunctionComponent<Props> = ({
       >
         {hasFilters
           ? t('Try adjusting filters or clearing them to see more actions.')
-          : t('Create your first action or import an existing arsenal to get started.')}
+          : emptyDescription}
       </Typography>
       {hasFilters && (
         <Button type="button" priority="secondary" onClick={onResetFilters}>

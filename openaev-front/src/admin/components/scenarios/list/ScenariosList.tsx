@@ -16,7 +16,7 @@ import ToolBar from '../../common/ToolBar';
 import ScenarioPopover from '../scenario/ScenarioPopover';
 import ScenarioStatus from '../scenario/ScenarioStatus';
 import { ScenarioTypeIcon } from '../scenario/ScenarioType';
-import { type ScenarioRow } from '../scenarioRow';
+import { type ScenarioRow, scenarioTypeOf } from '../scenarioRow';
 
 const INLINE_STYLES: Record<string, CSSProperties> = {
   scenario_name: { width: '32%' },
@@ -166,7 +166,7 @@ const ScenariosList: FunctionComponent<Props> = ({
                   </ListItemIcon>
                 )}
                 <ListItemIcon>
-                  <ScenarioTypeIcon scenario={scenario} />
+                  <ScenarioTypeIcon type={scenarioTypeOf(scenario)} />
                 </ListItemIcon>
                 <ListItemText
                   primary={(

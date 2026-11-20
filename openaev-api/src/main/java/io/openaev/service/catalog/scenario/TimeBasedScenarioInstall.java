@@ -38,6 +38,7 @@ public class TimeBasedScenarioInstall implements CatalogScenarioTypeInstall<Targ
 
   @Override
   public void apply(Scenario scenario, TargetChoice choice) {
-    catalogScenarioTargets.addTo(injectService.findByScenarioId(scenario.getId()), choice);
+    catalogScenarioTargets.addTo(
+        scenario.getTenant().getId(), injectService.findByScenarioId(scenario.getId()), choice);
   }
 }

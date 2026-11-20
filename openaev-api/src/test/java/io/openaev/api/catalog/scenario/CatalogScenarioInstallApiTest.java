@@ -18,12 +18,15 @@ import static io.openaev.utils.fixtures.CatalogReleaseFixture.scenarioFileName;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.scenarioItem;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.scenarioPackage;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.syncRequest;
+import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createDefaultMarkingDefinition;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.hamcrest.Matchers.contains;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -36,6 +39,7 @@ import io.openaev.api.catalog.dto.scenario.CatalogScenarioInstallInput;
 import io.openaev.api.catalog.dto.scenario.ChainedScenarioInstallInput;
 import io.openaev.api.catalog.dto.scenario.TimeBasedScenarioInstallInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
+import io.openaev.api.scenario.dto.ScenarioTargetsInput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
@@ -57,11 +61,14 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CatalogReleaseFixture.ReleasedPayload;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -73,6 +80,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -103,9 +111,12 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
   // Chained scenarios need the Enterprise Edition: a mock never finds the license inactive.
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
   @Autowired private CatalogScenarioInstaller catalogScenarioInstaller;
+  @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
+  @Autowired private DataSource dataSource;
 
   @BeforeEach
   void attachToDefaultTenant() {
+    markingDefinitionComposer.reset();
     tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT_UUID);
     injectorFixture.getWellKnownOaevImplantInjector();
   }
@@ -118,18 +129,29 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
   }
 
   private void publish(Map<String, Object> manifestFields, byte[] archive) throws Exception {
-    Map<String, Object> item = scenarioItem(VERSION, "VERIFIED", archive);
-    item.put("payloads", List.of(Map.of("external_id", PAYLOAD_ID, "version", VERSION)));
-    item.putAll(manifestFields);
+    publishVersions(Map.of(VERSION, manifestFields), archive);
+  }
+
+  /** Publishes several versions of the scenario, each with what its manifest adds. */
+  private void publishVersions(Map<String, Map<String, Object>> fieldsByVersion, byte[] archive)
+      throws Exception {
+    List<Map<String, Object>> items = new ArrayList<>();
     Map<String, byte[]> files = new LinkedHashMap<>();
-    files.put(scenarioFileName(VERSION), archive);
+    fieldsByVersion.forEach(
+        (version, fields) -> {
+          Map<String, Object> item = scenarioItem(version, "VERIFIED", archive);
+          item.put("payloads", List.of(Map.of("external_id", PAYLOAD_ID, "version", VERSION)));
+          item.putAll(fields);
+          items.add(item);
+          files.put(scenarioFileName(version), archive);
+        });
     files.put(payloadFileName(VERSION), RELEASED.file());
     mvc.perform(
             syncRequest(
                     mapper.writeValueAsBytes(
                         manifest(
                             "2026.11.12",
-                            List.of(item),
+                            items,
                             List.of(payloadVersion(VERSION, "VERIFIED", RELEASED)))),
                     files,
                     TENANT_CATALOG_URI + "/sync",
@@ -402,6 +424,188 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
           .filteredOn(row -> row.getType() == ContentType.SCENARIO)
           .extracting(CatalogHistory::getAction)
           .containsExactly(CatalogHistory.Action.INSTALL, CatalogHistory.Action.UNINSTALL);
+    }
+  }
+
+  // -- BROWSE --
+
+  @Nested
+  @TestInstance(PER_CLASS)
+  @DisplayName("Browsing the catalogue")
+  class Browsing {
+
+    private ResultActions available() throws Exception {
+      return mvc.perform(get(TENANT_CATALOG_URI + "/scenarios", DEFAULT_TENANT_UUID));
+    }
+
+    static Stream<Arguments> scenarioStates() {
+      return Stream.of(
+          Arguments.of("never installed", false, false, 1),
+          Arguments.of("installed", true, false, 0),
+          Arguments.of("uninstalled", true, true, 1));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("scenarioStates")
+    @DisplayName("lists a scenario only while the tenant does not show it")
+    void given_scenarioState_should_listItOnlyWhenNotInstalled(
+        String description, boolean installed, boolean uninstalled, int listed) throws Exception {
+      // Arrange
+      publish(Map.of());
+      if (installed) {
+        Scenario scenario = installedScenario(install().andExpect(status().isCreated()));
+        if (uninstalled) {
+          uninstall(scenario);
+        }
+      }
+
+      // Act
+      ResultActions result = available();
+
+      // Assert
+      result.andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(listed));
+    }
+
+    @Test
+    @DisplayName("names what the platform lacks to install a scenario")
+    void given_missingInjector_should_listItAsMissing() throws Exception {
+      // Arrange
+      publish(Map.of("requires", Map.of("injectors", List.of("openaev_unknown"))));
+
+      // Act
+      ResultActions result = available();
+
+      // Assert
+      result
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$[0].catalog_scenario_external_id").value(SCENARIO_ID))
+          .andExpect(
+              jsonPath("$[0].catalog_scenario_missing_requirements[0]")
+                  .value("Injector openaev_unknown"));
+    }
+
+    @Test
+    @DisplayName("lists the offered versions of a scenario with their details, newest first")
+    void given_releasedVersions_should_listOfferedOnesNewestFirst() throws Exception {
+      // Arrange
+      publishVersions(
+          Map.of(
+              "1.0.0", Map.of(),
+              "1.2.0",
+                  Map.of(
+                      "changelog", "Adds a discovery step",
+                      "main_focus", "incident-response",
+                      "severity", "high",
+                      "injects_count", 3),
+              "1.1.0", Map.of(),
+              "1.3.0", Map.of("status", "DEPRECATED")),
+          scenarioPackage(RELEASED.file()));
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              get(
+                  TENANT_CATALOG_URI + "/scenarios/{externalId}/versions",
+                  DEFAULT_TENANT_UUID,
+                  SCENARIO_ID));
+
+      // Assert
+      result
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$[*].catalog_scenario_version", contains("1.2.0", "1.1.0", "1.0.0")))
+          .andExpect(jsonPath("$[0].catalog_scenario_changelog").value("Adds a discovery step"))
+          .andExpect(jsonPath("$[0].catalog_scenario_main_focus").value("incident-response"))
+          .andExpect(jsonPath("$[0].catalog_scenario_severity").value("high"))
+          .andExpect(jsonPath("$[0].catalog_scenario_injects_count").value(3));
+    }
+  }
+
+  // -- LAUNCH --
+
+  @Nested
+  @DisplayName("Launching with targets")
+  class Launching {
+
+    private String launch(Scenario scenario, String... assetIds) throws Exception {
+      return mapper
+          .readTree(
+              committed(
+                      post(
+                              TENANT_SCENARIO_URI + "/{scenarioId}/launch",
+                              DEFAULT_TENANT_UUID,
+                              scenario.getId())
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .content(
+                              mapper.writeValueAsString(
+                                  new ScenarioTargetsInput(List.of(assetIds), null, null, null))))
+                  .andExpect(status().isCreated())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString())
+          .path("simulation_id")
+          .asText();
+    }
+
+    @Test
+    @DisplayName("adds the chosen assets to the simulation injects only, the scenario unchanged")
+    void given_installedScenario_when_launchedWithTargets_should_targetOnlyTheSimulation()
+        throws Exception {
+      // Arrange
+      publish(Map.of());
+      Endpoint first = endpointRepository.save(EndpointFixture.createEndpoint());
+      Endpoint second = endpointRepository.save(EndpointFixture.createEndpoint());
+      Scenario scenario =
+          installedScenario(
+              install(new TimeBasedScenarioInstallInput(List.of(first.getId()), null, null, null))
+                  .andExpect(status().isCreated()));
+
+      // Act
+      String simulationId = launch(scenario, second.getId());
+
+      // Assert
+      assertThat(injectRepository.findByExerciseId(simulationId).getFirst().getAssets())
+          .extracting(asset -> asset.getId())
+          .containsExactlyInAnyOrder(first.getId(), second.getId());
+      assertThat(injectsOf(scenario).getFirst().getAssets())
+          .extracting(asset -> asset.getId())
+          .containsExactly(first.getId());
+    }
+
+    @Test
+    @DisplayName("drops a chosen asset the user is not cleared for, as an unknown one")
+    void given_assetHiddenFromUser_when_chosenAtLaunch_should_notTargetIt() throws Exception {
+      // Arrange
+      publish(Map.of());
+      Endpoint visible = endpointRepository.save(EndpointFixture.createEndpoint());
+      Endpoint hidden = endpointRepository.save(EndpointFixture.createEndpoint());
+      Scenario scenario = installedScenario(install().andExpect(status().isCreated()));
+      String marking =
+          markingDefinitionComposer
+              .forMarkingDefinition(createDefaultMarkingDefinition())
+              .withTenantId(DEFAULT_TENANT_UUID)
+              .persist()
+              .get()
+              .getId();
+      entityManager.flush();
+      // Raw JDBC: an ORM write of a marking the user does not hold is refused.
+      JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+      jdbc.update(
+          "UPDATE assets SET marking_ids = ? WHERE asset_id = ?",
+          new String[] {marking},
+          hidden.getId());
+      entityManager.clear();
+
+      // Act
+      String simulationId = launch(scenario, visible.getId(), hidden.getId());
+
+      // Assert
+      assertThat(
+              jdbc.queryForList(
+                  "SELECT ia.asset_id FROM injects_assets ia"
+                      + " JOIN injects i ON i.inject_id = ia.inject_id WHERE i.inject_exercise = ?",
+                  String.class,
+                  simulationId))
+          .containsExactly(visible.getId());
     }
   }
 
