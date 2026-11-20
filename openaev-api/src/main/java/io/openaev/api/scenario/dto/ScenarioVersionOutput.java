@@ -12,5 +12,5 @@ public record ScenarioVersionOutput(
     @JsonProperty("scenario_version_status") @NotNull CatalogItemStatus status,
     @JsonProperty("scenario_version_changelog") String changelog,
     @JsonProperty("scenario_version_published_at") Instant publishedAt,
-    @JsonProperty("scenario_version_current") boolean current,
-    @JsonProperty("scenario_version_latest") boolean latest) {}
+    @JsonProperty("scenario_version_current") @NotNull boolean current,
+    @JsonProperty("scenario_version_latest") @NotNull boolean latest) {}
