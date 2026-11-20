@@ -698,7 +698,11 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.catalog.CatalogHistoryApi#scenarioHistory",
           // payloads, payload_identities: customized copies of Filigran payloads.
           "io.openaev.api.threat_arsenal.customization.ThreatArsenalCustomizationApi#customize",
-          "io.openaev.api.threat_arsenal.customization.ThreatArsenalCustomizationApi#update");
+          "io.openaev.api.threat_arsenal.customization.ThreatArsenalCustomizationApi#update",
+          // payload_identities, injects, steps: the injects left on an older version.
+          "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#olderVersionsInUse",
+          "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#keepOlderVersions",
+          "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#showOlderVersions");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =
