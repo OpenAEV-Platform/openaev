@@ -304,12 +304,12 @@ const findingTypeFacetMeta = (t: (key: string) => string): {
   icon: () => ReactElement;
 }[] => {
   return CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS
-      .map(type => ({
-        value: type,
-        label: t(ContractOutputElementType[type]),
-        icon: () => <FindingIcon findingType={type} />
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label));
+    .map(type => ({
+      value: type,
+      label: t(ContractOutputElementType[type]),
+      icon: () => <FindingIcon findingType={type} />,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 };
 
 export const buildFindingTypeRows = ({

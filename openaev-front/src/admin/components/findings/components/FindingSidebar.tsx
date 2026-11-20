@@ -41,23 +41,23 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers }: Props) => {
             const selectedOptionIds = filters.find((f: Filter) => f.key === ASSET_FILTER_KEY)?.values ?? [];
             return assetOptions
                 .filter(option => option.id && selectedOptionIds.includes(option.id))
-                .map((option) => option.label!)
+                .map(option => option.label!);
         },
         [filters],
     );
 
-    const sections: FacetSection[] = useMemo(() => {
-        const findingTypeRows = buildFindingTypeRows({
-            t,
-            statusValues: findingTypeValues,
-            statusCounts: undefined,
-            toggle: value => toggleValueWithCurrent(TYPE_FILTER_KEY, findingTypeValues, value),
-        });
-        const assetRows = buildAssetRows({
-            assetOptions,
-            statusValues: assetValues,
-            toggle: selectedOption => toggleAndTranslateOptionWithCurrent(ASSET_FILTER_KEY, assetValues, selectedOption, assetOptions),
-        });
+  const sections: FacetSection[] = useMemo(() => {
+    const findingTypeRows = buildFindingTypeRows({
+      t,
+      statusValues: findingTypeValues,
+      statusCounts: undefined,
+      toggle: value => toggleValueWithCurrent(TYPE_FILTER_KEY, findingTypeValues, value),
+    });
+    const assetRows = buildAssetRows({
+      assetOptions,
+      statusValues: assetValues,
+      toggle: selectedOption => toggleAndTranslateOptionWithCurrent(ASSET_FILTER_KEY, assetValues, selectedOption, assetOptions),
+    });
 
     return [
       {
@@ -71,9 +71,9 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers }: Props) => {
         rows: assetRows,
       },
     ];
-  }, [t, findingTypeValues, assetValues, assetOptions]);
+  }, [findingTypeValues, assetValues, assetOptions]);
 
-    return <FacetSidebar sections={sections} />;
-}
+  return <FacetSidebar sections={sections} />;
+};
 
 export default FindingSidebar;
