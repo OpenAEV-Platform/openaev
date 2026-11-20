@@ -23,6 +23,7 @@ import io.openaev.xtmone.XtmOneIdentity;
 import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -59,6 +60,12 @@ import org.springframework.stereotype.Component;
  *   <li>its {@code email} claim names an OpenAEV user
  * </ol>
  *
+ * <p>The keys are read before the token is authenticated, so the read is bounded: one read at a
+ * time per JWKS URL, at most one every {@link #JWKS_MIN_REFRESH_INTERVAL} (a burst of tokens with
+ * an unknown {@code kid} costs one request), connect, TLS handshake and reads bounded by {@link
+ * #JWKS_TIMEOUT}, no retry, no redirect. A key set older than {@link #JWKS_CACHE_TTL} is never
+ * used, even when its refresh fails.
+ *
  * <p>Unlike {@link XtmJwksExtractor}, it never stamps {@link
  * XtmJwksExtractor#CROSS_PLATFORM_ATTRIBUTE}: the forwarded user is a person with their own rights,
  * never the orchestrator, so the tenant scope stays caller-authorized. The trust root is a
@@ -77,8 +84,9 @@ public class XtmUserJwtExtractor implements ExtractorBase {
   static final Pattern SCOPE =
       Pattern.compile("^" + TenantUriUtils.TENANT_BASE_PATH + UUID_REGEX + "/xtm/objects/[^/]+$");
 
-  private static final Duration JWKS_CACHE_TTL = Duration.ofHours(1);
-  private static final int JWKS_TIMEOUT_SECONDS = 10;
+  static final Duration JWKS_CACHE_TTL = Duration.ofHours(1);
+  static final Duration JWKS_MIN_REFRESH_INTERVAL = Duration.ofSeconds(30);
+  static final Timeout JWKS_TIMEOUT = Timeout.ofSeconds(10);
 
   private final XtmConfig xtmConfig;
   private final TenantUriUtils tenantUriUtils;
@@ -89,6 +97,11 @@ public class XtmUserJwtExtractor implements ExtractorBase {
   private final OpenAEVConfig openAEVConfig;
 
   private final ConcurrentHashMap<String, CachedJwks> jwksCache = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, Instant> lastRefreshAttempt = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, Object> refreshLocks = new ConcurrentHashMap<>();
+
+  /** The clock of the key cache, replaced in tests only. */
+  Clock clock = Clock.systemUTC();
 
   private record CachedJwks(Instant fetchedAt, String jwksJson) {}
 
@@ -177,26 +190,41 @@ public class XtmUserJwtExtractor implements ExtractorBase {
   }
 
   private Key resolveKey(String jwksUrl, String kid) {
-    Key key = findKeyInCache(jwksUrl, kid);
-    if (key != null) {
-      return key;
+    if (StringUtils.isBlank(kid)) {
+      throw new JwtException("A forwarded token must name its key (kid)");
     }
-    // A key OpenCTI rotated in since the last read: read its JWKS again once.
-    refreshJwks(jwksUrl);
-    key = findKey(jwksCache.get(jwksUrl), kid);
-    if (key != null) {
-      return key;
+    CachedJwks cached = freshEntry(jwksUrl);
+    if (cached == null) {
+      refreshJwks(jwksUrl, null);
+      cached = freshEntry(jwksUrl);
     }
-    throw new JwtException("No matching key found for kid: " + kid + " at " + jwksUrl);
+    Key key = findKey(cached, kid);
+    if (key == null && cached != null) {
+      // A key OpenCTI rotated in since the last read: read its JWKS again, throttled.
+      refreshJwks(jwksUrl, cached);
+      key = findKey(freshEntry(jwksUrl), kid);
+    }
+    if (key == null) {
+      throw new JwtException("No matching key found for kid: " + kid + " at " + jwksUrl);
+    }
+    return key;
   }
 
-  private Key findKeyInCache(String jwksUrl, String kid) {
+  /** The cached key set when it is within its lifetime; an expired one is dropped, never used. */
+  private CachedJwks freshEntry(String jwksUrl) {
     CachedJwks cached = jwksCache.get(jwksUrl);
-    if (cached == null || cached.fetchedAt().plus(JWKS_CACHE_TTL).isBefore(Instant.now())) {
-      refreshJwks(jwksUrl);
-      cached = jwksCache.get(jwksUrl);
+    if (cached == null) {
+      return null;
     }
-    return findKey(cached, kid);
+    if (!isFresh(cached)) {
+      jwksCache.remove(jwksUrl, cached);
+      return null;
+    }
+    return cached;
+  }
+
+  private boolean isFresh(CachedJwks cached) {
+    return cached.fetchedAt().plus(JWKS_CACHE_TTL).isAfter(clock.instant());
   }
 
   private static Key findKey(CachedJwks cached, String kid) {
@@ -210,31 +238,53 @@ public class XtmUserJwtExtractor implements ExtractorBase {
         .orElse(null);
   }
 
-  private void refreshJwks(String jwksUrl) {
-    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+  /**
+   * Reads the JWKS again unless another thread already replaced {@code seen} with a fresh set, or
+   * the last attempt on this URL is younger than {@link #JWKS_MIN_REFRESH_INTERVAL}. Concurrent
+   * callers on one URL wait for the read in progress instead of starting their own.
+   */
+  private void refreshJwks(String jwksUrl, CachedJwks seen) {
+    synchronized (refreshLocks.computeIfAbsent(jwksUrl, url -> new Object())) {
+      CachedJwks current = jwksCache.get(jwksUrl);
+      if (current != null && current != seen && isFresh(current)) {
+        return;
+      }
+      Instant now = clock.instant();
+      Instant last = lastRefreshAttempt.get(jwksUrl);
+      if (last != null && last.plus(JWKS_MIN_REFRESH_INTERVAL).isAfter(now)) {
+        return;
+      }
+      lastRefreshAttempt.put(jwksUrl, now);
+      String jwksJson = fetchJwks(jwksUrl);
+      if (jwksJson != null) {
+        jwksCache.put(jwksUrl, new CachedJwks(clock.instant(), jwksJson));
+      }
+    }
+  }
+
+  private String fetchJwks(String jwksUrl) {
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry(JWKS_TIMEOUT)) {
       HttpGet httpGet = new HttpGet(jwksUrl);
       // Only the configured URL may answer: a redirect is a failed read, never another origin
       // supplying OpenCTI's keys.
       httpGet.setConfig(
           RequestConfig.custom()
               .setRedirectsEnabled(false)
-              .setResponseTimeout(Timeout.ofSeconds(JWKS_TIMEOUT_SECONDS))
+              .setConnectionRequestTimeout(JWKS_TIMEOUT)
+              .setResponseTimeout(JWKS_TIMEOUT)
               .build());
-      String jwksJson =
-          httpClient.execute(
-              httpGet,
-              response -> {
-                if (response.getCode() != 200) {
-                  log.warn("JWKS fetch from {} returned HTTP {}", jwksUrl, response.getCode());
-                  return null;
-                }
-                return EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-              });
-      if (jwksJson != null) {
-        jwksCache.put(jwksUrl, new CachedJwks(Instant.now(), jwksJson));
-      }
+      return httpClient.execute(
+          httpGet,
+          response -> {
+            if (response.getCode() != 200) {
+              log.warn("JWKS fetch from {} returned HTTP {}", jwksUrl, response.getCode());
+              return null;
+            }
+            return EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+          });
     } catch (Exception e) {
       log.warn("Failed to fetch JWKS from {}", jwksUrl, e);
+      return null;
     }
   }
 

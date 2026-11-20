@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -20,11 +22,16 @@ import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.UserService;
 import io.openaev.utils.RequestUtils;
 import io.openaev.utils.fixtures.JwtFixture;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
+import org.apache.hc.core5.util.Timeout;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,8 +42,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 /**
- * The per-user token a connected OpenCTI forwards on the XTM reverse lookup: accepted only from
- * the tenant's OpenCTI, for OpenAEV, on the reverse lookup routes, and never as the orchestrator.
+ * The per-user token a connected OpenCTI forwards on the XTM reverse lookup: accepted only from the
+ * tenant's OpenCTI, for OpenAEV, on the reverse lookup routes, and never as the orchestrator.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("XtmUserJwtExtractor: per-user token forwarded by the connected OpenCTI")
@@ -84,10 +91,10 @@ class XtmUserJwtExtractorTest {
   }
 
   @SuppressWarnings("unchecked")
-  private void stubJwks(String jwksJson) throws Exception {
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+  private void stubJwks(String jwksJson, String... laterAnswers) throws Exception {
+    when(httpClientFactory.httpClientNoRetry(any(Timeout.class))).thenReturn(httpClient);
     when(httpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any()))
-        .thenReturn(jwksJson);
+        .thenReturn(jwksJson, laterAnswers);
   }
 
   @Test
@@ -108,6 +115,49 @@ class XtmUserJwtExtractorTest {
     ArgumentCaptor<ClassicHttpRequest> sent = ArgumentCaptor.forClass(ClassicHttpRequest.class);
     verify(httpClient).execute(sent.capture(), (HttpClientResponseHandler<String>) any());
     assertThat(sent.getValue().getUri().toString()).isEqualTo(OPENCTI_URL + "/xtm/auth/jwks");
+    verify(httpClientFactory).httpClientNoRetry(XtmUserJwtExtractor.JWKS_TIMEOUT);
+    verify(httpClientFactory, never()).httpClientCustom();
+  }
+
+  @Test
+  @DisplayName("tokens naming an unknown key cost one JWKS read, not one per request")
+  @SuppressWarnings("unchecked")
+  void unknownKeyRefreshesAreThrottled() throws Exception {
+    JwtFixture.Bundle bundle =
+        JwtFixture.generateXtmJwksJwtBundle(OPENCTI_URL, EMAIL, AUDIENCE, false);
+    String rotatedOut =
+        JwtFixture.generateXtmJwksJwtBundle(OPENCTI_URL, EMAIL, AUDIENCE, false)
+            .jwks()
+            .replace("test-123", "rotated-out");
+    stubJwks(rotatedOut);
+
+    for (int i = 0; i < 5; i++) {
+      assertThatThrownBy(() -> extractor.authUser(bundle.jwtToken(), request(LOOKUP)))
+          .isInstanceOf(JwtException.class);
+    }
+    verify(httpClient, times(1))
+        .execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any());
+    verifyNoInteractions(userService);
+  }
+
+  @Test
+  @DisplayName("a key set past its lifetime is never used when its refresh fails")
+  void expiredKeySetIsDroppedWhenItsRefreshFails() throws Exception {
+    Instant start = Instant.now();
+    extractor.clock = Clock.fixed(start, ZoneOffset.UTC);
+    JwtFixture.Bundle bundle =
+        JwtFixture.generateXtmJwksJwtBundle(OPENCTI_URL, EMAIL, AUDIENCE, false);
+    stubJwks(bundle.jwks(), (String) null);
+    when(userService.findByEmailIgnoreCase(EMAIL)).thenReturn(Optional.of(new User()));
+    assertThat(extractor.authUser(bundle.jwtToken(), request(LOOKUP))).isPresent();
+
+    extractor.clock =
+        Clock.fixed(
+            start.plus(XtmUserJwtExtractor.JWKS_CACHE_TTL).plus(Duration.ofMinutes(1)),
+            ZoneOffset.UTC);
+
+    assertThatThrownBy(() -> extractor.authUser(bundle.jwtToken(), request(LOOKUP)))
+        .isInstanceOf(JwtException.class);
   }
 
   @Test
@@ -229,8 +279,7 @@ class XtmUserJwtExtractorTest {
   @DisplayName("the issuer is compared canonical: case, default port and trailing slash")
   void issuerIsComparedCanonical() {
     assertThat(
-            XtmUserJwtExtractor.isTrustedIssuer(
-                opencti, "HTTPS://OpenCTI.test.filigran.io:443/"))
+            XtmUserJwtExtractor.isTrustedIssuer(opencti, "HTTPS://OpenCTI.test.filigran.io:443/"))
         .isTrue();
     assertThat(XtmUserJwtExtractor.isTrustedIssuer(opencti, OPENCTI_URL + "/other")).isFalse();
     assertThat(XtmUserJwtExtractor.isTrustedIssuer(opencti, "opencti")).isFalse();
