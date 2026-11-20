@@ -11,6 +11,7 @@ import {
   Spinner,
   Text,
 } from '@filigran/design-system';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import ConflictChoice from '../../../../../components/common/update/ConflictChoice';
@@ -52,15 +53,15 @@ const STATUSES: Record<ScenarioChangeOutput['scenario_change_status'], {
   },
 };
 
-const column = {
-  display: 'flex',
-  flexDirection: 'column' as const,
-  gap: 12,
-};
-
 // What an update or a rollback changes, the side to keep for each conflict, then applying it.
 const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApplied }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
+  const column = {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: theme.spacing(1.5),
+  };
   const { loading, conflicts, others, choices, choose, ready, applying, apply } = useScenarioUpdate(target, onApplied);
 
   return (
@@ -100,7 +101,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 8,
+                        gap: theme.spacing(1),
                       }}
                     >
                       <Chip label={t(STATUSES[change.scenario_change_status].label)} severity={STATUSES[change.scenario_change_status].severity} />
