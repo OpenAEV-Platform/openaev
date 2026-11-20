@@ -1,6 +1,7 @@
 package io.openaev.api.catalog.action.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -16,4 +17,11 @@ public record AvailablePayloadActionOutput(
     @JsonProperty("action_payload_version") @NotBlank String version,
     @JsonProperty("action_payload_description") String description,
     @JsonProperty("action_payload_published_at") Instant publishedAt)
-    implements AvailableActionOutput {}
+    implements AvailableActionOutput {
+
+  @JsonProperty(KIND)
+  @Schema(hidden = true)
+  public String kind() {
+    return PAYLOAD;
+  }
+}
