@@ -8,12 +8,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ThreatArsenalActionPopover from '../../../../admin/components/threat_arsenal/ThreatArsenalActionPopover';
 import type * as NetworkModule from '../../../../network';
+import { MESSAGING$ } from '../../../../utils/Environment';
 import { setNotifyErrorHandler } from '../../../../utils/error/errorHandlerUtil';
 
 // The HTTP layer is real (Action.ts helpers and the network.ts interceptor, which rejects with
 // `{ status, ...body }`): only the transport is stubbed, so the test sees the error shape the app
 // really gets.
-const { requests, responses, submitErrors, permissions, versionList } = vi.hoisted(() => ({
+const { requests, responses, submitErrors, permissions, versionList, dispatch } = vi.hoisted(() => ({
+  dispatch: vi.fn(),
   permissions: { canApprove: true },
   versionList: [] as unknown[],
   requests: [] as InternalAxiosRequestConfig[],
@@ -82,6 +84,17 @@ vi.mock('../../../../components/i18n', async importOriginal => ({
       .reduce((text, [key, val]) => text.replace(`{${key}}`, String(val)), value),
     tPick: () => 'Whoami',
   }),
+}));
+
+// A 403 on a decision reloads the capabilities through the store (useApprovalDecisionError).
+vi.mock('../../../../utils/hooks', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useAppDispatch: () => dispatch,
+}));
+
+vi.mock('../../../../actions/Application', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  fetchMe: () => 'FETCH_ME',
 }));
 
 vi.mock('../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: (action: string) => action !== 'APPROVE' || permissions.canApprove }) }));
@@ -392,6 +405,32 @@ describe('ThreatArsenalActionPopover: taking an approval back', () => {
       inject_ids: ['inject-1'],
       step_ids: ['step-1'],
     });
+  });
+
+  it('explains a refused rejection when Approve content was removed, and moves no inject', async () => {
+    // Arrange
+    // Refused twice: the client retries a 403 once, in case only the CSRF cookie was dropped.
+    const refused = {
+      status: 403,
+      data: { message: 'Access denied' },
+    };
+    responses.push(refused, refused);
+    const removed = vi.spyOn(MESSAGING$, 'notifyError').mockImplementation(() => {});
+    renderPopover();
+    openMenu();
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Reject' }));
+    const submit = await screen.findByRole('button', { name: 'Reject' });
+    fireEvent.change(screen.getByPlaceholderText('Reason'), { target: { value: 'Approved by mistake' } });
+
+    // Act
+    fireEvent.click(submit);
+
+    // Assert
+    await waitFor(() => expect(removed).toHaveBeenCalledWith('You can no longer approve or reject payloads: Approve content was removed from your role.'));
+    expect(dispatch).toHaveBeenCalledWith('FETCH_ME');
+    expect(posts().some(request => request.url?.endsWith('/change-version'))).toBe(false);
+    expect(notifyError).not.toHaveBeenCalled();
+    removed.mockRestore();
   });
 
   it('moves a version back to pending with an optional note, without moving the injects when unticked', async () => {

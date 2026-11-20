@@ -26,7 +26,10 @@ import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationF
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.*;
+import org.hibernate.Session;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -411,6 +414,80 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
 
       // Act / Assert
       createDraftAs(author, actionId, "echo second fix").andExpect(status().isBadRequest());
+    }
+  }
+
+  @Nested
+  @DisplayName("Notifying the approvers of a fixed version")
+  class ReworkNotification {
+
+    // The pending notifications (outbox rows for the approvers) of the action's payload version,
+    // read in raw JDBC: the outbox is a tenant-v2 table and a raw read is never rewritten.
+    private List<String> pendingNotificationActors(String actionId) {
+      entityManager.flush();
+      return entityManager
+          .unwrap(Session.class)
+          .doReturningWork(
+              connection -> {
+                try (PreparedStatement statement =
+                    connection.prepareStatement(
+                        "SELECT payload_approval_notification_actor_name"
+                            + " FROM payload_approval_notifications WHERE payload_id ="
+                            + " (SELECT injector_contract_payload FROM injectors_contracts"
+                            + " WHERE injector_contract_id = ?)"
+                            + " AND payload_approval_notification_event IN"
+                            + " ('PAYLOAD_PENDING', 'VERSION_PENDING')"
+                            + " ORDER BY payload_approval_notification_created_at")) {
+                  statement.setString(1, actionId);
+                  List<String> actors = new ArrayList<>();
+                  try (ResultSet rows = statement.executeQuery()) {
+                    while (rows.next()) {
+                      actors.add(rows.getString(1));
+                    }
+                  }
+                  return actors;
+                }
+              });
+    }
+
+    @Test
+    @DisplayName(
+        "given an author without Approve content sending a fixed rejected version again, should"
+            + " notify the approvers that it waits for approval")
+    void given_authorResubmitsRejectedVersion_should_notifyApprovers() throws Exception {
+      // Arrange
+      String actionId = createAction(author);
+      reject(actionId);
+      List<String> before = pendingNotificationActors(actionId);
+      String draftId = createDraft(author, actionId, "echo fixed");
+
+      // Act
+      publish(author, actionId, draftId, update(actionId, "echo fixed"));
+
+      // Assert
+      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
+      List<String> after = pendingNotificationActors(actionId);
+      assertThat(after).hasSize(before.size() + 1);
+      assertThat(after.getLast()).isEqualTo("Author User");
+    }
+
+    @Test
+    @DisplayName(
+        "given an approver fixing a rejected version, should approve it at once and notify no"
+            + " approver")
+    void given_approverResubmitsRejectedVersion_should_notNotifyApprovers() throws Exception {
+      // Arrange
+      String actionId = createAction(author);
+      reject(actionId);
+      List<String> before = pendingNotificationActors(actionId);
+      String draftId = createDraft(approver, actionId, "echo fixed");
+
+      // Act
+      publish(approver, actionId, draftId, update(actionId, "echo fixed"));
+
+      // Assert
+      assertThat(approvalStatus(actionId)).isEqualTo("APPROVED");
+      assertThat(pendingNotificationActors(actionId)).isEqualTo(before);
     }
   }
 }
