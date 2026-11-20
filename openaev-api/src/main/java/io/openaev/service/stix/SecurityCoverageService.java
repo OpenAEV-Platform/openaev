@@ -130,13 +130,11 @@ public class SecurityCoverageService {
                       + " security_coverages.tenant_id is NOT NULL. The caller must resolve a"
                       + " single tenant for this bundle.");
         };
-    // The scenario takes its coverage's tenant explicitly, but its injects are still on a v1 table:
-    // TenantBaseListener stamps them from TenantContext, which TenantInterceptor only sets on the
-    // /api/tenants/{tenantId}/ route. On the header route it is unset and falls back to the default
-    // tenant, so the coverage landed in the requested tenant while the injects derived from it
-    // landed in the default one. Bridging the resolved tenant onto v1 for this transaction keeps
-    // the whole bundle in one tenant; the bridge goes away when scenarios and injects are
-    // activated.
+    // The scenario takes its coverage's tenant explicitly. TenantBaseListener stamps a row written
+    // with no tenant from TenantContext, which TenantInterceptor sets only on the
+    // /api/tenants/{tenantId}/ route: the resolved tenant is set on TenantContext for this
+    // transaction, so a row of the bundle written with no tenant takes it on both routes. Removing
+    // the bridge belongs to the v1 exit.
     String previousTenant =
         TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
     TenantContext.setCurrentTenant(tenantId);
