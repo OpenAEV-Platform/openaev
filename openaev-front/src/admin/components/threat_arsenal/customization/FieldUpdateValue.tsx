@@ -35,7 +35,7 @@ const FieldUpdateValue: FunctionComponent<Props> = ({ value }) => {
         overflowWrap: 'anywhere',
       }}
     >
-      {(Array.isArray(value) ? value.map(lineOf) : [lineOf(value)]).join('\n')}
+      {fieldText(value)}
     </Text>
   );
 };
