@@ -20,7 +20,6 @@ import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import type { CustomDashboard, SearchPaginationInput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import AnalyticsTabs from '../AnalyticsTabs';
 import CustomDashboardCard from './CustomDashboardCard';
 import CustomDashboardCreation from './CustomDashboardCreation';
 import CustomDashboardPopover from './CustomDashboardPopover';
@@ -169,7 +168,6 @@ const CustomDashboards = () => {
           current: true,
         }]}
       />
-      <AnalyticsTabs current="dashboards" />
       <PaginationComponentV2
         fetch={search}
         searchPaginationInput={searchPaginationInput}
