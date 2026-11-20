@@ -1,3 +1,4 @@
+import { type BeforeAfterRow } from '../../../../../components/common/update/BeforeAfterTable';
 import { type Translate } from '../../../../../components/i18n';
 import { type ScenarioChangeOutput } from '../../../../../utils/api-types';
 
@@ -55,4 +56,13 @@ export const valueText = (value: unknown): string => {
   return JSON.stringify(value, null, 2);
 };
 
-export const isConflict = (change: ScenarioChangeOutput) => change.scenario_change_status === 'CONFLICT';
+export const withStatus = (changes: ScenarioChangeOutput[], status: ScenarioChangeOutput['scenario_change_status']) => changes
+  .filter(change => change.scenario_change_status === status);
+
+/** A changed field as the before/after table shows it. */
+export const beforeAfterRow = (change: ScenarioChangeOutput, before: unknown, after: unknown, t: Translate): BeforeAfterRow => ({
+  id: change.scenario_change_id,
+  field: changeLabel(change, t),
+  before: valueText(before),
+  after: valueText(after),
+});

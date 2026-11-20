@@ -2,7 +2,6 @@ import {
   Alert,
   Button,
   Chip,
-  type ChipSeverity,
   Dialog,
   DialogBody,
   DialogContent,
@@ -14,10 +13,12 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
-import ConflictChoice from '../../../../../components/common/update/ConflictChoice';
+import BeforeAfterTable from '../../../../../components/common/update/BeforeAfterTable';
 import { useFormatter } from '../../../../../components/i18n';
-import { type ScenarioChangeOutput } from '../../../../../utils/api-types';
-import { changeLabel, valueText } from './scenarioChanges';
+import { type ScenarioChangeOutput, type ScenarioPayloadVersionOutput } from '../../../../../utils/api-types';
+import { beforeAfterRow } from './scenarioChanges';
+import ScenarioConflicts from './ScenarioConflicts';
+import ScenarioUpdateSummary from './ScenarioUpdateSummary';
 import { type ScenarioUpdateTarget } from './scenarioUpdateTargets';
 import useScenarioUpdate from './useScenarioUpdate';
 
@@ -27,31 +28,9 @@ interface Props {
   onApplied: () => void;
 }
 
-const STATUSES: Record<ScenarioChangeOutput['scenario_change_status'], {
-  label: string;
-  severity: ChipSeverity;
-}> = {
-  TAKE_APPLIED: {
-    label: 'Taken',
-    severity: 'info',
-  },
-  KEEP_MINE: {
-    label: 'Your change, kept',
-    severity: 'neutral',
-  },
-  CONFLICT: {
-    label: 'Conflict',
-    severity: 'medium',
-  },
-  ADDED: {
-    label: 'Added',
-    severity: 'low',
-  },
-  REMOVED: {
-    label: 'Removed',
-    severity: 'medium',
-  },
-};
+const payloadNames = (payloads: ScenarioPayloadVersionOutput[]) => payloads
+  .map(payload => `${payload.payload_name ?? ''} v${payload.payload_version}`.trim())
+  .join(', ');
 
 // What an update or a rollback changes, the side to keep for each conflict, then applying it.
 const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApplied }) => {
@@ -62,63 +41,135 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
     flexDirection: 'column' as const,
     gap: theme.spacing(1.5),
   };
-  const { loading, conflicts, others, choices, choose, ready, applying, apply } = useScenarioUpdate(target, onApplied);
+  const update = useScenarioUpdate(target, onApplied);
+  const { preview, conflicts, taken, kept, added, removed } = update;
+
+  const injectLine = (change: ScenarioChangeOutput, label: string, reason: string) => (
+    <div
+      key={change.scenario_change_id}
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: theme.spacing(1),
+      }}
+    >
+      <Chip label={label} severity={change.scenario_change_status === 'ADDED' ? 'low' : 'medium'} />
+      <Text variant="content-base">{change.scenario_change_title ?? t('Inject')}</Text>
+      <Text variant="content-caption">{change.scenario_change_status === 'ADDED' ? `${reason} · ${t('Needs targets')}` : reason}</Text>
+    </div>
+  );
+
+  const body = () => {
+    if (preview === null) {
+      return <Spinner />;
+    }
+    const nothing = conflicts.length + taken.length + kept.length + added.length + removed.length === 0;
+    return (
+      <div style={{
+        ...column,
+        gap: theme.spacing(2.5),
+      }}
+      >
+        <ScenarioUpdateSummary
+          title={target.summaryTitle}
+          conflicts={conflicts.length}
+          counts={[
+            {
+              label: target.takenLabel(String(taken.length)),
+              count: taken.length,
+              severity: 'info',
+            },
+            {
+              label: t('Your edits kept: {count}', { count: String(kept.length) }),
+              count: kept.length,
+            },
+            {
+              label: t('Conflicts to decide: {count}', { count: String(conflicts.length) }),
+              count: conflicts.length,
+              severity: 'medium',
+            },
+            {
+              label: t('Injects added: {count}', { count: String(added.length) }),
+              count: added.length,
+            },
+            {
+              label: t('Injects removed: {count}', { count: String(removed.length) }),
+              count: removed.length,
+            },
+          ]}
+        />
+        <Alert severity="info" title={t('Your targets, teams, schedule and tags stay as they are.')} />
+        {preview.scenario_update_revoked_payloads.length > 0 && (
+          <Alert
+            severity="warning"
+            title={t('Runs a revoked payload version: its injects will fail')}
+            description={payloadNames(preview.scenario_update_revoked_payloads)}
+          />
+        )}
+        {preview.scenario_update_payloads_to_install.length > 0 && (
+          <Alert
+            severity="info"
+            title={t('Payload versions installed with it')}
+            description={payloadNames(preview.scenario_update_payloads_to_install)}
+          />
+        )}
+        {conflicts.length > 0 && (
+          <ScenarioConflicts
+            target={target}
+            conflicts={conflicts}
+            choices={update.choices}
+            edits={update.edits}
+            choose={update.choose}
+            chooseAll={update.chooseAll}
+            startEdit={update.startEdit}
+            edit={update.edit}
+          />
+        )}
+        {(added.length > 0 || removed.length > 0 || taken.length > 0) && (
+          <div style={column}>
+            <Text variant="title-xs">{target.newsTitle}</Text>
+            {added.map(change => injectLine(change, t('Will be added'), target.addedReason))}
+            {removed.map(change => injectLine(change, t('Will be deleted'), target.removedReason))}
+            {taken.length > 0 && (
+              <BeforeAfterTable
+                rows={taken.map(change => beforeAfterRow(change, change.scenario_change_local, change.scenario_change_applied, t))}
+                beforeLabel={t('Before · now')}
+                afterLabel={target.afterLabel}
+              />
+            )}
+          </div>
+        )}
+        {kept.length > 0 && (
+          <div style={column}>
+            <Text variant="title-xs">{target.keptTitle}</Text>
+            <BeforeAfterTable
+              rows={kept.map(change => beforeAfterRow(change, change.scenario_change_base, change.scenario_change_local, t))}
+              beforeLabel={t('Installed version')}
+              afterLabel={t('Your edit')}
+            />
+          </div>
+        )}
+        {preview.scenario_update_lost_dependencies.length > 0 && (
+          <Alert
+            severity="warning"
+            title={t('Some injects lose a dependency: check them after applying.')}
+            description={preview.scenario_update_lost_dependencies.join(', ')}
+          />
+        )}
+        {nothing && <Text variant="content-base">{t('Nothing changes in the content.')}</Text>}
+      </div>
+    );
+  };
 
   return (
     <Dialog open onOpenChange={open => !open && onClose()}>
       <DialogContent size="lg">
         <DialogTitle>{target.title}</DialogTitle>
-        <DialogBody>
-          {loading ? <Spinner /> : (
-            <div style={column}>
-              <Alert severity="info" title={t('Your targets stay as they are.')} />
-              {conflicts.length > 0 && (
-                <div style={column}>
-                  <Text variant="title-xs">{t('Choose the value to keep for each conflict')}</Text>
-                  {conflicts.map((conflict) => {
-                    const choice = choices[conflict.scenario_change_id];
-                    return (
-                      <ConflictChoice
-                        key={conflict.scenario_change_id}
-                        title={changeLabel(conflict, t)}
-                        theirsLabel={target.theirsLabel}
-                        mineLabel={t('Yours')}
-                        theirs={valueText(conflict.scenario_change_applied)}
-                        mine={valueText(conflict.scenario_change_local)}
-                        selected={choice && (choice === 'TAKE_APPLIED' ? 'theirs' : 'mine')}
-                        onSelect={side => choose(conflict.scenario_change_id, side === 'theirs' ? 'TAKE_APPLIED' : 'KEEP_MINE')}
-                      />
-                    );
-                  })}
-                </div>
-              )}
-              {others.length > 0 && (
-                <div style={column}>
-                  <Text variant="title-xs">{t('Changes')}</Text>
-                  {others.map(change => (
-                    <div
-                      key={change.scenario_change_id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: theme.spacing(1),
-                      }}
-                    >
-                      <Chip label={t(STATUSES[change.scenario_change_status].label)} severity={STATUSES[change.scenario_change_status].severity} />
-                      <Text variant="content-base">{changeLabel(change, t)}</Text>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {conflicts.length === 0 && others.length === 0 && (
-                <Text variant="content-base">{t('Nothing changes in the content.')}</Text>
-              )}
-            </div>
-          )}
-        </DialogBody>
+        <DialogBody>{body()}</DialogBody>
         <DialogFooter>
           <Button priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
-          <Button onClick={apply} disabled={!ready || applying}>{target.applyLabel}</Button>
+          <Button onClick={update.apply} disabled={!update.ready || update.applying}>{target.applyLabel}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
