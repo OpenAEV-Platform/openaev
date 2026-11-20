@@ -1,6 +1,7 @@
 import { type FieldValues } from 'react-hook-form';
 
 import { type DetectionRemediation, type PayloadInput } from '../../../../utils/api-types';
+import { remediationsInput } from '../../threat_arsenal/utils/actionFormValues';
 
 export interface DetectionRemediationForm {
   remediationId: string;
@@ -27,13 +28,7 @@ export const payloadFormToPayloadInputForAI = (data: FieldValues): Partial<Paylo
     payload_tags: data.action_tags,
     payload_attack_patterns: data.action_attack_patterns,
     payload_output_parsers: data.action_output_parsers,
-    payload_detection_remediations: (Object.entries(data.remediations) as [string, DetectionRemediationForm][]).filter(value => value[1])
-      .map(([key, remediation]) => ({
-        detection_remediation_security_platform: key,
-        detection_remediation_values: remediation.content,
-        detection_remediation_id: remediation.remediationId,
-        author_rule: remediation.author_rule,
-      })),
+    payload_detection_remediations: remediationsInput(data.remediations),
   };
 };
 

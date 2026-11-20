@@ -1,4 +1,8 @@
-import { type ThreatArsenalActionFullOutput } from '../../../../utils/api-types';
+import {
+  type DetectionRemediationInput,
+  type ThreatArsenalActionCreateInput,
+  type ThreatArsenalActionFullOutput,
+} from '../../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../../utils/api-types-custom';
 import { type DetectionRemediationForm } from '../../payloads/utils/payloadFormToPayloadInput';
 
@@ -6,6 +10,8 @@ export type ActionFormValues = Partial<ThreatArsenalActionCreateCustomInput> & {
   action_id?: string;
   payload_id?: string;
 };
+
+type ActionInput = Omit<ThreatArsenalActionCreateInput, 'action_source' | 'action_status'>;
 
 export const buildInitialValues
   = (action: ThreatArsenalActionFullOutput, actionName: string): ActionFormValues => {
@@ -48,3 +54,35 @@ export const buildInitialValues
       action_domains: action.action_domains,
     } as ActionFormValues;
   };
+
+const handleCleanupCommandValue = (cleanupCommand: string | null | undefined): string | null => (
+  cleanupCommand === '' ? null : (cleanupCommand ?? null)
+);
+
+const handleCleanupExecutorValue = (
+  cleanupExecutor: string | null | undefined,
+  cleanupCommand: string | null | undefined,
+): string | null => {
+  if (cleanupExecutor !== '' && handleCleanupCommandValue(cleanupCommand) !== null) {
+    return cleanupExecutor ?? null;
+  }
+  return null;
+};
+
+export const remediationsInput = (remediations: ThreatArsenalActionCreateCustomInput['remediations']): DetectionRemediationInput[] => (
+  Object.entries((remediations ?? {}) as unknown as Record<string, DetectionRemediationForm>)
+    .filter(([, remediation]) => remediation)
+    .map(([platform, remediation]) => ({
+      detection_remediation_security_platform: platform,
+      detection_remediation_values: remediation.content,
+      detection_remediation_id: remediation.remediationId,
+      author_rule: remediation.author_rule,
+    }))
+);
+
+export const toActionInput = (data: ThreatArsenalActionCreateCustomInput): ActionInput => ({
+  ...data,
+  action_cleanup_executor: handleCleanupExecutorValue(data.action_cleanup_executor, data.action_cleanup_command),
+  action_cleanup_command: handleCleanupCommandValue(data.action_cleanup_command),
+  action_detection_remediations: remediationsInput(data.remediations),
+} as ActionInput);
