@@ -36,9 +36,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The reverse lookups another XTM product calls ({@code /xtm/objects/*}) through the real HTTP
- * stack, as a non-admin caller: each route answers only with the search right on its kind, and the
- * finding facts of an asset need the findings right on top of it. {@link CounterpartApiTest} calls
- * the controller methods directly, so it never exercises {@code @AccessControl}.
+ * stack, as a non-admin caller: the asset route answers only with the search right on assets, the
+ * finding facts of an asset need the findings right on top of it, and the grant-managed kinds
+ * (scenarios, injects) answer only the objects the caller holds a grant on. {@link
+ * CounterpartApiTest} calls the controller methods directly, so it never exercises the access
+ * control annotations.
  */
 @Transactional
 @WithMockUser(isAdmin = false)
@@ -133,28 +135,34 @@ class CounterpartApiGrantTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("scenarios and injects")
+  @DisplayName("scenarios and injects (grant-managed)")
   class ScenariosAndInjects {
 
+    // Scenarios and injects are grant-managed: the search right opens the route to every caller,
+    // and each object is then kept only when the caller holds a grant on it.
+
     @Test
-    @DisplayName("given no scenario search, should refuse the threat lookup")
-    void given_noScenarioSearch_should_refuseTheThreatLookup() throws Exception {
+    @DisplayName("given no scenario grant, should answer no threat")
+    void given_noScenarioGrant_should_answerNoThreat() throws Exception {
       // -- ARRANGE --
       seed(Set.of(Capability.ACCESS_ASSETS));
 
       // -- ACT & ASSERT --
       lookup("threats", List.of("intrusion-set--11111111-1111-4111-8111-111111111111"))
-          .andExpect(status().isForbidden());
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$").isEmpty());
     }
 
     @Test
-    @DisplayName("given no inject search, should refuse the alert lookup")
-    void given_noInjectSearch_should_refuseTheAlertLookup() throws Exception {
+    @DisplayName("given no inject grant, should answer no alert")
+    void given_noInjectGrant_should_answerNoAlert() throws Exception {
       // -- ARRANGE --
       seed(Set.of(Capability.ACCESS_ASSETS));
 
       // -- ACT & ASSERT --
-      lookup("alerts", List.of("https://siem.example/alert/1")).andExpect(status().isForbidden());
+      lookup("alerts", List.of("https://siem.example/alert/1"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$").isEmpty());
     }
   }
 }
