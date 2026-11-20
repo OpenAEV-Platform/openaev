@@ -20,6 +20,18 @@ public record SemanticVersion(int major, int minor, int patch, String preRelease
   public static final Comparator<String> ORDER =
       Comparator.comparing(SemanticVersion::parse, Comparator.naturalOrder());
 
+  public String nextMajor() {
+    return (major + 1) + ".0.0";
+  }
+
+  public String nextMinor() {
+    return major + "." + (minor + 1) + ".0";
+  }
+
+  public String nextPatch() {
+    return major + "." + minor + "." + (patch + 1);
+  }
+
   public static boolean isValid(String version) {
     return parse(version) != INVALID;
   }

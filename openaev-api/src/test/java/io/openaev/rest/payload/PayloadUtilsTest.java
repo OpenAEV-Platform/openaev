@@ -13,6 +13,7 @@ import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PayloadPrerequisite;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.payload.output_parser.OutputParserService;
@@ -94,7 +95,8 @@ class PayloadUtilsTest {
             mock(EnterpriseEditionService.class),
             mock(LicenseCacheManager.class),
             mock(OutputParserService.class),
-            mock(DetectionRemediationUtils.class));
+            mock(DetectionRemediationUtils.class),
+            mock(DocumentService.class));
 
     PayloadUpsertInput input = new PayloadUpsertInput();
     input.setArguments(

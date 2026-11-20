@@ -20,7 +20,7 @@ import { getActionStatus, getPayloadSourceLabel, getStatusLabel, isShownRevoked,
 interface Props {
   action: ThreatArsenalAction;
   onSelect: () => void;
-  onUpdate: (result: ThreatArsenalAction) => void;
+  onUpdate: (result: ThreatArsenalAction, replacedId?: string) => void;
   onDuplicate: (result: ThreatArsenalAction) => void;
   onDelete: () => void;
   onRunTest: () => void;

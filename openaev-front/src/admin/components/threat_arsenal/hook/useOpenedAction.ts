@@ -5,17 +5,23 @@ import { fetchThreatArsenalAction } from '../../../../actions/threat_arsenals/th
 import { useFormatter } from '../../../../components/i18n';
 import { type ThreatArsenalAction, type ThreatArsenalActionFullOutput } from '../../../../utils/api-types';
 
-type OpenedTab = 'versions' | undefined;
+// 'move' opens the Versions tab ready to move the injects left on older versions.
+export type OpenedTab = 'versions' | 'move';
 
-/** The action whose drawer is open and its tab; a link (?action=<id>&tab=versions) opens it once the list shows it. */
+/**
+ * The action whose drawer is open, and the tab it opens on. A link to an action
+ * (?action=<id>&tab=versions[&focus=move]) searches it by name, then opens it once the list shows it.
+ */
 const useOpenedAction = (actions: ThreatArsenalAction[], searchByName: (name: string) => void) => {
   const { tPick } = useFormatter();
   const [openedAction, setOpenedAction] = useState<ThreatArsenalAction | null>(null);
-  const [openedTab, setOpenedTab] = useState<OpenedTab>(undefined);
+  const [openedTab, setOpenedTab] = useState<OpenedTab | undefined>(undefined);
 
   const [searchParams] = useSearchParams();
   const linkedActionId = searchParams.get('action');
-  const linkedTab: OpenedTab = searchParams.get('tab') === 'versions' ? 'versions' : undefined;
+  const linkedFocus: OpenedTab = searchParams.get('focus') === 'move' ? 'move' : 'versions';
+  const linkedTab = searchParams.get('tab') === 'versions' ? linkedFocus : undefined;
+  // A state, not a ref: an action already listed when the link arrives opens at once.
   const [toOpen, setToOpen] = useState<string | null>(null);
 
   useEffect(() => {

@@ -21,6 +21,21 @@ public @interface Hashed {
   /** On a relation: enter this property of the related object instead of the object itself. */
   String property() default "";
 
+  /**
+   * What a change of this member makes of a new local version of its payload. As the catalogue's
+   * own rule, a member no rule names needs a major version.
+   */
+  Change change() default Change.MAJOR;
+
+  enum Change {
+    /** What it needs or offers to run: injects may have to adapt. Also any item removed. */
+    MAJOR,
+    /** What it runs or checks. */
+    MINOR,
+    /** Text and descriptive metadata. */
+    PATCH
+  }
+
   enum Order {
     /** As is: a scalar, or a list kept in its order. */
     VALUE,

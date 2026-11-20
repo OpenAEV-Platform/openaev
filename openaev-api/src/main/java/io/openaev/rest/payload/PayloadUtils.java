@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
@@ -32,6 +33,7 @@ public class PayloadUtils {
   private final LicenseCacheManager licenseCacheManager;
   private final OutputParserService outputParserService;
   private final DetectionRemediationUtils detectionRemediationUtils;
+  private final DocumentService documentService;
 
   public static PayloadCreateInput buildPayload(@NotNull final JsonNode payloadNode) {
     PayloadCreateInput payloadCreateInput = new PayloadCreateInput();
@@ -274,6 +276,11 @@ public class PayloadUtils {
     dedupeArgumentsAndPrerequisites(target);
     outputParserService.copyOutputParsersFromInput((payloadInput).getOutputParsers(), target);
     detectionRemediationUtils.copy((payloadInput).getDetectionRemediations(), target, true);
+    if (target instanceof Executable executable) {
+      executable.setExecutableFile(documentService.document(payloadInput.getExecutableFile()));
+    } else if (target instanceof FileDrop fileDrop) {
+      fileDrop.setFileDropFile(documentService.document(payloadInput.getFileDropFile()));
+    }
     return target;
   }
 

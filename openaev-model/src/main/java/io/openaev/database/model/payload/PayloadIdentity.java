@@ -60,7 +60,10 @@ public class PayloadIdentity implements CatalogIdentity, Auditable {
   @Column(name = "payload_identity_repository", updatable = false)
   private String repository;
 
-  /** The catalogue version shown; null once uninstalled, when the catalogue offers it again. */
+  /**
+   * The version shown: the installed catalogue one, or the newest of a local payload saved as
+   * several versions. Null for a local payload with one version, and once uninstalled.
+   */
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "payload_identity_latest_version")
   @JsonIgnore

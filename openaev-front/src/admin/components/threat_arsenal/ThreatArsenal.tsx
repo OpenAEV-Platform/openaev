@@ -174,7 +174,9 @@ const ThreatArsenal = () => {
   const emptyState = <ThreatArsenalEmptyState hasFilters={hasActiveFilters} onResetFilters={handleResetFilters} />;
   const isChecked = (action: ThreatArsenalAction) => (selectAll && !(action.injector_contract_id in (deSelectedElements || {})))
     || action.injector_contract_id in (selectedElements || {});
-  const updateAction = (result: ThreatArsenalAction) => setThreatArsenalActions(prev => prev.map(a => (a.injector_contract_id === result.injector_contract_id ? result : a)));
+  const updateAction = (result: ThreatArsenalAction, replacedId = result.injector_contract_id) => setThreatArsenalActions(
+    prev => prev.map(a => (a.injector_contract_id === replacedId ? result : a)),
+  );
   const duplicateAction = (result: ThreatArsenalAction) => prependActions([result]);
   const deleteAction = (actionId: string) => setThreatArsenalActions(prev => prev.filter(a => a.injector_contract_id !== actionId));
 
