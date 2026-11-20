@@ -95,4 +95,21 @@ public class HealthCheck {
   @JsonProperty("creation_date")
   @NotNull
   private Instant creationDate;
+
+  @Schema(
+      description =
+          "Key of the injector contract field the check is about, set on a missing mandatory"
+              + " field (its type can be unknown when the key is not a known check type)")
+  @JsonProperty("field")
+  private String field;
+
+  public HealthCheck(Type type, Detail detail, Status status, Instant creationDate) {
+    this(type, detail, status, creationDate, null);
+  }
+
+  /** A mandatory field of the injector contract that the inject leaves empty. */
+  public static HealthCheck missingMandatoryField(String fieldKey, Instant creationDate) {
+    return new HealthCheck(
+        Type.fromValue(fieldKey), Detail.MANDATORY_CONTENT, Status.ERROR, creationDate, fieldKey);
+  }
 }

@@ -13,7 +13,9 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.*;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.service.InjectService;
@@ -79,6 +81,7 @@ public class AtomicTestingService {
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final BulkDeleteExecutor bulkDeleteExecutor;
   private final RecurrenceService recurrenceService;
+  private final HealthCheckUtils healthCheckUtils;
 
   // -- CRUD --
 
@@ -278,8 +281,28 @@ public class AtomicTestingService {
   }
 
   public InjectResultOverviewOutput launch(TxCtx ctx, String id) {
-    findInject(ctx, id);
+    throwIfMandatoryFieldsMissing(findInject(ctx, id));
     return injectService.launch(id);
+  }
+
+  /**
+   * Refuses to launch an atomic testing that leaves a mandatory field of its injector contract
+   * empty: it would run and do nothing (no recipient, no target). The 400 names each field, the
+   * ones {@code inject_missing_mandatory_fields} lists on the read. Only the fields of a contract
+   * are checked here: an atomic testing with no contract keeps its current launch path.
+   */
+  void throwIfMandatoryFieldsMissing(Inject inject) {
+    List<String> missingFields =
+        HealthCheckUtils.missingMandatoryFields(
+            healthCheckUtils.runContentChecks(inject).stream()
+                .filter(check -> check.getField() != null)
+                .toList());
+    if (!missingFields.isEmpty()) {
+      throw new BadRequestException(
+          "The atomic testing is not ready to be launched: mandatory field(s) "
+              + String.join(", ", missingFields)
+              + " of its injector contract are empty");
+    }
   }
 
   /**
@@ -301,7 +324,9 @@ public class AtomicTestingService {
    * they are not cleared for will not be executed, so their executors must not block the launch.
    */
   public void throwIfNotLaunchable(TxCtx ctx, String id) {
-    injectService.throwIfInjectNotLaunchable(findInject(ctx, id));
+    Inject inject = findInject(ctx, id);
+    throwIfMandatoryFieldsMissing(inject);
+    injectService.throwIfInjectNotLaunchable(inject);
   }
 
   /**
