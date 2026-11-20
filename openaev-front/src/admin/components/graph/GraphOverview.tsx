@@ -131,11 +131,11 @@ const GraphOverview = ({ overview, onUnfoldGroup, onOpenUngrouped, onOpenSimulat
                       'color': theme.palette.text.primary,
                       'backgroundColor': alpha(ring, 0.12),
                       'border': `2px ${group.group_dynamic ? 'dashed' : 'solid'} ${ring}`,
-                      'transition': 'transform 0.2s, box-shadow 0.2s',
+                      'transition': 'transform 0.2s',
                       '&:hover, &:focus-visible': {
                         transform: 'scale(1.04)',
-                        boxShadow: `0 0 12px ${alpha(ring, 0.5)}`,
-                        outline: 'none',
+                        outline: `2px solid ${ring}`,
+                        outlineOffset: 2,
                       },
                       '@media (prefers-reduced-motion: reduce)': {
                         'transition': 'none',

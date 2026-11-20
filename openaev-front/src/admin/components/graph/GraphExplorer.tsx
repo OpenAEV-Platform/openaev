@@ -69,7 +69,7 @@ import {
 } from '@xyflow/react';
 import { toPng } from 'html-to-image';
 import { type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 
 import { fetchGraphNeighbourhood, fetchGraphPath } from '../../../actions/graph/graph-actions';
 import { useFormatter } from '../../../components/i18n';
@@ -267,7 +267,6 @@ const GraphExplorerInner = ({
   const { fitView, screenToFlowPosition, zoomIn, zoomOut } = useReactFlow();
   const wrapper = useRef<HTMLDivElement>(null);
   const emptyPane = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
   const [state, setState] = useState<GraphState>(() => fromSlice(initial));
   const [history, setHistory] = useState<History>({ past: [] });
   const [filters, setFilters] = useState<GraphFilters>(DEFAULT_FILTERS);
@@ -838,7 +837,7 @@ const GraphExplorerInner = ({
                   ...filters,
                   nodeTypes: toggle(filters.nodeTypes, type),
                 })}
-                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-[var(--background-default-secondary)]"
+                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-elevation-hover"
                 style={{
                   opacity: on ? 1 : 0.4,
                   textDecoration: on ? 'none' : 'line-through',
@@ -855,7 +854,7 @@ const GraphExplorerInner = ({
           </Tooltip>
         );
       })}
-      <span aria-hidden className="my-1 h-px w-full bg-[var(--border-default-primary)]" />
+      <span aria-hidden className="my-1 h-px w-full" style={{ background: theme.palette.divider }} />
       {ALL_RESULTS.map(result => (
         <span key={result} className="inline-flex items-center gap-1 px-1">
           <span
@@ -903,7 +902,7 @@ const GraphExplorerInner = ({
         type="button"
         aria-expanded={legendOpen}
         onClick={() => setLegendOpen(!legendOpen)}
-        className="inline-flex items-center justify-between gap-2 px-2 py-1 hover:bg-[var(--background-default-secondary)]"
+        className="inline-flex items-center justify-between gap-2 px-2 py-1 hover:bg-elevation-hover"
         style={{
           border: 0,
           background: 'transparent',
@@ -1035,6 +1034,8 @@ const GraphExplorerInner = ({
   // the open side panel, clear of the legend card) opened by the count of entities shown. Each
   // layout button runs its layout from scratch (a second click on the active one re-runs it), then
   // the view is framed; every button says what it does on hover. The embedded graph keeps the count, the zoom and the fit.
+  // A theme colour, not a class: the design system ships no divider background utility.
+  const separator = <span aria-hidden className="mx-1 h-4 w-px" style={{ background: theme.palette.divider }} />;
   const canvasToolbar = (offset: number) => (
     <div
       data-testid="graph-canvas-toolbar"
@@ -1050,22 +1051,22 @@ const GraphExplorerInner = ({
       }}
     >
       <Text variant="content-caption" className="px-1 text-default-secondary">{`${t('Entities')}: ${visibleCount}`}</Text>
-      <span aria-hidden className="mx-1 h-4 w-px bg-[var(--border-default-primary)]" />
+      {separator}
       {iconAction(t('Zoom in'), <ZoomInOutlined fontSize="small" />, () => zoomIn())}
       {iconAction(t('Zoom out'), <ZoomOutOutlined fontSize="small" />, () => zoomOut())}
       {iconAction(t('Fit to screen'), <FitScreenOutlined fontSize="small" />, fitToScreen)}
       {variant === 'page' && (
         <>
-          <span aria-hidden className="mx-1 h-4 w-px bg-[var(--border-default-primary)]" />
+          {separator}
           {(['force', 'hierarchical', 'radial'] as GraphLayout[]).map(value => (
             <span key={value}>{iconAction(t(LAYOUT_LABEL[value]), LAYOUT_ICON[value], () => relayout(value), false, layout === value)}</span>
           ))}
           {iconAction(t('Re-run the layout'), <AutorenewOutlined fontSize="small" />, () => relayout())}
-          <span aria-hidden className="mx-1 h-4 w-px bg-[var(--border-default-primary)]" />
+          {separator}
           {iconAction(t(LASSO_LABEL), <GestureOutlined fontSize="small" />, () => setLassoOn(!lassoOn), false, lassoOn)}
           {iconAction(t('Show hidden nodes'), <VisibilityOutlined fontSize="small" />, () => commit(showHidden), state.hidden.length === 0)}
           {iconAction(t('Undo'), <UndoOutlined fontSize="small" />, undo, history.past.length === 0)}
-          <span aria-hidden className="mx-1 h-4 w-px bg-[var(--border-default-primary)]" />
+          {separator}
           {iconAction(t('Export as PNG'), <DownloadOutlined fontSize="small" />, exportPng)}
           {iconAction(t('Copy a link to this view'), <LinkOutlined fontSize="small" />, () => copyLink())}
           {iconAction(t('Keyboard shortcuts'), <KeyboardOutlined fontSize="small" />, () => setShortcutsOpen(true))}
@@ -1218,6 +1219,17 @@ const GraphExplorerInner = ({
       </MenuItem>
     )];
   };
+  // An entity of this product: a router link, so a middle click or "open in new tab" works as on any other entity link.
+  const routeItem = (key: string, label: string, icon: ReactNode, href: string | undefined) => {
+    if (!href) {
+      return [];
+    }
+    return [(
+      <MenuItem key={key} startIcon={icon} asChild>
+        <Link to={href}>{label}</Link>
+      </MenuItem>
+    )];
+  };
   const nodeMenu = (node: GraphNodeOutput) => {
     const href = nodeHref(node);
     const present = ALL_NODE_TYPES.filter(type => type !== node.node_type);
@@ -1246,7 +1258,7 @@ const GraphExplorerInner = ({
       }),
       menuItem('neighbours', t('Select neighbours'), <SelectAllOutlined fontSize="small" />, () => selectNeighbours([node.node_id])),
       menuItem('remove', t('Remove from view'), <DeleteOutlined fontSize="small" />, () => removeFromView([node.node_id]), node.node_id === state.focus),
-      ...(href ? [menuItem('open', t('Open'), <OpenInNewOutlined fontSize="small" />, () => navigate(href))] : []),
+      ...routeItem('open', t('Open'), <OpenInNewOutlined fontSize="small" />, href),
       ...(inOpenCti.has(node.node_id) ? linkItem('opencti', t('Open in OpenCTI'), <ProductMark size={16} />, menuLinks[OPENCTI_PRODUCT]) : []),
       ...(inOpenCrq.has(node.node_id) ? linkItem('opencrq', t('Open in OpenCRQ'), <OpenCrqMark size={16} />, menuLinks[OPENCRQ_PRODUCT]) : []),
       menuItem('copy-link', t('Copy a link to this view'), <LinkOutlined fontSize="small" />, () => copyLink(node)),
