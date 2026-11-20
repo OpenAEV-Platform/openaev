@@ -14,13 +14,15 @@ export interface MarketplaceToolbarState {
 }
 
 interface Props extends MarketplaceToolbarState {
-  sortOptions: SortOption[];
+  // No options, no sort menu: a list sorts from its column headers.
+  sortOptions?: SortOption[];
   descendingFields?: string[];
+  placeholder?: string;
   // Acts on the whole catalogue, next to the results count.
   actions?: ReactNode;
 }
 
-const MarketplaceToolbar: FunctionComponent<Props> = ({ keyword, onSearch, sortHelpers, count, sortOptions, descendingFields, actions }) => {
+const MarketplaceToolbar: FunctionComponent<Props> = ({ keyword, onSearch, sortHelpers, count, sortOptions = [], descendingFields, placeholder, actions }) => {
   const theme = useTheme();
   return (
     <div style={{
@@ -30,8 +32,8 @@ const MarketplaceToolbar: FunctionComponent<Props> = ({ keyword, onSearch, sortH
       gap: theme.spacing(1.5),
     }}
     >
-      <SearchFilter variant="small" keyword={keyword} onChange={onSearch} />
-      <MarketplaceSortSelect sortHelpers={sortHelpers} options={sortOptions} descendingFields={descendingFields} />
+      <SearchFilter variant="small" keyword={keyword} onChange={onSearch} placeholder={placeholder} />
+      {sortOptions.length > 0 && <MarketplaceSortSelect sortHelpers={sortHelpers} options={sortOptions} descendingFields={descendingFields} />}
       <div style={{
         display: 'flex',
         alignItems: 'center',
