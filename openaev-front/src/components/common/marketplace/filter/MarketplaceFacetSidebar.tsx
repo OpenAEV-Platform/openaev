@@ -10,7 +10,7 @@ export interface MarketplaceFacet<K extends string> {
   // Without values, the facet lists those of the items.
   values?: string[];
   valueLabel?: (value: string) => string;
-  icon?: (value: string) => (() => ReactElement) | undefined;
+  icon?: (value: string) => ReactElement | undefined;
 }
 
 type Props<K extends string> = FacetState<K> & { facets: MarketplaceFacet<K>[] };
@@ -22,14 +22,17 @@ const MarketplaceFacetSidebar = <K extends string>({ facets, filters, counts, va
     return {
       id: facet.key,
       label: t(facet.label),
-      rows: (facet.values ?? values(facet.key)).map(value => ({
-        value,
-        label: t(facet.valueLabel?.(value) ?? value),
-        count: facetCounts[value] ?? 0,
-        icon: facet.icon?.(value),
-        checked: filters.values[facet.key].includes(value),
-        onToggle: () => onToggle(facet.key, value),
-      })),
+      rows: (facet.values ?? values(facet.key)).map((value) => {
+        const icon = facet.icon?.(value);
+        return {
+          value,
+          label: t(facet.valueLabel?.(value) ?? value),
+          count: facetCounts[value] ?? 0,
+          icon: icon && (() => icon),
+          checked: filters.values[facet.key].includes(value),
+          onToggle: () => onToggle(facet.key, value),
+        };
+      }),
     };
   });
 

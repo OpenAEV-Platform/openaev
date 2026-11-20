@@ -46,7 +46,7 @@ const FACETS: MarketplaceFacet<'domains' | 'platforms'>[] = [
   {
     key: 'domains',
     label: 'Domains',
-    icon: domain => DOMAIN_ICON_MAP[domain],
+    icon: domain => DOMAIN_ICON_MAP[domain]?.(),
   },
   {
     key: 'platforms',

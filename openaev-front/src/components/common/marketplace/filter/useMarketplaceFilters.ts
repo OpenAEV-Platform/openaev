@@ -20,7 +20,7 @@ interface Options<T, K extends string, S extends string> {
   groupKey?: (item: T) => string | undefined;
 }
 
-const byGroup = <T, >(groupKey: (item: T) => string | undefined) => (a: T, b: T) => {
+const byGroup = <T>(groupKey: (item: T) => string | undefined) => (a: T, b: T) => {
   const first = groupKey(a);
   const second = groupKey(b);
   if (first === second) return 0;
