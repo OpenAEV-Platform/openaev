@@ -11,20 +11,23 @@ import org.hibernate.Hibernate;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
 
-/** What a customized copy may change on its Filigran version: its key and its property. */
+/**
+ * What a customized copy may change on its Filigran version: its key, its property and its block.
+ */
 @Getter
 @RequiredArgsConstructor
 public enum CustomizableField {
-  COMMAND_EXECUTOR("command_executor", "executor"),
-  COMMAND_CONTENT("command_content", "content"),
-  CLEANUP_EXECUTOR("payload_cleanup_executor", "cleanupExecutor"),
-  CLEANUP_COMMAND("payload_cleanup_command", "cleanupCommand"),
-  PLATFORMS("payload_platforms", "platforms"),
-  ARGUMENTS("payload_arguments", "arguments"),
-  PREREQUISITES("payload_prerequisites", "prerequisites");
+  COMMAND_EXECUTOR("command_executor", "executor", CustomizableBlock.EXECUTION),
+  COMMAND_CONTENT("command_content", "content", CustomizableBlock.EXECUTION),
+  CLEANUP_EXECUTOR("payload_cleanup_executor", "cleanupExecutor", CustomizableBlock.EXECUTION),
+  CLEANUP_COMMAND("payload_cleanup_command", "cleanupCommand", CustomizableBlock.EXECUTION),
+  PLATFORMS("payload_platforms", "platforms", CustomizableBlock.PLATFORMS),
+  ARGUMENTS("payload_arguments", "arguments", CustomizableBlock.EXECUTION),
+  PREREQUISITES("payload_prerequisites", "prerequisites", CustomizableBlock.EXECUTION);
 
   private final String key;
   private final String property;
+  private final CustomizableBlock block;
 
   public static Optional<CustomizableField> ofKey(String key) {
     return Arrays.stream(values()).filter(field -> field.key.equals(key)).findFirst();
