@@ -2625,7 +2625,11 @@ export interface CatalogConnectorSimpleOutput {
 }
 
 export interface CatalogHistoryOutput {
-  catalog_history_action: "INSTALL" | "UNINSTALL" | "REVOKE" | "LIFT_REVOCATION";
+  catalog_history_action:
+    | "INSTALL"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION";
   /** @format date-time */
   catalog_history_created_at: string;
   /** @minLength 1 */
