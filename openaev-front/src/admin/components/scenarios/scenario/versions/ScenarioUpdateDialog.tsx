@@ -10,8 +10,10 @@ import {
   Text,
   Textarea,
 } from '@filigran/design-system';
-import { ArrowForwardOutlined } from '@mui/icons-material';
-import { type FunctionComponent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowForwardOutlined, CheckCircleOutlined, ExpandMoreOutlined } from '@mui/icons-material';
+// fds:keep-mui the library has no Accordion yet (frontend.instructions.md lists it as still MUI)
+import { Accordion, AccordionDetails, AccordionSummary } from '@mui/material';
+import { Fragment, type FunctionComponent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
 import {
@@ -92,6 +94,60 @@ const fieldLabel = (key: string) => {
 
 // A typed value starts from the client's own: plain text for a string, JSON otherwise.
 const draftOf = (value: unknown) => (typeof value === 'string' ? value : JSON.stringify(value ?? null, null, 2));
+
+// A part of the dialog that opens and closes: the title, its count, and a one-line summary that says
+// what is inside even when closed, so nothing is hidden without a trace.
+const Section: FunctionComponent<{
+  title: string;
+  count?: number;
+  summary?: string;
+  defaultExpanded: boolean;
+  testId: string;
+  children: ReactNode;
+}> = ({ title, count, summary, defaultExpanded, testId, children }) => (
+  <Accordion
+    defaultExpanded={defaultExpanded}
+    disableGutters
+    elevation={0}
+    square
+    data-testid={testId}
+    sx={{
+      'background': 'transparent',
+      'borderTop': '1px solid var(--border-elevation-subtle-soft)',
+      '&::before': { display: 'none' },
+    }}
+  >
+    <AccordionSummary
+      expandIcon={<ExpandMoreOutlined fontSize="small" />}
+      sx={{
+        'px': 0,
+        'minHeight': 0,
+        '& .MuiAccordionSummary-content': {
+          my: 1.5,
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 1,
+          flexWrap: 'wrap',
+          minWidth: 0,
+        },
+      }}
+    >
+      <Text variant="title-xs">{count === undefined ? title : `${title} (${count})`}</Text>
+      {summary && <Text variant="content-caption" className="text-default-secondary">{summary}</Text>}
+    </AccordionSummary>
+    <AccordionDetails sx={{
+      px: 0,
+      pt: 0,
+      pb: 2,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 1,
+    }}
+    >
+      {children}
+    </AccordionDetails>
+  </Accordion>
+);
 
 // F20 in step 1: what an update or a rollback changes, and a side for each conflict.
 const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, revisionId, revisionNumber, revisionDate, onClose, onApplied }) => {
@@ -276,6 +332,8 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
   // One row per kept field, with the user's value (what stays after applying).
   const keptRows = kept.flatMap(change => rowsOf(change, change.base, change.local).map((item, index) => ({
     key: `${change.id}-${index}`,
+    element: change.element,
+    name: change.key ?? '',
     field: item.field,
     value: item.after,
     code: 'code' in item && !!item.code,
@@ -286,6 +344,22 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
   const needTargets = changedElements.filter(element => element.change === 'ADDED').length;
   const nothingChanges = !!preview && taken.length === 0 && changedElements.length === 0 && notes.length === 0
     && preview.payloads_to_install.length === 0 && conflicts.length === 0;
+  // What stays, grouped: the variables in one row (a scenario has many), the other edits one by one.
+  const keptVariables = keptRows.filter(item => item.element === 'variables');
+  const keptOthers = keptRows.filter(item => item.element !== 'variables');
+  const keptInjectEdits = keptOthers.filter(item => item.element.startsWith('inject')).length;
+  const keptScenarioEdits = keptOthers.length - keptInjectEdits;
+  const staysSummary = [
+    keptVariables.length > 0 ? t('{count, plural, one {# variable} other {# variables}}', { count: keptVariables.length }) : null,
+    keptInjectEdits > 0 ? t('{count, plural, one {# inject edit} other {# inject edits}}', { count: keptInjectEdits }) : null,
+    keptScenarioEdits > 0 ? t('{count, plural, one {# scenario edit} other {# scenario edits}}', { count: keptScenarioEdits }) : null,
+    keptElements.length > 0 ? t('{count, plural, one {# inject of yours} other {# injects of yours}}', { count: keptElements.length }) : null,
+    t('targets, teams, schedule and tags'),
+  ].filter(Boolean).join(', ');
+  // Every row of the section, the targets, teams, schedule and tags row included.
+  const staysCount = keptVariables.length + keptOthers.length + keptElements.length + 1;
+  const changesCount = taken.length + changedElements.length;
+  const todoCount = conflicts.length + (needTargets > 0 ? 1 : 0) + (preview?.warnings.length ? 1 : 0);
   // "(v2.0.0, 9 Nov 2026)": the revision's version and date, so the user knows which one it is.
   const revisionFacts = [preview?.target_version && `v${preview.target_version}`, revisionDate && fsd(revisionDate)].filter(Boolean);
   const revisionDetails = revisionFacts.length > 0 ? ` (${revisionFacts.join(', ')})` : '';
@@ -340,9 +414,9 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
               gap: 20,
             }}
             >
-              {/* What applying does, in one sentence, then its size (idea B): only what happens is counted,
-                  a chip at 0 says nothing. The details follow in three parts: what changes, what stays, and
-                  what the user needs to do. */}
+              {/* What applying does, in one sentence. The details follow in three parts that open and close:
+                  what changes (open: the decision), what stays (closed, its summary says what is inside), and
+                  what the user needs to do (open when there is something, one line otherwise). */}
               <div style={section} data-testid="scenario-update-summary">
                 {/* Undo is said here, where everyone reads, and again in the message after applying. */}
                 <Text variant="content-base">
@@ -354,257 +428,293 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
                       })}
                   {` ${t('You can roll back later from Versions.')}`}
                 </Text>
-                {(() => {
-                  const added = preview.elements.filter(element => element.change === 'ADDED').length;
-                  const removed = preview.elements.filter(element => element.change === 'REMOVED').length;
-                  const chips: {
-                    key: string;
-                    count: number;
-                    label: string;
-                    severity?: 'info' | 'medium';
-                  }[] = [
-                    {
-                      key: 'taken',
-                      count: taken.length,
-                      label: version
-                        ? t('Changes from Filigran: {count}', { count: String(taken.length) })
-                        : t('Changes restored: {count}', { count: String(taken.length) }),
-                      severity: 'info',
-                    },
-                    {
-                      key: 'kept',
-                      count: kept.length,
-                      label: t('Your edits kept: {count}', { count: String(kept.length) }),
-                    },
-                    {
-                      key: 'conflicts',
-                      count: conflicts.length,
-                      label: t('Conflicts to decide: {count}', { count: String(conflicts.length) }),
-                      severity: 'medium',
-                    },
-                    {
-                      key: 'added',
-                      count: added,
-                      label: t('Injects added: {count}', { count: String(added) }),
-                    },
-                    {
-                      key: 'removed',
-                      count: removed,
-                      label: t('Injects removed: {count}', { count: String(removed) }),
-                    },
-                  ];
-                  const shown = chips.filter(chip => chip.count > 0);
-                  return shown.length > 0 && (
-                    <div style={row}>
-                      {shown.map(chip => <Chip key={chip.key} label={chip.label} severity={chip.severity} />)}
-                    </div>
-                  );
-                })()}
               </div>
-              {/* What changes. A diff here only shows what applying changes (idea A). */}
-              <div style={section} data-testid="scenario-update-changes">
-                <Text variant="title-xs">{t('What changes')}</Text>
-                {preview.current_version && preview.target_version && preview.current_version !== preview.target_version && (
-                  <Text variant="content-base">
-                    {t('Version: v{from} → v{to}', {
-                      from: preview.current_version,
-                      to: preview.target_version,
-                    })}
-                  </Text>
-                )}
-                {preview.revoked_payloads.length > 0 && (
-                  <Alert
-                    severity={version ? 'error' : 'warning'}
-                    title={`${version ? t('Uses a revoked version') : t('Uses a revoked version: these injects will fail')}: ${preview.revoked_payloads.join(', ')}`}
-                  />
-                )}
-                {preview.payloads_to_install.length > 0 && (
-                  <Alert severity="info" title={`${t('Payload versions installed with it')}: ${preview.payloads_to_install.join(', ')}`} />
-                )}
-                {notes.map(note => (
-                  <div
-                    key={note.version}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '64px minmax(0, 1fr)',
-                      gap: 12,
-                    }}
-                  >
-                    <Text variant="content-caption">{`v${note.version}`}</Text>
-                    <Text variant="content-base">{note.changelog}</Text>
-                  </div>
-                ))}
-                {changedElements.map((element) => {
-                  let reason: ReactNode = null;
-                  if (element.change === 'ADDED') {
-                    reason = version ? t('New in v{version}', { version }) : t('In revision #{number}', { number: revisionNumber ?? '' });
-                  } else if (element.change === 'REMOVED') {
-                    reason = version ? t('Removed in v{version}', { version }) : t('Not in revision #{number}', { number: revisionNumber ?? '' });
-                  }
-                  let severity: 'low' | 'medium' | undefined;
-                  if (element.change === 'ADDED') severity = 'low';
-                  if (element.change === 'REMOVED') severity = 'medium';
-                  return (
-                    <div key={element.id} style={row}>
-                      <Chip label={t(ELEMENT_LABELS[element.change])} severity={severity} />
-                      <Text variant="content-base">{t('Inject “{title}”', { title: element.title ?? element.id })}</Text>
-                      {reason && <Text variant="content-caption">{reason}</Text>}
-                      {element.change === 'ADDED' && <Text variant="content-caption">{`· ${t('Needs targets')}`}</Text>}
+              <div>
+                <Section
+                  title={t('What changes')}
+                  count={changesCount}
+                  defaultExpanded
+                  testId="scenario-update-changes"
+                >
+                  {preview.current_version && preview.target_version && preview.current_version !== preview.target_version && (
+                    <Text variant="content-base">
+                      {t('Version: v{from} → v{to}', {
+                        from: preview.current_version,
+                        to: preview.target_version,
+                      })}
+                    </Text>
+                  )}
+                  {preview.revoked_payloads.length > 0 && (
+                    <Alert
+                      severity={version ? 'error' : 'warning'}
+                      title={`${version ? t('Uses a revoked version') : t('Uses a revoked version: these injects will fail')}: ${preview.revoked_payloads.join(', ')}`}
+                    />
+                  )}
+                  {preview.payloads_to_install.length > 0 && (
+                    <Alert severity="info" title={`${t('Payload versions installed with it')}: ${preview.payloads_to_install.join(', ')}`} />
+                  )}
+                  {notes.map(note => (
+                    <div
+                      key={note.version}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '64px minmax(0, 1fr)',
+                        gap: 12,
+                      }}
+                    >
+                      <Text variant="content-caption">{`v${note.version}`}</Text>
+                      <Text variant="content-base">{note.changelog}</Text>
                     </div>
-                  );
-                })}
-                {taken.length > 0 && (
-                  <ChangesTable
-                    changes={taken.flatMap(change => rowsOf(change, change.local ?? change.base, change.applied))}
-                    beforeLabel={String(beforeLabel)}
-                    afterLabel={String(afterLabel)}
-                  />
-                )}
-                {nothingChanges && <Text variant="content-base">{t('Nothing in the content changes.')}</Text>}
-              </div>
-              {/* What stays: a kept edit does not change, so it is one quiet row, and its content opens as
-                  plain text (no + / −). */}
-              <div style={section} data-testid="scenario-update-kept">
-                <Text variant="title-xs">{t('What stays')}</Text>
-                {keptElements.map(element => (
-                  <div key={element.id} style={row}>
-                    <Chip label={t(ELEMENT_LABELS[element.change])} />
-                    <Text variant="content-base">{t('Inject “{title}”', { title: element.title ?? element.id })}</Text>
-                  </div>
-                ))}
-                {keptRows.map((item) => {
-                  const open = viewing.has(item.key);
-                  return (
-                    <div key={item.key} style={section}>
+                  ))}
+                  {changedElements.map((element) => {
+                    let reason: ReactNode = null;
+                    if (element.change === 'ADDED') {
+                      reason = version ? t('New in v{version}', { version }) : t('In revision #{number}', { number: revisionNumber ?? '' });
+                    } else if (element.change === 'REMOVED') {
+                      reason = version ? t('Removed in v{version}', { version }) : t('Not in revision #{number}', { number: revisionNumber ?? '' });
+                    }
+                    let severity: 'low' | 'medium' | undefined;
+                    if (element.change === 'ADDED') severity = 'low';
+                    if (element.change === 'REMOVED') severity = 'medium';
+                    return (
+                      <div key={element.id} style={row}>
+                        <Chip label={t(ELEMENT_LABELS[element.change])} severity={severity} />
+                        <Text variant="content-base">{t('Inject “{title}”', { title: element.title ?? element.id })}</Text>
+                        {reason && <Text variant="content-caption">{reason}</Text>}
+                        {element.change === 'ADDED' && <Text variant="content-caption">{`· ${t('Needs targets')}`}</Text>}
+                      </div>
+                    );
+                  })}
+                  {taken.length > 0 && (
+                    <ChangesTable
+                      changes={taken.flatMap(change => rowsOf(change, change.local ?? change.base, change.applied))}
+                      beforeLabel={String(beforeLabel)}
+                      afterLabel={String(afterLabel)}
+                    />
+                  )}
+                  {nothingChanges && <Text variant="content-base">{t('Nothing in the content changes.')}</Text>}
+                </Section>
+                {/* A kept edit does not change, so it is one quiet row, and its content opens as plain text. */}
+                <Section
+                  title={t('What stays')}
+                  count={staysCount}
+                  summary={staysSummary}
+                  defaultExpanded={false}
+                  testId="scenario-update-kept"
+                >
+                  {keptVariables.length > 0 && (
+                    <div style={section}>
                       <div style={row}>
                         <Chip label={t('Kept')} />
-                        <Text variant="content-base">{item.field}</Text>
-                        {item.code
-                          ? (
-                              <Button
-                                size="sm"
-                                priority="tertiary"
-                                style={{ marginLeft: 'auto' }}
-                                aria-expanded={open}
-                                onClick={() => setViewing((previous) => {
-                                  const next = new Set(previous);
-                                  if (open) next.delete(item.key);
-                                  else next.add(item.key);
-                                  return next;
-                                })}
-                              >
-                                {open ? t('Hide') : t('View')}
-                              </Button>
-                            )
-                          : <Text variant="content-caption">{item.value || t('(empty)')}</Text>}
-                      </div>
-                      {item.code && open && (
-                        <>
-                          {/* Which version this is, as every block of content in the dialog says: here, the same on both sides. */}
-                          <Text variant="content-caption">{unchangedLabel}</Text>
-                          <pre
-                            tabIndex={0}
-                            aria-label={item.field}
+                        <Text variant="content-base">{t('Variables ({count})', { count: keptVariables.length })}</Text>
+                        {!viewing.has('variables') && (
+                          <Text
+                            variant="content-caption"
+                            className="text-default-secondary"
                             style={{
-                              margin: 0,
-                              maxHeight: 320,
-                              overflow: 'auto',
-                              padding: '8px 12px',
-                              borderRadius: 4,
-                              border: '1px solid var(--border-elevation-subtle-soft)',
-                              fontFamily: 'var(--font-content-code), ui-monospace, monospace',
-                              fontSize: 'var(--text-content-code)',
-                              lineHeight: '22px',
-                              color: 'var(--text-default-primary)',
+                              minWidth: 0,
+                              flex: 1,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
                             }}
                           >
-                            {item.value || t('(empty)')}
-                          </pre>
-                        </>
+                            {keptVariables.map(item => item.name).join(', ')}
+                          </Text>
+                        )}
+                        <Button
+                          size="sm"
+                          priority="tertiary"
+                          style={{ marginLeft: 'auto' }}
+                          aria-expanded={viewing.has('variables')}
+                          onClick={() => setViewing((previous) => {
+                            const next = new Set(previous);
+                            if (next.has('variables')) next.delete('variables');
+                            else next.add('variables');
+                            return next;
+                          })}
+                        >
+                          {viewing.has('variables') ? t('Hide') : t('View')}
+                        </Button>
+                      </div>
+                      {viewing.has('variables') && (
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'max-content minmax(0, 1fr)',
+                          alignItems: 'baseline',
+                          columnGap: 16,
+                          rowGap: 4,
+                          paddingLeft: 12,
+                        }}
+                        >
+                          {keptVariables.map(item => (
+                            <Fragment key={item.key}>
+                              <Text variant="content-base">{item.name}</Text>
+                              <Text variant="content-caption" className="text-default-secondary">{item.value || t('(empty)')}</Text>
+                            </Fragment>
+                          ))}
+                        </div>
                       )}
                     </div>
-                  );
-                })}
-                <div style={row}>
-                  <Chip label={t('Kept')} />
-                  <Text variant="content-base">{t('Targets, teams, schedule and tags')}</Text>
-                </div>
-              </div>
-              {/* What the user needs to do: before applying (conflicts), then after (targets, checks). */}
-              <div style={section} data-testid="scenario-update-todo">
-                <Text variant="title-xs">{t('What you need to do')}</Text>
-                {conflicts.length === 0 && <Text variant="content-base">{t('Nothing to decide before applying.')}</Text>}
-                {conflicts.length > 0 && (
-                  <Text variant="content-base">
-                    {version
-                      ? t('Filigran changed things you edited. Pick which version to keep for each.')
-                      : t('You edited things this rollback restores. Pick which version to keep for each.')}
-                  </Text>
-                )}
-                {conflicts.length > 0 && (
-                  <div style={section}>
-                    <div style={{
-                      ...row,
-                      justifyContent: 'space-between',
-                    }}
-                    >
-                      <Text variant="title-xs">{t('Conflicts ({count})', { count: conflicts.length })}</Text>
-                      <div style={row}>
-                        <Button size="sm" priority="secondary" onClick={() => chooseAll('KEEP_MINE')}>{t('Keep all mine')}</Button>
-                        <Button size="sm" priority="secondary" onClick={() => chooseAll('TAKE_APPLIED')}>{t('Take all')}</Button>
-                      </div>
+                  )}
+                  {keptElements.map(element => (
+                    <div key={element.id} style={row}>
+                      <Chip label={t(ELEMENT_LABELS[element.change])} />
+                      <Text variant="content-base">{t('Inject “{title}”', { title: element.title ?? element.id })}</Text>
                     </div>
-                    {conflicts.map((conflict) => {
-                      const choice = choices[conflict.id];
-                      const choose = (value: ScenarioMergeChoice) => setChoices(previous => ({
-                        ...previous,
-                        [conflict.id]: value,
-                      }));
-                      let selected: 'theirs' | 'mine' | undefined;
-                      if (choice === 'TAKE_APPLIED') selected = 'theirs';
-                      if (choice === 'KEEP_MINE') selected = 'mine';
-                      return (
-                        <ConflictChoice
-                          key={conflict.id}
-                          title={`${conflict.title} · ${conflict.block}`}
-                          theirsLabel={theirs}
-                          mineLabel={t('Yours')}
-                          theirs={<TextDiff text={conflict.applied} other={conflict.mine} />}
-                          mine={<TextDiff text={conflict.mine} other={conflict.applied} />}
-                          selected={selected}
-                          onSelect={side => choose(side === 'theirs' ? 'TAKE_APPLIED' : 'KEEP_MINE')}
-                          footer={conflict.editable && (
-                            <div style={section}>
-                              <div>
-                                <Button size="sm" priority={choice === 'EDIT' ? 'primary' : 'tertiary'} onClick={() => choose('EDIT')}>
-                                  {t('Edit')}
+                  ))}
+                  {keptOthers.map((item) => {
+                    const open = viewing.has(item.key);
+                    return (
+                      <div key={item.key} style={section}>
+                        <div style={row}>
+                          <Chip label={t('Kept')} />
+                          <Text variant="content-base">{item.field}</Text>
+                          {item.code
+                            ? (
+                                <Button
+                                  size="sm"
+                                  priority="tertiary"
+                                  style={{ marginLeft: 'auto' }}
+                                  aria-expanded={open}
+                                  onClick={() => setViewing((previous) => {
+                                    const next = new Set(previous);
+                                    if (open) next.delete(item.key);
+                                    else next.add(item.key);
+                                    return next;
+                                  })}
+                                >
+                                  {open ? t('Hide') : t('View')}
                                 </Button>
-                              </div>
-                              {choice === 'EDIT' && (
-                                <Textarea
-                                  label={t('Value')}
-                                  value={drafts[conflict.id] ?? draftOf(conflict.local)}
-                                  onChange={event => setDrafts(previous => ({
-                                    ...previous,
-                                    [conflict.id]: event.target.value,
-                                  }))}
-                                  rows={4}
-                                />
-                              )}
-                            </div>
-                          )}
-                        />
-                      );
-                    })}
+                              )
+                            : <Text variant="content-caption">{item.value || t('(empty)')}</Text>}
+                        </div>
+                        {item.code && open && (
+                          <>
+                            {/* Which version this is, as every block of content in the dialog says: here, the same on both sides. */}
+                            <Text variant="content-caption">{unchangedLabel}</Text>
+                            <pre
+                              tabIndex={0}
+                              aria-label={item.field}
+                              style={{
+                                margin: 0,
+                                maxHeight: 320,
+                                overflow: 'auto',
+                                padding: '8px 12px',
+                                borderRadius: 4,
+                                border: '1px solid var(--border-elevation-subtle-soft)',
+                                fontFamily: 'var(--font-content-code), ui-monospace, monospace',
+                                fontSize: 'var(--text-content-code)',
+                                lineHeight: '22px',
+                                color: 'var(--text-default-primary)',
+                              }}
+                            >
+                              {item.value || t('(empty)')}
+                            </pre>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <div style={row}>
+                    <Chip label={t('Kept')} />
+                    <Text variant="content-base">{t('Targets, teams, schedule and tags')}</Text>
+                  </div>
+                </Section>
+                {/* Nothing to do is one line; something to do opens by default, so it is never missed. */}
+                {todoCount === 0 && (
+                  <div
+                    style={{
+                      ...row,
+                      paddingTop: 12,
+                      borderTop: '1px solid var(--border-elevation-subtle-soft)',
+                    }}
+                    data-testid="scenario-update-todo"
+                  >
+                    <CheckCircleOutlined fontSize="small" color="success" />
+                    <Text variant="content-base">{t('Nothing to decide before applying.')}</Text>
                   </div>
                 )}
-                {needTargets > 0 && (
-                  <Text variant="content-base">
-                    {t('{count, plural, one {After: add targets to # new inject.} other {After: add targets to # new injects.}}', { count: needTargets })}
-                  </Text>
-                )}
-                {preview.warnings.length > 0 && (
-                  <Alert severity="warning" title={t('{count} things to check after applying', { count: preview.warnings.length })} />
+                {todoCount > 0 && (
+                  <Section
+                    title={t('What you need to do')}
+                    count={todoCount}
+                    defaultExpanded
+                    testId="scenario-update-todo"
+                  >
+                    {conflicts.length > 0 && (
+                      <Text variant="content-base">
+                        {version
+                          ? t('Filigran changed things you edited. Pick which version to keep for each.')
+                          : t('You edited things this rollback restores. Pick which version to keep for each.')}
+                      </Text>
+                    )}
+                    {conflicts.length > 0 && (
+                      <div style={section}>
+                        <div style={{
+                          ...row,
+                          justifyContent: 'space-between',
+                        }}
+                        >
+                          <Text variant="title-xs">{t('Conflicts ({count})', { count: conflicts.length })}</Text>
+                          <div style={row}>
+                            <Button size="sm" priority="secondary" onClick={() => chooseAll('KEEP_MINE')}>{t('Keep all mine')}</Button>
+                            <Button size="sm" priority="secondary" onClick={() => chooseAll('TAKE_APPLIED')}>{t('Take all')}</Button>
+                          </div>
+                        </div>
+                        {conflicts.map((conflict) => {
+                          const choice = choices[conflict.id];
+                          const choose = (value: ScenarioMergeChoice) => setChoices(previous => ({
+                            ...previous,
+                            [conflict.id]: value,
+                          }));
+                          let selected: 'theirs' | 'mine' | undefined;
+                          if (choice === 'TAKE_APPLIED') selected = 'theirs';
+                          if (choice === 'KEEP_MINE') selected = 'mine';
+                          return (
+                            <ConflictChoice
+                              key={conflict.id}
+                              title={`${conflict.title} · ${conflict.block}`}
+                              theirsLabel={theirs}
+                              mineLabel={t('Yours')}
+                              theirs={<TextDiff text={conflict.applied} other={conflict.mine} />}
+                              mine={<TextDiff text={conflict.mine} other={conflict.applied} />}
+                              selected={selected}
+                              onSelect={side => choose(side === 'theirs' ? 'TAKE_APPLIED' : 'KEEP_MINE')}
+                              footer={conflict.editable && (
+                                <div style={section}>
+                                  <div>
+                                    <Button size="sm" priority={choice === 'EDIT' ? 'primary' : 'tertiary'} onClick={() => choose('EDIT')}>
+                                      {t('Edit')}
+                                    </Button>
+                                  </div>
+                                  {choice === 'EDIT' && (
+                                    <Textarea
+                                      label={t('Value')}
+                                      value={drafts[conflict.id] ?? draftOf(conflict.local)}
+                                      onChange={event => setDrafts(previous => ({
+                                        ...previous,
+                                        [conflict.id]: event.target.value,
+                                      }))}
+                                      rows={4}
+                                    />
+                                  )}
+                                </div>
+                              )}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                    {needTargets > 0 && (
+                      <Text variant="content-base">
+                        {t('{count, plural, one {After: add targets to # new inject.} other {After: add targets to # new injects.}}', { count: needTargets })}
+                      </Text>
+                    )}
+                    {preview.warnings.length > 0 && (
+                      <Alert severity="warning" title={t('{count} things to check after applying', { count: preview.warnings.length })} />
+                    )}
+                  </Section>
                 )}
               </div>
               {applyError && (
