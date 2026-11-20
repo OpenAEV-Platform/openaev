@@ -694,6 +694,26 @@ const GraphExplorerInner = ({
     duration: 300,
   });
 
+  /** Frames the given nodes (OpenCTI: Zoom to selection, Locate the node). */
+  const frameNodes = (ids: string[]) => {
+    if (ids.length === 0) {
+      return;
+    }
+    fitView({
+      ...fitOptions,
+      nodes: ids.map(id => ({ id })),
+      duration: 300,
+    });
+  };
+
+  /** Selects every node drawn (OpenCTI: Ctrl+A), groups left out. */
+  const selectAllNodes = () => setSelection(drawnNodes.filter(n => !isGroupId(n.node_id)).map(n => n.node_id));
+
+  /** Selects every drawn node of the given type (OpenCTI: select by entity type). */
+  const selectByType = (type: GraphNodeType) => setSelection(
+    drawnNodes.filter(n => !isGroupId(n.node_id) && n.node_type === type).map(n => n.node_id),
+  );
+
   // The lasso's pointer handlers: the outline is kept in client coordinates, drawn relative to the
   // canvas, and turned into flow coordinates once closed to pick the nodes whose circle it surrounds.
   const lassoStart = (event: PointerEvent<HTMLDivElement>) => {
@@ -1307,6 +1327,8 @@ const GraphExplorerInner = ({
         setSelected(null);
       }),
       menuItem('neighbours', t('Select neighbours'), <SelectAllOutlined fontSize="small" />, () => selectNeighbours([node.node_id])),
+      menuItem('same-type', t('Select every node of this type'), null, () => selectByType(node.node_type)),
+      menuItem('zoom-node', t('Zoom to this node'), <FitScreenOutlined fontSize="small" />, () => frameNodes([node.node_id])),
       menuItem('remove', t('Remove from view'), <DeleteOutlined fontSize="small" />, () => removeFromView([node.node_id]), node.node_id === state.focus),
       ...(href ? [menuItem('open', t('Open'), <OpenInNewOutlined fontSize="small" />, () => navigate(href))] : []),
       ...(inOpenCti.has(node.node_id) ? linkItem('opencti', t('Open in OpenCTI'), <ProductMark size={16} />, menuLinks[OPENCTI_PRODUCT]) : []),
@@ -1324,6 +1346,8 @@ const GraphExplorerInner = ({
         nodes.forEach(n => expand(n));
       }),
       menuItem('neighbours', t('Select neighbours'), <SelectAllOutlined fontSize="small" />, () => selectNeighbours(ids)),
+      menuItem('frame', t('Fit the selection to the screen'), <FitScreenOutlined fontSize="small" />, () => frameNodes(ids)),
+      ...(nodes.length === 2 ? [menuItem('path-between', t('Find the path between them'), <RouteOutlined fontSize="small" />, () => findPath(nodes[0], nodes[1]))] : []),
       menuItem('pin', t('Pin'), <PushPinOutlined fontSize="small" />, () => commit(s => pinNodes(s, ids))),
       menuItem('hide', t('Hide'), <VisibilityOffOutlined fontSize="small" />, () => {
         commit(s => hideNodes(s, ids));
@@ -1339,6 +1363,7 @@ const GraphExplorerInner = ({
     <MenuLabel key="label">{t('Graph')}</MenuLabel>,
     menuItem('relayout', t('Re-run the layout'), <AutorenewOutlined fontSize="small" />, () => relayout()),
     menuItem('fit', t('Fit to screen'), <FitScreenOutlined fontSize="small" />, fitToScreen),
+    menuItem('select-all', t('Select every node'), <SelectAllOutlined fontSize="small" />, selectAllNodes, drawnNodes.length === 0),
     menuItem('show', t('Show hidden nodes'), <VisibilityOutlined fontSize="small" />, () => commit(showHidden), state.hidden.length === 0),
     menuItem('undo', t('Undo'), <UndoOutlined fontSize="small" />, undo, history.past.length === 0),
     menuItem('shortcuts', t('Keyboard shortcuts'), <KeyboardOutlined fontSize="small" />, () => setShortcutsOpen(true)),
@@ -1437,7 +1462,7 @@ const GraphExplorerInner = ({
     // shows the hidden nodes, + and - zoom.
     if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'a') {
       event.preventDefault();
-      setSelection(drawnNodes.filter(n => !isGroupId(n.node_id)).map(n => n.node_id));
+      selectAllNodes();
       return;
     }
     if (event.ctrlKey || event.metaKey || event.altKey) {
@@ -1449,11 +1474,7 @@ const GraphExplorerInner = ({
       framed = [selected];
     }
     if (event.shiftKey && key === 'f' && framed.length > 0) {
-      fitView({
-        ...fitOptions,
-        nodes: framed.map(id => ({ id })),
-        duration: 300,
-      });
+      frameNodes(framed);
     } else if (event.shiftKey && key === 'h') {
       commit(showHidden);
     } else if (key === '+' || key === '=') {

@@ -225,4 +225,34 @@ test.describe('Exploration graph interactions', () => {
 
     expect(problems).toEqual([]);
   });
+
+  test('the OpenCTI context menu actions: select by type, zoom to the node, path between two selected nodes', async ({ page }) => {
+    const problems = watchConsole(page);
+    await page.goto(tenantUrl(`/admin/graph?focus=asset_group:${seeded.groupId}`));
+    await expect(page.locator('.react-flow__node')).toHaveCount(5);
+    await settled(page);
+    const ringed = page.locator('[data-testid^="graph-node-"][data-selected="true"]');
+    const node = (index: number) => page.locator(`.react-flow__node[data-id="ASSET:${seeded.assetIds[index]}"]`);
+    const viewport = () => page.locator('.react-flow__viewport').evaluate(v => (v as HTMLElement).style.transform);
+
+    // Right click on an endpoint: every endpoint (4 of the 5 nodes, the group left out) is selected.
+    await node(0).click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Select every node of this type' }).click();
+    await expect(ringed).toHaveCount(4);
+
+    // A plain click selects one node alone; Ctrl+click adds a second; the selection menu offers the path between them.
+    await node(0).click();
+    await node(1).click({ modifiers: ['Control'] });
+    await node(1).click({ button: 'right' });
+    await expect(page.getByRole('menuitem', { name: 'Find the path between them' })).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    // Zoom to this node changes the viewport.
+    const before = await viewport();
+    await node(2).click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Zoom to this node' }).click();
+    await expect.poll(viewport, { message: 'Zoom to this node frames it' }).not.toBe(before);
+
+    expect(problems).toEqual([]);
+  });
 });

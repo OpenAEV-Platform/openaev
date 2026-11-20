@@ -4961,5 +4961,8 @@
   "Select every node": "Sélectionner tous les nœuds",
   "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "Les agents ne recevront pas ses tâches en attente et il se terminera en erreur. Les commandes déjà lancées par un agent ne sont pas interrompues.",
   "Do you want to stop this atomic testing: {title}?": "Voulez-vous arrêter ce test atomique : {title} ?",
-  "Stop execution": "Arrêter l'exécution"
+  "Stop execution": "Arrêter l'exécution",
+  "Select every node of this type": "Sélectionner tous les nœuds de ce type",
+  "Zoom to this node": "Zoomer sur ce nœud",
+  "Find the path between them": "Trouver le chemin entre eux"
 }

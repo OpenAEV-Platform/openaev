@@ -4961,5 +4961,8 @@
   "Select every node": "选择所有节点",
   "Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.": "代理将不会收到其待处理的作业，测试将以错误结束。代理已启动的命令不会被中断。",
   "Do you want to stop this atomic testing: {title}?": "是否停止此原子测试：{title}？",
-  "Stop execution": "停止执行"
+  "Stop execution": "停止执行",
+  "Select every node of this type": "选择此类型的所有节点",
+  "Zoom to this node": "缩放到此节点",
+  "Find the path between them": "查找它们之间的路径"
 }
