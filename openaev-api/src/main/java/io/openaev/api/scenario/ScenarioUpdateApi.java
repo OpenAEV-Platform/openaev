@@ -5,11 +5,10 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.catalog.CatalogFeature;
-import io.openaev.api.catalog.CatalogItemMapper;
-import io.openaev.api.catalog.dto.scenario.CatalogScenarioVersionOutput;
 import io.openaev.api.scenario.dto.ScenarioChangeOutput;
 import io.openaev.api.scenario.dto.ScenarioRevisionOutput;
 import io.openaev.api.scenario.dto.ScenarioUpdateInput;
+import io.openaev.api.scenario.dto.ScenarioVersionsOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -38,7 +37,6 @@ public class ScenarioUpdateApi {
   private final CatalogScenarioUpdater catalogScenarioUpdater;
   private final ScenarioRevisionService scenarioRevisionService;
   private final CatalogScenarioUpdateService catalogScenarioUpdateService;
-  private final CatalogItemMapper catalogItemMapper;
   private final CatalogFeature catalogFeature;
 
   // -- READ --
@@ -57,19 +55,16 @@ public class ScenarioUpdateApi {
         .toList();
   }
 
-  @Operation(summary = "Catalogue versions offered after the installed one, newest first")
-  @GetMapping(TENANT_SCENARIO_URI + "/{scenarioId}/newer-versions")
+  @Operation(summary = "Catalogue versions of a scenario, newest first")
+  @GetMapping(TENANT_SCENARIO_URI + "/{scenarioId}/versions")
   @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public List<CatalogScenarioVersionOutput> newerVersions(
-      TxCtx ctx, @PathVariable String scenarioId) {
+  public ScenarioVersionsOutput versions(TxCtx ctx, @PathVariable String scenarioId) {
     catalogFeature.require();
-    return catalogScenarioUpdateService.newerVersions(ctx, scenarioId).stream()
-        .map(catalogItemMapper::toVersionOutput)
-        .toList();
+    return ScenarioUpdateMapper.toOutput(catalogScenarioUpdateService.versions(ctx, scenarioId));
   }
 
   @LogExecutionTime

@@ -55,6 +55,8 @@ public interface ExerciseRepository
 
   boolean existsByIdAndTenantIdIn(@NotNull String id, @NotNull Collection<String> tenantIds);
 
+  long countByTenantIdAndScenarioId(@NotNull String tenantId, @NotNull String scenarioId);
+
   @Modifying
   @Query(value = "DELETE FROM exercises WHERE exercise_id = :simulationId", nativeQuery = true)
   void deleteById(@Param("simulationId") String simulationId);

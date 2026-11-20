@@ -1,9 +1,18 @@
 package io.openaev.api.scenario;
 
+import static java.util.stream.Collectors.joining;
+
 import io.openaev.api.scenario.dto.ScenarioChangeOutput;
 import io.openaev.api.scenario.dto.ScenarioRevisionOutput;
-import io.openaev.database.model.scenario.ScenarioRevision;
+import io.openaev.api.scenario.dto.ScenarioVersionOutput;
+import io.openaev.api.scenario.dto.ScenarioVersionsOutput;
+import io.openaev.database.model.catalog.CatalogScenario;
+import io.openaev.database.repository.ScenarioRevisionRepository.RevisionRow;
+import io.openaev.service.catalog.scenario.update.NumberedRevision;
 import io.openaev.service.catalog.scenario.update.ScenarioMerge;
+import io.openaev.service.catalog.scenario.update.ScenarioVersions;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 public class ScenarioUpdateMapper {
 
@@ -21,12 +30,38 @@ public class ScenarioUpdateMapper {
         change.local());
   }
 
-  public static ScenarioRevisionOutput toOutput(ScenarioRevision revision) {
+  public static ScenarioVersionsOutput toOutput(ScenarioVersions versions) {
+    return new ScenarioVersionsOutput(
+        versions.versions().stream().map(version -> toOutput(version, versions)).toList(),
+        versions.simulationsCount());
+  }
+
+  private static ScenarioVersionOutput toOutput(CatalogScenario version, ScenarioVersions all) {
+    return new ScenarioVersionOutput(
+        version.getVersion(),
+        version.getStatus(),
+        version.getChangelog(),
+        version.getPublishedAt(),
+        version.getVersion().equals(all.installedVersion()),
+        version.getVersion().equals(all.latestVersion()));
+  }
+
+  public static ScenarioRevisionOutput toOutput(NumberedRevision numbered) {
+    RevisionRow revision = numbered.revision();
     return new ScenarioRevisionOutput(
         revision.getId(),
+        numbered.number(),
         revision.getReason(),
         revision.getCatalogVersion(),
-        revision.getUser() == null ? null : revision.getUser().getName(),
+        userName(revision),
         revision.getCreatedAt());
+  }
+
+  private static String userName(RevisionRow revision) {
+    String name =
+        Stream.of(revision.getUserFirstname(), revision.getUserLastname())
+            .filter(Objects::nonNull)
+            .collect(joining(" "));
+    return name.isEmpty() ? null : name;
   }
 }

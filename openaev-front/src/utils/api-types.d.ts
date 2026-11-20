@@ -11905,6 +11905,8 @@ export interface ScenarioRevisionOutput {
   scenario_revision_created_at: string;
   /** @minLength 1 */
   scenario_revision_id: string;
+  /** @format int32 */
+  scenario_revision_number: number;
   scenario_revision_reason: "UPDATE" | "ROLLBACK";
   scenario_revision_user?: string;
 }
@@ -11957,6 +11959,23 @@ export interface ScenarioUpdateTagsInput {
 
 export interface ScenarioUpdateTeamsInput {
   scenario_teams?: string[];
+}
+
+export interface ScenarioVersionOutput {
+  /** @minLength 1 */
+  scenario_version: string;
+  scenario_version_changelog?: string;
+  scenario_version_current: boolean;
+  scenario_version_latest: boolean;
+  /** @format date-time */
+  scenario_version_published_at?: string;
+  scenario_version_status: "VERIFIED" | "DEPRECATED" | "REVOKED";
+}
+
+export interface ScenarioVersionsOutput {
+  /** @format int64 */
+  scenario_simulations_count: number;
+  scenario_versions: ScenarioVersionOutput[];
 }
 
 /** An asset that is in scope (allowlisted and not denylisted) for a workflow. */
