@@ -1,4 +1,5 @@
 import { Button, Paper, Text } from '@filigran/design-system';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode, useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 
@@ -21,32 +22,36 @@ const REASONS: Record<ScenarioRevisionOutput['scenario_revision_reason'], string
 const Row = ({ children, action }: {
   children: ReactNode;
   action: ReactNode;
-}) => (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 16,
-  }}
-  >
+}) => {
+  const theme = useTheme();
+  return (
     <div style={{
       display: 'flex',
-      flexDirection: 'column',
-      gap: 4,
-      minWidth: 0,
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: theme.spacing(2),
     }}
     >
-      {children}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: theme.spacing(0.5),
+        minWidth: 0,
+      }}
+      >
+        {children}
+      </div>
+      {action}
     </div>
-    {action}
-  </div>
-);
+  );
+};
 
 // The installed catalogue version, the newer ones to update to, and the content kept to roll back to.
 const ScenarioVersions: FunctionComponent<Props> = ({ installedVersion }) => {
   const { t, nsd, nsdt } = useFormatter();
   const { scenarioId } = useParams() as { scenarioId: string };
   const dispatch = useAppDispatch();
+  const theme = useTheme();
   const { canManage } = useScenarioPermissions(scenarioId);
   const [versions, setVersions] = useState<CatalogScenarioVersionOutput[]>([]);
   const [revisions, setRevisions] = useState<ScenarioRevisionOutput[]>([]);
@@ -68,14 +73,14 @@ const ScenarioVersions: FunctionComponent<Props> = ({ installedVersion }) => {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      gap: 24,
+      gap: theme.spacing(3),
     }}
     >
       <Paper title={t('Installed version: v{version}', { version: installedVersion })} padding={16}>
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 16,
+          gap: theme.spacing(2),
         }}
         >
           {versions.length === 0 && <Text variant="content-base">{t('No newer version in the catalogue')}</Text>}
@@ -102,7 +107,7 @@ const ScenarioVersions: FunctionComponent<Props> = ({ installedVersion }) => {
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 16,
+          gap: theme.spacing(2),
         }}
         >
           {revisions.length === 0 && <Text variant="content-base">{t('No revision yet')}</Text>}
