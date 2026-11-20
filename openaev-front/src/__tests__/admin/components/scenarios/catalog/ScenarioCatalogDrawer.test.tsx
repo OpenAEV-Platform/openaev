@@ -17,6 +17,12 @@ vi.mock('../../../../../components/i18n', () => ({
   }),
 }));
 vi.mock('../../../../../actions/catalog/scenario-catalog-actions', () => ({ fetchCatalogScenarioVersions: mocks.fetchCatalogScenarioVersions }));
+vi.mock('../../../../../admin/components/scenarios/ScenarioForm', () => ({
+  default: ({ readOnly, initialValues }: {
+    readOnly?: boolean;
+    initialValues: unknown;
+  }) => <pre data-testid="scenario-form" data-read-only={String(readOnly)}>{JSON.stringify(initialValues)}</pre>,
+}));
 vi.mock('../../../../../components/common/Drawer', () => ({
   default: ({ open, children }: {
     open: boolean;
@@ -51,6 +57,8 @@ const renderDrawer = (scenario: CatalogScenarioOutput | null, {
   </MemoryRouter>,
 );
 
+const formValues = async () => JSON.parse((await screen.findByTestId('scenario-form')).textContent ?? '{}');
+
 const installButton = () => screen.getByRole('button', { name: 'Install' }) as HTMLButtonElement;
 
 describe('ScenarioCatalogDrawer', () => {
@@ -79,11 +87,10 @@ describe('ScenarioCatalogDrawer', () => {
       expect(await screen.findByText('v1.2 · 7 injects · Published 2026-01-15 · by Filigran')).toBeTruthy();
       expect(screen.getByText('New phishing mail')).toBeTruthy();
       expect(screen.getByText('What\'s new in v1.2')).toBeTruthy();
-      expect(screen.getByText('Attack Scenario')).toBeTruthy();
       expect(mocks.fetchCatalogScenarioVersions).toHaveBeenCalledWith('phishing');
     });
 
-    it('given_aVersionWithItsFocusAndSeverity_should_showThem', async () => {
+    it('given_aVersionWithItsFocusAndSeverity_should_showThemInTheReadOnlyForm', async () => {
       // Arrange
       mocks.fetchCatalogScenarioVersions.mockResolvedValue([{
         catalog_scenario_version: '1.2',
@@ -99,12 +106,18 @@ describe('ScenarioCatalogDrawer', () => {
       });
 
       // Assert
-      expect(await screen.findByText('endpoint-protection')).toBeTruthy();
-      expect(screen.getByText('high')).toBeTruthy();
-      expect(screen.getByText('custom-category')).toBeTruthy();
+      expect(await formValues()).toEqual({
+        scenario_name: 'Phishing',
+        scenario_description: '',
+        scenario_category: 'custom-category',
+        scenario_main_focus: 'endpoint-protection',
+        scenario_severity: 'high',
+        scenario_tags: [],
+      });
+      expect(screen.getByTestId('scenario-form').dataset.readOnly).toBe('true');
     });
 
-    it('given_noOptionalFactsAndNoVersions_should_showTheVersionOnlyAndDashes', async () => {
+    it('given_noOptionalFactsAndNoVersions_should_showTheVersionAndTheNameOnly', async () => {
       // Arrange
       mocks.fetchCatalogScenarioVersions.mockRejectedValue(new Error('unreachable'));
 
@@ -117,7 +130,11 @@ describe('ScenarioCatalogDrawer', () => {
       });
 
       // Assert
-      await waitFor(() => expect(screen.getAllByText('–')).toHaveLength(3));
+      expect(await formValues()).toEqual({
+        scenario_name: 'Phishing',
+        scenario_description: '',
+        scenario_tags: [],
+      });
       expect(screen.getByText('v1.2')).toBeTruthy();
       expect(screen.queryByText(/What's new/)).toBeNull();
       expect(screen.queryByText('Payloads')).toBeNull();
@@ -149,6 +166,33 @@ describe('ScenarioCatalogDrawer', () => {
       expect(links).toHaveLength(1);
       expect(links[0].getAttribute('href')).toBe('/admin/integrations/catalog/nmap-integration');
       expect(installButton().disabled).toBe(true);
+    });
+
+    it('given_missingIntegrationsWithTheirState_should_tellWhetherEachIsDeployed', async () => {
+      // Arrange
+      mocks.fetchCatalogScenarioVersions.mockResolvedValue([]);
+
+      // Act
+      renderDrawer({
+        ...SCENARIO,
+        catalog_scenario_missing_requirements: [
+          {
+            requirement_label: 'Injector openaev_nmap',
+            requirement_integration_id: 'nmap-integration',
+            requirement_status: 'NOT_RUNNING',
+          },
+          {
+            requirement_label: 'Injector openaev_nuclei',
+            requirement_status: 'NOT_DEPLOYED',
+          },
+          { requirement_label: 'OpenAEV >=2.0' },
+        ],
+      });
+
+      // Assert
+      expect(await screen.findByText('Not running')).toBeTruthy();
+      expect(screen.getByText('Not deployed')).toBeTruthy();
+      expect(screen.getAllByText(/^Not (running|deployed)$/)).toHaveLength(2);
     });
   });
 
