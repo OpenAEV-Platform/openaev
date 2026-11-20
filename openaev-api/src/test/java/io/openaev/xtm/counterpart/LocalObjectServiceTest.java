@@ -302,7 +302,7 @@ class LocalObjectServiceTest {
     Vulnerability v = new Vulnerability();
     v.setId("v-1");
     v.setExternalId("CVE-2024-1234");
-    when(vulnerabilities.getVulnerabilitiesByExternalIds(any())).thenReturn(List.of(v));
+    when(vulnerabilities.getVulnerabilitiesByExternalIds(any())).thenReturn(Set.of(v));
     Access noFindings = access(Set.of(), Set.of(), Set.of(), false);
 
     assertThat(
