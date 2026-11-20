@@ -74,15 +74,20 @@ const MarketplaceList = <T, >({ items, columns, sections, sortHelpers, rowKey, i
     return (
       <ListItem key={rowKey(item)} divider disablePadding secondaryAction={action?.(item)}>
         {'to' in target
-          ? <ListItemButton component={Link} to={target.to}>{content}</ListItemButton>
-          : <ListItemButton onClick={target.onClick}>{content}</ListItemButton>}
+          ? (
+              <ListItemButton component={Link} to={target.to}>{content}</ListItemButton>
+            )
+          : (
+              <ListItemButton onClick={target.onClick}>{content}</ListItemButton>
+            )}
       </ListItem>
     );
   };
-  const groups = sections ? groupSections(items, sections.sectionKey) : [{
+  const everything = [{
     key: undefined,
     items,
   }];
+  const groups = sections ? groupSections(items, sections.sectionKey) : everything;
 
   return (
     <List disablePadding>
