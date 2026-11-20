@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.graph.GraphFeature;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -27,6 +28,8 @@ import org.springframework.web.bind.annotation.*;
 /**
  * Cross-platform awareness: which connected XTM products this tenant reaches, and which of our
  * objects they also hold. Each lookup is guarded by the right to search the object kind it reads.
+ * Part of the exploration graph preview feature: every route answers a 404 while {@code
+ * EXPLORATION_GRAPH} is off (the default).
  */
 @RestController
 @RequiredArgsConstructor
@@ -40,6 +43,7 @@ public class CounterpartApi extends RestBehavior {
   private final LocalObjectService localObjectService;
   private final UserService userService;
   private final PermissionService permissionService;
+  private final GraphFeature graphFeature;
 
   @LogExecutionTime
   @GetMapping("/connections")
@@ -49,6 +53,7 @@ public class CounterpartApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "List the XTM products this tenant is connected to")
   public List<XtmConnectionOutput> connections(TxCtx ctx, @PathVariable String tenantId) {
+    graphFeature.require();
     return counterpartService.connections(tenantId).stream()
         .map(XtmConnectionOutput::from)
         .toList();
@@ -163,6 +168,7 @@ public class CounterpartApi extends RestBehavior {
 
   private List<LocalObjectOutput> local(
       TxCtx ctx, CounterpartKind kind, CounterpartLookupInput input) {
+    graphFeature.require();
     return localObjectService.find(kind, input.keys(), access(ctx)).stream()
         .map(LocalObjectOutput::from)
         .toList();
@@ -202,6 +208,7 @@ public class CounterpartApi extends RestBehavior {
 
   private List<CounterpartOutput> lookup(
       String tenantId, CounterpartKind kind, CounterpartLookupInput input) {
+    graphFeature.require();
     return counterpartService.resolve(tenantId, kind, input.keys()).stream()
         .map(CounterpartOutput::from)
         .toList();

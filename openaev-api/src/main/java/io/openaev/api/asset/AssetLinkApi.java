@@ -7,6 +7,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.asset.dto.AssetLinkInput;
 import io.openaev.api.asset.dto.AssetLinkOutput;
+import io.openaev.api.graph.GraphFeature;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.AssetLinkType;
@@ -32,7 +33,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Links between assets of any category (#9447), on {@code /api/assets} like the markings: an
  * identity asset logged on to an endpoint, a service running on a host. The graph draws them as
- * {@code LINKED_TO} edges.
+ * {@code LINKED_TO} edges. Part of the exploration graph preview feature: a 404 while {@code
+ * EXPLORATION_GRAPH} is off (the default).
  */
 @RestController
 @RequiredArgsConstructor
@@ -40,6 +42,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AssetLinkApi extends RestBehavior {
 
   private final AssetLinkService assetLinkService;
+  private final GraphFeature graphFeature;
 
   @GetMapping({ASSET_URI + "/{assetId}/links", TENANT_ASSET_URI + "/{assetId}/links"})
   @Transactional(readOnly = true)
@@ -55,6 +58,7 @@ public class AssetLinkApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Asset not found")
       })
   public List<AssetLinkOutput> assetLinks(TxCtx ctx, @PathVariable @NotBlank final String assetId) {
+    graphFeature.require();
     return assetLinkService.links(assetId);
   }
 
@@ -78,6 +82,7 @@ public class AssetLinkApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String assetId,
       @Valid @RequestBody final AssetLinkInput input) {
+    graphFeature.require();
     return assetLinkService.addLink(assetId, input);
   }
 
@@ -102,6 +107,7 @@ public class AssetLinkApi extends RestBehavior {
       @PathVariable @NotBlank final String assetId,
       @PathVariable @NotBlank final String linkedAssetId,
       @PathVariable @NotNull final AssetLinkType linkType) {
+    graphFeature.require();
     assetLinkService.deleteLink(assetId, linkedAssetId, linkType);
   }
 }

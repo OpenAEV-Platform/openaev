@@ -10706,6 +10706,7 @@ export interface PlatformSettings {
     | "XTM_HUB_NEWS_FEED"
     | "LOGGING_EXPECTATION"
     | "CATALOG"
+    | "EXPLORATION_GRAPH"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -11109,6 +11110,7 @@ export interface PublicPlatformSettings {
     | "XTM_HUB_NEWS_FEED"
     | "LOGGING_EXPECTATION"
     | "CATALOG"
+    | "EXPLORATION_GRAPH"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;

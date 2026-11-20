@@ -35,6 +35,9 @@ import org.springframework.web.server.ResponseStatusException;
  * simulation / scenario graph. No endpoint returns the whole graph: a slice is one entity's ring, a
  * path between two entities, or the risk-first landing view, each capped.
  *
+ * <p>Feature flag: every endpoint answers a 404 while {@code EXPLORATION_GRAPH} is off (the
+ * default), see {@link GraphFeature}.
+ *
  * <p>Access: the endpoint capability is ASSET READ (the graph is an exploration of the exposure
  * surface); every simulation, scenario and inject node is then kept only when the caller can read
  * it, evaluated in the tenant scope of the request. Tenant isolation is an explicit predicate in
@@ -51,6 +54,7 @@ public class GraphExplorationApi extends RestBehavior {
   private final GraphLandingService landingService;
   private final UserService userService;
   private final PermissionService permissionService;
+  private final GraphFeature graphFeature;
 
   /**
    * The top exposure story of the landing (#9447): one connected subgraph of about 30 nodes, the
@@ -60,6 +64,7 @@ public class GraphExplorationApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   public GraphOutput story(TxCtx ctx) {
+    graphFeature.require();
     return landingService.story(scope(ctx), visibility(ctx));
   }
 
@@ -68,6 +73,7 @@ public class GraphExplorationApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   public GraphOverviewOutput overview(TxCtx ctx) {
+    graphFeature.require();
     return landingService.overview(scope(ctx), visibility(ctx));
   }
 
@@ -76,6 +82,7 @@ public class GraphExplorationApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   public GraphStartingPointsOutput startingPoints(TxCtx ctx) {
+    graphFeature.require();
     return landingService.startingPoints(scope(ctx), visibility(ctx));
   }
 
@@ -84,6 +91,7 @@ public class GraphExplorationApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   public GraphOutput hotPaths(TxCtx ctx, @RequestParam(defaultValue = "15") int limit) {
+    graphFeature.require();
     return graphService.hotPaths(scope(ctx), limit, visibility(ctx));
   }
 
@@ -101,6 +109,7 @@ public class GraphExplorationApi extends RestBehavior {
       @PathVariable String entityId,
       @RequestParam(required = false) List<String> edges,
       @RequestParam(defaultValue = "50") int limit) {
+    graphFeature.require();
     return graphService.neighbourhood(
         scope(ctx), type(entityType), entityId, edgeTypes(edges), limit, visibility(ctx));
   }
@@ -115,6 +124,7 @@ public class GraphExplorationApi extends RestBehavior {
       @RequestParam String fromId,
       @RequestParam String toType,
       @RequestParam String toId) {
+    graphFeature.require();
     return graphService.path(
         scope(ctx), type(fromType), fromId, type(toType), toId, visibility(ctx));
   }

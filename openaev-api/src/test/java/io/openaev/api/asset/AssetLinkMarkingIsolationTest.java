@@ -56,7 +56,11 @@ import org.springframework.transaction.annotation.Transactional;
  * an ORM write of a {@code TLP:RED} row by a caller who does not hold it.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.marking.active-tables=assets")
+@TestPropertySource(
+    properties = {
+      "openaev.marking.active-tables=assets",
+      "openaev.enabled-dev-features=MARKING,EXPLORATION_GRAPH"
+    })
 @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.MANAGE_ASSETS})
 @DisplayName("asset links and counterpart lookups under markings")
 class AssetLinkMarkingIsolationTest extends IntegrationTest {
