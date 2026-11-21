@@ -1,4 +1,4 @@
-// Connection counts of a node (#9572): what the data holds against what the screen draws, so each
+// Connection counts of a node: what the data holds against what the screen draws, so each
 // node tells, OpenCTI style, how much an expansion would add.
 
 import { EDGE_TYPES_BY_NODE_TYPE, type GraphEdgeOutput, type GraphEdgeType, type GraphNodeOutput } from './graph-model';

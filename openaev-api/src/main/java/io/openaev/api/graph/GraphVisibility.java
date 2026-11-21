@@ -16,9 +16,9 @@ public interface GraphVisibility {
   boolean canReadAtomicTesting(String injectId);
 
   /**
-   * Persons, organizations and teams (#9447) are capability-gated: a person node needs the player
-   * read capability, an organization the organization one, a team the team one. Every
-   * implementation states its own answer: there is no permissive default.
+   * Persons, organizations and teams are capability-gated: a person node needs the player read
+   * capability, an organization the organization one, a team the team one. Every implementation
+   * states its own answer: there is no permissive default.
    */
   boolean canReadPeople(io.openaev.api.graph.dto.GraphNodeType type);
 
@@ -29,10 +29,10 @@ public interface GraphVisibility {
   boolean canReadFindings();
 
   /**
-   * Whether the relation counts of a node (#9572) may include relations whose other end is
-   * grant-managed (an inject, a simulation, a scenario, an attack-path step): a count is not gated
-   * per entity, so only a caller who reads every grant (an admin, a bypass) gets them. Restrictive
-   * by default: such a relation is then left out of the counts, never counted unread.
+   * Whether the relation counts of a node may include relations whose other end is grant-managed
+   * (an inject, a simulation, a scenario, an attack-path step): a count is not gated per entity, so
+   * only a caller who reads every grant (an admin, a bypass) gets them. Restrictive by default:
+   * such a relation is then left out of the counts, never counted unread.
    */
   default boolean countsGrantManaged() {
     return false;

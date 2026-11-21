@@ -4,8 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 
 /**
- * A link of the estate overview (#9447): a simulation targeted an asset group, with the number of
- * its expectations that failed on the group and the worst result.
+ * A link of the estate overview: a simulation targeted an asset group, with the number of its
+ * expectations that failed on the group and the worst result.
  */
 public record GraphOverviewLinkOutput(
     @JsonProperty("link_group_id") @NotNull String groupId,

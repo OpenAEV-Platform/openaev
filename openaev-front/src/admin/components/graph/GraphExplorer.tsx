@@ -139,7 +139,7 @@ const PANEL_WIDTH = 340;
 /**
  * Room the fit keeps above the graph for the filter bar floating on the page canvas, before the bar
  * is measured; once drawn, the bar's real height (it wraps to two rows on a narrow canvas) plus
- * FILTER_BAR_MARGIN is kept instead (#9572 UX round 1 B1).
+ * FILTER_BAR_MARGIN is kept instead.
  */
 const FILTER_BAR_CLEARANCE = 80;
 /** The bar's top offset in the canvas plus the space kept between the bar and the graph. */
@@ -190,13 +190,13 @@ export interface GraphExplorerProps {
   onLayoutChange?: (layout: GraphLayout) => void;
   /**
    * Page only: the fit never zooms out below this, so a landing story keeps its labels legible at
-   * the first frame instead of shrinking to fit (#9447). The user still zooms out by hand.
+   * the first frame instead of shrinking to fit. The user still zooms out by hand.
    */
   fitMinZoom?: number;
   /**
    * Open the detail panel on the slice's focus node at the first frame (default). The landing story
    * passes false: its focus only anchors the layout, and an open panel would hide a third of the
-   * story (#9447).
+   * story.
    */
   selectFocus?: boolean;
 }
@@ -298,7 +298,7 @@ const GraphExplorerInner = ({
   const [hovered, setHovered] = useState<string | null>(null);
   const [menu, setMenu] = useState<ContextMenuAnchor | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  // The accessible list of the canvas (#9572, landing L3): every entity drawn, as a list a keyboard or a
+  // The accessible list of the canvas: every entity drawn, as a list a keyboard or a
   // screen reader walks, each row selecting and framing its node.
   const [listOpen, setListOpen] = useState(false);
   // The multi-selection, as OpenCTI's graph: Shift+drag draws a rectangle, Ctrl+click adds a node; the
@@ -337,7 +337,7 @@ const GraphExplorerInner = ({
   // The mini graph never fits below MINI_MIN_ZOOM: its labels stay readable (10 px at zoom 1) and an
   // outer ring that does not fit is clipped by the card, the full graph being one click away.
   // Its padding is a fixed margin in pixels, so the top and bottom rows never touch the card's edges
-  // (#9448, UX round 2 B3); the card itself is as tall as its layout needs at zoom 1.
+  //; the card itself is as tall as its layout needs at zoom 1.
   const fitOptions = useMemo(() => (variant === 'mini'
     ? {
         padding: `${MINI_CARD_PADDING}px` as const,
@@ -367,7 +367,7 @@ const GraphExplorerInner = ({
 
   // State and history change in the event, never one inside the other's updater: React runs an updater
   // during the render, and a setState there is the console's "Cannot update a component while rendering
-  // a different component" (#9572). The latest state is read through a ref for that reason.
+  // a different component". The latest state is read through a ref for that reason.
   const stateRef = useRef(state);
   stateRef.current = state;
   const historyRef = useRef(history);
@@ -509,7 +509,7 @@ const GraphExplorerInner = ({
   const settled = useRef<Map<string, Point>>(new Map());
   // The layout run (layout|run) whose target is on screen or on its way. Written in the commit phase
   // only: React may call a render twice (StrictMode) or restart it (a transition), so a render that
-  // wrote it would make its own replay skip the layout (#9572).
+  // wrote it would make its own replay skip the layout.
   const laidOut = useRef<string>('');
   // Set when the view must frame the graph once the move has landed (a load, a layout, new nodes).
   const fitPending = useRef(true);
@@ -579,7 +579,7 @@ const GraphExplorerInner = ({
     return () => window.cancelAnimationFrame(raf);
   }, [frames, target, runKey, fit, drawnEdges, variant, frame]);
   // The mini card frames its graph again when the window is resized (the card's width follows the
-  // page), so no node stays cut or off-centre after a resize (#9448, UX round 2 B3).
+  // page), so no node stays cut or off-centre after a resize.
   useEffect(() => {
     if (variant !== 'mini') {
       return undefined;
@@ -591,7 +591,7 @@ const GraphExplorerInner = ({
   const miniHeight = variant === 'mini' ? miniCardHeight(target, NODE_BOX_HEIGHT) : 0;
   // Hover dimming: the hovered node's first ring stays, the rest fades.
   const ring = useMemo(() => (hovered ? firstRing(hovered, drawnEdges) : null), [hovered, drawnEdges]);
-  // The relations each node draws, against what the data holds (#9572): the badge of each node.
+  // The relations each node draws, against what the data holds: the badge of each node.
   const drawnPerNode = useMemo(() => drawnRelations(drawnEdges), [drawnEdges]);
 
   const flowNodes: GraphEntityNodeType[] = drawnNodes.map(n => ({
@@ -639,7 +639,7 @@ const GraphExplorerInner = ({
     } else if (e.edge_type === 'ATTACK_STEP') {
       stroke = theme.palette.warning.main;
     }
-    // An attack-path step (#9447) is drawn dashed so the chain reads apart from the estate links.
+    // An attack-path step is drawn dashed so the chain reads apart from the estate links.
     const isStep = e.edge_type === 'ATTACK_STEP';
     return {
       id: e.edge_id,
@@ -884,7 +884,7 @@ const GraphExplorerInner = ({
       }[];
     }
     // One row per neighbour and relation: a membership read from both ends (a group expanded, then
-    // one of its assets) is two edges of opposite direction and one relation (#9572: duplicate keys).
+    // one of its assets) is two edges of opposite direction and one relation.
     const rows = new Map<string, {
       node: GraphNodeOutput;
       type: GraphEdgeType;
@@ -1061,8 +1061,8 @@ const GraphExplorerInner = ({
     </Tooltip>
   );
 
-  // The filters float inside the canvas frame, top edge, left of the open side panel (#9572, landing
-  // L3, UX header budget: a canvas control only as a toolbar inside the canvas frame), so the graph
+  // The filters float inside the canvas frame, top edge, left of the open side panel (a canvas
+  // control only as a toolbar inside the canvas frame), so the graph
   // gets the whole height of the page.
   const toolbar = (offset: number) => (
     <div
@@ -1199,7 +1199,7 @@ const GraphExplorerInner = ({
   const selectedCounterpart = selectedNode ? nodeCounterpart(selectedNode) : null;
 
   // "Targets · 12 (8 not shown)": a relation of the expand lists with its count in the data and
-  // what the screen does not draw yet (#9572); the bare label when the node was not counted.
+  // what the screen does not draw yet; the bare label when the node was not counted.
   const relationLabel = (node: GraphNodeOutput, type: GraphEdgeType) => {
     const label = t(EDGE_TYPE_LABEL[type]);
     const relation = nodeConnections(node, drawnPerNode)?.byType.find(r => r.type === type);
@@ -1340,7 +1340,7 @@ const GraphExplorerInner = ({
   };
   const closeMenu = () => setMenu(null);
   // Every item keeps the icon slot, an empty one when it has no icon, so all labels of a menu share
-  // one left edge (#9572 UX round 1 B4).
+  // one left edge.
   const iconSlot = (icon: ReactNode) => icon ?? (
     <span
       aria-hidden

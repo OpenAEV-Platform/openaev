@@ -36,7 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Exploration graph endpoints (#9388): lazy slices of the asset / asset group / finding / inject /
+ * Exploration graph endpoints: lazy slices of the asset / asset group / finding / inject /
  * simulation / scenario graph. No endpoint returns the whole graph: a slice is one entity's ring, a
  * path between two entities, or the risk-first landing view, each capped.
  *
@@ -65,8 +65,8 @@ public class GraphExplorationApi extends RestBehavior {
   private final GraphRelationCounter relationCounter;
 
   /**
-   * The top exposure story of the landing (#9447): one connected subgraph of about 30 nodes, the
-   * worst attack path, else the most exposed asset. Empty when nothing failed.
+   * The top exposure story of the landing: one connected subgraph of about 30 nodes, the worst
+   * attack path, else the most exposed asset. Empty when nothing failed.
    */
   @LogExecutionTime
   @GetMapping("/story")
@@ -78,7 +78,7 @@ public class GraphExplorationApi extends RestBehavior {
     return counted(landingService.story(scope(ctx), visibility), ctx, visibility);
   }
 
-  /** The aggregated estate overview of the landing (#9447): asset-group bubbles, not nodes. */
+  /** The aggregated estate overview of the landing: asset-group bubbles, not nodes. */
   @LogExecutionTime
   @GetMapping("/overview")
   @Transactional(readOnly = true)
@@ -88,7 +88,7 @@ public class GraphExplorationApi extends RestBehavior {
     return landingService.overview(scope(ctx), visibility(ctx));
   }
 
-  /** The starting-points rail of the landing (#9447). */
+  /** The starting-points rail of the landing. */
   @LogExecutionTime
   @GetMapping("/starting-points")
   @Transactional(readOnly = true)
@@ -98,7 +98,7 @@ public class GraphExplorationApi extends RestBehavior {
     return landingService.startingPoints(scope(ctx), visibility(ctx));
   }
 
-  /** The risk-first landing view of #9388: exposure hot paths (kept for compatibility). */
+  /** The risk-first landing view: exposure hot paths (kept for compatibility). */
   @LogExecutionTime
   @GetMapping("/hot-paths")
   @Transactional(readOnly = true)
@@ -154,7 +154,7 @@ public class GraphExplorationApi extends RestBehavior {
 
   // -- helpers --
 
-  /** The slice with the relation counts of its nodes (#9572), read in the request's scope. */
+  /** The slice with the relation counts of its nodes, read in the request's scope. */
   private GraphOutput counted(GraphOutput out, TxCtx ctx, GraphVisibility visibility) {
     return relationCounter.counted(out, scope(ctx), visibility);
   }

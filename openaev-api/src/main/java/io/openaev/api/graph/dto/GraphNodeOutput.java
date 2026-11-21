@@ -14,8 +14,8 @@ import java.util.Map;
  * @param date when the entity happened, where it has a date of its own (a simulation's start, a
  *     finding's last update), else null: the graph's time range filters on it
  * @param relationCounts the entity's relations in the data per relation type, the ones the caller
- *     may read, drawn or not (#9572): the badge of a node tells what an expansion would add; null
- *     where the slice was not counted
+ *     may read, drawn or not: the badge of a node tells what an expansion would add; null where the
+ *     slice was not counted
  */
 public record GraphNodeOutput(
     @JsonProperty("node_id") @NotNull String nodeId,

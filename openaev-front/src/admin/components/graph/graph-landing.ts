@@ -1,4 +1,4 @@
-// Pure helpers of the Graph landing (#9447): which view opens, how the estate overview sizes and
+// Pure helpers of the Graph landing: which view opens, how the estate overview sizes and
 // colours its bubbles, how the starting-points rail groups its entries. No React here, so the
 // rules are unit tested.
 

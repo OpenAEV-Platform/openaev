@@ -1,6 +1,6 @@
 package io.openaev.api.graph.dto;
 
-/** The relation kinds of the exploration graph (#9388), one per link the UI can expand by. */
+/** The relation kinds of the exploration graph, one per link the UI can expand by. */
 public enum GraphEdgeType {
   /** Asset group contains asset. */
   MEMBER_OF,

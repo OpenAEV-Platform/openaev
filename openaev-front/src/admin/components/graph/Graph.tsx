@@ -26,13 +26,13 @@ const LAYOUTS: GraphLayout[] = ['force', 'hierarchical', 'radial'];
 /** The landing story never fits below this zoom: its labels stay legible at the first frame. */
 const STORY_MIN_ZOOM = 0.75;
 
-/** The floating Start here panel of the landing (#9572 L3): it floats over the canvas, never a column. */
+/** The floating Start here panel of the landing: it floats over the canvas, never a column. */
 const START_PANEL_WIDTH = 280;
 /** The story's filter bar floats over the top of the canvas: the panel opens below it. */
 const START_PANEL_TOP_STORY = 72;
 
 /**
- * The Graph page (#9388, landing redesigned in #9447). Without a focus it opens on ONE of two views,
+ * The Graph page. Without a focus it opens on ONE of two views,
  * chosen by the data and kept in the URL (?view=story|overview):
  * - the top exposure story: the single most critical chain of the estate (the attack path with the
  *   most failed steps, else the most exposed asset with its failed injects, findings, groups and
@@ -64,11 +64,11 @@ const Graph = () => {
   const [fromStory, setFromStory] = useState(false);
   // The Start here panel opens unfolded on the landing and folds to a pill on demand.
   const [startOpen, setStartOpen] = useState(true);
-  // The panel's own size: the overview keeps only that rectangle clear (#9572 UX round 1 B3).
+  // The panel's own size: the overview keeps only that rectangle clear.
   const startPanelRef = useRef<HTMLDivElement>(null);
   const [startPanelHeight, setStartPanelHeight] = useState(0);
   // Set by a fold or an unfold: focus goes to the control that replaced the one clicked, never lost
-  // on the page body when that button unmounts (#9572 UX round 1 B2).
+  // on the page body when that button unmounts.
   const focusAfterToggle = useRef(false);
   useEffect(() => {
     const element = startPanelRef.current;
@@ -290,7 +290,7 @@ const Graph = () => {
         }}
         >
           {canvas}
-          {/* The starting points float over the canvas, top right, as the Start here panel (#9572 L3):
+          {/* The starting points float over the canvas, top right, as the Start here panel:
               the canvas keeps the whole width, and the panel folds to a pill. Once the user explores,
               they come back with the Graph breadcrumb. */}
           {isLanding && points && (

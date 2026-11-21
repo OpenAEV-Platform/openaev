@@ -14,7 +14,7 @@ interface Props {
 }
 
 /**
- * "Explore in graph" (#9388): the hero icon button of every entity the graph knows. It sits with
+ * "Explore in graph": the hero icon button of every entity the graph knows. It sits with
  * the other hero icon buttons, before the kebab, and opens the Graph page focused on the entity
  * with its first ring of neighbours. Hidden for a user who cannot open the Graph page, and while
  * the EXPLORATION_GRAPH preview feature is off. A real link, so ctrl-click and "open in new tab" work.

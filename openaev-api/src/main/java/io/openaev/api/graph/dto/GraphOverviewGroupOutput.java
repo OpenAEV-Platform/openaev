@@ -4,8 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 
 /**
- * One bubble of the aggregated estate overview (#9447): an asset group with its member count and
- * its failure rate, or the bucket of the assets in no group ({@code ungrouped}).
+ * One bubble of the aggregated estate overview: an asset group with its member count and its
+ * failure rate, or the bucket of the assets in no group ({@code ungrouped}).
  *
  * @param assetCount members, static ones and the ones its dynamic filter matches (a dynamic group
  *     is flagged)

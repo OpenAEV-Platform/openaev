@@ -31,8 +31,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
- * The landing of the exploration graph (#9447), replacing the scatter of hot-path clusters of #9388
- * by one of two views chosen by the data, plus a rail of starting points:
+ * The landing of the exploration graph, replacing a scatter of hot-path clusters by one of two
+ * views chosen by the data, plus a rail of starting points:
  *
  * <ul>
  *   <li>{@link #story}: the top exposure story, ONE connected subgraph of about {@value
@@ -536,7 +536,7 @@ public class GraphLandingService {
 
   // -- Rankings (cached, ungated) --
 
-  /** Assets by failed expectations, the ranking the hot paths of #9388 used. */
+  /** Assets by failed expectations, the ranking of the exposure hot paths. */
   List<Ranked> exposedAssets(Collection<String> tenantIds) {
     return cache.get(
         "exposed-assets",
