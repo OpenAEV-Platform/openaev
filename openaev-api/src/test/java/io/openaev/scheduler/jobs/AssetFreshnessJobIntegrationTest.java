@@ -167,7 +167,7 @@ class AssetFreshnessJobIntegrationTest extends IntegrationTest {
 
   private void clearSetting() {
     jdbc.update(
-        "DELETE FROM tenant_settings WHERE tenant_setting_key = 'asset_stale_after_days'"
+        "DELETE FROM parameters WHERE parameter_key = 'asset_stale_after_days'"
             + " AND tenant_id = ?",
         DEFAULT_TENANT_UUID);
   }
