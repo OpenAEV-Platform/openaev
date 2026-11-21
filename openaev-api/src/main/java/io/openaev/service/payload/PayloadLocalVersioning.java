@@ -71,20 +71,12 @@ public class PayloadLocalVersioning {
                 Payload::getVersion)
             .orElse(current);
     candidate.setIdentity(identity);
-    candidate.setVersion(next(SemanticVersion.parse(newest.getVersion()), change));
+    candidate.setVersion(change.next(SemanticVersion.parse(newest.getVersion())));
     // The duplicate resets the status and keeps the original's creation date.
     candidate.setStatus(current.getStatus());
     candidate.setCreatedAt(Instant.now());
     candidate.setUpdatedAt(candidate.getCreatedAt());
     identity.setLatestVersion(candidate);
     return candidate;
-  }
-
-  private static String next(SemanticVersion newest, Hashed.Change change) {
-    return switch (change) {
-      case MAJOR -> newest.nextMajor();
-      case MINOR -> newest.nextMinor();
-      case PATCH -> newest.nextPatch();
-    };
   }
 }
