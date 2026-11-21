@@ -69,9 +69,7 @@ public class PayloadCustomizationService {
   }
 
   private List<CatalogPayload> releaseNotes(Payload base, Payload target) {
-    return catalogListService
-        .offeredVersions(CatalogPayload.class, base.getExternalId())
-        .stream()
+    return catalogListService.offeredVersions(CatalogPayload.class, base.getExternalId()).stream()
         .filter(
             release -> SemanticVersion.ORDER.compare(release.getVersion(), base.getVersion()) > 0)
         .filter(
