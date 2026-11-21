@@ -12,4 +12,6 @@ public class NotificationEvent {
   private String resourceId;
   private NotificationEventType eventType;
   private Instant timestamp;
+  // Tenant of the resource, for handlers that load it outside a request scope (null when unused)
+  private String tenantId;
 }

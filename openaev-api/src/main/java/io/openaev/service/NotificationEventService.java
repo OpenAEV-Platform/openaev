@@ -3,6 +3,7 @@ package io.openaev.service;
 import io.openaev.database.model.ResourceType;
 import io.openaev.notification.handler.NotificationEventHandler;
 import io.openaev.notification.handler.ScenarioNotificationEventHandler;
+import io.openaev.notification.handler.SimulationNotificationEventHandler;
 import io.openaev.notification.model.NotificationEvent;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -12,6 +13,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
@@ -25,16 +27,28 @@ public class NotificationEventService {
   private final ThreadPoolTaskScheduler taskScheduler;
   private final Map<ResourceType, NotificationEventHandler> handlers;
 
+  /**
+   * The handlers are injected lazily: they read exercises through ExerciseService, which reaches
+   * WorkflowService and WorkflowEndService, and WorkflowEndService sends the simulation finished
+   * event through this service. A lazy proxy breaks that bean cycle; the handlers are only called
+   * when an event is handled, long after the context is up.
+   */
   @Autowired
   public NotificationEventService(
       ApplicationEventPublisher appPublisher,
-      ScenarioNotificationEventHandler scenarioNotificationEventHandler,
+      @Lazy ScenarioNotificationEventHandler scenarioNotificationEventHandler,
+      @Lazy SimulationNotificationEventHandler simulationNotificationEventHandler,
       ThreadPoolTaskScheduler taskScheduler) {
 
     this.appPublisher = appPublisher;
     this.scenarioNotificationEventHandler = scenarioNotificationEventHandler;
     this.taskScheduler = taskScheduler;
-    this.handlers = Map.of(ResourceType.SCENARIO, scenarioNotificationEventHandler);
+    this.handlers =
+        Map.of(
+            ResourceType.SCENARIO,
+            scenarioNotificationEventHandler,
+            ResourceType.SIMULATION,
+            simulationNotificationEventHandler);
   }
 
   public void sendNotificationEvent(@NotNull final NotificationEvent notificationEvent) {
@@ -53,6 +67,19 @@ public class NotificationEventService {
         () -> sendNotificationEvent(notificationEvent),
         Instant.now().plus(delay, ChronoUnit.SECONDS));
   }
+
+  /**
+   * Send a notification from another thread, a few seconds later, so the caller's transaction has
+   * committed before a handler reads what it wrote (a handler opens its own tenant-scoped
+   * transaction and refuses to run inside an active one).
+   *
+   * @param notificationEvent notification to send
+   */
+  public void sendNotificationEventAsync(@NotNull final NotificationEvent notificationEvent) {
+    sendNotificationEventWithDelay(notificationEvent, ASYNC_DELAY_SECONDS);
+  }
+
+  static final long ASYNC_DELAY_SECONDS = 5;
 
   @EventListener
   public void handleNotificationEvent(@NotNull final NotificationEvent event) {

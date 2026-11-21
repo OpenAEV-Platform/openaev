@@ -4,8 +4,10 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.WorkflowRepository;
+import io.openaev.notification.handler.SimulationNotificationEventHandler;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.service.NotificationEventService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.ExecutionTraceUtils;
@@ -33,6 +35,7 @@ public class WorkflowEndService {
   private final AssetAgentJobRepository assetAgentJobRepository;
   private final WorkflowStateStore workflowStateStore;
   private final AttackPathExecutionIngestionService attackPathExecutionIngestionService;
+  private final NotificationEventService notificationEventService;
 
   private static final Set<ExecutionStatus> ACTIVE_INJECT_STATUSES =
       Set.of(ExecutionStatus.QUEUING, ExecutionStatus.EXECUTING, ExecutionStatus.PENDING);
@@ -134,6 +137,8 @@ public class WorkflowEndService {
       simulation.setStatus(ExerciseStatus.FINISHED);
       simulation.setEnd(Instant.now());
       exerciseRepository.save(simulation);
+      notificationEventService.sendNotificationEventAsync(
+          SimulationNotificationEventHandler.finishedEvent(simulation));
 
       log.info(
           "[Chaining] Simulation {} finished due to workflow {}.",

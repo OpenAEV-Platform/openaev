@@ -23,7 +23,7 @@ export const TRIGGER_RESOURCE_TYPES: TriggerResourceTypeOption[] = [
     value: 'SIMULATION',
     entityPrefix: 'exercise',
     label: 'Simulation',
-    eventTypes: LIFECYCLE_EVENT_TYPES,
+    eventTypes: [...LIFECYCLE_EVENT_TYPES, 'EXPOSURE_RESULT_READY', 'CRITICAL_ASSET_REACHED'],
   },
   {
     value: 'INJECT',
@@ -110,6 +110,8 @@ export const eventTypesOf = (resourceType?: string): TriggerEventType[] =>
 const EVENT_TYPE_LABELS: Record<string, string> = {
   SCORE_DEGRADATION: 'Score degradation',
   SYNC_BLOCKED: 'Sync blocked',
+  EXPOSURE_RESULT_READY: 'Exposure result ready',
+  CRITICAL_ASSET_REACHED: 'Critical asset reached',
 };
 
 export const eventTypeLabel = (eventType: string) =>

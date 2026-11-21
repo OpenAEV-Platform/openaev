@@ -150,6 +150,8 @@ public class NotificationEngineService {
           case DELETE -> "deleted";
           case SCORE_DEGRADATION -> "score degraded";
           case SYNC_BLOCKED -> "sync blocked";
+          case EXPOSURE_RESULT_READY -> "exposure result ready";
+          case CRITICAL_ASSET_REACHED -> "critical asset reached";
         };
     String resourceLabel = entry.getResourceType().name().toLowerCase().replace('_', ' ');
     return "[" + resourceLabel + "] " + label + " " + operation;
