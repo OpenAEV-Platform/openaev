@@ -1035,17 +1035,16 @@ public class GraphExplorationService {
   }
 
   /**
-   * The ids of the assets a dynamic group's filter matches, for the estate overview counts; empty
-   * for a static group or without the asset group service.
+   * The ids of the assets a dynamic group's filter matches, for the estate overview counts, read as
+   * ids only so a large group never loads its assets as entities; empty for a static group or
+   * without the asset group service.
    */
   List<String> dynamicMemberIds(AssetGroup group) {
     if (assetGroupService == null
         || io.openaev.database.model.Filters.isEmptyFilterGroup(group.getDynamicFilter())) {
       return List.of();
     }
-    return assetGroupService.computeDynamicAssets(group).getDynamicAssets().stream()
-        .map(Asset::getId)
-        .toList();
+    return List.copyOf(assetGroupService.dynamicAssetIds(group));
   }
 
   /** The members of an asset group through its dynamic filter, capped. */
