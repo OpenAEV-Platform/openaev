@@ -1,13 +1,13 @@
 import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { type CatalogScenarioOutput } from '../../../../../utils/api-types';
 
-const mocks = vi.hoisted(() => ({ fetchCatalogScenarioVersions: vi.fn() }));
+const mocks = vi.hoisted(() => ({ canManageSettings: true }));
 
 vi.mock('../../../../../components/i18n', () => ({
   useFormatter: () => ({
@@ -16,8 +16,8 @@ vi.mock('../../../../../components/i18n', () => ({
     nsd: (date: string) => date,
   }),
 }));
-vi.mock('../../../../../actions/catalog/scenario-catalog-actions', () => ({ fetchCatalogScenarioVersions: mocks.fetchCatalogScenarioVersions }));
-vi.mock('../../../../../admin/components/scenarios/catalog/ScenarioCatalogFacts', () => ({ default: ({ values }: { values: unknown }) => <pre data-testid="scenario-form">{JSON.stringify(values)}</pre> }));
+vi.mock('../../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: () => mocks.canManageSettings }) }));
+vi.mock('../../../../../admin/components/scenarios/catalog/ScenarioCatalogFacts', () => ({ default: ({ values }: { values: unknown }) => <pre data-testid="scenario-facts">{JSON.stringify(values)}</pre> }));
 vi.mock('../../../../../components/common/Drawer', () => ({
   default: ({ open, children }: {
     open: boolean;
@@ -36,6 +36,13 @@ const SCENARIO: CatalogScenarioOutput = {
   catalog_scenario_author: 'Filigran',
   catalog_scenario_platforms: ['Windows'],
   catalog_scenario_missing_requirements: [],
+  catalog_scenario_payloads: [],
+};
+
+const NMAP = {
+  requirement_label: 'Injector openaev_nmap',
+  requirement_name: 'Nmap',
+  requirement_integration_id: 'nmap-integration',
 };
 
 const renderDrawer = (scenario: CatalogScenarioOutput | null, {
@@ -52,56 +59,41 @@ const renderDrawer = (scenario: CatalogScenarioOutput | null, {
   </MemoryRouter>,
 );
 
-const formValues = async () => JSON.parse((await screen.findByTestId('scenario-form')).textContent ?? '{}');
-
 const installButton = () => screen.getByRole('button', { name: 'Install' }) as HTMLButtonElement;
 
 describe('ScenarioCatalogDrawer', () => {
   afterEach(() => {
     cleanup();
-    vi.clearAllMocks();
+    mocks.canManageSettings = true;
   });
 
   describe('summary', () => {
-    it('given_aScenario_should_sumItUpInOneLineAndShowTheChangesOfItsVersion', async () => {
-      // Arrange
-      mocks.fetchCatalogScenarioVersions.mockResolvedValue([{
-        catalog_scenario_version: '1.2',
-        catalog_scenario_injects_count: 7,
-        catalog_scenario_changelog: 'New phishing mail',
-        catalog_scenario_payloads: [],
-      }]);
-
+    it('given_aScenario_should_sumItUpInOneLineAndShowTheChangesOfItsVersion', () => {
       // Act
       renderDrawer({
         ...SCENARIO,
         catalog_scenario_published_at: '2026-01-15',
+        catalog_scenario_injects_count: 7,
+        catalog_scenario_changelog: 'New phishing mail',
       });
 
       // Assert
-      expect(await screen.findByText('v1.2 · 7 injects · Published 2026-01-15 · by Filigran')).toBeTruthy();
+      expect(screen.getByText('v1.2 · 7 injects · Published 2026-01-15 · by Filigran')).toBeTruthy();
       expect(screen.getByText('New phishing mail')).toBeTruthy();
       expect(screen.getByText('What\'s new in v1.2')).toBeTruthy();
-      expect(mocks.fetchCatalogScenarioVersions).toHaveBeenCalledWith('phishing');
     });
 
-    it('given_aVersionWithItsFocusAndSeverity_should_showThemInTheReadOnlyForm', async () => {
-      // Arrange
-      mocks.fetchCatalogScenarioVersions.mockResolvedValue([{
-        catalog_scenario_version: '1.2',
-        catalog_scenario_main_focus: 'endpoint-protection',
-        catalog_scenario_severity: 'high',
-        catalog_scenario_payloads: [],
-      }]);
-
+    it('given_aScenarioWithItsFocusAndSeverity_should_showThemAmongItsFacts', () => {
       // Act
       renderDrawer({
         ...SCENARIO,
         catalog_scenario_category: 'custom-category',
+        catalog_scenario_main_focus: 'endpoint-protection',
+        catalog_scenario_severity: 'high',
       });
 
       // Assert
-      expect(await formValues()).toEqual({
+      expect(JSON.parse(screen.getByTestId('scenario-facts').textContent ?? '{}')).toEqual({
         scenario_name: 'Phishing',
         scenario_description: '',
         scenario_category: 'custom-category',
@@ -111,24 +103,15 @@ describe('ScenarioCatalogDrawer', () => {
       });
     });
 
-    it('given_noOptionalFactsAndNoVersions_should_showTheVersionAndTheNameOnly', async () => {
-      // Arrange
-      mocks.fetchCatalogScenarioVersions.mockRejectedValue(new Error('unreachable'));
-
+    it('given_noOptionalFacts_should_showTheVersionOnly', () => {
       // Act
       renderDrawer({
         ...SCENARIO,
         catalog_scenario_author: undefined,
-        catalog_scenario_category: undefined,
         catalog_scenario_platforms: [],
       });
 
       // Assert
-      expect(await formValues()).toEqual({
-        scenario_name: 'Phishing',
-        scenario_description: '',
-        scenario_tags: [],
-      });
       expect(screen.getByText('v1.2')).toBeTruthy();
       expect(screen.queryByText(/What's new/)).toBeNull();
       expect(screen.queryByText('Payloads')).toBeNull();
@@ -136,74 +119,60 @@ describe('ScenarioCatalogDrawer', () => {
   });
 
   describe('missing requirements', () => {
-    it('given_missingRequirements_should_linkEachToItsIntegrationAndBlockTheInstall', async () => {
-      // Arrange
-      mocks.fetchCatalogScenarioVersions.mockResolvedValue([]);
-
+    it('given_missingRequirements_should_linkEachToItsIntegrationAndKeepTheInstall', () => {
       // Act
       renderDrawer({
         ...SCENARIO,
-        catalog_scenario_missing_requirements: [
-          {
-            requirement_label: 'Injector openaev_nmap',
-            requirement_name: 'Nmap',
-            requirement_integration_id: 'nmap-integration',
-          },
-          {
-            requirement_label: 'OpenAEV >=2.0',
-            requirement_name: 'OpenAEV >=2.0',
-          },
-        ],
+        catalog_scenario_missing_requirements: [NMAP, {
+          requirement_label: 'OpenAEV >=2.0',
+          requirement_name: 'OpenAEV >=2.0',
+        }],
       });
 
       // Assert
-      expect(await screen.findByText('Missing to run it')).toBeTruthy();
-      expect(screen.getByText('Nmap')).toBeTruthy();
-      expect(screen.getByText('OpenAEV >=2.0')).toBeTruthy();
+      expect(screen.getByText('Missing to run it')).toBeTruthy();
+      expect(screen.getByText('Nmap is missing on this platform')).toBeTruthy();
+      expect(screen.getByText('OpenAEV >=2.0 is missing on this platform')).toBeTruthy();
       const links = screen.getAllByRole('link', { name: 'Enable integration' });
       expect(links).toHaveLength(1);
       expect(links[0].getAttribute('href')).toBe('/admin/integrations/catalog/nmap-integration');
-      expect(installButton().disabled).toBe(true);
+      expect(installButton().disabled).toBe(false);
     });
 
-    it('given_missingIntegrationsWithTheirState_should_tellWhetherEachIsDeployed', async () => {
+    it('given_anIntegrationNotRunning_should_sayIt', () => {
+      // Act
+      renderDrawer({
+        ...SCENARIO,
+        catalog_scenario_missing_requirements: [{
+          ...NMAP,
+          requirement_status: 'NOT_RUNNING',
+        }],
+      });
+
+      // Assert
+      expect(screen.getByText('Nmap is not running')).toBeTruthy();
+    });
+
+    it('given_noRightToManageIntegrations_should_notOfferToEnableThem', () => {
       // Arrange
-      mocks.fetchCatalogScenarioVersions.mockResolvedValue([]);
+      mocks.canManageSettings = false;
 
       // Act
       renderDrawer({
         ...SCENARIO,
-        catalog_scenario_missing_requirements: [
-          {
-            requirement_label: 'Injector openaev_nmap',
-            requirement_name: 'Nmap',
-            requirement_integration_id: 'nmap-integration',
-            requirement_status: 'NOT_RUNNING',
-          },
-          {
-            requirement_label: 'Injector openaev_nuclei',
-            requirement_name: 'Injector openaev_nuclei',
-            requirement_status: 'NOT_DEPLOYED',
-          },
-          {
-            requirement_label: 'OpenAEV >=2.0',
-            requirement_name: 'OpenAEV >=2.0',
-          },
-        ],
+        catalog_scenario_missing_requirements: [NMAP],
       });
 
       // Assert
-      expect(await screen.findByText('Not running')).toBeTruthy();
-      expect(screen.getByText('Not deployed')).toBeTruthy();
-      expect(screen.getAllByText(/^Not (running|deployed)$/)).toHaveLength(2);
+      expect(screen.queryByRole('link', { name: 'Enable integration' })).toBeNull();
     });
   });
 
   describe('payloads', () => {
-    it('given_aVersionWithPayloads_should_listThemByNameOrId', async () => {
-      // Arrange
-      mocks.fetchCatalogScenarioVersions.mockResolvedValue([{
-        catalog_scenario_version: '1.2',
+    it('given_payloads_should_listThemByNameOrId', () => {
+      // Act
+      renderDrawer({
+        ...SCENARIO,
         catalog_scenario_payloads: [
           {
             catalog_payload_external_id: 'nmap-scan',
@@ -217,64 +186,54 @@ describe('ScenarioCatalogDrawer', () => {
             catalog_payload_platforms: [],
           },
         ],
-      }]);
-
-      // Act
-      renderDrawer(SCENARIO);
+      });
 
       // Assert
-      expect(await screen.findByText('Nmap scan · v1.0')).toBeTruthy();
+      expect(screen.getByText('Nmap scan · v1.0')).toBeTruthy();
       expect(screen.getByText('unnamed · v2.1')).toBeTruthy();
       expect(screen.getByText('Payloads')).toBeTruthy();
     });
   });
 
   describe('footer', () => {
-    it('given_installClicked_should_installTheScenario', async () => {
+    it('given_installClicked_should_installTheScenario', () => {
       // Arrange
-      mocks.fetchCatalogScenarioVersions.mockResolvedValue([]);
       const onInstall = vi.fn();
       renderDrawer(SCENARIO, { onInstall });
 
       // Act
-      fireEvent.click(await screen.findByRole('button', { name: 'Install' }));
+      fireEvent.click(installButton());
 
       // Assert
       expect(onInstall).toHaveBeenCalledWith(SCENARIO);
     });
 
-    it('given_noRightToInstall_should_disableTheInstall', async () => {
-      // Arrange
-      mocks.fetchCatalogScenarioVersions.mockResolvedValue([]);
-
+    it('given_noRightToInstall_should_disableTheInstall', () => {
       // Act
       renderDrawer(SCENARIO, { canInstall: false });
 
       // Assert
-      await waitFor(() => expect(mocks.fetchCatalogScenarioVersions).toHaveBeenCalled());
       expect(installButton().disabled).toBe(true);
     });
 
-    it('given_cancelClicked_should_closeTheDrawer', async () => {
+    it('given_cancelClicked_should_closeTheDrawer', () => {
       // Arrange
-      mocks.fetchCatalogScenarioVersions.mockResolvedValue([]);
       const onClose = vi.fn();
       renderDrawer(SCENARIO, { onClose });
 
       // Act
-      fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
       // Assert
       expect(onClose).toHaveBeenCalled();
     });
   });
 
-  it('given_noScenario_should_showNothingNorFetch', () => {
+  it('given_noScenario_should_showNothing', () => {
     // Act
     const { container } = renderDrawer(null);
 
     // Assert
     expect(container.childElementCount).toBe(0);
-    expect(mocks.fetchCatalogScenarioVersions).not.toHaveBeenCalled();
   });
 });

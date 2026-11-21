@@ -28,6 +28,7 @@ const scenarioMissing = (missing: CatalogScenarioRequirementOutput[]): CatalogSc
   catalog_scenario_version: '1.2',
   catalog_scenario_platforms: [],
   catalog_scenario_missing_requirements: missing,
+  catalog_scenario_payloads: [],
 });
 
 const renderCard = (scenario: CatalogScenarioOutput) => render(

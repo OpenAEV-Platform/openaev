@@ -11,7 +11,7 @@ const useMissingRequirementsLabel = (missing: CatalogScenarioRequirementOutput[]
   const { t } = useFormatter();
   return {
     label: missing.length > NAMED_AT_MOST
-      ? t('Needs {count} prerequisites', { count: missing.length })
+      ? t('Needs {count} prerequisites', { count: String(missing.length) })
       : t('Needs {names}', { names: missing.map(shortName).join(', ') }),
     names: missing.map(requirement => requirement.requirement_name).join(', '),
   };
