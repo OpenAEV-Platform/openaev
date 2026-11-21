@@ -49,6 +49,32 @@ describe('news feed actions', () => {
     expect(simpleCall).toHaveBeenCalledWith('/api/news-feed/me/unread-count', undefined, false);
   });
 
+  describe('with a category', () => {
+    it('searchMyNewsFeedItems searches only the items of the category', async () => {
+      // Act
+      await searchMyNewsFeedItems(input, false, 'BLOG_POST');
+
+      // Assert
+      expect(simplePostCall).toHaveBeenCalledWith('/api/news-feed/me/search', input, { params: { category: 'BLOG_POST' } }, false);
+    });
+
+    it('fetchMyUnreadNewsFeedCount counts only the items of the category', async () => {
+      // Act
+      await fetchMyUnreadNewsFeedCount(false, 'RESOURCE');
+
+      // Assert
+      expect(simpleCall).toHaveBeenCalledWith('/api/news-feed/me/unread-count', { params: { category: 'RESOURCE' } }, false);
+    });
+
+    it('markAllMyNewsFeedItemsRead reads only the items of the category', async () => {
+      // Act
+      await markAllMyNewsFeedItemsRead('BLOG_POST');
+
+      // Assert
+      expect(simplePutCall).toHaveBeenCalledWith('/api/news-feed/me/read-all', undefined, { params: { category: 'BLOG_POST' } }, false, false);
+    });
+  });
+
   it('markAllMyNewsFeedItemsRead notifies neither the success nor the error', async () => {
     // Act
     await markAllMyNewsFeedItemsRead();

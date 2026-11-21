@@ -10,6 +10,11 @@ import java.util.List;
  * @param hubRegistered whether the news feed is served by XTM Hub, that is a tenant in scope is
  *     registered
  * @param hubConnected whether a tenant in scope is registered and has not lost its connectivity
+ * @param availableTypes the news feed types XTM Hub provisions for the tenants in scope that serve
+ *     the news feed
  */
 public record NewsFeedSettings(
-    List<NewsFeedType> subscribedTypes, boolean hubRegistered, boolean hubConnected) {}
+    List<NewsFeedType> subscribedTypes,
+    boolean hubRegistered,
+    boolean hubConnected,
+    List<NewsFeedType> availableTypes) {}

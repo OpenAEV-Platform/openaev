@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -126,6 +127,134 @@ class NewsFeedItemApiTest extends IntegrationTest {
 
   private boolean isRead(NewsFeedItem item) {
     return newsFeedItemRepository.findById(item.getId()).orElseThrow().isRead();
+  }
+
+  @Nested
+  @DisplayName("News feed categories")
+  class Categories {
+
+    private NewsFeedItem blogPost;
+    private NewsFeedItem scenario;
+
+    @BeforeEach
+    void setUpItems() {
+      registerTenant(XtmHubRegistrationStatus.REGISTERED);
+      User me = userService.currentUser();
+      blogPost = newsFeedItemRepository.save(NewsFeedItemFixture.createBlogPost(me, "hub-blog"));
+      scenario = saveItem(me, "hub-scenario", false);
+      entityManager.flush();
+      entityManager.clear();
+    }
+
+    @Test
+    @DisplayName("Given a category, should search only its items, with their metadata")
+    void given_category_should_searchOnlyItsItemsWithMetadata() throws Exception {
+      // Act
+      String blogPosts = searchInCategory("BLOG_POST");
+      String resources = searchInCategory("RESOURCE");
+
+      // Assert
+      assertThatJson(blogPosts).node("totalElements").isEqualTo(1);
+      assertThatJson(blogPosts).node("content[0].news_feed_item_type").isEqualTo("BLOG_POST");
+      assertThatJson(blogPosts)
+          .node("content[0].news_feed_item_metadata")
+          .isEqualTo(
+              """
+              [{"news_feed_item_metadata_key":"description",
+                "news_feed_item_metadata_value":"About hub-blog"},
+               {"news_feed_item_metadata_key":"read_minutes",
+                "news_feed_item_metadata_value":"7"}]
+              """);
+      assertThatJson(resources).node("totalElements").isEqualTo(1);
+      assertThatJson(resources)
+          .node("content[0].news_feed_item_hub_id")
+          .isEqualTo(scenario.getHubItemId());
+      assertThatJson(resources).node("content[0].news_feed_item_metadata").isArray().isEmpty();
+    }
+
+    @Test
+    @DisplayName("Given a category, should count only its unread items, and all without one")
+    void given_category_should_countOnlyItsUnreadItems() throws Exception {
+      // Act & Assert
+      assertThat(unreadCountInCategory("BLOG_POST")).isEqualTo("1");
+      assertThat(unreadCountInCategory("RESOURCE")).isEqualTo("1");
+      assertThat(unreadCount()).isEqualTo("2");
+    }
+
+    @Test
+    @DisplayName("Given the blogpost category, should read the blogposts only")
+    void given_blogPostCategory_should_readBlogPostsOnly() throws Exception {
+      // Act
+      mvc.perform(put(READ_ALL_URI, tenantId).param("category", "BLOG_POST").with(csrf()))
+          .andExpect(status().isNoContent());
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      assertThat(isRead(blogPost)).isTrue();
+      assertThat(isRead(scenario)).isFalse();
+    }
+
+    @Test
+    @DisplayName(
+        "Given an item of a type OpenAEV does not know, should count it among the resources")
+    void given_itemOfUnknownType_should_countItAmongTheResources() throws Exception {
+      // Arrange
+      NewsFeedItem unknown =
+          NewsFeedItemFixture.createNewsFeedItem(userService.currentUser(), "hub-x");
+      ReflectionTestUtils.setField(unknown, "type", "RESOURCE_PLAYBOOK");
+      newsFeedItemRepository.save(unknown);
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      String resources = searchInCategory("RESOURCE");
+      String blogPostsCount = unreadCountInCategory("BLOG_POST");
+      String resourcesCount = unreadCountInCategory("RESOURCE");
+      mvc.perform(put(READ_ALL_URI, tenantId).param("category", "RESOURCE").with(csrf()))
+          .andExpect(status().isNoContent());
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      assertThatJson(resources).node("totalElements").isEqualTo(2);
+      assertThat(blogPostsCount).isEqualTo("1");
+      assertThat(resourcesCount).isEqualTo("2");
+      assertThat(isRead(unknown)).isTrue();
+      assertThat(isRead(scenario)).isTrue();
+      assertThat(isRead(blogPost)).isFalse();
+    }
+
+    @Test
+    @DisplayName("Given a category that does not exist, should reject the request")
+    void given_unknownCategory_should_rejectTheRequest() throws Exception {
+      // Act & Assert
+      mvc.perform(get(UNREAD_COUNT_URI, tenantId).param("category", "NOPE"))
+          .andExpect(status().isBadRequest());
+      mvc.perform(put(READ_ALL_URI, tenantId).param("category", "NOPE").with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    private String searchInCategory(String category) throws Exception {
+      return mvc.perform(
+              post(SEARCH_URI, tenantId)
+                  .param("category", category)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(PaginationFixture.getDefault().build()))
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    private String unreadCountInCategory(String category) throws Exception {
+      return mvc.perform(get(UNREAD_COUNT_URI, tenantId).param("category", category))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
   }
 
   @Nested

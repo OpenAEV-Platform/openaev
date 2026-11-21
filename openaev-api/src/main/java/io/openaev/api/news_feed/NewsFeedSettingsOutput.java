@@ -25,4 +25,11 @@ public record NewsFeedSettingsOutput(
                     + " connectivity. A registered tenant that lost it still gets its news feed,"
                     + " but should be invited to reconnect",
             requiredMode = Schema.RequiredMode.REQUIRED)
-        boolean hubConnected) {}
+        boolean hubConnected,
+    @JsonProperty("news_feed_settings_available_types")
+        @Schema(
+            description =
+                "The news feed types XTM Hub provisions for the tenants in scope that serve the"
+                    + " news feed, none when no tenant in scope does")
+        @NotNull
+        List<NewsFeedType> availableTypes) {}

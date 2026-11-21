@@ -23,4 +23,15 @@ public class NewsFeedItemFixture {
     item.setUser(user);
     return item;
   }
+
+  public static NewsFeedItem createBlogPost(User user, String hubItemId) {
+    NewsFeedItem item = createNewsFeedItem(user, hubItemId);
+    item.setTitle("Blogpost " + hubItemId);
+    item.setType(NewsFeedType.BLOG_POST);
+    item.setTags(new String[] {"threat intel"});
+    item.setUrlPath("/redirect/blog/" + hubItemId);
+    item.getMetadata().put("read_minutes", "7");
+    item.getMetadata().put("description", "About " + hubItemId);
+    return item;
+  }
 }

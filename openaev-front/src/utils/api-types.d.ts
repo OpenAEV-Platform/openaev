@@ -8818,6 +8818,16 @@ export interface NetworkTraffic {
     | "AI_ATTACK";
 }
 
+export interface NewsFeedItemMetadataOutput {
+  /**
+   * Key of the detail, as XTM Hub sends it
+   * @minLength 1
+   */
+  news_feed_item_metadata_key: string;
+  /** Value of the detail, as XTM Hub sends it */
+  news_feed_item_metadata_value: string;
+}
+
 export interface NewsFeedItemOutput {
   /**
    * Creation date of the item
@@ -8836,6 +8846,8 @@ export interface NewsFeedItemOutput {
   news_feed_item_id: string;
   /** Whether the item was read */
   news_feed_item_is_read: boolean;
+  /** Details XTM Hub sends with the item (description, image, authors...), all optional and sorted by key */
+  news_feed_item_metadata: NewsFeedItemMetadataOutput[];
   /** Tags of the item */
   news_feed_item_tags: string[];
   /**
@@ -8844,7 +8856,7 @@ export interface NewsFeedItemOutput {
    */
   news_feed_item_title: string;
   /** Type of the item, absent when OpenAEV no longer knows its type */
-  news_feed_item_type?: "RESOURCE_SCENARIO";
+  news_feed_item_type?: "RESOURCE_SCENARIO" | "BLOG_POST";
   /** Path of the item in XTM Hub, to append to the XTM Hub URL, absent when XTM Hub sent none */
   news_feed_item_url_path?: string;
 }
@@ -8855,16 +8867,18 @@ export interface NewsFeedSettingsInput {
    * @maxItems 50
    * @minItems 0
    */
-  news_feed_settings_subscribed_types: "RESOURCE_SCENARIO"[];
+  news_feed_settings_subscribed_types: ("RESOURCE_SCENARIO" | "BLOG_POST")[];
 }
 
 export interface NewsFeedSettingsOutput {
+  /** The news feed types XTM Hub provisions for the tenants in scope that serve the news feed, none when no tenant in scope does */
+  news_feed_settings_available_types: ("RESOURCE_SCENARIO" | "BLOG_POST")[];
   /** Whether a tenant in scope is registered on XTM Hub and has not lost its connectivity. A registered tenant that lost it still gets its news feed, but should be invited to reconnect */
   news_feed_settings_hub_connected: boolean;
   /** Whether the news feed is served by XTM Hub, that is a tenant in scope is registered. The preferences can only be changed when it is */
   news_feed_settings_hub_registered: boolean;
   /** The news feed types the current user is subscribed to */
-  news_feed_settings_subscribed_types: "RESOURCE_SCENARIO"[];
+  news_feed_settings_subscribed_types: ("RESOURCE_SCENARIO" | "BLOG_POST")[];
 }
 
 export interface NotificationBulkProcessingInput {

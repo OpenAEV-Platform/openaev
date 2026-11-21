@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ClassicHttpRequest;
@@ -92,6 +93,7 @@ class XtmHubClientTest {
                             "RESOURCE_SCENARIO",
                             List.of("phishing"),
                             "/scenarios/hub-1",
+                            Map.of(),
                             Instant.parse("2026-10-20T10:15:30Z"),
                             true));
               });
@@ -209,6 +211,21 @@ class XtmHubClientTest {
 
       @Test
       @DisplayName(
+          "Given the code the Hub guard sends without a platform principal, should report the"
+              + " token as rejected")
+      void given_unauthenticatedErrorCode_should_reportTokenRejected() throws Exception {
+        // Arrange
+        givenHubAnswers(
+            200,
+            "{\"errors\":[{\"message\":\"Unauthorized\","
+                + "\"extensions\":{\"code\":\"UNAUTHENTICATED\"}}],\"data\":null}");
+
+        // Act & Assert
+        assertThat(consume()).isInstanceOf(NewsFeedFetchResult.TokenRejected.class);
+      }
+
+      @Test
+      @DisplayName(
           "Given an unrelated code but a token message, should report the token as rejected")
       void given_unrelatedCodeAndTokenMessage_should_reportTokenRejected() throws Exception {
         // Arrange
@@ -275,7 +292,7 @@ class XtmHubClientTest {
       }
 
       @Test
-      @DisplayName("Given null tags and metadata of other keys, should ignore them")
+      @DisplayName("Given null tags and metadata entries, should ignore the null ones")
       void given_nullTagsAndOtherMetadata_should_ignoreThem() throws Exception {
         // Arrange
         givenHubAnswers(
@@ -294,6 +311,43 @@ class XtmHubClientTest {
                 item -> {
                   assertThat(item.tags()).containsExactly("phishing");
                   assertThat(item.urlPath()).isEqualTo("/scenarios/1");
+                  assertThat(item.metadata()).containsExactly(Map.entry("other", "x"));
+                });
+      }
+
+      @Test
+      @DisplayName("Given blogpost metadata, should keep them all but the url path and the slug")
+      void given_blogPostMetadata_should_keepAllButUrlPathAndSlug() throws Exception {
+        // Arrange
+        givenHubAnswers(
+            200,
+            answerWithItems(
+                item(
+                    "hub-1",
+                    "\"tags\":[],\"metadata\":["
+                        + "{\"key\":\"url_path\",\"value\":\"/redirect/blog/1\"},"
+                        + "{\"key\":\"description\",\"value\":\"A description\"},"
+                        + "{\"key\":\"image_url\",\"value\":\"https://img.test/1.png\"},"
+                        + "{\"key\":\"author_names\",\"value\":\"[\\\"Jane\\\"]\"},"
+                        + "{\"key\":\"read_minutes\",\"value\":\"7\"},"
+                        + "{\"key\":\"read_minutes\",\"value\":\"9\"},"
+                        + "{\"key\":\"blog_post_slug\",\"value\":\"a-slug\"},"
+                        + "{\"key\":\"no_value\",\"value\":null},"
+                        + "{\"key\":\" \",\"value\":\"blank key\"}]")));
+
+        // Act & Assert
+        assertThat(fetchedItems())
+            .singleElement()
+            .satisfies(
+                item -> {
+                  assertThat(item.urlPath()).isEqualTo("/redirect/blog/1");
+                  assertThat(item.metadata())
+                      .containsExactlyInAnyOrderEntriesOf(
+                          Map.of(
+                              "description", "A description",
+                              "image_url", "https://img.test/1.png",
+                              "author_names", "[\"Jane\"]",
+                              "read_minutes", "7"));
                 });
       }
 
@@ -355,6 +409,17 @@ class XtmHubClientTest {
 
         // Act & Assert
         assertThat(fetched().availableTypes()).containsExactly("RESOURCE_SCENARIO", "7");
+      }
+
+      @Test
+      @DisplayName("Given an answer without the types, should return no type")
+      void given_answerWithoutTypes_should_returnNoType() throws Exception {
+        // Arrange
+        givenHubAnswers(
+            200, "{\"data\":{\"consumeProvisionedNewsFeedItems\":{\"news_feed_items\":[]}}}");
+
+        // Act & Assert
+        assertThat(fetched().availableTypes()).isEmpty();
       }
 
       @Test

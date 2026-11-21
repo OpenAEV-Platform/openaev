@@ -1,7 +1,18 @@
+import type { NewsFeedCategory } from '../../../../actions/news_feed/news-feed-actions';
+import type { NewsFeedItemMetadataOutput } from '../../../../utils/api-types';
 import { XTM_HUB_DEFAULT_URL } from '../../../../utils/Environment';
 
+/** The news feed type of the blogposts. */
+export const NEWS_FEED_BLOG_POST_TYPE = 'BLOG_POST';
+
+/** The categories the items are read, and counted unread, by: not types, RESOURCE gathers every other type. */
+export const NEWS_FEED_CATEGORIES = {
+  BLOG_POST: 'BLOG_POST',
+  RESOURCE: 'RESOURCE',
+} as const satisfies Record<NewsFeedCategory, NewsFeedCategory>;
+
 // The path comes from XTM Hub data: only a link that stays on the XTM Hub origin is rendered.
-export const buildHubUrl = (urlPath: string, hubUrl: string): string | null => {
+const buildHubUrl = (urlPath: string, hubUrl: string): string | null => {
   try {
     const base = new URL(hubUrl);
     const url = new URL(urlPath, base);
@@ -16,3 +27,92 @@ export const buildHubUrl = (urlPath: string, hubUrl: string): string | null => {
 export const buildConfiguredHubUrl = (urlPath: string | undefined, configuredHubUrl: string | undefined): string | null => (
   urlPath ? buildHubUrl(urlPath, configuredHubUrl ?? XTM_HUB_DEFAULT_URL) : null
 );
+
+/**
+ * The XTM Hub redirect to a blogpost, which tells the Hub the platform the reader comes from. The tracking of the
+ * campaign is in the path XTM Hub sends.
+ */
+export const buildBlogPostHubUrl = (urlPath: string | undefined, configuredHubUrl: string | undefined, platformId: string | undefined): string | null => {
+  const hubUrl = buildConfiguredHubUrl(urlPath, configuredHubUrl);
+  if (!hubUrl) {
+    return null;
+  }
+  const url = new URL(hubUrl);
+  if (platformId) {
+    url.searchParams.append('platform_id', platformId);
+  }
+  return url.toString();
+};
+
+/** The metadata of a blogpost that XTM Hub sends, and the card displays. */
+export const NEWS_FEED_METADATA_KEYS = {
+  DESCRIPTION: 'description',
+  IMAGE_URL: 'image_url',
+  IMAGE_ALT: 'image_alt',
+  AUTHOR_NAMES: 'author_names',
+  READ_MINUTES: 'read_minutes',
+} as const;
+
+/** The value of a metadata, `undefined` when it is missing or empty: every metadata is optional. */
+type NewsFeedMetadataKey = typeof NEWS_FEED_METADATA_KEYS[keyof typeof NEWS_FEED_METADATA_KEYS];
+
+export const getNewsFeedMetadataValue = (metadata: NewsFeedItemMetadataOutput[] | undefined, key: NewsFeedMetadataKey): string | undefined => {
+  const value = metadata?.find(entry => entry.news_feed_item_metadata_key === key)?.news_feed_item_metadata_value;
+  return value || undefined;
+};
+
+/**
+ * `author_names` is a JSON array of names serialized as a string by XTM Hub.
+ * Anything that is not a JSON array (invalid JSON, an object, a string...) gives no author.
+ */
+export const parseNewsFeedAuthorNames = (rawAuthorNames: string | undefined): string[] => {
+  if (!rawAuthorNames) {
+    return [];
+  }
+  try {
+    const parsed: unknown = JSON.parse(rawAuthorNames);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed
+      .filter((name): name is string => typeof name === 'string')
+      .map(name => name.trim())
+      .filter(name => name.length > 0);
+  } catch {
+    return [];
+  }
+};
+
+/** `read_minutes` is serialized as a string by XTM Hub: only a positive integer is displayed. */
+export const parseNewsFeedReadMinutes = (rawReadMinutes: string | undefined): number | undefined => {
+  if (!rawReadMinutes || !/^\d+$/.test(rawReadMinutes.trim())) {
+    return undefined;
+  }
+  const minutes = Number(rawReadMinutes);
+  return minutes > 0 ? minutes : undefined;
+};
+
+const FILIGRAN_BLOG_URL = 'https://filigran.io/blog';
+const FILIGRAN_STAGING_BLOG_URL = 'https://staging.filigran.io/blog';
+// The product, as XTM Hub names it in the links it builds: not the installation.
+const NEWS_FEED_UTM_SOURCE = 'openaev';
+
+/**
+ * Link of the "See all" button of the blogposts: the Filigran blog (staging blog when the platform is linked to a
+ * staging XTM Hub), tagged with the UTM of the news feed, whose source is the product, not the installation. This link
+ * does not go through the XTM Hub redirect.
+ */
+export const buildNewsFeedBlogSeeAllUrl = (configuredHubUrl: string | undefined): string => {
+  let isStaging = false;
+  try {
+    isStaging = /(^|\.)staging\./.test(new URL(configuredHubUrl ?? XTM_HUB_DEFAULT_URL).hostname);
+  } catch {
+    // malformed XTM Hub URL: the production blog
+  }
+  const url = new URL(isStaging ? FILIGRAN_STAGING_BLOG_URL : FILIGRAN_BLOG_URL);
+  url.searchParams.append('utm_source', NEWS_FEED_UTM_SOURCE);
+  url.searchParams.append('utm_medium', 'newsfeed');
+  url.searchParams.append('utm_campaign', 'blog_posts');
+  url.searchParams.append('utm_content', 'see_all');
+  return url.toString();
+};
