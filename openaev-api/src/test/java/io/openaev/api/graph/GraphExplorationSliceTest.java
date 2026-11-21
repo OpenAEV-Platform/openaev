@@ -16,6 +16,17 @@ import org.junit.jupiter.api.Test;
 class GraphExplorationSliceTest {
 
   @Test
+  @DisplayName("every node type has its own expansion")
+  void everyNodeTypeExpands() {
+    GraphExplorationService service = new GraphExplorationService();
+    for (GraphNodeType type : GraphNodeType.values()) {
+      assertThat(service.expands(type)).as(type.name()).isTrue();
+    }
+    assertThatThrownBy(() -> service.expand(null, List.of(), null, "x", null, 1))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
   @DisplayName("an expectation without a score is pending, below its expected score failed")
   void resultOfScore() {
     assertThat(GraphResult.ofScore(null, 100.0)).isEqualTo(GraphResult.PENDING);
