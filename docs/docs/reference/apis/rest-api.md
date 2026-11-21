@@ -287,6 +287,26 @@ DELETE /api/assets/{assetId}/links/{linkedAssetId}/{linkType}
 - **Errors**: `400` for a link to the Asset itself or to an Asset of another Tenant, `404` when either Asset (or, on `DELETE`, the link) is not found.
 - **Access**: `GET` needs the right to read the Asset, `POST` and `DELETE` the right to manage it. `GET` lists the links that start or end on the Asset; deleting an Asset deletes its links.
 
+## Asset software inventory
+
+Each Asset carries the software it runs: vendor, product, version, CPE and PURL, where it was learned (`SBOM`, `API` or `AGENT`), when it was first and last seen, and the component that bundles it (a library inside an application, the web server inside a container image). Each endpoint is also available under the Tenant prefix `/api/tenants/{tenantId}/assets/...`.
+
+```http
+GET /api/assets/{assetId}/software
+POST /api/assets/{assetId}/software
+POST /api/assets/{assetId}/software/sbom
+DELETE /api/assets/{assetId}/software/{softwareId}
+GET /api/assets/software?purl=&cpe=&product=&vendor=
+```
+
+- **Body** of `POST .../software`: `{"asset_software_vendor": "F5", "asset_software_product": "nginx", "asset_software_version": "1.27.1", "asset_software_cpe": "cpe:2.3:a:f5:nginx:1.27.1:*:*:*:*:*:*:*", "asset_software_purl": "pkg:generic/nginx@1.27.1", "asset_software_parent_id": null}`. A component is stored once per Asset, identified by its PURL, else its CPE, else vendor, product and version: recording it again updates it and moves its last seen date.
+- **SBOM import**: the body of `POST .../software/sbom` is a CycloneDX JSON (`bomFormat`) or SPDX JSON (`spdxVersion`) document. Nested CycloneDX components and SPDX `CONTAINS` relationships give the bundling parent. Components already on the Asset and absent from the SBOM are kept. The response counts the components `created`, `updated` and with an unknown version, and lists them. An SBOM of more than 10,000 components is refused.
+- **Unknown version**: a missing, blank or `NOASSERTION` version is stored with `asset_software_version_state` `UNKNOWN` and `asset_software_version` null, never an empty string; treat it as "could be any version".
+- **Search**: `GET /api/assets/software` returns the components, with their Asset, that match every criterion given: `purl` (exact; a PURL without `@version` matches every version), `cpe` (exact), `product` and `vendor` (case-insensitive). At least one criterion is required.
+- **Events**: every change moves the Asset's `asset_updated_at`, so Asset update notification triggers and the live stream see an inventory change.
+- **Errors**: `400` for a component without a product or a document that is not an SBOM, `404` when the Asset, the parent component or the component is not found.
+- **Access**: `GET` needs the right to read the Asset, `POST` and `DELETE` the right to manage it; the search returns only Assets the caller can read. Deleting an Asset deletes its software.
+
 ## Finding re-test
 
 A Finding carries a lifecycle status, returned by `GET /api/findings/{id}`:
