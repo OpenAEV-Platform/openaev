@@ -222,12 +222,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@casl/ability@npm:7.1.1":
-  version: 7.1.1
-  resolution: "@casl/ability@npm:7.1.1"
+"@casl/ability@npm:7.1.3":
+  version: 7.1.3
+  resolution: "@casl/ability@npm:7.1.3"
   dependencies:
     "@ucast/mongo2js": "npm:^2.0.0"
-  checksum: 10c0/cc240abfeb83d2cb20ba466eac0b68dd35f71263e7e18110d1c0a32710841a3bce67e57314f80c6608a1815fa299e9f4d2c2c5fc9292ab763bc2451f5655c4bf
+  checksum: 10c0/e72dc8334275d86d26875fbe1edfabb9049da820903d1705dbe53a31b2d15b21aec265db821805781d4d7e04f63ed26dbae56beb194f11e59a1ee2d2d6d74f48
   languageName: node
   linkType: hard
 
@@ -744,14 +744,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@formatjs/intl@npm:6.1.5":
-  version: 6.1.5
-  resolution: "@formatjs/intl@npm:6.1.5"
+"@formatjs/intl@npm:6.2.0":
+  version: 6.2.0
+  resolution: "@formatjs/intl@npm:6.2.0"
   dependencies:
     "@formatjs/fast-memoize": "npm:3.1.7"
     "@formatjs/icu-messageformat-parser": "npm:3.5.23"
-    intl-messageformat: "npm:12.1.5"
-  checksum: 10c0/a6fa4bb1875999b49db848f643b2f5b4a1aaa3482b8a9bed80ff9128b0648c672518de80b4e424308f11e6214f865efaa235c1dc8f617a08331114d93a276e3c
+    intl-messageformat: "npm:12.2.0"
+  checksum: 10c0/f4823d2dd31f9ab3213e3326f51beaa4bc440787a0ac994c27016b791c36beedffaf857b32112407fa7ba1d410f09774b66ea90217b82d42d24f2c17401e8749
   languageName: node
   linkType: hard
 
@@ -2699,12 +2699,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@redux-devtools/extension@npm:4.0.0":
-  version: 4.0.0
-  resolution: "@redux-devtools/extension@npm:4.0.0"
+"@redux-devtools/extension@npm:4.0.1":
+  version: 4.0.1
+  resolution: "@redux-devtools/extension@npm:4.0.1"
   peerDependencies:
     redux: ^3.1.0 || ^4.0.0 || ^5.0.0
-  checksum: 10c0/bb3b5b48245f4eb40ffc4384df31f7fe1a14cff2749f8a4058ae5d266436f33e1e97f633daf724e131fc69edfa5c2bcd0f9562bdf9493058fec813641961ccb6
+  checksum: 10c0/29e9484f4b0ff163dd2ca12dde96ed52a5859c117806d54fdfe5e4f64e705585ae6c10b5f66176e74b931ffadf33282c66fe8679b9147b3e009ca92092204513
   languageName: node
   linkType: hard
 
@@ -5104,12 +5104,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cronstrue@npm:3.38.0":
-  version: 3.38.0
-  resolution: "cronstrue@npm:3.38.0"
+"cronstrue@npm:3.43.0":
+  version: 3.43.0
+  resolution: "cronstrue@npm:3.43.0"
   bin:
     cronstrue: bin/cli.js
-  checksum: 10c0/629cdb29c62101f4b6a9218b03bebf695af9e27bd1a7a02ec6b141311674e59d6cf3e1af9705057d82f18deffb687bb71864e0a948422f664d162ef762563daa
+  checksum: 10c0/d4820bd6aff588567c05b6d159e57c4fbf0a8a7caf31c3bf8522b2bfccdfe289395331ab6571d25175550cf5259960844a7b7ff376ea39598b46243ced795b72
   languageName: node
   linkType: hard
 
@@ -7204,9 +7204,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"html-react-parser@npm:6.1.9":
-  version: 6.1.9
-  resolution: "html-react-parser@npm:6.1.9"
+"html-react-parser@npm:6.1.10":
+  version: 6.1.10
+  resolution: "html-react-parser@npm:6.1.10"
   dependencies:
     domhandler: "npm:6.0.1"
     html-dom-parser: "npm:8.0.2"
@@ -7218,7 +7218,7 @@ __metadata:
   peerDependenciesMeta:
     "@types/react":
       optional: true
-  checksum: 10c0/9cc13b894a72b38a7685a925b90b964e934f22e5d61acbf4bff0716e5a5412b206a39dd2f0e9a275a3229834dcf937cd065763ecaa2fd843a2f0b12723761ebd
+  checksum: 10c0/79a6051c15519f391f7cf85100f1e8d4fc620261b011c0fb50041e350b03b1349067f7a8e3caacbea6193d0465ba801649fa0a47a4876017152987be0ac6af63
   languageName: node
   linkType: hard
 
@@ -7406,10 +7406,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"immutable@npm:5.1.9":
-  version: 5.1.9
-  resolution: "immutable@npm:5.1.9"
-  checksum: 10c0/ae7032b60b81b682f3e7e4df13e1ec9a401a603eb81b15bb3e37331ed6666e318c71994c6936e1462eb443d32d04769396562a7e2669da22457c8ba279c03ad2
+"immutable@npm:5.2.1":
+  version: 5.2.1
+  resolution: "immutable@npm:5.2.1"
+  checksum: 10c0/022957e6fa4ffcdd635bbede11ef216e2e0d90bc13064d3b9eca9f979ccadec6a42a285e292cc1c7adcaa824ecef5428c5435ac9fd75d2cab598bf30a606936b
   languageName: node
   linkType: hard
 
@@ -7483,13 +7483,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"intl-messageformat@npm:12.1.5":
-  version: 12.1.5
-  resolution: "intl-messageformat@npm:12.1.5"
+"intl-messageformat@npm:12.2.0":
+  version: 12.2.0
+  resolution: "intl-messageformat@npm:12.2.0"
   dependencies:
     "@formatjs/fast-memoize": "npm:3.1.7"
     "@formatjs/icu-messageformat-parser": "npm:3.5.23"
-  checksum: 10c0/9c9e7c6612e2fa72a2947c357eeecff18fc6ca3d18020bd49b60381a0afc0359b6d98a9da92a418f88835f894f1edd4ed23c33b22ee3a97509e1c3389c4e45c6
+  checksum: 10c0/ef7fd5e281e79f019a54592a5b15bd1cae2d8614af2744aa3f787cf727432018ef038fae13beedfe66be7e073a93a03ac2f1dbe5c0e2cd1c5536ceba5d0e02b8
   languageName: node
   linkType: hard
 
@@ -9832,7 +9832,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "openaev-front@workspace:."
   dependencies:
-    "@casl/ability": "npm:7.1.1"
+    "@casl/ability": "npm:7.1.3"
     "@casl/react": "npm:7.1.0"
     "@emotion/react": "npm:11.14.0"
     "@emotion/styled": "npm:11.14.1"
@@ -9849,7 +9849,7 @@ __metadata:
     "@mui/icons-material": "npm:9.5.0"
     "@mui/material": "npm:9.5.0"
     "@playwright/test": "npm:1.65.0"
-    "@redux-devtools/extension": "npm:4.0.0"
+    "@redux-devtools/extension": "npm:4.0.1"
     "@stylistic/eslint-plugin": "npm:5.10.0"
     "@tanstack/react-virtual": "npm:3.14.26"
     "@testing-library/dom": "npm:10.4.2"
@@ -9868,7 +9868,7 @@ __metadata:
     "@xyflow/react": "npm:12.12.1"
     apexcharts: "npm:4.7.0"
     axios: "npm:1.21.1"
-    cronstrue: "npm:3.38.0"
+    cronstrue: "npm:3.43.0"
     cross-env: "npm:10.1.0"
     date-fns: "npm:4.4.0"
     dependency-cruiser: "npm:18.7.2"
@@ -9885,10 +9885,10 @@ __metadata:
     final-form-arrays: "npm:4.0.1"
     globals: "npm:17.14.0"
     happy-dom: "npm:21.0.4"
-    html-react-parser: "npm:6.1.9"
+    html-react-parser: "npm:6.1.10"
     html-to-image: "npm:1.11.13"
     i18n-auto-translation: "npm:2.2.3"
-    immutable: "npm:5.1.9"
+    immutable: "npm:5.2.1"
     ipaddr.js: "npm:^2.2.0"
     knip: "npm:6.45.1"
     license-checker-rseidelsohn: "npm:5.0.1"
@@ -9909,11 +9909,11 @@ __metadata:
     react-final-form: "npm:6.5.9"
     react-final-form-arrays: "npm:4.0.0"
     react-grid-layout: "npm:2.3.0"
-    react-hook-form: "npm:7.91.0"
-    react-intl: "npm:12.1.7"
+    react-hook-form: "npm:7.92.0"
+    react-intl: "npm:12.2.0"
     react-markdown: "npm:10.1.0"
     react-redux: "npm:9.3.1"
-    react-router: "npm:8.5.1"
+    react-router: "npm:8.5.2"
     react-syntax-highlighter: "npm:16.1.2"
     redux: "npm:5.0.1"
     redux-thunk: "npm:3.1.0"
@@ -10828,30 +10828,30 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-hook-form@npm:7.91.0":
-  version: 7.91.0
-  resolution: "react-hook-form@npm:7.91.0"
+"react-hook-form@npm:7.92.0":
+  version: 7.92.0
+  resolution: "react-hook-form@npm:7.92.0"
   peerDependencies:
     "@types/react": "*"
     react: ^16.8.0 || ^17 || ^18 || ^19
   peerDependenciesMeta:
     "@types/react":
       optional: true
-  checksum: 10c0/21c6164024082331242eaf7dd865ca6ac905af5a4941da60dc302337f0190635be7e73af30954cb7a310f5d94883e851b1d79322415aca796b81877085ef1c7c
+  checksum: 10c0/afed3d373c8f61bf019d82e92ff13dd41d39027b5c70332268f79a8bdcbea476798ffa9b4081df832dd6993e995092b2bc0788d24e51df173720ec57478a1631
   languageName: node
   linkType: hard
 
-"react-intl@npm:12.1.7":
-  version: 12.1.7
-  resolution: "react-intl@npm:12.1.7"
+"react-intl@npm:12.2.0":
+  version: 12.2.0
+  resolution: "react-intl@npm:12.2.0"
   dependencies:
     "@formatjs/icu-messageformat-parser": "npm:3.5.23"
-    "@formatjs/intl": "npm:6.1.5"
-    intl-messageformat: "npm:12.1.5"
+    "@formatjs/intl": "npm:6.2.0"
+    intl-messageformat: "npm:12.2.0"
   peerDependencies:
     "@types/react": ">=18.0.0"
     react: ">=18.0.0"
-  checksum: 10c0/65b453ea6ef9c2313d6338fbc14fbb4fe23c2fa5e92f2b0949e821f295ef0476a73ce5073fdc4422785d2c2e213d517302c421d3d647fe5ed52b0c7ce983ff36
+  checksum: 10c0/e91c7797989257f87555126d542b6cf76c2f4b3b47c76484897f2fd1bf7c6d4037b35aa784b48447a72c4ef3bbfe474b74e2f80ce9b6f9c75f228949de4fbccd
   languageName: node
   linkType: hard
 
@@ -10972,9 +10972,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-router@npm:8.5.1":
-  version: 8.5.1
-  resolution: "react-router@npm:8.5.1"
+"react-router@npm:8.5.2":
+  version: 8.5.2
+  resolution: "react-router@npm:8.5.2"
   dependencies:
     "@remix-run/route-pattern": "npm:^0.22.1"
     cookie-es: "npm:^3.1.1"
@@ -10990,7 +10990,7 @@ __metadata:
       optional: true
     react-dom:
       optional: true
-  checksum: 10c0/07503a26d5c5669d84d044e59e3a7f97dad36946dbb9ade14f243f187096bc12cea5bf7401f8681c602d9100238cef752bd3d0e6a742e1c0794e2abd20662368
+  checksum: 10c0/4ff6e74255ca0372cd29698874534d21c4be3c4ca8853707f7176d9fb6284339112896db9a87ae79a6346aa6f8afeb608534de675320c2cd6c674b3ee0bdbf09
   languageName: node
   linkType: hard
 
