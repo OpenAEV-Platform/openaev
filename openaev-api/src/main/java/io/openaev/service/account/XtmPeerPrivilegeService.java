@@ -106,7 +106,7 @@ public class XtmPeerPrivilegeService extends AbstractPrivilegeService {
 
     User user = existing.get();
     applyUserServiceAttributes(user, name, null, peerEmail, group);
-    new ArrayList<>(user.getTokens()).forEach(userService::deleteUserToken);
+    deleteTokens(user);
     userService.createUserToken(user, token);
     tenantUserService.attachToTenant(user.getId(), DEFAULT_TENANT_UUID);
     userService.saveUser(user);
@@ -124,9 +124,19 @@ public class XtmPeerPrivilegeService extends AbstractPrivilegeService {
       return false;
     }
     User user = existing.get();
+    boolean hadTokens = deleteTokens(user);
+    sessionManager.invalidateUserSession(user.getId());
+    return hadTokens;
+  }
+
+  /**
+   * Deletes every token of the account and drops them from its token list too, so a later save of
+   * the account in the same persistence context never merges a deleted token back.
+   */
+  private boolean deleteTokens(User user) {
     List<Token> tokens = new ArrayList<>(user.getTokens());
     tokens.forEach(userService::deleteUserToken);
-    sessionManager.invalidateUserSession(user.getId());
+    user.getTokens().removeAll(tokens);
     return !tokens.isEmpty();
   }
 }
