@@ -3,7 +3,6 @@ package io.openaev.rest.finding;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -13,6 +12,7 @@ import io.openaev.rest.finding.form.FindingRetestOutput;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.finding.FindingRetestService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.FindingMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -91,7 +91,7 @@ public class FindingApi extends RestBehavior {
       TxCtx ctx, @Valid @RequestBody final FindingRetestInput input) {
     return ResponseEntity.ok(
         this.findingRetestService
-            .retest(ctx, TenantContext.getCurrentTenant(), input.getFindingIds())
+            .retest(ctx, TxCtxScopeUtils.requireOneTenantOfScope(ctx), input.getFindingIds())
             .stream()
             .map(retest -> new FindingRetestOutput(retest.findingId(), retest.retestInjectId()))
             .toList());

@@ -6504,7 +6504,10 @@ export interface FindingOutput {
 }
 
 export interface FindingRetestInput {
-  /** Ids of the findings to re-test */
+  /**
+   * Ids of the findings to re-test
+   * @minItems 1
+   */
   finding_ids: string[];
 }
 
