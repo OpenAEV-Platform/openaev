@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TxCtx;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.xtm.counterpart.CounterpartServiceTest.FakeProvider;
@@ -25,6 +26,8 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 class CounterpartApiTest {
 
@@ -188,6 +191,26 @@ class CounterpartApiTest {
     verify(localObjects).find(eq(CounterpartKind.VULNERABILITY), eq(input.keys()), any());
     verify(localObjects).find(eq(CounterpartKind.THREAT), eq(input.keys()), any());
     verify(localObjects).find(eq(CounterpartKind.ALERT), eq(input.keys()), any());
+  }
+
+  @Test
+  @DisplayName("given a remote counterpart lookup, should hold no database transaction")
+  void given_remoteCounterpartLookup_should_holdNoDatabaseTransaction() throws Exception {
+    // -- ARRANGE --
+    List<String> remote =
+        List.of("assets", "attackPatterns", "vulnerabilities", "threats", "alerts");
+
+    for (String name : remote) {
+      // -- ACT --
+      Transactional tx =
+          CounterpartApi.class
+              .getMethod(name, TxCtx.class, String.class, CounterpartLookupInput.class)
+              .getAnnotation(Transactional.class);
+
+      // -- ASSERT --
+      assertThat(tx).as(name).isNotNull();
+      assertThat(tx.propagation()).as(name).isEqualTo(Propagation.NOT_SUPPORTED);
+    }
   }
 
   @Test

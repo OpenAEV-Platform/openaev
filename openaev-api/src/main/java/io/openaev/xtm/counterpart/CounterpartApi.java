@@ -23,6 +23,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,6 +32,10 @@ import org.springframework.web.bind.annotation.*;
  * objects they also hold. Each lookup is guarded by the right to search the object kind it reads.
  * Part of the exploration graph preview feature: every route answers a 404 while {@code
  * EXPLORATION_GRAPH} is off (the default).
+ *
+ * <p>The counterpart lookups call the connected products over the network and read no table, so
+ * they run outside any database transaction: a slow remote product never holds a connection of the
+ * pool.
  */
 @RestController
 @RequirePreviewFeature(PreviewFeature.EXPLORATION_GRAPH)
@@ -61,7 +66,8 @@ public class CounterpartApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/counterparts/assets")
-  @Transactional(readOnly = true)
+  // A remote call to the connected products: no database transaction is held while it waits.
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   @Operation(summary = "Find assets in the connected XTM products")
   public List<CounterpartOutput> assets(
@@ -71,7 +77,7 @@ public class CounterpartApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/counterparts/attack-patterns")
-  @Transactional(readOnly = true)
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
   @Operation(summary = "Find attack patterns in the connected XTM products")
   public List<CounterpartOutput> attackPatterns(
@@ -81,7 +87,7 @@ public class CounterpartApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/counterparts/vulnerabilities")
-  @Transactional(readOnly = true)
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.VULNERABILITY)
   @Operation(summary = "Find vulnerabilities in the connected XTM products")
   public List<CounterpartOutput> vulnerabilities(
@@ -91,7 +97,7 @@ public class CounterpartApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/counterparts/threats")
-  @Transactional(readOnly = true)
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   @Operation(summary = "Find scenario threat sources in the connected XTM products")
   public List<CounterpartOutput> threats(
@@ -101,7 +107,7 @@ public class CounterpartApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/counterparts/alerts")
-  @Transactional(readOnly = true)
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Operation(summary = "Find collected alerts in the connected XTM products, by alert link")
   public List<CounterpartOutput> alerts(
