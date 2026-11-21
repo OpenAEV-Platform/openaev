@@ -7,9 +7,15 @@ import useOpenedAction from '../../../../../admin/components/threat_arsenal/hook
 import { type ThreatArsenalAction } from '../../../../../utils/api-types';
 import { anAction, intlWrapper } from '../threatArsenalTestUtils';
 
-const { fetchAction } = vi.hoisted(() => ({ fetchAction: vi.fn() }));
+const { fetchAction, fetchActionOfPayload } = vi.hoisted(() => ({
+  fetchAction: vi.fn(),
+  fetchActionOfPayload: vi.fn(),
+}));
 
-vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({ fetchThreatArsenalAction: fetchAction }));
+vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
+  fetchThreatArsenalAction: fetchAction,
+  fetchThreatArsenalActionOfPayload: fetchActionOfPayload,
+}));
 
 const action = anAction();
 
@@ -79,6 +85,23 @@ describe('useOpenedAction', () => {
       // Assert
       await waitFor(() => expect(result.current.openedAction).toBe(action));
       expect(result.current.openedTab).toBeUndefined();
+    });
+  });
+
+  describe('given a link to a payload version', () => {
+    it('should open the action the list shows for it', async () => {
+      // Arrange
+      fetchActionOfPayload.mockResolvedValue({ data: { action_id: 'action-v2' } });
+      fetchAction.mockResolvedValue({ data: { action_labels: { en: 'Mimikatz' } } });
+      const { result, rerender, searchByName } = renderAt('/?payload=payload-v1', []);
+      await waitFor(() => expect(searchByName).toHaveBeenCalledWith('Mimikatz'));
+
+      // Act
+      rerender({ listed: [action] });
+
+      // Assert
+      await waitFor(() => expect(result.current.openedAction).toBe(action));
+      expect(fetchActionOfPayload).toHaveBeenCalledWith('payload-v1');
     });
   });
 

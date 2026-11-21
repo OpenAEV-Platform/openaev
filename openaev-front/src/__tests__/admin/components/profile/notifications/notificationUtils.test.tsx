@@ -5,7 +5,7 @@ import { type NotificationOutput } from '../../../../../utils/api-types';
 
 describe('notificationUtils', () => {
   describe('eventUrl', () => {
-    it('opens the Threat Arsenal for a payload event', () => {
+    it('opens the action of a payload event', () => {
       // Act
       const url = eventUrl({
         operation: 'REVOKED',
@@ -14,7 +14,7 @@ describe('notificationUtils', () => {
       });
 
       // Assert
-      expect(url).toBe('/admin/threat-arsenal');
+      expect(url).toBe('/admin/threat-arsenal?payload=payload-1');
     });
 
     it('opens the scenario of a payload revoked in it', () => {

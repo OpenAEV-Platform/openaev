@@ -70,11 +70,7 @@ public class PayloadVersionService {
   /** Refused when the version is not another version of the payload, or is revoked. */
   public InjectorContract otherVersionAction(String tenantId, Payload payload, String versionId) {
     refuseUnlessOtherVersion(tenantId, payload, versionId);
-    return Optional.ofNullable(
-            injectorContractService
-                .injectorContractsOfPayloads(tenantId, List.of(versionId))
-                .get(versionId))
-        .orElseThrow(() -> new ElementNotFoundException(NO_PAYLOAD));
+    return actionOf(tenantId, versionId);
   }
 
   /** Same rule as {@link #otherVersionAction}, from the action of the version. */
@@ -88,6 +84,21 @@ public class PayloadVersionService {
   /** The payload version the action runs. */
   public Payload payload(String tenantId, String actionId) {
     return payloadAction(tenantId, actionId).getPayload();
+  }
+
+  /** The action the Threat Arsenal lists for a payload version: the one of its latest version. */
+  public InjectorContract listedAction(String tenantId, String payloadId) {
+    Payload payload = payloadService.payload(tenantId, payloadId);
+    Payload listed = Optional.ofNullable(payload.getIdentity().getLatestVersion()).orElse(payload);
+    return actionOf(tenantId, listed.getId());
+  }
+
+  private InjectorContract actionOf(String tenantId, String payloadId) {
+    return Optional.ofNullable(
+            injectorContractService
+                .injectorContractsOfPayloads(tenantId, List.of(payloadId))
+                .get(payloadId))
+        .orElseThrow(() -> new ElementNotFoundException(NO_PAYLOAD));
   }
 
   /** Only what the user can read is listed; the others are counted. */

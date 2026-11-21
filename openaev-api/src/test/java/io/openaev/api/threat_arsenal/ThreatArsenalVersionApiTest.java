@@ -449,6 +449,30 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
     }
   }
 
+  // -- LISTED ACTION --
+
+  @Test
+  @DisplayName("opens an older payload version on the action the Threat Arsenal lists")
+  void given_olderVersion_should_returnTheActionOfTheLatest() throws Exception {
+    // Arrange
+    List<String> ids = installed("1.0.0", "1.1.0");
+    String local = localAction().getPayload().getId();
+
+    // Act & Assert
+    for (Map.Entry<String, String> link :
+        Map.of(ids.get(0), ids.get(1), ids.get(1), ids.get(1), local, local).entrySet()) {
+      JsonNode action =
+          body(
+              mvc.perform(
+                      get(
+                          TENANT_THREAT_ARSENAL_URL + "/payloads/{payloadId}/action",
+                          DEFAULT_TENANT_UUID,
+                          link.getKey()))
+                  .andExpect(status().isOk()));
+      assertThat(action.path("action_id").asText()).isEqualTo(contractOf(link.getValue()).getId());
+    }
+  }
+
   // -- HISTORY --
 
   @Test

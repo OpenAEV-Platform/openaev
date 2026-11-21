@@ -112,7 +112,7 @@ export const operationIcon = (operation: string): ReactNode => {
 };
 
 // Resource types with a page to open. Types without one (vulnerability, document, challenge) are
-// absent: their notifications are not navigable. A payload opens the Threat Arsenal.
+// absent: their notifications are not navigable. A payload opens its action in the Threat Arsenal.
 const RESOURCE_TYPE_URLS: Record<string, (id: string) => string> = {
   SCENARIO: id => `${SCENARIO_BASE_URL}/${id}`,
   SIMULATION: id => `${SIMULATION_BASE_URL}/${id}`,
@@ -123,7 +123,7 @@ const RESOURCE_TYPE_URLS: Record<string, (id: string) => string> = {
   TEAM: id => `${TEAM_BASE_URL}/${id}`,
   PLAYER: id => `${PERSON_BASE_URL}/${id}`,
   SECURITY_PLATFORM: id => `${SECURITY_PLATFORM_BASE_URL}/${id}`,
-  PAYLOAD: () => THREAT_ARSENAL_BASE_URL,
+  PAYLOAD: id => `${THREAT_ARSENAL_BASE_URL}?payload=${encodeURIComponent(id)}`,
   CATALOG_SYNC: () => `${THREAT_ARSENAL_BASE_URL}/available`,
 };
 

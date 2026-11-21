@@ -7,6 +7,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.api.threat_arsenal.dto.PayloadUsagesOutput;
 import io.openaev.api.threat_arsenal.dto.PayloadVersionOutput;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionIdOutput;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -62,5 +63,21 @@ public class ThreatArsenalVersionApi {
   public PayloadUsagesOutput usages(
       @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
     return payloadVersionService.usages(TxCtxScopeUtils.requireOneTenantOfScope(ctx), actionId);
+  }
+
+  @Operation(summary = "The action listed for a payload version, for links that only know it")
+  @GetMapping({
+    THREAT_ARSENAL_URL + "/payloads/{payloadId}/action",
+    TENANT_THREAT_ARSENAL_URL + "/payloads/{payloadId}/action"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  public ThreatArsenalActionIdOutput listedAction(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String payloadId) {
+    catalogFeature.require();
+    return new ThreatArsenalActionIdOutput(
+        payloadVersionService
+            .listedAction(TxCtxScopeUtils.requireOneTenantOfScope(ctx), payloadId)
+            .getId());
   }
 }
