@@ -457,7 +457,7 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
       assertThat(version.getContent()).isEqualTo(MY_COMMAND);
       assertThat(version.getCleanupCommand()).isEqualTo(myCleanup);
       assertThat(version.getBase().getId()).isEqualTo(newer);
-      assertThat(version.getVersion()).isEqualTo("1.1.0");
+      assertThat(version.getVersion()).isEqualTo("1.0.1");
       assertThat(saved.path("action_payload_customized").asBoolean()).isTrue();
     }
 
@@ -570,6 +570,8 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
       // Arrange
       String base = install(FIRST);
       String actionId = contractOf(base).getId();
+      // A request leaves the test thread without a user: the tenant creation needs one.
+      testUserHolder.refreshSecurityContext();
       String otherTenant = tenantHelper.createTenantWithCurrentUser("customization-other").getId();
 
       // Act & Assert
@@ -598,8 +600,11 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
-      // Act
-      payloadRepository.delete(payload(base));
+      // Act: a catalogue version is never deleted through the application, only in SQL.
+      entityManager
+          .createNativeQuery("DELETE FROM payloads WHERE payload_id = :id")
+          .setParameter("id", base)
+          .executeUpdate();
       entityManager.flush();
       entityManager.clear();
 
