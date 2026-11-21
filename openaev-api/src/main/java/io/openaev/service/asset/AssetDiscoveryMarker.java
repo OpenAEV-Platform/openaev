@@ -1,5 +1,6 @@
 package io.openaev.service.asset;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tag;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.tag.TagService;
@@ -36,7 +37,12 @@ public class AssetDiscoveryMarker {
    * in. Returns the input for chaining.
    */
   public EndpointInput markDiscovered(EndpointInput input, String tenantId) {
-    if (input == null || !tenantSettingsService.isAssetDiscoveryTagEnabled(tenantId)) {
+    if (input == null) {
+      return input;
+    }
+    // Scoped read: an inject output processor calls this outside any tenant scope.
+    TxCtx ctx = TxCtx.forTenant(tenantId);
+    if (!tenantSettingsService.isAssetDiscoveryTagEnabled(ctx, tenantId)) {
       return input;
     }
     TagCreateInput tagInput = new TagCreateInput();

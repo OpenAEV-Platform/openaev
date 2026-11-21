@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tag;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.tag.TagService;
@@ -32,7 +33,7 @@ class AssetDiscoveryMarkerTest {
   @DisplayName("given the default setting should leave the input untouched and create no tag")
   void given_defaultSetting_should_leaveInputUntouched() {
     // Arrange
-    when(settings.isAssetDiscoveryTagEnabled(TENANT)).thenReturn(false);
+    when(settings.isAssetDiscoveryTagEnabled(any(TxCtx.class), eq(TENANT))).thenReturn(false);
     EndpointInput input = new EndpointInput();
     input.setTagIds(new ArrayList<>(List.of("existing")));
 
@@ -48,7 +49,7 @@ class AssetDiscoveryMarkerTest {
   @DisplayName("given the tenant opted in should add the discovered tag once, in the tenant")
   void given_optedIn_should_addDiscoveredTagOnce() {
     // Arrange
-    when(settings.isAssetDiscoveryTagEnabled(TENANT)).thenReturn(true);
+    when(settings.isAssetDiscoveryTagEnabled(any(TxCtx.class), eq(TENANT))).thenReturn(true);
     Tag tag = new Tag();
     tag.setId("tag-discovered");
     when(tagService.upsertTag(any(TagCreateInput.class), eq(TENANT))).thenReturn(tag);

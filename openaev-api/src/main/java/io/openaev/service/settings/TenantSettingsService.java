@@ -10,6 +10,7 @@ import static io.openaev.database.model.TenantSettingKeys.TENANT_SCENARIO_DASHBO
 import static io.openaev.database.model.TenantSettingKeys.TENANT_SIMULATION_DASHBOARD;
 
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantSettingKeys;
@@ -117,9 +118,15 @@ public class TenantSettingsService {
     return readAssetFreshnessSettings(tenantId);
   }
 
-  /** Whether the assets a run creates get the "discovered" tag in this tenant (off by default). */
+  /**
+   * Whether the assets a run creates get the "discovered" tag in this tenant (off by default).
+   *
+   * <p>{@code ctx} scopes the read: a caller such as an inject output processor runs outside any
+   * tenant scope, and a tenant row of the dual-scope parameters table read with no scope comes back
+   * empty instead of failing. The aspect writes the scope from this parameter.
+   */
   @Transactional(readOnly = true)
-  public boolean isAssetDiscoveryTagEnabled(@NotBlank String tenantId) {
+  public boolean isAssetDiscoveryTagEnabled(TxCtx ctx, @NotBlank String tenantId) {
     return readDiscoveryTag(loadTenantSettings(tenantId));
   }
 
