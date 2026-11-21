@@ -8,6 +8,8 @@ import { type ThreatArsenalAction, type ThreatArsenalActionFullOutput } from '..
 // 'move' opens the Versions tab ready to move the injects left on older versions.
 export type OpenedTab = 'versions' | 'move';
 
+export const versionsTabLink = (actionId: string, tab: OpenedTab = 'versions') => `/admin/threat-arsenal?action=${encodeURIComponent(actionId)}&tab=versions${tab === 'move' ? '&focus=move' : ''}`;
+
 /**
  * The action whose drawer is open, and the tab it opens on. A link to an action
  * (?action=<id>&tab=versions[&focus=move]) searches it by name, then opens it once the list shows it.

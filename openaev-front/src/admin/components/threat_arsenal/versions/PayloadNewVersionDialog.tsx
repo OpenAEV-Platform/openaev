@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogFooter,
   DialogTitle,
-  Spinner,
   Text,
 } from '@filigran/design-system';
 import { ArrowForwardOutlined } from '@mui/icons-material';
@@ -19,6 +18,7 @@ import { fdsGroupRowStyle, fdsTableFrameStyle, fdsTableSectionStyle } from '../.
 import { useFormatter } from '../../../../components/i18n';
 import { type ThreatArsenalAction } from '../../../../utils/api-types';
 import useCountLabel from '../../../../utils/hooks/useCountLabel';
+import { versionsTabLink } from '../hook/useOpenedAction';
 import { type OlderVersionInUse, scenarioCount, totalUsageCount, usageCount } from './usages/usageCounts';
 import useNewVersionMove from './useNewVersionMove';
 import useSkipNewVersionDialog from './useSkipNewVersionDialog';
@@ -118,14 +118,14 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ action, olderVersio
         </DialogBody>
         <DialogFooter>
           <Button asChild priority="tertiary" style={{ marginRight: 'auto' }}>
-            <Link to={`/admin/threat-arsenal?action=${encodeURIComponent(action.injector_contract_id)}&tab=versions&focus=move`} onClick={() => onClose()}>
+            <Link to={versionsTabLink(action.injector_contract_id, 'move')} onClick={() => onClose()}>
               {t('Choose in the Versions tab')}
               <ArrowForwardOutlined fontSize="small" style={{ marginLeft: theme.spacing(0.75) }} />
             </Link>
           </Button>
           <Button priority="secondary" onClick={() => onClose()}>{t('Later')}</Button>
-          <Button disabled={selection.moving || selection.selectedCount === 0} onClick={() => selection.move().then(moved => moved && onClose())}>
-            {selection.moving ? <Spinner size="sm" /> : moveLabel}
+          <Button loading={selection.moving} disabled={selection.selectedCount === 0} onClick={() => selection.move().then(moved => moved && onClose())}>
+            {moveLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
