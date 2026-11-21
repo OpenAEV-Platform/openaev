@@ -279,7 +279,7 @@ const GraphOverview = ({ overview, onUnfoldGroup, onOpenUngrouped, onOpenSimulat
             zIndex: 2,
           }}
         >
-          <Paper elevation={1} padding={12}>
+          <Paper elevation={1} padding={16}>
             <Text variant="content-base-bold">{selected.group_ungrouped ? t('Ungrouped assets') : selected.group_name}</Text>
             <div className="mt-2 flex flex-wrap gap-1">
               {selectedLinks.map(link => (
