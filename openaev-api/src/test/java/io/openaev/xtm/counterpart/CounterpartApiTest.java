@@ -95,6 +95,7 @@ class CounterpartApiTest {
   void counterpartEndpoints() {
     CounterpartLookupInput input = new CounterpartLookupInput(List.of("T1059", "T9999"));
 
+    // The provider does not read as the caller: a match is the pivot link alone.
     List<CounterpartOutput> patterns = api.attackPatterns(null, "t", input);
     assertThat(patterns)
         .containsExactly(
@@ -103,8 +104,8 @@ class CounterpartApiTest {
                 "opencti",
                 "match",
                 "id-1",
-                "Attack-Pattern",
-                "Command",
+                "attack_pattern",
+                "T1059",
                 "https://octi/x",
                 List.of()),
             new CounterpartOutput(
