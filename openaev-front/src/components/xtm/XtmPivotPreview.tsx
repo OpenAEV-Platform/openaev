@@ -48,7 +48,15 @@ export const PivotFactList: FunctionComponent<FactListProps> = ({ facts, labels 
         return (
           <Box key={key} sx={{ display: 'contents' }}>
             <Box component="dt" sx={{ opacity: 0.72 }}>{t(labels[key])}</Box>
-            <Box component="dd" sx={{ margin: 0, fontWeight: 600 }}>{display}</Box>
+            <Box
+              component="dd"
+              sx={{
+                margin: 0,
+                fontWeight: 600,
+              }}
+            >
+              {display}
+            </Box>
           </Box>
         );
       })}
@@ -158,9 +166,13 @@ export const PivotTeaser: FunctionComponent<TeaserProps> = ({ mark, productName,
 };
 
 /** Connected without a match: what the other product would hold, and how it gets there. */
-export const PivotNoMatch: FunctionComponent<{ mark: ReactNode;
+interface PivotNoMatchProps {
+  mark: ReactNode;
   productName: string;
-  explanation: string; }> = ({ mark, productName, explanation }) => (
+  explanation: string;
+}
+
+export const PivotNoMatch: FunctionComponent<PivotNoMatchProps> = ({ mark, productName, explanation }) => (
   <Box
     sx={{
       display: 'flex',

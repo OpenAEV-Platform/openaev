@@ -71,14 +71,16 @@ describe('OpenCrqPivotView', () => {
   });
 
   it('given a match without facts should keep the label alone', () => {
-    renderView(<OpenCrqPivotView answer={{
-      ...MATCH,
-      counterpart: {
-        ...MATCH.counterpart,
-        counterpart_facts: [],
-      },
-    }}
-    />);
+    renderView(
+      <OpenCrqPivotView answer={{
+        ...MATCH,
+        counterpart: {
+          ...MATCH.counterpart,
+          counterpart_facts: [],
+        },
+      }}
+      />,
+    );
     expect(screen.getByText('Open in OpenCRQ')).toBeTruthy();
     expect(screen.queryByTestId('xtm-crq-pivot-figure')).toBeNull();
   });
@@ -157,14 +159,16 @@ describe('OpenCrqMatchPreview', () => {
   });
 
   it('given a match without facts should show the object and the action, no fact list', () => {
-    renderView(<OpenCrqMatchPreview answer={{
-      ...MATCH,
-      counterpart: {
-        ...MATCH.counterpart,
-        counterpart_facts: [],
-      },
-    }}
-    />);
+    renderView(
+      <OpenCrqMatchPreview answer={{
+        ...MATCH,
+        counterpart: {
+          ...MATCH.counterpart,
+          counterpart_facts: [],
+        },
+      }}
+      />,
+    );
     expect(screen.queryByTestId('xtm-preview-facts')).toBeNull();
     expect(screen.getByTestId('xtm-preview')).toBeTruthy();
   });
