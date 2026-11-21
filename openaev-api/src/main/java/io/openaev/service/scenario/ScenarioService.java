@@ -1847,4 +1847,12 @@ public class ScenarioService {
     }
     return scenario;
   }
+
+  /**
+   * The scenarios whose external reference is one of the given STIX ids, newest first, for the XTM
+   * counterpart lookup. Scenarios are grant-managed: the caller filters them by grant.
+   */
+  public List<Scenario> findAllByExternalReferenceIn(Collection<String> externalReferences) {
+    return scenarioRepository.findAllByExternalReferenceInOrderByUpdatedAtDesc(externalReferences);
+  }
 }
