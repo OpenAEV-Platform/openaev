@@ -31,6 +31,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -124,8 +125,12 @@ public class TenantSettingsService {
    * <p>{@code ctx} scopes the read: a caller such as an inject output processor runs outside any
    * tenant scope, and a tenant row of the dual-scope parameters table read with no scope comes back
    * empty instead of failing. The aspect writes the scope from this parameter.
+   *
+   * <p>The read runs in its own transaction: a caller already inside a transaction scoped to
+   * several tenants (a run promoting a finding under an X-Tenant-Ids header naming two tenants)
+   * would otherwise see the aspect refuse the narrower single-tenant scope.
    */
-  @Transactional(readOnly = true)
+  @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
   public boolean isAssetDiscoveryTagEnabled(TxCtx ctx, @NotBlank String tenantId) {
     return readDiscoveryTag(loadTenantSettings(tenantId));
   }
