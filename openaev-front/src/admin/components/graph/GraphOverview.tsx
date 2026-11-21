@@ -158,9 +158,8 @@ const GraphOverview = ({ overview, onUnfoldGroup, onOpenUngrouped, onOpenSimulat
         <span className="flex flex-wrap items-center gap-2" aria-label={t('Legend')} style={{ pointerEvents: 'auto' }}>
           {([['FAILED', 'Failure rate 20% or more'], ['PENDING', 'Some failures'], ['SUCCESS', 'No failure'], [null, 'Not tested yet']] as [GraphResult | null, string][]).map(([result, label]) => (
             <span key={label} className="flex items-center gap-1">
-              <Box
-                component="span"
-                sx={{
+              <span
+                style={{
                   width: 10,
                   height: 10,
                   borderRadius: '50%',

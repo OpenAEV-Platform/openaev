@@ -1,5 +1,4 @@
 import { Badge, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
@@ -83,11 +82,11 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Box
+        <div
           data-testid={`graph-node-${node.node_id}`}
           data-selected={focused ? 'true' : 'false'}
           data-anchor={anchor ? 'true' : 'false'}
-          sx={{
+          style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -102,8 +101,8 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
             invisible={!(node.node_failed_count > 0)}
             circularAnchor
           >
-            <Box
-              sx={{
+            <div
+              style={{
                 width: SIZE,
                 height: SIZE,
                 borderRadius: '50%',
@@ -123,18 +122,19 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
               {connections && connections.total > 0 && (
                 // Bottom right of the circle, away from the failed badge (top right) and the product
                 // marks (top left); the label sits under the circle, so it is never covered.
-                <Box
+                <div
                   data-testid={`graph-node-connections-${node.node_id}`}
                   data-total={connections.total}
                   data-hidden={expandable}
                   aria-label={`${connections.total} ${t('connections')}`}
-                  sx={{
+                  style={{
                     position: 'absolute',
                     bottom: -6,
                     right: -10,
                     minWidth: 18,
                     height: 16,
-                    px: '3px',
+                    paddingLeft: 3,
+                    paddingRight: 3,
                     borderRadius: '8px',
                     display: 'flex',
                     alignItems: 'center',
@@ -148,11 +148,11 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
                   }}
                 >
                   {expandable > 0 ? `+${expandable}` : connections.total}
-                </Box>
+                </div>
               )}
               {marks.length > 0 && (
-                <Box
-                  sx={{
+                <div
+                  style={{
                     position: 'absolute',
                     top: -6,
                     left: -6,
@@ -161,11 +161,11 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
                   }}
                 >
                   {marks.map(m => (
-                    <Box
+                    <div
                       key={m.key}
                       data-testid={`graph-node-${m.key}-${node.node_id}`}
                       aria-label={m.label}
-                      sx={{
+                      style={{
                         display: 'flex',
                         borderRadius: '50%',
                         backgroundColor: theme.palette.background.paper,
@@ -173,11 +173,11 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
                       }}
                     >
                       {m.mark}
-                    </Box>
+                    </div>
                   ))}
-                </Box>
+                </div>
               )}
-            </Box>
+            </div>
           </Badge>
           <Text
             variant="content-caption"
@@ -215,7 +215,7 @@ const GraphEntityNode = ({ data }: NodeProps<GraphEntityNodeType>) => {
             </Text>
           )}
           <Handle type="source" position={Position.Bottom} style={{ visibility: 'hidden' }} />
-        </Box>
+        </div>
       </TooltipTrigger>
       <TooltipContent>
         {groupCount ? label : `${t(NODE_TYPE_LABEL[node.node_type])}: ${node.node_label}`}
