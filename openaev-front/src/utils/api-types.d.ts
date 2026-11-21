@@ -310,7 +310,6 @@ export interface AiAttack {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -2314,7 +2313,6 @@ interface BasePayload {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -3095,7 +3093,6 @@ export interface Command {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -3561,11 +3558,6 @@ export interface CounterpartOutput {
   counterpart_product?: string;
   counterpart_status?: string;
   counterpart_url?: string;
-}
-
-export interface CoverageScenarioSettingsInput {
-  coverage_scenario_approval_required: boolean;
-  coverage_scenario_safe_mode: boolean;
 }
 
 export interface CreateConnectorInstanceInput {
@@ -4307,7 +4299,6 @@ export interface DnsResolution {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -5913,7 +5904,6 @@ export interface Executable {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -6377,7 +6367,6 @@ export interface FileDrop {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -6447,12 +6436,23 @@ export interface FindingOutput {
    * @deprecated
    */
   finding_labels?: string[];
+  /**
+   * When a re-test last ended on the finding
+   * @format date-time
+   */
+  finding_last_tested?: string;
   /** Finding name */
   finding_name?: string;
+  /** Re-test inject queued and not finished yet */
+  finding_retest_inject_id?: string;
   /** Scenario the finding was produced in */
   finding_scenario?: ScenarioSimple;
   /** Simulation the finding was produced in */
   finding_simulation?: ExerciseSimple;
+  /** Lifecycle status: OPEN, NOT_REPRODUCED or RESOLVED */
+  finding_status?: "OPEN" | "NOT_REPRODUCED" | "RESOLVED";
+  /** Inject whose run set the current status (a detection or a re-test) */
+  finding_status_inject_id?: string;
   /**
    * Tag ids linked to the finding
    * @uniqueItems true
@@ -6501,6 +6501,27 @@ export interface FindingOutput {
    * @minLength 1
    */
   finding_value: string;
+}
+
+export interface FindingRetestInput {
+  /**
+   * Ids of the findings to re-test
+   * @minItems 1
+   */
+  finding_ids: string[];
+}
+
+export interface FindingRetestOutput {
+  /**
+   * Finding re-tested
+   * @minLength 1
+   */
+  finding_id: string;
+  /**
+   * Inject queued to re-test the finding
+   * @minLength 1
+   */
+  retest_inject_id: string;
 }
 
 export interface FindingSummaryOutput {
@@ -7842,7 +7863,6 @@ export interface InjectorContract {
     | "kerberoastable_account"
     | "expectation_signature"
   )[];
-  injector_contract_read_only?: boolean;
   injector_contract_tags?: string[];
   /** @format date-time */
   injector_contract_updated_at: string;
@@ -8816,7 +8836,6 @@ export interface NetworkTraffic {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -8918,8 +8937,6 @@ export interface NotificationTriggerInput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
-    | "APPROVAL_PENDING"
-    | "APPROVED"
     | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
@@ -9034,8 +9051,6 @@ export interface NotificationTriggerOutput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
-    | "APPROVAL_PENDING"
-    | "APPROVED"
     | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
@@ -11882,12 +11897,7 @@ export interface Scenario {
   listened?: boolean;
   /** @format int64 */
   scenario_all_users_number?: number;
-  scenario_approval_status?: "NOT_REQUIRED" | "PENDING" | "APPROVED";
-  /** @format date-time */
-  scenario_approved_at?: string;
-  scenario_approved_by?: string;
   scenario_articles?: string[];
-  scenario_asset_group_order?: string[];
   scenario_autonomous?: boolean;
   scenario_category?: string;
   /** @format int64 */
@@ -11942,7 +11952,6 @@ export interface Scenario {
   scenario_recurrence_end?: string;
   /** @format date-time */
   scenario_recurrence_start?: string;
-  scenario_safe_mode?: boolean;
   scenario_scheduled_by?: string;
   scenario_severity?: "low" | "medium" | "high" | "critical";
   scenario_subtitle?: string;
@@ -11963,20 +11972,6 @@ export interface ScenarioAndInjectorContractsInputs {
   /** @minLength 1 */
   locale: string;
   scenario_input: ScenarioInput;
-}
-
-export interface ScenarioApprovalOutput {
-  scenario_approval_status?: "NOT_REQUIRED" | "PENDING" | "APPROVED";
-  /** @format date-time */
-  scenario_approved_at?: string;
-  scenario_approved_by?: string;
-  scenario_asset_group_order?: string[];
-  scenario_id?: string;
-  scenario_safe_mode?: boolean;
-}
-
-export interface ScenarioAssetGroupOrderInput {
-  scenario_asset_group_order: string[];
 }
 
 export interface ScenarioBulkProcessingInput {
@@ -15078,4 +15073,58 @@ export interface XtmHubRegistrationOutput {
   tenant_xtmhub_registration_token?: string;
   tenant_xtmhub_registration_user_id?: string;
   tenant_xtmhub_registration_user_name?: string;
+}
+
+export interface XtmPeerTokenInput {
+  /**
+   * The consumer product (opencti, opencrq, xtm-one)
+   * @minLength 0
+   * @maxLength 64
+   */
+  consumer: string;
+  /**
+   * The email identifying the service account
+   * @minLength 0
+   * @maxLength 320
+   */
+  email: string;
+  /**
+   * The display name of the service account
+   * @minLength 0
+   * @maxLength 200
+   */
+  name: string;
+  /**
+   * The name of the token, rotated at every call
+   * @minLength 0
+   * @maxLength 200
+   */
+  token_name: string;
+}
+
+export interface XtmPeerTokenOutput {
+  email?: string;
+  name?: string;
+  token?: string;
+  token_name?: string;
+  user_id?: string;
+}
+
+export interface XtmPeerTokenRevokeInput {
+  /**
+   * The email identifying the service account
+   * @minLength 0
+   * @maxLength 320
+   */
+  email: string;
+  /**
+   * The name of the token to revoke
+   * @minLength 0
+   * @maxLength 200
+   */
+  token_name: string;
+}
+
+export interface XtmPeerTokenRevokeOutput {
+  revoked?: boolean;
 }

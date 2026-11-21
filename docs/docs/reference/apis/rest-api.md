@@ -287,22 +287,30 @@ DELETE /api/assets/{assetId}/links/{linkedAssetId}/{linkType}
 - **Errors**: `400` for a link to the Asset itself or to an Asset of another Tenant, `404` when either Asset (or, on `DELETE`, the link) is not found.
 - **Access**: `GET` needs the right to read the Asset, `POST` and `DELETE` the right to manage it. `GET` lists the links that start or end on the Asset; deleting an Asset deletes its links.
 
-## Coverage scenario safe mode and approval
+## Finding re-test
 
-Scenarios built from an OpenCTI Security Coverage can run in safe mode (read-only Injects only) and wait for an approval. See [Scenario generation from OpenCTI Security Coverage](../../usage/build/scenario/security-coverage.md#safe-mode-approval-and-run-order).
+A Finding carries a lifecycle status, returned by `GET /api/findings/{id}`:
+
+- `finding_status`: `OPEN` (detected, not disproved by a later re-test), `NOT_REPRODUCED` (a re-test ran on the same targets and did not detect it again) or `RESOLVED`. Every new detection sets it back to `OPEN`.
+- `finding_last_tested`: when a re-test last ended on the Finding.
+- `finding_status_inject_id`: the Inject whose run set the status, a detection or a re-test.
+- `finding_retest_inject_id`: the re-test Inject queued and not finished yet, else empty.
+
+To re-test Findings, send their ids. The endpoint is also available under the Tenant prefix `/api/tenants/{tenantId}/findings/retest`.
 
 ```http
-GET /api/tenants/{tenantId}/tenant-settings/coverage-scenarios
-PUT /api/tenants/{tenantId}/tenant-settings/coverage-scenarios
-POST /api/scenarios/{scenarioId}/approve
-PUT /api/scenarios/{scenarioId}/asset-group-order
+POST /api/findings/retest
 ```
 
-- **Settings body**: `{"coverage_scenario_safe_mode": false, "coverage_scenario_approval_required": false}`. Both default to `false`.
-- **Approve**: records `scenario_approved_by` and `scenario_approved_at`, sets `scenario_approval_status` to `APPROVED` and turns the held Injects back on. Needs the right to launch the Scenario; `409` when the Scenario is not waiting for an approval.
-- **Asset group order body**: `{"scenario_asset_group_order": ["<asset-group-uuid>", ...]}`, first tested first: each rank adds 60 seconds to the start delay of the Injects targeting that group. An empty list clears the order; an Asset Group the Scenario does not target is a `400`.
-- **Read-only marker**: `injector_contract_read_only` on Injector contracts and `payload_read_only` on Payloads, both `false` by default.
-- **Events**: `APPROVAL_PENDING` and `APPROVED` on the `SCENARIO` resource type of live triggers. The message is a JSON document with `schema_version` 1: `scenario_id`, `scenario_name`, `scenario_safe_mode`, `scenario_approval_status`, `security_coverage_external_id`, `scenario_asset_group_order`, `held_injects` or `released_injects` (each with `inject_id`, `inject_title` and its `asset_groups`), and `approve_url` (pending) or `approved_by`, `approved_at` and `scenario_url` (approved).
+```json
+{"finding_ids": ["<finding-uuid>", "<finding-uuid>"]}
+```
+
+- **What runs**: for each Inject that last produced the Findings, one copy with the same contract, content and targets; the original Inject and its history are kept. The copy runs under the same contract as the original, so a test limited to read-only contracts stays so. No approval is asked.
+- **Response**: one entry per Finding, `{"finding_id": "...", "retest_inject_id": "..."}`. Follow the Inject to know when the re-test ends.
+- **Result**: when the copy finishes, a Finding it detected again stays `OPEN`; a Finding it did not detect turns `NOT_REPRODUCED`, with the copy as `finding_status_inject_id`. A copy that ends in error leaves the status unchanged. Each change emits a Finding update event.
+- **Errors**: `400` when an Asset of a Finding is no longer a target of its Inject, directly or through an Asset group; `404` when a Finding is not in the Tenant or has no Inject left.
+- **Access**: the right to launch each Inject that is copied.
 
 ## What's next?
 
