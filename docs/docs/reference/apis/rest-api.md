@@ -312,6 +312,25 @@ POST /api/findings/retest
 - **Errors**: `400` when an Asset of a Finding is no longer a target of its Inject, directly or through an Asset group; `404` when a Finding is not in the Tenant or has no Inject left.
 - **Access**: the right to launch each Inject that is copied.
 
+## Marking definitions in OpenCTI format
+
+Every Marking definition carries `marking_definition_stix_id`, the STIX id OpenCTI gives the same marking: OpenCTI's fixed ids for TLP:CLEAR, TLP:GREEN, TLP:AMBER, TLP:AMBER+STRICT and TLP:RED, and for any other marking the id OpenCTI derives from its type and definition. A marking is then the same object in OpenAEV and in OpenCTI. The id is set when the Marking definition is created; it stays empty when another Marking definition of the Tenant already carries it (TLP:WHITE next to TLP:CLEAR).
+
+To export the Marking definitions you are cleared for as a STIX 2.1 bundle of `marking-definition` objects, with OpenCTI's order and color:
+
+```http
+GET /api/tenants/{tenantId}/marking_definitions/stix
+```
+
+To import Marking definitions from a STIX 2.1 bundle (or a list of objects), keeping the id OpenCTI gave them:
+
+```http
+POST /api/tenants/{tenantId}/marking_definitions/stix
+```
+
+- **Response**: one entry per `marking-definition` object, `{"stixId": "...", "type": "...", "definition": "...", "outcome": "..."}`, with `CREATED`, `EXISTING` (the Tenant already has this STIX id), `CONFLICT` (a Marking definition of the same type and definition exists under another id) or `INVALID`. Other object types are ignored and nothing is overwritten.
+- **Access**: the right to manage Marking definitions; a Marking definition above your own clearance on its type is refused, as when created by hand.
+
 ## What's next?
 
 - [Filters](filters.md) -- Filter format and operators
