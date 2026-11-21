@@ -26,22 +26,16 @@ import {
   TooltipTrigger,
 } from '@filigran/design-system';
 import {
-  AccountTreeOutlined,
   ArrowDropDownOutlined,
   AutorenewOutlined,
-  BubbleChartOutlined,
   CategoryOutlined,
   CenterFocusStrongOutlined,
   CloseOutlined,
   DeleteOutlined,
-  DonutLargeOutlined,
-  DownloadOutlined,
   FitScreenOutlined,
-  GestureOutlined,
   HubOutlined,
   KeyboardOutlined,
   LinkOutlined,
-  ListAltOutlined,
   MoreHorizOutlined,
   OpenInFullOutlined,
   OpenInNewOutlined,
@@ -51,8 +45,6 @@ import {
   UndoOutlined,
   VisibilityOffOutlined,
   VisibilityOutlined,
-  ZoomInOutlined,
-  ZoomOutOutlined,
 } from '@mui/icons-material';
 import { Box, List, ListItemButton, ListItemText } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -124,6 +116,7 @@ import {
   visibleGraph,
 } from './graph-state';
 import { dateBounds, followBounds, TIME_RANGE_STEP, type TimeRange } from './graph-time-range';
+import GraphCanvasToolbar, { LASSO_LABEL } from './GraphCanvasToolbar';
 import GraphContextMenu from './GraphContextMenu';
 import GraphEntityNode, { type GraphEntityNodeType } from './GraphEntityNode';
 import GraphFloatingEdge from './GraphFloatingEdge';
@@ -210,22 +203,6 @@ const RESULT_CHIP_SEVERITY: Record<GraphResult, 'critical' | 'low' | 'medium'> =
   SUCCESS: 'low',
   PENDING: 'medium',
 };
-
-const LAYOUT_ICON: Record<GraphLayout, ReactNode> = {
-  force: <BubbleChartOutlined fontSize="small" />,
-  hierarchical: <AccountTreeOutlined fontSize="small" />,
-  radial: <DonutLargeOutlined fontSize="small" />,
-};
-
-/** What each layout button does, said in its tooltip (Sam, 19 Nov 2026: no button without one). */
-const LAYOUT_LABEL: Record<GraphLayout, string> = {
-  force: 'Force layout: nodes repel each other, links pull them together. Click again to re-run it.',
-  hierarchical: 'Hierarchical layout: scenarios on top, findings at the bottom',
-  radial: 'Radial layout: rings of neighbours around the selected node',
-};
-
-/** The lasso button's tooltip and its shortcut line (OpenCTI's LassoSelection). */
-const LASSO_LABEL = 'Lasso selection: draw around nodes to select them';
 
 /** The keyboard shortcuts of the page graph, listed by the shortcuts dialog (as in OpenCTI). */
 const SHORTCUTS: [string, string][] = [
@@ -958,17 +935,6 @@ const GraphExplorerInner = ({
     </Menu>
   );
 
-  const iconAction = (label: string, icon: ReactNode, onClick: () => void, disabled = false, active = false) => (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span>
-          <IconButton priority="tertiary" icon={icon} aria-label={label} onClick={onClick} disabled={disabled} active={active} aria-pressed={active || undefined} />
-        </span>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  );
-
   // The filters float inside the canvas frame, top edge, left of the open side panel (a canvas
   // control only as a toolbar inside the canvas frame), so the graph
   // gets the whole height of the page.
@@ -1057,50 +1023,28 @@ const GraphExplorerInner = ({
     </div>
   );
 
-  // The graph actions, as OpenCTI's GraphToolbar: ONE icon bar on the canvas (bottom right, left of
-  // the open side panel, clear of the legend card) opened by the count of entities shown. Each
-  // layout button runs its layout from scratch (a second click on the active one re-runs it), then
-  // the view is framed; every button says what it does on hover. The embedded graph keeps the count, the zoom and the fit.
-  // A theme colour, not a class: the design system ships no divider background utility.
-  const separator = <span aria-hidden className="mx-1 h-4 w-px" style={{ background: theme.palette.divider }} />;
+  // The graph actions (GraphCanvasToolbar); the embedded graph keeps the count, the zoom and the fit.
   const canvasToolbar = (offset: number) => (
-    <div
-      data-testid="graph-canvas-toolbar"
-      role="toolbar"
-      aria-label={t('Graph layout')}
-      className="absolute flex items-center gap-1 rounded px-2"
-      style={{
-        bottom: 12,
-        right: 12 + offset,
-        zIndex: 4,
-        background: theme.palette.background.paper,
-        border: `1px solid ${theme.palette.divider}`,
-      }}
-    >
-      <Text variant="content-caption" className="px-1 text-default-secondary">{`${t('Entities')}: ${visibleCount}`}</Text>
-      {separator}
-      {iconAction(t('Zoom in'), <ZoomInOutlined fontSize="small" />, () => zoomIn())}
-      {iconAction(t('Zoom out'), <ZoomOutOutlined fontSize="small" />, () => zoomOut())}
-      {iconAction(t('Fit to screen'), <FitScreenOutlined fontSize="small" />, fitToScreen)}
-      {variant === 'page' && (
-        <>
-          {separator}
-          {(['force', 'hierarchical', 'radial'] as GraphLayout[]).map(value => (
-            <span key={value}>{iconAction(t(LAYOUT_LABEL[value]), LAYOUT_ICON[value], () => relayout(value), false, layout === value)}</span>
-          ))}
-          {iconAction(t('Re-run the layout'), <AutorenewOutlined fontSize="small" />, () => relayout())}
-          {separator}
-          {iconAction(t(LASSO_LABEL), <GestureOutlined fontSize="small" />, () => setLassoOn(!lassoOn), false, lassoOn)}
-          {iconAction(t('Show hidden nodes'), <VisibilityOutlined fontSize="small" />, () => commit(showHidden), state.hidden.length === 0)}
-          {iconAction(t('Undo'), <UndoOutlined fontSize="small" />, undo, history.past.length === 0)}
-          {separator}
-          {iconAction(t('Export as PNG'), <DownloadOutlined fontSize="small" />, exportPng)}
-          {iconAction(t('Copy a link to this view'), <LinkOutlined fontSize="small" />, () => copyLink())}
-          {iconAction(t('List the entities'), <ListAltOutlined fontSize="small" />, () => setListOpen(true))}
-          {iconAction(t('Keyboard shortcuts'), <KeyboardOutlined fontSize="small" />, () => setShortcutsOpen(true))}
-        </>
-      )}
-    </div>
+    <GraphCanvasToolbar
+      full={variant === 'page'}
+      offset={offset}
+      visibleCount={visibleCount}
+      layout={layout}
+      lassoOn={lassoOn}
+      canShowHidden={state.hidden.length > 0}
+      canUndo={history.past.length > 0}
+      onZoomIn={() => zoomIn()}
+      onZoomOut={() => zoomOut()}
+      onFit={fitToScreen}
+      onRelayout={relayout}
+      onToggleLasso={() => setLassoOn(!lassoOn)}
+      onShowHidden={() => commit(showHidden)}
+      onUndo={undo}
+      onExportPng={exportPng}
+      onCopyLink={() => copyLink()}
+      onListEntities={() => setListOpen(true)}
+      onShortcuts={() => setShortcutsOpen(true)}
+    />
   );
 
   const panelOpen = Boolean(selectedNode && interactive);
