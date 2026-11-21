@@ -13464,6 +13464,8 @@ export interface TenantSettingsOutput {
   platform_simulation_dashboard?: string;
   /** @minLength 1 */
   platform_theme: string;
+  xtm_opencrq_enable?: boolean;
+  xtm_opencrq_url?: string;
   xtm_opencti_enable?: boolean;
   xtm_opencti_url?: string;
 }

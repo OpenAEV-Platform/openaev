@@ -162,18 +162,22 @@ class OpenCRQCounterpartProviderTest {
   }
 
   @Test
-  @DisplayName("a tenant is connected to OpenCRQ only with enable, url and token")
+  @DisplayName(
+      "a tenant is connected to OpenCRQ with a url and a token, unless enable is set to false")
   void connectedUrl() {
     OpenCRQCounterpartProvider p =
         provider(
             Map.of(
                 "a", Map.of("enable", true, "url", "https://ocrq", "token", "ogrc_x"),
                 "b", Map.of("enable", false, "url", "https://ocrq", "token", "ogrc_x"),
-                "c", Map.of("enable", true, "url", "https://ocrq")));
+                "c", Map.of("enable", true, "url", "https://ocrq"),
+                "d", Map.of("url", "https://ocrq", "token", "ogrc_x")));
 
     assertThat(p.connectedUrl("a")).contains("https://ocrq/");
     assertThat(p.connectedUrl("b")).isEmpty();
     assertThat(p.connectedUrl("c")).isEmpty();
+    // Provided by the deployment with no enable flag: connected by default.
+    assertThat(p.connectedUrl("d")).contains("https://ocrq/");
     assertThat(p.connectedUrl("unknown")).isEmpty();
     assertThat(p.connectedUrl(null)).isEmpty();
   }
