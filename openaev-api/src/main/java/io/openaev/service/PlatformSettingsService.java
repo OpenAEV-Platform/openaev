@@ -695,20 +695,6 @@ public class PlatformSettingsService {
     return mapOfSettings(fromIterable(this.settingRepository.saveAll(settingsToSave)));
   }
 
-  /**
-   * Saves a setting by key. Updates the value if the key exists, creates a new setting otherwise.
-   *
-   * @param key the setting key
-   * @param value the setting value
-   * @return the saved setting
-   */
-  public Setting saveSetting(String key, String value) {
-    Setting setting =
-        settingRepository.findByKeyAndTenantIsNull(key).orElse(new Setting(key, value));
-    setting.setValue(value);
-    return settingRepository.save(setting);
-  }
-
   public void updateXTMHubEmailNotification(boolean shouldSendConnectivityEmail) {
     Optional<Setting> current =
         this.settingRepository.findByKeyAndTenantIsNull(

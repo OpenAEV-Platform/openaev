@@ -177,18 +177,6 @@ public class XtmComposerService {
   }
 
   /**
-   * Refresh connectivity with XTM Composer by updating last connectivity check time
-   *
-   * @param xtmComposerId XTM Composer id
-   * @param lastConnectivityCheck Last connectivity check time
-   * @return XtmComposerOutput
-   */
-  public XtmComposerOutput refreshConnectivity(
-      String xtmComposerId, Instant lastConnectivityCheck) {
-    return refreshConnectivity(xtmComposerId, lastConnectivityCheck, null);
-  }
-
-  /**
    * Refresh connectivity with XTM Composer: update the last connectivity check time and, when XTM
    * Composer reports them, its version and image. A refresh without a report (an older XTM
    * Composer) keeps the recorded values.
