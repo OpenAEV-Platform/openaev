@@ -16,7 +16,6 @@ import {
   MenuSubContent,
   MenuSubTrigger,
   MenuTrigger,
-  Paper,
   SearchField,
   Slider,
   Spinner,
@@ -42,6 +41,7 @@ import {
   GestureOutlined,
   KeyboardOutlined,
   LinkOutlined,
+  ListAltOutlined,
   OpenInFullOutlined,
   OpenInNewOutlined,
   PushPinOutlined,
@@ -133,6 +133,8 @@ const matchedNodeIds = (refs: Map<string, CounterpartRef>, found: Set<string>) =
 
 const NODE_BOX_HEIGHT = NODE_LABEL_OFFSET + 20;
 const PANEL_WIDTH = 340;
+/** Room the fit keeps above the graph for the filter bar floating on the page canvas. */
+const FILTER_BAR_CLEARANCE = 80;
 /** Below this many nodes the whole graph fits on screen: the mini-map would only hide part of it. */
 const MINI_MAP_MIN_NODES = 40;
 /** A static layout glides to its place in this time; the force layout plays its frames in about twice it. */
@@ -287,6 +289,9 @@ const GraphExplorerInner = ({
   const [hovered, setHovered] = useState<string | null>(null);
   const [menu, setMenu] = useState<ContextMenuAnchor | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // The accessible list of the canvas (#9572, landing L3): every entity drawn, as a list a keyboard or a
+  // screen reader walks, each row selecting and framing its node.
+  const [listOpen, setListOpen] = useState(false);
   // The multi-selection, as OpenCTI's graph: Shift+drag draws a rectangle, Ctrl+click adds a node; the
   // selection's actions (expand, pin, hide, remove, select neighbours) run on every node of it.
   const [selection, setSelection] = useState<string[]>([]);
@@ -313,12 +318,13 @@ const GraphExplorerInner = ({
         maxZoom: MINI_MIN_ZOOM,
       }
     : {
-        padding: fitBesidePanel
+        // The page's filter bar floats over the top of the canvas: the fit keeps the graph below it.
+        padding: fitBesidePanel || variant === 'page'
           ? {
-              top: '10%' as const,
+              top: variant === 'page' ? `${FILTER_BAR_CLEARANCE}px` as const : '10%' as const,
               bottom: '10%' as const,
               left: '10%' as const,
-              right: `${PANEL_WIDTH + 48}px` as const,
+              right: fitBesidePanel ? `${PANEL_WIDTH + 48}px` as const : '10%' as const,
             }
           : 0.15,
         maxZoom: FIT_MAX_ZOOM,
@@ -1028,8 +1034,22 @@ const GraphExplorerInner = ({
     </Tooltip>
   );
 
-  const toolbar = (
-    <Paper elevation={1} padding={16}>
+  // The filters float inside the canvas frame, top edge, left of the open side panel (#9572, landing
+  // L3, UX header budget: a canvas control only as a toolbar inside the canvas frame), so the graph
+  // gets the whole height of the page.
+  const toolbar = (offset: number) => (
+    <div
+      data-testid="graph-filter-bar"
+      className="absolute rounded px-2 py-1"
+      style={{
+        top: 8,
+        left: 8,
+        right: 8 + offset,
+        zIndex: 4,
+        background: theme.palette.background.paper,
+        border: `1px solid ${theme.palette.divider}`,
+      }}
+    >
       <div className="flex flex-wrap items-center gap-3">
         <SearchField
           aria-label={t('Search in the graph')}
@@ -1098,7 +1118,7 @@ const GraphExplorerInner = ({
           </div>
         )}
       </div>
-    </Paper>
+    </div>
   );
 
   // The graph actions, as OpenCTI's GraphToolbar: ONE icon bar on the canvas (bottom right, left of
@@ -1140,6 +1160,7 @@ const GraphExplorerInner = ({
           {separator}
           {iconAction(t('Export as PNG'), <DownloadOutlined fontSize="small" />, exportPng)}
           {iconAction(t('Copy a link to this view'), <LinkOutlined fontSize="small" />, () => copyLink())}
+          {iconAction(t('List the entities'), <ListAltOutlined fontSize="small" />, () => setListOpen(true))}
           {iconAction(t('Keyboard shortcuts'), <KeyboardOutlined fontSize="small" />, () => setShortcutsOpen(true))}
         </>
       )}
@@ -1461,6 +1482,33 @@ const GraphExplorerInner = ({
     </Dialog>
   );
 
+  const listNodes = drawnNodes.filter(n => !isGroupId(n.node_id));
+  const entityList = (
+    <Dialog open={listOpen} onOpenChange={setListOpen}>
+      <DialogContent size="sm">
+        <DialogTitle>{t('Entities of the graph')}</DialogTitle>
+        <DialogBody>
+          <List dense data-testid="graph-entity-list" aria-label={t('Entities of the graph')}>
+            {listNodes.map(node => (
+              <ListItemButton
+                key={node.node_id}
+                selected={node.node_id === selected}
+                onClick={() => {
+                  setSelection([node.node_id]);
+                  setSelected(node.node_id);
+                  frameNodes([node.node_id]);
+                  setListOpen(false);
+                }}
+              >
+                <ListItemText primary={node.node_label} secondary={t(NODE_TYPE_LABEL[node.node_type])} />
+              </ListItemButton>
+            ))}
+          </List>
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
+  );
+
   // The shortcuts act on the graph while the focus is in it (a field of the toolbar keeps its keys).
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
@@ -1689,8 +1737,8 @@ const GraphExplorerInner = ({
 
   return (
     <Stack spacing={1.5} sx={{ height }}>
-      {variant === 'page' && toolbar}
       {interactive && shortcutsDialog}
+      {variant === 'page' && entityList}
       {notice && (
         <Alert
           severity="info"
@@ -1712,6 +1760,7 @@ const GraphExplorerInner = ({
         }}
       >
         {canvas}
+        {variant === 'page' && toolbar(sideOffset)}
         {interactive && lassoOn && !empty && (
           <div
             data-testid="graph-lasso"
@@ -1745,7 +1794,7 @@ const GraphExplorerInner = ({
             className="absolute"
             style={{
               left: 12,
-              top: 12,
+              top: variant === 'page' ? 64 : 12,
             }}
             role="status"
             aria-label={t('Loading')}

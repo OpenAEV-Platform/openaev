@@ -4968,5 +4968,9 @@
   "Select every node of this type": "Выбрать все узлы этого типа",
   "Zoom to this node": "Приблизить к этому узлу",
   "Find the path between them": "Найти путь между ними",
-  "Grey means never tested: no simulation has scored an expectation on these assets yet. It does not mean safe.": "Серый означает, что проверок не было: ни одна симуляция ещё не оценила ожидания по этим активам. Это не значит, что они в безопасности."
+  "Grey means never tested: no simulation has scored an expectation on these assets yet. It does not mean safe.": "Серый означает, что проверок не было: ни одна симуляция ещё не оценила ожидания по этим активам. Это не значит, что они в безопасности.",
+  "Start here": "Начать здесь",
+  "Fold the Start here panel": "Свернуть панель «Начать здесь»",
+  "List the entities": "Показать список сущностей",
+  "Entities of the graph": "Сущности графа"
 }

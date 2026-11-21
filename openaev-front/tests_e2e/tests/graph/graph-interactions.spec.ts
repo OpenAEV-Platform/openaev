@@ -1,4 +1,4 @@
-import { type APIRequestContext, expect, type Page } from '@playwright/test';
+import { type APIRequestContext, expect, type Locator, type Page } from '@playwright/test';
 
 import { test } from '../../fixtures';
 import { tenantApiPath, tenantUrl } from '../../utils/url';
@@ -78,6 +78,18 @@ const watchConsole = (page: Page) => {
     }
   });
   return problems;
+};
+
+/** An element's box on screen, asserted drawn. */
+const box = async (locator: Locator) => {
+  const found = await locator.boundingBox();
+  expect(found, 'the element is drawn').not.toBeNull();
+  return found as {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 };
 
 /** One click on a layout button: it is pressed and the nodes leave their place, then settle. */
@@ -324,6 +336,41 @@ test.describe('Exploration graph interactions', () => {
     // A double-click unfolds the group in the graph.
     await bubble.dblclick();
     await expect(page).toHaveURL(/focus=asset_group|\/admin\/assets/);
+
+    expect(problems).toEqual([]);
+  });
+
+  test('the canvas takes the page: filters inside its frame, a floating Start here panel, an accessible list of the entities', async ({ page }) => {
+    const problems = watchConsole(page);
+
+    // The landing: the Start here panel floats over the canvas (no column beside it) and folds to a pill.
+    await page.goto(tenantUrl('/admin/graph?view=overview'));
+    const start = page.getByTestId('graph-start-here');
+    await expect(start).toBeVisible();
+    const canvasBox = await box(page.getByTestId('graph-overview').locator('..'));
+    const startBox = await box(start);
+    expect(startBox.x + startBox.width).toBeLessThanOrEqual(canvasBox.x + canvasBox.width + 1);
+    await start.getByRole('button', { name: 'Fold the Start here panel' }).click();
+    await expect(start.getByRole('button', { name: 'Fold the Start here panel' })).toHaveCount(0);
+    await start.getByRole('button', { name: 'Start here' }).click();
+    await expect(start.getByRole('button', { name: 'Fold the Start here panel' })).toBeVisible();
+
+    // A focused view: the filter bar sits inside the canvas frame, nothing between the header and the canvas.
+    await page.goto(tenantUrl(`/admin/graph?focus=asset_group:${seeded.groupId}`));
+    await expect(page.locator('.react-flow__node')).toHaveCount(5);
+    await settled(page);
+    const frame = await box(page.locator('.react-flow'));
+    const filters = await box(page.getByTestId('graph-filter-bar'));
+    expect(filters.y).toBeGreaterThanOrEqual(frame.y);
+    expect(filters.y + filters.height).toBeLessThanOrEqual(frame.y + frame.height);
+
+    // The accessible list names every entity drawn; a row selects its node and closes the list.
+    await page.getByTestId('graph-canvas-toolbar').getByRole('button', { name: 'List the entities' }).click();
+    const list = page.getByTestId('graph-entity-list');
+    await expect(list.getByRole('button')).toHaveCount(5);
+    await list.getByRole('button').first().click();
+    await expect(list).toHaveCount(0);
+    await expect(page.locator('[data-testid^="graph-node-"][data-selected="true"]')).toHaveCount(1);
 
     expect(problems).toEqual([]);
   });

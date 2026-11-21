@@ -4968,5 +4968,9 @@
   "Select every node of this type": "Seleccionar todos los nodos de este tipo",
   "Zoom to this node": "Ampliar este nodo",
   "Find the path between them": "Buscar la ruta entre ellos",
-  "Grey means never tested: no simulation has scored an expectation on these assets yet. It does not mean safe.": "Gris significa nunca probado: ninguna simulación ha evaluado todavía una expectativa en estos activos. No significa seguro."
+  "Grey means never tested: no simulation has scored an expectation on these assets yet. It does not mean safe.": "Gris significa nunca probado: ninguna simulación ha evaluado todavía una expectativa en estos activos. No significa seguro.",
+  "Start here": "Empezar aquí",
+  "Fold the Start here panel": "Plegar el panel Empezar aquí",
+  "List the entities": "Listar las entidades",
+  "Entities of the graph": "Entidades del grafo"
 }

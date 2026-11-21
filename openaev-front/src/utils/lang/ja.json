@@ -4968,5 +4968,9 @@
   "Select every node of this type": "この種類のノードをすべて選択",
   "Zoom to this node": "このノードにズーム",
   "Find the path between them": "2つの間のパスを探す",
-  "Grey means never tested: no simulation has scored an expectation on these assets yet. It does not mean safe.": "グレーは未テストを意味します。これらのアセットで期待値を評価したシミュレーションはまだありません。安全という意味ではありません。"
+  "Grey means never tested: no simulation has scored an expectation on these assets yet. It does not mean safe.": "グレーは未テストを意味します。これらのアセットで期待値を評価したシミュレーションはまだありません。安全という意味ではありません。",
+  "Start here": "ここから開始",
+  "Fold the Start here panel": "「ここから開始」パネルを折りたたむ",
+  "List the entities": "エンティティを一覧表示",
+  "Entities of the graph": "グラフのエンティティ"
 }

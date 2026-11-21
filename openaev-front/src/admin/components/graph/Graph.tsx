@@ -1,5 +1,5 @@
 import { Alert, Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { InfoOutlined } from '@mui/icons-material';
+import { ExploreOutlined, InfoOutlined } from '@mui/icons-material';
 import { Box, Stack } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -27,7 +27,10 @@ const LAYOUTS: GraphLayout[] = ['force', 'hierarchical', 'radial'];
 /** The landing story never fits below this zoom: its labels stay legible at the first frame. */
 const STORY_MIN_ZOOM = 0.75;
 
-const RAIL_WIDTH = 300;
+/** The floating Start here panel of the landing (#9572 L3): it floats over the canvas, never a column. */
+const START_PANEL_WIDTH = 280;
+/** The story's filter bar floats over the top of the canvas: the panel opens below it. */
+const START_PANEL_TOP_STORY = 72;
 
 /**
  * The Graph page (#9388, landing redesigned in #9447). Without a focus it opens on ONE of two views,
@@ -60,6 +63,8 @@ const Graph = () => {
   const ownFocus = useRef<string | null>(null);
   // The explorer opened on the landing story keeps the story's framing once the user expands from it.
   const [fromStory, setFromStory] = useState(false);
+  // The Start here panel opens unfolded on the landing and folds to a pill on demand.
+  const [startOpen, setStartOpen] = useState(true);
 
   // The rail is the same on every view: loaded once per page visit.
   useEffect(() => {
@@ -177,6 +182,7 @@ const Graph = () => {
         onUnfoldGroup={onUnfoldGroup}
         onOpenUngrouped={() => navigate('/admin/assets')}
         onOpenSimulation={id => focusOn('SIMULATION', id)}
+        insetRight={points && startOpen ? START_PANEL_WIDTH + 16 : 0}
       />
     );
   }
@@ -240,22 +246,46 @@ const Graph = () => {
         <Box sx={{
           flexGrow: 1,
           minWidth: 0,
+          position: 'relative',
         }}
         >
           {canvas}
-        </Box>
-        {/* Once the user explores, the canvas takes the whole width, as an OpenCTI investigation does;
-            the starting points come back with Back to the landing. */}
-        {isLanding && (
-          <Box sx={{
-            width: RAIL_WIDTH,
-            flexShrink: 0,
-            minHeight: 0,
-          }}
-          >
-            {points ? <GraphStartingPoints points={points} current={focusParam} onSelect={onSelectPoint} /> : <Loader variant="inElement" />}
-          </Box>
-        )}
+          {/* The starting points float over the canvas, top right, as the Start here panel (#9572 L3):
+              the canvas keeps the whole width, and the panel folds to a pill. Once the user explores,
+              they come back with the Graph breadcrumb. */}
+          {isLanding && points && (
+            <div
+              data-testid="graph-start-here"
+              style={{
+                position: 'absolute',
+                top: view === 'story' ? START_PANEL_TOP_STORY : 8,
+                right: 8,
+                bottom: 64,
+                width: startOpen ? START_PANEL_WIDTH : undefined,
+                zIndex: 5,
+                pointerEvents: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+              }}
+            >
+              <div style={{
+                pointerEvents: 'auto',
+                maxHeight: '100%',
+                width: startOpen ? '100%' : undefined,
+                display: 'flex',
+              }}
+              >
+                {startOpen
+                  ? <GraphStartingPoints points={points} current={focusParam} onSelect={onSelectPoint} onCollapse={() => setStartOpen(false)} />
+                  : (
+                      <Button type="button" size="sm" priority="secondary" startIcon={<ExploreOutlined fontSize="small" />} aria-expanded={false} onClick={() => setStartOpen(true)}>
+                        {t('Start here')}
+                      </Button>
+                    )}
+              </div>
+            </div>
+          )}
       </Box>
     </Stack>
   );

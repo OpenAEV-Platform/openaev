@@ -23,6 +23,8 @@ interface GraphOverviewProps {
   /** The ungrouped bucket was opened: it has no graph node, the host decides where it goes. */
   onOpenUngrouped: () => void;
   onOpenSimulation: (simulationId: string) => void;
+  /** Pixels on the right the bubbles keep clear of: the floating Start here panel when it is open (#9572 L3). */
+  insetRight?: number;
 }
 
 /** Below this radius a bubble shows its count only; its name is in the tooltip and the accessible label. */
@@ -36,7 +38,7 @@ const LABEL_MIN_RADIUS = 52;
  * the graph. A few dozen bubbles whatever the estate size (the API caps at 40 groups plus the
  * ungrouped bucket): counts, not nodes, so 100K assets read as clearly as 100.
  */
-const GraphOverview = ({ overview, onUnfoldGroup, onOpenUngrouped, onOpenSimulation }: GraphOverviewProps) => {
+const GraphOverview = ({ overview, onUnfoldGroup, onOpenUngrouped, onOpenSimulation, insetRight = 0 }: GraphOverviewProps) => {
   const theme = useTheme();
   const { t, n } = useFormatter();
   const groups = useMemo(() => sortOverviewGroups(overview.overview_groups), [overview]);
@@ -185,7 +187,7 @@ const GraphOverview = ({ overview, onUnfoldGroup, onOpenUngrouped, onOpenSimulat
           position: 'absolute',
           top: 36,
           left: 0,
-          right: 0,
+          right: insetRight,
           bottom: 0,
         }}
       >
