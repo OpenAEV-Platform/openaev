@@ -125,6 +125,34 @@ After injects are generated:
 
 - Finally, the **Scenario will execute** according to its configured schedule.
 
+## Safe mode, approval and run order
+
+By default a Scenario built from a Security Coverage runs on its schedule with no approval, as
+described above. Two tenant settings change that; both are off by default.
+
+- **Safe mode** (`coverage_scenario_safe_mode`): only the Injects whose Injector contract or
+  Payload is marked **read-only** run on their schedule. Read-only means the Inject only reads
+  its target (a version, a protocol negotiation, a permission listing) and changes nothing on
+  it. Any other Inject is held (disabled) and the Scenario waits for an approval. A Scenario
+  with only read-only Injects never waits.
+- **Approval required** (`coverage_scenario_approval_required`): outside safe mode, the Scenario
+  waits for an approval before its first run.
+
+A Scenario waiting for an approval creates no run. A user with the right to launch the Scenario
+approves it; the approval is recorded with its author and date, and the held Injects run from
+the next occurrence. If an update of the Security Coverage adds an Inject that is not
+read-only to an approved safe-mode Scenario, the Scenario waits again for that Inject.
+
+The settings are read and written with
+`GET` and `PUT /api/tenants/{tenantId}/tenant-settings/coverage-scenarios`, the approval is
+`POST /api/scenarios/{scenarioId}/approve`, and the order in which target Asset Groups are
+tested is `PUT /api/scenarios/{scenarioId}/asset-group-order` (see the
+[REST API reference](../../../reference/apis/rest-api.md#coverage-scenario-safe-mode-and-approval)).
+
+Two Scenario events can be subscribed to with a live trigger and a webhook notifier:
+**Approval pending** (the Scenario starts waiting, with the held Injects, their Asset Groups and
+the approval link) and **Approved** (who approved and when).
+
 ## Execution and reporting back to OpenCTI
 
 Once the scenario is finalized and scheduled:
