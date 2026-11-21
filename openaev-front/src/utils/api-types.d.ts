@@ -564,6 +564,9 @@ export interface Asset {
   asset_id: string;
   asset_internet_facing?: boolean;
   asset_ips?: string[];
+  /** @format date-time */
+  asset_last_seen?: string;
+  asset_last_seen_source?: string;
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
   asset_markings?: string[];
@@ -571,6 +574,9 @@ export interface Asset {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
+  asset_stale?: boolean;
+  /** @format date-time */
+  asset_stale_since?: string;
   /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
   asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
   asset_subcategory?:
@@ -685,6 +691,15 @@ export interface AssetBulkReplaceMarkingsInput {
   asset_ids_to_process?: string[];
   marking_ids: string[];
   search_pagination_input?: SearchPaginationInput;
+}
+
+export interface AssetFreshnessSettingsInput {
+  /**
+   * @format int32
+   * @min 0
+   * @max 3650
+   */
+  asset_stale_after_days: number;
 }
 
 export interface AssetGroup {
@@ -4449,6 +4464,9 @@ export interface Endpoint {
   asset_id: string;
   asset_internet_facing?: boolean;
   asset_ips?: string[];
+  /** @format date-time */
+  asset_last_seen?: string;
+  asset_last_seen_source?: string;
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
   asset_markings?: string[];
@@ -4456,6 +4474,9 @@ export interface Endpoint {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
+  asset_stale?: boolean;
+  /** @format date-time */
+  asset_stale_since?: string;
   /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
   asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
   asset_subcategory?:
@@ -12475,6 +12496,9 @@ export interface SecurityPlatform {
   asset_id: string;
   asset_internet_facing?: boolean;
   asset_ips?: string[];
+  /** @format date-time */
+  asset_last_seen?: string;
+  asset_last_seen_source?: string;
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
   asset_markings?: string[];
@@ -12482,6 +12506,9 @@ export interface SecurityPlatform {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
+  asset_stale?: boolean;
+  /** @format date-time */
+  asset_stale_since?: string;
   /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
   asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
   asset_subcategory?:

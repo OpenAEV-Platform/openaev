@@ -103,6 +103,17 @@ public class TenantSettingsService {
   /** Effective asset freshness setting: the days after which an unseen asset turns stale. */
   @Transactional(readOnly = true)
   public AssetFreshnessSettingsInput findAssetFreshnessSettings(@NotBlank String tenantId) {
+    return readAssetFreshnessSettings(tenantId);
+  }
+
+  public AssetFreshnessSettingsInput updateAssetFreshnessSettings(
+      @NotBlank String tenantId, @NotNull AssetFreshnessSettingsInput input) {
+    upsert(
+        new Tenant(tenantId), ASSET_STALE_AFTER_DAYS.key(), String.valueOf(input.staleAfterDays()));
+    return readAssetFreshnessSettings(tenantId);
+  }
+
+  private AssetFreshnessSettingsInput readAssetFreshnessSettings(String tenantId) {
     Map<String, Setting> tenantSettings = loadTenantSettings(tenantId);
     String value = resolveValue(tenantSettings, ASSET_STALE_AFTER_DAYS);
     int days;
@@ -112,13 +123,6 @@ public class TenantSettingsService {
       days = Integer.parseInt(ASSET_STALE_AFTER_DAYS.defaultValue());
     }
     return new AssetFreshnessSettingsInput(days);
-  }
-
-  public AssetFreshnessSettingsInput updateAssetFreshnessSettings(
-      @NotBlank String tenantId, @NotNull AssetFreshnessSettingsInput input) {
-    upsert(
-        new Tenant(tenantId), ASSET_STALE_AFTER_DAYS.key(), String.valueOf(input.staleAfterDays()));
-    return findAssetFreshnessSettings(tenantId);
   }
 
   public void updateCatalogAutoInstall(
