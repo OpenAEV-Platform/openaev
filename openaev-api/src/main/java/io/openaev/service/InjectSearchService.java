@@ -26,6 +26,7 @@ import io.openaev.rest.atomic_testing.form.InjectorContractSimple;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.payload.output.PayloadSimple;
+import io.openaev.service.InjectVisibleStatusService.StoredStatus;
 import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.TargetType;
@@ -64,6 +65,7 @@ public class InjectSearchService {
   private final AssetRepository assetRepository;
   private final AssetGroupRepository assetGroupRepository;
   private final AiTargetRepository aiTargetRepository;
+  private final InjectVisibleStatusService injectVisibleStatusService;
 
   private final InjectMapper injectMapper;
   private final InjectExpectationMapper injectExpectationMapper;
@@ -539,6 +541,29 @@ public class InjectSearchService {
       // Map results to InjectResultOutput and set targets
       mapResultsToInjects(
           injects, teamMap, assetMap, assetGroupMap, manualMap, aiTargetMap, expectationMap);
+      applyVisibleStatuses(injects);
+    }
+  }
+
+  /** The status read from the status row is over every agent: show the reader's instead. */
+  private void applyVisibleStatuses(List<InjectResultOutput> injects) {
+    Map<String, StoredStatus> storedByInjectId = new HashMap<>();
+    for (InjectResultOutput inject : injects) {
+      InjectStatusSimple status = inject.getStatus();
+      if (status != null && status.getId() != null) {
+        storedByInjectId.put(
+            inject.getId(),
+            new StoredStatus(
+                ExecutionStatus.fromName(status.getName()), status.getExpectedAgentCount()));
+      }
+    }
+    Map<String, ExecutionStatus> visibleByInjectId =
+        injectVisibleStatusService.visibleStatuses(storedByInjectId);
+    for (InjectResultOutput inject : injects) {
+      ExecutionStatus visible = visibleByInjectId.get(inject.getId());
+      if (visible != null) {
+        inject.getStatus().setName(visible.name());
+      }
     }
   }
 
@@ -739,6 +764,7 @@ public class InjectSearchService {
         statusJoin.get("id").alias("status_id"),
         statusJoin.get("name").alias("status_name"),
         statusJoin.get("trackingSentDate").alias("status_tracking_sent_date"),
+        statusJoin.get("expectedAgentCount").alias("status_expected_agent_count"),
         exerciseJoin.get("id").alias("inject_exercise_id"),
         teamIdsExpression.alias("inject_teams"),
         assetIdsExpression.alias("inject_assets"),
@@ -776,6 +802,7 @@ public class InjectSearchService {
                         .id(tuple.get("status_id", String.class))
                         .name(status.name())
                         .trackingSentDate(tuple.get("status_tracking_sent_date", Instant.class))
+                        .expectedAgentCount(tuple.get("status_expected_agent_count", Integer.class))
                         .build();
               } else {
                 injectStatus = InjectStatusSimple.builder().build();

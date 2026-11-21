@@ -7,6 +7,7 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.comparator.InjectExecutionComparator;
@@ -40,6 +41,7 @@ import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -142,6 +144,13 @@ public class SimulationInjectApi extends RestBehavior {
         joinMap);
   }
 
+  @Operation(summary = "Retrieved injects for an exercise, with the status their reader sees")
+  @ApiResponse(
+      responseCode = "200",
+      content =
+          @Content(
+              mediaType = "application/json",
+              array = @ArraySchema(schema = @Schema(implementation = Inject.class))))
   @LogExecutionTime
   @Transactional
   @GetMapping({
@@ -152,7 +161,7 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public Iterable<Inject> exerciseInjects(
+  public List<ObjectNode> exerciseInjects(
       TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
     List<Inject> injects =
         injectRepository.findByExerciseId(exerciseId).stream()
@@ -160,7 +169,7 @@ public class SimulationInjectApi extends RestBehavior {
             .toList();
     KillChainPhaseInitializer.initializeFromInjects(injects);
     InjectLinksInitializer.initialize(injects);
-    return injects;
+    return injects.stream().map(injectMapper::toJsonWithVisibleStatus).toList();
   }
 
   @LogExecutionTime
@@ -403,7 +412,11 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
-  public Inject updateInjectActivationForExercise(
+  @ApiResponse(
+      responseCode = "200",
+      content =
+          @Content(mediaType = "application/json", schema = @Schema(implementation = Inject.class)))
+  public ObjectNode updateInjectActivationForExercise(
       TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String injectId,
@@ -422,7 +435,11 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
-  public Inject updateInjectTrigger(
+  @ApiResponse(
+      responseCode = "200",
+      content =
+          @Content(mediaType = "application/json", schema = @Schema(implementation = Inject.class)))
+  public ObjectNode updateInjectTrigger(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
     simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
     return hydrateForResponse(
@@ -438,7 +455,11 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
-  public Inject setInjectStatus(
+  @ApiResponse(
+      responseCode = "200",
+      content =
+          @Content(mediaType = "application/json", schema = @Schema(implementation = Inject.class)))
+  public ObjectNode setInjectStatus(
       TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String injectId,
@@ -457,7 +478,11 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
-  public Inject updateInjectTeams(
+  @ApiResponse(
+      responseCode = "200",
+      content =
+          @Content(mediaType = "application/json", schema = @Schema(implementation = Inject.class)))
+  public ObjectNode updateInjectTeams(
       TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String injectId,
@@ -547,9 +572,9 @@ public class SimulationInjectApi extends RestBehavior {
    * See {@link KillChainPhaseInitializer} and {@link InjectLinksInitializer}: hydrate before
    * open-in-view rendering.
    */
-  private static Inject hydrateForResponse(Inject inject) {
+  private ObjectNode hydrateForResponse(Inject inject) {
     KillChainPhaseInitializer.initializeFromInjects(List.of(inject));
     InjectLinksInitializer.initialize(List.of(inject));
-    return inject;
+    return injectMapper.toJsonWithVisibleStatus(inject);
   }
 }

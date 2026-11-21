@@ -57,10 +57,11 @@ class ExecutionTraceRetentionJobTest extends IntegrationTest {
   }
 
   @Test
-  void should_delete_old_traces_and_keep_recent_ones() throws JobExecutionException {
+  void should_delete_old_traces_and_keep_recent_and_complete_ones() throws JobExecutionException {
     // -- ARRANGE --
-    String oldTraceId = seed.insertTrace(tenant, null, "COMPLETE", "EXECUTED", 100);
-    String recentTraceId = seed.insertTrace(tenant, null, "COMPLETE", "EXECUTED", 5);
+    String oldTraceId = seed.insertTrace(tenant, null, "EXECUTION", "INFO", 100);
+    String oldCompleteTraceId = seed.insertTrace(tenant, null, "COMPLETE", "EXECUTED", 100);
+    String recentTraceId = seed.insertTrace(tenant, null, "EXECUTION", "INFO", 5);
     ReflectionTestUtils.setField(job, "retentionDays", 30);
 
     try {
@@ -69,6 +70,8 @@ class ExecutionTraceRetentionJobTest extends IntegrationTest {
 
       // -- ASSERT --
       assertThat(seed.traceExists(oldTraceId)).isFalse();
+      // The status of an inject is computed from it
+      assertThat(seed.traceExists(oldCompleteTraceId)).isTrue();
       assertThat(seed.traceExists(recentTraceId)).isTrue();
     } finally {
       ReflectionTestUtils.setField(job, "retentionDays", 0);
