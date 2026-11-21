@@ -310,6 +310,7 @@ export interface AiAttack {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
+  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -2313,6 +2314,7 @@ interface BasePayload {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
+  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -3093,6 +3095,7 @@ export interface Command {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
+  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -3558,6 +3561,11 @@ export interface CounterpartOutput {
   counterpart_product?: string;
   counterpart_status?: string;
   counterpart_url?: string;
+}
+
+export interface CoverageScenarioSettingsInput {
+  coverage_scenario_approval_required: boolean;
+  coverage_scenario_safe_mode: boolean;
 }
 
 export interface CreateConnectorInstanceInput {
@@ -4299,6 +4307,7 @@ export interface DnsResolution {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
+  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -5904,6 +5913,7 @@ export interface Executable {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
+  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -6367,6 +6377,7 @@ export interface FileDrop {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
+  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -7863,6 +7874,7 @@ export interface InjectorContract {
     | "kerberoastable_account"
     | "expectation_signature"
   )[];
+  injector_contract_read_only?: boolean;
   injector_contract_tags?: string[];
   /** @format date-time */
   injector_contract_updated_at: string;
@@ -8836,6 +8848,7 @@ export interface NetworkTraffic {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
+  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -8937,6 +8950,8 @@ export interface NotificationTriggerInput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "APPROVAL_PENDING"
+    | "APPROVED"
     | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
@@ -9051,6 +9066,8 @@ export interface NotificationTriggerOutput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "APPROVAL_PENDING"
+    | "APPROVED"
     | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
@@ -11897,7 +11914,12 @@ export interface Scenario {
   listened?: boolean;
   /** @format int64 */
   scenario_all_users_number?: number;
+  scenario_approval_status?: "NOT_REQUIRED" | "PENDING" | "APPROVED";
+  /** @format date-time */
+  scenario_approved_at?: string;
+  scenario_approved_by?: string;
   scenario_articles?: string[];
+  scenario_asset_group_order?: string[];
   scenario_autonomous?: boolean;
   scenario_category?: string;
   /** @format int64 */
@@ -11952,6 +11974,7 @@ export interface Scenario {
   scenario_recurrence_end?: string;
   /** @format date-time */
   scenario_recurrence_start?: string;
+  scenario_safe_mode?: boolean;
   scenario_scheduled_by?: string;
   scenario_severity?: "low" | "medium" | "high" | "critical";
   scenario_subtitle?: string;
@@ -11972,6 +11995,20 @@ export interface ScenarioAndInjectorContractsInputs {
   /** @minLength 1 */
   locale: string;
   scenario_input: ScenarioInput;
+}
+
+export interface ScenarioApprovalOutput {
+  scenario_approval_status?: "NOT_REQUIRED" | "PENDING" | "APPROVED";
+  /** @format date-time */
+  scenario_approved_at?: string;
+  scenario_approved_by?: string;
+  scenario_asset_group_order?: string[];
+  scenario_id?: string;
+  scenario_safe_mode?: boolean;
+}
+
+export interface ScenarioAssetGroupOrderInput {
+  scenario_asset_group_order: string[];
 }
 
 export interface ScenarioBulkProcessingInput {
