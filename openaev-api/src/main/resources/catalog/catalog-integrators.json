@@ -1698,7 +1698,7 @@
             }
         },
         {
-            "title": "DNS Enumeration: subdomains and DNS records",
+            "title": "DNS Enumeration",
             "slug": "openaev_dns_enum",
             "description": "Enumerate the subdomains and DNS records of root domains with subfinder (passive sources) and dnsx (active resolution), report one finding per resolved host and optionally import the discovered hosts as endpoints, so that the next scans of a scenario reach the real external attack surface.",
             "short_description": "Enumerate subdomains and DNS records, import hosts as assets",
