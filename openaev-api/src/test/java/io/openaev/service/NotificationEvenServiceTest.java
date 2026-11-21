@@ -61,7 +61,7 @@ public class NotificationEvenServiceTest extends IntegrationTest {
   public void test_handleSimulationEvent() {
     NotificationEvent notificationEvent =
         NotificationEvent.builder()
-            .eventType(NotificationEventType.SIMULATION_FINISHED)
+            .eventType(NotificationEventType.SIMULATION_COMPLETED)
             .resourceType(ResourceType.SIMULATION)
             .timestamp(Instant.now())
             .resourceId("id")

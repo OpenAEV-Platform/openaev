@@ -137,8 +137,11 @@ public class WorkflowEndService {
       simulation.setStatus(ExerciseStatus.FINISHED);
       simulation.setEnd(Instant.now());
       exerciseRepository.save(simulation);
-      notificationEventService.sendNotificationEventAsync(
-          SimulationNotificationEventHandler.finishedEvent(simulation));
+      // completed event on the simulation, handled after this transaction commits; its handler
+      // reads nothing unless a trigger of the tenant listens to it
+      notificationEventService.sendNotificationEventWithDelay(
+          SimulationNotificationEventHandler.completedEvent(simulation),
+          SimulationNotificationEventHandler.COMMIT_DELAY_SECONDS);
 
       log.info(
           "[Chaining] Simulation {} finished due to workflow {}.",

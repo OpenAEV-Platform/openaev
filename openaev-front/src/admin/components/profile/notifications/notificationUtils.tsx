@@ -55,7 +55,6 @@ export const OPERATION_COLORS: Record<string, string> = {
   DELETE: red[500],
   SCORE_DEGRADATION: orange[500],
   SYNC_BLOCKED: red[500],
-  EXPOSURE_RESULT_READY: indigo[500],
   CRITICAL_ASSET_REACHED: red[500],
   MULTIPLE: indigo[500],
 };
@@ -70,7 +69,6 @@ export const OPERATION_LABELS: Record<string, string> = {
   DELETE: 'Deletion',
   SCORE_DEGRADATION: 'Score degradation',
   SYNC_BLOCKED: 'Sync blocked',
-  EXPOSURE_RESULT_READY: 'Exposure result ready',
   CRITICAL_ASSET_REACHED: 'Critical asset reached',
   MULTIPLE: 'Multiple',
 };

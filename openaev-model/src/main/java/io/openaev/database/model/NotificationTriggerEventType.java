@@ -14,12 +14,7 @@ public enum NotificationTriggerEventType {
   DELETE(null),
   SCORE_DEGRADATION(ResourceType.SCENARIO),
   SYNC_BLOCKED(ResourceType.CATALOG_SYNC),
-  /** A simulation finished and its exposure result can be read. */
-  EXPOSURE_RESULT_READY(ResourceType.SIMULATION),
-  /**
-   * The attack path of a finished simulation reached an asset of high or very high criticality once
-   * per run and asset.
-   */
+  /** The attack path of a finished simulation reached an asset of high or very high criticality. */
   CRITICAL_ASSET_REACHED(ResourceType.SIMULATION);
 
   // Resource type the event is limited to; null when every resource type sends it

@@ -1015,15 +1015,6 @@ export interface AssetUpdateMarkingsInput {
   asset_markings: string[];
 }
 
-export interface AssetVerdict {
-  asset_id?: string;
-  asset_name?: string;
-  conditions?: Condition[];
-  confidence?: "high" | "medium" | "low";
-  criticality?: string;
-  verdict?: "exposed" | "detected" | "prevented" | "not_exposed" | "not_tested";
-}
-
 export interface AtomicInjectorContractOutput {
   convertedContent?: object;
   /** @minLength 1 */
@@ -6309,18 +6300,6 @@ export interface ExportOptionsInput {
   with_variable_values?: boolean;
 }
 
-export interface ExposureResult {
-  /** @format date-time */
-  computed_at?: string;
-  coverage_external_id?: string;
-  reached_assets?: ReachedAsset[];
-  schema_version?: string;
-  simulation_id?: string;
-  simulation_name?: string;
-  subjects?: Subject[];
-  summary?: Summary;
-}
-
 export interface FactOutput {
   fact_key?: string;
   fact_value?: string;
@@ -8959,7 +8938,6 @@ export interface NotificationTriggerInput {
     | "DELETE"
     | "SCORE_DEGRADATION"
     | "SYNC_BLOCKED"
-    | "EXPOSURE_RESULT_READY"
     | "CRITICAL_ASSET_REACHED"
   )[];
   /** Filter group applied to matching entities */
@@ -9075,7 +9053,6 @@ export interface NotificationTriggerOutput {
     | "DELETE"
     | "SCORE_DEGRADATION"
     | "SYNC_BLOCKED"
-    | "EXPOSURE_RESULT_READY"
     | "CRITICAL_ASSET_REACHED"
   )[];
   /** Filter group applied to matching entities */
@@ -11360,13 +11337,6 @@ export interface RawUser {
   user_teams?: string[];
 }
 
-export interface ReachedAsset {
-  asset_id?: string;
-  asset_name?: string;
-  critical?: boolean;
-  criticality?: string;
-}
-
 export interface Refusal {
   external_id?: string;
   /** @minLength 1 */
@@ -13166,13 +13136,6 @@ export type StructuralHistogramWidget = UtilRequiredKeys<
   stacked?: boolean;
 };
 
-export interface Subject {
-  assets?: AssetVerdict[];
-  external_id?: string;
-  name?: string;
-  type?: string;
-}
-
 /** A marketplace connector suggested to close a capability gap */
 export interface SuggestedConnector {
   connector_id?: string;
@@ -13182,23 +13145,6 @@ export interface SuggestedConnector {
   source_code?: string;
   subscription_link?: string;
   title?: string;
-}
-
-export interface Summary {
-  /** @format int32 */
-  assets_detected?: number;
-  /** @format int32 */
-  assets_exposed?: number;
-  /** @format int32 */
-  assets_not_exposed?: number;
-  /** @format int32 */
-  assets_not_tested?: number;
-  /** @format int32 */
-  assets_prevented?: number;
-  /** @format int32 */
-  assets_tested?: number;
-  /** @format int32 */
-  critical_assets_reached?: number;
 }
 
 export interface Tag {

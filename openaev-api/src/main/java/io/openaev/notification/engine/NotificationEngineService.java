@@ -113,6 +113,22 @@ public class NotificationEngineService {
     }
   }
 
+  /**
+   * Whether a live trigger of the tenant listens to this event type on this resource type. Lets a
+   * handler skip its own reads when nobody would be notified, so an instance without such a trigger
+   * does no extra work.
+   */
+  public boolean hasLiveTrigger(
+      NotificationResourceCatalog entry, String tenantId, NotificationTriggerEventType eventType) {
+    if (tenantId == null) {
+      return false;
+    }
+    return triggerCacheService.getLiveTriggers(entry.getResourceType()).stream()
+        .anyMatch(
+            trigger ->
+                trigger.eventTypes().contains(eventType) && tenantId.equals(trigger.tenantId()));
+  }
+
   private void recordEvents(
       ResolvedNotificationTrigger trigger,
       NotificationResourceCatalog entry,
@@ -150,7 +166,6 @@ public class NotificationEngineService {
           case DELETE -> "deleted";
           case SCORE_DEGRADATION -> "score degraded";
           case SYNC_BLOCKED -> "sync blocked";
-          case EXPOSURE_RESULT_READY -> "exposure result ready";
           case CRITICAL_ASSET_REACHED -> "critical asset reached";
         };
     String resourceLabel = entry.getResourceType().name().toLowerCase().replace('_', ' ');

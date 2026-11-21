@@ -178,12 +178,13 @@ public class InjectsFinalizationJob implements Job {
                                       .build(),
                                   delayForSimulationCompletedEvent));
 
-                  // exposure result of every finished simulation, scenario or not, computed on
-                  // another thread once this tenant transaction has committed
+                  // the same event on the simulation itself, for its own triggers; its handler
+                  // reads nothing unless a trigger of the tenant listens to it
                   exercisesFinished.forEach(
                       ex ->
-                          notificationEventService.sendNotificationEventAsync(
-                              SimulationNotificationEventHandler.finishedEvent(ex)));
+                          notificationEventService.sendNotificationEventWithDelay(
+                              SimulationNotificationEventHandler.completedEvent(ex),
+                              delayForSimulationCompletedEvent));
                 }));
   }
 

@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.openaev.context.TenantScopedTransaction;
@@ -20,11 +21,9 @@ import io.openaev.notification.engine.NotificationResourceCatalog;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
 import io.openaev.rest.exercise.service.ExerciseService;
-import io.openaev.service.exposure.ExposureResult;
-import io.openaev.service.exposure.ExposureResult.ReachedAsset;
-import io.openaev.service.exposure.ExposureResult.Summary;
-import io.openaev.service.exposure.ExposureResultService;
-import java.time.Instant;
+import io.openaev.service.attackpath.AttackPathGraphService;
+import io.openaev.service.attackpath.dto.AttackPathDTO;
+import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -43,7 +42,7 @@ import org.mockito.quality.Strictness;
 class SimulationNotificationEventHandlerTest {
 
   @Mock private ExerciseService exerciseService;
-  @Mock private ExposureResultService exposureResultService;
+  @Mock private AttackPathGraphService attackPathGraphService;
   @Mock private NotificationEngineService notificationEngineService;
   @Mock private TenantScopedTransaction tenantTx;
   @InjectMocks private SimulationNotificationEventHandler handler;
@@ -64,75 +63,103 @@ class SimulationNotificationEventHandlerTest {
     when(exerciseService.findByIdInScope(any(), eq("sim-1"))).thenReturn(Optional.of(simulation));
   }
 
-  private static ExposureResult result(List<ReachedAsset> reached) {
-    int critical = (int) reached.stream().filter(ReachedAsset::critical).count();
-    return new ExposureResult(
-        ExposureResult.SCHEMA_VERSION,
-        "sim-1",
-        "Sim",
-        null,
-        Instant.now(),
-        new Summary(3, 1, 0, 0, 2, 0, critical),
-        List.of(),
-        reached);
+  private void listening(boolean listening) {
+    when(notificationEngineService.hasLiveTrigger(
+            NotificationResourceCatalog.SIMULATION,
+            "tenant-1",
+            NotificationTriggerEventType.CRITICAL_ASSET_REACHED))
+        .thenReturn(listening);
+  }
+
+  private static AttackPathNodeDTO asset(String criticality) {
+    AttackPathNodeDTO node = new AttackPathNodeDTO();
+    node.setType("ASSET");
+    node.setCriticality(criticality);
+    return node;
+  }
+
+  private void graph(AttackPathNodeDTO... nodes) {
+    AttackPathDTO graph =
+        new AttackPathDTO(List.of(), List.of(), List.of(nodes), List.of(), null, "full", 0);
+    when(attackPathGraphService.buildGraph("sim-1")).thenReturn(graph);
   }
 
   @Test
-  @DisplayName("fires one ready event and one event per critical asset reached")
-  void firesReadyAndCriticalEvents() {
-    when(exposureResultService.compute(simulation))
-        .thenReturn(
-            result(
-                List.of(
-                    new ReachedAsset("db", "tenant-db", "VERY_HIGH", true),
-                    new ReachedAsset("web", "web", "HIGH", true),
-                    new ReachedAsset("dev", "dev", "MEDIUM", false))));
+  @DisplayName("default behaviour: with no trigger listening, nothing is read and nothing fires")
+  void noTriggerReadsNothing() {
+    listening(false);
 
-    handler.handle(SimulationNotificationEventHandler.finishedEvent(simulation));
+    handler.handle(SimulationNotificationEventHandler.completedEvent(simulation));
 
-    verify(notificationEngineService)
-        .handleEventWithMessage(
-            eq(NotificationResourceCatalog.SIMULATION),
-            eq("sim-1"),
-            eq("tenant-1"),
-            eq(NotificationTriggerEventType.EXPOSURE_RESULT_READY),
-            contains("/api/exercises/sim-1/exposure-result"));
-    verify(notificationEngineService, times(2))
+    verifyNoInteractions(exerciseService, attackPathGraphService, tenantTx);
+    verify(notificationEngineService, never())
+        .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString());
+  }
+
+  @Test
+  @DisplayName("fires one event when the attack path reached a high or very high asset")
+  void firesOnceOnCriticalAsset() {
+    listening(true);
+    graph(asset("VERY_HIGH"), asset("HIGH"), asset("MEDIUM"));
+
+    handler.handle(SimulationNotificationEventHandler.completedEvent(simulation));
+
+    verify(notificationEngineService, times(1))
         .handleEventWithMessage(
             eq(NotificationResourceCatalog.SIMULATION),
             eq("sim-1"),
             eq("tenant-1"),
             eq(NotificationTriggerEventType.CRITICAL_ASSET_REACHED),
-            anyString());
+            contains("/api/attack-path/simulations/sim-1/graph"));
   }
 
   @Test
-  @DisplayName("ignores other event types and events without a tenant")
-  void ignoresOtherEvents() {
-    handler.handle(
-        NotificationEvent.builder()
-            .eventType(NotificationEventType.SIMULATION_COMPLETED)
-            .resourceType(ResourceType.SIMULATION)
-            .resourceId("sim-1")
-            .tenantId("tenant-1")
-            .build());
-    handler.handle(
-        NotificationEvent.builder()
-            .eventType(NotificationEventType.SIMULATION_FINISHED)
-            .resourceType(ResourceType.SIMULATION)
-            .resourceId("sim-1")
-            .build());
+  @DisplayName("the message names no asset and no count")
+  void messageCarriesNoAssetNorCount() {
+    String message =
+        SimulationNotificationEventHandler.message(
+            new SimulationNotificationEventHandler.Reached("sim-1", "tenant-1", "Sim"));
+
+    assertThat(message)
+        .isEqualTo(
+            "[simulation] Sim: attack path reached a critical asset"
+                + " (/api/attack-path/simulations/sim-1/graph)");
+  }
+
+  @Test
+  @DisplayName("fires nothing when no critical asset was reached or the run has no attack path")
+  void silentWithoutCriticalAsset() {
+    listening(true);
+    graph(asset("MEDIUM"), asset(null));
+    handler.handle(SimulationNotificationEventHandler.completedEvent(simulation));
+
+    when(attackPathGraphService.buildGraph("sim-1")).thenThrow(new IllegalStateException("none"));
+    handler.handle(SimulationNotificationEventHandler.completedEvent(simulation));
 
     verify(notificationEngineService, never())
         .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString());
   }
 
   @Test
-  @DisplayName("the finished event carries the simulation and its tenant")
-  void finishedEventCarriesTenant() {
-    NotificationEvent event = SimulationNotificationEventHandler.finishedEvent(simulation);
+  @DisplayName("ignores events without a tenant")
+  void ignoresEventsWithoutTenant() {
+    listening(true);
+    handler.handle(
+        NotificationEvent.builder()
+            .eventType(NotificationEventType.SIMULATION_COMPLETED)
+            .resourceType(ResourceType.SIMULATION)
+            .resourceId("sim-1")
+            .build());
 
-    assertThat(event.getEventType()).isEqualTo(NotificationEventType.SIMULATION_FINISHED);
+    verifyNoInteractions(attackPathGraphService);
+  }
+
+  @Test
+  @DisplayName("the completed event carries the simulation and its tenant")
+  void completedEventCarriesTenant() {
+    NotificationEvent event = SimulationNotificationEventHandler.completedEvent(simulation);
+
+    assertThat(event.getEventType()).isEqualTo(NotificationEventType.SIMULATION_COMPLETED);
     assertThat(event.getResourceType()).isEqualTo(ResourceType.SIMULATION);
     assertThat(event.getResourceId()).isEqualTo("sim-1");
     assertThat(event.getTenantId()).isEqualTo("tenant-1");
