@@ -1,5 +1,8 @@
 package io.openaev.service.asset;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.database.audit.BaseEvent;
+import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Asset;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.service.settings.TenantSettingsService;
@@ -9,34 +12,38 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 /**
  * Asset freshness (CTEM: stale or orphaned assets). An asset carries the date it was last observed
- * and the source that observed it ({@link Asset#markSeen}); this service turns the assets of one
- * tenant stale once they are unseen for longer than the tenant's {@code asset_stale_after_days},
- * and fresh again when a later observation landed without going through {@code markSeen}.
+ * and the source that observed it ({@link Asset#markSeen}). Staleness is not stored: {@code
+ * asset_status} reads {@code STALE} for an asset last seen before the tenant's {@code
+ * asset_stale_after_days} (see the formula on {@link Asset}). This service only raises the
+ * transition: for every asset that crossed the threshold since the previous pass, it publishes one
+ * asset update event, which the notification engine and the stream deliver (a webhook trigger on
+ * asset updates sees it once). Leaving STALE needs no event of its own: the observation that ends
+ * it is an asset update already.
  *
- * <p>Each transition is an entity save, so it emits the asset update event the notification engine
- * and the stream deliver (a webhook trigger on asset updates sees it). An asset never observed has
- * no verdict: it is neither fresh nor stale, and is never turned stale.
- *
- * <p>Runs inside the caller's tenant-scoped transaction (the freshness job opens one per tenant).
+ * <p>With the setting at 0 (the default) nothing is read and nothing is emitted. Runs inside the
+ * caller's tenant-scoped transaction (the freshness job opens one per tenant).
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AssetFreshnessService {
 
-  /** Assets moved per batch; the job keeps going until a batch comes back short. */
+  /** Assets read per batch; the pass keeps going until a batch comes back short. */
   static final int BATCH_SIZE = 500;
 
-  /** Upper bound of batches per tenant and run, so one tenant cannot hold the job. */
+  /** Upper bound of batches per tenant and pass, so one tenant cannot hold the job. */
   static final int MAX_BATCHES = 20;
 
   private final AssetRepository assetRepository;
   private final TenantSettingsService tenantSettingsService;
+  private final ApplicationEventPublisher eventPublisher;
+  private final ObjectMapper mapper;
 
   /** The number of days after which an unseen asset turns stale; 0 or less: the check is off. */
   public int staleAfterDays(String tenantId) {
@@ -44,69 +51,41 @@ public class AssetFreshnessService {
   }
 
   /**
-   * Applies the freshness verdict to one tenant's assets at {@code now}.
+   * Raises the STALE transitions of one tenant's assets between two passes.
    *
-   * @return the assets whose state changed (stale ones first, then the ones fresh again)
+   * @param previousPass the time of the previous pass (the window starts there)
+   * @param now the time of this pass (the window ends there)
+   * @return the assets that turned STALE in the window, oldest observation first
    */
-  public FreshnessTransitions refreshTenant(String tenantId, Instant now) {
+  public List<Asset> raiseStaleTransitions(String tenantId, Instant previousPass, Instant now) {
     int days = staleAfterDays(tenantId);
-    if (days <= 0) {
-      return FreshnessTransitions.NONE;
+    if (days <= 0 || previousPass == null || !previousPass.isBefore(now)) {
+      return List.of();
     }
-    Instant threshold = now.minus(Duration.ofDays(days));
+    Duration threshold = Duration.ofDays(days);
+    Instant from = previousPass.minus(threshold);
+    Instant to = now.minus(threshold);
     List<Asset> turnedStale = new ArrayList<>();
     for (int batch = 0; batch < MAX_BATCHES; batch++) {
-      List<Asset> unseen =
-          assetRepository.findFreshAssetsUnseenSince(
-              tenantId, threshold, PageRequest.of(0, BATCH_SIZE));
-      if (unseen.isEmpty()) {
-        break;
-      }
-      unseen.forEach(asset -> markStale(asset, now));
-      assetRepository.saveAll(unseen);
-      turnedStale.addAll(unseen);
-      if (unseen.size() < BATCH_SIZE) {
-        break;
-      }
-    }
-    List<Asset> freshAgain = new ArrayList<>();
-    for (int batch = 0; batch < MAX_BATCHES; batch++) {
-      List<Asset> seenAgain =
-          assetRepository.findStaleAssetsSeenSince(
-              tenantId, threshold, PageRequest.of(0, BATCH_SIZE));
-      if (seenAgain.isEmpty()) {
-        break;
-      }
-      seenAgain.forEach(AssetFreshnessService::markFresh);
-      assetRepository.saveAll(seenAgain);
-      freshAgain.addAll(seenAgain);
-      if (seenAgain.size() < BATCH_SIZE) {
+      List<Asset> crossed =
+          assetRepository.findAssetsLastSeenBetween(
+              tenantId, from, to, PageRequest.of(batch, BATCH_SIZE));
+      crossed.forEach(
+          asset ->
+              eventPublisher.publishEvent(
+                  new BaseEvent(ModelBaseListener.DATA_UPDATE, asset, mapper)));
+      turnedStale.addAll(crossed);
+      if (crossed.size() < BATCH_SIZE) {
         break;
       }
     }
-    if (!turnedStale.isEmpty() || !freshAgain.isEmpty()) {
+    if (!turnedStale.isEmpty()) {
       log.info(
-          "Asset freshness, tenant {}: {} asset(s) turned stale, {} fresh again (after {} days)",
+          "Asset freshness, tenant {}: {} asset(s) turned stale (unseen for {} days)",
           tenantId,
           turnedStale.size(),
-          freshAgain.size(),
           days);
     }
-    return new FreshnessTransitions(turnedStale, freshAgain);
-  }
-
-  static void markStale(Asset asset, Instant now) {
-    asset.setStale(true);
-    asset.setStaleSince(now);
-  }
-
-  static void markFresh(Asset asset) {
-    asset.setStale(false);
-    asset.setStaleSince(null);
-  }
-
-  /** The assets one freshness pass moved. */
-  public record FreshnessTransitions(List<Asset> turnedStale, List<Asset> freshAgain) {
-    public static final FreshnessTransitions NONE = new FreshnessTransitions(List.of(), List.of());
+    return turnedStale;
   }
 }

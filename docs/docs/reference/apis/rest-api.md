@@ -296,10 +296,10 @@ GET /api/tenants/{tenantId}/tenant-settings/asset-freshness
 PUT /api/tenants/{tenantId}/tenant-settings/asset-freshness
 ```
 
-- **Asset fields**: `asset_last_seen` (the latest observation), `asset_last_seen_source` (what observed it, e.g. `agent:openaev_agent`), `asset_stale` and `asset_stale_since`. All are filterable and sortable in the Asset searches. An Asset never observed has no `asset_last_seen` and is never stale.
-- **Observations**: an Agent that registers or sends a heartbeat stamps its Asset, at most once an hour per source so a heartbeat does not rewrite the Asset every minute. A stale Asset that is observed again is fresh at once.
+- **Asset fields**: `asset_last_seen` (the latest observation) and `asset_last_seen_source` (what observed it, e.g. `agent:openaev_agent`), filterable and sortable in the Asset searches. Staleness is not a field of its own: `asset_status` reads `STALE` when the Asset was last seen longer ago than the Tenant allows, and its usual value (`ACTIVE`, `INACTIVE`, `AGENTLESS`) otherwise. An Asset never observed has no `asset_last_seen` and is never `STALE`.
+- **Observations**: an Agent that registers or sends a heartbeat stamps its Asset, at most once an hour per source so a heartbeat does not rewrite the Asset every minute. A `STALE` Asset that is observed again leaves `STALE` at once.
 - **Settings body**: `{"asset_stale_after_days": 30}`, from 0 to 3650. `0` by default: the check is off, no Asset turns stale and no event is emitted until a user sets a number of days. The last seen stamp is recorded either way.
-- **Job**: every hour (`openaev.cron.config.asset.freshness.interval`, in minutes), each Tenant's Assets unseen past the threshold turn stale, and stale Assets seen again turn fresh. Each transition is an Asset update, so a live trigger on Asset updates receives it once.
+- **Job**: every hour (`openaev.cron.config.asset.freshness.interval`, in minutes), each Asset that turned `STALE` since the previous pass gets one Asset update event, so a live trigger on Asset updates receives each transition once. Nothing is written on the Asset.
 
 ## Finding re-test
 

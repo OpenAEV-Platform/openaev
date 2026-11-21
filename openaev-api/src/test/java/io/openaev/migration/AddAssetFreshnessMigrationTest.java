@@ -67,14 +67,13 @@ class AddAssetFreshnessMigrationTest extends IntegrationTest {
         connection -> {
           try (var read =
               connection.prepareStatement(
-                  "SELECT asset_last_seen, asset_last_seen_source, asset_stale FROM assets"
+                  "SELECT asset_last_seen, asset_last_seen_source FROM assets"
                       + " WHERE asset_id = ?")) {
             read.setString(1, assetId);
             try (var row = read.executeQuery()) {
               assertThat(row.next()).isTrue();
               assertThat(row.getTimestamp(1).toInstant()).isEqualTo(HEARTBEAT);
               assertThat(row.getString(2)).isEqualTo("agent");
-              assertThat(row.getBoolean(3)).isFalse();
             }
           }
         });

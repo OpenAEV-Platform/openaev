@@ -6,9 +6,10 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 /**
- * Asset freshness: when an asset was last observed, by what source, and whether it is stale (unseen
- * for longer than the tenant allows) since when. Existing assets start fresh, with the most recent
- * heartbeat of their agents as their last observation when they have one.
+ * Asset freshness: when an asset was last observed and by what source. Staleness is not stored (it
+ * is the STALE value of asset_status, read from this stamp and the tenant threshold). Existing
+ * assets take the most recent heartbeat of their agents as their last observation when they have
+ * one; additive, no event.
  */
 @Component
 public class V6_20261121170000000__Add_asset_freshness extends BaseJavaMigration {
@@ -19,10 +20,6 @@ public class V6_20261121170000000__Add_asset_freshness extends BaseJavaMigration
       statement.execute("ALTER TABLE assets ADD COLUMN IF NOT EXISTS asset_last_seen TIMESTAMPTZ");
       statement.execute(
           "ALTER TABLE assets ADD COLUMN IF NOT EXISTS asset_last_seen_source VARCHAR(255)");
-      statement.execute(
-          "ALTER TABLE assets ADD COLUMN IF NOT EXISTS asset_stale BOOLEAN NOT NULL DEFAULT false");
-      statement.execute(
-          "ALTER TABLE assets ADD COLUMN IF NOT EXISTS asset_stale_since TIMESTAMPTZ");
       // Backfill once: an asset never stamped takes the latest heartbeat of its agents
       statement.execute(
           "UPDATE assets a SET asset_last_seen = s.last_seen, asset_last_seen_source = 'agent'"

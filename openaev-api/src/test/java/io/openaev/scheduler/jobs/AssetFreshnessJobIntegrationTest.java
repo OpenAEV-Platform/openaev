@@ -8,10 +8,13 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
+import io.openaev.database.model.Asset;
+import io.openaev.database.model.Asset.ASSET_ACTIVITY_STATUS;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.rest.settings.form.AssetFreshnessSettingsInput;
+import io.openaev.service.asset.AssetFreshnessService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.fixtures.EndpointFixture;
 import java.time.Duration;
@@ -31,16 +34,20 @@ import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 
 /**
- * The freshness job turns an asset unseen for longer than the tenant allows stale, once, and fresh
- * again when it is seen. Not transactional: {@code forEachTenant} refuses to run inside an active
- * transaction, as in production. State is asserted through JDBC.
+ * Freshness: STALE is a value of asset_status, read from the last seen stamp and the tenant's
+ * threshold, and the freshness pass raises one asset update event per transition. Not
+ * transactional: {@code forEachTenant} refuses to run inside an active transaction, as in
+ * production.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @RecordApplicationEvents
-@DisplayName("AssetFreshnessJob")
+@DisplayName("Asset freshness: STALE status and transition events")
 class AssetFreshnessJobIntegrationTest extends IntegrationTest {
 
+  private static final Duration INTERVAL = Duration.ofHours(1);
+
   @Autowired private AssetFreshnessJob assetFreshnessJob;
+  @Autowired private AssetFreshnessService assetFreshnessService;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private TenantSettingsService tenantSettingsService;
   @Autowired private TenantScopedTransaction tenantTx;
@@ -48,11 +55,17 @@ class AssetFreshnessJobIntegrationTest extends IntegrationTest {
   @Autowired private ApplicationEvents applicationEvents;
 
   private final List<String> seededAssets = new ArrayList<>();
+  private String tenantB;
 
   @BeforeEach
-  void optIn() {
+  void arrange() {
     // The check is off by default: the tests that exercise it opt in with a 30-day threshold.
-    setStaleAfterDays(30);
+    setStaleAfterDays(DEFAULT_TENANT_UUID, 30);
+    tenantB = UUID.randomUUID().toString();
+    jdbc.update(
+        "INSERT INTO tenants (tenant_id, tenant_name) VALUES (?, ?)",
+        tenantB,
+        "asset-freshness-b-" + tenantB);
   }
 
   @AfterEach
@@ -60,123 +73,155 @@ class AssetFreshnessJobIntegrationTest extends IntegrationTest {
     TenantContext.clearCurrentTenant();
     seededAssets.forEach(id -> jdbc.update("DELETE FROM assets WHERE asset_id = ?", id));
     seededAssets.clear();
-    clearSetting();
+    clearSetting(DEFAULT_TENANT_UUID);
+    clearSetting(tenantB);
+    jdbc.update("DELETE FROM tenants WHERE tenant_id = ?", tenantB);
   }
 
   @Test
-  @DisplayName("given the default setting should change no asset and emit no asset event")
+  @DisplayName("given the default setting should report no STALE asset and emit no asset event")
   void given_defaultSetting_should_changeNothingAndEmitNoEvent() {
     // Arrange: no tenant value, so the default applies
-    clearSetting();
-    assertThat(inScope(() -> tenantSettingsService.findAssetFreshnessSettings(DEFAULT_TENANT_UUID)))
-        .isEqualTo(new AssetFreshnessSettingsInput(0));
-    String asset = seedEndpoint(Duration.ofDays(400));
+    clearSetting(DEFAULT_TENANT_UUID);
+    assertThat(
+            inScope(
+                DEFAULT_TENANT_UUID,
+                () -> assetFreshnessService.staleAfterDays(DEFAULT_TENANT_UUID)))
+        .isZero();
+    String asset = seedEndpoint(DEFAULT_TENANT_UUID, Duration.ofDays(400));
     applicationEvents.clear();
 
     // Act
     assetFreshnessJob.execute(null);
     assetFreshnessJob.execute(null);
 
-    // Assert: behaviour identical to main, no state change and no event on the asset
-    assertThat(isStale(asset)).isFalse();
-    assertThat(staleSince(asset)).isNull();
-    assertThat(
-            applicationEvents.stream(BaseEvent.class)
-                .filter(event -> event.getInstance() != null)
-                .filter(event -> asset.equals(event.getInstance().getId())))
-        .as("no event on the asset with the defaults")
-        .isEmpty();
+    // Assert: behaviour identical to main, no STALE status and no event on the asset
+    assertThat(status(DEFAULT_TENANT_UUID, asset)).isNotEqualTo(ASSET_ACTIVITY_STATUS.STALE);
+    assertThat(eventsOn(asset)).as("no event on the asset with the defaults").isZero();
   }
 
   @Test
-  @DisplayName("given an asset unseen past the threshold should turn stale once, then fresh")
-  void given_unseenAsset_should_turnStaleOnceThenFresh() {
+  @DisplayName("given an asset unseen past the threshold should read STALE, then not once seen")
+  void given_unseenAsset_should_readStaleThenFreshWhenSeen() {
     // Arrange
-    String unseen = seedEndpoint(Duration.ofDays(31));
-    String recent = seedEndpoint(Duration.ofDays(1));
-    String neverSeen = seedEndpoint(null);
+    String unseen = seedEndpoint(DEFAULT_TENANT_UUID, Duration.ofDays(31));
+    String recent = seedEndpoint(DEFAULT_TENANT_UUID, Duration.ofDays(1));
+    String neverSeen = seedEndpoint(DEFAULT_TENANT_UUID, null);
 
-    // Act 1
-    assetFreshnessJob.execute(null);
+    // Assert: the status is read, nothing has to run
+    assertThat(status(DEFAULT_TENANT_UUID, unseen)).isEqualTo(ASSET_ACTIVITY_STATUS.STALE);
+    assertThat(status(DEFAULT_TENANT_UUID, recent)).isNotEqualTo(ASSET_ACTIVITY_STATUS.STALE);
+    assertThat(status(DEFAULT_TENANT_UUID, neverSeen))
+        .as("never observed: no verdict")
+        .isNotEqualTo(ASSET_ACTIVITY_STATUS.STALE);
 
-    // Assert 1
-    assertThat(isStale(unseen)).as("unseen for 31 days, threshold 30").isTrue();
-    assertThat(staleSince(unseen)).isNotNull();
-    assertThat(isStale(recent)).isFalse();
-    assertThat(isStale(neverSeen)).as("never observed: no verdict").isFalse();
-
-    // Act 2: a second pass does not move the stale date (one transition, one event)
-    Instant firstStaleSince = staleSince(unseen);
-    assetFreshnessJob.execute(null);
-    assertThat(staleSince(unseen)).isEqualTo(firstStaleSince);
-
-    // Arrange 3: the asset is seen again through the model
+    // Act: the asset is seen again through the model
     inScopeDo(
+        DEFAULT_TENANT_UUID,
         () -> {
           Endpoint endpoint = endpointRepository.findById(unseen).orElseThrow();
           endpoint.markSeen(Instant.now(), "agent:openaev_agent");
           endpointRepository.save(endpoint);
         });
 
-    // Assert 3
-    assertThat(isStale(unseen)).as("seen again: fresh at once").isFalse();
-    assertThat(staleSince(unseen)).isNull();
+    // Assert
+    assertThat(status(DEFAULT_TENANT_UUID, unseen))
+        .as("seen again: out of STALE at once")
+        .isNotEqualTo(ASSET_ACTIVITY_STATUS.STALE);
   }
 
   @Test
-  @DisplayName("given a stale asset whose last seen moved without markSeen should turn fresh")
-  void given_staleAssetSeenByBulkWrite_should_turnFresh() {
-    // Arrange
-    String asset = seedEndpoint(Duration.ofDays(40));
-    assetFreshnessJob.execute(null);
-    assertThat(isStale(asset)).isTrue();
-    jdbc.update(
-        "UPDATE assets SET asset_last_seen = ? WHERE asset_id = ?",
-        java.sql.Timestamp.from(Instant.now()),
-        asset);
+  @DisplayName("given an asset crossing the threshold should raise one event, not twice")
+  void given_assetCrossingThreshold_should_raiseOneEvent() {
+    // Arrange: crossed the 30-day threshold 10 minutes ago, inside the pass window
+    Instant now = Instant.now();
+    String crossed = seedEndpoint(DEFAULT_TENANT_UUID, Duration.ofDays(30).plusMinutes(10));
+    String longStale = seedEndpoint(DEFAULT_TENANT_UUID, Duration.ofDays(31));
+    applicationEvents.clear();
 
-    // Act
-    assetFreshnessJob.execute(null);
+    // Act: two consecutive passes
+    List<Asset> first =
+        inScope(
+            DEFAULT_TENANT_UUID,
+            () ->
+                assetFreshnessService.raiseStaleTransitions(
+                    DEFAULT_TENANT_UUID, now.minus(INTERVAL), now));
+    List<Asset> second =
+        inScope(
+            DEFAULT_TENANT_UUID,
+            () ->
+                assetFreshnessService.raiseStaleTransitions(
+                    DEFAULT_TENANT_UUID, now, now.plus(INTERVAL)));
 
     // Assert
-    assertThat(isStale(asset)).isFalse();
+    assertThat(first).extracting(Asset::getId).contains(crossed).doesNotContain(longStale);
+    assertThat(second).extracting(Asset::getId).doesNotContain(crossed);
+    assertThat(eventsOn(crossed)).as("one transition, one event").isEqualTo(1);
+    assertThat(eventsOn(longStale)).as("crossed before the window: no event").isZero();
   }
 
   @Test
-  @DisplayName("given the setting at 0 should never turn an asset stale")
-  void given_settingOff_should_neverTurnStale() {
+  @DisplayName("given the setting at 0 should never read STALE")
+  void given_settingOff_should_neverReadStale() {
     // Arrange
-    setStaleAfterDays(0);
-    String asset = seedEndpoint(Duration.ofDays(400));
-
-    // Act
-    assetFreshnessJob.execute(null);
+    setStaleAfterDays(DEFAULT_TENANT_UUID, 0);
+    String asset = seedEndpoint(DEFAULT_TENANT_UUID, Duration.ofDays(400));
 
     // Assert
-    assertThat(isStale(asset)).isFalse();
+    assertThat(status(DEFAULT_TENANT_UUID, asset)).isNotEqualTo(ASSET_ACTIVITY_STATUS.STALE);
+  }
+
+  @Test
+  @DisplayName("given another tenant without the setting should see no STALE and no transition")
+  void given_otherTenant_should_seeNoStaleTransition() {
+    // Arrange: tenant A opted in (30 days), tenant B did not; both have an asset that crossed
+    Instant now = Instant.now();
+    String assetA = seedEndpoint(DEFAULT_TENANT_UUID, Duration.ofDays(30).plusMinutes(10));
+    String assetB = seedEndpoint(tenantB, Duration.ofDays(30).plusMinutes(10));
+    applicationEvents.clear();
+
+    // Act: each tenant's pass under its own scope
+    List<Asset> passA =
+        inScope(
+            DEFAULT_TENANT_UUID,
+            () ->
+                assetFreshnessService.raiseStaleTransitions(
+                    DEFAULT_TENANT_UUID, now.minus(INTERVAL), now));
+    List<Asset> passB =
+        inScope(
+            tenantB,
+            () -> assetFreshnessService.raiseStaleTransitions(tenantB, now.minus(INTERVAL), now));
+
+    // Assert: tenant A's threshold never reaches tenant B
+    assertThat(passA).extracting(Asset::getId).contains(assetA).doesNotContain(assetB);
+    assertThat(passB).isEmpty();
+    assertThat(status(tenantB, assetB)).isNotEqualTo(ASSET_ACTIVITY_STATUS.STALE);
+    assertThat(eventsOn(assetB)).isZero();
   }
 
   // -- HELPERS --
 
-  private void setStaleAfterDays(int days) {
+  private void setStaleAfterDays(String tenantId, int days) {
     inScopeDo(
+        tenantId,
         () ->
             tenantSettingsService.updateAssetFreshnessSettings(
-                DEFAULT_TENANT_UUID, new AssetFreshnessSettingsInput(days)));
+                tenantId, new AssetFreshnessSettingsInput(days)));
   }
 
-  private void clearSetting() {
+  private void clearSetting(String tenantId) {
     jdbc.update(
         "DELETE FROM parameters WHERE parameter_key = 'asset_stale_after_days'"
             + " AND tenant_id = ?",
-        DEFAULT_TENANT_UUID);
+        tenantId);
   }
 
-  private String seedEndpoint(Duration lastSeenAgo) {
+  private String seedEndpoint(String tenantId, Duration lastSeenAgo) {
     return inScope(
+        tenantId,
         () -> {
           Endpoint endpoint = EndpointFixture.createEndpoint("freshness-" + UUID.randomUUID());
-          endpoint.setTenant(new Tenant(DEFAULT_TENANT_UUID));
+          endpoint.setTenant(new Tenant(tenantId));
           if (lastSeenAgo != null) {
             endpoint.markSeen(Instant.now().minus(lastSeenAgo), "test");
           }
@@ -186,26 +231,23 @@ class AssetFreshnessJobIntegrationTest extends IntegrationTest {
         });
   }
 
-  private boolean isStale(String assetId) {
-    return Boolean.TRUE.equals(
-        jdbc.queryForObject(
-            "SELECT asset_stale FROM assets WHERE asset_id = ?", Boolean.class, assetId));
+  private ASSET_ACTIVITY_STATUS status(String tenantId, String assetId) {
+    return inScope(
+        tenantId, () -> endpointRepository.findById(assetId).orElseThrow().getActivityStatus());
   }
 
-  private Instant staleSince(String assetId) {
-    java.sql.Timestamp ts =
-        jdbc.queryForObject(
-            "SELECT asset_stale_since FROM assets WHERE asset_id = ?",
-            java.sql.Timestamp.class,
-            assetId);
-    return ts == null ? null : ts.toInstant();
+  private long eventsOn(String assetId) {
+    return applicationEvents.stream(BaseEvent.class)
+        .filter(event -> event.getInstance() != null)
+        .filter(event -> assetId.equals(event.getInstance().getId()))
+        .count();
   }
 
-  private <T> T inScope(Supplier<T> work) {
-    return tenantTx.execute(TxCtx.forTenant(DEFAULT_TENANT_UUID), work);
+  private <T> T inScope(String tenantId, Supplier<T> work) {
+    return tenantTx.execute(TxCtx.forTenant(tenantId), work);
   }
 
-  private void inScopeDo(Runnable work) {
-    tenantTx.execute(TxCtx.forTenant(DEFAULT_TENANT_UUID), work);
+  private void inScopeDo(String tenantId, Runnable work) {
+    tenantTx.execute(TxCtx.forTenant(tenantId), work);
   }
 }

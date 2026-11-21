@@ -77,21 +77,20 @@ class AssetMarkSeenTest {
   }
 
   @Test
-  @DisplayName("Given a stale asset seen again should be fresh at once, even within the throttle")
-  void given_staleAssetSeenAgain_should_beFresh() {
+  @DisplayName("Given a new source within the throttle should move the stamp to it")
+  void given_newSourceWithinThrottle_should_moveTheStamp() {
     // Arrange
     Asset asset = new Endpoint();
     asset.markSeen(T0, "agent:openaev_agent");
-    asset.setStale(true);
-    asset.setStaleSince(T0.plus(Duration.ofDays(30)));
+    Instant later = T0.plus(Duration.ofMinutes(10));
 
     // Act
-    boolean changed = asset.markSeen(T0.plus(Duration.ofMinutes(10)), "agent:openaev_agent");
+    boolean changed = asset.markSeen(later, "agent:crowdstrike");
 
     // Assert
     assertThat(changed).isTrue();
-    assertThat(asset.isStale()).isFalse();
-    assertThat(asset.getStaleSince()).isNull();
+    assertThat(asset.getLastSeen()).isEqualTo(later);
+    assertThat(asset.getLastSeenSource()).isEqualTo("agent:crowdstrike");
   }
 
   @Test

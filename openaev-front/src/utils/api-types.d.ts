@@ -574,11 +574,8 @@ export interface Asset {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
-  asset_stale?: boolean;
-  /** @format date-time */
-  asset_stale_since?: string;
-  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
-  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
+  /** Activity status: STALE when unseen past the tenant threshold, else derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS" | "STALE";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"
@@ -4474,11 +4471,8 @@ export interface Endpoint {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
-  asset_stale?: boolean;
-  /** @format date-time */
-  asset_stale_since?: string;
-  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
-  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
+  /** Activity status: STALE when unseen past the tenant threshold, else derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS" | "STALE";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"
@@ -12506,11 +12500,8 @@ export interface SecurityPlatform {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
-  asset_stale?: boolean;
-  /** @format date-time */
-  asset_stale_since?: string;
-  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
-  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
+  /** Activity status: STALE when unseen past the tenant threshold, else derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS" | "STALE";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"

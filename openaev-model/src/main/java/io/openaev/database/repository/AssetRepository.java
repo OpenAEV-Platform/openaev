@@ -176,27 +176,20 @@ public interface AssetRepository
   List<Asset> findByTenantId(String tenantId);
 
   /**
-   * Freshness: the fresh assets of a tenant last seen before the threshold, oldest first. An asset
-   * never observed has no freshness verdict and is not returned. Security platforms are sources,
-   * not targets, and are left out. Loaded as entities (not a bulk update) so each transition emits
-   * its own update event.
+   * Freshness: the assets of a tenant whose last observation crossed the stale threshold inside a
+   * window, i.e. last seen in {@code [from, to)} where {@code to} is now minus the threshold. Each
+   * one turned STALE during the window. An asset never observed has no verdict; security platforms
+   * are sources, not targets, and are left out.
    */
   @Query(
       "SELECT a FROM Asset a WHERE a.tenant.id = :tenantId AND a.type <> 'SecurityPlatform'"
-          + " AND a.stale = false AND a.lastSeen IS NOT NULL AND a.lastSeen < :threshold"
+          + " AND a.lastSeen IS NOT NULL AND a.lastSeen >= :from AND a.lastSeen < :to"
           + " ORDER BY a.lastSeen, a.id")
-  List<Asset> findFreshAssetsUnseenSince(
-      @Param("tenantId") String tenantId, @Param("threshold") Instant threshold, Pageable pageable);
-
-  /**
-   * Freshness: the stale assets of a tenant seen again at or after the threshold (a stamp that did
-   * not go through {@code Asset#markSeen}, e.g. a bulk upsert), so the job turns them fresh.
-   */
-  @Query(
-      "SELECT a FROM Asset a WHERE a.tenant.id = :tenantId AND a.stale = true"
-          + " AND a.lastSeen IS NOT NULL AND a.lastSeen >= :threshold ORDER BY a.id")
-  List<Asset> findStaleAssetsSeenSince(
-      @Param("tenantId") String tenantId, @Param("threshold") Instant threshold, Pageable pageable);
+  List<Asset> findAssetsLastSeenBetween(
+      @Param("tenantId") String tenantId,
+      @Param("from") Instant from,
+      @Param("to") Instant to,
+      Pageable pageable);
 
   /**
    * Business criticality, display name and seen IP for a set of asset ids, as {@code [assetId,

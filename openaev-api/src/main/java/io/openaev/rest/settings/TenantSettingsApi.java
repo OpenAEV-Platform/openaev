@@ -110,8 +110,8 @@ public class TenantSettingsApi extends RestBehavior {
   @Operation(
       summary = "Get the asset freshness setting",
       description =
-          "The number of days without an observation after which an asset turns stale (30 by"
-              + " default, 0 turns the check off).")
+          "The number of days without an observation after which an asset turns stale (0 by"
+              + " default: the check is off).")
   public AssetFreshnessSettingsInput assetFreshnessSettings(
       TxCtx ctx, @PathVariable String tenantId) {
     return tenantSettingsService.findAssetFreshnessSettings(tenantId);
