@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.User;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.xtm.counterpart.CounterpartServiceTest.FakeProvider;
@@ -63,11 +64,15 @@ class CounterpartApiTest {
   void setUp() {
     provider = new FakeProvider();
     localObjects = mock(LocalObjectService.class);
+    User caller = new User();
+    caller.setId("user");
+    UserService users = mock(UserService.class);
+    when(users.currentUser()).thenReturn(caller);
     api =
         new CounterpartApi(
             new CounterpartService(List.of(provider, new SilentProvider())),
             localObjects,
-            mock(UserService.class),
+            users,
             mock(PermissionService.class));
   }
 
