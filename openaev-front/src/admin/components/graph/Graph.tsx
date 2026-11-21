@@ -1,4 +1,5 @@
-import { Alert, Button } from '@filigran/design-system';
+import { Alert, Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { ExploreOutlined, InfoOutlined } from '@mui/icons-material';
 import { Box, Stack } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -9,7 +10,7 @@ import {
   fetchGraphStartingPoints,
   fetchGraphStory,
 } from '../../../actions/graph/graph-actions';
-import Breadcrumbs from '../../../components/Breadcrumbs';
+import Breadcrumbs, { type BreadcrumbsElement } from '../../../components/Breadcrumbs';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
 import { type GraphOverviewGroupOutput, type GraphOverviewOutput, type GraphStartingPointOutput } from '../../../utils/api-types';
@@ -26,7 +27,10 @@ const LAYOUTS: GraphLayout[] = ['force', 'hierarchical', 'radial'];
 /** The landing story never fits below this zoom: its labels stay legible at the first frame. */
 const STORY_MIN_ZOOM = 0.75;
 
-const RAIL_WIDTH = 300;
+/** The floating Start here panel of the landing (#9572 L3): it floats over the canvas, never a column. */
+const START_PANEL_WIDTH = 280;
+/** The story's filter bar floats over the top of the canvas: the panel opens below it. */
+const START_PANEL_TOP_STORY = 72;
 
 /**
  * The Graph page (#9388, landing redesigned in #9447). Without a focus it opens on ONE of two views,
@@ -59,6 +63,38 @@ const Graph = () => {
   const ownFocus = useRef<string | null>(null);
   // The explorer opened on the landing story keeps the story's framing once the user expands from it.
   const [fromStory, setFromStory] = useState(false);
+  // The Start here panel opens unfolded on the landing and folds to a pill on demand.
+  const [startOpen, setStartOpen] = useState(true);
+  // The panel's own size: the overview keeps only that rectangle clear (#9572 UX round 1 B3).
+  const startPanelRef = useRef<HTMLDivElement>(null);
+  const [startPanelHeight, setStartPanelHeight] = useState(0);
+  // Set by a fold or an unfold: focus goes to the control that replaced the one clicked, never lost
+  // on the page body when that button unmounts (#9572 UX round 1 B2).
+  const focusAfterToggle = useRef(false);
+  useEffect(() => {
+    const element = startPanelRef.current;
+    if (!element) {
+      setStartPanelHeight(0);
+      return undefined;
+    }
+    const measure = () => setStartPanelHeight(element.offsetHeight);
+    measure();
+    if (focusAfterToggle.current) {
+      focusAfterToggle.current = false;
+      // The fold button when open, the pill when folded: the one control carrying aria-expanded.
+      element.querySelector<HTMLElement>('button[aria-expanded]')?.focus();
+    }
+    if (typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [startOpen, points, isLanding]);
+  const toggleStart = (open: boolean) => {
+    focusAfterToggle.current = true;
+    setStartOpen(open);
+  };
 
   // The rail is the same on every view: loaded once per page visit.
   useEffect(() => {
@@ -144,7 +180,6 @@ const Graph = () => {
     view: next,
     focus: null,
   });
-  const backToLanding = () => setParam({ focus: null });
 
   const onSelectPoint = (point: GraphStartingPointOutput) => focusOn(point.point_node_type, point.point_entity_id);
   const onUnfoldGroup = (group: GraphOverviewGroupOutput) => focusOn('ASSET_GROUP', group.group_id);
@@ -177,42 +212,65 @@ const Graph = () => {
         onUnfoldGroup={onUnfoldGroup}
         onOpenUngrouped={() => navigate('/admin/assets')}
         onOpenSimulation={id => focusOn('SIMULATION', id)}
+        obstacleTopRight={points && startOpen && startPanelHeight > 0
+          ? {
+              width: START_PANEL_WIDTH + 16,
+              height: 8 + startPanelHeight + 16,
+            }
+          : null}
       />
     );
   }
 
+  // One header row (UX header budget, Sam 20 Nov 2026: no space lost above the canvas): the breadcrumb
+  // carries the way back to the landing, the view switch sits on the same line and its explanation
+  // lives in a tooltip, never in a band of its own.
+  const viewHelp = view === 'story'
+    ? t('The most critical chain of the estate: the attack path with the most failed steps, or the asset with the most failed expectations, with its findings, asset groups and identity. Double-click a node to expand it.')
+    : t('Asset groups sized by asset count and coloured by failure rate, with the simulations that target them. Double-click a group to unfold its assets.');
+
+  const crumbs: BreadcrumbsElement[] = [{
+    label: t('Graph'),
+    link: isLanding ? undefined : '/admin/graph',
+    current: isLanding,
+  }];
+  if (!isLanding) {
+    crumbs.push({
+      label: t('Exploration'),
+      current: true,
+    });
+  }
+
   return (
-    <Stack spacing={1.5} sx={{ height: 'calc(100dvh - 140px)' }}>
-      <Breadcrumbs
-        variant="list"
-        elements={[{
-          label: t('Graph'),
-          current: true,
-        }]}
-      />
-      <div className="flex flex-wrap items-center gap-2">
-        {isLanding ? (
-          <>
+    <Stack spacing={1} sx={{ height: 'calc(100dvh - 140px)' }}>
+      <div className="flex flex-wrap items-center gap-2" data-testid="graph-header">
+        <Breadcrumbs
+          variant="list"
+          style={{
+            marginTop: 0,
+            marginBottom: 0,
+          }}
+          elements={crumbs}
+        />
+        {isLanding && view && (
+          <div className="ml-auto flex items-center gap-1" role="group" aria-label={t('Graph view')}>
             <Button type="button" size="sm" priority={view === 'story' ? 'primary' : 'secondary'} aria-pressed={view === 'story'} onClick={() => showView('story')}>
               {t('Top exposure story')}
             </Button>
             <Button type="button" size="sm" priority={view === 'overview' ? 'primary' : 'secondary'} aria-pressed={view === 'overview'} onClick={() => showView('overview')}>
               {t('Estate overview')}
             </Button>
-          </>
-        ) : (
-          <Button type="button" size="sm" priority="tertiary" onClick={backToLanding}>{t('Back to the landing')}</Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <IconButton priority="tertiary" icon={<InfoOutlined fontSize="small" />} aria-label={viewHelp} />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{viewHelp}</TooltipContent>
+            </Tooltip>
+          </div>
         )}
       </div>
-      {isLanding && view && (
-        <Alert
-          severity="info"
-          title={view === 'story' ? t('Top exposure story') : t('Estate overview')}
-          description={view === 'story'
-            ? t('The most critical chain of the estate: the attack path with the most failed steps, or the asset with the most failed expectations, with its findings, asset groups and identity. Double-click a node to expand it.')
-            : t('Asset groups sized by asset count and coloured by failure rate, with the simulations that target them. Double-click a group to unfold its assets.')}
-        />
-      )}
       <Box sx={{
         flexGrow: 1,
         minHeight: 0,
@@ -223,22 +281,49 @@ const Graph = () => {
         <Box sx={{
           flexGrow: 1,
           minWidth: 0,
+          position: 'relative',
         }}
         >
           {canvas}
+          {/* The starting points float over the canvas, top right, as the Start here panel (#9572 L3):
+              the canvas keeps the whole width, and the panel folds to a pill. Once the user explores,
+              they come back with the Graph breadcrumb. */}
+          {isLanding && points && (
+            <div
+              data-testid="graph-start-here"
+              style={{
+                position: 'absolute',
+                top: view === 'story' ? START_PANEL_TOP_STORY : 8,
+                right: 8,
+                bottom: 64,
+                width: startOpen ? START_PANEL_WIDTH : undefined,
+                zIndex: 5,
+                pointerEvents: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+              }}
+            >
+              <div
+                ref={startPanelRef}
+                style={{
+                  pointerEvents: 'auto',
+                  maxHeight: '100%',
+                  width: startOpen ? '100%' : undefined,
+                  display: 'flex',
+                }}
+              >
+                {startOpen
+                  ? <GraphStartingPoints points={points} current={focusParam} onSelect={onSelectPoint} onCollapse={() => toggleStart(false)} />
+                  : (
+                      <Button type="button" size="sm" priority="secondary" data-testid="graph-start-here-unfold" startIcon={<ExploreOutlined fontSize="small" />} aria-expanded={false} onClick={() => toggleStart(true)}>
+                        {t('Start here')}
+                      </Button>
+                    )}
+              </div>
+            </div>
+          )}
         </Box>
-        {/* Once the user explores, the canvas takes the whole width, as an OpenCTI investigation does;
-            the starting points come back with Back to the landing. */}
-        {isLanding && (
-          <Box sx={{
-            width: RAIL_WIDTH,
-            flexShrink: 0,
-            minHeight: 0,
-          }}
-          >
-            {points ? <GraphStartingPoints points={points} current={focusParam} onSelect={onSelectPoint} /> : <Loader variant="inElement" />}
-          </Box>
-        )}
       </Box>
     </Stack>
   );

@@ -79,6 +79,7 @@ class GraphExplorationServiceTest extends IntegrationTest {
   @Autowired private GraphExplorationService service;
   @Autowired private GraphLandingService landing;
   @Autowired private GraphLandingCache landingCache;
+  @Autowired private GraphRelationCounter relationCounter;
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
@@ -683,6 +684,66 @@ class GraphExplorationServiceTest extends IntegrationTest {
             scope, GraphNodeType.ASSET, e2.getId(), Set.of(), 50, visibility(true, true, false));
     assertThat(nodeIds(atomic)).containsExactly(id(GraphNodeType.ASSET, e2.getId()));
     assertThat(atomic.edges()).isEmpty();
+  }
+
+  // -- Relation counts (#9572) --
+
+  private static GraphNodeOutput nodeOf(GraphOutput out, String nodeId) {
+    return out.nodes().stream().filter(n -> n.nodeId().equals(nodeId)).findFirst().orElseThrow();
+  }
+
+  @Test
+  @DisplayName("every node carries its relations in the data per type, drawn or not")
+  void relationCountsOfASlice() {
+    scopeToAmbientTenant();
+    // Only the group is drawn around the asset: its findings and injects are counted all the same.
+    GraphOutput narrow =
+        service.neighbourhood(
+            scope,
+            GraphNodeType.ASSET,
+            e1.getId(),
+            Set.of(GraphEdgeType.MEMBER_OF),
+            50,
+            GraphVisibility.ALL);
+    GraphOutput out = relationCounter.counted(narrow, scope, GraphVisibility.ALL);
+
+    GraphNodeOutput asset = nodeOf(out, id(GraphNodeType.ASSET, e1.getId()));
+    assertThat(asset.relationCounts())
+        .containsEntry(GraphEdgeType.MEMBER_OF, 1L)
+        .containsEntry(GraphEdgeType.FOUND_ON, 2L)
+        .containsEntry(GraphEdgeType.TARGETS, 1L);
+    GraphNodeOutput group = nodeOf(out, id(GraphNodeType.ASSET_GROUP, g.getId()));
+    assertThat(group.relationCounts())
+        .containsEntry(GraphEdgeType.MEMBER_OF, 1L)
+        .containsEntry(GraphEdgeType.TARGETS, 1L);
+    assertThat(out.edges()).isEqualTo(narrow.edges());
+  }
+
+  @Test
+  @DisplayName("a relation to a grant-managed end is not counted for a caller without every grant")
+  void relationCountsLeaveGrantManagedEndsOut() {
+    scopeToAmbientTenant();
+    GraphVisibility restricted = visibility(true, true, true);
+    GraphOutput out =
+        relationCounter.counted(
+            service.neighbourhood(scope, GraphNodeType.ASSET, e1.getId(), Set.of(), 50, restricted),
+            scope,
+            restricted);
+
+    GraphNodeOutput asset = nodeOf(out, id(GraphNodeType.ASSET, e1.getId()));
+    assertThat(asset.relationCounts())
+        .containsEntry(GraphEdgeType.FOUND_ON, 2L)
+        .doesNotContainKey(GraphEdgeType.TARGETS);
+  }
+
+  @Test
+  @DisplayName("a relation count never crosses the caller's tenants")
+  void relationCountsStayInScope() {
+    scopeToAmbientTenant();
+    GraphOutput ring = ring(GraphNodeType.ASSET, e1.getId());
+    GraphOutput out = relationCounter.counted(ring, List.of("no-such-tenant"), GraphVisibility.ALL);
+
+    assertThat(out.nodes()).allSatisfy(n -> assertThat(n.relationCounts()).isEmpty());
   }
 
   private static GraphVisibility visibility(

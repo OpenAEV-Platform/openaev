@@ -1,4 +1,5 @@
-import { Paper, Text } from '@filigran/design-system';
+import { IconButton, Paper, Text } from '@filigran/design-system';
+import { ExpandLessOutlined } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
@@ -12,15 +13,18 @@ interface GraphStartingPointsProps {
   /** The point the graph is centred on, as "<type>:<id>", highlighted in the rail. */
   current?: string | null;
   onSelect: (point: GraphStartingPointOutput) => void;
+  /** Folds the panel to its pill (the floating Start here panel of the landing, #9572 L3). */
+  onCollapse?: () => void;
 }
 
 /**
  * The starting-points rail of the Graph landing (#9447): the top exposed assets, failing asset
  * groups, attack paths, findings, exposed persons and the latest simulation, five each at most.
  * A click recentres the graph on that entity. It replaces the three "Start from" buttons, which
- * sent the user away from the graph to a list.
+ * sent the user away from the graph to a list. Since #9572 (landing L3) it floats over the canvas as
+ * the Start here panel instead of taking a 300 px column beside it, and folds to a pill.
  */
-const GraphStartingPoints = ({ points, current, onSelect }: GraphStartingPointsProps) => {
+const GraphStartingPoints = ({ points, current, onSelect, onCollapse }: GraphStartingPointsProps) => {
   const theme = useTheme();
   const { t, n } = useFormatter();
   const sections = groupStartingPoints(points);
@@ -29,11 +33,16 @@ const GraphStartingPoints = ({ points, current, onSelect }: GraphStartingPointsP
       elevation={1}
       padding={16}
       style={{
-        height: '100%',
+        maxHeight: '100%',
         overflow: 'auto',
       }}
     >
-      <Text variant="content-base-bold">{t('Starting points')}</Text>
+      <div className="flex items-center gap-2">
+        <Text variant="content-base-bold" className="flex-1">{t('Start here')}</Text>
+        {onCollapse && (
+          <IconButton priority="tertiary" icon={<ExpandLessOutlined fontSize="small" />} aria-label={t('Fold the Start here panel')} aria-expanded data-testid="graph-start-here-fold" onClick={onCollapse} />
+        )}
+      </div>
       {sections.length === 0 && (
         <Text variant="content-base" className="mt-2 block text-default-secondary">
           {t('Nothing to start from yet: run a simulation to see where the estate is exposed.')}

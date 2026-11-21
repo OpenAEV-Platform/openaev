@@ -28,6 +28,16 @@ public interface GraphVisibility {
    */
   boolean canReadFindings();
 
+  /**
+   * Whether the relation counts of a node (#9572) may include relations whose other end is
+   * grant-managed (an inject, a simulation, a scenario, an attack-path step): a count is not gated
+   * per entity, so only a caller who reads every grant (an admin, a bypass) gets them. Restrictive
+   * by default: such a relation is then left out of the counts, never counted unread.
+   */
+  default boolean countsGrantManaged() {
+    return false;
+  }
+
   /** Everything visible: for tests and for callers that gate elsewhere. */
   GraphVisibility ALL =
       new GraphVisibility() {
@@ -53,6 +63,11 @@ public interface GraphVisibility {
 
         @Override
         public boolean canReadFindings() {
+          return true;
+        }
+
+        @Override
+        public boolean countsGrantManaged() {
           return true;
         }
       };
