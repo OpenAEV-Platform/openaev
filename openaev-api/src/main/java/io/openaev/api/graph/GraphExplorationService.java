@@ -17,7 +17,9 @@ import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -417,6 +419,39 @@ public class GraphExplorationService {
 
   // -- Expansion, one relation at a time --
 
+  /** The ring of one node type: its focus node, then its neighbours relation by relation. */
+  @FunctionalInterface
+  interface Expander {
+    String expand(
+        Slice slice,
+        Collection<String> tenantIds,
+        String id,
+        Predicate<GraphEdgeType> want,
+        int cap);
+  }
+
+  /** One expansion per node type: a new node type is one method and one entry here. */
+  private final Map<GraphNodeType, Expander> expanders = expanders();
+
+  private Map<GraphNodeType, Expander> expanders() {
+    Map<GraphNodeType, Expander> byType = new EnumMap<>(GraphNodeType.class);
+    byType.put(GraphNodeType.ASSET, this::expandAsset);
+    byType.put(GraphNodeType.ASSET_GROUP, this::expandAssetGroup);
+    byType.put(GraphNodeType.FINDING, this::expandFinding);
+    byType.put(GraphNodeType.INJECT, this::expandInject);
+    byType.put(GraphNodeType.SIMULATION, this::expandSimulation);
+    byType.put(GraphNodeType.SCENARIO, this::expandScenario);
+    byType.put(GraphNodeType.PERSON, this::expandPerson);
+    byType.put(GraphNodeType.ORGANIZATION, this::expandOrganization);
+    byType.put(GraphNodeType.TEAM, this::expandTeam);
+    return Collections.unmodifiableMap(byType);
+  }
+
+  /** Whether {@code type} has an expansion. */
+  boolean expands(GraphNodeType type) {
+    return expanders.containsKey(type);
+  }
+
   /** Adds the focus node and its ring to {@code slice}; returns the focus node id. */
   String expand(
       Slice slice,
@@ -425,418 +460,480 @@ public class GraphExplorationService {
       String id,
       Set<GraphEdgeType> edgeTypes,
       int cap) {
+    Expander expander = type == null ? null : expanders.get(type);
+    if (expander == null) {
+      throw new IllegalArgumentException("Unsupported graph entity type " + type);
+    }
     Predicate<GraphEdgeType> want =
         t -> edgeTypes == null || edgeTypes.isEmpty() || edgeTypes.contains(t);
+    return expander.expand(slice, tenantIds, id, want, cap);
+  }
+
+  /** An asset, its groups, its person, its linked assets, steps, findings and expectations. */
+  private String expandAsset(
+      Slice slice,
+      Collection<String> tenantIds,
+      String id,
+      Predicate<GraphEdgeType> want,
+      int cap) {
     String focus;
-    switch (type) {
-      case ASSET -> {
-        focus = assetNode(slice, tenantIds, id);
-        if (focus == null) {
-          return null;
-        }
-        final String here = focus;
-        if (want.test(GraphEdgeType.MEMBER_OF)) {
-          rows(
-              slice,
-              "SELECT g.id, g.name FROM AssetGroup g JOIN g.assets a"
-                  + " WHERE a.id = :id AND g.tenant.id IN :tenantIds ORDER BY g.name",
-              tenantIds,
-              id,
-              cap,
-              r -> {
-                String g =
-                    slice.node(GraphNodeType.ASSET_GROUP, (String) r[0], (String) r[1], null);
-                slice.edge(GraphEdgeType.MEMBER_OF, here, g, null);
-              });
-          dynamicGroupsOf(slice, tenantIds, id, here, cap);
-        }
-        if (want.test(GraphEdgeType.IDENTITY_OF)) {
-          rows(
-              slice,
-              "SELECT u.id, u.firstname, u.lastname, u.email FROM Asset a, User u"
-                  + " WHERE a.id = :id AND u.id = a.linkedPerson AND a.tenant.id IN :tenantIds",
-              tenantIds,
-              id,
-              1,
-              r -> {
-                String p =
-                    slice.node(
-                        GraphNodeType.PERSON,
-                        (String) r[0],
-                        personLabel(r[0], r[1], r[2], r[3]),
-                        null);
-                slice.edge(GraphEdgeType.IDENTITY_OF, here, p, null);
-              });
-        }
-        if (want.test(GraphEdgeType.LINKED_TO)) {
-          linkedAssets(slice, tenantIds, id, here, cap);
-        }
-        if (want.test(GraphEdgeType.ATTACK_STEP)) {
-          steps(slice, tenantIds, STEPS_OF_ASSET, id, cap);
-        }
-        if (want.test(GraphEdgeType.FOUND_ON)) {
-          rows(
-              slice,
-              "SELECT f.id, f.valueDisplay, f.type, f.updateDate FROM Finding f JOIN f.assets a"
-                  + " WHERE a.id = :id AND f.tenant.id IN :tenantIds ORDER BY f.updateDate DESC",
-              tenantIds,
-              id,
-              cap,
-              r -> {
-                String f =
-                    slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2]));
-                slice.date(f, r[3]);
-                slice.edge(GraphEdgeType.FOUND_ON, f, here, null);
-              });
-        }
-        if (want.test(GraphEdgeType.TARGETS)) {
-          targets(slice, tenantIds, TARGETS_OF_ASSET, id, cap);
-        }
-      }
-      case ASSET_GROUP -> {
-        focus =
-            single(
-                slice,
-                "SELECT g.id, g.name FROM AssetGroup g"
-                    + " WHERE g.id = :id AND g.tenant.id IN :tenantIds",
-                tenantIds,
-                id,
-                r -> slice.node(GraphNodeType.ASSET_GROUP, (String) r[0], (String) r[1], null));
-        if (focus == null) {
-          return null;
-        }
-        final String here = focus;
-        if (want.test(GraphEdgeType.MEMBER_OF)) {
-          rows(
-              slice,
-              "SELECT a.id, a.name, a.type FROM AssetGroup g JOIN g.assets a"
-                  + " WHERE g.id = :id AND a.tenant.id IN :tenantIds ORDER BY a.name",
-              tenantIds,
-              id,
-              cap,
-              r -> {
-                String a =
-                    slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], (String) r[2]);
-                slice.edge(GraphEdgeType.MEMBER_OF, here, a, null);
-              });
-          dynamicMembersOf(slice, tenantIds, id, here, cap);
-        }
-        if (want.test(GraphEdgeType.TARGETS)) {
-          targets(slice, tenantIds, TARGETS_OF_ASSET_GROUP, id, cap);
-        }
-      }
-      case FINDING -> {
-        focus =
-            single(
-                slice,
-                "SELECT f.id, f.valueDisplay, f.type, f.updateDate FROM Finding f"
-                    + " WHERE f.id = :id AND f.tenant.id IN :tenantIds",
-                tenantIds,
-                id,
-                r -> {
-                  String f =
-                      slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2]));
-                  slice.date(f, r[3]);
-                  return f;
-                });
-        if (focus == null) {
-          return null;
-        }
-        final String here = focus;
-        if (want.test(GraphEdgeType.FOUND_ON)) {
-          rows(
-              slice,
-              "SELECT a.id, a.name, a.type FROM Finding f JOIN f.assets a"
-                  + " WHERE f.id = :id AND a.tenant.id IN :tenantIds ORDER BY a.name",
-              tenantIds,
-              id,
-              cap,
-              r -> {
-                String a =
-                    slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], (String) r[2]);
-                slice.edge(GraphEdgeType.FOUND_ON, here, a, null);
-              });
-        }
-        if (want.test(GraphEdgeType.PRODUCED)) {
-          rows(
-              slice,
-              "SELECT DISTINCT i.id, i.title FROM FindingOccurrence o JOIN o.inject i"
-                  + " WHERE o.finding.id = :id AND i.tenant.id IN :tenantIds",
-              tenantIds,
-              id,
-              cap,
-              r -> {
-                String i = slice.node(GraphNodeType.INJECT, (String) r[0], (String) r[1], null);
-                slice.edge(GraphEdgeType.PRODUCED, i, here, null);
-              });
-        }
-      }
-      case INJECT -> {
-        focus =
-            single(
-                slice,
-                "SELECT i.id, i.title FROM Inject i WHERE i.id = :id AND i.tenant.id IN :tenantIds",
-                tenantIds,
-                id,
-                r -> slice.node(GraphNodeType.INJECT, (String) r[0], (String) r[1], null));
-        if (focus == null) {
-          return null;
-        }
-        final String here = focus;
-        if (want.test(GraphEdgeType.TARGETS)) {
-          targets(slice, tenantIds, TARGETS_OF_INJECT, id, cap);
-        }
-        if (want.test(GraphEdgeType.PRODUCED)) {
-          rows(
-              slice,
-              "SELECT DISTINCT f.id, f.valueDisplay, f.type, f.updateDate"
-                  + " FROM FindingOccurrence o JOIN o.finding f"
-                  + " WHERE o.inject.id = :id AND f.tenant.id IN :tenantIds",
-              tenantIds,
-              id,
-              cap,
-              r -> {
-                String f =
-                    slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2]));
-                slice.date(f, r[3]);
-                slice.edge(GraphEdgeType.PRODUCED, here, f, null);
-              });
-        }
-        if (want.test(GraphEdgeType.PART_OF)) {
-          rows(
-              slice,
-              "SELECT x.id, x.name, x.start FROM Inject i JOIN i.exercise x"
-                  + " WHERE i.id = :id AND x.tenant.id IN :tenantIds",
-              tenantIds,
-              id,
-              1,
-              r -> {
-                String s = slice.node(GraphNodeType.SIMULATION, (String) r[0], (String) r[1], null);
-                slice.date(s, r[2]);
-                slice.edge(GraphEdgeType.PART_OF, here, s, null);
-              });
-        }
-      }
-      case SIMULATION -> {
-        focus =
-            single(
-                slice,
-                "SELECT x.id, x.name, x.start FROM Exercise x"
-                    + " WHERE x.id = :id AND x.tenant.id IN :tenantIds",
-                tenantIds,
-                id,
-                r -> {
-                  String s =
-                      slice.node(GraphNodeType.SIMULATION, (String) r[0], (String) r[1], null);
-                  slice.date(s, r[2]);
-                  return s;
-                });
-        if (focus == null) {
-          return null;
-        }
-        final String here = focus;
-        if (want.test(GraphEdgeType.PART_OF)) {
-          rows(
-              slice,
-              "SELECT i.id, i.title FROM Inject i WHERE i.exercise.id = :id"
-                  + " AND i.tenant.id IN :tenantIds ORDER BY i.title",
-              tenantIds,
-              id,
-              cap,
-              r -> {
-                String i = slice.node(GraphNodeType.INJECT, (String) r[0], (String) r[1], null);
-                slice.edge(GraphEdgeType.PART_OF, i, here, null);
-              });
-        }
-        if (want.test(GraphEdgeType.RUN_OF)) {
-          rows(
-              slice,
-              "SELECT s.id, s.name FROM Exercise x JOIN x.scenario s"
-                  + " WHERE x.id = :id AND x.tenant.id IN :tenantIds",
-              tenantIds,
-              id,
-              1,
-              r -> {
-                String s = slice.node(GraphNodeType.SCENARIO, (String) r[0], (String) r[1], null);
-                slice.edge(GraphEdgeType.RUN_OF, here, s, null);
-              });
-        }
-        if (want.test(GraphEdgeType.ATTACK_STEP)) {
-          steps(slice, tenantIds, STEPS_OF_SIMULATION, id, cap);
-        }
-      }
-      case PERSON -> {
-        focus = personNode(slice, tenantIds, id);
-        if (focus == null) {
-          return null;
-        }
-        final String here = focus;
-        if (want.test(GraphEdgeType.IDENTITY_OF)) {
-          rows(
-              slice,
-              "SELECT a.id, a.name, a.type FROM Asset a"
-                  + " WHERE a.linkedPerson = :id AND a.tenant.id IN :tenantIds ORDER BY a.name",
-              tenantIds,
-              id,
-              cap,
-              r -> {
-                String a =
-                    slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], (String) r[2]);
-                slice.edge(GraphEdgeType.IDENTITY_OF, a, here, null);
-              });
-        }
-        if (want.test(GraphEdgeType.WORKS_FOR)) {
-          rows(
-              slice,
-              "SELECT o.id, o.name FROM Organization o JOIN o.users u"
-                  + " WHERE u.id = :id AND o.tenant.id IN :tenantIds ORDER BY o.name",
-              tenantIds,
-              id,
-              cap,
-              r -> {
-                String o =
-                    slice.node(GraphNodeType.ORGANIZATION, (String) r[0], (String) r[1], null);
-                slice.edge(GraphEdgeType.WORKS_FOR, here, o, null);
-              });
-        }
-        if (want.test(GraphEdgeType.IN_TEAM)) {
-          rows(
-              slice,
-              "SELECT t.id, t.name FROM Team t JOIN t.users u"
-                  + " WHERE u.id = :id AND t.tenant.id IN :tenantIds ORDER BY t.name",
-              tenantIds,
-              id,
-              cap,
-              r -> {
-                String t = slice.node(GraphNodeType.TEAM, (String) r[0], (String) r[1], null);
-                slice.edge(GraphEdgeType.IN_TEAM, here, t, null);
-              });
-        }
-      }
-      case ORGANIZATION -> {
-        focus =
-            single(
-                slice,
-                "SELECT o.id, o.name FROM Organization o"
-                    + " WHERE o.id = :id AND o.tenant.id IN :tenantIds",
-                tenantIds,
-                id,
-                r -> slice.node(GraphNodeType.ORGANIZATION, (String) r[0], (String) r[1], null));
-        if (focus == null) {
-          return null;
-        }
-        final String here = focus;
-        if (want.test(GraphEdgeType.WORKS_FOR)) {
-          rows(
-              slice,
-              "SELECT u.id, u.firstname, u.lastname, u.email FROM Organization o JOIN o.users u"
-                  + " WHERE o.id = :id AND o.tenant.id IN :tenantIds"
-                  + " ORDER BY u.lastname, u.firstname, u.email",
-              tenantIds,
-              id,
-              cap,
-              r -> {
-                String p =
-                    slice.node(
-                        GraphNodeType.PERSON,
-                        (String) r[0],
-                        personLabel(r[0], r[1], r[2], r[3]),
-                        null);
-                slice.edge(GraphEdgeType.WORKS_FOR, p, here, null);
-              });
-        }
-        if (want.test(GraphEdgeType.TEAM_OF)) {
-          rows(
-              slice,
-              "SELECT t.id, t.name FROM Team t"
-                  + " WHERE t.organization.id = :id AND t.tenant.id IN :tenantIds ORDER BY t.name",
-              tenantIds,
-              id,
-              cap,
-              r -> {
-                String t = slice.node(GraphNodeType.TEAM, (String) r[0], (String) r[1], null);
-                slice.edge(GraphEdgeType.TEAM_OF, t, here, null);
-              });
-        }
-      }
-      case TEAM -> {
-        focus =
-            single(
-                slice,
-                "SELECT t.id, t.name FROM Team t WHERE t.id = :id AND t.tenant.id IN :tenantIds",
-                tenantIds,
-                id,
-                r -> slice.node(GraphNodeType.TEAM, (String) r[0], (String) r[1], null));
-        if (focus == null) {
-          return null;
-        }
-        final String here = focus;
-        if (want.test(GraphEdgeType.IN_TEAM)) {
-          rows(
-              slice,
-              "SELECT u.id, u.firstname, u.lastname, u.email FROM Team t JOIN t.users u"
-                  + " WHERE t.id = :id AND t.tenant.id IN :tenantIds"
-                  + " ORDER BY u.lastname, u.firstname, u.email",
-              tenantIds,
-              id,
-              cap,
-              r -> {
-                String p =
-                    slice.node(
-                        GraphNodeType.PERSON,
-                        (String) r[0],
-                        personLabel(r[0], r[1], r[2], r[3]),
-                        null);
-                slice.edge(GraphEdgeType.IN_TEAM, p, here, null);
-              });
-        }
-        if (want.test(GraphEdgeType.TEAM_OF)) {
-          rows(
-              slice,
-              "SELECT o.id, o.name FROM Team t JOIN t.organization o"
-                  + " WHERE t.id = :id AND t.tenant.id IN :tenantIds AND o.tenant.id IN :tenantIds",
-              tenantIds,
-              id,
-              1,
-              r -> {
-                String o =
-                    slice.node(GraphNodeType.ORGANIZATION, (String) r[0], (String) r[1], null);
-                slice.edge(GraphEdgeType.TEAM_OF, here, o, null);
-              });
-        }
-      }
-      case SCENARIO -> {
-        // A scenario is reached through its simulations, so its scope is theirs: a scenario
-        // without a simulation in the caller's tenants is not part of the graph.
-        focus = null;
-        List<Object[]> runs =
-            entityManager
-                .createQuery(
-                    "SELECT x.id, x.name, s.name, x.start FROM Exercise x JOIN x.scenario s"
-                        + " WHERE s.id = :id AND x.tenant.id IN :tenantIds"
-                        + " ORDER BY x.start DESC NULLS LAST",
-                    Object[].class)
-                .setParameter("id", id)
-                .setParameter("tenantIds", tenantIds)
-                .setMaxResults(cap + 1)
-                .getResultList();
-        if (runs.isEmpty()) {
-          return null;
-        }
-        focus = slice.node(GraphNodeType.SCENARIO, id, (String) runs.get(0)[2], null);
-        if (runs.size() > cap) {
-          slice.truncated = true;
-          runs = runs.subList(0, cap);
-        }
-        if (want.test(GraphEdgeType.RUN_OF)) {
-          for (Object[] r : runs) {
+    focus = assetNode(slice, tenantIds, id);
+    if (focus == null) {
+      return null;
+    }
+    final String here = focus;
+    if (want.test(GraphEdgeType.MEMBER_OF)) {
+      rows(
+          slice,
+          "SELECT g.id, g.name FROM AssetGroup g JOIN g.assets a"
+              + " WHERE a.id = :id AND g.tenant.id IN :tenantIds ORDER BY g.name",
+          tenantIds,
+          id,
+          cap,
+          r -> {
+            String g = slice.node(GraphNodeType.ASSET_GROUP, (String) r[0], (String) r[1], null);
+            slice.edge(GraphEdgeType.MEMBER_OF, here, g, null);
+          });
+      dynamicGroupsOf(slice, tenantIds, id, here, cap);
+    }
+    if (want.test(GraphEdgeType.IDENTITY_OF)) {
+      rows(
+          slice,
+          "SELECT u.id, u.firstname, u.lastname, u.email FROM Asset a, User u"
+              + " WHERE a.id = :id AND u.id = a.linkedPerson AND a.tenant.id IN :tenantIds",
+          tenantIds,
+          id,
+          1,
+          r -> {
+            String p =
+                slice.node(
+                    GraphNodeType.PERSON, (String) r[0], personLabel(r[0], r[1], r[2], r[3]), null);
+            slice.edge(GraphEdgeType.IDENTITY_OF, here, p, null);
+          });
+    }
+    if (want.test(GraphEdgeType.LINKED_TO)) {
+      linkedAssets(slice, tenantIds, id, here, cap);
+    }
+    if (want.test(GraphEdgeType.ATTACK_STEP)) {
+      steps(slice, tenantIds, STEPS_OF_ASSET, id, cap);
+    }
+    if (want.test(GraphEdgeType.FOUND_ON)) {
+      rows(
+          slice,
+          "SELECT f.id, f.valueDisplay, f.type, f.updateDate FROM Finding f JOIN f.assets a"
+              + " WHERE a.id = :id AND f.tenant.id IN :tenantIds ORDER BY f.updateDate DESC",
+          tenantIds,
+          id,
+          cap,
+          r -> {
+            String f = slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2]));
+            slice.date(f, r[3]);
+            slice.edge(GraphEdgeType.FOUND_ON, f, here, null);
+          });
+    }
+    if (want.test(GraphEdgeType.TARGETS)) {
+      targets(slice, tenantIds, TARGETS_OF_ASSET, id, cap);
+    }
+    return focus;
+  }
+
+  /** An asset group, its static and dynamic members and the expectations on it. */
+  private String expandAssetGroup(
+      Slice slice,
+      Collection<String> tenantIds,
+      String id,
+      Predicate<GraphEdgeType> want,
+      int cap) {
+    String focus;
+    focus =
+        single(
+            slice,
+            "SELECT g.id, g.name FROM AssetGroup g"
+                + " WHERE g.id = :id AND g.tenant.id IN :tenantIds",
+            tenantIds,
+            id,
+            r -> slice.node(GraphNodeType.ASSET_GROUP, (String) r[0], (String) r[1], null));
+    if (focus == null) {
+      return null;
+    }
+    final String here = focus;
+    if (want.test(GraphEdgeType.MEMBER_OF)) {
+      rows(
+          slice,
+          "SELECT a.id, a.name, a.type FROM AssetGroup g JOIN g.assets a"
+              + " WHERE g.id = :id AND a.tenant.id IN :tenantIds ORDER BY a.name",
+          tenantIds,
+          id,
+          cap,
+          r -> {
+            String a = slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], (String) r[2]);
+            slice.edge(GraphEdgeType.MEMBER_OF, here, a, null);
+          });
+      dynamicMembersOf(slice, tenantIds, id, here, cap);
+    }
+    if (want.test(GraphEdgeType.TARGETS)) {
+      targets(slice, tenantIds, TARGETS_OF_ASSET_GROUP, id, cap);
+    }
+    return focus;
+  }
+
+  /** A finding, the assets it was found on and the injects that produced it. */
+  private String expandFinding(
+      Slice slice,
+      Collection<String> tenantIds,
+      String id,
+      Predicate<GraphEdgeType> want,
+      int cap) {
+    String focus;
+    focus =
+        single(
+            slice,
+            "SELECT f.id, f.valueDisplay, f.type, f.updateDate FROM Finding f"
+                + " WHERE f.id = :id AND f.tenant.id IN :tenantIds",
+            tenantIds,
+            id,
+            r -> {
+              String f = slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2]));
+              slice.date(f, r[3]);
+              return f;
+            });
+    if (focus == null) {
+      return null;
+    }
+    final String here = focus;
+    if (want.test(GraphEdgeType.FOUND_ON)) {
+      rows(
+          slice,
+          "SELECT a.id, a.name, a.type FROM Finding f JOIN f.assets a"
+              + " WHERE f.id = :id AND a.tenant.id IN :tenantIds ORDER BY a.name",
+          tenantIds,
+          id,
+          cap,
+          r -> {
+            String a = slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], (String) r[2]);
+            slice.edge(GraphEdgeType.FOUND_ON, here, a, null);
+          });
+    }
+    if (want.test(GraphEdgeType.PRODUCED)) {
+      rows(
+          slice,
+          "SELECT DISTINCT i.id, i.title FROM FindingOccurrence o JOIN o.inject i"
+              + " WHERE o.finding.id = :id AND i.tenant.id IN :tenantIds",
+          tenantIds,
+          id,
+          cap,
+          r -> {
+            String i = slice.node(GraphNodeType.INJECT, (String) r[0], (String) r[1], null);
+            slice.edge(GraphEdgeType.PRODUCED, i, here, null);
+          });
+    }
+    return focus;
+  }
+
+  /** An inject, its targets, the findings it produced and its simulation. */
+  private String expandInject(
+      Slice slice,
+      Collection<String> tenantIds,
+      String id,
+      Predicate<GraphEdgeType> want,
+      int cap) {
+    String focus;
+    focus =
+        single(
+            slice,
+            "SELECT i.id, i.title FROM Inject i WHERE i.id = :id AND i.tenant.id IN :tenantIds",
+            tenantIds,
+            id,
+            r -> slice.node(GraphNodeType.INJECT, (String) r[0], (String) r[1], null));
+    if (focus == null) {
+      return null;
+    }
+    final String here = focus;
+    if (want.test(GraphEdgeType.TARGETS)) {
+      targets(slice, tenantIds, TARGETS_OF_INJECT, id, cap);
+    }
+    if (want.test(GraphEdgeType.PRODUCED)) {
+      rows(
+          slice,
+          "SELECT DISTINCT f.id, f.valueDisplay, f.type, f.updateDate"
+              + " FROM FindingOccurrence o JOIN o.finding f"
+              + " WHERE o.inject.id = :id AND f.tenant.id IN :tenantIds",
+          tenantIds,
+          id,
+          cap,
+          r -> {
+            String f = slice.node(GraphNodeType.FINDING, (String) r[0], (String) r[1], str(r[2]));
+            slice.date(f, r[3]);
+            slice.edge(GraphEdgeType.PRODUCED, here, f, null);
+          });
+    }
+    if (want.test(GraphEdgeType.PART_OF)) {
+      rows(
+          slice,
+          "SELECT x.id, x.name, x.start FROM Inject i JOIN i.exercise x"
+              + " WHERE i.id = :id AND x.tenant.id IN :tenantIds",
+          tenantIds,
+          id,
+          1,
+          r -> {
             String s = slice.node(GraphNodeType.SIMULATION, (String) r[0], (String) r[1], null);
-            slice.date(s, r[3]);
-            slice.edge(GraphEdgeType.RUN_OF, s, focus, null);
-          }
-        }
+            slice.date(s, r[2]);
+            slice.edge(GraphEdgeType.PART_OF, here, s, null);
+          });
+    }
+    return focus;
+  }
+
+  /** A simulation, its injects, its scenario and its attack-path steps. */
+  private String expandSimulation(
+      Slice slice,
+      Collection<String> tenantIds,
+      String id,
+      Predicate<GraphEdgeType> want,
+      int cap) {
+    String focus;
+    focus =
+        single(
+            slice,
+            "SELECT x.id, x.name, x.start FROM Exercise x"
+                + " WHERE x.id = :id AND x.tenant.id IN :tenantIds",
+            tenantIds,
+            id,
+            r -> {
+              String s = slice.node(GraphNodeType.SIMULATION, (String) r[0], (String) r[1], null);
+              slice.date(s, r[2]);
+              return s;
+            });
+    if (focus == null) {
+      return null;
+    }
+    final String here = focus;
+    if (want.test(GraphEdgeType.PART_OF)) {
+      rows(
+          slice,
+          "SELECT i.id, i.title FROM Inject i WHERE i.exercise.id = :id"
+              + " AND i.tenant.id IN :tenantIds ORDER BY i.title",
+          tenantIds,
+          id,
+          cap,
+          r -> {
+            String i = slice.node(GraphNodeType.INJECT, (String) r[0], (String) r[1], null);
+            slice.edge(GraphEdgeType.PART_OF, i, here, null);
+          });
+    }
+    if (want.test(GraphEdgeType.RUN_OF)) {
+      rows(
+          slice,
+          "SELECT s.id, s.name FROM Exercise x JOIN x.scenario s"
+              + " WHERE x.id = :id AND x.tenant.id IN :tenantIds",
+          tenantIds,
+          id,
+          1,
+          r -> {
+            String s = slice.node(GraphNodeType.SCENARIO, (String) r[0], (String) r[1], null);
+            slice.edge(GraphEdgeType.RUN_OF, here, s, null);
+          });
+    }
+    if (want.test(GraphEdgeType.ATTACK_STEP)) {
+      steps(slice, tenantIds, STEPS_OF_SIMULATION, id, cap);
+    }
+    return focus;
+  }
+
+  /** A person, its identity assets, organizations and teams. */
+  private String expandPerson(
+      Slice slice,
+      Collection<String> tenantIds,
+      String id,
+      Predicate<GraphEdgeType> want,
+      int cap) {
+    String focus;
+    focus = personNode(slice, tenantIds, id);
+    if (focus == null) {
+      return null;
+    }
+    final String here = focus;
+    if (want.test(GraphEdgeType.IDENTITY_OF)) {
+      rows(
+          slice,
+          "SELECT a.id, a.name, a.type FROM Asset a"
+              + " WHERE a.linkedPerson = :id AND a.tenant.id IN :tenantIds ORDER BY a.name",
+          tenantIds,
+          id,
+          cap,
+          r -> {
+            String a = slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], (String) r[2]);
+            slice.edge(GraphEdgeType.IDENTITY_OF, a, here, null);
+          });
+    }
+    if (want.test(GraphEdgeType.WORKS_FOR)) {
+      rows(
+          slice,
+          "SELECT o.id, o.name FROM Organization o JOIN o.users u"
+              + " WHERE u.id = :id AND o.tenant.id IN :tenantIds ORDER BY o.name",
+          tenantIds,
+          id,
+          cap,
+          r -> {
+            String o = slice.node(GraphNodeType.ORGANIZATION, (String) r[0], (String) r[1], null);
+            slice.edge(GraphEdgeType.WORKS_FOR, here, o, null);
+          });
+    }
+    if (want.test(GraphEdgeType.IN_TEAM)) {
+      rows(
+          slice,
+          "SELECT t.id, t.name FROM Team t JOIN t.users u"
+              + " WHERE u.id = :id AND t.tenant.id IN :tenantIds ORDER BY t.name",
+          tenantIds,
+          id,
+          cap,
+          r -> {
+            String t = slice.node(GraphNodeType.TEAM, (String) r[0], (String) r[1], null);
+            slice.edge(GraphEdgeType.IN_TEAM, here, t, null);
+          });
+    }
+    return focus;
+  }
+
+  /** An organization, its people and its teams. */
+  private String expandOrganization(
+      Slice slice,
+      Collection<String> tenantIds,
+      String id,
+      Predicate<GraphEdgeType> want,
+      int cap) {
+    String focus;
+    focus =
+        single(
+            slice,
+            "SELECT o.id, o.name FROM Organization o"
+                + " WHERE o.id = :id AND o.tenant.id IN :tenantIds",
+            tenantIds,
+            id,
+            r -> slice.node(GraphNodeType.ORGANIZATION, (String) r[0], (String) r[1], null));
+    if (focus == null) {
+      return null;
+    }
+    final String here = focus;
+    if (want.test(GraphEdgeType.WORKS_FOR)) {
+      rows(
+          slice,
+          "SELECT u.id, u.firstname, u.lastname, u.email FROM Organization o JOIN o.users u"
+              + " WHERE o.id = :id AND o.tenant.id IN :tenantIds"
+              + " ORDER BY u.lastname, u.firstname, u.email",
+          tenantIds,
+          id,
+          cap,
+          r -> {
+            String p =
+                slice.node(
+                    GraphNodeType.PERSON, (String) r[0], personLabel(r[0], r[1], r[2], r[3]), null);
+            slice.edge(GraphEdgeType.WORKS_FOR, p, here, null);
+          });
+    }
+    if (want.test(GraphEdgeType.TEAM_OF)) {
+      rows(
+          slice,
+          "SELECT t.id, t.name FROM Team t"
+              + " WHERE t.organization.id = :id AND t.tenant.id IN :tenantIds ORDER BY t.name",
+          tenantIds,
+          id,
+          cap,
+          r -> {
+            String t = slice.node(GraphNodeType.TEAM, (String) r[0], (String) r[1], null);
+            slice.edge(GraphEdgeType.TEAM_OF, t, here, null);
+          });
+    }
+    return focus;
+  }
+
+  /** A team, its members and its organization. */
+  private String expandTeam(
+      Slice slice,
+      Collection<String> tenantIds,
+      String id,
+      Predicate<GraphEdgeType> want,
+      int cap) {
+    String focus;
+    focus =
+        single(
+            slice,
+            "SELECT t.id, t.name FROM Team t WHERE t.id = :id AND t.tenant.id IN :tenantIds",
+            tenantIds,
+            id,
+            r -> slice.node(GraphNodeType.TEAM, (String) r[0], (String) r[1], null));
+    if (focus == null) {
+      return null;
+    }
+    final String here = focus;
+    if (want.test(GraphEdgeType.IN_TEAM)) {
+      rows(
+          slice,
+          "SELECT u.id, u.firstname, u.lastname, u.email FROM Team t JOIN t.users u"
+              + " WHERE t.id = :id AND t.tenant.id IN :tenantIds"
+              + " ORDER BY u.lastname, u.firstname, u.email",
+          tenantIds,
+          id,
+          cap,
+          r -> {
+            String p =
+                slice.node(
+                    GraphNodeType.PERSON, (String) r[0], personLabel(r[0], r[1], r[2], r[3]), null);
+            slice.edge(GraphEdgeType.IN_TEAM, p, here, null);
+          });
+    }
+    if (want.test(GraphEdgeType.TEAM_OF)) {
+      rows(
+          slice,
+          "SELECT o.id, o.name FROM Team t JOIN t.organization o"
+              + " WHERE t.id = :id AND t.tenant.id IN :tenantIds AND o.tenant.id IN :tenantIds",
+          tenantIds,
+          id,
+          1,
+          r -> {
+            String o = slice.node(GraphNodeType.ORGANIZATION, (String) r[0], (String) r[1], null);
+            slice.edge(GraphEdgeType.TEAM_OF, here, o, null);
+          });
+    }
+    return focus;
+  }
+
+  /** A scenario and the simulations run from it. */
+  private String expandScenario(
+      Slice slice,
+      Collection<String> tenantIds,
+      String id,
+      Predicate<GraphEdgeType> want,
+      int cap) {
+    String focus;
+    // A scenario is reached through its simulations, so its scope is theirs: a scenario
+    // without a simulation in the caller's tenants is not part of the graph.
+    focus = null;
+    List<Object[]> runs =
+        entityManager
+            .createQuery(
+                "SELECT x.id, x.name, s.name, x.start FROM Exercise x JOIN x.scenario s"
+                    + " WHERE s.id = :id AND x.tenant.id IN :tenantIds"
+                    + " ORDER BY x.start DESC NULLS LAST",
+                Object[].class)
+            .setParameter("id", id)
+            .setParameter("tenantIds", tenantIds)
+            .setMaxResults(cap + 1)
+            .getResultList();
+    if (runs.isEmpty()) {
+      return null;
+    }
+    focus = slice.node(GraphNodeType.SCENARIO, id, (String) runs.get(0)[2], null);
+    if (runs.size() > cap) {
+      slice.truncated = true;
+      runs = runs.subList(0, cap);
+    }
+    if (want.test(GraphEdgeType.RUN_OF)) {
+      for (Object[] r : runs) {
+        String s = slice.node(GraphNodeType.SIMULATION, (String) r[0], (String) r[1], null);
+        slice.date(s, r[3]);
+        slice.edge(GraphEdgeType.RUN_OF, s, focus, null);
       }
-      default -> throw new IllegalArgumentException("Unsupported graph entity type " + type);
     }
     return focus;
   }
