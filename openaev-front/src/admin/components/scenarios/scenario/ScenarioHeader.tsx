@@ -71,6 +71,7 @@ import { type Cron } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import AutonomousRunConfigDrawer from '../../autonomous/AutonomousRunConfigDrawer';
 import { type RebuildMode } from '../../autonomous/AutonomousRunConfigFields';
@@ -89,6 +90,7 @@ import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButto
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
 import useOpenLaunchedSimulation from '../launch/useOpenLaunchedSimulation';
+import useScenarioLaunch from '../launch/useScenarioLaunch';
 import {
   SCENARIO_CONFIGURATION_QUERY_PARAM,
   SCENARIO_CONFIGURATION_VARIABLES_QUERY_VALUE,
@@ -96,6 +98,7 @@ import {
 } from '../ScenarioConfigurationTab';
 import ScenarioConfiguration from './ScenarioConfiguration';
 import ScenarioPopover from './ScenarioPopover';
+import { SCENARIO_TYPE_CHAINED, SCENARIO_TYPE_TIME_BASED } from './ScenarioType';
 
 interface ScenarioHeaderProps {
   setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>>;
@@ -474,8 +477,16 @@ const ScenarioHeader = ({
     }));
   };
 
-  // Normal launch: a plain, operator-driven simulation from the scenario. Opens the confirm dialog.
-  const handleLaunchNormal = () => setOpenInstantiateSimulationAndStart(true);
+  // Normal launch: through the launch check with the catalogue preview, else after a confirm dialog.
+  const scenarioType = isScenarioChaining ? SCENARIO_TYPE_CHAINED : SCENARIO_TYPE_TIME_BASED;
+  const { launch, launchDrawer } = useScenarioLaunch(onAutonomousRunCleared);
+  const handleLaunchNormal = () => (isFeatureEnabled('CATALOG')
+    ? launch({
+        scenarioId,
+        name: scenario.scenario_name,
+        type: scenarioType,
+      })
+    : setOpenInstantiateSimulationAndStart(true));
 
   // AI builder - Save: persist the configuration on the scenario WITHOUT starting anything. The
   // scenario stays a normal, editable chained scenario; the operator can build or launch it later
@@ -1062,7 +1073,7 @@ const ScenarioHeader = ({
               // instead of keeping the stale AI plan outcome + status chip until a full page reload.
               onAutonomousRunCleared?.();
               // Only the autonomous launch stays on the scenario: see handleAiLaunch.
-              openLaunchedSimulation(simulation_id, isScenarioChaining);
+              openLaunchedSimulation(simulation_id, scenarioType);
             }}
           >
             {t('Confirm')}
@@ -1113,6 +1124,7 @@ const ScenarioHeader = ({
         onSave={aiDrawerIntent === 'build' ? handleAiSave : undefined}
         onLaunch={aiDrawerIntent === 'build' ? handleAiBuild : handleAiLaunch}
       />
+      {launchDrawer}
     </>
   );
 };

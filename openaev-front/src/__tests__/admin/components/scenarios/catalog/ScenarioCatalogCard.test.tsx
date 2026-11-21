@@ -35,7 +35,7 @@ const renderCard = (scenario: CatalogScenarioOutput) => render(
   <MemoryRouter>
     <ThemeProvider theme={createTheme()}>
       <TooltipProvider>
-        <ScenarioCatalogCard scenario={scenario} canInstall onInstall={vi.fn()} onOpen={vi.fn()} />
+        <ScenarioCatalogCard scenario={scenario} canInstall canLaunch onInstall={vi.fn()} onLaunch={vi.fn()} onOpen={vi.fn()} />
       </TooltipProvider>
     </ThemeProvider>
   </MemoryRouter>,
@@ -51,22 +51,31 @@ describe('ScenarioCatalogCard', () => {
       ['oneMissing', [requirement('Nmap: The network mapper')], 'Needs Nmap'],
       ['twoMissing', [requirement('Nmap'), requirement('Nuclei')], 'Needs Nmap, Nuclei'],
       ['threeMissing', [requirement('Nmap'), requirement('Nuclei'), requirement('Censys')], 'Needs 3 prerequisites'],
-    ])('given_%s_should_nameOrCountThemAndBlockTheInstall', (_case, missing, label) => {
+    ])('given_%s_should_nameOrCountThem', (_case, missing, label) => {
       // Act
       renderCard(scenarioMissing(missing));
 
       // Assert
       expect(screen.getByText(label)).toBeTruthy();
-      expect((screen.getByRole('button', { name: 'Install' }) as HTMLButtonElement).disabled).toBe(true);
     });
 
-    it('given_nothingMissing_should_showNoChipAndAllowTheInstall', () => {
+    it('given_nothingMissing_should_showNoChip', () => {
       // Act
       renderCard(scenarioMissing([]));
 
       // Assert
       expect(screen.queryByText(/^Needs/)).toBeNull();
+    });
+  });
+
+  describe('actions', () => {
+    it('given_aMissingRequirement_should_stillOfferInstallAndLaunch', () => {
+      // Act
+      renderCard(scenarioMissing([requirement('Nmap')]));
+
+      // Assert
       expect((screen.getByRole('button', { name: 'Install' }) as HTMLButtonElement).disabled).toBe(false);
+      expect(screen.getByRole('button', { name: 'Launch' })).toBeTruthy();
     });
   });
 });

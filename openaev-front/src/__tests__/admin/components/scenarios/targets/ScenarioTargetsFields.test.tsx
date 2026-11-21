@@ -36,6 +36,8 @@ const WEB: Option = {
   id: 'web',
   label: 'Web server',
 };
+const ASSETS = 'Assets and asset groups';
+const TEAMS = 'Teams and players';
 const page = <T, >(content: T[]) => Promise.resolve({ data: { content } });
 
 describe('ScenarioTargetsFields', () => {
@@ -54,6 +56,7 @@ describe('ScenarioTargetsFields', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    mocks.fields = {};
   });
 
   it('given_aChosenAssetMissingFromTheSearch_should_keepItAmongTheOptions', async () => {
@@ -64,14 +67,17 @@ describe('ScenarioTargetsFields', () => {
     };
 
     // Act
-    render(<ScenarioTargetsFields value={value} onChange={vi.fn()} />);
+    render(<ScenarioTargetsFields intro="" value={value} onChange={vi.fn()} />);
 
     // Assert
-    await waitFor(() => expect(mocks.fields.Assets.options).toEqual([WEB, {
-      id: 'db',
+    await waitFor(() => expect(mocks.fields[ASSETS].options).toEqual([{
+      id: 'asset:web',
+      label: 'Web server',
+    }, {
+      id: 'asset:db',
       label: 'Database',
     }]));
-    expect(mocks.fields.Assets.value).toEqual(['web']);
+    expect(mocks.fields[ASSETS].value).toEqual(['asset:web']);
     expect(mocks.searchEndpoints).toHaveBeenCalledWith({
       page: 0,
       size: 50,
@@ -81,11 +87,11 @@ describe('ScenarioTargetsFields', () => {
 
   it('given_typedText_should_searchWithIt', async () => {
     // Arrange
-    render(<ScenarioTargetsFields value={NO_TARGETS} onChange={vi.fn()} />);
-    await waitFor(() => expect(mocks.fields.Teams.options).toHaveLength(1));
+    render(<ScenarioTargetsFields intro="" value={NO_TARGETS} onChange={vi.fn()} />);
+    await waitFor(() => expect(mocks.fields[TEAMS].options).toHaveLength(1));
 
     // Act
-    act(() => mocks.fields.Teams.onInputChange('red'));
+    act(() => mocks.fields[TEAMS].onInputChange('red'));
 
     // Assert
     await waitFor(() => expect(mocks.searchTeams).toHaveBeenLastCalledWith({
@@ -98,11 +104,11 @@ describe('ScenarioTargetsFields', () => {
   it('given_aPickedTeam_should_giveBackItsOption', async () => {
     // Arrange
     const onChange = vi.fn();
-    render(<ScenarioTargetsFields value={NO_TARGETS} onChange={onChange} />);
-    await waitFor(() => expect(mocks.fields.Teams.options).toHaveLength(1));
+    render(<ScenarioTargetsFields intro="" value={NO_TARGETS} onChange={onChange} />);
+    await waitFor(() => expect(mocks.fields[TEAMS].options).toHaveLength(1));
 
     // Act
-    act(() => mocks.fields.Teams.onChange(['red']));
+    act(() => mocks.fields[TEAMS].onChange(['red']));
 
     // Assert
     expect(onChange).toHaveBeenCalledWith({
@@ -114,10 +120,46 @@ describe('ScenarioTargetsFields', () => {
     });
   });
 
+  it('given_anAssetAndAGroupPicked_should_splitThemByKind', async () => {
+    // Arrange
+    mocks.searchAssetGroups.mockImplementation(() => page([{
+      asset_group_id: 'dmz',
+      asset_group_name: 'DMZ',
+    }]));
+    const onChange = vi.fn();
+    render(<ScenarioTargetsFields intro="" value={NO_TARGETS} onChange={onChange} />);
+    await waitFor(() => expect(mocks.fields[ASSETS].options).toHaveLength(2));
+
+    // Act
+    act(() => mocks.fields[ASSETS].onChange(['asset-group:dmz', 'asset:db']));
+
+    // Assert
+    expect(onChange).toHaveBeenCalledWith({
+      ...NO_TARGETS,
+      assets: [{
+        id: 'db',
+        label: 'Database',
+      }],
+      assetGroups: [{
+        id: 'dmz',
+        label: 'DMZ',
+      }],
+    });
+  });
+
+  it('given_injectsTakingTeamsOnly_should_showTheTeamsFieldOnly', () => {
+    // Act
+    render(<ScenarioTargetsFields intro="" value={NO_TARGETS} onChange={vi.fn()} kinds={['TEAMS']} />);
+
+    // Assert
+    expect(Object.keys(mocks.fields)).toEqual([TEAMS]);
+    expect(screen.queryByRole('textbox', { name: 'Manual targets' })).toBeNull();
+  });
+
   it('given_manualTargets_should_giveBackTheText', () => {
     // Arrange
     const onChange = vi.fn();
-    render(<ScenarioTargetsFields value={NO_TARGETS} onChange={onChange} />);
+    render(<ScenarioTargetsFields intro="" value={NO_TARGETS} onChange={onChange} />);
 
     // Act
     fireEvent.change(screen.getByRole('textbox', { name: 'Manual targets' }), { target: { value: '10.0.0.1' } });

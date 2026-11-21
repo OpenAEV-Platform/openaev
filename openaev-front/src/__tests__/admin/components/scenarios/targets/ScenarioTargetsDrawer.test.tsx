@@ -1,43 +1,49 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { NO_TARGETS } from '../../../../../admin/components/scenarios/targets/scenarioTargets';
-
 vi.mock('../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (key: string) => key }) }));
-vi.mock('../../../../../components/common/Drawer', () => ({ default: ({ children }: { children: ReactNode }) => <div>{children}</div> }));
-vi.mock('../../../../../admin/components/scenarios/targets/ScenarioTargetsFields', () => ({ default: () => <div data-testid="targets" /> }));
 
 const { default: ScenarioTargetsDrawer } = await import('../../../../../admin/components/scenarios/targets/ScenarioTargetsDrawer');
+
+const renderDrawer = (blocked: boolean, onSubmit = vi.fn().mockResolvedValue(undefined)) => render(
+  <ScenarioTargetsDrawer
+    overline="Launch"
+    title="Phishing"
+    version="1.2"
+    submitLabel="Launch now"
+    launches
+    blocked={blocked}
+    onSubmit={onSubmit}
+    onClose={vi.fn()}
+  >
+    <div data-testid="targets" />
+  </ScenarioTargetsDrawer>,
+);
 
 describe('ScenarioTargetsDrawer', () => {
   afterEach(() => {
     cleanup();
-    vi.clearAllMocks();
   });
 
-  it.each([
-    [true, 1],
-    [false, 0],
-  ])('given_withTargets_%s_should_show_%i_targetFieldsAndSubmitTheTargets', (withTargets, fields) => {
+  it('given_nothingBlocks_should_showTheFieldsAndSubmit', () => {
     // Arrange
     const onSubmit = vi.fn().mockResolvedValue(undefined);
-    render(
-      <ScenarioTargetsDrawer
-        title="Launch"
-        description="Pick the targets"
-        withTargets={withTargets}
-        submitLabel="Launch now"
-        onSubmit={onSubmit}
-        onClose={vi.fn()}
-      />,
-    );
+    renderDrawer(false, onSubmit);
 
     // Act
     fireEvent.click(screen.getByRole('button', { name: 'Launch now' }));
 
     // Assert
-    expect(screen.queryAllByTestId('targets')).toHaveLength(fields);
-    expect(onSubmit).toHaveBeenCalledWith(NO_TARGETS);
+    expect(screen.getByTestId('targets')).toBeTruthy();
+    expect(screen.getByText('v1.2')).toBeTruthy();
+    expect(onSubmit).toHaveBeenCalled();
+  });
+
+  it('given_somethingBlocks_should_disableTheSubmit', () => {
+    // Act
+    renderDrawer(true);
+
+    // Assert
+    expect((screen.getByRole('button', { name: 'Launch now' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

@@ -101,7 +101,7 @@ const SearchAutocompleteField: FunctionComponent<Props> = (props) => {
       </ComboboxLabel>
       <ComboboxField>
         {props.multiple === true ? <ComboboxChips /> : null}
-        <ComboboxInput placeholder={placeholder} />
+        <ComboboxInput placeholder={placeholder} aria-label={labelPosition === 'none' ? label : undefined} />
         <ComboboxControls>
           <ComboboxClear />
           <ComboboxTrigger />

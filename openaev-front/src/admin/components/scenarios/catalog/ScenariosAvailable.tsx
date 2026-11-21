@@ -34,6 +34,7 @@ import { type CatalogScenarioOutput } from '../../../../utils/api-types';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { scenarioCategoryLabel } from '../constants';
+import useScenarioLaunch from '../launch/useScenarioLaunch';
 import ScenariosHero from '../page/ScenariosHero';
 import { ScenarioTypeIcon } from '../scenario/ScenarioType';
 import CatalogScenarioAction from './CatalogScenarioAction';
@@ -78,10 +79,16 @@ const ScenariosAvailable = () => {
   const { t, nsd } = useFormatter();
   const theme = useTheme();
   const notifyInstalled = useNotifyInstalled();
-  const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+  const ability = useAbility();
+  const canInstall = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+  const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.ASSESSMENT);
+  const { launch, launchDrawer } = useScenarioLaunch();
   const { viewMode, handleViewModeChange } = useMarketplaceView('scenarios-catalog:view-mode');
   const [opened, setOpened] = useState<CatalogScenarioOutput | null>(null);
-  const [installing, setInstalling] = useState<CatalogScenarioOutput | null>(null);
+  const [installing, setInstalling] = useState<{
+    scenario: CatalogScenarioOutput;
+    thenLaunch: boolean;
+  } | null>(null);
   const catalog = useMarketplaceSearch<CatalogScenarioOutput>({
     storageKey: 'scenarios-catalog',
     defaultSort: CATALOG_ITEM_DEFAULT_SORT,
@@ -90,14 +97,26 @@ const ScenariosAvailable = () => {
   });
   const { queryableHelpers, searchPaginationInput } = catalog;
 
-  const install = (scenario: CatalogScenarioOutput) => {
+  const install = (scenario: CatalogScenarioOutput, thenLaunch = false) => {
     setOpened(null);
-    setInstalling(scenario);
+    setInstalling({
+      scenario,
+      thenLaunch,
+    });
   };
+  // An installed scenario stays listed with its Open link; Install and launch goes on to its launch check.
   const markInstalled = (installed: CatalogScenarioOutput, scenarioId: string) => {
+    const name = installed.catalog_scenario_name ?? installed.catalog_scenario_external_id;
     setInstalling(null);
-    notifyInstalled(installed.catalog_scenario_name ?? installed.catalog_scenario_external_id, installed.catalog_scenario_version, scenarioUrl(scenarioId));
+    notifyInstalled(name, installed.catalog_scenario_version, scenarioUrl(scenarioId));
     catalog.reload();
+    if (installing?.thenLaunch) {
+      launch({
+        scenarioId,
+        name,
+        type: catalogScenarioType(installed),
+      });
+    }
   };
 
   const columns: MarketplaceColumn<CatalogScenarioOutput>[] = [
@@ -205,6 +224,7 @@ const ScenariosAvailable = () => {
                     scenario={scenario}
                     canInstall={canInstall}
                     onInstall={() => install(scenario)}
+                    onLaunch={canLaunch ? () => install(scenario, true) : undefined}
                     onOpen={() => setOpened(scenario)}
                   />
                 )}
@@ -220,7 +240,15 @@ const ScenariosAvailable = () => {
                 rowKey={scenario => scenario.catalog_scenario_external_id}
                 icon={scenario => <ScenarioTypeIcon type={catalogScenarioType(scenario)} />}
                 open={scenario => ({ onClick: () => setOpened(scenario) })}
-                action={scenario => <CatalogScenarioAction scenario={scenario} canInstall={canInstall} onInstall={() => install(scenario)} size="sm" />}
+                action={scenario => (
+                  <CatalogScenarioAction
+                    scenario={scenario}
+                    canInstall={canInstall}
+                    onInstall={() => install(scenario)}
+                    onLaunch={canLaunch ? () => install(scenario, true) : undefined}
+                    size="sm"
+                  />
+                )}
               />
             )}
         <MarketplaceLoadMore {...catalog.loadMore} />
@@ -229,15 +257,17 @@ const ScenariosAvailable = () => {
         scenario={opened}
         canInstall={canInstall}
         onClose={() => setOpened(null)}
-        onInstall={install}
+        onInstall={scenario => install(scenario)}
       />
       {installing && (
         <CatalogScenarioInstallDrawer
-          scenario={installing}
+          scenario={installing.scenario}
+          thenLaunch={installing.thenLaunch}
           onClose={() => setInstalling(null)}
           onInstalled={markInstalled}
         />
       )}
+      {launchDrawer}
     </>
   );
 };
