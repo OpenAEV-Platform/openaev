@@ -1,53 +1,45 @@
 import { Button, Checkbox, Combobox, ComboboxChips, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MenuItem, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import type { LoggedHelper } from '../../../actions/helper';
-import SelectField from '../../../components/fields/SelectField';
 import TagField from '../../../components/fields/TagField';
-import TextField from '../../../components/fields/TextField';
 import TextFieldFds from '../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { type PlatformSettings, type ScenarioInput } from '../../../utils/api-types';
 import { zodImplement } from '../../../utils/Zod';
-import DefaultKillChainSelectField from '../common/filters/DefaultKillChainSelectField';
 import LessonsLearnedSection from '../common/form/LessonsLearnedSection';
-import { scenarioCategories } from './constants';
+import ScenarioGeneralFields from './ScenarioGeneralFields';
 
 // The lessons learned module toggle rides along the configuration form but is
 // persisted through the dedicated PUT /scenarios/{id}/lessons endpoint (see
 // ScenarioUpdate), so the general update input stays untouched.
 export type ScenarioFormInput = ScenarioInput & { scenario_lessons_enabled?: boolean };
 
-interface EditableProps {
-  readOnly?: false;
+interface Props {
   onSubmit: (data: ScenarioFormInput, isScenarioAssistantChecked?: boolean) => void;
   handleClose: () => void;
   editing?: boolean;
   disabled?: boolean;
-  isCreation?: boolean;
-}
-
-// A catalogue scenario before install: its fields shown disabled, nothing to submit.
-interface ReadOnlyProps {
-  readOnly: true;
-}
-
-type Props = (EditableProps | ReadOnlyProps) & {
   initialValues: ScenarioFormInput;
+  isCreation?: boolean;
   isChaining?: boolean;
-};
+}
 
-const ScenarioForm: FunctionComponent<Props> = (props) => {
-  const { initialValues, isChaining = false } = props;
-  const editable = props.readOnly === true ? null : props;
-  const readOnly = editable === null;
-  const disabled = editable?.disabled;
+const ScenarioForm: FunctionComponent<Props> = ({
+  onSubmit,
+  handleClose,
+  editing,
+  initialValues,
+  disabled,
+  isCreation = false,
+  isChaining = false,
+}) => {
   // Standard hooks
   const theme = useTheme();
   const { t } = useFormatter();
@@ -55,13 +47,7 @@ const ScenarioForm: FunctionComponent<Props> = (props) => {
   const [isScenarioAssistantChecked, setIsScenarioAssistantChecked] = useState(false);
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
 
-  const {
-    register,
-    control,
-    handleSubmit,
-    formState: { errors, isDirty, isSubmitting },
-    setValue,
-  } = useForm<ScenarioFormInput>({
+  const form = useForm<ScenarioFormInput>({
     mode: 'onTouched',
     resolver: zodResolver(
       zodImplement<ScenarioFormInput>().with({
@@ -86,6 +72,12 @@ const ScenarioForm: FunctionComponent<Props> = (props) => {
     ),
     defaultValues: initialValues,
   });
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors, isDirty, isSubmitting },
+  } = form;
 
   return (
     <form
@@ -97,156 +89,37 @@ const ScenarioForm: FunctionComponent<Props> = (props) => {
         marginTop: theme.spacing(2),
       }}
       id="scenarioForm"
-      onSubmit={editable
-        ? handleSubmit((data: ScenarioFormInput) => editable.onSubmit(data, isScenarioAssistantChecked))
-        : event => event.preventDefault()}
+      onSubmit={handleSubmit((data: ScenarioFormInput) => onSubmit(data, isScenarioAssistantChecked))}
     >
       {/* Same sectioned layout as the simulation form (ExerciseForm):
             General, Modules (edit only), Emails and SMS. */}
-      <Typography variant="h2">
-        {t('General')}
-      </Typography>
-      <TextField
-        required
-        label={t('Name')}
-        error={!!errors.scenario_name}
-        helperText={errors.scenario_name?.message}
-        {...register('scenario_name')}
+      <ScenarioGeneralFields form={form} initialValues={initialValues} />
+      <Controller
         control={control}
-        setValue={setValue}
-        disabled={readOnly}
-        askAi={!readOnly}
+        name="scenario_tags"
+        render={({ field: { onChange, value }, fieldState: { error } }) => (
+          <TagField
+            label={t('Tags')}
+            fieldValue={value ?? []}
+            fieldOnChange={onChange}
+            error={error}
+          />
+        )}
       />
-      <div style={{
-        display: 'flex',
-        flexDirection: 'row',
-        gap: 20,
-      }}
-      >
-        <SelectField
-          variant="standard"
-          fullWidth={true}
-          name="scenario_category"
-          disabled={readOnly}
-          label={t('Category')}
-          error={!!errors.scenario_category}
-          control={control}
-          defaultValue={initialValues.scenario_category}
-        >
-          {Array.from(scenarioCategories).map(([key, value]) => (
-            <MenuItem key={key} value={key}>
-              {t(value)}
-            </MenuItem>
-          ))}
-        </SelectField>
-        <SelectField
-          variant="standard"
-          fullWidth={true}
-          name="scenario_main_focus"
-          disabled={readOnly}
-          label={t('Main focus')}
-          error={!!errors.scenario_main_focus}
-          control={control}
-          defaultValue={initialValues.scenario_main_focus}
-        >
-          <MenuItem key="endpoint-protection" value="endpoint-protection">
-            {t('Endpoint Protection')}
-          </MenuItem>
-          <MenuItem key="web-filtering" value="web-filtering">
-            {t('Web Filtering')}
-          </MenuItem>
-          <MenuItem key="incident-response" value="incident-response">
-            {t('Incident Response')}
-          </MenuItem>
-          <MenuItem key="standard-operating-procedure" value="standard-operating-procedure">
-            {t('Standard Operating Procedures')}
-          </MenuItem>
-          <MenuItem key="crisis-communication" value="crisis-communication">
-            {t('Crisis Communication')}
-          </MenuItem>
-          <MenuItem key="strategic-reaction" value="strategic-reaction">
-            {t('Strategic Reaction')}
-          </MenuItem>
-        </SelectField>
-      </div>
-      <div style={{
-        display: 'flex',
-        flexDirection: 'row',
-        gap: 20,
-      }}
-      >
-        <SelectField
-          variant="standard"
-          fullWidth={true}
-          name="scenario_severity"
-          disabled={readOnly}
-          label={t('Severity')}
-          error={!!errors.scenario_severity}
-          control={control}
-          defaultValue={initialValues.scenario_severity}
-        >
-          <MenuItem key="low" value="low">
-            {t('Low')}
-          </MenuItem>
-          <MenuItem key="medium" value="medium">
-            {t('Medium')}
-          </MenuItem>
-          <MenuItem key="high" value="high">
-            {t('High')}
-          </MenuItem>
-          <MenuItem key="critical" value="critical">
-            {t('Critical')}
-          </MenuItem>
-        </SelectField>
-        <DefaultKillChainSelectField<ScenarioFormInput>
-          name="scenario_default_kill_chain"
-          disabled={readOnly}
-          control={control}
-          defaultValue={initialValues.scenario_default_kill_chain ?? undefined}
-        />
-      </div>
-      <TextField
-        multiline
-        rows={5}
-        label={t('Description')}
-        error={!!errors.scenario_description}
-        helperText={errors.scenario_description?.message}
-        {...register('scenario_description')}
-        control={control}
-        setValue={setValue}
-        disabled={readOnly}
-        askAi={!readOnly}
-      />
-      {!readOnly && (
-        <Controller
-          control={control}
-          name="scenario_tags"
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
-            <TagField
-              label={t('Tags')}
-              fieldValue={value ?? []}
-              fieldOnChange={onChange}
-              error={error}
-            />
-          )}
-        />
-      )}
-      {editable?.isCreation && (
+      {isCreation && (
         <Checkbox
           checked={isScenarioAssistantChecked}
           onCheckedChange={() => setIsScenarioAssistantChecked(!isScenarioAssistantChecked)}
           label={t('Use the scenario assistant')}
         />
       )}
-      {!readOnly && (
-        <LessonsLearnedSection
-          control={control}
-          name="scenario_lessons_enabled"
-          disabled={disabled}
-          style={{ marginTop: theme.spacing(2) }}
-        />
-      )}
-      {!isChaining && !readOnly && (
+      <LessonsLearnedSection
+        control={control}
+        name="scenario_lessons_enabled"
+        disabled={disabled}
+        style={{ marginTop: theme.spacing(2) }}
+      />
+      {!isChaining && (
         <>
           <Typography variant="h2" style={{ marginTop: theme.spacing(2) }}>
             {t('Emails and SMS')}
@@ -324,21 +197,19 @@ const ScenarioForm: FunctionComponent<Props> = (props) => {
           />
         </>
       )}
-      {editable && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: theme.spacing(1),
-        }}
-        >
-          <Button type="button" priority="secondary" onClick={editable.handleClose} disabled={isSubmitting}>
-            {t('Cancel')}
-          </Button>
-          <Button type="submit" disabled={!isDirty || isSubmitting}>
-            {editable.editing ? t('Update') : t('Create')}
-          </Button>
-        </div>
-      )}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: theme.spacing(1),
+      }}
+      >
+        <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
+          {t('Cancel')}
+        </Button>
+        <Button type="submit" disabled={!isDirty || isSubmitting}>
+          {editing ? t('Update') : t('Create')}
+        </Button>
+      </div>
     </form>
   );
 };

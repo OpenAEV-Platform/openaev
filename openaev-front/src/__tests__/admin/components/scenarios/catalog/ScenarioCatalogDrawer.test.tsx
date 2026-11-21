@@ -17,12 +17,7 @@ vi.mock('../../../../../components/i18n', () => ({
   }),
 }));
 vi.mock('../../../../../actions/catalog/scenario-catalog-actions', () => ({ fetchCatalogScenarioVersions: mocks.fetchCatalogScenarioVersions }));
-vi.mock('../../../../../admin/components/scenarios/ScenarioForm', () => ({
-  default: ({ readOnly, initialValues }: {
-    readOnly?: boolean;
-    initialValues: unknown;
-  }) => <pre data-testid="scenario-form" data-read-only={String(readOnly)}>{JSON.stringify(initialValues)}</pre>,
-}));
+vi.mock('../../../../../admin/components/scenarios/catalog/ScenarioCatalogFacts', () => ({ default: ({ values }: { values: unknown }) => <pre data-testid="scenario-form">{JSON.stringify(values)}</pre> }));
 vi.mock('../../../../../components/common/Drawer', () => ({
   default: ({ open, children }: {
     open: boolean;
@@ -114,7 +109,6 @@ describe('ScenarioCatalogDrawer', () => {
         scenario_severity: 'high',
         scenario_tags: [],
       });
-      expect(screen.getByTestId('scenario-form').dataset.readOnly).toBe('true');
     });
 
     it('given_noOptionalFactsAndNoVersions_should_showTheVersionAndTheNameOnly', async () => {

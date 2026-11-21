@@ -13,7 +13,7 @@ vi.mock('../../../../admin/components/common/form/useAskAiAvailability', () => (
   }),
 }));
 vi.mock('../../../../components/fields/TagField', () => ({ default: ({ label }: { label: string }) => <span>{label}</span> }));
-vi.mock('../../../../admin/components/common/filters/DefaultKillChainSelectField', () => ({ default: ({ disabled }: { disabled?: boolean }) => <select aria-label="Default kill chain" disabled={disabled} /> }));
+vi.mock('../../../../admin/components/common/filters/DefaultKillChainSelectField', () => ({ default: () => <select aria-label="Default kill chain" /> }));
 
 const { default: ScenarioForm } = await import('../../../../admin/components/scenarios/ScenarioForm');
 
@@ -35,37 +35,6 @@ const renderForm = (props: ComponentProps<typeof ScenarioForm>) => render(
 describe('ScenarioForm', () => {
   afterEach(() => {
     cleanup();
-  });
-
-  describe('read only', () => {
-    it('given_readOnly_should_showTheValuesInDisabledFields', () => {
-      // Act
-      const { container } = renderForm({
-        readOnly: true,
-        initialValues: VALUES,
-      });
-
-      // Assert
-      expect(screen.getByDisplayValue('Phishing')).toBeTruthy();
-      expect(screen.getByDisplayValue('A phishing campaign')).toBeTruthy();
-      const fields = [...container.querySelectorAll('input:not([aria-hidden]):not([type=hidden]), textarea'), ...screen.getAllByRole('combobox')];
-      expect(fields.length).toBeGreaterThan(0);
-      fields.forEach(field => expect((field as HTMLInputElement).disabled).toBe(true));
-    });
-
-    it('given_readOnly_should_leaveOutTagsModulesEmailsAndButtons', () => {
-      // Act
-      renderForm({
-        readOnly: true,
-        initialValues: VALUES,
-      });
-
-      // Assert
-      expect(screen.queryByText('Tags')).toBeNull();
-      expect(screen.queryByText('Modules')).toBeNull();
-      expect(screen.queryByText('Emails and SMS')).toBeNull();
-      expect(screen.queryAllByRole('button', { name: /Cancel|Create|Update/ })).toHaveLength(0);
-    });
   });
 
   describe('editable', () => {

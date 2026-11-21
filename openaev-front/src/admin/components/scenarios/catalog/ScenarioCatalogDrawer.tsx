@@ -9,8 +9,8 @@ import { useFormatter } from '../../../../components/i18n';
 import PlatformIconGroup from '../../../../components/PlatformIconGroup';
 import { type CatalogScenarioOutput, type CatalogScenarioRequirementOutput } from '../../../../utils/api-types';
 import { catalogConnectorUrl } from '../../integrations/catalog_connectors/catalog-facets';
-import ScenarioForm from '../ScenarioForm';
 import CatalogScenarioAction from './CatalogScenarioAction';
+import ScenarioCatalogFacts from './ScenarioCatalogFacts';
 import useCatalogScenarioVersion from './useCatalogScenarioVersion';
 
 interface Props {
@@ -72,7 +72,7 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
           </div>
           {loading || !formValues
             ? <Spinner size="sm" />
-            : <ScenarioForm key={`${scenario.catalog_scenario_external_id}:${scenario.catalog_scenario_version}`} readOnly initialValues={formValues} />}
+            : <ScenarioCatalogFacts key={`${scenario.catalog_scenario_external_id}:${scenario.catalog_scenario_version}`} values={formValues} />}
           {missing.length > 0 && (
             <Field label={t('Missing to run it')}>
               <div style={column}>
