@@ -307,22 +307,39 @@ test.describe('Exploration graph interactions', () => {
           r: r.width / 2,
         };
       });
+      const boxRect = {
+        left: box.left,
+        top: box.top,
+        width: box.width,
+        height: box.height,
+      };
+      // Distance from each bubble centre to the panel, minus its radius: never negative (no bubble under it).
+      const panelGaps = panelRect
+        ? circles.map((c) => {
+            const nearestX = Math.max(panelRect.left, Math.min(c.x, panelRect.right));
+            const nearestY = Math.max(panelRect.top, Math.min(c.y, panelRect.bottom));
+            return Math.hypot(c.x - nearestX, c.y - nearestY) - c.r;
+          })
+        : [];
+      // The whole canvas, then below the panel (full width) and beside it (full height), its 8 px offset and
+      // 16 px margin out.
+      const rooms = [{
+        width: boxRect.width,
+        height: boxRect.height,
+      }].concat(panelRect
+        ? [{
+            width: boxRect.width,
+            height: boxRect.top + boxRect.height - panelRect.bottom - 16,
+          }, {
+            width: panelRect.left - 8 - boxRect.left,
+            height: boxRect.height,
+          }]
+        : []);
       return {
-        box: {
-          left: box.left,
-          top: box.top,
-          width: box.width,
-          height: box.height,
-        },
+        box: boxRect,
         circles,
-        panel: panelRect
-          ? {
-              left: panelRect.left,
-              top: panelRect.top,
-              right: panelRect.right,
-              bottom: panelRect.bottom,
-            }
-          : null,
+        panelGaps,
+        rooms,
       };
     });
     geometry.circles.forEach((c) => {
@@ -338,29 +355,12 @@ test.describe('Exploration graph interactions', () => {
         expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(a.r + b.r - 1);
       }
     }
+    geometry.panelGaps.forEach((gap) => {
+      expect(gap).toBeGreaterThanOrEqual(-1);
+    });
     const spanX = Math.max(...geometry.circles.map(c => c.x + c.r)) - Math.min(...geometry.circles.map(c => c.x - c.r));
     const spanY = Math.max(...geometry.circles.map(c => c.y + c.r)) - Math.min(...geometry.circles.map(c => c.y - c.r));
-    const rooms = [{
-      width: geometry.box.width,
-      height: geometry.box.height,
-    }];
-    const { panel } = geometry;
-    if (panel) {
-      geometry.circles.forEach((c) => {
-        const nearestX = Math.max(panel.left, Math.min(c.x, panel.right));
-        const nearestY = Math.max(panel.top, Math.min(c.y, panel.bottom));
-        expect(Math.hypot(c.x - nearestX, c.y - nearestY)).toBeGreaterThanOrEqual(c.r - 1);
-      });
-      // Below the panel (full width) and beside it (full height), its 8 px offset and 16 px margin out.
-      rooms.push({
-        width: geometry.box.width,
-        height: geometry.box.top + geometry.box.height - panel.bottom - 16,
-      }, {
-        width: panel.left - 8 - geometry.box.left,
-        height: geometry.box.height,
-      });
-    }
-    expect(rooms.some(room => spanX >= room.width * 0.9 || spanY >= room.height * 0.9)).toBe(true);
+    expect(geometry.rooms.some(room => spanX >= room.width * 0.9 || spanY >= room.height * 0.9)).toBe(true);
 
     // The grey state is explained, and a click selects a bubble.
     await expect(page.getByTestId('graph-overview-not-tested-help')).toBeVisible();
