@@ -11,9 +11,12 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Filters;
+import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.Vulnerability;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -21,14 +24,18 @@ import io.openaev.utils.fixtures.FindingFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.VulnerabilityFixture;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.FindingComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
+import io.openaev.utils.fixtures.composers.VulnerabilityComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -59,6 +66,7 @@ class FindingSearchApiTest extends IntegrationTest {
   @Autowired private InjectComposer injectComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private VulnerabilityComposer vulnerabilityComposer;
 
   @BeforeEach
   void setUp() {
@@ -67,6 +75,7 @@ class FindingSearchApiTest extends IntegrationTest {
     injectComposer.reset();
     exerciseComposer.reset();
     scenarioComposer.reset();
+    vulnerabilityComposer.reset();
   }
 
   @Nested
@@ -266,6 +275,87 @@ class FindingSearchApiTest extends IntegrationTest {
               .contentType(MediaType.APPLICATION_JSON)
               .accept(MediaType.APPLICATION_JSON)
               .with(csrf()));
+    }
+  }
+
+  @Nested
+  @DisplayName("Severity filter")
+  @WithMockUser
+  class SeverityFilter {
+
+    @Test
+    @DisplayName(
+        "Filtering on a severity should return the CVE findings of that rating, read from the"
+            + " vulnerabilities of the same tenant only")
+    void given_severityFilter_should_returnTheCveFindingsOfThatRatingInTheSameTenant()
+        throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.ACCESS_FINDINGS, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_FINDINGS, Capability.ACCESS_ASSESSMENT));
+      String criticalCve = VulnerabilityFixture.getRandomExternalVulnerabilityId();
+      String mediumCve = VulnerabilityFixture.getRandomExternalVulnerabilityId();
+
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      persistVulnerability(criticalCve, "9.8");
+      persistVulnerability(mediumCve, "4.5");
+      persistFindings(
+          List.of(
+              cveFinding(criticalCve),
+              cveFinding(mediumCve),
+              FindingFixture.createDefaultTextFindingWithRandomValue()));
+
+      // The same CVE scored critical in another tenant must not make tenant X's finding critical.
+      tenantIsolationHelper.switchToTenant(tenantY.getId(), entityManager);
+      persistVulnerability(mediumCve, "9.8");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      String response =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/findings/search?distinct=true")
+                      .content(
+                          asJsonString(
+                              PaginationFixture.simpleSearchWithAndOperator(
+                                  "finding_severity", "CRITICAL", Filters.FilterOperator.eq)))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertEquals(Integer.valueOf(1), JsonPath.read(response, "$.totalElements"));
+      assertEquals(criticalCve, JsonPath.read(response, "$.content[0].finding_value"));
+    }
+
+    private Finding cveFinding(String cveId) {
+      Finding finding = FindingFixture.createDefaultCveFindingWithRandomTitle();
+      finding.setValue(cveId);
+      return finding;
+    }
+
+    private void persistVulnerability(String cveId, String cvss) {
+      Vulnerability vulnerability = VulnerabilityFixture.createVulnerabilityInput(cveId);
+      vulnerability.setCvssV31(new BigDecimal(cvss));
+      vulnerabilityComposer.forVulnerability(vulnerability).persist();
+    }
+
+    private void persistFindings(List<Finding> findings) {
+      InjectComposer.Composer injectWrapper =
+          injectComposer.forInject(InjectFixture.getDefaultInject());
+      findings.forEach(finding -> injectWrapper.withFinding(findingComposer.forFinding(finding)));
+      exerciseComposer
+          .forExercise(ExerciseFixture.createFinishedAttackExercise())
+          .withInject(injectWrapper)
+          .persist();
     }
   }
 

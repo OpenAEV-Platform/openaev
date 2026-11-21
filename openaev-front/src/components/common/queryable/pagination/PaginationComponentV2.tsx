@@ -1,6 +1,6 @@
 import { Button, Chip } from '@filigran/design-system';
 import { GridViewOutlined } from '@mui/icons-material';
-import { Box } from '@mui/material';
+import { Box, type SxProps, type Theme } from '@mui/material';
 import { cloneElement, type ReactElement, useEffect, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -81,6 +81,8 @@ interface Props<T> {
   reloadContentCount?: number;
   contextId?: string;
   topPagination?: boolean;
+  /** Spacing override of the active filter chips row (see FilterChips). */
+  filterChipsSx?: SxProps<Theme>;
   // Marketplace toolbars: the number of results, and each next page appended under the list.
   resultsCount?: boolean;
   infiniteScroll?: boolean;
@@ -105,6 +107,7 @@ const PaginationComponentV2 = <T extends object>({
   reloadContentCount = 0,
   contextId,
   topPagination = false,
+  filterChipsSx,
   resultsCount = false,
   infiniteScroll = false,
 }: Props<T>) => {
@@ -391,6 +394,7 @@ const PaginationComponentV2 = <T extends object>({
         helpers={queryableHelpers.filterHelpers}
         pristine={pristine}
         contextId={contextId}
+        sx={filterChipsSx}
       />
     </>
   );
