@@ -131,4 +131,79 @@ class UserMappingServicePlatformGroupWriteTest extends ProductionTablesIntegrati
             "SELECT count(*) FROM users_groups WHERE user_id = ?", Integer.class, userId);
     assertThat(remaining).isZero();
   }
+
+  @Test
+  @DisplayName("given_duplicatePlatformGroupNamesAndAMembership_should_keepItOnIdpGrant")
+  void given_duplicatePlatformGroupNamesAndAMembership_should_keepItOnIdpGrant() {
+    // Arrange: two platform groups share the name and the user already holds the higher id one
+    User user = saveUser("platform-twins-member");
+    String name = "sso-twin-group-" + UUID.randomUUID();
+    List<String> ids = insertPlatformTwins(name);
+    String held = ids.getLast();
+    jdbc.update("INSERT INTO users_groups (user_id, group_id) VALUES (?, ?)", userId, held);
+
+    // Act: the idp still lists the user in the mapped group
+    mapInTransaction(name, user, List.of("idp-group"));
+
+    // Assert: the login went through and the membership is the one the user already had
+    assertThat(groupIdsOf(userId)).containsExactly(held);
+  }
+
+  @Test
+  @DisplayName("given_duplicatePlatformGroupNamesAndNoMembership_should_joinTheLowestId")
+  void given_duplicatePlatformGroupNamesAndNoMembership_should_joinTheLowestId() {
+    // Arrange: two platform groups share the name, the user holds neither
+    User user = saveUser("platform-twins-new");
+    String name = "sso-twin-group-" + UUID.randomUUID();
+    List<String> ids = insertPlatformTwins(name);
+
+    // Act
+    mapInTransaction(name, user, List.of("idp-group"));
+
+    // Assert: one membership, on the same group whatever the row order
+    assertThat(groupIdsOf(userId)).containsExactly(ids.getFirst());
+  }
+
+  private User saveUser(String lastname) {
+    User user =
+        userRepository.save(
+            UserFixture.getUser(
+                "sso",
+                lastname,
+                "sso-" + lastname + "-" + UUID.randomUUID() + "@unittests.invalid"));
+    userId = user.getId();
+    return user;
+  }
+
+  /** Two platform groups of {@code name}, their ids in ascending order. */
+  private List<String> insertPlatformTwins(String name) {
+    List<String> ids =
+        java.util.stream.Stream.generate(() -> UUID.randomUUID().toString())
+            .limit(2)
+            .sorted()
+            .toList();
+    for (String id : ids) {
+      twinGroupIds.add(id);
+      jdbc.update(
+          "INSERT INTO groups (group_id, group_name, tenant_id) VALUES (?, ?, NULL)", id, name);
+    }
+    return ids;
+  }
+
+  private void mapInTransaction(String groupName, User user, List<String> tokenGroups) {
+    String mapping =
+        "[{\"idpGroup\": \"idp-group\",\"userGroup\": \"%s\",\"autoCreate\": \"false\"}]"
+            .formatted(groupName);
+    tenantScopedTransaction.execute(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> {
+          userMappingService.mapCurrentUserWithGroup(mapping, user, tokenGroups);
+          return null;
+        });
+  }
+
+  private List<String> groupIdsOf(String user) {
+    return jdbc.queryForList(
+        "SELECT group_id FROM users_groups WHERE user_id = ?", String.class, user);
+  }
 }

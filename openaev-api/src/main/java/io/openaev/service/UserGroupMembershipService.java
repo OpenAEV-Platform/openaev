@@ -7,6 +7,8 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,8 @@ public class UserGroupMembershipService {
           + "ON CONFLICT (group_id, user_id) DO NOTHING";
   private static final String DELETE_MEMBERSHIP =
       "DELETE FROM users_groups WHERE user_id = :userId AND group_id = :groupId";
+  private static final String COUNT_MEMBERSHIPS =
+      "SELECT count(*) FROM users_groups WHERE user_id = :userId AND group_id IN (:groupIds)";
 
   private final GroupRepository groupRepository;
   private final UserRepository userRepository;
@@ -61,6 +65,25 @@ public class UserGroupMembershipService {
                 () -> executeMembershipWrite(DELETE_MEMBERSHIP, userId, groupId))
             : executeMembershipWrite(DELETE_MEMBERSHIP, userId, groupId);
     return deleted > 0;
+  }
+
+  /**
+   * Whether {@code userId} holds any of {@code groupIds}, read from the join table rather than from
+   * a loaded bag, which is stale once a native membership write has run in the transaction.
+   */
+  public boolean isMemberOfAny(
+      @NotBlank final String userId, @NotNull final Collection<String> groupIds) {
+    if (groupIds.isEmpty()) {
+      return false;
+    }
+    Number count =
+        (Number)
+            entityManager
+                .createNativeQuery(COUNT_MEMBERSHIPS)
+                .setParameter("userId", userId)
+                .setParameter("groupIds", groupIds)
+                .getSingleResult();
+    return count.longValue() > 0;
   }
 
   /**
