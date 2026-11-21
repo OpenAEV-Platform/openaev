@@ -46,17 +46,22 @@ class AddMarkingDefinitionStixIdMigrationTest extends IntegrationTest {
   @Test
   @DisplayName("Given an id another definition of the tenant carries should leave it without one")
   void given_idCarriedByAnotherDefinition_should_leaveItWithoutOne() {
-    // Arrange - the default tenant's seeded TLP:CLEAR carries OpenCTI's id; TLP:WHITE is the same
-    // OpenCTI marking, so it cannot carry it too.
-    String sharedId = MarkingDefinitionStixIds.generate("TLP", "TLP:WHITE");
+    // Arrange - a definition of the tenant already carries the id OpenCTI gives a second one (as
+    // TLP:CLEAR carries TLP:WHITE's): the second cannot carry it too. Both rows are seeded here so
+    // the test does not depend on what the default tenant's datapacks left in the database.
+    String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    String later = "PAP:LATER-" + suffix;
+    String sharedId = MarkingDefinitionStixIds.generate("PAP", later);
+    seed("PAP", "PAP:CARRIER-" + suffix, sharedId);
     assertThat(countCarrying(sharedId)).isEqualTo(1);
-    String white = seed("TLP", "TLP:WHITE", null);
+    String second = seed("PAP", later, null);
 
     // Act
     runMigration();
 
     // Assert
-    assertThat(stixIdOf(white)).isNull();
+    assertThat(stixIdOf(second)).isNull();
+    assertThat(countCarrying(sharedId)).isEqualTo(1);
   }
 
   @Test
