@@ -15077,7 +15077,7 @@ export interface XtmHubRegistrationOutput {
 
 export interface XtmPeerTokenInput {
   /**
-   * The consumer product (opencti, opencrq, xtm-one)
+   * The consumer product; only opencrq is accepted today, under the email opencrq@xtm.<product>.filigran.io
    * @minLength 0
    * @maxLength 64
    */
