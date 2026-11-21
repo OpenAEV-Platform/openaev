@@ -234,7 +234,11 @@ public class InjectService {
     inject.setTags(tagService.tagSet(input.getTagIds(), parentTenantId));
     List<InjectDocument> injectDocuments =
         input.getDocuments().stream()
-            .map(i -> i.toDocument(documentService.document(i.getDocumentId()), inject))
+            .map(
+                i ->
+                    i.toDocument(
+                        documentService.documentInTenant(i.getDocumentId(), parentTenantId),
+                        inject))
             .toList();
     inject.setDocuments(injectDocuments);
     // Set dependencies
@@ -1285,7 +1289,9 @@ public class InjectService {
         .filter(doc -> !currentDocumentIds.contains(doc.getDocumentId()))
         .forEach(
             in -> {
-              Optional<Document> doc = this.documentRepository.findById(in.getDocumentId());
+              Optional<Document> doc =
+                  this.documentRepository.findByIdInTenant(
+                      in.getDocumentId(), inject.getTenant().getId());
               if (doc.isPresent()) {
                 InjectDocument injectDocument = new InjectDocument();
                 injectDocument.setInject(inject);

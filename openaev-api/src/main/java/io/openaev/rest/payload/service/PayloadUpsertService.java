@@ -127,9 +127,10 @@ public class PayloadUpsertService {
     }
 
     if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
+      executable.setExecutableFile(
+          documentService.documentInTenant(input.getExecutableFile(), tenantId));
     } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
+      fileDrop.setFileDropFile(documentService.documentInTenant(input.getFileDropFile(), tenantId));
     }
 
     Payload saved = payloadRepository.save(payload);
@@ -163,6 +164,12 @@ public class PayloadUpsertService {
     Payload payload = (Payload) Hibernate.unproxy(existingPayload);
     payloadUtils.copyProperties(input, payload, true);
 
+    // Resolved from the existing payload's own tenant, not the request's write-scope tenant
+    // (mirrors PayloadUpdateService#update): the upsert's lookup by external id carries no tenant
+    // predicate, so the two can diverge, and an update must never attribute or link anything to a
+    // tenant other than the one this payload already belongs to.
+    tenantId = existingPayload.getTenant().getId();
+
     if (collectorType != null) {
       payload.setCollectorType(collectorType);
     }
@@ -180,9 +187,10 @@ public class PayloadUpsertService {
     final Set<Domain> domainsToAdd = this.domainService.upserts(input.getDomains(), tenantId);
 
     if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
+      executable.setExecutableFile(
+          documentService.documentInTenant(input.getExecutableFile(), tenantId));
     } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
+      fileDrop.setFileDropFile(documentService.documentInTenant(input.getFileDropFile(), tenantId));
     }
 
     Payload saved = payloadRepository.save(payload);

@@ -15,6 +15,7 @@ import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.*;
+import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectBulkDeleteInput;
@@ -69,7 +70,7 @@ public class AtomicTestingService {
   private final UserRepository userRepository;
   private final TeamRepository teamRepository;
   private final TagRepository tagRepository;
-  private final DocumentRepository documentRepository;
+  private final DocumentService documentService;
   private final AssetGroupService assetGroupService;
   private final InjectExpectationService injectExpectationService;
   private final UserService userService;
@@ -205,7 +206,7 @@ public class AtomicTestingService {
                 injectDocument.setCompositeId(injectDocumentId);
                 injectDocument.setInject(finalInjectToSave);
                 injectDocument.setDocument(
-                    documentRepository.findById(i.getDocumentId()).orElseThrow());
+                    documentService.documentInTenant(i.getDocumentId(), injectTenantId));
               }
               injectDocument.setAttached(i.isAttached());
               finalInjectToSave

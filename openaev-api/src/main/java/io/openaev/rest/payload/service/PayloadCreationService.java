@@ -79,12 +79,14 @@ public class PayloadCreationService {
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = payloadType.getPayloadSupplier().get();
-    payload.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, explicitTenant)));
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, explicitTenant);
+    payload.setTenant(new Tenant(tenantId));
     payloadUtils.copyProperties(input, payload);
     if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
+      executable.setExecutableFile(
+          documentService.documentInTenant(input.getExecutableFile(), tenantId));
     } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
+      fileDrop.setFileDropFile(documentService.documentInTenant(input.getFileDropFile(), tenantId));
     }
     return payload;
   }
