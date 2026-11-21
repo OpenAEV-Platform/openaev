@@ -54,7 +54,7 @@ import {
   ZoomInOutlined,
   ZoomOutOutlined,
 } from '@mui/icons-material';
-import { Box, Drawer, List, ListItemButton, ListItemText } from '@mui/material';
+import { Box, List, ListItemButton, ListItemText } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
   Background,
@@ -77,13 +77,12 @@ import { useFormatter } from '../../../components/i18n';
 import { resolveCounterparts } from '../../../components/xtm/counterpartStore';
 import { OPENCTI_PRODUCT } from '../../../components/xtm/useCounterpart';
 import useCounterpartMatches, { type CounterpartRef, counterpartRefId } from '../../../components/xtm/useCounterpartMatches';
-import OpenCrqPivot, { OPENCRQ_PRODUCT, OpenCrqMark } from '../../../components/xtm/XtmOpenCrq';
-import OpenCtiPivot, { ProductMark } from '../../../components/xtm/XtmPivot';
+import { OPENCRQ_PRODUCT, OpenCrqMark } from '../../../components/xtm/XtmOpenCrq';
+import { ProductMark } from '../../../components/xtm/XtmPivot';
 import { toHttpUrl } from '../../../utils/url-helper';
 import { drawnRelations, nodeConnections } from './graph-connections';
 import { NODE_LABEL_OFFSET, NODE_WIDTH } from './graph-edge-geometry';
 import { type GroupedNode, groupNeighbours, isGroupId, miniView } from './graph-grouping';
-import NODE_ICON from './graph-icons';
 import { LASSO_MIN_LENGTH, nodesInLasso, pathLength } from './graph-lasso';
 import { entering, type GraphLayout, MINI_CARD_PADDING, miniCardHeight, moveAt, planMove, type Point } from './graph-layout';
 import { linkItem, menuItem, routeItem, subTriggerLabel } from './graph-menu-items';
@@ -129,6 +128,7 @@ import GraphContextMenu from './GraphContextMenu';
 import GraphEntityNode, { type GraphEntityNodeType } from './GraphEntityNode';
 import GraphFloatingEdge from './GraphFloatingEdge';
 import GraphLegend from './GraphLegend';
+import GraphSidePanel from './GraphSidePanel';
 
 /** The ids of the nodes whose counterpart key is among the matched ones of a product. */
 const matchedNodeIds = (refs: Map<string, CounterpartRef>, found: Set<string>) => new Set(Array.from(refs.entries())
@@ -1104,7 +1104,6 @@ const GraphExplorerInner = ({
   );
 
   const panelOpen = Boolean(selectedNode && interactive);
-  const selectedCounterpart = selectedNode ? nodeCounterpart(selectedNode) : null;
 
   // "Targets · 12 (8 not shown)": a relation of the expand lists with its count in the data and
   // what the screen does not draw yet; the bare label when the node was not counted.
@@ -1119,117 +1118,26 @@ const GraphExplorerInner = ({
   };
 
   const panel = selectedNode && interactive && (
-    <Drawer
-      data-testid="graph-side-panel"
-      anchor="right"
-      variant="persistent"
-      open={panelOpen}
-      slotProps={{
-        paper: {
-          sx: {
-            position: 'absolute',
-            width: PANEL_WIDTH,
-            p: 2,
-          },
-        },
+    <GraphSidePanel
+      node={selectedNode}
+      width={PANEL_WIDTH}
+      neighbours={neighbours}
+      nodeActions={nodeActions}
+      pinned={state.pinned.includes(selectedNode.node_id)}
+      pathFromHere={pathFrom === selectedNode.node_id}
+      truncated={state.truncatedAt.includes(selectedNode.node_id)}
+      relationLabel={relationLabel}
+      onClose={() => setSelected(null)}
+      onExpand={(edges, limit) => expand(selectedNode, edges, limit)}
+      onFindPath={() => setPathFrom(selectedNode.node_id)}
+      onTogglePin={() => commit(s => togglePin(s, selectedNode.node_id))}
+      onHide={() => {
+        commit(s => hideNode(s, selectedNode.node_id));
+        setSelected(null);
       }}
-      sx={{
-        '& .MuiDrawer-paper': {
-          height: '100%',
-          boxSizing: 'border-box',
-        },
-      }}
-    >
-      <div className="flex items-center gap-2">
-        {NODE_ICON[selectedNode.node_type]()}
-        <Text variant="title-sm" as="div" className="min-w-0 truncate" style={{ flexGrow: 1 }}>
-          {selectedNode.node_label}
-        </Text>
-        <IconButton priority="tertiary" icon={<CloseOutlined fontSize="small" />} onClick={() => setSelected(null)} aria-label={t('Close')} />
-      </div>
-      <Text variant="content-compact" as="div" className="text-default-secondary">
-        {t(NODE_TYPE_LABEL[selectedNode.node_type])}
-        {selectedNode.node_subtype ? ` · ${selectedNode.node_subtype}` : ''}
-      </Text>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Chip severity={selectedNode.node_failed_count > 0 ? 'critical' : 'neutral'} label={`${t('Failed expectations')}: ${selectedNode.node_failed_count}`} />
-        <Chip label={`${t('Findings')}: ${selectedNode.node_finding_count}`} />
-      </div>
-      <div className="mt-4 flex flex-col gap-2">
-        {/* The node's counterparts, as on the entity's own screen: "Open in", "Not in" or the
-            connect call to action, per product. */}
-        {selectedCounterpart && <OpenCtiPivot kind={selectedCounterpart.kind} objectKey={selectedCounterpart.key} size="md" />}
-        {selectedCounterpart && <OpenCrqPivot kind={selectedCounterpart.kind} objectKey={selectedCounterpart.key} size="md" />}
-        {nodeHref(selectedNode) && (
-          <Button asChild priority="secondary">
-            <Link to={nodeHref(selectedNode) as string}>
-              <OpenInNewOutlined fontSize="small" />
-              {t('Open')}
-            </Link>
-          </Button>
-        )}
-        <Button type="button" priority="secondary" startIcon={<CenterFocusStrongOutlined fontSize="small" />} onClick={() => expand(selectedNode)}>
-          {t('Expand')}
-        </Button>
-        <Button
-          type="button"
-          priority="secondary"
-          startIcon={<RouteOutlined fontSize="small" />}
-          onClick={() => setPathFrom(selectedNode.node_id)}
-          disabled={pathFrom === selectedNode.node_id}
-        >
-          {pathFrom === selectedNode.node_id ? t('Select the destination node') : t('Find a path from here')}
-        </Button>
-        <div className="flex gap-2">
-          <Button type="button" priority="tertiary" startIcon={<PushPinOutlined fontSize="small" />} onClick={() => commit(s => togglePin(s, selectedNode.node_id))}>
-            {state.pinned.includes(selectedNode.node_id) ? t('Unpin') : t('Pin')}
-          </Button>
-          <Button
-            type="button"
-            priority="tertiary"
-            startIcon={<VisibilityOffOutlined fontSize="small" />}
-            onClick={() => {
-              commit(s => hideNode(s, selectedNode.node_id));
-              setSelected(null);
-            }}
-          >
-            {t('Hide')}
-          </Button>
-        </div>
-        {nodeActions.filter(a => a.appliesTo(selectedNode)).map(action => (
-          <Button key={action.key} type="button" priority="secondary" startIcon={action.icon} onClick={() => action.onClick(selectedNode)}>
-            {action.label}
-          </Button>
-        ))}
-      </div>
-      <Text variant="content-compact-bold" as="div" className="mt-4">{t('Expand by relation')}</Text>
-      <div className="mt-1 flex flex-wrap gap-1">
-        {EDGE_TYPES_BY_NODE_TYPE[selectedNode.node_type].map(type => (
-          <Chip key={type} label={relationLabel(selectedNode, type)} onClick={() => expand(selectedNode, [type])} />
-        ))}
-      </div>
-      {state.truncatedAt.includes(selectedNode.node_id) && (
-        <div className="mt-2">
-          <Button type="button" priority="tertiary" onClick={() => expand(selectedNode, [], 200)}>{t('Load more')}</Button>
-        </div>
-      )}
-      <Text variant="content-compact-bold" as="div" className="mt-4">{t('Neighbours')}</Text>
-      <List dense sx={{ overflowY: 'auto' }}>
-        {neighbours.map(({ node, type, result }) => (
-          <ListItemButton
-            key={`${type}-${node.node_id}`}
-            onClick={() => setSelected(node.node_id)}
-            onMouseEnter={() => setHovered(node.node_id)}
-            onMouseLeave={() => setHovered(null)}
-          >
-            <ListItemText
-              primary={node.node_label}
-              secondary={`${t(EDGE_TYPE_LABEL[type])} · ${t(NODE_TYPE_LABEL[node.node_type])}${result ? ` · ${t(RESULT_LABEL[result])}` : ''}`}
-            />
-          </ListItemButton>
-        ))}
-      </List>
-    </Drawer>
+      onSelect={setSelected}
+      onHover={setHovered}
+    />
   );
 
   // The right-click menu, as OpenCTI's GraphContextMenu: the actions that apply to what is under the
