@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -186,9 +187,9 @@ class NotificationEngineServiceTest {
             Set.of(NotificationTriggerEventType.CREATE), TENANT_A, List.of("reader", "restricted"));
     when(cacheService.getLiveTriggers(ResourceType.SCENARIO)).thenReturn(List.of(trigger));
     when(matchingService.matches(eq(trigger), any(), anyString())).thenReturn(true);
-    when(recipientFilter.readersOf(
-            eq(trigger), eq(NotificationResourceCatalog.SCENARIO), eq("scenario-id")))
-        .thenReturn(List.of("reader"));
+    doReturn(List.of("reader"))
+        .when(recipientFilter)
+        .readersOf(eq(trigger), eq(NotificationResourceCatalog.SCENARIO), eq("scenario-id"));
 
     engineService.handleEvent(
         NotificationResourceCatalog.SCENARIO,
@@ -212,7 +213,7 @@ class NotificationEngineServiceTest {
         liveTrigger(Set.of(NotificationTriggerEventType.CREATE), TENANT_A, List.of("restricted"));
     when(cacheService.getLiveTriggers(ResourceType.SCENARIO)).thenReturn(List.of(trigger));
     when(matchingService.matches(eq(trigger), any(), anyString())).thenReturn(true);
-    when(recipientFilter.readersOf(any(), any(), anyString())).thenReturn(List.of());
+    doReturn(List.of()).when(recipientFilter).readersOf(any(), any(), anyString());
 
     engineService.handleEvent(
         NotificationResourceCatalog.SCENARIO,
