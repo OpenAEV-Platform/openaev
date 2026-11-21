@@ -1,6 +1,5 @@
 import { Alert, Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ExploreOutlined, InfoOutlined } from '@mui/icons-material';
-import { Box, Stack } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
@@ -242,7 +241,13 @@ const Graph = () => {
   }
 
   return (
-    <Stack spacing={1} sx={{ height: 'calc(100dvh - 140px)' }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      height: 'calc(100dvh - 140px)',
+    }}
+    >
       <div className="flex flex-wrap items-center gap-2" data-testid="graph-header">
         <Breadcrumbs
           variant="list"
@@ -271,14 +276,14 @@ const Graph = () => {
           </div>
         )}
       </div>
-      <Box sx={{
+      <div style={{
         flexGrow: 1,
         minHeight: 0,
         display: 'flex',
-        gap: 1.5,
+        gap: 12,
       }}
       >
-        <Box sx={{
+        <div style={{
           flexGrow: 1,
           minWidth: 0,
           position: 'relative',
@@ -323,9 +328,9 @@ const Graph = () => {
               </div>
             </div>
           )}
-        </Box>
-      </Box>
-    </Stack>
+        </div>
+      </div>
+    </div>
   );
 };
 

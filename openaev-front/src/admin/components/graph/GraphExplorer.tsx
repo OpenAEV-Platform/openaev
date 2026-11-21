@@ -56,7 +56,7 @@ import {
   ZoomInOutlined,
   ZoomOutOutlined,
 } from '@mui/icons-material';
-import { Box, Drawer, List, ListItemButton, ListItemText, Stack } from '@mui/material';
+import { Box, Drawer, List, ListItemButton, ListItemText } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
   Background,
@@ -1783,7 +1783,13 @@ const GraphExplorerInner = ({
   }
 
   return (
-    <Stack spacing={1.5} sx={{ height }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12,
+      height,
+    }}
+    >
       {interactive && shortcutsDialog}
       {variant === 'page' && entityList}
       {notice && (
@@ -1794,15 +1800,15 @@ const GraphExplorerInner = ({
         />
       )}
       {pathFrom && <Alert severity="info" title={t('Select the destination node to find the shortest path')} />}
-      <Box
+      <div
         ref={wrapper}
         onKeyDown={onKeyDown}
-        sx={{
+        style={{
           position: 'relative',
           flexGrow: 1,
           minHeight: 420,
           overflow: 'hidden',
-          borderRadius: 1,
+          borderRadius: theme.shape.borderRadius,
           border: `1px solid ${theme.palette.divider}`,
         }}
       >
@@ -1870,8 +1876,8 @@ const GraphExplorerInner = ({
         {(!empty || allHidden) && canvasToolbar(sideOffset)}
         {panel}
         {contextMenu}
-      </Box>
-    </Stack>
+      </div>
+    </div>
   );
 };
 

@@ -1,5 +1,4 @@
 import { Alert } from '@filigran/design-system';
-import { Box } from '@mui/material';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -83,9 +82,9 @@ const EntityGraph = ({ type, entityId, variant, height }: Props) => {
   const resolvedHeight = height ?? (variant === 'mini' ? 'auto' : (fillHeight ?? EMBEDDED_GRAPH_MIN_HEIGHT));
 
   return (
-    <Box
+    <div
       ref={anchor}
-      sx={{
+      style={{
         height: resolvedHeight,
         minHeight: variant === 'mini' ? MINI_CARD_MIN_HEIGHT : undefined,
       }}
@@ -100,7 +99,7 @@ const EntityGraph = ({ type, entityId, variant, height }: Props) => {
           onOpen={() => navigate(graphHref(type, entityId))}
         />
       )}
-    </Box>
+    </div>
   );
 };
 
