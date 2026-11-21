@@ -108,11 +108,11 @@ public class TenantSettingsApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @Operation(
-      summary = "Get the safe mode and approval settings of coverage-built scenarios",
+      summary = "Get the scheduling setting of coverage-built scenarios",
       description =
-          "How scenarios built from an OpenCTI security coverage run: safe mode (read-only"
-              + " injects only, the others wait for an approval) and approval before the first"
-              + " run. Both off by default.")
+          "When on, a scenario built from an OpenCTI security coverage has only its read-only"
+              + " injects enabled and no schedule while an inject that is not read-only is"
+              + " present. Off by default.")
   public CoverageScenarioSettingsInput coverageScenarioSettings(
       TxCtx ctx, @PathVariable String tenantId) {
     return tenantSettingsService.findCoverageScenarioSettings(tenantId);
@@ -121,7 +121,7 @@ public class TenantSettingsApi extends RestBehavior {
   @PutMapping("/coverage-scenarios")
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
-  @Operation(summary = "Update the safe mode and approval settings of coverage-built scenarios")
+  @Operation(summary = "Update the scheduling setting of coverage-built scenarios")
   public CoverageScenarioSettingsInput updateCoverageScenarioSettings(
       TxCtx ctx,
       @PathVariable String tenantId,

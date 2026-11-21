@@ -22,14 +22,6 @@ public class ScenarioSpecification {
     return (root, query, cb) -> cb.isNotNull(root.get("recurrence"));
   }
 
-  /** Scenarios whose runs do not wait for an approval (none required, or already given). */
-  public static Specification<Scenario> notWaitingForApproval() {
-    return (root, query, cb) ->
-        cb.or(
-            cb.isNull(root.get("approvalStatus")),
-            cb.notEqual(root.get("approvalStatus"), Scenario.APPROVAL_STATUS.PENDING));
-  }
-
   public static Specification<Scenario> noRecurring() {
     return (root, query, cb) -> cb.isNull(root.get("recurrence"));
   }

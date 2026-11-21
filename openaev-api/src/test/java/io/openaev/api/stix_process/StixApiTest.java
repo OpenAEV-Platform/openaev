@@ -524,6 +524,29 @@ class StixApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "With coverage_scenario_read_only_first at its default, a coverage builds and schedules"
+            + " exactly as before")
+    void defaultSettingKeepsTheBuildAndScheduleOfMain() throws Exception {
+      Instant before = Instant.now();
+      String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+
+      // Same schedule as main: recurrence from the coverage, first run two minutes after ingestion.
+      assertThat(createdScenario.getRecurrence()).asString().isEqualTo("P1D");
+      assertThat(createdScenario.getRecurrenceStart())
+          .isBetween(
+              before.plus(2, ChronoUnit.MINUTES).truncatedTo(ChronoUnit.SECONDS),
+              Instant.now().plus(2, ChronoUnit.MINUTES));
+      assertThat(createdScenario.getScheduledBy()).isNull();
+
+      // Same injects as main, every one of them enabled.
+      Set<Inject> injects = injectRepository.findByScenarioId(scenarioId);
+      assertThat(injects).hasSize(4);
+      assertThat(injects).allMatch(Inject::isEnabled);
+    }
+
+    @Test
     @DisplayName("Should set type affinity null when absent from stix")
     void shouldSetTypeAffinityNullWhenAbsentFromStix() throws Exception {
       JsonNode updated = deleteStixObjectField(stixSecurityCoverage, STIX_TYPE_AFFINITY);

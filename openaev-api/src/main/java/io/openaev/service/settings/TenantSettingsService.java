@@ -1,7 +1,6 @@
 package io.openaev.service.settings;
 
-import static io.openaev.database.model.TenantSettingKeys.COVERAGE_SCENARIO_APPROVAL_REQUIRED;
-import static io.openaev.database.model.TenantSettingKeys.COVERAGE_SCENARIO_SAFE_MODE;
+import static io.openaev.database.model.TenantSettingKeys.COVERAGE_SCENARIO_READ_ONLY_FIRST;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_LANG;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_THEME;
 import static io.openaev.database.model.TenantSettingKeys.PLATFORM_NAME;
@@ -101,23 +100,20 @@ public class TenantSettingsService {
     return findSettings(tenantId);
   }
 
-  /** Effective safe mode and approval settings of coverage-built scenarios. */
+  /** Effective scheduling setting of coverage-built scenarios. */
   @Transactional(readOnly = true)
   public CoverageScenarioSettingsInput findCoverageScenarioSettings(@NotBlank String tenantId) {
     Map<String, Setting> tenantSettings = loadTenantSettings(tenantId);
     return new CoverageScenarioSettingsInput(
-        Boolean.parseBoolean(resolveValue(tenantSettings, COVERAGE_SCENARIO_SAFE_MODE)),
-        Boolean.parseBoolean(resolveValue(tenantSettings, COVERAGE_SCENARIO_APPROVAL_REQUIRED)));
+        Boolean.parseBoolean(resolveValue(tenantSettings, COVERAGE_SCENARIO_READ_ONLY_FIRST)));
   }
 
   public CoverageScenarioSettingsInput updateCoverageScenarioSettings(
       @NotBlank String tenantId, @NotNull CoverageScenarioSettingsInput input) {
-    Tenant tenant = new Tenant(tenantId);
-    upsert(tenant, COVERAGE_SCENARIO_SAFE_MODE.key(), String.valueOf(input.safeMode()));
     upsert(
-        tenant,
-        COVERAGE_SCENARIO_APPROVAL_REQUIRED.key(),
-        String.valueOf(input.approvalRequired()));
+        new Tenant(tenantId),
+        COVERAGE_SCENARIO_READ_ONLY_FIRST.key(),
+        String.valueOf(input.readOnlyFirst()));
     return findCoverageScenarioSettings(tenantId);
   }
 

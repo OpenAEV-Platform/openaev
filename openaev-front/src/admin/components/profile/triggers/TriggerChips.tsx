@@ -25,10 +25,7 @@ const eventTypeSeverity = (eventType: string): ChipSeverity => {
     case 'DELETE':
       return 'critical';
     case 'SCORE_DEGRADATION':
-    case 'APPROVAL_PENDING':
       return 'medium';
-    case 'APPROVED':
-      return 'low';
     case 'SYNC_BLOCKED':
       return 'critical';
     default:

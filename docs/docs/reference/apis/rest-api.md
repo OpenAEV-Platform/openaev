@@ -287,22 +287,19 @@ DELETE /api/assets/{assetId}/links/{linkedAssetId}/{linkType}
 - **Errors**: `400` for a link to the Asset itself or to an Asset of another Tenant, `404` when either Asset (or, on `DELETE`, the link) is not found.
 - **Access**: `GET` needs the right to read the Asset, `POST` and `DELETE` the right to manage it. `GET` lists the links that start or end on the Asset; deleting an Asset deletes its links.
 
-## Coverage scenario safe mode and approval
+## Coverage scenario read-only first
 
-Scenarios built from an OpenCTI Security Coverage can run in safe mode (read-only Injects only) and wait for an approval. See [Scenario generation from OpenCTI Security Coverage](../../usage/build/scenario/security-coverage.md#safe-mode-approval-and-run-order).
+Scenarios built from an OpenCTI Security Coverage can be built with only their read-only Injects enabled. See [Scenario generation from OpenCTI Security Coverage](../../usage/build/scenario/security-coverage.md#read-only-first-build-and-run-order).
 
 ```http
 GET /api/tenants/{tenantId}/tenant-settings/coverage-scenarios
 PUT /api/tenants/{tenantId}/tenant-settings/coverage-scenarios
-POST /api/scenarios/{scenarioId}/approve
-PUT /api/scenarios/{scenarioId}/asset-group-order
 ```
 
-- **Settings body**: `{"coverage_scenario_safe_mode": false, "coverage_scenario_approval_required": false}`. Both default to `false`.
-- **Approve**: records `scenario_approved_by` and `scenario_approved_at`, sets `scenario_approval_status` to `APPROVED` and turns the held Injects back on. Needs the right to launch the Scenario; `409` when the Scenario is not waiting for an approval.
-- **Asset group order body**: `{"scenario_asset_group_order": ["<asset-group-uuid>", ...]}`, first tested first: each rank adds 60 seconds to the start delay of the Injects targeting that group. An empty list clears the order; an Asset Group the Scenario does not target is a `400`.
+- **Settings body**: `{"coverage_scenario_read_only_first": false}`, `false` by default. With the default, a Security Coverage builds and schedules its Scenario exactly as before.
+- **Access**: `GET` needs the right to read Tenant settings, `PUT` the right to manage them.
 - **Read-only marker**: `injector_contract_read_only` on Injector contracts and `payload_read_only` on Payloads, both `false` by default.
-- **Events**: `APPROVAL_PENDING` and `APPROVED` on the `SCENARIO` resource type of live triggers. The message is a JSON document with `schema_version` 1: `scenario_id`, `scenario_name`, `scenario_safe_mode`, `scenario_approval_status`, `security_coverage_external_id`, `scenario_asset_group_order`, `held_injects` or `released_injects` (each with `inject_id`, `inject_title` and its `asset_groups`), and `approve_url` (pending) or `approved_by`, `approved_at` and `scenario_url` (approved).
+- **Starting a held Scenario**: the existing `PUT /api/scenarios/{scenarioId}/recurrence` (launch right on the Scenario, records `scenario_scheduled_by`) and `inject_enabled` on each held Inject. Run order: the existing `inject_depends_duration` of each Inject.
 
 ## Finding re-test
 

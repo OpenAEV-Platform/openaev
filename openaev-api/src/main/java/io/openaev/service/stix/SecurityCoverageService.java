@@ -19,7 +19,6 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
-import io.openaev.notification.handler.ScenarioApprovalNotifier;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.opencti.errors.ConnectorError;
@@ -30,7 +29,6 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.PreviewFeatureService;
-import io.openaev.service.scenario.ScenarioApprovalService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.stix.error.BundleValidationError;
@@ -93,8 +91,6 @@ public class SecurityCoverageService {
 
   private final SecurityCoverageUtils securityCoverageUtils;
   private final ResultsMetricCollector resultsMetricCollector;
-  private final ScenarioApprovalService scenarioApprovalService;
-  private final ScenarioApprovalNotifier scenarioApprovalNotifier;
   private final TenantSettingsService tenantSettingsService;
 
   /**
@@ -410,7 +406,7 @@ public class SecurityCoverageService {
         securityCoverageInjectService.createdInjectsForScenarioAndSecurityCoverage(
             ctx, scenario, securityCoverage);
     scenario.setInjects(injects);
-    applyApprovalGate(scenario, injects, securityCoverage.getTenant().getId());
+    applyReadOnlyFirst(scenario, injects, securityCoverage.getTenant().getId());
     log.info(
         "Creating or Updating Scenario with ID: {} from Security coverage with external ID: {}",
         scenario.getId(),
@@ -420,30 +416,26 @@ public class SecurityCoverageService {
   }
 
   /**
-   * Applies the tenant's safe mode and approval settings to a coverage-built scenario: in safe mode
-   * the injects that are not read-only are held until approved; outside safe mode, with approval
-   * required, the scenario waits before its first run. A scenario that starts waiting sends one
-   * {@code APPROVAL_PENDING} event. Both settings are off by default, so nothing waits out of the
-   * box.
+   * Applies the opt-in read-only first build (tenant setting {@code
+   * coverage_scenario_read_only_first}, off by default): see {@link CoverageScenarioReadOnlyFirst}.
+   * With the setting at its default nothing changes: the scenario is built and scheduled exactly as
+   * before. The scenario is saved by the caller's transaction (scenario and injects are managed).
    */
-  private void applyApprovalGate(Scenario scenario, Set<Inject> injects, String tenantId) {
-    boolean wasWaiting = scenario.isWaitingForApproval();
+  private void applyReadOnlyFirst(Scenario scenario, Set<Inject> injects, String tenantId) {
     // io.openaev.stix.types.Boolean is imported in this file: qualify java.lang.Boolean.
-    boolean safeMode =
+    boolean readOnlyFirst =
         java.lang.Boolean.parseBoolean(
             tenantSettingsService.resolveSettingValue(
-                tenantId, TenantSettingKeys.COVERAGE_SCENARIO_SAFE_MODE));
-    boolean approvalRequired =
-        java.lang.Boolean.parseBoolean(
-            tenantSettingsService.resolveSettingValue(
-                tenantId, TenantSettingKeys.COVERAGE_SCENARIO_APPROVAL_REQUIRED));
-    ScenarioApprovalService.GateOutcome outcome =
-        scenarioApprovalService.applyGate(scenario, injects, safeMode, approvalRequired);
-    if (outcome.waits() && !wasWaiting) {
-      scenarioApprovalNotifier.pending(
-          scenario,
-          outcome.heldInjects(),
-          buildFrontScenarioUrl(openAEVConfig.getBaseUrl(), tenantId, scenario.getId()));
+                tenantId, TenantSettingKeys.COVERAGE_SCENARIO_READ_ONLY_FIRST));
+    if (!readOnlyFirst) {
+      return;
+    }
+    List<Inject> held = CoverageScenarioReadOnlyFirst.apply(scenario, injects);
+    if (!held.isEmpty()) {
+      log.info(
+          "Scenario {} built read-only first: {} inject(s) held, schedule left unset",
+          scenario.getId(),
+          held.size());
     }
   }
 

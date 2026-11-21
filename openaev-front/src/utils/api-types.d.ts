@@ -3564,8 +3564,7 @@ export interface CounterpartOutput {
 }
 
 export interface CoverageScenarioSettingsInput {
-  coverage_scenario_approval_required: boolean;
-  coverage_scenario_safe_mode: boolean;
+  coverage_scenario_read_only_first: boolean;
 }
 
 export interface CreateConnectorInstanceInput {
@@ -8950,8 +8949,6 @@ export interface NotificationTriggerInput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
-    | "APPROVAL_PENDING"
-    | "APPROVED"
     | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
@@ -9066,8 +9063,6 @@ export interface NotificationTriggerOutput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
-    | "APPROVAL_PENDING"
-    | "APPROVED"
     | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
@@ -11920,12 +11915,7 @@ export interface Scenario {
   listened?: boolean;
   /** @format int64 */
   scenario_all_users_number?: number;
-  scenario_approval_status?: "NOT_REQUIRED" | "PENDING" | "APPROVED";
-  /** @format date-time */
-  scenario_approved_at?: string;
-  scenario_approved_by?: string;
   scenario_articles?: string[];
-  scenario_asset_group_order?: string[];
   scenario_autonomous?: boolean;
   scenario_category?: string;
   /** @format int64 */
@@ -11980,7 +11970,6 @@ export interface Scenario {
   scenario_recurrence_end?: string;
   /** @format date-time */
   scenario_recurrence_start?: string;
-  scenario_safe_mode?: boolean;
   scenario_scheduled_by?: string;
   scenario_severity?: "low" | "medium" | "high" | "critical";
   scenario_subtitle?: string;
@@ -12001,20 +11990,6 @@ export interface ScenarioAndInjectorContractsInputs {
   /** @minLength 1 */
   locale: string;
   scenario_input: ScenarioInput;
-}
-
-export interface ScenarioApprovalOutput {
-  scenario_approval_status?: "NOT_REQUIRED" | "PENDING" | "APPROVED";
-  /** @format date-time */
-  scenario_approved_at?: string;
-  scenario_approved_by?: string;
-  scenario_asset_group_order?: string[];
-  scenario_id?: string;
-  scenario_safe_mode?: boolean;
-}
-
-export interface ScenarioAssetGroupOrderInput {
-  scenario_asset_group_order: string[];
 }
 
 export interface ScenarioBulkProcessingInput {

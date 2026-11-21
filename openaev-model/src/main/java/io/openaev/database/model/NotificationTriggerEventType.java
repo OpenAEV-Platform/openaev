@@ -13,10 +13,6 @@ public enum NotificationTriggerEventType {
   UPDATE(null),
   DELETE(null),
   SCORE_DEGRADATION(ResourceType.SCENARIO),
-  // A scenario built from a security coverage waits for a person: its run, or its injects that are
-  // not read-only, start only once approved.
-  APPROVAL_PENDING(ResourceType.SCENARIO),
-  APPROVED(ResourceType.SCENARIO),
   SYNC_BLOCKED(ResourceType.CATALOG_SYNC);
 
   // Resource type the event is limited to; null when every resource type sends it

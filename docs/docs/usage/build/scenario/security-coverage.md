@@ -125,33 +125,27 @@ After injects are generated:
 
 - Finally, the **Scenario will execute** according to its configured schedule.
 
-## Safe mode, approval and run order
+## Read-only first build and run order
 
-By default a Scenario built from a Security Coverage runs on its schedule with no approval, as
-described above. Two tenant settings change that; both are off by default.
+By default a Scenario built from a Security Coverage runs on its schedule, as described above.
+One tenant setting, off by default, changes that:
 
-- **Safe mode** (`coverage_scenario_safe_mode`): only the Injects whose Injector contract or
-  Payload is marked **read-only** run on their schedule. Read-only means the Inject only reads
-  its target (a version, a protocol negotiation, a permission listing) and changes nothing on
-  it. Any other Inject is held (disabled) and the Scenario waits for an approval. A Scenario
-  with only read-only Injects never waits.
-- **Approval required** (`coverage_scenario_approval_required`): outside safe mode, the Scenario
-  waits for an approval before its first run.
+- **Read-only first** (`coverage_scenario_read_only_first`): only the Injects whose Injector
+  contract or Payload is marked **read-only** are enabled. Read-only means the Inject only reads
+  its target (a version, a protocol negotiation, a permission listing) and changes nothing on it.
+  When at least one Inject is not read-only, the schedule from the Security Coverage is left
+  unset, so the Scenario does not run on its own. A Scenario with only read-only Injects keeps its
+  schedule.
 
-A Scenario waiting for an approval creates no run. A user with the right to launch the Scenario
-approves it; the approval is recorded with its author and date, and the held Injects run from
-the next occurrence. If an update of the Security Coverage adds an Inject that is not
-read-only to an approved safe-mode Scenario, the Scenario waits again for that Inject.
+A user with the right to launch the Scenario starts it as any other Scenario: enable the held
+Injects, then set the schedule (`PUT /api/scenarios/{scenarioId}/recurrence`, which records who
+scheduled it). Once a user has scheduled it, later updates of the Security Coverage leave its
+Injects and schedule as the user left them. The order in which target Asset Groups are tested is
+set with the start delay of each Inject (`inject_depends_duration`).
 
-The settings are read and written with
-`GET` and `PUT /api/tenants/{tenantId}/tenant-settings/coverage-scenarios`, the approval is
-`POST /api/scenarios/{scenarioId}/approve`, and the order in which target Asset Groups are
-tested is `PUT /api/scenarios/{scenarioId}/asset-group-order` (see the
-[REST API reference](../../../reference/apis/rest-api.md#coverage-scenario-safe-mode-and-approval)).
-
-Two Scenario events can be subscribed to with a live trigger and a webhook notifier:
-**Approval pending** (the Scenario starts waiting, with the held Injects, their Asset Groups and
-the approval link) and **Approved** (who approved and when).
+The setting is read and written with
+`GET` and `PUT /api/tenants/{tenantId}/tenant-settings/coverage-scenarios` (see the
+[REST API reference](../../../reference/apis/rest-api.md#coverage-scenario-read-only-first)).
 
 ## Execution and reporting back to OpenCTI
 

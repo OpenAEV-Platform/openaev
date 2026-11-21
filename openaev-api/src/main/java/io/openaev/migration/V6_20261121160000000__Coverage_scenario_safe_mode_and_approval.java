@@ -6,9 +6,8 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 /**
- * Read-only marker on injector contracts and payloads, and safe mode, approval and asset group run
- * order on scenarios. Every default keeps the behaviour of existing rows: nothing is read-only,
- * nothing is in safe mode and nothing waits for an approval.
+ * Read-only marker on injector contracts and payloads. Both default to false, so every existing row
+ * keeps its behaviour: nothing is read-only until it is marked.
  */
 @Component
 public class V6_20261121160000000__Coverage_scenario_safe_mode_and_approval
@@ -23,19 +22,6 @@ public class V6_20261121160000000__Coverage_scenario_safe_mode_and_approval
       statement.execute(
           "ALTER TABLE payloads"
               + " ADD COLUMN IF NOT EXISTS payload_read_only BOOLEAN NOT NULL DEFAULT false");
-      statement.execute(
-          """
-          ALTER TABLE scenarios
-            ADD COLUMN IF NOT EXISTS scenario_safe_mode BOOLEAN NOT NULL DEFAULT false,
-            ADD COLUMN IF NOT EXISTS scenario_approval_status VARCHAR(32) NOT NULL DEFAULT 'NOT_REQUIRED',
-            ADD COLUMN IF NOT EXISTS scenario_approved_by VARCHAR(255)
-              REFERENCES users(user_id) ON DELETE SET NULL,
-            ADD COLUMN IF NOT EXISTS scenario_approved_at TIMESTAMP WITH TIME ZONE,
-            ADD COLUMN IF NOT EXISTS scenario_asset_group_order TEXT[] NOT NULL DEFAULT '{}';
-          """);
-      statement.execute(
-          "CREATE INDEX IF NOT EXISTS idx_scenarios_approval_status"
-              + " ON scenarios(scenario_approval_status);");
     }
   }
 }

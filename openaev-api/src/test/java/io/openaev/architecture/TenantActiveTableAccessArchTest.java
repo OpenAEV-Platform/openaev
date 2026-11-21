@@ -168,7 +168,6 @@ import io.openaev.notification.engine.NotificationEngineService;
 import io.openaev.notification.engine.NotificationEventRetentionService;
 import io.openaev.notification.engine.NotificationTriggerLoader;
 import io.openaev.notification.engine.ResolvedNotificationTrigger;
-import io.openaev.notification.handler.ScenarioApprovalNotifier;
 import io.openaev.processor.MigrationProcessor;
 import io.openaev.processor.Processable;
 import io.openaev.processor.core.V20260420_Migrate_rabbitmq_queues;
@@ -253,7 +252,6 @@ import io.openaev.rest.reporting.service.PlaywrightReportingRenderer;
 import io.openaev.rest.reporting.service.ReportingScheduleLoader;
 import io.openaev.rest.reporting.service.ReportingScheduleService;
 import io.openaev.rest.scenario.ScenarioApi;
-import io.openaev.rest.scenario.ScenarioApprovalApi;
 import io.openaev.rest.scenario.ScenarioDashboardApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
 import io.openaev.rest.scenario.ScenarioResponseHydrator;
@@ -1780,11 +1778,7 @@ class TenantActiveTableAccessArchTest {
               // Copies the scenario's coverage onto the new exercise during scenario->exercise
               // promotion; callers (ScenarioApi, AutonomousRunService) already carry TxCtx,
               // verified in the Phase 3 audit:
-              ScenarioToExerciseService.class,
-              // Builds the approval event message synchronously, before publishing, inside the
-              // transaction of its callers (SecurityCoverageService, ScenarioApprovalApi), both
-              // TxCtx-scoped; the async listener only forwards the prebuilt message:
-              ScenarioApprovalNotifier.class)
+              ScenarioToExerciseService.class)
           .should()
           .callMethod(Scenario.class, "getSecurityCoverage")
           .because(
@@ -4577,7 +4571,6 @@ class TenantActiveTableAccessArchTest {
               InjectApi.class,
               ScenarioInjectApi.class,
               SimulationInjectApi.class,
-              ScenarioApprovalApi.class,
               ScenarioChallengeApi.class,
               SimulationChallengeApi.class,
               ExerciseArticleApi.class,
