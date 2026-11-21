@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
  * nothing is in safe mode and nothing waits for an approval.
  */
 @Component
-public class V6_20261121140000000__Coverage_scenario_safe_mode_and_approval
+public class V6_20261121160000000__Coverage_scenario_safe_mode_and_approval
     extends BaseJavaMigration {
 
   @Override
