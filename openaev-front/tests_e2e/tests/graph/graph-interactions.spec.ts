@@ -290,9 +290,15 @@ test.describe('Exploration graph interactions', () => {
     // Any bubble is an asset group: the first one is selected and unfolded below.
     const bubble = bubbles.first();
 
-    // Every bubble sits inside the canvas, no two overlap, and the pack spans the canvas on one side.
+    // Every bubble sits inside the canvas, no two overlap, none sits under the open Start here panel,
+    // and the pack spans the room it is packed in on one side: the whole canvas, or the room below or
+    // beside the panel when the whole-canvas pack would run under it (#9572 UX round 1 B3).
     const geometry = await canvas.evaluate((element) => {
       const box = element.getBoundingClientRect();
+      const panelElement = document.querySelector('[data-testid="graph-start-here"] > div');
+      const panelRect = panelElement && panelElement.querySelector('[data-testid="graph-start-here-fold"]')
+        ? panelElement.getBoundingClientRect()
+        : null;
       const circles = Array.from(element.querySelectorAll('[data-testid^="graph-overview-group-"]')).map((b) => {
         const r = b.getBoundingClientRect();
         return {
@@ -309,6 +315,14 @@ test.describe('Exploration graph interactions', () => {
           height: box.height,
         },
         circles,
+        panel: panelRect
+          ? {
+              left: panelRect.left,
+              top: panelRect.top,
+              right: panelRect.right,
+              bottom: panelRect.bottom,
+            }
+          : null,
       };
     });
     geometry.circles.forEach((c) => {
@@ -326,7 +340,27 @@ test.describe('Exploration graph interactions', () => {
     }
     const spanX = Math.max(...geometry.circles.map(c => c.x + c.r)) - Math.min(...geometry.circles.map(c => c.x - c.r));
     const spanY = Math.max(...geometry.circles.map(c => c.y + c.r)) - Math.min(...geometry.circles.map(c => c.y - c.r));
-    expect(spanX >= geometry.box.width * 0.9 || spanY >= geometry.box.height * 0.9).toBe(true);
+    const rooms = [{
+      width: geometry.box.width,
+      height: geometry.box.height,
+    }];
+    const { panel } = geometry;
+    if (panel) {
+      geometry.circles.forEach((c) => {
+        const nearestX = Math.max(panel.left, Math.min(c.x, panel.right));
+        const nearestY = Math.max(panel.top, Math.min(c.y, panel.bottom));
+        expect(Math.hypot(c.x - nearestX, c.y - nearestY)).toBeGreaterThanOrEqual(c.r - 1);
+      });
+      // Below the panel (full width) and beside it (full height), its 8 px offset and 16 px margin out.
+      rooms.push({
+        width: geometry.box.width,
+        height: geometry.box.top + geometry.box.height - panel.bottom - 16,
+      }, {
+        width: panel.left - 8 - geometry.box.left,
+        height: geometry.box.height,
+      });
+    }
+    expect(rooms.some(room => spanX >= room.width * 0.9 || spanY >= room.height * 0.9)).toBe(true);
 
     // The grey state is explained, and a click selects a bubble.
     await expect(page.getByTestId('graph-overview-not-tested-help')).toBeVisible();
