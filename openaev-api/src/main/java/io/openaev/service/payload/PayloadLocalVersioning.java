@@ -30,7 +30,6 @@ public class PayloadLocalVersioning {
   private final PayloadUtils payloadUtils;
   private final DetectionRemediationUtils detectionRemediationUtils;
   private final PayloadChangeKind payloadChangeKind;
-  private final PayloadVersionMatcher payloadVersionMatcher;
   private final PayloadIdentityRepository payloadIdentityRepository;
   private final PreviewFeatureService previewFeatureService;
 
@@ -67,8 +66,9 @@ public class PayloadLocalVersioning {
             .findForUpdateById(current.getIdentity().getId())
             .orElseThrow(ElementNotFoundException::new);
     Payload newest =
-        payloadVersionMatcher
-            .highest(payloadService.versionsOf(current.getTenant().getId(), current))
+        SemanticVersion.highest(
+                payloadService.versionsOf(current.getTenant().getId(), current),
+                Payload::getVersion)
             .orElse(current);
     candidate.setIdentity(identity);
     candidate.setVersion(next(SemanticVersion.parse(newest.getVersion()), change));

@@ -30,7 +30,6 @@ class PayloadLocalVersioningTest {
   @Mock private PayloadUtils payloadUtils;
   @Mock private DetectionRemediationUtils detectionRemediationUtils;
   @Mock private PayloadChangeKind payloadChangeKind;
-  @Mock private PayloadVersionMatcher payloadVersionMatcher;
   @Mock private PayloadIdentityRepository payloadIdentityRepository;
   @Mock private PreviewFeatureService previewFeatureService;
   @InjectMocks private PayloadLocalVersioning payloadLocalVersioning;

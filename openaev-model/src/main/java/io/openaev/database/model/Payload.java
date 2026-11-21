@@ -28,6 +28,7 @@ import io.openaev.database.model.payload.HasPayloadIdentity;
 import io.openaev.database.model.payload.PayloadChangeGuard;
 import io.openaev.database.model.payload.PayloadDeleteGuard;
 import io.openaev.database.model.payload.PayloadIdentity;
+import io.openaev.database.model.payload.PayloadLatestVersionListener;
 import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
@@ -55,7 +56,8 @@ import org.hibernate.type.SqlTypes;
   ModelBaseListener.class,
   AuditableListener.class,
   PayloadChangeGuard.class,
-  PayloadDeleteGuard.class
+  PayloadDeleteGuard.class,
+  PayloadLatestVersionListener.class
 })
 // payloads is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter, no
 // TenantBaseListener (#6437, #6430). A create path that forgets to stamp the tenant fails loudly
