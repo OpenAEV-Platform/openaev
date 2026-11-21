@@ -36,8 +36,6 @@ import {
   DeleteOutlined,
   DonutLargeOutlined,
   DownloadOutlined,
-  ExpandLessOutlined,
-  ExpandMoreOutlined,
   FitScreenOutlined,
   GestureOutlined,
   HubOutlined,
@@ -128,6 +126,7 @@ import {
 import { dateBounds, followBounds, TIME_RANGE_STEP, type TimeRange } from './graph-time-range';
 import GraphEntityNode, { type GraphEntityNodeType } from './GraphEntityNode';
 import GraphFloatingEdge from './GraphFloatingEdge';
+import GraphLegend from './GraphLegend';
 
 /** The ids of the nodes whose counterpart key is among the matched ones of a product. */
 const matchedNodeIds = (refs: Map<string, CounterpartRef>, found: Set<string>) => new Set(Array.from(refs.entries())
@@ -909,119 +908,26 @@ const GraphExplorerInner = ({
 
   const toggle = <T, >(list: T[], value: T) => (list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
 
-  const resultColour: Record<GraphResult, string> = {
-    FAILED: theme.palette.error.main,
-    PENDING: theme.palette.warning.main,
-    SUCCESS: theme.palette.success.main,
-  };
-
-  // The legend, as OpenCTI's GraphLegend: the entity types present in the graph with their count, a
-  // click shows or hides the type (the Entities filter, in sync), then the result colours.
+  // The entity types present in the graph with their count, for the legend and the toolbar count.
   const typeCounts = useMemo(() => {
     const counts = new Map<GraphNodeType, number>();
     Object.values(state.nodes).filter(n => !state.hidden.includes(n.node_id)).forEach(n => counts.set(n.node_type, (counts.get(n.node_type) ?? 0) + 1));
     return counts;
   }, [state.nodes, state.hidden]);
   const visibleCount = Array.from(typeCounts.values()).reduce((sum, count) => sum + count, 0);
-  // As OpenCTI's GraphLegend, a card floating in the canvas (bottom left), one line per type present
-  // with its count, collapsed by its header; open on the page, closed on the smaller embedded graph.
+  // Open on the page, closed on the smaller embedded graph.
   const [legendOpen, setLegendOpen] = useState(variant === 'page');
-  const legendEntries = (
-    <>
-      {ALL_NODE_TYPES.filter(type => typeCounts.has(type)).map((type) => {
-        const Icon = NODE_ICON[type];
-        const on = filters.nodeTypes.includes(type);
-        return (
-          <Tooltip key={type}>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-pressed={on}
-                onClick={() => setFilters({
-                  ...filters,
-                  nodeTypes: toggle(filters.nodeTypes, type),
-                })}
-                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-elevation-hover"
-                style={{
-                  opacity: on ? 1 : 0.4,
-                  textDecoration: on ? 'none' : 'line-through',
-                  border: 0,
-                  background: 'transparent',
-                  color: 'inherit',
-                }}
-              >
-                <Icon />
-                <Text variant="content-caption">{`${t(NODE_TYPE_LABEL[type])} (${typeCounts.get(type)})`}</Text>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>{on ? t('Hide this type') : t('Show this type')}</TooltipContent>
-          </Tooltip>
-        );
-      })}
-      <span aria-hidden className="my-1 h-px w-full" style={{ background: theme.palette.divider }} />
-      {ALL_RESULTS.map(result => (
-        <span key={result} className="inline-flex items-center gap-1 px-1">
-          <span
-            aria-hidden
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              border: `2px solid ${resultColour[result]}`,
-            }}
-          />
-          <Text variant="content-caption">{t(RESULT_LABEL[result])}</Text>
-        </span>
-      ))}
-      <span className="inline-flex items-center gap-1 px-1">
-        <span
-          aria-hidden
-          style={{
-            width: 10,
-            height: 10,
-            borderRadius: '50%',
-            border: `2px dashed ${theme.palette.text.secondary}`,
-          }}
-        />
-        <Text variant="content-caption">{t('Group of neighbours, double-click to open')}</Text>
-      </span>
-    </>
-  );
   const renderLegend = () => (
-    <div
-      data-testid="graph-legend"
-      className="absolute flex flex-col rounded"
-      style={{
-        left: 12,
-        bottom: 12,
-        zIndex: 4,
-        maxWidth: 240,
-        maxHeight: 'calc(100% - 24px)',
-        overflowY: 'auto',
-        background: theme.palette.background.paper,
-        border: `1px solid ${theme.palette.divider}`,
-      }}
-    >
-      <button
-        type="button"
-        aria-expanded={legendOpen}
-        onClick={() => setLegendOpen(!legendOpen)}
-        className="inline-flex items-center justify-between gap-2 px-2 py-1 hover:bg-elevation-hover"
-        style={{
-          border: 0,
-          background: 'transparent',
-          color: 'inherit',
-        }}
-      >
-        <Text variant="content-caption">{t('Legend')}</Text>
-        {legendOpen ? <ExpandMoreOutlined fontSize="small" /> : <ExpandLessOutlined fontSize="small" />}
-      </button>
-      {legendOpen && (
-        <div className="flex flex-col items-start gap-1 px-1 pb-1" role="group" aria-label={t('Legend')}>
-          {legendEntries}
-        </div>
-      )}
-    </div>
+    <GraphLegend
+      typeCounts={typeCounts}
+      shownTypes={filters.nodeTypes}
+      onToggleType={type => setFilters({
+        ...filters,
+        nodeTypes: toggle(filters.nodeTypes, type),
+      })}
+      open={legendOpen}
+      onToggleOpen={() => setLegendOpen(!legendOpen)}
+    />
   );
 
   /** A multi-select of the FDS menu: a trigger that names the count, a checked item per value. */
