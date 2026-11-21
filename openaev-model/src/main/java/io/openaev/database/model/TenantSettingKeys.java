@@ -17,7 +17,9 @@ public enum TenantSettingKeys {
   AUTONOMOUS_ADDITIONAL_AGENT_MODES("platform_autonomous_additional_agent_modes", "", false),
   // Catalogue: install the payloads and scenarios a release brings that the tenant never installed
   CATALOG_PAYLOAD_AUTO_INSTALL("catalog_payload_auto_install", "true", false),
-  CATALOG_SCENARIO_AUTO_INSTALL("catalog_scenario_auto_install", "true", false);
+  CATALOG_SCENARIO_AUTO_INSTALL("catalog_scenario_auto_install", "true", false),
+  // Asset freshness: an asset unseen for this many days turns stale (0 turns the check off)
+  ASSET_STALE_AFTER_DAYS("asset_stale_after_days", "30", false);
 
   private final String key;
   private final String defaultValue;

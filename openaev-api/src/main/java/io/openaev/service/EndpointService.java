@@ -367,6 +367,7 @@ public class EndpointService implements AuditLoggedService {
         agentToUpdate.setAsset(endpointToSave);
         agentToUpdate.setLastSeen(inputToSave.getLastSeen());
         agentToUpdate.setStatus(AgentStatus.ACTIVE);
+        endpointToSave.markSeen(inputToSave.getLastSeen(), agentSeenSource(inputToSave));
         endpointsToSave.add(endpointToSave);
         agentsToSave.add(agentToUpdate);
         inputs.removeIf(
@@ -763,6 +764,8 @@ public class EndpointService implements AuditLoggedService {
     agent.setAsset(endpoint);
     agent.setLastSeen(input.getLastSeen());
     agent.setStatus(AgentStatus.ACTIVE);
+    // An agent that registers or beats is an observation of its asset (throttled on the asset)
+    endpoint.markSeen(input.getLastSeen(), agentSeenSource(input));
     agent.setExternalReference(input.getExternalReference());
     // For OpenAEV agent
     agent.setVersion(input.getAgentVersion());
@@ -782,6 +785,15 @@ public class EndpointService implements AuditLoggedService {
     createEndpoint(endpoint, input.getExecutor().getTenantId());
     addSourceTagToEndpoint(endpoint, input);
     return agent;
+  }
+
+  /** The source an agent observation is stamped with: agent, then the executor type. */
+  static String agentSeenSource(AgentRegisterInput input) {
+    String type =
+        input.getExecutor() != null && input.getExecutor().getType() != null
+            ? input.getExecutor().getType()
+            : "unknown";
+    return "agent:" + type;
   }
 
   private void setNewAgentAttributes(AgentRegisterInput input, Agent agent) {
