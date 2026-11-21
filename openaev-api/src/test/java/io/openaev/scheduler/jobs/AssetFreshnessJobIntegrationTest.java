@@ -7,6 +7,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.EndpointRepository;
@@ -20,11 +21,14 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 
 /**
  * The freshness job turns an asset unseen for longer than the tenant allows stale, once, and fresh
@@ -32,6 +36,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * transaction, as in production. State is asserted through JDBC.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@RecordApplicationEvents
 @DisplayName("AssetFreshnessJob")
 class AssetFreshnessJobIntegrationTest extends IntegrationTest {
 
@@ -40,18 +45,47 @@ class AssetFreshnessJobIntegrationTest extends IntegrationTest {
   @Autowired private TenantSettingsService tenantSettingsService;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private ApplicationEvents applicationEvents;
 
   private final List<String> seededAssets = new ArrayList<>();
+
+  @BeforeEach
+  void optIn() {
+    // The check is off by default: the tests that exercise it opt in with a 30-day threshold.
+    setStaleAfterDays(30);
+  }
 
   @AfterEach
   void cleanup() {
     TenantContext.clearCurrentTenant();
     seededAssets.forEach(id -> jdbc.update("DELETE FROM assets WHERE asset_id = ?", id));
     seededAssets.clear();
-    inScopeDo(
-        () ->
-            tenantSettingsService.updateAssetFreshnessSettings(
-                DEFAULT_TENANT_UUID, new AssetFreshnessSettingsInput(30)));
+    clearSetting();
+  }
+
+  @Test
+  @DisplayName("given the default setting should change no asset and emit no asset event")
+  void given_defaultSetting_should_changeNothingAndEmitNoEvent() {
+    // Arrange: no tenant value, so the default applies
+    clearSetting();
+    assertThat(inScope(() -> tenantSettingsService.findAssetFreshnessSettings(DEFAULT_TENANT_UUID)))
+        .isEqualTo(new AssetFreshnessSettingsInput(0));
+    String asset = seedEndpoint(Duration.ofDays(400));
+    applicationEvents.clear();
+
+    // Act
+    assetFreshnessJob.execute(null);
+    assetFreshnessJob.execute(null);
+
+    // Assert: behaviour identical to main, no state change and no event on the asset
+    assertThat(isStale(asset)).isFalse();
+    assertThat(staleSince(asset)).isNull();
+    assertThat(
+            applicationEvents.stream(BaseEvent.class)
+                .filter(event -> event.getInstance() != null)
+                .filter(event -> asset.equals(event.getInstance().getId())))
+        .as("no event on the asset with the defaults")
+        .isEmpty();
   }
 
   @Test
@@ -112,10 +146,7 @@ class AssetFreshnessJobIntegrationTest extends IntegrationTest {
   @DisplayName("given the setting at 0 should never turn an asset stale")
   void given_settingOff_should_neverTurnStale() {
     // Arrange
-    inScopeDo(
-        () ->
-            tenantSettingsService.updateAssetFreshnessSettings(
-                DEFAULT_TENANT_UUID, new AssetFreshnessSettingsInput(0)));
+    setStaleAfterDays(0);
     String asset = seedEndpoint(Duration.ofDays(400));
 
     // Act
@@ -126,6 +157,20 @@ class AssetFreshnessJobIntegrationTest extends IntegrationTest {
   }
 
   // -- HELPERS --
+
+  private void setStaleAfterDays(int days) {
+    inScopeDo(
+        () ->
+            tenantSettingsService.updateAssetFreshnessSettings(
+                DEFAULT_TENANT_UUID, new AssetFreshnessSettingsInput(days)));
+  }
+
+  private void clearSetting() {
+    jdbc.update(
+        "DELETE FROM tenant_settings WHERE tenant_setting_key = 'asset_stale_after_days'"
+            + " AND tenant_id = ?",
+        DEFAULT_TENANT_UUID);
+  }
 
   private String seedEndpoint(Duration lastSeenAgo) {
     return inScope(
