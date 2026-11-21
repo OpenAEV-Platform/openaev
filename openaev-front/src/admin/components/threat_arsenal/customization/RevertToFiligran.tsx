@@ -33,7 +33,7 @@ const RevertToFiligran = ({ fields: customizable }: Props) => {
         shouldValidate: true,
       }))}
     >
-      {t('Revert to Filigran\'s')}
+      {t('Revert to Filigran value')}
     </Button>
   );
 };

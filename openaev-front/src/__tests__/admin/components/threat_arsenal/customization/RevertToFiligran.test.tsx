@@ -32,7 +32,7 @@ const renderRevert = (command: string, filigranValues: ActionFormValues | null) 
   </FiligranValuesContext.Provider>,
 );
 
-const revertButton = () => screen.queryByRole('button', { name: 'Revert to Filigran\'s' });
+const revertButton = () => screen.queryByRole('button', { name: 'Revert to Filigran value' });
 
 describe('RevertToFiligran', () => {
   afterEach(cleanup);
@@ -58,7 +58,7 @@ describe('RevertToFiligran', () => {
     renderRevert('whoami /priv', { command_content: 'whoami' });
 
     // Act
-    fireEvent.click(screen.getByRole('button', { name: 'Revert to Filigran\'s' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Revert to Filigran value' }));
 
     // Assert
     expect(screen.getByTestId('command')).toHaveTextContent(/^whoami$/);
