@@ -226,11 +226,12 @@ public class InjectService {
     Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
     Inject inject = input.toInject(injectorContract, injector);
     inject.setUser(this.userService.currentUser());
-    inject.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
-    inject.setAssets(fromIterable(assetService.assets(input.getAssets())));
+    inject.setTeams(
+        fromIterable(teamRepository.findAllByIdInTenant(input.getTeams(), parentTenantId)));
+    inject.setAssets(fromIterable(assetService.assets(input.getAssets(), parentTenantId)));
     inject.setSecretReferences(
-        secretReferenceService.secretReferences(input.getSecretReferences()));
-    inject.setTags(tagService.tagSet(input.getTagIds()));
+        secretReferenceService.secretReferences(input.getSecretReferences(), parentTenantId));
+    inject.setTags(tagService.tagSet(input.getTagIds(), parentTenantId));
     List<InjectDocument> injectDocuments =
         input.getDocuments().stream()
             .map(i -> i.toDocument(documentService.document(i.getDocumentId()), inject))
@@ -288,7 +289,7 @@ public class InjectService {
       inject.setAssetGroups(
           this.tagRuleService.applyTagRuleToInjectCreation(
               tags.stream().map(Tag::getId).toList(),
-              assetGroupService.assetGroups(input.getAssetGroups())));
+              assetGroupService.assetGroups(input.getAssetGroups(), parentTenantId)));
     }
 
     // if inject content is null we add the defaults from the injector contract
@@ -1059,22 +1060,31 @@ public class InjectService {
       }
     }
 
-    // We retrieve the data from DB for teams, assets and asset groups in the input values
-    Map<String, Team> teamsFromDB =
-        this.teamRepository.findAllById(teamsIDs).stream()
-            .collect(Collectors.toMap(Team::getId, team -> team));
-    Map<String, Asset> assetsFromDB =
-        this.assetService.assets(assetsIDs.stream().toList()).stream()
-            .collect(Collectors.toMap(Asset::getId, asset -> asset));
-    Map<String, AssetGroup> assetGroupsFromDB =
-        this.assetGroupService.assetGroups(assetGroupsIDs.stream().toList()).stream()
-            .collect(Collectors.toMap(AssetGroup::getId, assetGroup -> assetGroup));
-
-    // we update the injects values
-    injectsToUpdate.forEach(
-        inject -> {
-          applyUpdateOperation(inject, operations, teamsFromDB, assetsFromDB, assetGroupsFromDB);
-          inject.setUpdatedAt(now());
+    // The team, asset and asset group ids named in the request body resolve in the tenant of each
+    // inject being updated: an id of another tenant is treated like an unknown id, so the injects
+    // are grouped by tenant first.
+    Map<String, List<Inject>> injectsByTenant =
+        injectsToUpdate.stream()
+            .collect(Collectors.groupingBy(inject -> inject.getTenant().getId()));
+    injectsByTenant.forEach(
+        (tenantId, tenantInjects) -> {
+          Map<String, Team> teamsFromDB =
+              this.teamRepository.findAllByIdInTenant(teamsIDs, tenantId).stream()
+                  .collect(Collectors.toMap(Team::getId, team -> team));
+          Map<String, Asset> assetsFromDB =
+              this.assetService.assets(assetsIDs.stream().toList(), tenantId).stream()
+                  .collect(Collectors.toMap(Asset::getId, asset -> asset));
+          Map<String, AssetGroup> assetGroupsFromDB =
+              this.assetGroupService
+                  .assetGroups(assetGroupsIDs.stream().toList(), tenantId)
+                  .stream()
+                  .collect(Collectors.toMap(AssetGroup::getId, assetGroup -> assetGroup));
+          tenantInjects.forEach(
+              inject -> {
+                applyUpdateOperation(
+                    inject, operations, teamsFromDB, assetsFromDB, assetGroupsFromDB);
+                inject.setUpdatedAt(now());
+              });
         });
 
     // Save updated injects and return them
@@ -1226,7 +1236,9 @@ public class InjectService {
       inject.getDependsOn().removeAll(injectDepencyToRemove);
     }
 
-    inject.setTeams(fromIterable(this.teamRepository.findAllById(input.getTeams())));
+    inject.setTeams(
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(input.getTeams(), inject.getTenant().getId())));
     // Only replace the assets when they change: replacing the collection makes Hibernate delete and
     // re-insert every injects_assets row, and a trigger then updates each of these assets. Injects
     // targeting the same assets would otherwise contend on those rows (concurrent updates of
@@ -1234,18 +1246,25 @@ public class InjectService {
     Set<String> currentAssetIds =
         inject.getAssets().stream().map(Asset::getId).collect(Collectors.toSet());
     if (input.getAssets() == null || !currentAssetIds.equals(new HashSet<>(input.getAssets()))) {
-      inject.setAssets(fromIterable(this.assetService.assets(input.getAssets())));
+      inject.setAssets(
+          fromIterable(this.assetService.assets(input.getAssets(), inject.getTenant().getId())));
     }
-    inject.setAssetGroups(fromIterable(this.assetGroupService.assetGroups(input.getAssetGroups())));
+    inject.setAssetGroups(
+        fromIterable(
+            this.assetGroupService.assetGroups(
+                input.getAssetGroups(), inject.getTenant().getId())));
     Set<String> previousSecretReferenceIds =
         inject.getSecretReferences().stream()
             .map(SecretReference::getId)
             .collect(Collectors.toSet());
     inject.setSecretReferences(
-        secretReferenceService.secretReferences(input.getSecretReferences()));
+        secretReferenceService.secretReferences(
+            input.getSecretReferences(), inject.getTenant().getId()));
     credentialMetricCollector.addNewlyAttachedCredentialsToInjectMetric(
         inject, previousSecretReferenceIds);
-    inject.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    inject.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(input.getTagIds(), inject.getTenant().getId())));
 
     // Set documents
     List<InjectDocumentInput> inputDocuments = input.getDocuments();

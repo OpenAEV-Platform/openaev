@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -367,9 +368,11 @@ class InjectServiceTest {
         buildContractWithContentFields("teams", "assets", "asset_groups");
     Inject i1 = new Inject();
     i1.setId("inject1");
+    i1.setTenant(new Tenant("tenant-1"));
     i1.setInjectorContract(technicalContract);
     Inject i2 = new Inject();
     i2.setId("inject2");
+    i2.setTenant(new Tenant("tenant-1"));
     i2.setInjectorContract(technicalContract);
     i1.setTeams(new ArrayList<>(List.of(t0)));
     i1.setAssets(new ArrayList<>(List.of(a0)));
@@ -399,8 +402,8 @@ class InjectServiceTest {
     a2.setId("asset2");
     List<Asset> aList = List.of(a1, a2);
 
-    when(teamRepository.findAllById(any())).thenReturn(tList);
-    when(assetService.assets(anyList())).thenReturn(aList);
+    when(teamRepository.findAllByIdInTenant(any(), eq("tenant-1"))).thenReturn(tList);
+    when(assetService.assets(anyList(), eq("tenant-1"))).thenReturn(aList);
 
     // Expected results
     Inject i1updated = new Inject();
@@ -431,6 +434,72 @@ class InjectServiceTest {
     assertTrue(updatedInjects.getFirst().getAssets().containsAll(aList));
     assertTrue(updatedInjects.get(1).getTeams().containsAll(tList));
     assertTrue(updatedInjects.get(1).getAssets().containsAll(aList));
+  }
+
+  @DisplayName(
+      "Test bulk update injects of two tenants resolves the same relation ids separately in each"
+          + " tenant")
+  @Test
+  void given_injectsOfTwoTenants_should_resolveTheSameRelationIdsInEachTenantSeparately() {
+    // Arrange
+    InjectorContract technicalContract = buildContractWithContentFields("assets", "asset_groups");
+    Inject injectTenant1 = new Inject();
+    injectTenant1.setId("inject-tenant-1");
+    injectTenant1.setTenant(new Tenant("tenant-1"));
+    injectTenant1.setInjectorContract(technicalContract);
+    Inject injectTenant2 = new Inject();
+    injectTenant2.setId("inject-tenant-2");
+    injectTenant2.setTenant(new Tenant("tenant-2"));
+    injectTenant2.setInjectorContract(technicalContract);
+
+    List<Inject> injectsToUpdate = List.of(injectTenant1, injectTenant2);
+
+    InjectBulkUpdateOperation assetsOp = new InjectBulkUpdateOperation();
+    assetsOp.setField(InjectBulkUpdateSupportedFields.ASSETS);
+    assetsOp.setOperation(InjectBulkUpdateSupportedOperations.REPLACE);
+    assetsOp.setValues(List.of("shared-asset-id"));
+    InjectBulkUpdateOperation assetGroupsOp = new InjectBulkUpdateOperation();
+    assetGroupsOp.setField(InjectBulkUpdateSupportedFields.ASSET_GROUPS);
+    assetGroupsOp.setOperation(InjectBulkUpdateSupportedOperations.REPLACE);
+    assetGroupsOp.setValues(List.of("shared-asset-group-id"));
+    List<InjectBulkUpdateOperation> operations = List.of(assetsOp, assetGroupsOp);
+
+    // The same id resolves to a DIFFERENT entity instance in each tenant: an inject of tenant-1
+    // must get tenant-1's asset/asset group, never tenant-2's.
+    Asset assetOfTenant1 = new Asset();
+    assetOfTenant1.setId("shared-asset-id");
+    assetOfTenant1.setTenant(new Tenant("tenant-1"));
+    Asset assetOfTenant2 = new Asset();
+    assetOfTenant2.setId("shared-asset-id");
+    assetOfTenant2.setTenant(new Tenant("tenant-2"));
+    AssetGroup assetGroupOfTenant1 = new AssetGroup();
+    assetGroupOfTenant1.setId("shared-asset-group-id");
+    assetGroupOfTenant1.setTenant(new Tenant("tenant-1"));
+    AssetGroup assetGroupOfTenant2 = new AssetGroup();
+    assetGroupOfTenant2.setId("shared-asset-group-id");
+    assetGroupOfTenant2.setTenant(new Tenant("tenant-2"));
+
+    when(assetService.assets(anyList(), eq("tenant-1"))).thenReturn(List.of(assetOfTenant1));
+    when(assetService.assets(anyList(), eq("tenant-2"))).thenReturn(List.of(assetOfTenant2));
+    when(assetGroupService.assetGroups(anyList(), eq("tenant-1")))
+        .thenReturn(List.of(assetGroupOfTenant1));
+    when(assetGroupService.assetGroups(anyList(), eq("tenant-2")))
+        .thenReturn(List.of(assetGroupOfTenant2));
+    when(injectRepository.saveAll(injectsToUpdate)).thenReturn(injectsToUpdate);
+
+    // Act
+    List<Inject> updatedInjects =
+        injectService.bulkUpdateInject(TxCtx.allTenants(), injectsToUpdate, operations);
+
+    // Assert
+    Inject updatedTenant1 =
+        updatedInjects.stream().filter(i -> i.getId().equals("inject-tenant-1")).findFirst().get();
+    Inject updatedTenant2 =
+        updatedInjects.stream().filter(i -> i.getId().equals("inject-tenant-2")).findFirst().get();
+    assertEquals(List.of(assetOfTenant1), updatedTenant1.getAssets());
+    assertEquals(List.of(assetGroupOfTenant1), updatedTenant1.getAssetGroups());
+    assertEquals(List.of(assetOfTenant2), updatedTenant2.getAssets());
+    assertEquals(List.of(assetGroupOfTenant2), updatedTenant2.getAssetGroups());
   }
 
   @DisplayName(
@@ -490,9 +559,9 @@ class InjectServiceTest {
 
     List<InjectBulkUpdateOperation> operations = List.of(teamsOp, assetsOp, assetGroupsOp);
 
-    when(teamRepository.findAllById(any())).thenReturn(List.of(t1));
-    when(assetService.assets(anyList())).thenReturn(List.of(a1));
-    when(assetGroupService.assetGroups(anyList())).thenReturn(List.of(ag1));
+    when(teamRepository.findAllByIdInTenant(any(), eq("tenant-1"))).thenReturn(List.of(t1));
+    when(assetService.assets(anyList(), eq("tenant-1"))).thenReturn(List.of(a1));
+    when(assetGroupService.assetGroups(anyList(), eq("tenant-1"))).thenReturn(List.of(ag1));
     when(injectRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     // Act
@@ -545,6 +614,7 @@ class InjectServiceTest {
       String id, InjectorContract contract, Asset initialAsset, AssetGroup initialAssetGroup) {
     Inject inject = new Inject();
     inject.setId(id);
+    inject.setTenant(new Tenant("tenant-1"));
     inject.setInjectorContract(contract);
     inject.setTeams(new ArrayList<>());
     inject.setAssets(new ArrayList<>(List.of(initialAsset)));
@@ -556,7 +626,11 @@ class InjectServiceTest {
   @Test
   void bulkUpdateInjectsWithEmptyOperations() {
     // Arrange
-    List<Inject> injectsToUpdate = List.of(new Inject(), new Inject());
+    Inject i1 = new Inject();
+    i1.setTenant(new Tenant("tenant-1"));
+    Inject i2 = new Inject();
+    i2.setTenant(new Tenant("tenant-1"));
+    List<Inject> injectsToUpdate = List.of(i1, i2);
     List<InjectBulkUpdateOperation> operations = List.of();
 
     when(injectRepository.saveAll(injectsToUpdate)).thenReturn(injectsToUpdate);
@@ -579,8 +653,10 @@ class InjectServiceTest {
     // Arrange
     Inject i1 = new Inject();
     i1.setId("inject1");
+    i1.setTenant(new Tenant("tenant-1"));
     Inject i2 = new Inject();
     i2.setId("inject2");
+    i2.setTenant(new Tenant("tenant-1"));
     List<Inject> injectsToUpdate = List.of(i1, i2);
 
     InjectBulkUpdateOperation ope = new InjectBulkUpdateOperation();
@@ -590,7 +666,7 @@ class InjectServiceTest {
 
     List<InjectBulkUpdateOperation> operations = List.of(ope);
 
-    when(teamRepository.findAllById(any())).thenReturn(List.of());
+    when(teamRepository.findAllByIdInTenant(any(), eq("tenant-1"))).thenReturn(List.of());
 
     // Expected results
     Inject i1updated = new Inject();
@@ -1467,6 +1543,7 @@ class InjectServiceTest {
       // Arrange
       Inject inject = new Inject();
       inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
       when(injectRepository.findById(INJECT_ID)).thenReturn(Optional.of(inject));
       CredentialSecretReference credential = new CredentialSecretReference();
       credential.setId("credential-1");
@@ -1474,7 +1551,8 @@ class InjectServiceTest {
       input.setTitle("inject");
       input.setDependsDuration(0L);
       input.setSecretReferences(List.of("credential-1"));
-      when(secretReferenceService.secretReferences(List.of("credential-1")))
+      when(secretReferenceService.secretReferences(
+              List.of("credential-1"), Tenant.DEFAULT_TENANT_UUID))
           .thenReturn(List.of(credential));
 
       // Act
@@ -1492,6 +1570,7 @@ class InjectServiceTest {
       credential.setId("credential-1");
       Inject inject = new Inject();
       inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
       inject.setSecretReferences(new ArrayList<>(List.of(credential)));
       when(injectRepository.findById(INJECT_ID)).thenReturn(Optional.of(inject));
       InjectInput input = new InjectInput();
@@ -1504,7 +1583,7 @@ class InjectServiceTest {
 
       // Assert
       assertThat(result.getSecretReferences()).isEmpty();
-      verify(secretReferenceService).secretReferences(List.of());
+      verify(secretReferenceService).secretReferences(List.of(), Tenant.DEFAULT_TENANT_UUID);
     }
   }
 
