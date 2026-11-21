@@ -20,6 +20,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -183,6 +184,65 @@ public class Asset implements TenantBase {
   @Column(name = "asset_internet_facing")
   @JsonProperty("asset_internet_facing")
   private Boolean internetFacing;
+
+  // -- FRESHNESS --
+  // When the asset was last observed and by what. Stamped by the observers (an agent registering
+  // or beating, ...) at most once per SEEN_THROTTLE so a heartbeat does not restream the asset
+  // every minute; the freshness job turns the asset stale once it is unseen for the tenant's
+  // asset_stale_after_days, and fresh again as soon as it is seen.
+
+  /** Minimum interval between two stamps of the same source on the same asset. */
+  public static final Duration SEEN_THROTTLE = Duration.ofHours(1);
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_last_seen")
+  @JsonProperty("asset_last_seen")
+  @AuditStateIgnore
+  private Instant lastSeen;
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_last_seen_source")
+  @JsonProperty("asset_last_seen_source")
+  @AuditStateIgnore
+  private String lastSeenSource;
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_stale")
+  @JsonProperty("asset_stale")
+  private boolean stale = false;
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_stale_since")
+  @JsonProperty("asset_stale_since")
+  private Instant staleSince;
+
+  /**
+   * Records an observation of this asset. The stamp moves only forward, and at most once per {@link
+   * #SEEN_THROTTLE} for the same source; a stale asset that is seen again is fresh at once.
+   *
+   * @return true when a field changed (the caller saves the asset), false for a no-op
+   */
+  public boolean markSeen(Instant seenAt, String source) {
+    if (seenAt == null) {
+      return false;
+    }
+    boolean changed = false;
+    boolean newer = this.lastSeen == null || seenAt.isAfter(this.lastSeen);
+    boolean sameSource = Objects.equals(this.lastSeenSource, source);
+    boolean throttled =
+        this.lastSeen != null && sameSource && seenAt.isBefore(this.lastSeen.plus(SEEN_THROTTLE));
+    if (newer && !throttled) {
+      this.lastSeen = seenAt;
+      this.lastSeenSource = source;
+      changed = true;
+    }
+    if (this.stale && newer) {
+      this.stale = false;
+      this.staleSince = null;
+      changed = true;
+    }
+    return changed;
+  }
 
   // -- CLOUD (CLOUD_RESOURCE assets) --
 

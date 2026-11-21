@@ -1,5 +1,6 @@
 package io.openaev.service.settings;
 
+import static io.openaev.database.model.TenantSettingKeys.ASSET_STALE_AFTER_DAYS;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_LANG;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_THEME;
 import static io.openaev.database.model.TenantSettingKeys.PLATFORM_NAME;
@@ -16,6 +17,7 @@ import io.openaev.database.repository.SettingRepository;
 import io.openaev.opencrq.config.OpenCRQConfig;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.config.XtmConfig;
+import io.openaev.rest.settings.form.AssetFreshnessSettingsInput;
 import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
 import io.openaev.rest.settings.form.ThemeInput;
 import io.openaev.rest.settings.response.TenantSettingsOutput;
@@ -96,6 +98,27 @@ public class TenantSettingsService {
     upsert(tenant, TENANT_SCENARIO_DASHBOARD.key(), input.platformScenarioDashboard());
     upsert(tenant, TENANT_SIMULATION_DASHBOARD.key(), input.platformSimulationDashboard());
     return findSettings(tenantId);
+  }
+
+  /** Effective asset freshness setting: the days after which an unseen asset turns stale. */
+  @Transactional(readOnly = true)
+  public AssetFreshnessSettingsInput findAssetFreshnessSettings(@NotBlank String tenantId) {
+    Map<String, Setting> tenantSettings = loadTenantSettings(tenantId);
+    String value = resolveValue(tenantSettings, ASSET_STALE_AFTER_DAYS);
+    int days;
+    try {
+      days = Integer.parseInt(value == null ? "" : value.trim());
+    } catch (NumberFormatException e) {
+      days = Integer.parseInt(ASSET_STALE_AFTER_DAYS.defaultValue());
+    }
+    return new AssetFreshnessSettingsInput(days);
+  }
+
+  public AssetFreshnessSettingsInput updateAssetFreshnessSettings(
+      @NotBlank String tenantId, @NotNull AssetFreshnessSettingsInput input) {
+    upsert(
+        new Tenant(tenantId), ASSET_STALE_AFTER_DAYS.key(), String.valueOf(input.staleAfterDays()));
+    return findAssetFreshnessSettings(tenantId);
   }
 
   public void updateCatalogAutoInstall(

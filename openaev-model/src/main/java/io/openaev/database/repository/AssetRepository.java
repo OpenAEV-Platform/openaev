@@ -176,6 +176,29 @@ public interface AssetRepository
   List<Asset> findByTenantId(String tenantId);
 
   /**
+   * Freshness: the fresh assets of a tenant last seen before the threshold, oldest first. An asset
+   * never observed has no freshness verdict and is not returned. Security platforms are sources,
+   * not targets, and are left out. Loaded as entities (not a bulk update) so each transition emits
+   * its own update event.
+   */
+  @Query(
+      "SELECT a FROM Asset a WHERE a.tenant.id = :tenantId AND a.type <> 'SecurityPlatform'"
+          + " AND a.stale = false AND a.lastSeen IS NOT NULL AND a.lastSeen < :threshold"
+          + " ORDER BY a.lastSeen, a.id")
+  List<Asset> findFreshAssetsUnseenSince(
+      @Param("tenantId") String tenantId, @Param("threshold") Instant threshold, Pageable pageable);
+
+  /**
+   * Freshness: the stale assets of a tenant seen again at or after the threshold (a stamp that did
+   * not go through {@code Asset#markSeen}, e.g. a bulk upsert), so the job turns them fresh.
+   */
+  @Query(
+      "SELECT a FROM Asset a WHERE a.tenant.id = :tenantId AND a.stale = true"
+          + " AND a.lastSeen IS NOT NULL AND a.lastSeen >= :threshold ORDER BY a.id")
+  List<Asset> findStaleAssetsSeenSince(
+      @Param("tenantId") String tenantId, @Param("threshold") Instant threshold, Pageable pageable);
+
+  /**
    * Business criticality, display name and seen IP for a set of asset ids, as {@code [assetId,
    * AssetCriticality, name, seenIp]} rows. Used by the attack-path chokepoint score (findings
    * weighted by criticality), to label an endpoint node with its asset name, and to show the
