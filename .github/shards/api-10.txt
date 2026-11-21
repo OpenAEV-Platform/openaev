@@ -1,0 +1,1 @@
+io/openaev/architecture/**/*Test.java
