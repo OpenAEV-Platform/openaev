@@ -30,8 +30,51 @@ public class XtmComposerService {
     return XtmComposerOutput.builder().id(composerId).version(composerVersion).build();
   }
 
+  /**
+   * Maximum length of the instance name: XTM Composer uses it as the Kubernetes Deployment and
+   * container name and as the Swarm service name, all capped at 63 characters (RFC 1123 label).
+   */
+  static final int INSTANCE_NAME_MAX_LENGTH = 63;
+
+  private static final int INSTANCE_NAME_ID_LENGTH = 8;
+
+  /**
+   * The name XTM Composer deploys the instance under: the catalog title, a dash and the value of
+   * the instance id key. A name that fits in {@link #INSTANCE_NAME_MAX_LENGTH} ASCII characters is
+   * kept as is, so running deployments keep their name. A longer one becomes the slug of the title,
+   * cut to fit, a dash and the first 8 characters of the id, which keeps the instances of one
+   * catalog connector distinct.
+   */
+  static String instanceName(String title, String idValue) {
+    if (idValue == null || idValue.isBlank()) {
+      return title;
+    }
+    String name = title + "-" + idValue;
+    if (name.length() <= INSTANCE_NAME_MAX_LENGTH && name.chars().allMatch(c -> c < 128)) {
+      return name;
+    }
+    String idPart = slug(idValue);
+    if (idPart.length() > INSTANCE_NAME_ID_LENGTH) {
+      idPart = idPart.substring(0, INSTANCE_NAME_ID_LENGTH);
+    }
+    String titlePart = slug(title);
+    int titleMax = INSTANCE_NAME_MAX_LENGTH - idPart.length() - 1;
+    if (titlePart.length() > titleMax) {
+      titlePart = titlePart.substring(0, titleMax).replaceAll("-+$", "");
+    }
+    if (titlePart.isEmpty()) {
+      return idPart;
+    }
+    return idPart.isEmpty() ? titlePart : titlePart + "-" + idPart;
+  }
+
+  private static String slug(String value) {
+    return value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-+|-+$", "");
+  }
+
   public XtmComposerInstanceOutput toXtmComposerInstanceOutput(
       ConnectorInstancePersisted instance) {
+    String title = instance.getCatalogConnector().getTitle();
     return XtmComposerInstanceOutput.builder()
         .id(instance.getId())
         .name(
@@ -43,10 +86,8 @@ public class XtmComposerService {
                 .findFirst()
                 .map(
                     connectorInstanceConfiguration ->
-                        instance.getCatalogConnector().getTitle()
-                            + "-"
-                            + connectorInstanceConfiguration.getValue().asText())
-                .orElse(instance.getCatalogConnector().getTitle()))
+                        instanceName(title, connectorInstanceConfiguration.getValue().asText()))
+                .orElse(title))
         .currentStatus(instance.getCurrentStatus())
         .requestedStatus(instance.getRequestedStatus())
         .image(
