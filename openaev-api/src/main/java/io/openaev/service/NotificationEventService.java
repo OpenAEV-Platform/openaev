@@ -13,6 +13,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
@@ -26,11 +27,17 @@ public class NotificationEventService {
   private final ThreadPoolTaskScheduler taskScheduler;
   private final Map<ResourceType, NotificationEventHandler> handlers;
 
+  /**
+   * The handlers are injected lazily: they read exercises through ExerciseService, which reaches
+   * WorkflowService and WorkflowEndService, and WorkflowEndService sends the simulation finished
+   * event through this service. A lazy proxy breaks that bean cycle; the handlers are only called
+   * when an event is handled, long after the context is up.
+   */
   @Autowired
   public NotificationEventService(
       ApplicationEventPublisher appPublisher,
-      ScenarioNotificationEventHandler scenarioNotificationEventHandler,
-      SimulationNotificationEventHandler simulationNotificationEventHandler,
+      @Lazy ScenarioNotificationEventHandler scenarioNotificationEventHandler,
+      @Lazy SimulationNotificationEventHandler simulationNotificationEventHandler,
       ThreadPoolTaskScheduler taskScheduler) {
 
     this.appPublisher = appPublisher;
