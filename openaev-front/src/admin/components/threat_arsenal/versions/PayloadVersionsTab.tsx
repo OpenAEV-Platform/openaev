@@ -1,7 +1,7 @@
 import { Alert, Chip, Skeleton, Text } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useEffect, useReducer, useRef, useState } from 'react';
+import { type FunctionComponent, useReducer, useState } from 'react';
 
 import { fdsGroupRowStyle, fdsTableFrameStyle } from '../../../../components/common/fdsTableSpec';
 import { LIB_SURFACE_LAYER } from '../../../../components/common/libSurfaceBorder';
@@ -17,6 +17,7 @@ import PayloadUsagesTable from './usages/PayloadUsagesTable';
 import { usageCount } from './usages/usageCounts';
 import useUsageMove from './usages/useUsageMove';
 import useUsagesByVersion from './usages/useUsagesByVersion';
+import useFocusMove from './useFocusMove';
 
 interface VersionProps {
   version: PayloadVersionOutput;
@@ -39,16 +40,15 @@ const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, us
     usages,
     onMoved,
   });
-  const focused = useRef(false);
-  const row = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (focusMove && canMove && !version.payload_is_latest && usages && usageCount(usages) > 0 && !focused.current) {
-      focused.current = true;
+  const row = useFocusMove({
+    version,
+    usages,
+    active: focusMove && canMove,
+    onFocus: (focused) => {
       setExpanded(true);
-      move.selection.setSelectedElements(Object.fromEntries(usages.payload_usages.map(usage => [usage.usage_id, usage])));
-      row.current?.scrollIntoView({ block: 'nearest' });
-    }
-  }, [usages, focusMove]);
+      move.selection.setSelectedElements(Object.fromEntries(focused.payload_usages.map(usage => [usage.usage_id, usage])));
+    },
+  });
 
   return (
     <div ref={row}>
@@ -99,7 +99,6 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, focusMove = fa
       gap: theme.spacing(2),
     }}
     >
-      {canMove && <AskAfterSavingChoice />}
       <div className={LIB_SURFACE_LAYER} style={fdsTableFrameStyle(theme)}>
         {versions.map(version => (
           <PayloadVersion
@@ -113,6 +112,7 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, focusMove = fa
           />
         ))}
       </div>
+      {canMove && <AskAfterSavingChoice />}
     </div>
   );
 };
