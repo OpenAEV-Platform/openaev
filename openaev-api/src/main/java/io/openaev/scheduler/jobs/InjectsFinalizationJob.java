@@ -10,7 +10,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.helper.InjectHelper;
-import io.openaev.notification.handler.SimulationNotificationEventHandler;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -178,13 +177,8 @@ public class InjectsFinalizationJob implements Job {
                                       .build(),
                                   delayForSimulationCompletedEvent));
 
-                  // the same event on the simulation itself, for its own triggers; its handler
-                  // reads nothing unless a trigger of the tenant listens to it
-                  exercisesFinished.forEach(
-                      ex ->
-                          notificationEventService.sendNotificationEventWithDelay(
-                              SimulationNotificationEventHandler.completedEvent(ex),
-                              delayForSimulationCompletedEvent));
+                  // the same event on the simulation itself, for its own triggers
+                  exercisesFinished.forEach(notificationEventService::sendSimulationCompleted);
                 }));
   }
 

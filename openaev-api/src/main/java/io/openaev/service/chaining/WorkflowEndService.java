@@ -4,7 +4,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.WorkflowRepository;
-import io.openaev.notification.handler.SimulationNotificationEventHandler;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.NotificationEventService;
@@ -139,9 +138,7 @@ public class WorkflowEndService {
       exerciseRepository.save(simulation);
       // completed event on the simulation, handled after this transaction commits; its handler
       // reads nothing unless a trigger of the tenant listens to it
-      notificationEventService.sendNotificationEventWithDelay(
-          SimulationNotificationEventHandler.completedEvent(simulation),
-          SimulationNotificationEventHandler.COMMIT_DELAY_SECONDS);
+      notificationEventService.sendSimulationCompleted(simulation);
 
       log.info(
           "[Chaining] Simulation {} finished due to workflow {}.",

@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ResourceType;
 import io.openaev.notification.handler.NotificationEventHandler;
 import io.openaev.notification.handler.ScenarioNotificationEventHandler;
@@ -30,9 +31,10 @@ public class NotificationEventService {
   @Autowired
   public NotificationEventService(
       ApplicationEventPublisher appPublisher,
-      ScenarioNotificationEventHandler scenarioNotificationEventHandler,
-      // Lazy: the handler reads the attack path, whose services reach WorkflowEndService, which
-      // sends the completed event through this service.
+      // Lazy: both handlers read exercises through ExerciseService, which reaches
+      // WorkflowEndService, which sends the completed event through this service; a lazy proxy
+      // breaks that bean cycle (the handlers only run when an event is handled).
+      @Lazy ScenarioNotificationEventHandler scenarioNotificationEventHandler,
       @Lazy SimulationNotificationEventHandler simulationNotificationEventHandler,
       ThreadPoolTaskScheduler taskScheduler) {
 
@@ -62,6 +64,19 @@ public class NotificationEventService {
     taskScheduler.schedule(
         () -> sendNotificationEvent(notificationEvent),
         Instant.now().plus(delay, ChronoUnit.SECONDS));
+  }
+
+  /**
+   * Sends {@code SIMULATION_COMPLETED} on the simulation itself, a few seconds later so the
+   * transaction that finished it has committed. Its handler reads nothing unless a trigger of the
+   * tenant listens to an event it fires.
+   *
+   * @param simulation the finished simulation
+   */
+  public void sendSimulationCompleted(@NotNull final Exercise simulation) {
+    sendNotificationEventWithDelay(
+        SimulationNotificationEventHandler.completedEvent(simulation),
+        SimulationNotificationEventHandler.COMMIT_DELAY_SECONDS);
   }
 
   @EventListener
