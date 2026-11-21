@@ -167,8 +167,10 @@ public class Payload
 
   /**
    * True when this payload only reads the target and changes nothing on it. Safe-mode scenarios run
-   * read-only payloads only; any other payload waits for an approval.
+   * read-only payloads only; any other payload waits for an approval. A marker on the payload, not
+   * its content: kept out of the content hash.
    */
+  @NotHashed
   @Getter
   @Column(name = "payload_read_only")
   @JsonProperty("payload_read_only")

@@ -34,6 +34,7 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.injectors.manual.ManualContract;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.stix.objects.constants.CommonProperties;
@@ -540,10 +541,16 @@ class StixApiTest extends IntegrationTest {
               Instant.now().plus(2, ChronoUnit.MINUTES));
       assertThat(createdScenario.getScheduledBy()).isNull();
 
-      // Same injects as main, every one of them enabled.
+      // Same injects as main: the setting disables none of them. Main builds a technical inject
+      // enabled and a manual placeholder (no matching contract) disabled.
       Set<Inject> injects = injectRepository.findByScenarioId(scenarioId);
       assertThat(injects).hasSize(4);
-      assertThat(injects).allMatch(Inject::isEnabled);
+      String manual = ManualContract.MANUAL_DEFAULT;
+      for (Inject inject : injects) {
+        boolean placeholder =
+            inject.getInjectorContract().map(c -> manual.equals(c.getId())).orElse(false);
+        assertThat(inject.isEnabled()).isEqualTo(!placeholder);
+      }
     }
 
     @Test
