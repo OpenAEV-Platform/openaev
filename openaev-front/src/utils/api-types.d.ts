@@ -6436,12 +6436,23 @@ export interface FindingOutput {
    * @deprecated
    */
   finding_labels?: string[];
+  /**
+   * When a re-test last ended on the finding
+   * @format date-time
+   */
+  finding_last_tested?: string;
   /** Finding name */
   finding_name?: string;
+  /** Re-test inject queued and not finished yet */
+  finding_retest_inject_id?: string;
   /** Scenario the finding was produced in */
   finding_scenario?: ScenarioSimple;
   /** Simulation the finding was produced in */
   finding_simulation?: ExerciseSimple;
+  /** Lifecycle status: OPEN, NOT_REPRODUCED or RESOLVED */
+  finding_status?: "OPEN" | "NOT_REPRODUCED" | "RESOLVED";
+  /** Inject whose run set the current status (a detection or a re-test) */
+  finding_status_inject_id?: string;
   /**
    * Tag ids linked to the finding
    * @uniqueItems true
@@ -6490,6 +6501,24 @@ export interface FindingOutput {
    * @minLength 1
    */
   finding_value: string;
+}
+
+export interface FindingRetestInput {
+  /** Ids of the findings to re-test */
+  finding_ids: string[];
+}
+
+export interface FindingRetestOutput {
+  /**
+   * Finding re-tested
+   * @minLength 1
+   */
+  finding_id: string;
+  /**
+   * Inject queued to re-test the finding
+   * @minLength 1
+   */
+  retest_inject_id: string;
 }
 
 export interface FindingSummaryOutput {

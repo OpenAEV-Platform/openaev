@@ -287,6 +287,31 @@ DELETE /api/assets/{assetId}/links/{linkedAssetId}/{linkType}
 - **Errors**: `400` for a link to the Asset itself or to an Asset of another Tenant, `404` when either Asset (or, on `DELETE`, the link) is not found.
 - **Access**: `GET` needs the right to read the Asset, `POST` and `DELETE` the right to manage it. `GET` lists the links that start or end on the Asset; deleting an Asset deletes its links.
 
+## Finding re-test
+
+A Finding carries a lifecycle status, returned by `GET /api/findings/{id}`:
+
+- `finding_status`: `OPEN` (detected, not disproved by a later re-test), `NOT_REPRODUCED` (a re-test ran on the same targets and did not detect it again) or `RESOLVED`. Every new detection sets it back to `OPEN`.
+- `finding_last_tested`: when a re-test last ended on the Finding.
+- `finding_status_inject_id`: the Inject whose run set the status, a detection or a re-test.
+- `finding_retest_inject_id`: the re-test Inject queued and not finished yet, else empty.
+
+To re-test Findings, send their ids. The endpoint is also available under the Tenant prefix `/api/tenants/{tenantId}/findings/retest`.
+
+```http
+POST /api/findings/retest
+```
+
+```json
+{"finding_ids": ["<finding-uuid>", "<finding-uuid>"]}
+```
+
+- **What runs**: for each Inject that last produced the Findings, one copy with the same contract, content and targets; the original Inject and its history are kept. The copy runs under the same contract as the original, so a test limited to read-only contracts stays so. No approval is asked.
+- **Response**: one entry per Finding, `{"finding_id": "...", "retest_inject_id": "..."}`. Follow the Inject to know when the re-test ends.
+- **Result**: when the copy finishes, a Finding it detected again stays `OPEN`; a Finding it did not detect turns `NOT_REPRODUCED`, with the copy as `finding_status_inject_id`. A copy that ends in error leaves the status unchanged. Each change emits a Finding update event.
+- **Errors**: `400` when an Asset of a Finding is no longer a target of its Inject, directly or through an Asset group; `404` when a Finding is not in the Tenant or has no Inject left.
+- **Access**: the right to launch each Inject that is copied.
+
 ## What's next?
 
 - [Filters](filters.md) -- Filter format and operators
