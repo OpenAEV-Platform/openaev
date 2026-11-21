@@ -275,9 +275,8 @@ test.describe('Exploration graph interactions', () => {
     const canvas = page.getByTestId('graph-overview');
     const bubbles = page.locator('[data-testid^="graph-overview-group-"]');
     await expect(bubbles.first()).toBeVisible();
-    // The seeded group when the overview shows it (it keeps the 40 largest groups), else the first bubble.
-    const seededBubble = page.getByTestId(`graph-overview-group-${seeded.groupId}`);
-    const bubble = (await seededBubble.count()) > 0 ? seededBubble : bubbles.first();
+    // Any bubble is an asset group: the first one is selected and unfolded below.
+    const bubble = bubbles.first();
 
     // Every bubble sits inside the canvas, no two overlap, and the pack spans the canvas on one side.
     const geometry = await canvas.evaluate((element) => {
