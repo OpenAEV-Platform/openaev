@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { eventUrl, operationLabel } from '../../../../../admin/components/profile/notifications/notificationUtils';
+import { displayMessage, eventUrl, opensDetails, operationLabel } from '../../../../../admin/components/profile/notifications/notificationUtils';
+import { type NotificationOutput } from '../../../../../utils/api-types';
 
 describe('notificationUtils', () => {
   describe('eventUrl', () => {
@@ -28,7 +29,7 @@ describe('notificationUtils', () => {
       expect(url).toBe('/admin/scenarios/scenario-1');
     });
 
-    it('opens nothing for a catalogue release', () => {
+    it('opens the available catalogue for a release', () => {
       // Act
       const url = eventUrl({
         operation: 'RELEASE_RECEIVED',
@@ -37,7 +38,29 @@ describe('notificationUtils', () => {
       });
 
       // Assert
-      expect(url).toBeUndefined();
+      expect(url).toBe('/admin/threat-arsenal/available');
+    });
+  });
+
+  describe('displayMessage', () => {
+    it('drops the resource type prefix', () => {
+      // Act & Assert
+      expect(displayMessage('[payload] Nmap v1.2 revoked by Filigran')).toBe('Nmap v1.2 revoked by Filigran');
+    });
+  });
+
+  describe('opensDetails', () => {
+    it.each([
+      ['DIGEST', 'CREATE', true],
+      ['LIVE', 'SYNC_BLOCKED', true],
+      ['LIVE', 'RELEASE_RECEIVED', false],
+    ] as const)('a %s %s notification opens details: %s', (type, operation, expected) => {
+      // Act & Assert
+      expect(opensDetails({
+        notification_id: 'notification-1',
+        notification_type: type,
+        notification_content: [{ events: [{ operation }] }],
+      } as NotificationOutput)).toBe(expected);
     });
   });
 

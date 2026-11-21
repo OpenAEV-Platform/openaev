@@ -124,7 +124,16 @@ const RESOURCE_TYPE_URLS: Record<string, (id: string) => string> = {
   PLAYER: id => `${PERSON_BASE_URL}/${id}`,
   SECURITY_PLATFORM: id => `${SECURITY_PLATFORM_BASE_URL}/${id}`,
   PAYLOAD: () => THREAT_ARSENAL_BASE_URL,
+  CATALOG_SYNC: () => `${THREAT_ARSENAL_BASE_URL}/available`,
 };
+
+// Messages start with their resource type ("[payload] ..."), which the operation already tells.
+export const displayMessage = (message?: string) => (message ?? '-').replace(/^\[[^\]]+\]\s*/, '');
+
+// A digest, or a sync alert whose refused items follow on the next lines.
+export const opensDetails = (notification: NotificationOutput) => (
+  notification.notification_type === 'DIGEST' || getFirstOperation(notification) === 'SYNC_BLOCKED'
+);
 
 /**
  * URL of the entity that triggered an event, or undefined when not navigable
