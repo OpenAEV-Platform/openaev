@@ -29,4 +29,14 @@ public interface CounterpartProvider {
    */
   Map<String, Counterpart> resolve(String tenantId, CounterpartKind kind, Collection<String> keys)
       throws CounterpartUnavailableException;
+
+  /**
+   * Whether {@link #resolve} reads the other product with the calling user's own identity, so what
+   * it answers is what that user may read there. False for a lookup made with the connection's
+   * service credential: the service then keeps the pivot link alone (no remote name, type or fact),
+   * since the caller's rights in the other product are unknown.
+   */
+  default boolean readsAsCaller() {
+    return false;
+  }
 }
