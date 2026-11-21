@@ -1981,6 +1981,9 @@ class TenantActiveTableAccessArchTest {
               AttackPathGraphService.class,
               CapabilityResolverService.class,
               DetectionRemediationApi.class,
+              // Maps the contract's techniques inside the request's read-only transaction or the
+              // TxCtx-scoped transaction of SimulationNotificationEventHandler:
+              io.openaev.service.exposure.ExposureResultService.class,
               InjectHelper.class,
               InjectService.class,
               InjectorContractFullOutput.class,

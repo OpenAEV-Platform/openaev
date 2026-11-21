@@ -26,6 +26,7 @@ import io.openaev.service.exposure.ExposureResult.Summary;
 import io.openaev.service.exposure.ExposureResultService;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -60,7 +61,7 @@ class SimulationNotificationEventHandlerTest {
     simulation.setId("sim-1");
     simulation.setName("Sim");
     simulation.setTenant(tenant);
-    when(exerciseService.exercise("sim-1")).thenReturn(simulation);
+    when(exerciseService.findByIdInScope(any(), eq("sim-1"))).thenReturn(Optional.of(simulation));
   }
 
   private static ExposureResult result(List<ReachedAsset> reached) {

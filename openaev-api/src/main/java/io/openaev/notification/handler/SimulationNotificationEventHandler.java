@@ -1,6 +1,5 @@
 package io.openaev.notification.handler;
 
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
@@ -48,15 +47,9 @@ public class SimulationNotificationEventHandler implements NotificationEventHand
     }
     // Same two phases as ScenarioNotificationEventHandler: the engine opens its own scoped
     // transaction per trigger and refuses to run inside an active one.
-    Outcome outcome;
-    TenantContext.setCurrentTenant(event.getTenantId());
-    try {
-      outcome =
-          tenantTx.execute(
-              TxCtx.forTenant(event.getTenantId()), () -> compute(event.getResourceId()));
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+    // The tenant comes from the event through the TxCtx, never from the per-thread tenant.
+    TxCtx ctx = TxCtx.forTenant(event.getTenantId());
+    Outcome outcome = tenantTx.execute(ctx, () -> compute(ctx, event.getResourceId()));
     if (outcome == null) {
       return;
     }
@@ -76,15 +69,10 @@ public class SimulationNotificationEventHandler implements NotificationEventHand
     }
   }
 
-  private Outcome compute(String simulationId) {
-    Exercise simulation;
-    try {
-      simulation = exerciseService.exercise(simulationId);
-    } catch (RuntimeException e) {
+  private Outcome compute(TxCtx ctx, String simulationId) {
+    Exercise simulation = exerciseService.findByIdInScope(ctx, simulationId).orElse(null);
+    if (simulation == null || simulation.getTenant() == null) {
       log.warn("Exposure result skipped: simulation {} not found", simulationId);
-      return null;
-    }
-    if (simulation.getTenant() == null) {
       return null;
     }
     return new Outcome(
