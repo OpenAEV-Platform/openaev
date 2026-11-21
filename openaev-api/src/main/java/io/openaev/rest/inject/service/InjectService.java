@@ -975,6 +975,16 @@ public class InjectService {
     }
   }
 
+  /**
+   * Queues a copy of an inject: same contract, content and targets, the original kept. Used by the
+   * finding re-test, which runs again what produced a finding without replacing its history.
+   *
+   * @return the queued copy
+   */
+  public Inject duplicateAndQueue(@NotNull final String injectId) {
+    return saveInjectAndStatusAsQueuing(findAndDuplicateInject(injectId));
+  }
+
   private Inject findAndDuplicateInject(String id) {
     Inject injectOrigin = injectRepository.findById(id).orElseThrow(ElementNotFoundException::new);
     return InjectUtils.duplicateInject(injectOrigin);

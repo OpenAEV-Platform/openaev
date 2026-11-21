@@ -1714,7 +1714,13 @@ class TenantActiveTableAccessArchTest {
               // Opt-in keep_findings on delete: Propagation.MANDATORY, so it only joins the
               // tenant-scoped transaction of the delete entry point that calls it (pinned by
               // DeleteKeepFindingsApiTest).
-              io.openaev.service.finding.FindingDetachService.class)
+              io.openaev.service.finding.FindingDetachService.class,
+              // Re-test on demand: reached only from FindingApi#retestFindings, a TxCtx-carrying
+              // @Transactional handler, with the one tenant of its scope; every read names it.
+              io.openaev.service.finding.FindingRetestService.class,
+              // Joins the transaction that finalizes an inject (InjectStatusService), with the
+              // inject's own tenant passed and named by its read.
+              io.openaev.service.finding.FindingRetestSettlement.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(FindingRepository.class)
