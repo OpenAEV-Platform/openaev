@@ -206,7 +206,7 @@ class AssetFreshnessJobIntegrationTest extends IntegrationTest {
         tenantId,
         () ->
             tenantSettingsService.updateAssetFreshnessSettings(
-                tenantId, new AssetFreshnessSettingsInput(days)));
+                tenantId, new AssetFreshnessSettingsInput(days, null)));
   }
 
   private void clearSetting(String tenantId) {

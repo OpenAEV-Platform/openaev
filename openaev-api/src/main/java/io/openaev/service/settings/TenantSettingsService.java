@@ -1,5 +1,6 @@
 package io.openaev.service.settings;
 
+import static io.openaev.database.model.TenantSettingKeys.ASSET_DISCOVERY_TAG;
 import static io.openaev.database.model.TenantSettingKeys.ASSET_STALE_AFTER_DAYS;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_LANG;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_THEME;
@@ -108,9 +109,23 @@ public class TenantSettingsService {
 
   public AssetFreshnessSettingsInput updateAssetFreshnessSettings(
       @NotBlank String tenantId, @NotNull AssetFreshnessSettingsInput input) {
-    upsert(
-        new Tenant(tenantId), ASSET_STALE_AFTER_DAYS.key(), String.valueOf(input.staleAfterDays()));
+    Tenant tenant = new Tenant(tenantId);
+    upsert(tenant, ASSET_STALE_AFTER_DAYS.key(), String.valueOf(input.staleAfterDays()));
+    if (input.discoveryTag() != null) {
+      upsert(tenant, ASSET_DISCOVERY_TAG.key(), String.valueOf(input.discoveryTag()));
+    }
     return readAssetFreshnessSettings(tenantId);
+  }
+
+  /** Whether the assets a run creates get the "discovered" tag in this tenant (off by default). */
+  @Transactional(readOnly = true)
+  public boolean isAssetDiscoveryTagEnabled(@NotBlank String tenantId) {
+    return readDiscoveryTag(loadTenantSettings(tenantId));
+  }
+
+  private boolean readDiscoveryTag(Map<String, Setting> tenantSettings) {
+    String value = resolveValue(tenantSettings, ASSET_DISCOVERY_TAG);
+    return value != null && Boolean.parseBoolean(value.trim());
   }
 
   private AssetFreshnessSettingsInput readAssetFreshnessSettings(String tenantId) {
@@ -122,7 +137,7 @@ public class TenantSettingsService {
     } catch (NumberFormatException e) {
       days = Integer.parseInt(ASSET_STALE_AFTER_DAYS.defaultValue());
     }
-    return new AssetFreshnessSettingsInput(days);
+    return new AssetFreshnessSettingsInput(days, readDiscoveryTag(tenantSettings));
   }
 
   public void updateCatalogAutoInstall(

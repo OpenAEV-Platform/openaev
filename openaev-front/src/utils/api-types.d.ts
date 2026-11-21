@@ -691,6 +691,7 @@ export interface AssetBulkReplaceMarkingsInput {
 }
 
 export interface AssetFreshnessSettingsInput {
+  asset_discovery_tag?: boolean;
   /**
    * @format int32
    * @min 0

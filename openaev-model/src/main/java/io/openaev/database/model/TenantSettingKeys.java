@@ -20,7 +20,10 @@ public enum TenantSettingKeys {
   CATALOG_SCENARIO_AUTO_INSTALL("catalog_scenario_auto_install", "true", false),
   // Asset freshness: an asset unseen for this many days turns stale. 0 (the default) keeps the
   // check off, so an instance behaves as before until a user sets a threshold.
-  ASSET_STALE_AFTER_DAYS("asset_stale_after_days", "0", false);
+  ASSET_STALE_AFTER_DAYS("asset_stale_after_days", "0", false),
+  // Asset discovery: tag the assets a run creates (autonomous promotion, inject output) with
+  // "discovered". false (the default) keeps the behaviour as before.
+  ASSET_DISCOVERY_TAG("asset_discovery_tag", "false", false);
 
   private final String key;
   private final String defaultValue;
