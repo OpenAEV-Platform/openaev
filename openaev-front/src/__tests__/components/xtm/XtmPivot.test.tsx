@@ -118,6 +118,8 @@ describe('OpenCtiPivotView', () => {
       />,
     );
     expect(screen.getByText('Not in OpenCTI')).toBeTruthy();
+    // A status, never a dead button.
+    expect(screen.getByTestId('xtm-pivot-none').querySelector('button')).toBeNull();
   });
 
   it('given not connected and an administrator should offer to connect', () => {
@@ -142,7 +144,7 @@ describe('OpenCtiPivotView', () => {
       />,
     );
     expect(screen.queryByTestId('xtm-connect-cta')).toBeNull();
-    expect(screen.getByTestId('xtm-connect-hint')).toBeTruthy();
+    expect(screen.getByTestId('xtm-connect-hint').querySelector('button')).toBeNull();
   });
 
   it('given an unavailable product should degrade to a muted mark, never an error', () => {
@@ -153,7 +155,7 @@ describe('OpenCtiPivotView', () => {
       }}
       />,
     );
-    expect(screen.getByTestId('xtm-pivot-unavailable')).toBeTruthy();
+    expect(screen.getByTestId('xtm-pivot-unavailable').querySelector('button')).toBeNull();
   });
 
   it('given a dismissed call to action should stay hidden', () => {

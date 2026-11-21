@@ -125,7 +125,7 @@ describe('OpenCrqPivotView', () => {
       />,
     );
     expect(screen.queryByTestId('xtm-crq-connect-cta')).toBeNull();
-    expect(screen.getByTestId('xtm-crq-connect-hint')).toBeTruthy();
+    expect(screen.getByTestId('xtm-crq-connect-hint').querySelector('button')).toBeNull();
   });
 
   it('given an unavailable OpenCRQ should degrade to a muted mark', () => {
@@ -136,7 +136,7 @@ describe('OpenCrqPivotView', () => {
       }}
       />,
     );
-    expect(screen.getByTestId('xtm-crq-pivot-unavailable')).toBeTruthy();
+    expect(screen.getByTestId('xtm-crq-pivot-unavailable').querySelector('button')).toBeNull();
   });
 
   it('given a dismissed call to action should stay hidden', () => {

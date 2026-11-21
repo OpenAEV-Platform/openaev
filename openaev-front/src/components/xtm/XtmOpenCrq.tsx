@@ -14,7 +14,7 @@ import { useFormatter } from '../i18n';
 import { FACT_LABELS, keyFact, MONEY_FACTS, orderedFacts } from './counterpartFacts';
 import { type CounterpartAnswer } from './counterpartStore';
 import useCounterpart from './useCounterpart';
-import { CONNECT_OPENCTI_DOC_URL, type PivotSize, ROW_MARK_SLOT_WIDTH } from './XtmPivot';
+import { CONNECT_OPENCTI_DOC_URL, type PivotSize, ROW_MARK_SLOT_WIDTH, STATUS_TRIGGER } from './XtmPivot';
 import { PivotNoMatch, PivotPreview, PivotTeaser } from './XtmPivotPreview';
 
 // The OpenCRQ side of the cross-platform pivots: same visual language and wording as the OpenCTI
@@ -73,15 +73,13 @@ export const ConnectOpenCrqCta: FunctionComponent<{ size?: PivotSize }> = ({ siz
     return null;
   }
   if (!canConfigure) {
-    // A disabled button fires no pointer event: the teaser hangs on a focusable wrapper.
+    // This user cannot connect OpenCRQ: a status (FDS Chip), never a dead button. The teaser hangs on
+    // a focusable wrapper so keyboard users open it too.
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <Box component="span" tabIndex={0} sx={{ display: 'inline-flex' }} data-testid="xtm-crq-connect-hint">
-            <Button priority="secondary" size={size} disabled>
-              <OpenCrqMark />
-              {t('Connect OpenCRQ')}
-            </Button>
+          <Box component="span" tabIndex={0} sx={STATUS_TRIGGER} data-testid="xtm-crq-connect-hint">
+            <Chip label={t('Connect OpenCRQ')} startIcon={<OpenCrqMark size={16} />} />
             <Box component="span" sx={SR_ONLY}>{t('Ask an administrator to connect OpenCRQ to see this object there.')}</Box>
           </Box>
         </TooltipTrigger>
@@ -124,7 +122,7 @@ export const ConnectOpenCrqCta: FunctionComponent<{ size?: PivotSize }> = ({ siz
             onClick={dismiss}
             aria-label={t('Hide this suggestion')}
             priority="tertiary"
-            size="sm"
+            size={size}
           />
         </TooltipTrigger>
         <TooltipContent>{t('Hide this suggestion')}</TooltipContent>
@@ -184,11 +182,8 @@ export const OpenCrqPivotView: FunctionComponent<{
       return (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Box component="span" tabIndex={0} sx={{ display: 'inline-flex' }} data-testid="xtm-crq-pivot-none">
-              <Button priority="secondary" size={size} disabled>
-                <OpenCrqMark />
-                {t('Not in OpenCRQ')}
-              </Button>
+            <Box component="span" tabIndex={0} sx={STATUS_TRIGGER} data-testid="xtm-crq-pivot-none">
+              <Chip label={t('Not in OpenCRQ')} startIcon={<OpenCrqMark size={16} />} />
             </Box>
           </TooltipTrigger>
           <TooltipContent>
@@ -204,11 +199,8 @@ export const OpenCrqPivotView: FunctionComponent<{
       return (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Box component="span" tabIndex={0} sx={{ display: 'inline-flex' }} data-testid="xtm-crq-pivot-unavailable">
-              <Button priority="secondary" size={size} disabled>
-                <LinkOffOutlined fontSize="small" />
-                {t('OpenCRQ is unavailable')}
-              </Button>
+            <Box component="span" tabIndex={0} sx={STATUS_TRIGGER} data-testid="xtm-crq-pivot-unavailable">
+              <Chip label={t('OpenCRQ is unavailable')} startIcon={<LinkOffOutlined fontSize="small" />} />
             </Box>
           </TooltipTrigger>
           <TooltipContent>{t('OpenCRQ did not answer this time. The pivot comes back on its own.')}</TooltipContent>

@@ -58,6 +58,15 @@ const SR_ONLY = {
   whiteSpace: 'nowrap',
 } as const;
 
+// A state with no action (no match, unavailable, cannot connect) is a status: an FDS Chip on a
+// focusable wrapper, the trigger of its explanation, centred in the slot of the 36 px pivot.
+export const STATUS_TRIGGER = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 36,
+  borderRadius: 1,
+} as const;
+
 const useCanConfigure = () => {
   const ability = useAbility();
   return ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
@@ -102,15 +111,13 @@ export const ConnectOpenCtiCta: FunctionComponent<{
     setDismissed(true);
   };
   if (!canConfigure) {
-    // A disabled button fires no pointer event: the teaser hangs on a focusable wrapper.
+    // This user cannot connect OpenCTI: a status (FDS Chip), never a dead button. The teaser hangs on
+    // a focusable wrapper so keyboard users open it too.
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <Box component="span" tabIndex={0} sx={{ display: 'inline-flex' }} data-testid="xtm-connect-hint">
-            <Button priority="secondary" size={size} disabled>
-              <ProductMark />
-              {t('Connect OpenCTI')}
-            </Button>
+          <Box component="span" tabIndex={0} sx={STATUS_TRIGGER} data-testid="xtm-connect-hint">
+            <Chip label={t('Connect OpenCTI')} startIcon={<ProductMark size={16} />} />
             <Box component="span" sx={SR_ONLY}>{t('Ask an administrator to connect OpenCTI to see this object there.')}</Box>
           </Box>
         </TooltipTrigger>
@@ -146,7 +153,7 @@ export const ConnectOpenCtiCta: FunctionComponent<{
               onClick={dismiss}
               aria-label={t('Hide this suggestion')}
               priority="tertiary"
-              size="sm"
+              size={size}
             />
           </TooltipTrigger>
           <TooltipContent>{t('Hide this suggestion')}</TooltipContent>
@@ -212,11 +219,8 @@ export const OpenCtiPivotView: FunctionComponent<{
       return (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Box component="span" tabIndex={0} sx={{ display: 'inline-flex' }} data-testid="xtm-pivot-none">
-              <Button priority="secondary" size={size} disabled>
-                <ProductMark />
-                {t('Not in OpenCTI')}
-              </Button>
+            <Box component="span" tabIndex={0} sx={STATUS_TRIGGER} data-testid="xtm-pivot-none">
+              <Chip label={t('Not in OpenCTI')} startIcon={<ProductMark size={16} />} />
             </Box>
           </TooltipTrigger>
           <TooltipContent>
@@ -232,11 +236,8 @@ export const OpenCtiPivotView: FunctionComponent<{
       return (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Box component="span" tabIndex={0} sx={{ display: 'inline-flex' }} data-testid="xtm-pivot-unavailable">
-              <Button priority="secondary" size={size} disabled>
-                <LinkOffOutlined fontSize="small" />
-                {t('OpenCTI is unavailable')}
-              </Button>
+            <Box component="span" tabIndex={0} sx={STATUS_TRIGGER} data-testid="xtm-pivot-unavailable">
+              <Chip label={t('OpenCTI is unavailable')} startIcon={<LinkOffOutlined fontSize="small" />} />
             </Box>
           </TooltipTrigger>
           <TooltipContent>{t('OpenCTI did not answer this time. The pivot comes back on its own.')}</TooltipContent>

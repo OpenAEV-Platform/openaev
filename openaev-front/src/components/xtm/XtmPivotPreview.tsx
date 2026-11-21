@@ -1,5 +1,5 @@
-import { Chip } from '@filigran/design-system';
-import { Box, Skeleton } from '@mui/material';
+import { Chip, Skeleton } from '@filigran/design-system';
+import { Box } from '@mui/material';
 import { type FunctionComponent, type ReactNode } from 'react';
 
 import { type FactOutput } from '../../utils/api-types';
@@ -114,6 +114,14 @@ interface TeaserProps {
   next: string;
 }
 
+// The example value of a teaser fact: an FDS Skeleton the size of a short figure. It stands for a
+// value the user would see once connected, not for content loading, so no SkeletonGroup announces
+// it; the example list is aria-hidden and the pitch below carries the meaning.
+const EXAMPLE_VALUE = {
+  width: 56,
+  height: 12,
+} as const;
+
 /**
  * Not connected: what the other product would show here, with skeleton values labelled as an
  * example (never figures that could read as real), the pitch and the next step.
@@ -155,7 +163,7 @@ export const PivotTeaser: FunctionComponent<TeaserProps> = ({ mark, productName,
         {Object.entries(labels).map(([key, label]) => (
           <Box key={key} sx={{ display: 'contents' }}>
             <Box component="dt" sx={{ opacity: 0.72 }}>{t(label)}</Box>
-            <Box component="dd" sx={{ margin: 0 }}><Skeleton variant="text" width={56} animation={false} /></Box>
+            <Box component="dd" sx={{ margin: 0 }}><Skeleton style={EXAMPLE_VALUE} /></Box>
           </Box>
         ))}
       </Box>
