@@ -8906,6 +8906,8 @@ export interface NotificationTriggerInput {
     | "DELETE"
     | "SCORE_DEGRADATION"
     | "SYNC_BLOCKED"
+    | "EXPOSURE_RESULT_READY"
+    | "CRITICAL_ASSET_REACHED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
@@ -9020,6 +9022,8 @@ export interface NotificationTriggerOutput {
     | "DELETE"
     | "SCORE_DEGRADATION"
     | "SYNC_BLOCKED"
+    | "EXPOSURE_RESULT_READY"
+    | "CRITICAL_ASSET_REACHED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;

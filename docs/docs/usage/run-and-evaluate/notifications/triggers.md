@@ -45,7 +45,11 @@ Both types share the same two remaining settings:
    Vulnerability, Security platform, Document, or Challenge.
 5. Select one or more **Event types**: **Create**, **Update**, **Delete**. For the Scenario Resource type, a
    fourth option, **Score degradation**, is also available: it fires when a Simulation's score drops below the
-   score of the previous run for the same Scenario.
+   score of the previous run for the same Scenario. For the Simulation Resource type, two more options are
+   available: **Exposure result ready** fires once when a Simulation finishes, with a message that gives
+   the number of exposed Assets and the path of its exposure result (see
+   [Exposure result](#exposure-result) below); **Critical asset reached** fires once per Asset when the
+   attack path of the finished Simulation reaches an Asset whose criticality is High or Very high.
 6. Optionally, add **Filters** to only match entities that satisfy specific conditions (for example, a Simulation
    filtered to a specific Tag). Leave the filters empty to match every entity of the selected Resource type.
 7. Select one or more **Notifiers**.
@@ -115,6 +119,26 @@ plus a weekly summary of every change across your Scenarios and Simulations.
 
 You now get an immediate Email whenever a score regresses, plus a single Monday morning Email summarizing every
 Simulation created, updated, or scored lower that week, instead of one Email per individual event.
+
+## Exposure result
+
+Every finished Simulation has an exposure result, read with
+`GET /api/exercises/{simulationId}/exposure-result` (the tenant route `/api/tenants/{tenantId}/exercises/...`
+works too) by any user who can read the Simulation. It is a versioned contract (`schema_version`, currently
+`"1"`): a field is only ever added within a version.
+
+- `subjects`: one entry per Vulnerability (`type: vulnerability`, CVE as `external_id`) or ATT&CK technique
+  (`type: technique`) the Injects tested, or the Inject itself when its contract names neither. Each lists the
+  Assets tested with a `verdict`: `exposed` (vulnerable, or the technique was neither prevented nor detected),
+  `detected`, `prevented`, `not_exposed` or `not_tested` (no result yet), a `confidence` (`high` when every
+  Expectation has a result, `medium` when some do, `low` when none do) and the `conditions` checked (one per
+  Expectation: its type, expected score, score and status).
+- `reached_assets`: Assets of the Simulation's attack path that no Inject targeted directly, with their
+  criticality; `critical` is true for High and Very high.
+- `summary`: distinct Assets per verdict (an Asset counts once, under its most severe verdict) and the number of
+  critical Assets reached.
+- `coverage_external_id`: the external id of the security coverage the Simulation was built from, when there is
+  one.
 
 ## What's Next?
 

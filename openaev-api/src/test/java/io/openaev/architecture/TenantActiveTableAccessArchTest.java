@@ -1752,7 +1752,11 @@ class TenantActiveTableAccessArchTest {
               // (SecurityCoverageJob, InjectsFinalizationJob#handleAutoClosingSimulations), all
               // pinned
               // by SecurityCoverageTenantScopeTest#SendJobCreationGateRequiresScope:
-              SecurityCoverageSendJobService.class)
+              SecurityCoverageSendJobService.class,
+              // Reads the coverage external id of a simulation it loaded through
+              // ExerciseService#findByIdInScope (TxCtx-carrying ExposureResultApi) or inside the
+              // tenant-scoped transaction the notification engine opens per trigger:
+              io.openaev.service.exposure.ExposureResultService.class)
           .should()
           .callMethod(Exercise.class, "getSecurityCoverage")
           .because(
