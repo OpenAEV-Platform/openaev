@@ -13,6 +13,7 @@ import io.openaev.database.repository.NotificationEventRecordRepository;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -103,22 +104,15 @@ public class NotificationEngineService {
         if (entityTenantId == null || !entityTenantId.equals(trigger.tenantId())) {
           continue;
         }
-        // Run with both scopes on the async thread: TenantContext keeps v1 paths correct,
-        // TenantScopedTransaction/TX ctx scopes v2-active reads.
-        TenantContext.setCurrentTenant(trigger.tenantId());
-        try {
-          tenantTx.execute(
-              TxCtx.forTenant(trigger.tenantId()),
-              () -> {
-                if (!matchingService.matches(trigger, entry, entityId)) {
-                  return;
-                }
-                List<String> readers = recipientFilter.readersOf(trigger, entry, entityId);
-                notifyRendered(trigger, readers, entry, entityId, eventType, message);
-              });
-        } finally {
-          TenantContext.clearCurrentTenant();
-        }
+        inTriggerScope(
+            trigger,
+            () -> {
+              if (!matchingService.matches(trigger, entry, entityId)) {
+                return List.of();
+              }
+              List<String> readers = recipientFilter.readersOf(trigger, entry, entityId);
+              return recordRendered(trigger, readers, entry, entityId, eventType, message);
+            });
       } catch (Exception e) {
         log.error(
             "Notification trigger {} processing failed for {} {}",
@@ -149,41 +143,35 @@ public class NotificationEngineService {
             || !trigger.eventTypes().contains(NotificationTriggerEventType.DELETE)) {
           continue;
         }
-        TenantContext.setCurrentTenant(trigger.tenantId());
-        try {
-          tenantTx.execute(
-              TxCtx.forTenant(trigger.tenantId()),
-              () -> {
-                if (snapshot.kind() == NotificationReadersSnapshot.Kind.DELETION) {
-                  notifyRendered(
-                      trigger,
-                      captured.readers(),
-                      entry,
-                      snapshot.entityId(),
-                      NotificationTriggerEventType.DELETE,
-                      NotificationMessage.of(
-                          buildMessage(
-                              entry, NotificationTriggerEventType.DELETE, snapshot.label())));
-                  return;
-                }
-                List<String> lost =
-                    captured.readers().stream()
-                        .filter(
-                            userId ->
-                                !recipientFilter.canRead(
-                                    trigger.tenantId(), userId, entry, snapshot.entityId()))
-                        .toList();
-                notifyRendered(
+        inTriggerScope(
+            trigger,
+            () -> {
+              if (snapshot.kind() == NotificationReadersSnapshot.Kind.DELETION) {
+                return recordRendered(
                     trigger,
-                    lost,
+                    captured.readers(),
                     entry,
                     snapshot.entityId(),
                     NotificationTriggerEventType.DELETE,
-                    NotificationMessage.of(noLongerVisibleMessage(entry.getResourceType())));
-              });
-        } finally {
-          TenantContext.clearCurrentTenant();
-        }
+                    NotificationMessage.of(
+                        buildMessage(
+                            entry, NotificationTriggerEventType.DELETE, snapshot.label())));
+              }
+              List<String> lost =
+                  captured.readers().stream()
+                      .filter(
+                          userId ->
+                              !recipientFilter.canRead(
+                                  trigger.tenantId(), userId, entry, snapshot.entityId()))
+                      .toList();
+              return recordRendered(
+                  trigger,
+                  lost,
+                  entry,
+                  snapshot.entityId(),
+                  NotificationTriggerEventType.DELETE,
+                  NotificationMessage.of(noLongerVisibleMessage(entry.getResourceType())));
+            });
       } catch (Exception e) {
         log.error(
             "Notification trigger {} {} delivery failed for {} {}",
@@ -196,11 +184,38 @@ public class NotificationEngineService {
     }
   }
 
+  /** One live dispatch: the recipients who get the same rendering, and what they get. */
+  private record Dispatch(List<String> users, List<NotificationContent.Group> groups) {}
+
   /**
-   * Records and dispatches one event to {@code readers}, the message rendered for each of them;
-   * readers who get the same rendering share one dispatch. Must run in the trigger's scope.
+   * Runs {@code prepare} and dispatches what it returns in the trigger's scope, the only place the
+   * live stage opens one: TenantContext keeps v1 paths correct on the async thread, the
+   * TenantScopedTransaction / TxCtx scopes v2-active reads, and every dispatch is made in the work
+   * of that scope.
    */
-  private void notifyRendered(
+  private void inTriggerScope(
+      ResolvedNotificationTrigger trigger, Supplier<List<Dispatch>> prepare) {
+    TenantContext.setCurrentTenant(trigger.tenantId());
+    try {
+      tenantTx.execute(
+          TxCtx.forTenant(trigger.tenantId()),
+          () -> {
+            for (Dispatch dispatch : prepare.get()) {
+              dispatchService.dispatch(
+                  trigger, NotificationTriggerType.LIVE, dispatch.users(), dispatch.groups());
+            }
+          });
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+
+  /**
+   * Records one event for {@code readers}, the message rendered for each of them, and returns the
+   * dispatches to make: readers who get the same rendering share one. Must run in the trigger's
+   * scope.
+   */
+  private List<Dispatch> recordRendered(
       ResolvedNotificationTrigger trigger,
       List<String> readers,
       NotificationResourceCatalog entry,
@@ -208,7 +223,7 @@ public class NotificationEngineService {
       NotificationTriggerEventType eventType,
       NotificationMessage message) {
     if (readers.isEmpty()) {
-      return;
+      return List.of();
     }
     Map<String, List<String>> readersByRendering = new LinkedHashMap<>();
     for (String userId : readers) {
@@ -219,6 +234,7 @@ public class NotificationEngineService {
                       trigger.tenantId(), userId, reference.entry(), reference.id()));
       readersByRendering.computeIfAbsent(rendered, key -> new java.util.ArrayList<>()).add(userId);
     }
+    List<Dispatch> dispatches = new java.util.ArrayList<>();
     readersByRendering.forEach(
         (rendered, users) -> {
           recordEvents(trigger, users, entry, entityId, eventType, rendered);
@@ -228,8 +244,9 @@ public class NotificationEngineService {
                   List.of(
                       new NotificationContent.Event(
                           eventType, rendered, entry.getResourceType(), entityId)));
-          dispatchService.dispatch(trigger, NotificationTriggerType.LIVE, users, List.of(group));
+          dispatches.add(new Dispatch(users, List.of(group)));
         });
+    return dispatches;
   }
 
   /** Suffix of the delete-type event a recipient gets when it loses read access to an object. */
