@@ -86,6 +86,7 @@ import { type GroupedNode, groupNeighbours, isGroupId, miniView } from './graph-
 import NODE_ICON from './graph-icons';
 import { LASSO_MIN_LENGTH, nodesInLasso, pathLength } from './graph-lasso';
 import { entering, type GraphLayout, MINI_CARD_PADDING, miniCardHeight, moveAt, planMove, type Point } from './graph-layout';
+import { linkItem, menuItem, routeItem, subTriggerLabel } from './graph-menu-items';
 import {
   ALL_EDGE_TYPES,
   ALL_NODE_TYPES,
@@ -124,6 +125,7 @@ import {
   visibleGraph,
 } from './graph-state';
 import { dateBounds, followBounds, TIME_RANGE_STEP, type TimeRange } from './graph-time-range';
+import GraphContextMenu from './GraphContextMenu';
 import GraphEntityNode, { type GraphEntityNodeType } from './GraphEntityNode';
 import GraphFloatingEdge from './GraphFloatingEdge';
 import GraphLegend from './GraphLegend';
@@ -1245,49 +1247,6 @@ const GraphExplorerInner = ({
     });
   };
   const closeMenu = () => setMenu(null);
-  // Every item keeps the icon slot, an empty one when it has no icon, so all labels of a menu share
-  // one left edge.
-  const iconSlot = (icon: ReactNode) => icon ?? (
-    <span
-      aria-hidden
-      style={{
-        display: 'inline-block',
-        width: 20,
-        height: 20,
-      }}
-    />
-  );
-  const menuItem = (key: string, label: string, icon: ReactNode, onSelect: () => void, disabled = false) => (
-    <MenuItem key={key} startIcon={iconSlot(icon)} disabled={disabled} onSelect={onSelect}>{label}</MenuItem>
-  );
-  // A submenu trigger takes no startIcon: its icon sits in its label, with the same slot width.
-  const subTriggerLabel = (icon: ReactNode, label: string) => (
-    <span className="flex items-center gap-2">
-      {icon}
-      {label}
-    </span>
-  );
-  const linkItem = (key: string, label: string, icon: ReactNode, href: string | undefined) => {
-    if (!href) {
-      return [];
-    }
-    return [(
-      <MenuItem key={key} startIcon={icon} asChild>
-        <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
-      </MenuItem>
-    )];
-  };
-  // An entity of this product: a router link, so a middle click or "open in new tab" works as on any other entity link.
-  const routeItem = (key: string, label: string, icon: ReactNode, href: string | undefined) => {
-    if (!href) {
-      return [];
-    }
-    return [(
-      <MenuItem key={key} startIcon={icon} asChild>
-        <Link to={href}>{label}</Link>
-      </MenuItem>
-    )];
-  };
   const nodeMenu = (node: GraphNodeOutput) => {
     const href = nodeHref(node);
     const present = ALL_NODE_TYPES.filter(type => type !== node.node_type);
@@ -1385,34 +1344,9 @@ const GraphExplorerInner = ({
     return graphMenu();
   };
   const contextMenu = menu && (
-    <Menu
-      open
-      modal={false}
-      onOpenChange={(open) => {
-        if (!open) {
-          closeMenu();
-        }
-      }}
-    >
-      {/* The library Menu opens from a trigger only: a hidden one sits at the pointer, as in OpenCTI. */}
-      <MenuTrigger asChild>
-        <span
-          aria-hidden
-          tabIndex={-1}
-          style={{
-            position: 'absolute',
-            left: menu.x,
-            top: menu.y,
-            width: 1,
-            height: 1,
-            pointerEvents: 'none',
-          }}
-        />
-      </MenuTrigger>
-      <MenuContent align="start" side="bottom" aria-label={t('Graph actions')} collisionPadding={8} data-testid="graph-context-menu">
-        {menuSections()}
-      </MenuContent>
-    </Menu>
+    <GraphContextMenu x={menu.x} y={menu.y} onClose={closeMenu}>
+      {menuSections()}
+    </GraphContextMenu>
   );
 
   const shortcutsDialog = (
