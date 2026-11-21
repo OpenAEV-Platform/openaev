@@ -286,6 +286,7 @@ const Graph = () => {
               </div>
             </div>
           )}
+        </Box>
       </Box>
     </Stack>
   );
