@@ -329,6 +329,75 @@ public class UserMappingServiceTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "When the idp still lists the group and several tenant groups share the name, keep the membership the user holds")
+  public void given_duplicateGroupNamesAndAMembership_should_keepItWithoutFailingTheLogin() {
+
+    // -- ARRANGE ---
+    String object =
+        "[{\"tenantId\": \"%1$s\",\"idpGroup\": \"observer1\",\"userGroup\": \"twinOAEV\",\"autoCreate\": \"false\"}]"
+            .formatted(TenantContext.getCurrentTenant());
+    List<Group> twins = persistTwinTenantGroups("twinOAEV");
+    Group held = twins.getLast();
+    User user = UserFixture.getUser();
+    user.getUnscopedGroups().add(held);
+    userComposer.forUser(user).persist();
+    entityManager.flush();
+    entityManager.clear();
+
+    // ---- ACT ----
+    userMappingService.mapCurrentUserWithGroup(object, user, List.of("observer1"));
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
+
+    // -- ASSERT --
+    assertThat(user.getUnscopedGroups().stream().map(Group::getId).toList())
+        .isEqualTo(List.of(held.getId()));
+  }
+
+  @Test
+  @DisplayName(
+      "When the idp lists the group, several tenant groups share the name and the user holds none, join the lowest id")
+  public void given_duplicateGroupNamesAndNoMembership_should_joinTheLowestId() {
+
+    // -- ARRANGE ---
+    String object =
+        "[{\"tenantId\": \"%1$s\",\"idpGroup\": \"observer1\",\"userGroup\": \"twinOAEV\",\"autoCreate\": \"false\"}]"
+            .formatted(TenantContext.getCurrentTenant());
+    List<Group> twins = persistTwinTenantGroups("twinOAEV");
+    User user = UserFixture.getUser();
+    userComposer.forUser(user).persist();
+    entityManager.flush();
+    entityManager.clear();
+
+    // ---- ACT ----
+    userMappingService.mapCurrentUserWithGroup(object, user, List.of("observer1"));
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
+
+    // -- ASSERT --
+    assertThat(user.getUnscopedGroups().stream().map(Group::getId).toList())
+        .isEqualTo(List.of(twins.getFirst().getId()));
+  }
+
+  /** Two tenant groups of {@code name}, in ascending id order. */
+  private List<Group> persistTwinTenantGroups(String name) {
+    List<Group> twins = new ArrayList<>();
+    for (int i = 0; i < 2; i++) {
+      Group twin = TenantGroupFixture.getGroup(name);
+      twin.setRoles(new ArrayList<>());
+      tenantGroupComposer.forGroup(twin).persist();
+      twins.add(twin);
+    }
+    entityManager.flush();
+    entityManager.clear();
+    twins.sort(Comparator.comparing(Group::getId));
+    return twins;
+  }
+
+  @Test
   @DisplayName("With a tenant ID the group is a tenant group, without it a platform group")
   public void whenTenantIdIsSet_useTenantGroup_otherwisePlatformGroup() {
 

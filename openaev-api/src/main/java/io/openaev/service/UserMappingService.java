@@ -143,42 +143,44 @@ public class UserMappingService {
   }
 
   // Both mappings write the membership row by id, whatever the user's loaded groups hold: the bag
-  // is stale after a native write, so overlapping mappings must not read it.
+  // is stale after a native write, so overlapping mappings must not read it. Names are not unique,
+  // so a membership in any group of the mapped name already meets the grant, and otherwise the
+  // lowest id is joined: a duplicate name never fails the login.
   private boolean grantGroup(User user, GroupMapping mapping, Tenant tenant) {
     if (tenant != null) {
       attachTenant(user, tenant);
     }
-    return findOrCreateGroup(mapping, tenant)
-        .map(g -> userGroupMembershipService.addMembership(user.getId(), g.getId()))
-        .orElse(false);
+    List<String> namedGroupIds =
+        findGroups(mapping.getUserGroup(), tenant).stream().map(Group::getId).sorted().toList();
+    if (namedGroupIds.isEmpty()) {
+      return createGroup(mapping, tenant)
+          .map(g -> userGroupMembershipService.addMembership(user.getId(), g.getId()))
+          .orElse(false);
+    }
+    if (userGroupMembershipService.isMemberOfAny(user.getId(), namedGroupIds)) {
+      return false;
+    }
+    return userGroupMembershipService.addMembership(user.getId(), namedGroupIds.getFirst());
   }
 
   /** The user left the group in the identity provider: every group of that name is left. */
   private boolean revokeGroup(User user, String userGroup, Tenant tenant) {
-    List<Group> groups =
-        tenant == null
-            ? platformGroupService.findAllByName(userGroup)
-            : tenantGroupService.findByTenantIdAndName(tenant.getId(), userGroup);
     boolean changed = false;
-    for (Group group : groups) {
+    for (Group group : findGroups(userGroup, tenant)) {
       changed |= userGroupMembershipService.removeMembership(user.getId(), group.getId());
     }
     return changed;
   }
 
-  /** A mapping with a tenant targets a group of that tenant, otherwise a platform group. */
-  private Optional<Group> findGroup(String userGroup, Tenant tenant) {
+  /** A mapping with a tenant targets the groups of that tenant, otherwise platform groups. */
+  private List<Group> findGroups(String userGroup, Tenant tenant) {
     return tenant == null
-        ? platformGroupService.findByName(userGroup)
-        : tenantGroupService.findByNameAndTenantId(userGroup, tenant.getId());
+        ? platformGroupService.findAllByName(userGroup)
+        : tenantGroupService.findByTenantIdAndName(tenant.getId(), userGroup);
   }
 
-  private Optional<Group> findOrCreateGroup(GroupMapping mapping, Tenant tenant) {
+  private Optional<Group> createGroup(GroupMapping mapping, Tenant tenant) {
     String userGroup = mapping.getUserGroup();
-    Optional<Group> existing = findGroup(userGroup, tenant);
-    if (existing.isPresent()) {
-      return existing;
-    }
     if (!mapping.isAutoCreate()) {
       log.error(
           "Group '{}' not found in database and autoCreate is disabled for mapping '{}'",
