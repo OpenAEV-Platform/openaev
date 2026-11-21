@@ -90,12 +90,8 @@ const packUnit = (inputs: PackInput[], gap: number, aspect: number): PackedBubbl
   return placed;
 };
 
-/**
- * The bubbles packed and scaled to fill a canvas of width x height px: the pack is centred and as
- * large as the canvas allows (its bounding box touches the canvas on its tighter side, PACK_GAP
- * kept around). An empty input or a canvas without size gives no bubble.
- */
-export const packBubbles = (inputs: PackInput[], width: number, height: number): PackedBubble[] => {
+/** The pack centred and scaled to a free rectangle of width x height px (see packBubbles). */
+const packInCanvas = (inputs: PackInput[], width: number, height: number): PackedBubble[] => {
   if (inputs.length === 0 || width <= 0 || height <= 0) {
     return [];
   }
@@ -126,4 +122,50 @@ export const packBubbles = (inputs: PackInput[], width: number, height: number):
     y: offsetY + b.y * scale,
     r: b.r * scale,
   }));
+};
+
+/** A rectangle of the canvas the bubbles keep clear of (a panel floating over it), in px. */
+export interface PackObstacle {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+const overlaps = (bubble: PackedBubble, rect: PackObstacle): boolean => {
+  const nearestX = Math.max(rect.x, Math.min(bubble.x, rect.x + rect.width));
+  const nearestY = Math.max(rect.y, Math.min(bubble.y, rect.y + rect.height));
+  return Math.hypot(bubble.x - nearestX, bubble.y - nearestY) < bubble.r + PACK_GAP / 2;
+};
+
+const area = (bubbles: PackedBubble[]) => bubbles.reduce((sum, b) => sum + b.r * b.r, 0);
+
+const shifted = (bubbles: PackedBubble[], dx: number, dy: number): PackedBubble[] => bubbles.map(b => ({
+  ...b,
+  x: b.x + dx,
+  y: b.y + dy,
+}));
+
+/**
+ * The bubbles packed and scaled to fill a canvas of width x height px: the pack is centred and as
+ * large as the canvas allows (its bounding box touches the canvas on its tighter side, PACK_GAP
+ * kept around). An empty input or a canvas without size gives no bubble.
+ *
+ * With an obstacle (the Start here panel floating over the top right of the landing, #9572 UX round 1
+ * B3), only the panel's own rectangle is kept clear, never a full-height column: the whole canvas is
+ * used when the pack already misses the panel, else the larger of the pack below the panel (full
+ * width) and the pack beside it (full height).
+ */
+export const packBubbles = (inputs: PackInput[], width: number, height: number, obstacle?: PackObstacle | null): PackedBubble[] => {
+  const whole = packInCanvas(inputs, width, height);
+  if (!obstacle || obstacle.width <= 0 || obstacle.height <= 0 || whole.every(b => !overlaps(b, obstacle))) {
+    return whole;
+  }
+  const below = shifted(packInCanvas(inputs, width, height - (obstacle.y + obstacle.height)), 0, obstacle.y + obstacle.height);
+  const beside = obstacle.x > 0 ? packInCanvas(inputs, obstacle.x, height) : [];
+  const candidates = [below, beside].filter(c => c.length === inputs.length);
+  if (candidates.length === 0) {
+    return whole;
+  }
+  return candidates.reduce((best, c) => (area(c) > area(best) ? c : best));
 };

@@ -23,12 +23,21 @@ interface GraphOverviewProps {
   /** The ungrouped bucket was opened: it has no graph node, the host decides where it goes. */
   onOpenUngrouped: () => void;
   onOpenSimulation: (simulationId: string) => void;
-  /** Pixels on the right the bubbles keep clear of: the floating Start here panel when it is open (#9572 L3). */
-  insetRight?: number;
+  /**
+   * The rectangle at the top right of the card the bubbles keep clear of, in px from the card's top
+   * right corner, margins included: the floating Start here panel when it is open (#9572 L3). Only
+   * that rectangle is kept clear, never a full-height column (#9572 UX round 1 B3).
+   */
+  obstacleTopRight?: {
+    width: number;
+    height: number;
+  } | null;
 }
 
 /** Below this radius a bubble shows its count only; its name is in the tooltip and the accessible label. */
 const LABEL_MIN_RADIUS = 52;
+/** Top of the bubble canvas in the card: the legend line floats above it. */
+const CANVAS_TOP = 36;
 
 /**
  * The estate overview of the Graph landing (#9447), reworked as the Exposure map (#9572): the canvas
@@ -38,7 +47,7 @@ const LABEL_MIN_RADIUS = 52;
  * the graph. A few dozen bubbles whatever the estate size (the API caps at 40 groups plus the
  * ungrouped bucket): counts, not nodes, so 100K assets read as clearly as 100.
  */
-const GraphOverview = ({ overview, onUnfoldGroup, onOpenUngrouped, onOpenSimulation, insetRight = 0 }: GraphOverviewProps) => {
+const GraphOverview = ({ overview, onUnfoldGroup, onOpenUngrouped, onOpenSimulation, obstacleTopRight = null }: GraphOverviewProps) => {
   const theme = useTheme();
   const { t, n } = useFormatter();
   const groups = useMemo(() => sortOverviewGroups(overview.overview_groups), [overview]);
@@ -73,13 +82,22 @@ const GraphOverview = ({ overview, onUnfoldGroup, onOpenUngrouped, onOpenSimulat
     return () => observer.disconnect();
   }, [groups.length]);
 
+  const obstacleWidth = obstacleTopRight?.width ?? 0;
+  const obstacleHeight = Math.max(0, (obstacleTopRight?.height ?? 0) - CANVAS_TOP);
   const bubbles = useMemo(() => {
     const packed = packBubbles(groups.map(g => ({
       id: g.group_id,
       weight: g.group_asset_count ?? 0,
-    })), size.width, size.height);
+    })), size.width, size.height, obstacleWidth > 0 && obstacleHeight > 0
+      ? {
+          x: size.width - obstacleWidth,
+          y: 0,
+          width: obstacleWidth,
+          height: obstacleHeight,
+        }
+      : null);
     return new Map(packed.map(b => [b.id, b]));
-  }, [groups, size]);
+  }, [groups, size, obstacleWidth, obstacleHeight]);
 
   const colour = (result: GraphResult | null) => {
     switch (result) {
@@ -185,9 +203,9 @@ const GraphOverview = ({ overview, onUnfoldGroup, onOpenUngrouped, onOpenSimulat
         }}
         style={{
           position: 'absolute',
-          top: 36,
+          top: CANVAS_TOP,
           left: 0,
-          right: insetRight,
+          right: 0,
           bottom: 0,
         }}
       >

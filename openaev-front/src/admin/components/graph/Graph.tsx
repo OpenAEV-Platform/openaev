@@ -65,6 +65,36 @@ const Graph = () => {
   const [fromStory, setFromStory] = useState(false);
   // The Start here panel opens unfolded on the landing and folds to a pill on demand.
   const [startOpen, setStartOpen] = useState(true);
+  // The panel's own size: the overview keeps only that rectangle clear (#9572 UX round 1 B3).
+  const startPanelRef = useRef<HTMLDivElement>(null);
+  const [startPanelHeight, setStartPanelHeight] = useState(0);
+  // Set by a fold or an unfold: focus goes to the control that replaced the one clicked, never lost
+  // on the page body when that button unmounts (#9572 UX round 1 B2).
+  const focusAfterToggle = useRef(false);
+  useEffect(() => {
+    const element = startPanelRef.current;
+    if (!element) {
+      setStartPanelHeight(0);
+      return undefined;
+    }
+    const measure = () => setStartPanelHeight(element.offsetHeight);
+    measure();
+    if (focusAfterToggle.current) {
+      focusAfterToggle.current = false;
+      // The fold button when open, the pill when folded: the one control carrying aria-expanded.
+      element.querySelector<HTMLElement>('button[aria-expanded]')?.focus();
+    }
+    if (typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [startOpen, points, isLanding]);
+  const toggleStart = (open: boolean) => {
+    focusAfterToggle.current = true;
+    setStartOpen(open);
+  };
 
   // The rail is the same on every view: loaded once per page visit.
   useEffect(() => {
@@ -182,7 +212,12 @@ const Graph = () => {
         onUnfoldGroup={onUnfoldGroup}
         onOpenUngrouped={() => navigate('/admin/assets')}
         onOpenSimulation={id => focusOn('SIMULATION', id)}
-        insetRight={points && startOpen ? START_PANEL_WIDTH + 16 : 0}
+        obstacleTopRight={points && startOpen && startPanelHeight > 0
+          ? {
+              width: START_PANEL_WIDTH + 16,
+              height: 8 + startPanelHeight + 16,
+            }
+          : null}
       />
     );
   }
@@ -269,17 +304,19 @@ const Graph = () => {
                 alignItems: 'flex-end',
               }}
             >
-              <div style={{
-                pointerEvents: 'auto',
-                maxHeight: '100%',
-                width: startOpen ? '100%' : undefined,
-                display: 'flex',
-              }}
+              <div
+                ref={startPanelRef}
+                style={{
+                  pointerEvents: 'auto',
+                  maxHeight: '100%',
+                  width: startOpen ? '100%' : undefined,
+                  display: 'flex',
+                }}
               >
                 {startOpen
-                  ? <GraphStartingPoints points={points} current={focusParam} onSelect={onSelectPoint} onCollapse={() => setStartOpen(false)} />
+                  ? <GraphStartingPoints points={points} current={focusParam} onSelect={onSelectPoint} onCollapse={() => toggleStart(false)} />
                   : (
-                      <Button type="button" size="sm" priority="secondary" startIcon={<ExploreOutlined fontSize="small" />} aria-expanded={false} onClick={() => setStartOpen(true)}>
+                      <Button type="button" size="sm" priority="secondary" data-testid="graph-start-here-unfold" startIcon={<ExploreOutlined fontSize="small" />} aria-expanded={false} onClick={() => toggleStart(true)}>
                         {t('Start here')}
                       </Button>
                     )}

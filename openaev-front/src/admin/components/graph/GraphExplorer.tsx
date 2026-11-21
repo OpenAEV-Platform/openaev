@@ -30,6 +30,7 @@ import {
   ArrowDropDownOutlined,
   AutorenewOutlined,
   BubbleChartOutlined,
+  CategoryOutlined,
   CenterFocusStrongOutlined,
   CloseOutlined,
   DeleteOutlined,
@@ -39,9 +40,11 @@ import {
   ExpandMoreOutlined,
   FitScreenOutlined,
   GestureOutlined,
+  HubOutlined,
   KeyboardOutlined,
   LinkOutlined,
   ListAltOutlined,
+  MoreHorizOutlined,
   OpenInFullOutlined,
   OpenInNewOutlined,
   PushPinOutlined,
@@ -133,8 +136,14 @@ const matchedNodeIds = (refs: Map<string, CounterpartRef>, found: Set<string>) =
 
 const NODE_BOX_HEIGHT = NODE_LABEL_OFFSET + 20;
 const PANEL_WIDTH = 340;
-/** Room the fit keeps above the graph for the filter bar floating on the page canvas. */
+/**
+ * Room the fit keeps above the graph for the filter bar floating on the page canvas, before the bar
+ * is measured; once drawn, the bar's real height (it wraps to two rows on a narrow canvas) plus
+ * FILTER_BAR_MARGIN is kept instead (#9572 UX round 1 B1).
+ */
 const FILTER_BAR_CLEARANCE = 80;
+/** The bar's top offset in the canvas plus the space kept between the bar and the graph. */
+const FILTER_BAR_MARGIN = 8 + 16;
 /** Below this many nodes the whole graph fits on screen: the mini-map would only hide part of it. */
 const MINI_MAP_MIN_NODES = 40;
 /** A static layout glides to its place in this time; the force layout plays its frames in about twice it. */
@@ -307,6 +316,24 @@ const GraphExplorerInner = ({
   // On the page and the embedded graph the open side panel covers the right of the canvas: the fit
   // keeps the graph left of it, so the focus never lands under the panel.
   const fitBesidePanel = interactive && Boolean(selected);
+  // The floating filter bar's measured height: the fit keeps the graph below it whatever its rows.
+  const filterBarRef = useRef<HTMLDivElement>(null);
+  const [filterBarHeight, setFilterBarHeight] = useState(0);
+  useEffect(() => {
+    const element = filterBarRef.current;
+    if (variant !== 'page' || !element) {
+      return undefined;
+    }
+    const measure = () => setFilterBarHeight(element.offsetHeight);
+    measure();
+    if (typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [variant]);
+  const filterBarClearance = filterBarHeight > 0 ? filterBarHeight + FILTER_BAR_MARGIN : FILTER_BAR_CLEARANCE;
   // The mini graph never fits below MINI_MIN_ZOOM: its labels stay readable (10 px at zoom 1) and an
   // outer ring that does not fit is clipped by the card, the full graph being one click away.
   // Its padding is a fixed margin in pixels, so the top and bottom rows never touch the card's edges
@@ -321,7 +348,7 @@ const GraphExplorerInner = ({
         // The page's filter bar floats over the top of the canvas: the fit keeps the graph below it.
         padding: fitBesidePanel || variant === 'page'
           ? {
-              top: variant === 'page' ? `${FILTER_BAR_CLEARANCE}px` as const : '10%' as const,
+              top: variant === 'page' ? `${filterBarClearance}px` as const : '10%' as const,
               bottom: '10%' as const,
               left: '10%' as const,
               right: fitBesidePanel ? `${PANEL_WIDTH + 48}px` as const : '10%' as const,
@@ -329,7 +356,7 @@ const GraphExplorerInner = ({
           : 0.15,
         maxZoom: FIT_MAX_ZOOM,
         ...(fitMinZoom ? { minZoom: fitMinZoom } : {}),
-      }), [variant, fitMinZoom, fitBesidePanel]);
+      }), [variant, fitMinZoom, fitBesidePanel, filterBarClearance]);
 
   useEffect(() => {
     setState(fromSlice(initial));
@@ -1039,6 +1066,7 @@ const GraphExplorerInner = ({
   // gets the whole height of the page.
   const toolbar = (offset: number) => (
     <div
+      ref={filterBarRef}
       data-testid="graph-filter-bar"
       className="absolute rounded px-2 py-1"
       style={{
@@ -1311,8 +1339,27 @@ const GraphExplorerInner = ({
     });
   };
   const closeMenu = () => setMenu(null);
+  // Every item keeps the icon slot, an empty one when it has no icon, so all labels of a menu share
+  // one left edge (#9572 UX round 1 B4).
+  const iconSlot = (icon: ReactNode) => icon ?? (
+    <span
+      aria-hidden
+      style={{
+        display: 'inline-block',
+        width: 20,
+        height: 20,
+      }}
+    />
+  );
   const menuItem = (key: string, label: string, icon: ReactNode, onSelect: () => void, disabled = false) => (
-    <MenuItem key={key} startIcon={icon} disabled={disabled} onSelect={onSelect}>{label}</MenuItem>
+    <MenuItem key={key} startIcon={iconSlot(icon)} disabled={disabled} onSelect={onSelect}>{label}</MenuItem>
+  );
+  // A submenu trigger takes no startIcon: its icon sits in its label, with the same slot width.
+  const subTriggerLabel = (icon: ReactNode, label: string) => (
+    <span className="flex items-center gap-2">
+      {icon}
+      {label}
+    </span>
   );
   const linkItem = (key: string, label: string, icon: ReactNode, href: string | undefined) => {
     if (!href) {
@@ -1342,18 +1389,18 @@ const GraphExplorerInner = ({
       <MenuLabel key="label">{`${t(NODE_TYPE_LABEL[node.node_type])}: ${node.node_label}`}</MenuLabel>,
       menuItem('expand', t('Expand'), <CenterFocusStrongOutlined fontSize="small" />, () => expand(node)),
       <MenuSub key="by-relation">
-        <MenuSubTrigger>{t('Expand by relation')}</MenuSubTrigger>
+        <MenuSubTrigger>{subTriggerLabel(<HubOutlined fontSize="small" />, t('Expand by relation'))}</MenuSubTrigger>
         <MenuSubContent>
           {EDGE_TYPES_BY_NODE_TYPE[node.node_type].map(type => menuItem(type, relationLabel(node, type), null, () => expand(node, [type])))}
         </MenuSubContent>
       </MenuSub>,
       <MenuSub key="by-type">
-        <MenuSubTrigger>{t('Expand by entity type')}</MenuSubTrigger>
+        <MenuSubTrigger>{subTriggerLabel(<CategoryOutlined fontSize="small" />, t('Expand by entity type'))}</MenuSubTrigger>
         <MenuSubContent>
           {present.map(type => menuItem(type, t(NODE_TYPE_PLURAL[type]), null, () => expand(node, [], 200, type)))}
         </MenuSubContent>
       </MenuSub>,
-      ...(state.truncatedAt.includes(node.node_id) ? [menuItem('more', t('Load more'), null, () => expand(node, [], 200))] : []),
+      ...(state.truncatedAt.includes(node.node_id) ? [menuItem('more', t('Load more'), <MoreHorizOutlined fontSize="small" />, () => expand(node, [], 200))] : []),
       <MenuSeparator key="sep-1" />,
       menuItem('path', t('Find a path from here'), <RouteOutlined fontSize="small" />, () => setPathFrom(node.node_id)),
       menuItem('pin', state.pinned.includes(node.node_id) ? t('Unpin') : t('Pin'), <PushPinOutlined fontSize="small" />, () => commit(s => togglePin(s, node.node_id))),
@@ -1362,7 +1409,7 @@ const GraphExplorerInner = ({
         setSelected(null);
       }),
       menuItem('neighbours', t('Select neighbours'), <SelectAllOutlined fontSize="small" />, () => selectNeighbours([node.node_id])),
-      menuItem('same-type', t('Select every node of this type'), null, () => selectByType(node.node_type)),
+      menuItem('same-type', t('Select every node of this type'), <CategoryOutlined fontSize="small" />, () => selectByType(node.node_type)),
       menuItem('zoom-node', t('Zoom to this node'), <FitScreenOutlined fontSize="small" />, () => frameNodes([node.node_id])),
       menuItem('remove', t('Remove from view'), <DeleteOutlined fontSize="small" />, () => removeFromView([node.node_id]), node.node_id === state.focus),
       ...routeItem('open', t('Open'), <OpenInNewOutlined fontSize="small" />, href),

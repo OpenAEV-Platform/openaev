@@ -40,7 +40,7 @@ const GraphStartingPoints = ({ points, current, onSelect, onCollapse }: GraphSta
       <div className="flex items-center gap-2">
         <Text variant="content-base-bold" className="flex-1">{t('Start here')}</Text>
         {onCollapse && (
-          <IconButton priority="tertiary" icon={<ExpandLessOutlined fontSize="small" />} aria-label={t('Fold the Start here panel')} onClick={onCollapse} />
+          <IconButton priority="tertiary" icon={<ExpandLessOutlined fontSize="small" />} aria-label={t('Fold the Start here panel')} aria-expanded data-testid="graph-start-here-fold" onClick={onCollapse} />
         )}
       </div>
       {sections.length === 0 && (

@@ -54,6 +54,41 @@ describe('packBubbles', () => {
     expect(fillsWidth || fillsHeight).toBe(true);
   });
 
+  it('keeps a panel rectangle clear without giving up the full-height column under it (#9572 UX round 1 B3)', () => {
+    const width = 1400;
+    const height = 700;
+    const panel = {
+      x: width - 296,
+      y: 0,
+      width: 296,
+      height: 140,
+    };
+    const weights = [500, 120, 80, 80, 40, 12, 5, 1];
+    const packed = packBubbles(inputs(weights), width, height, panel);
+    expect(packed).toHaveLength(weights.length);
+    packed.forEach((b) => {
+      const nearestX = Math.max(panel.x, Math.min(b.x, panel.x + panel.width));
+      const nearestY = Math.max(panel.y, Math.min(b.y, panel.y + panel.height));
+      expect(Math.hypot(b.x - nearestX, b.y - nearestY)).toBeGreaterThanOrEqual(b.r - 0.5);
+    });
+    // The pack is larger than the one squeezed into a column left of the panel.
+    const column = packBubbles(inputs(weights), width - panel.width, height);
+    const area = (bubbles: typeof packed) => bubbles.reduce((sum, b) => sum + b.r * b.r, 0);
+    expect(area(packed)).toBeGreaterThan(area(column));
+  });
+
+  it('uses the whole canvas when the pack already misses the panel', () => {
+    const width = 1400;
+    const height = 300;
+    const corner = {
+      x: width - 40,
+      y: 0,
+      width: 40,
+      height: 20,
+    };
+    expect(packBubbles(inputs([10]), width, height, corner)).toEqual(packBubbles(inputs([10]), width, height));
+  });
+
   it('draws larger groups as larger bubbles, and the same data the same way', () => {
     const first = packBubbles(inputs([400, 100, 25]), 900, 600);
     const second = packBubbles(inputs([400, 100, 25]), 900, 600);
