@@ -25,4 +25,3 @@
 #
 # Lines starting with # and blank lines are ignored.
 
-execution_traces | #6394 | Named work: arm it with the injects activation, which it waits for: the inject's tenant is read with no scope until then (ExecutionTrace#attributeTenant). The four readers, the retention delete (under TxCtx.allTenants()) and the finalization job's timeout traces are pinned with the table armed (ExecutionTraceScopedPathsTest). Left, not yet measured with the table armed: the trace writers of the executor launch, the callbacks and the chaining end, and the eager InjectStatus.traces collection read in a path with no scope.

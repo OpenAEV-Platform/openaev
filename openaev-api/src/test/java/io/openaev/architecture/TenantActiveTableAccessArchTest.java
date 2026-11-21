@@ -12,6 +12,7 @@ import com.tngtech.archunit.core.domain.JavaAccess;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaCodeUnit;
+import com.tngtech.archunit.core.domain.JavaCodeUnitAccess;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.domain.JavaModifier;
@@ -51,6 +52,8 @@ import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectStatus;
+import io.openaev.database.model.InjectTestStatus;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.NotificationEventRecord;
@@ -323,6 +326,7 @@ import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
 import io.openaev.telemetry.metric_collectors.PlatformAdoptionMetricCollector;
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
+import io.openaev.utils.AgentUtils;
 import io.openaev.utils.ExpectationUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.ResultUtils;
@@ -332,6 +336,7 @@ import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.FindingMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
+import io.openaev.utils.mapper.InjectStatusMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.mapper.VulnerabilityMapper;
@@ -465,7 +470,8 @@ class TenantActiveTableAccessArchTest {
           "payload_revocations",
           "exercises",
           "scenarios",
-          "injects");
+          "injects",
+          "execution_traces");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -645,6 +651,36 @@ class TenantActiveTableAccessArchTest {
             + " filtered by, or the request scope alone decides which tenant's rows it reaches:"
             + " "
             + uncorrelated);
+  }
+
+  /**
+   * An association accessor rule that sees both a direct call AND a method reference to {@code
+   * owner#methodName}. {@code ArchConditions.callMethod} (what {@code .should().callMethod(...)}
+   * builds) matches only {@code JavaMethodCall}, so a reader that takes the getter as a method
+   * reference (e.g. {@code .map(InjectStatus::getTraces)}) is invisible to it and never reaches the
+   * allowlist check at all. {@code JavaClass#getCodeUnitAccessesFromSelf()} returns both call and
+   * reference accesses (the same surface {@code WorkflowOwnerScopeCallerRules} inspects), so this
+   * checks the two together.
+   *
+   * <p>Reports a match as SATISFIED, not violated: every caller of this method is a {@code
+   * noClasses()} rule, which already wraps its condition in {@code never(...)} (see {@code
+   * ArchRuleDefinition.negateCondition}) the same way the sugar {@code .callMethod(...)} condition
+   * it replaces does. Reporting {@code violated} here would be negated right back to "no violation"
+   * and the rule would never fire.
+   */
+  private static ArchCondition<JavaClass> callOrReferenceMethod(Class<?> owner, String methodName) {
+    return new ArchCondition<>(
+        "call or take a method reference to " + owner.getSimpleName() + "#" + methodName + "()") {
+      @Override
+      public void check(JavaClass clazz, ConditionEvents events) {
+        for (JavaCodeUnitAccess<?> access : clazz.getCodeUnitAccessesFromSelf()) {
+          if (methodName.equals(access.getName())
+              && access.getTargetOwner().isAssignableTo(owner)) {
+            events.add(SimpleConditionEvent.satisfied(access, access.getDescription()));
+          }
+        }
+      }
+    };
   }
 
   @ArchTest
@@ -4587,4 +4623,97 @@ class TenantActiveTableAccessArchTest {
           .because(
               "injects is tenant-active: an accessor without a tenant scope silently reads zero"
                   + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule execution_traces_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // The four trace finders, behind the inject trace and execution result endpoints,
+              // reading in the scope the TxCtx-carrying entrypoint opened:
+              InjectService.class,
+              // The same finders behind the inject target search endpoint of InjectApi
+              // (injectTargetSearch), which carries a TxCtx; the target options endpoints read no
+              // trace:
+              io.openaev.service.targets.search.HelperTargetSearchAdaptor.class,
+              // Trace writers of the executor launch: inserts only, run inside the launch
+              // transaction of the inject's tenant (InjectsExecutionJob under runInTenant, or the
+              // TxCtx-carrying launch endpoint); the tenant comes from
+              // ExecutionTrace#attributeTenant:
+              io.openaev.execution.ExecutionExecutorService.class,
+              ExecutorService.class,
+              // Retention: each batch deletes under TxCtx.allTenants() through the primitive:
+              io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.ExecutionTraceRepository.class)
+          .because(
+              "execution_traces is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule execution_traces_inject_status_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // The entity's own helper methods (addTrace/addErrorTrace/addInfoTrace/
+              // addWarningTrace, statusIdentifiers): they mutate or read the collection the EAGER
+              // fetch already materialized when the owning InjectStatus was loaded, inside whatever
+              // scope that load ran under:
+              InjectStatus.class,
+              // Builds the status output DTO inside the scoped transaction of the TxCtx-carrying
+              // inject and execution-log endpoints:
+              InjectStatusMapper.class,
+              // Status transitions and trace bookkeeping, reached from the TxCtx-carrying callback,
+              // launch and execution-log endpoints, and from the per-tenant job runner for
+              // scheduled execution:
+              InjectStatusService.class,
+              // Chaining step output, built under the per-tenant transaction the queue and step
+              // handlers open:
+              InjectExecutionStep.class,
+              // Finalization job: reads the same EAGER collection of a status already loaded under
+              // TxCtx.forTenant for the inject's own tenant:
+              InjectsFinalizationJob.class,
+              // Attack path finding narrative, reading inside the scoped transaction of its own
+              // TxCtx-carrying ingestion entrypoint:
+              AttackPathExecutionIngestionService.class,
+              // Autonomous attack path step narrative, reading inside the scoped transaction the
+              // autonomous run's own TxCtx-carrying entrypoint opened:
+              AutonomousRunService.class,
+              // injectorCommandLine (executionDetail's private helper) takes the method reference
+              // to reconstruct a network injector's command line, inside the read transaction of
+              // AttackPathApi#executionDetail, which carries TxCtx:
+              AttackPathGraphService.class,
+              // hasOnlyValidTraces takes the method reference to refuse an agent with an
+              // error/inactive trace. Reached only from InjectExpectationService
+              // .computeAndSaveExpectations, called by the injector Executors
+              // (Executor#executeExternal and the injector-specific executors) inside the launch
+              // transaction of the inject's own tenant - the same transaction
+              // execution_traces_repository_access_is_reviewed already trusts for
+              // ExecutionExecutorService/ExecutorService's trace writes:
+              AgentUtils.class)
+          .should(callOrReferenceMethod(InjectStatus.class, "getTraces"))
+          .because(
+              "execution_traces is reached through InjectStatus's EAGER traces association WITHOUT"
+                  + " touching ExecutionTraceRepository: a getTraces() outside a scoped transaction"
+                  + " silently loads zero rows. New callers must run inside a tenant-scoped"
+                  + " transaction and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule execution_traces_inject_test_status_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // InjectTestStatus.fromExecutionTest builds a NOT-YET-persisted instance from the
+              // transient Execution traces: no table read happens here:
+              InjectTestStatus.class,
+              // Builds the test status output DTO inside the scoped transaction of the
+              // TxCtx-carrying test endpoints:
+              InjectStatusMapper.class)
+          .should(callOrReferenceMethod(InjectTestStatus.class, "getTraces"))
+          .because(
+              "execution_traces is reached through InjectTestStatus's EAGER traces association"
+                  + " WITHOUT touching ExecutionTraceRepository: a getTraces() outside a scoped"
+                  + " transaction silently loads zero rows. New callers must run inside a"
+                  + " tenant-scoped transaction and be allowlisted here");
 }
