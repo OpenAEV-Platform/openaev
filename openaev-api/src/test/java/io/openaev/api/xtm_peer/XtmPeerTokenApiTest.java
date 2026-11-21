@@ -9,10 +9,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Capability;
+import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.service.UserService;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.service.account.ReservedServiceAccount;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -142,5 +145,68 @@ class XtmPeerTokenApiTest extends IntegrationTest {
   void refusesAPersonEmail() throws Exception {
     issue(adminToken, "jane.doe@example.com", 400);
     assertThat(userService.findByEmailIgnoreCase("jane.doe@example.com")).isEmpty();
+  }
+
+  @Test
+  @DisplayName("refuses a consumer the read-only peer role was not built for")
+  void refusesAnUnknownConsumer() throws Exception {
+    String email = "opencti@xtm.oaev.filigran.io";
+    mockMvc
+        .perform(
+            post(XTM_PEER_TOKENS_URI)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"consumer": "opencti", "name": "OpenCTI", "email": "%s",
+                     "token_name": "xtm-opencti"}
+                    """
+                        .formatted(email)))
+        .andExpect(status().isBadRequest());
+    assertThat(userService.findByEmailIgnoreCase(email)).isEmpty();
+  }
+
+  @Test
+  @DisplayName("refuses an email that names another consumer than the one declared")
+  void refusesAnotherConsumersEmail() throws Exception {
+    issue(adminToken, "xtm-one@xtm.openaev.filigran.io", 400);
+    assertThat(userService.findByEmailIgnoreCase("xtm-one@xtm.openaev.filigran.io")).isEmpty();
+  }
+
+  @Test
+  @DisplayName("the peer role reads only: no MANAGE or DELETE capability, the snapshot read in")
+  void thePeerRoleIsReadOnly() {
+    assertThat(ReservedServiceAccount.XTM_PEER.access().capabilities())
+        .allSatisfy(
+            capability ->
+                assertThat(capability.name())
+                    .doesNotStartWith("MANAGE_")
+                    .doesNotStartWith("DELETE_"))
+        .contains(Capability.ACCESS_SNAPSHOT_OBSERVATION)
+        .doesNotContain(
+            Capability.ACCESS_PAYLOADS,
+            Capability.ACCESS_DOCUMENTS,
+            Capability.ACCESS_SECURITY_PLATFORMS);
+  }
+
+  @Test
+  @DisplayName("the peer token is refused on a write route (403)")
+  void thePeerTokenCannotWrite() throws Exception {
+    String token = JsonPath.read(issue(adminToken, EMAIL, 200), "$.token");
+    mockMvc
+        .perform(
+            post("/api/scenarios")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"scenario_name\": \"written by a peer\"}"))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @DisplayName("the peer group does not receive every marking of the tenant")
+  void thePeerGroupReceivesNoNewMarking() throws Exception {
+    issue(adminToken, EMAIL, 200);
+    User user = userService.findByEmailIgnoreCase(EMAIL).orElseThrow();
+    assertThat(user.getUnscopedGroups()).isNotEmpty().noneMatch(Group::isAutoNewMarking);
   }
 }

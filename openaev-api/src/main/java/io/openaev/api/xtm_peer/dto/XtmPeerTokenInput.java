@@ -14,7 +14,10 @@ import lombok.Setter;
 public class XtmPeerTokenInput {
   @NotBlank(message = MANDATORY_MESSAGE)
   @Size(max = 64)
-  @Schema(description = "The consumer product (opencti, opencrq, xtm-one)")
+  @Schema(
+      description =
+          "The consumer product; only opencrq is accepted today, under the email"
+              + " opencrq@xtm.<product>.filigran.io")
   private String consumer;
 
   @NotBlank(message = MANDATORY_MESSAGE)
