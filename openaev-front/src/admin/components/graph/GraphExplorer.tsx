@@ -336,8 +336,8 @@ const GraphExplorerInner = ({
   const filterBarClearance = filterBarHeight > 0 ? filterBarHeight + FILTER_BAR_MARGIN : FILTER_BAR_CLEARANCE;
   // The mini graph never fits below MINI_MIN_ZOOM: its labels stay readable (10 px at zoom 1) and an
   // outer ring that does not fit is clipped by the card, the full graph being one click away.
-  // Its padding is a fixed margin in pixels, so the top and bottom rows never touch the card's edges
-  //; the card itself is as tall as its layout needs at zoom 1.
+  // Its padding is a fixed margin in pixels, so the top and bottom rows never touch the card's edges;
+  // the card itself is as tall as its layout needs at zoom 1.
   const fitOptions = useMemo(() => (variant === 'mini'
     ? {
         padding: `${MINI_CARD_PADDING}px` as const,
