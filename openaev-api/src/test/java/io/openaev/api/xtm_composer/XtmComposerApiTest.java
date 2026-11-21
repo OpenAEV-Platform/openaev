@@ -129,12 +129,84 @@ public class XtmComposerApiTest extends IntegrationTest {
                     XTM_COMPOSER_PUBLIC_KEY.key(),
                     XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()));
         assertEquals(responseToken, id);
+        // The response keeps the platform version the composer registered against: released
+        // composers register again when it differs from GET /api/settings/version.
         assertEquals(responseVersion, openAEVversion);
         assertEquals(settingsMap.get(XTM_COMPOSER_ID.key()).getValue(), id);
         assertEquals(settingsMap.get(XTM_COMPOSER_NAME.key()).getValue(), name);
-        assertEquals(settingsMap.get(XTM_COMPOSER_VERSION.key()).getValue(), openAEVversion);
         assertEquals(settingsMap.get(XTM_COMPOSER_PUBLIC_KEY.key()).getValue(), publicKey);
         assertNotNull(settingsMap.get(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()).getValue());
+      }
+
+      @Test
+      @DisplayName("Should record the version and image the composer reports at registration")
+      void givenComposerReportsVersionAndImage_should_recordThem() throws Exception {
+        XtmComposerRegisterInput input = new XtmComposerRegisterInput();
+        input.setName("Xtm composer test");
+        input.setId("test-xtm-composer-versioned");
+        input.setPublicKey("public-key-test");
+        input.setVersion(" 3.261121.0 ");
+        input.setImage("filigran/xtm-composer:3.261121.0");
+
+        String response =
+            mvc.perform(
+                    post(XTMCOMPOSER_URI + "/register")
+                        .content(asJsonString(input))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertEquals("3.261121.0", JsonPath.read(response, "$.xtm_composer_reported_version"));
+        assertEquals(
+            "filigran/xtm-composer:3.261121.0", JsonPath.read(response, "$.xtm_composer_image"));
+        assertEquals("test-version", JsonPath.read(response, "$.xtm_composer_version"));
+        Map<String, Setting> settingsMap =
+            platformSettingsService.findSettingsByKeys(
+                List.of(
+                    XTM_COMPOSER_VERSION.key(),
+                    XTM_COMPOSER_IMAGE.key(),
+                    XTM_COMPOSER_PLATFORM_VERSION.key()));
+        assertEquals("3.261121.0", settingsMap.get(XTM_COMPOSER_VERSION.key()).getValue());
+        assertEquals(
+            "filigran/xtm-composer:3.261121.0",
+            settingsMap.get(XTM_COMPOSER_IMAGE.key()).getValue());
+        assertEquals(
+            "test-version", settingsMap.get(XTM_COMPOSER_PLATFORM_VERSION.key()).getValue());
+      }
+
+      @Test
+      @DisplayName(
+          "Should record unknown, never the platform version, for a composer reporting none")
+      void givenComposerReportsNoVersion_should_recordUnknown() throws Exception {
+        XtmComposerRegisterInput input = new XtmComposerRegisterInput();
+        input.setName("Xtm composer test");
+        input.setId("test-xtm-composer-legacy");
+        input.setPublicKey("public-key-test");
+
+        String response =
+            mvc.perform(
+                    post(XTMCOMPOSER_URI + "/register")
+                        .content(asJsonString(input))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertEquals("unknown", JsonPath.read(response, "$.xtm_composer_reported_version"));
+        Map<String, Setting> settingsMap =
+            platformSettingsService.findSettingsByKeys(
+                List.of(XTM_COMPOSER_VERSION.key(), XTM_COMPOSER_IMAGE.key()));
+        assertEquals("unknown", settingsMap.get(XTM_COMPOSER_VERSION.key()).getValue());
+        assertNotEquals(
+            platformSettingsService.getPlatformVersion(),
+            settingsMap.get(XTM_COMPOSER_VERSION.key()).getValue());
       }
 
       @Test
@@ -215,6 +287,47 @@ public class XtmComposerApiTest extends IntegrationTest {
         assertTrue(lastConnectivitySetting.isPresent());
         assertTrue(
             timeBeforeRequest.isBefore(Instant.parse(lastConnectivitySetting.get().getValue())));
+        // A refresh without a report (an older composer) keeps the recorded version
+        assertEquals(
+            "composer-version-test",
+            platformSettingsService
+                .setting(XTM_COMPOSER_VERSION.key())
+                .map(Setting::getValue)
+                .orElse(null));
+      }
+
+      @Test
+      @DisplayName("Should record the version and image the composer reports on refresh")
+      void givenComposerReport_should_updateVersionAndImageOnRefresh() throws Exception {
+        Map<String, String> composerSettings = new HashMap<>();
+        composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
+        composerSettings.put(XTM_COMPOSER_VERSION.key(), "3.261120.0");
+        composerSettings.put(XTM_COMPOSER_PLATFORM_VERSION.key(), "test-version");
+        persistComposerSettings(composerSettings);
+
+        String response =
+            mvc.perform(
+                    put(XTMCOMPOSER_URI + "/composer-id-test/refresh-connectivity")
+                        .content(
+                            "{\"version\":\"3.261121.0\","
+                                + "\"image\":\"filigran/xtm-composer:3.261121.0\"}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertEquals("3.261121.0", JsonPath.read(response, "$.xtm_composer_reported_version"));
+        assertEquals("test-version", JsonPath.read(response, "$.xtm_composer_version"));
+        Map<String, Setting> settingsMap =
+            platformSettingsService.findSettingsByKeys(
+                List.of(XTM_COMPOSER_VERSION.key(), XTM_COMPOSER_IMAGE.key()));
+        assertEquals("3.261121.0", settingsMap.get(XTM_COMPOSER_VERSION.key()).getValue());
+        assertEquals(
+            "filigran/xtm-composer:3.261121.0",
+            settingsMap.get(XTM_COMPOSER_IMAGE.key()).getValue());
       }
 
       @Test

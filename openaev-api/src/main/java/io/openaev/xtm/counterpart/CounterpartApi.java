@@ -213,7 +213,8 @@ public class CounterpartApi extends RestBehavior {
 
   private List<CounterpartOutput> lookup(
       String tenantId, CounterpartKind kind, CounterpartLookupInput input) {
-    return counterpartService.resolve(tenantId, kind, input.keys()).stream()
+    String userId = userService.currentUser().getId();
+    return counterpartService.resolve(tenantId, userId, kind, input.keys()).stream()
         .map(CounterpartOutput::from)
         .toList();
   }

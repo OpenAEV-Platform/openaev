@@ -39,7 +39,9 @@ import org.springframework.web.server.ResponseStatusException;
  * <ul>
  *   <li>{@code POST /api/xtm/peer-tokens} {consumer, name, email, token_name}: the account keyed by
  *       {@code email} in the default tenant, created or converged; its tokens revoked and a
- *       non-expiring one issued. 200 {user_id, email, name, token_name, token}.
+ *       non-expiring one issued. 200 {user_id, email, name, token_name, token}. 400 when the
+ *       consumer is not one the read-only peer role was built for, or the email is not its own. The
+ *       account reads only, and only the markings the tenant administrator grants its group.
  *   <li>{@code POST /api/xtm/peer-tokens/revoke} {email, token_name}: its tokens revoked, the
  *       account kept. 200 {revoked}.
  * </ul>
@@ -75,7 +77,8 @@ public class XtmPeerTokenApi extends RestBehavior {
       TxCtx ctx, HttpServletRequest request, @Valid @RequestBody XtmPeerTokenInput input) {
     requireAdminToken(request);
     IssuedPeerToken issued =
-        xtmPeerPrivilegeService.issueToken(ctx, input.getEmail(), input.getName());
+        xtmPeerPrivilegeService.issueToken(
+            ctx, input.getConsumer(), input.getEmail(), input.getName());
     return XtmPeerTokenOutput.builder()
         .userId(issued.userId())
         .email(XtmPeerPrivilegeService.normalizePeerEmail(input.getEmail()))

@@ -59,7 +59,8 @@ class CounterpartServiceTest {
     CounterpartService service = new CounterpartService(List.of(provider));
 
     List<Resolution> out =
-        service.resolve("t", CounterpartKind.ATTACK_PATTERN, List.of(" t1059 ", "T9999", ""));
+        service.resolve(
+            "t", "user", CounterpartKind.ATTACK_PATTERN, List.of(" t1059 ", "T9999", ""));
 
     assertThat(out).hasSize(2);
     assertThat(out.get(0).status()).isEqualTo(Status.MATCH);
@@ -74,9 +75,9 @@ class CounterpartServiceTest {
     FakeProvider provider = new FakeProvider();
     CounterpartService service = new CounterpartService(List.of(provider));
 
-    service.resolve("t", CounterpartKind.ATTACK_PATTERN, List.of("T1059", "T9999"));
+    service.resolve("t", "user", CounterpartKind.ATTACK_PATTERN, List.of("T1059", "T9999"));
     List<Resolution> again =
-        service.resolve("t", CounterpartKind.ATTACK_PATTERN, List.of("T1059", "T9999"));
+        service.resolve("t", "user", CounterpartKind.ATTACK_PATTERN, List.of("T1059", "T9999"));
 
     assertThat(provider.calls).hasSize(1);
     assertThat(again).extracting(Resolution::status).containsExactly(Status.MATCH, Status.NO_MATCH);
@@ -89,7 +90,8 @@ class CounterpartServiceTest {
     provider.connected = false;
     CounterpartService service = new CounterpartService(List.of(provider));
 
-    List<Resolution> out = service.resolve("t", CounterpartKind.VULNERABILITY, List.of("CVE-1"));
+    List<Resolution> out =
+        service.resolve("t", "user", CounterpartKind.VULNERABILITY, List.of("CVE-1"));
 
     assertThat(out).extracting(Resolution::status).containsExactly(Status.NOT_CONNECTED);
     assertThat(provider.calls).isEmpty();
@@ -103,12 +105,13 @@ class CounterpartServiceTest {
     provider.broken = true;
     CounterpartService service = new CounterpartService(List.of(provider));
 
-    List<Resolution> out = service.resolve("t", CounterpartKind.ATTACK_PATTERN, List.of("T1059"));
+    List<Resolution> out =
+        service.resolve("t", "user", CounterpartKind.ATTACK_PATTERN, List.of("T1059"));
     assertThat(out).extracting(Resolution::status).containsExactly(Status.UNAVAILABLE);
 
     provider.broken = false;
     List<Resolution> retried =
-        service.resolve("t", CounterpartKind.ATTACK_PATTERN, List.of("T1059"));
+        service.resolve("t", "user", CounterpartKind.ATTACK_PATTERN, List.of("T1059"));
     assertThat(retried).extracting(Resolution::status).containsExactly(Status.MATCH);
     assertThat(provider.calls).hasSize(2);
   }

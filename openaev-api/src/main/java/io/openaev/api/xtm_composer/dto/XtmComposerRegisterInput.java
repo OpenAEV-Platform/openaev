@@ -23,4 +23,15 @@ public class XtmComposerRegisterInput {
   @Schema(description = "The registration public key")
   @JsonProperty("public_key")
   private String publicKey;
+
+  @Schema(
+      description =
+          "The XTM Composer version, optional: an XTM Composer that sends none is recorded as"
+              + " 'unknown'")
+  @JsonProperty("version")
+  private String version;
+
+  @Schema(description = "The container image XTM Composer runs from, optional")
+  @JsonProperty("image")
+  private String image;
 }

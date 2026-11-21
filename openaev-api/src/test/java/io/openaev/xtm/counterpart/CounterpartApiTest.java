@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.User;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.xtm.counterpart.CounterpartServiceTest.FakeProvider;
@@ -63,11 +64,15 @@ class CounterpartApiTest {
   void setUp() {
     provider = new FakeProvider();
     localObjects = mock(LocalObjectService.class);
+    User caller = new User();
+    caller.setId("user");
+    UserService users = mock(UserService.class);
+    when(users.currentUser()).thenReturn(caller);
     api =
         new CounterpartApi(
             new CounterpartService(List.of(provider, new SilentProvider())),
             localObjects,
-            mock(UserService.class),
+            users,
             mock(PermissionService.class));
   }
 
@@ -90,6 +95,7 @@ class CounterpartApiTest {
   void counterpartEndpoints() {
     CounterpartLookupInput input = new CounterpartLookupInput(List.of("T1059", "T9999"));
 
+    // The provider does not read as the caller: a match is the pivot link alone.
     List<CounterpartOutput> patterns = api.attackPatterns(null, "t", input);
     assertThat(patterns)
         .containsExactly(
@@ -98,8 +104,8 @@ class CounterpartApiTest {
                 "opencti",
                 "match",
                 "id-1",
-                "Attack-Pattern",
-                "Command",
+                "attack_pattern",
+                "T1059",
                 "https://octi/x",
                 List.of()),
             new CounterpartOutput(
