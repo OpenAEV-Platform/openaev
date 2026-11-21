@@ -88,6 +88,10 @@ public class FindingRecordingService {
     // 3 - find or create the findings, with their tags
     List<Finding> findings = upsertFindings(tenantId, date, detectedFindings, findingLocations);
 
+    // 3b - a detection makes the finding open again, set by this inject (a re-test that
+    // reproduces it lands here too; FindingRetestService then stamps the re-test date)
+    findings.forEach(finding -> FindingRetestService.markDetected(finding, inject.getId()));
+
     // 4 - record their occurrence on the inject, with the field of their first detection
     findingOccurrenceService.recordOccurrences(
         inject,

@@ -171,7 +171,8 @@ class InjectServiceTest {
                 Optional.empty(),
                 eventPublisher,
                 mapper,
-                entityManager));
+                entityManager,
+                mock(io.openaev.service.finding.FindingRetestSettlement.class)));
     ReflectionTestUtils.setField(injectService, "mapper", mapper);
     ReflectionTestUtils.setField(injectService, "injectStatusService", injectStatusService);
     ReflectionTestUtils.setField(
