@@ -7,11 +7,12 @@ import { type LoggedHelper } from '../../../actions/helper';
 import { fetchXtmHubRegistration } from '../../../actions/xtmhub/xtmhub-actions';
 import { useFormatter } from '../../../components/i18n';
 import { REDIRECT_CONNECT_XTM_HUB_URL } from '../../../constants/BaseUrls';
+import logoOpenCrqDark from '../../../static/images/logo_open_crq_dark.svg';
+import logoOpenCrqLight from '../../../static/images/logo_open_crq_light.svg';
 import logoOpenCtiDark from '../../../static/images/logo_open_cti_dark.svg';
 import logoOpenCtiLight from '../../../static/images/logo_open_cti_light.svg';
 import logoXtmHubDark from '../../../static/images/logo_xtm_hub_dark.svg';
 import logoXtmHubLight from '../../../static/images/logo_xtm_hub_light.svg';
-import logoOpenCrq from '../../../static/images/xtm/ocrq.svg';
 import { useHelper } from '../../../store';
 import { fileUri, XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
@@ -116,7 +117,7 @@ const LeftBarHeader: FunctionComponent = () => {
         {
           id: 'opencrq',
           label: 'OpenCRQ',
-          logo: productLogo(logoOpenCrq, 'OpenCRQ'),
+          logo: productLogo(isDark ? logoOpenCrqDark : logoOpenCrqLight, 'OpenCRQ'),
           tooltip: isOpenCrqConnected ? t('Platform connected') : t('Get OpenCRQ now'),
           href: openCrqUrl,
         },
