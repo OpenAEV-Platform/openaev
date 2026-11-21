@@ -72,7 +72,7 @@ export const TRIGGER_RESOURCE_TYPES: TriggerResourceTypeOption[] = [
     entityPrefix: 'payload',
     label: 'Payload',
     eventTypes: LIFECYCLE_EVENT_TYPES,
-    catalogEventTypes: ['REVOKED', 'REVOCATION_LIFTED', 'INSTALLED_AUTOMATICALLY'],
+    catalogEventTypes: ['REVOKED', 'REVOCATION_LIFTED'],
   },
   {
     value: 'VULNERABILITY',
@@ -102,7 +102,7 @@ export const TRIGGER_RESOURCE_TYPES: TriggerResourceTypeOption[] = [
     value: 'CATALOG_SYNC',
     label: 'Filigran catalog',
     eventTypes: [],
-    catalogEventTypes: ['RELEASE_RECEIVED', 'SYNC_BLOCKED'],
+    catalogEventTypes: ['RELEASE_RECEIVED', 'INSTALLED_AUTOMATICALLY', 'SYNC_BLOCKED'],
   },
 ];
 

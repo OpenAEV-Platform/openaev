@@ -26,9 +26,18 @@ public final class CatalogEvents {
       List<AddedVersion> added,
       List<RefusedVersion> refused) {}
 
-  /** Scenarios a release installed by itself, and the ones that failed to install, by name. */
-  public record ScenariosInstalledAutomatically(
-      String tenantId, String release, List<String> installed, List<String> failed) {}
+  /** What a release installed by itself: payload versions by id, scenarios and failures by name. */
+  public record InstalledAutomatically(
+      String tenantId,
+      String release,
+      List<String> payloadIds,
+      List<String> scenarios,
+      List<String> failed) {
+
+    public boolean isEmpty() {
+      return payloadIds.isEmpty() && scenarios.isEmpty() && failed.isEmpty();
+    }
+  }
 
   /** A release refused as a whole: nothing of it was applied. */
   public record CatalogReleaseRefused(String tenantId, String release, String reason) {}

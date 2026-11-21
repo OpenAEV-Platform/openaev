@@ -17,7 +17,7 @@ public enum NotificationTriggerEventType {
   NEW_PAYLOAD_VERSION(ResourceType.SCENARIO, "new payload version available"),
   REVOKED(ResourceType.PAYLOAD, "revoked"),
   REVOCATION_LIFTED(ResourceType.PAYLOAD, "revocation lifted"),
-  INSTALLED_AUTOMATICALLY(ResourceType.PAYLOAD, "installed automatically"),
+  INSTALLED_AUTOMATICALLY(ResourceType.CATALOG_SYNC, "installed automatically"),
   RELEASE_RECEIVED(ResourceType.CATALOG_SYNC, "release received"),
   SYNC_BLOCKED(ResourceType.CATALOG_SYNC, "sync blocked"),
   /** The attack path of a finished simulation reached an asset of high or very high criticality. */

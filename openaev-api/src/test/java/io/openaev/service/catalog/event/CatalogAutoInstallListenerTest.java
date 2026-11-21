@@ -9,9 +9,10 @@ import static org.mockito.Mockito.when;
 import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Payload;
 import io.openaev.database.model.Scenario;
 import io.openaev.notification.catalog.CatalogEvents.CatalogReleaseApplied;
-import io.openaev.notification.catalog.CatalogEvents.ScenariosInstalledAutomatically;
+import io.openaev.notification.catalog.CatalogEvents.InstalledAutomatically;
 import io.openaev.service.catalog.Installed;
 import io.openaev.service.catalog.payload.CatalogPayloadInstaller;
 import io.openaev.service.catalog.scenario.CatalogScenarioInstaller;
@@ -78,17 +79,19 @@ class CatalogAutoInstallListenerTest {
   }
 
   @Test
-  @DisplayName("Tells the scenarios the release installed by itself and the ones that failed")
-  void given_scenariosInstalled_should_publishThem() {
+  @DisplayName("Tells in one event what the release installed by itself and what failed")
+  void given_contentInstalled_should_publishItOnce() {
     // Arrange
     TxCtx ctx = TxCtx.forTenant(TENANT_ID);
+    Payload payload = new Payload();
+    payload.setId("payload-1");
     Scenario scenario = new Scenario();
     scenario.setName("EASM");
     InstallableScenarioVersion failed =
         new InstallableScenarioVersion(
             "filigran", "phishing", "1.0.0", null, null, null, List.of());
     when(catalogPayloadInstaller.autoInstall(ctx, TENANT_ID))
-        .thenReturn(new Installed<>(List.of(), List.of()));
+        .thenReturn(new Installed<>(List.of(payload), List.of()));
     when(catalogScenarioInstaller.autoInstall(ctx, TENANT_ID))
         .thenReturn(new Installed<>(List.of(scenario), List.of(failed)));
     CatalogAutoInstallListener listener =
@@ -105,8 +108,12 @@ class CatalogAutoInstallListenerTest {
     // Assert
     verify(eventPublisher)
         .publishEvent(
-            new ScenariosInstalledAutomatically(
-                TENANT_ID, "1.261110.0", List.of("EASM"), List.of("phishing v1.0.0")));
+            new InstalledAutomatically(
+                TENANT_ID,
+                "1.261110.0",
+                List.of("payload-1"),
+                List.of("EASM"),
+                List.of("phishing v1.0.0")));
   }
 
   @AfterEach

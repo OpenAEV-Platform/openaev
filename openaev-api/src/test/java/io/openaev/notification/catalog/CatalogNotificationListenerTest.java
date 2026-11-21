@@ -1,5 +1,6 @@
 package io.openaev.notification.catalog;
 
+import static io.openaev.database.model.NotificationTriggerEventType.INSTALLED_AUTOMATICALLY;
 import static io.openaev.database.model.NotificationTriggerEventType.RELEASE_RECEIVED;
 import static io.openaev.database.model.NotificationTriggerEventType.SYNC_BLOCKED;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,8 +19,8 @@ import io.openaev.database.model.catalog.ContentType;
 import io.openaev.notification.catalog.CatalogEvents.AddedVersion;
 import io.openaev.notification.catalog.CatalogEvents.CatalogReleaseApplied;
 import io.openaev.notification.catalog.CatalogEvents.CatalogReleaseRefused;
+import io.openaev.notification.catalog.CatalogEvents.InstalledAutomatically;
 import io.openaev.notification.catalog.CatalogEvents.RefusedVersion;
-import io.openaev.notification.catalog.CatalogEvents.ScenariosInstalledAutomatically;
 import io.openaev.notification.content.ContentNotifier;
 import io.openaev.notification.engine.NotificationEngineService;
 import io.openaev.notification.engine.NotificationResourceCatalog;
@@ -136,18 +137,23 @@ class CatalogNotificationListenerTest {
     }
 
     @Test
-    @DisplayName("Scenarios installed by the release, and the ones that failed, are told")
-    void given_scenariosInstalledAutomatically_should_tellThem() {
+    @DisplayName("What the release installed by itself, and what failed, is told at once")
+    void given_installedAutomatically_should_tellItOnce() {
       // Act
-      listener.onScenariosInstalledAutomatically(
-          new ScenariosInstalledAutomatically(
-              TENANT, RELEASE, List.of("EASM", "Ransomware"), List.of("phishing v1.0.0")));
+      listener.onInstalledAutomatically(
+          new InstalledAutomatically(
+              TENANT,
+              RELEASE,
+              List.of("payload-1", "payload-2"),
+              List.of("EASM", "Ransomware"),
+              List.of("phishing v1.0.0")));
 
       // Assert
-      assertThat(sentMessage(RELEASE, RELEASE_RECEIVED))
+      assertThat(sentMessage(RELEASE, INSTALLED_AUTOMATICALLY))
           .isEqualTo(
-              "[catalog] Release 1.261030.0: 2 scenarios installed automatically (EASM,"
-                  + " Ransomware); 1 scenario failed to install (phishing v1.0.0)");
+              "[catalog] Release 1.261030.0: 2 actions installed automatically;"
+                  + " 2 scenarios installed automatically (EASM, Ransomware);"
+                  + " 1 item failed to install (phishing v1.0.0)");
     }
   }
 

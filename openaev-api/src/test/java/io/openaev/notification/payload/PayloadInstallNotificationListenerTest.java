@@ -1,6 +1,5 @@
 package io.openaev.notification.payload;
 
-import static io.openaev.database.model.NotificationTriggerEventType.INSTALLED_AUTOMATICALLY;
 import static io.openaev.database.model.NotificationTriggerEventType.NEW_PAYLOAD_VERSION;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -16,6 +15,7 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.database.model.catalog.ContentType;
 import io.openaev.database.model.payload.PayloadIdentity;
+import io.openaev.notification.catalog.CatalogEvents.InstalledAutomatically;
 import io.openaev.notification.content.ContentNotifier;
 import io.openaev.notification.engine.NotificationEngineService;
 import io.openaev.notification.engine.NotificationResourceCatalog;
@@ -40,6 +40,7 @@ class PayloadInstallNotificationListenerTest {
 
   private NotificationEngineService engine;
   private PayloadVersionService payloadVersionService;
+  private PayloadService payloadService;
   private Payload older;
   private Payload installed;
   private PayloadInstallNotificationListener listener;
@@ -48,7 +49,7 @@ class PayloadInstallNotificationListenerTest {
   void setUp() {
     engine = mock(NotificationEngineService.class);
     payloadVersionService = mock(PayloadVersionService.class);
-    PayloadService payloadService = mock(PayloadService.class);
+    payloadService = mock(PayloadService.class);
     TenantScopedTransaction tenantTx = mock(TenantScopedTransaction.class);
     when(tenantTx.executeReadOnly(any(TxCtx.class), any(Supplier.class)))
         .thenAnswer(invocation -> invocation.<Supplier<?>>getArgument(1).get());
@@ -59,6 +60,8 @@ class PayloadInstallNotificationListenerTest {
     installed = version(identity, "payload-2", "1.1.0");
     identity.setLatestVersion(installed);
     when(payloadService.versions(TENANT, EXTERNAL_ID)).thenReturn(List.of(older, installed));
+    when(payloadService.versionsOf(TENANT, installed)).thenReturn(List.of(older, installed));
+    when(payloadService.payload(TENANT, "payload-2")).thenReturn(installed);
     listener =
         new PayloadInstallNotificationListener(
             new ContentNotifier(engine, tenantTx), payloadService, payloadVersionService);
@@ -79,11 +82,7 @@ class PayloadInstallNotificationListenerTest {
         TENANT, type, REPOSITORY, EXTERNAL_ID, "1.1.0", action, mode, null);
   }
 
-  @Test
-  @DisplayName(
-      "A version installed by itself tells its watchers and the scenarios running an older one")
-  void given_autoInstalledLatest_should_tellPayloadAndScenarios() {
-    // Arrange
+  private void runInSaltTyphoon() {
     when(payloadVersionService.scenarioUsages(TENANT, List.of(older)))
         .thenReturn(
             Map.of(
@@ -95,19 +94,9 @@ class PayloadInstallNotificationListenerTest {
                         "Discover",
                         SCENARIO_ID,
                         "Salt Typhoon"))));
+  }
 
-    // Act
-    listener.onContentChanged(
-        changed(ContentType.PAYLOAD, CatalogHistory.Action.INSTALL, CatalogHistory.Mode.AUTO));
-
-    // Assert
-    verify(engine)
-        .handleEventWithMessage(
-            NotificationResourceCatalog.PAYLOAD,
-            "payload-2",
-            TENANT,
-            INSTALLED_AUTOMATICALLY,
-            "[payload] Network discovery v1.1.0 installed automatically");
+  private void verifyScenarioTold() {
     verify(engine)
         .handleEventWithMessage(
             NotificationResourceCatalog.SCENARIO,
@@ -116,6 +105,36 @@ class PayloadInstallNotificationListenerTest {
             NEW_PAYLOAD_VERSION,
             "[scenario] Salt Typhoon: Network discovery v1.1.0 is available,"
                 + " 1 inject still runs an older version");
+    verifyNoMoreInteractions(engine);
+  }
+
+  @Test
+  @DisplayName("A version installed by hand tells the scenarios running an older one")
+  void given_manualInstalledLatest_should_tellScenarios() {
+    // Arrange
+    runInSaltTyphoon();
+
+    // Act
+    listener.onContentChanged(
+        changed(ContentType.PAYLOAD, CatalogHistory.Action.INSTALL, CatalogHistory.Mode.MANUAL));
+
+    // Assert
+    verifyScenarioTold();
+  }
+
+  @Test
+  @DisplayName("Versions a release installed by themselves tell the scenarios at once")
+  void given_autoInstalledLatest_should_tellScenarios() {
+    // Arrange
+    runInSaltTyphoon();
+
+    // Act
+    listener.onInstalledAutomatically(
+        new InstalledAutomatically(
+            TENANT, "1.261030.0", List.of("payload-2"), List.of(), List.of()));
+
+    // Assert
+    verifyScenarioTold();
   }
 
   @Test
@@ -133,13 +152,16 @@ class PayloadInstallNotificationListenerTest {
   }
 
   @Test
-  @DisplayName("A scenario install or an uninstall is not a payload install")
+  @DisplayName(
+      "A scenario install, an uninstall or a version installed by itself is not told one by one")
   void given_otherChange_should_readNothing() {
     // Act
     listener.onContentChanged(
         changed(ContentType.SCENARIO, CatalogHistory.Action.INSTALL, CatalogHistory.Mode.AUTO));
     listener.onContentChanged(
         changed(ContentType.PAYLOAD, CatalogHistory.Action.UNINSTALL, CatalogHistory.Mode.MANUAL));
+    listener.onContentChanged(
+        changed(ContentType.PAYLOAD, CatalogHistory.Action.INSTALL, CatalogHistory.Mode.AUTO));
 
     // Assert
     verifyNoInteractions(engine, payloadVersionService);

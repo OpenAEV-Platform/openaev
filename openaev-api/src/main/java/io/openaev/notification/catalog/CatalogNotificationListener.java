@@ -1,5 +1,6 @@
 package io.openaev.notification.catalog;
 
+import static io.openaev.database.model.NotificationTriggerEventType.INSTALLED_AUTOMATICALLY;
 import static io.openaev.database.model.NotificationTriggerEventType.RELEASE_RECEIVED;
 import static io.openaev.database.model.NotificationTriggerEventType.SYNC_BLOCKED;
 import static io.openaev.notification.content.ContentNotification.count;
@@ -9,7 +10,7 @@ import io.openaev.database.model.catalog.ContentType;
 import io.openaev.notification.catalog.CatalogEvents.AddedVersion;
 import io.openaev.notification.catalog.CatalogEvents.CatalogReleaseApplied;
 import io.openaev.notification.catalog.CatalogEvents.CatalogReleaseRefused;
-import io.openaev.notification.catalog.CatalogEvents.ScenariosInstalledAutomatically;
+import io.openaev.notification.catalog.CatalogEvents.InstalledAutomatically;
 import io.openaev.notification.content.ContentNotification;
 import io.openaev.notification.content.ContentNotifier;
 import io.openaev.notification.engine.NotificationResourceCatalog;
@@ -67,13 +68,19 @@ public class CatalogNotificationListener {
 
   @Async("notificationEngineExecutor")
   @TransactionalEventListener(fallbackExecution = true)
-  public void onScenariosInstalledAutomatically(ScenariosInstalledAutomatically event) {
+  public void onInstalledAutomatically(InstalledAutomatically event) {
     List<String> parts = new ArrayList<>();
-    listed(parts, event.installed(), "scenario", " installed automatically");
-    listed(parts, event.failed(), "scenario", " failed to install");
+    if (!event.payloadIds().isEmpty()) {
+      parts.add(count(event.payloadIds().size(), "action") + " installed automatically");
+    }
+    listed(parts, event.scenarios(), "scenario", " installed automatically");
+    listed(parts, event.failed(), "item", " failed to install");
     contentNotifier.send(
         event.tenantId(),
-        () -> List.of(release(event.release(), RELEASE_RECEIVED, ": " + String.join("; ", parts))));
+        () ->
+            List.of(
+                release(
+                    event.release(), INSTALLED_AUTOMATICALLY, ": " + String.join("; ", parts))));
   }
 
   // -- RELEASE RECEIVED --

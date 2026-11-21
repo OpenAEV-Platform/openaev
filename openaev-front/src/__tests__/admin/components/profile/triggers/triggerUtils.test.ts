@@ -31,9 +31,9 @@ describe('triggerUtils', () => {
     it.each<[string, boolean, string[]]>([
       ['SCENARIO', false, ['CREATE', 'UPDATE', 'DELETE', 'SCORE_DEGRADATION']],
       ['SCENARIO', true, ['CREATE', 'UPDATE', 'DELETE', 'SCORE_DEGRADATION', 'PAYLOAD_REVOKED', 'NEW_PAYLOAD_VERSION']],
-      ['PAYLOAD', true, ['CREATE', 'UPDATE', 'DELETE', 'REVOKED', 'REVOCATION_LIFTED', 'INSTALLED_AUTOMATICALLY']],
+      ['PAYLOAD', true, ['CREATE', 'UPDATE', 'DELETE', 'REVOKED', 'REVOCATION_LIFTED']],
       ['CATALOG_SYNC', false, []],
-      ['CATALOG_SYNC', true, ['RELEASE_RECEIVED', 'SYNC_BLOCKED']],
+      ['CATALOG_SYNC', true, ['RELEASE_RECEIVED', 'INSTALLED_AUTOMATICALLY', 'SYNC_BLOCKED']],
     ])('offers the events %s sends, catalogue preview %s', (resourceType, catalogEnabled, expected) => {
       // Act
       const eventTypes = eventTypesOf(resourceType, catalogEnabled);
