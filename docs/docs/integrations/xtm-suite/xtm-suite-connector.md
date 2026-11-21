@@ -87,7 +87,6 @@ Each OpenCRQ connection belongs to an OpenAEV Tenant, identified by its UUID (`{
 above. Use the token of an OpenCRQ service account: it binds the calls to one OpenCRQ tenant.
 
 ```properties
-openaev.xtm.opencrq.{id}.enable=true
 openaev.xtm.opencrq.{id}.url=https://opencrq.domain.example
 openaev.xtm.opencrq.{id}.token=<your-opencrq-service-account-token>
 ```
@@ -95,13 +94,16 @@ openaev.xtm.opencrq.{id}.token=<your-opencrq-service-account-token>
 Or as environment variables:
 
 ```properties
-OPENAEV_XTM_OPENCRQ_{id}_ENABLE=true
 OPENAEV_XTM_OPENCRQ_{id}_URL=https://opencrq.domain.example
 OPENAEV_XTM_OPENCRQ_{id}_TOKEN=<your-opencrq-service-account-token>
 ```
 
 Set `openaev.xtm.opencrq.{id}.api-url` only if the OpenCRQ API is not served at `<url>/trpc`. Restart OpenAEV after
-changing the configuration. The connection is used only when it is enabled and has both a URL and a token.
+changing the configuration. A connection with both a URL and a token is enabled by default (a Filigran bundle or a
+Helm deployment that provides them is connected with no admin step); set `openaev.xtm.opencrq.{id}.enable=false` to
+turn it off. On a single-tenant deployment the keys without `{id}` (`OPENAEV_XTM_OPENCRQ_URL`,
+`OPENAEV_XTM_OPENCRQ_TOKEN`) configure the default tenant. Once connected, the OpenCRQ entry of the product switcher
+(top left) opens the connected instance and reads **Platform connected**.
 
 {% endif %}
 ## Example workflow

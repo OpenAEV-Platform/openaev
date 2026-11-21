@@ -11,6 +11,7 @@ import logoOpenCtiDark from '../../../static/images/logo_open_cti_dark.svg';
 import logoOpenCtiLight from '../../../static/images/logo_open_cti_light.svg';
 import logoXtmHubDark from '../../../static/images/logo_xtm_hub_dark.svg';
 import logoXtmHubLight from '../../../static/images/logo_xtm_hub_light.svg';
+import logoOpenCrq from '../../../static/images/xtm/ocrq.svg';
 import { useHelper } from '../../../store';
 import { fileUri, XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
@@ -18,6 +19,8 @@ import useAuth from '../../../utils/hooks/useAuth';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { computeTenantBasename } from '../../../utils/url-helper';
+
+const OPENCRQ_PRODUCT_URL = 'https://filigran.io/products/opencrq';
 
 const LeftBarHeader: FunctionComponent = () => {
   const theme = useTheme();
@@ -42,6 +45,11 @@ const LeftBarHeader: FunctionComponent = () => {
   const openCtiUrl = isOpenCtiConnected
     ? tenantSettings.xtm_opencti_url
     : 'https://filigran.io/platform/opencti/';
+  // The OpenCRQ connection is reported only when it is used (url and token configured, not turned off).
+  const isOpenCrqConnected = !!(tenantSettings?.xtm_opencrq_enable && tenantSettings?.xtm_opencrq_url);
+  const openCrqUrl = isOpenCrqConnected
+    ? tenantSettings.xtm_opencrq_url
+    : OPENCRQ_PRODUCT_URL;
   const xtmHubUrl = settings.xtm_hub_enable && settings.xtm_hub_url
     ? settings.xtm_hub_url
     : XTM_HUB_DEFAULT_URL;
@@ -104,6 +112,13 @@ const LeftBarHeader: FunctionComponent = () => {
           logo: productLogo(isDark ? logoOpenCtiDark : logoOpenCtiLight, 'OpenCTI'),
           tooltip: isOpenCtiConnected ? t('Platform connected') : t('Get OpenCTI now'),
           href: openCtiUrl,
+        },
+        {
+          id: 'opencrq',
+          label: 'OpenCRQ',
+          logo: productLogo(logoOpenCrq, 'OpenCRQ'),
+          tooltip: isOpenCrqConnected ? t('Platform connected') : t('Get OpenCRQ now'),
+          href: openCrqUrl,
         },
         shouldXtmHubRedirectToSite
           ? {

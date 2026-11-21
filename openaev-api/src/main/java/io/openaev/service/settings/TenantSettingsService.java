@@ -13,6 +13,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.model.Theme;
 import io.openaev.database.repository.SettingRepository;
+import io.openaev.opencrq.config.OpenCRQConfig;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.config.XtmConfig;
 import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
@@ -188,6 +189,12 @@ public class TenantSettingsService {
       Map<String, Setting> tenantSettings, String tenantId) {
     OpenCTIConfig openctiConfig =
         Optional.ofNullable(xtmConfig.getOpencti()).map(m -> m.get(tenantId)).orElse(null);
+    // The OpenCRQ connection is shown only when it is used: configured and not turned off.
+    OpenCRQConfig opencrqConfig =
+        Optional.ofNullable(xtmConfig.getOpencrq())
+            .map(m -> m.get(tenantId))
+            .filter(OpenCRQConfig::isUsable)
+            .orElse(null);
     return new TenantSettingsOutput(
         resolveValue(tenantSettings, PLATFORM_NAME),
         resolveValue(tenantSettings, DEFAULT_THEME),
@@ -198,7 +205,9 @@ public class TenantSettingsService {
         createThemeFromSettings(tenantSettings, THEME_TYPE_DARK),
         createThemeFromSettings(tenantSettings, THEME_TYPE_LIGHT),
         Boolean.TRUE.equals(openctiConfig != null ? openctiConfig.getEnable() : null),
-        openctiConfig != null ? openctiConfig.getUrl() : null);
+        openctiConfig != null ? openctiConfig.getUrl() : null,
+        opencrqConfig != null,
+        opencrqConfig != null ? opencrqConfig.getUrl() : null);
   }
 
   private String resolveValue(Map<String, Setting> tenantSettings, TenantSettingKeys key) {

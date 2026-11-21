@@ -25,9 +25,13 @@ public class OpenCRQConfig {
   @JsonProperty("token")
   private String token;
 
-  /** Enabled, with a url and a token. */
+  /**
+   * Configured with a url and a token, and not turned off. A deployment that provides url and token
+   * (SaaS Manager peer links, helm) is connected by default: enable only has to be set to switch a
+   * configured connection off.
+   */
   public boolean isUsable() {
-    return Boolean.TRUE.equals(enable) && !StringUtils.isAnyBlank(url, token);
+    return !Boolean.FALSE.equals(enable) && !StringUtils.isAnyBlank(url, token);
   }
 
   /** The tRPC base of the OpenCRQ backend: api-url when set, else {url}/trpc. */
