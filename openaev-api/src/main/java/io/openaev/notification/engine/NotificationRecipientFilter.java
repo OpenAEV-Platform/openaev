@@ -5,6 +5,7 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.User;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
+import java.util.Collection;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,11 +39,33 @@ public class NotificationRecipientFilter {
    */
   public List<String> readersOf(
       ResolvedNotificationTrigger trigger, NotificationResourceCatalog entry, String entityId) {
+    return readersOf(trigger, entry, entityId, trigger.recipientUserIds());
+  }
+
+  /**
+   * The same check, among {@code candidates} only (a subset of the trigger's recipients, such as
+   * the members who may lose a grant), in the trigger's recipient order.
+   */
+  public List<String> readersOf(
+      ResolvedNotificationTrigger trigger,
+      NotificationResourceCatalog entry,
+      String entityId,
+      Collection<String> candidates) {
     String tenantId = trigger.tenantId();
     TxCtx ctx = TxCtx.forTenant(tenantId);
     return trigger.recipientUserIds().stream()
+        .filter(candidates::contains)
         .filter(userId -> canRead(tenantId, ctx, userId, entry, entityId))
         .toList();
+  }
+
+  /**
+   * Whether one user holds READ on {@code entityId} in {@code tenantId}, failing closed. For the
+   * digest, which re-checks each recorded row against the recipient's rights at send time.
+   */
+  public boolean canRead(
+      String tenantId, String userId, NotificationResourceCatalog entry, String entityId) {
+    return canRead(tenantId, TxCtx.forTenant(tenantId), userId, entry, entityId);
   }
 
   private boolean canRead(

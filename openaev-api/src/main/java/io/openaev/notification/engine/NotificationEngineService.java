@@ -10,7 +10,9 @@ import io.openaev.database.model.NotificationTriggerType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.NotificationEventRecordRepository;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +25,12 @@ import org.springframework.stereotype.Service;
  * <p>Only the recipients who can read the event's object are recorded and notified ({@link
  * NotificationRecipientFilter}): a trigger on a resource type never reveals an object of that type
  * to a recipient the API would refuse it to. The digest replays the recorded rows, so it inherits
- * the same filter.
+ * the same filter, and re-checks each row at send time.
+ *
+ * <p>A message is rendered per recipient ({@link NotificationMessage}): a related object the
+ * recipient cannot read is named "Restricted", the event is never dropped for it. A recipient who
+ * loses the object itself (the object deleted, a grant removed) gets a delete-type event computed
+ * from the readers captured before the change ({@link NotificationReadersSnapshot}).
  */
 @Service
 @Slf4j
@@ -66,6 +73,20 @@ public class NotificationEngineService {
       String entityTenantId,
       NotificationTriggerEventType eventType,
       String message) {
+    handleEventWithMessage(
+        entry, entityId, entityTenantId, eventType, NotificationMessage.of(message));
+  }
+
+  /**
+   * Processes one event whose message names related objects: each recipient gets the message with
+   * the names of the related objects it cannot read replaced by "Restricted".
+   */
+  public void handleEventWithMessage(
+      NotificationResourceCatalog entry,
+      String entityId,
+      String entityTenantId,
+      NotificationTriggerEventType eventType,
+      NotificationMessage message) {
     List<ResolvedNotificationTrigger> triggers =
         triggerCacheService.getLiveTriggers(entry.getResourceType());
     if (triggers.isEmpty()) {
@@ -93,18 +114,7 @@ public class NotificationEngineService {
                   return;
                 }
                 List<String> readers = recipientFilter.readersOf(trigger, entry, entityId);
-                if (readers.isEmpty()) {
-                  return;
-                }
-                recordEvents(trigger, readers, entry, entityId, eventType, message);
-                NotificationContent.Group group =
-                    new NotificationContent.Group(
-                        trigger.name(),
-                        List.of(
-                            new NotificationContent.Event(
-                                eventType, message, entry.getResourceType(), entityId)));
-                dispatchService.dispatch(
-                    trigger, NotificationTriggerType.LIVE, readers, List.of(group));
+                notifyRendered(trigger, readers, entry, entityId, eventType, message);
               });
         } finally {
           TenantContext.clearCurrentTenant();
@@ -118,6 +128,130 @@ public class NotificationEngineService {
             e);
       }
     }
+  }
+
+  /**
+   * Delivers what a change took away, from the readers captured before it, after its commit.
+   *
+   * <ul>
+   *   <li>A deletion: every captured reader receives the deleted event, with the name it read.
+   *   <li>An access loss: each captured reader who no longer reads the object receives a
+   *       delete-type "no longer visible" event, the name masked; a reader who still reads it gets
+   *       nothing.
+   * </ul>
+   */
+  public void deliverSnapshot(NotificationReadersSnapshot snapshot) {
+    NotificationResourceCatalog entry = snapshot.entry();
+    for (NotificationReadersSnapshot.CapturedReaders captured : snapshot.triggers()) {
+      ResolvedNotificationTrigger trigger = captured.trigger();
+      try {
+        if (captured.readers().isEmpty()
+            || !trigger.eventTypes().contains(NotificationTriggerEventType.DELETE)) {
+          continue;
+        }
+        TenantContext.setCurrentTenant(trigger.tenantId());
+        try {
+          tenantTx.execute(
+              TxCtx.forTenant(trigger.tenantId()),
+              () -> {
+                if (snapshot.kind() == NotificationReadersSnapshot.Kind.DELETION) {
+                  notifyRendered(
+                      trigger,
+                      captured.readers(),
+                      entry,
+                      snapshot.entityId(),
+                      NotificationTriggerEventType.DELETE,
+                      NotificationMessage.of(
+                          buildMessage(
+                              entry, NotificationTriggerEventType.DELETE, snapshot.label())));
+                  return;
+                }
+                List<String> lost =
+                    captured.readers().stream()
+                        .filter(
+                            userId ->
+                                !recipientFilter.canRead(
+                                    trigger.tenantId(), userId, entry, snapshot.entityId()))
+                        .toList();
+                notifyRendered(
+                    trigger,
+                    lost,
+                    entry,
+                    snapshot.entityId(),
+                    NotificationTriggerEventType.DELETE,
+                    NotificationMessage.of(noLongerVisibleMessage(entry.getResourceType())));
+              });
+        } finally {
+          TenantContext.clearCurrentTenant();
+        }
+      } catch (Exception e) {
+        log.error(
+            "Notification trigger {} {} delivery failed for {} {}",
+            trigger.id(),
+            snapshot.kind(),
+            entry.getResourceType(),
+            snapshot.entityId(),
+            e);
+      }
+    }
+  }
+
+  /**
+   * Records and dispatches one event to {@code readers}, the message rendered for each of them;
+   * readers who get the same rendering share one dispatch. Must run in the trigger's scope.
+   */
+  private void notifyRendered(
+      ResolvedNotificationTrigger trigger,
+      List<String> readers,
+      NotificationResourceCatalog entry,
+      String entityId,
+      NotificationTriggerEventType eventType,
+      NotificationMessage message) {
+    if (readers.isEmpty()) {
+      return;
+    }
+    Map<String, List<String>> readersByRendering = new LinkedHashMap<>();
+    for (String userId : readers) {
+      String rendered =
+          message.render(
+              reference ->
+                  recipientFilter.canRead(
+                      trigger.tenantId(), userId, reference.entry(), reference.id()));
+      readersByRendering.computeIfAbsent(rendered, key -> new java.util.ArrayList<>()).add(userId);
+    }
+    readersByRendering.forEach(
+        (rendered, users) -> {
+          recordEvents(trigger, users, entry, entityId, eventType, rendered);
+          NotificationContent.Group group =
+              new NotificationContent.Group(
+                  trigger.name(),
+                  List.of(
+                      new NotificationContent.Event(
+                          eventType, rendered, entry.getResourceType(), entityId)));
+          dispatchService.dispatch(trigger, NotificationTriggerType.LIVE, users, List.of(group));
+        });
+  }
+
+  /** Suffix of the delete-type event a recipient gets when it loses read access to an object. */
+  static final String NO_LONGER_VISIBLE = "is no longer visible";
+
+  /** The message of an object the recipient no longer reads: its name is never shown. */
+  static String noLongerVisibleMessage(io.openaev.database.model.ResourceType resourceType) {
+    return "["
+        + resourceLabel(resourceType)
+        + "] "
+        + NotificationMessage.RESTRICTED
+        + " "
+        + NO_LONGER_VISIBLE;
+  }
+
+  /** A deleted-object message with the name masked, for a digest row the recipient cannot read. */
+  static String maskedDeletedMessage(io.openaev.database.model.ResourceType resourceType) {
+    return "[" + resourceLabel(resourceType) + "] " + NotificationMessage.RESTRICTED + " deleted";
+  }
+
+  private static String resourceLabel(io.openaev.database.model.ResourceType resourceType) {
+    return resourceType.name().toLowerCase().replace('_', ' ');
   }
 
   private void recordEvents(
@@ -159,7 +293,6 @@ public class NotificationEngineService {
           case SCORE_DEGRADATION -> "score degraded";
           case SYNC_BLOCKED -> "sync blocked";
         };
-    String resourceLabel = entry.getResourceType().name().toLowerCase().replace('_', ' ');
-    return "[" + resourceLabel + "] " + label + " " + operation;
+    return "[" + resourceLabel(entry.getResourceType()) + "] " + label + " " + operation;
   }
 }
