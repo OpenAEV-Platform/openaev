@@ -25,6 +25,7 @@ import io.openaev.api.graph.dto.GraphStartingPointOutput;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Exercise;
@@ -32,6 +33,7 @@ import io.openaev.database.model.Filters;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
+import io.openaev.service.AssetGroupService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
@@ -90,6 +92,7 @@ class GraphExplorationServiceTest extends IntegrationTest {
   @Autowired private InjectExpectationComposer expectationComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private AssetGroupService assetGroupService;
 
   private String tenant;
   private List<String> scope;
@@ -879,6 +882,26 @@ class GraphExplorationServiceTest extends IntegrationTest {
               assertThat(group.assetCount()).isGreaterThanOrEqualTo(1);
             });
     assertThat(ungroupedCount(out)).isLessThan(ungroupedBefore);
+  }
+
+  @Test
+  @DisplayName(
+      "given a dynamic group, should read its members as ids, the set the full resolution finds")
+  void given_dynamicGroup_should_readMemberIdsLikeFullResolution() {
+    // Arrange
+    AssetGroup dyn = dynamicGroupOnPlatformOf(e2);
+    AssetGroup reloaded = entityManager.find(AssetGroup.class, dyn.getId());
+    List<String> resolved =
+        assetGroupService.computeDynamicAssets(reloaded).getDynamicAssets().stream()
+            .map(Asset::getId)
+            .toList();
+
+    // Act
+    List<String> ids = service.dynamicMemberIds(reloaded);
+
+    // Assert
+    assertThat(ids).contains(e2.getId());
+    assertThat(ids).containsExactlyInAnyOrderElementsOf(resolved);
   }
 
   private static long ungroupedCount(GraphOverviewOutput out) {
