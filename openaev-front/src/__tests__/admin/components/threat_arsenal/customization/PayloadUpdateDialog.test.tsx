@@ -69,7 +69,9 @@ const renderDialog = () => {
 const updateButton = () => screen.getByRole('button', { name: 'Update' });
 
 describe('PayloadUpdateDialog', () => {
-  beforeEach(() => mocks.updateCustomization.mockReset());
+  beforeEach(() => {
+    mocks.updateCustomization.mockReset();
+  });
   afterEach(cleanup);
 
   it('given_aConflictingBlock_should_askForOneChoiceOnAllItsFields', () => {

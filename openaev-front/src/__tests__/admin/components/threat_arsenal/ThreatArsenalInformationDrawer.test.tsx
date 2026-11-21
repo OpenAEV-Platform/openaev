@@ -165,7 +165,7 @@ describe('ThreatArsenalInformationDrawer', () => {
 
       // Assert
       await waitFor(() => expect(mocks.install).toHaveBeenCalledWith('mimikatz', '3'));
-      await waitFor(() => expect(mocks.versions).toHaveBeenLastCalledWith('action-v2', true, 1));
+      await waitFor(() => expect(mocks.versions).toHaveBeenCalledWith('action-v2', true, 1));
     });
 
     it('given no right to install should only tell it is not installed', () => {

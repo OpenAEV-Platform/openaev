@@ -6,11 +6,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import PayloadUpdateBanner from '../../../../../admin/components/threat_arsenal/customization/PayloadUpdateBanner';
 import { type PayloadCustomizationOutput } from '../../../../../utils/api-types';
 
+const { APPLY } = vi.hoisted(() => ({ APPLY: 'Apply' }));
+
 vi.mock('../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (message: string, values?: Record<string, string>) => message.replace(/\{(\w+)\}/g, (_, key: string) => values?.[key] ?? key) }) }));
 vi.mock('../../../../../admin/components/threat_arsenal/customization/PayloadUpdateDialog', () => ({
   default: ({ onUpdated }: { onUpdated: (action: { injector_contract_id: string }) => void }) => (
     <div role="dialog">
-      <button type="button" onClick={() => onUpdated({ injector_contract_id: 'copy-1.1.0' })}>Apply</button>
+      <button type="button" onClick={() => onUpdated({ injector_contract_id: 'copy-1.1.0' })}>{APPLY}</button>
     </div>
   ),
 }));
@@ -39,7 +41,7 @@ describe('PayloadUpdateBanner', () => {
 
     // Act
     fireEvent.click(screen.getByRole('button', { name: 'Update' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    fireEvent.click(screen.getByRole('button', { name: APPLY }));
 
     // Assert
     expect(screen.getByText('Filigran v1.1.0 is available')).toBeInTheDocument();

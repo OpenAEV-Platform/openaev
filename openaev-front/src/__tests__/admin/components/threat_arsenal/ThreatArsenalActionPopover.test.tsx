@@ -53,9 +53,7 @@ vi.mock('../../../../components/common/Drawer', () => ({
     children: ReactNode;
   }) => (open ? <section aria-label={title}>{children}</section> : null),
 }));
-vi.mock('../../../../admin/components/threat_arsenal/ThreatArsenalActionForm', () => ({
-  default: ({ filigranValues }: { filigranValues?: object }) => <form aria-label={filigranValues ? 'Customized copy form' : 'Action form'} />,
-}));
+vi.mock('../../../../admin/components/threat_arsenal/ThreatArsenalActionForm', () => ({ default: ({ filigranValues }: { filigranValues?: object }) => <form aria-label={filigranValues ? 'Customized copy form' : 'Action form'} /> }));
 
 vi.mock('../../../../admin/components/integrations/injectors/injector_contracts/InjectorContractForm', () => ({ default: () => null }));
 

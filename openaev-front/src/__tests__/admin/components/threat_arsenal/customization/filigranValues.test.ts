@@ -38,6 +38,6 @@ describe('fetchFiligranValues', () => {
     expect(mocks.fetchCustomization).toHaveBeenCalledWith('copy');
     expect(mocks.fetchAction).toHaveBeenCalledWith('filigran-1.0.0');
     expect(result.customization).toEqual(customization);
-    expect(result.values.command_content).toBe('whoami');
+    expect(result.values).toMatchObject({ command_content: 'whoami' });
   });
 });
