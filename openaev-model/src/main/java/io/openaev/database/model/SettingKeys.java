@@ -20,7 +20,12 @@ public enum SettingKeys {
 
   XTM_COMPOSER_ID("xtm_composer_id", ""),
   XTM_COMPOSER_NAME("xtm_composer_name", ""),
-  XTM_COMPOSER_VERSION("xtm_composer_version", ""),
+  // The version XTM Composer reports at registration and on each connectivity refresh.
+  XTM_COMPOSER_VERSION("xtm_composer_version", "unknown"),
+  // The container image XTM Composer reports, empty when it reports none.
+  XTM_COMPOSER_IMAGE("xtm_composer_image", ""),
+  // The OpenAEV version XTM Composer registered against: it registers again when it changes.
+  XTM_COMPOSER_PLATFORM_VERSION("xtm_composer_platform_version", ""),
   XTM_COMPOSER_PUBLIC_KEY("xtm_composer_public_key", ""),
   XTM_COMPOSER_LAST_CONNECTIVITY_CHECK("xtm_composer_last_connectivity_check", ""),
 

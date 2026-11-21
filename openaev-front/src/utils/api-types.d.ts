@@ -10935,6 +10935,12 @@ export interface PlatformSettings {
   smtp_service_available?: string;
   /** True if telemetry manager enable */
   telemetry_manager_enable?: boolean;
+  /** Container image XTM Composer reported, empty when it reported none */
+  xtm_composer_image?: string;
+  /** Last connectivity check of XTM Composer */
+  xtm_composer_last_connectivity_check?: string;
+  /** Version XTM Composer reported, 'unknown' when it reported none */
+  xtm_composer_version?: string;
   /** True if connection with XTM Hub is enabled */
   xtm_hub_enable?: boolean;
   /** True if xtmhub backend is reachable */
@@ -14966,6 +14972,13 @@ export interface WorkflowScopeRuleOutput {
   workflow_scope_rule_value_label?: string;
 }
 
+export interface XtmComposerConnectivityInput {
+  /** The container image XTM Composer runs from */
+  image?: string;
+  /** The XTM Composer version */
+  version?: string;
+}
+
 export interface XtmComposerInstanceOutput {
   /**
    * Connector image
@@ -15007,8 +15020,12 @@ export interface XtmComposerOutput {
    * @minLength 1
    */
   xtm_composer_id: string;
+  /** The container image XTM Composer reported, empty when it reported none */
+  xtm_composer_image?: string;
+  /** The version XTM Composer reported, 'unknown' when it reported none */
+  xtm_composer_reported_version?: string;
   /**
-   * XTM Composer Version
+   * The OpenAEV version XTM Composer registered against
    * @minLength 1
    */
   xtm_composer_version: string;
@@ -15020,6 +15037,8 @@ export interface XtmComposerRegisterInput {
    * @minLength 1
    */
   id: string;
+  /** The container image XTM Composer runs from, optional */
+  image?: string;
   /**
    * The XTM Composer Name
    * @minLength 1
@@ -15030,6 +15049,8 @@ export interface XtmComposerRegisterInput {
    * @minLength 1
    */
   public_key: string;
+  /** The XTM Composer version, optional: an XTM Composer that sends none is recorded as 'unknown' */
+  version?: string;
 }
 
 export interface XtmComposerUpdateStatusInput {
