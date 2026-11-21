@@ -1011,6 +1011,53 @@ export interface AssetSnapshotOutput {
   asset_snapshot_name?: string;
 }
 
+export interface AssetSoftwareInput {
+  /**
+   * @minLength 0
+   * @maxLength 1024
+   */
+  asset_software_cpe?: string;
+  asset_software_parent_id?: string;
+  /**
+   * @minLength 0
+   * @maxLength 512
+   */
+  asset_software_product: string;
+  /**
+   * @minLength 0
+   * @maxLength 2048
+   */
+  asset_software_purl?: string;
+  /**
+   * @minLength 0
+   * @maxLength 512
+   */
+  asset_software_vendor?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  asset_software_version?: string;
+}
+
+export interface AssetSoftwareOutput {
+  asset_id?: string;
+  asset_name?: string;
+  asset_software_cpe?: string;
+  /** @format date-time */
+  asset_software_first_seen?: string;
+  asset_software_id?: string;
+  /** @format date-time */
+  asset_software_last_seen?: string;
+  asset_software_parent_id?: string;
+  asset_software_product?: string;
+  asset_software_purl?: string;
+  asset_software_source?: "AGENT" | "SBOM" | "API";
+  asset_software_vendor?: string;
+  asset_software_version?: string;
+  asset_software_version_state?: "KNOWN" | "UNKNOWN";
+}
+
 export interface AssetUpdateMarkingsInput {
   asset_markings: string[];
 }
@@ -11891,6 +11938,16 @@ export interface RuntimeSettingOutput {
    * @minLength 1
    */
   value: string;
+}
+
+export interface SbomImportOutput {
+  /** @format int32 */
+  created?: number;
+  software?: AssetSoftwareOutput[];
+  /** @format int32 */
+  unknown_versions?: number;
+  /** @format int32 */
+  updated?: number;
 }
 
 export interface Scenario {
