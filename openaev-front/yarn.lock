@@ -5161,9 +5161,9 @@ __metadata:
   linkType: hard
 
 "csstype@npm:^3.0.2, csstype@npm:^3.2.2, csstype@npm:^3.2.3":
-  version: 3.2.3
-  resolution: "csstype@npm:3.2.3"
-  checksum: 10c0/cd29c51e70fa822f1cecd8641a1445bed7063697469d35633b516e60fe8c1bde04b08f6c5b6022136bb669b64c63d4173af54864510fbb4ee23281801841a3ce
+  version: 3.2.4
+  resolution: "csstype@npm:3.2.4"
+  checksum: 10c0/29568f520e1e47b2e6e88e2cffe3b5369f08c1245c73e69595623cafb38816bd353387e0d665ce4330cfe2c9244f2a4671abe761cbd0b535bc27fab12b6b8a25
   languageName: node
   linkType: hard
 
@@ -7003,8 +7003,8 @@ __metadata:
   linkType: hard
 
 "hast-util-raw@npm:^9.0.0":
-  version: 9.2.0
-  resolution: "hast-util-raw@npm:9.2.0"
+  version: 9.2.1
+  resolution: "hast-util-raw@npm:9.2.1"
   dependencies:
     "@types/hast": "npm:^3.0.0"
     "@types/unist": "npm:^3.0.0"
@@ -7013,13 +7013,13 @@ __metadata:
     hast-util-to-parse5: "npm:^8.0.0"
     html-void-elements: "npm:^3.0.0"
     mdast-util-to-hast: "npm:^13.0.0"
-    parse5: "npm:^8.0.0"
+    parse5: "npm:^8.1.0"
     unist-util-position: "npm:^5.0.0"
     unist-util-visit: "npm:^5.0.0"
     vfile: "npm:^6.0.0"
     web-namespaces: "npm:^2.0.0"
     zwitch: "npm:^2.0.0"
-  checksum: 10c0/7f4b4864a7e99585a6366b95d52dbab6c84953daab694d50a1e6d98af2aced443bdf4c288d77b721d6105bdfe37146eff77d5758da544b4676dd508422595829
+  checksum: 10c0/124754097b44effd2af7aaa31b862af629d18791aab7453797447c6326264a0ce2d6affbb271fa5dd3eefb9046cb1b9cdef5394b663124371cf1afd1197e80e5
   languageName: node
   linkType: hard
 
@@ -7047,8 +7047,8 @@ __metadata:
   linkType: hard
 
 "hast-util-to-html@npm:^9.0.0":
-  version: 9.0.6
-  resolution: "hast-util-to-html@npm:9.0.6"
+  version: 9.0.7
+  resolution: "hast-util-to-html@npm:9.0.7"
   dependencies:
     "@types/hast": "npm:^3.0.0"
     "@types/unist": "npm:^3.0.0"
@@ -7061,7 +7061,7 @@ __metadata:
     space-separated-tokens: "npm:^2.0.0"
     stringify-entities: "npm:^4.0.0"
     zwitch: "npm:^2.0.4"
-  checksum: 10c0/db4b75240a594457f7bffeb630f8413fce5aa4ba2b8dd8a1e8926cb5a9f731b5c64e99ca43d47c335a2fb0ad10532790499ae980b24a4b5f4bc34208fcd39a4d
+  checksum: 10c0/98ce3c5eb672c2a4a42ed2569bb6d9b0dd0fa07220e4f1dc3063c6613b25324d916f4a4cbfd86528fccba6d73918393156fa13b97fc7048887ceb5ceac7303d9
   languageName: node
   linkType: hard
 
@@ -9733,9 +9733,9 @@ __metadata:
   linkType: hard
 
 "object-inspect@npm:^1.13.3, object-inspect@npm:^1.13.4":
-  version: 1.13.4
-  resolution: "object-inspect@npm:1.13.4"
-  checksum: 10c0/d7f8711e803b96ea3191c745d6f8056ce1f2496e530e6a19a0e92d89b0fa3c76d910c31f0aa270432db6bd3b2f85500a376a83aaba849a8d518c8845b3211692
+  version: 1.14.0
+  resolution: "object-inspect@npm:1.14.0"
+  checksum: 10c0/15b78267566dc96ac8407b20f404879203383f76ade0a08a6684476c08ea7f58ba26c746b5aaac63d4e634534d778586f4bda767ce139b166e7dc4794518a3c5
   languageName: node
   linkType: hard
 
@@ -10235,7 +10235,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"parse5@npm:^8.0.0":
+"parse5@npm:^8.0.0, parse5@npm:^8.1.0":
   version: 8.1.1
   resolution: "parse5@npm:8.1.1"
   dependencies:
@@ -11890,9 +11890,9 @@ __metadata:
   linkType: hard
 
 "source-map-js@npm:^1.2.1, source-map-js@npm:^1.2.2":
-  version: 1.2.2
-  resolution: "source-map-js@npm:1.2.2"
-  checksum: 10c0/d5d6dec62266834f83dd4f8a2606a196fb1a006ca5d53b0ef80ee513b7eba2f4e2ae241f4bc129ae7e9b80dea24f6e3d92b446b7e6e96be7653cab8888168a94
+  version: 1.2.3
+  resolution: "source-map-js@npm:1.2.3"
+  checksum: 10c0/4534d29224132720ae252ed96ddb509be3204c0933f4a6b4bf0c838044cc8bb106e0cac801fb7bd7a7dedf16f7c1ec6bd339d10e55cd72aca0218c8a091c1c21
   languageName: node
   linkType: hard
 
@@ -12368,9 +12368,9 @@ __metadata:
   linkType: hard
 
 "tinybench@npm:^6.2.2":
-  version: 6.2.3
-  resolution: "tinybench@npm:6.2.3"
-  checksum: 10c0/baf0c2e287e8a38677602243d4169ed217dc740a773479ccb232d48bd0ee72f59ac4370600e12364ce91a111d59dd4c93d5c79c586e412f4cd49c4db6eb6f2e0
+  version: 6.2.4
+  resolution: "tinybench@npm:6.2.4"
+  checksum: 10c0/a5ca5727be05157819bc196e4a53f01b97fac84bff70e2966dc71946b1b90119f3e666a8ac37e3acb2bc9997fd2a031051f9a3309e7655aedd5acd0efcfc7046
   languageName: node
   linkType: hard
 
