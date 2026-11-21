@@ -7,6 +7,7 @@ import io.openaev.config.MarkedTables;
 import io.openaev.config.MarkingDerivedTables;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetGroup;
+import io.openaev.database.model.Collector;
 import io.openaev.database.model.DetectionInjectExpectation;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ExecutionTrace;
@@ -120,6 +121,17 @@ class StreamMarkingRulesTest {
                 "inject_expectations", "inject_expectation_id", "injects_expectations"),
             new EmbeddedRule(
                 "inject_status.status_traces", "execution_trace_id", "execution_traces"));
+  }
+
+  @Test
+  @DisplayName("a single object of a marked table embedded whole is filtered")
+  void given_singleEmbeddedObject_should_beFiltered() {
+    // Act
+    StreamMarkingRules rules = rules(ASSETS_ACTIVE);
+
+    // Assert
+    assertThat(rules.forEntity(Collector.class).embedded())
+        .containsExactly(new EmbeddedRule("collector_security_platform", "asset_id", "assets"));
   }
 
   @Test
