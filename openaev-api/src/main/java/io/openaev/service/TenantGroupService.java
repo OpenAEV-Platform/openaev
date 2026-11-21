@@ -369,6 +369,19 @@ public class TenantGroupService {
     receiveEveryMarking(group, markingDefinitionRepository.findAllByTenantId(tenantId));
   }
 
+  /**
+   * Stops the group from receiving the new markings of its tenant; the markings it holds are kept,
+   * the tenant administrator trims them. For an internal group whose policy no longer grants every
+   * marking.
+   */
+  public void stopReceivingNewMarkings(@NotNull final Group group) {
+    if (!group.isAutoNewMarking()) {
+      return;
+    }
+    group.setAutoNewMarking(false);
+    groupRepository.save(group);
+  }
+
   /** Turning it on needs ASSIGN_MARKING and every marking; turning it off keeps them. */
   private void updateAutoNewMarking(String tenantId, Group group, Boolean autoNewMarking) {
     if (autoNewMarking == null || autoNewMarking == group.isAutoNewMarking()) {

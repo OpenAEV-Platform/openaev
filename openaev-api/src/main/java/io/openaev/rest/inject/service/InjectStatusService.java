@@ -28,6 +28,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectUpdateStatusInput;
+import io.openaev.service.finding.FindingRetestSettlement;
 import io.openaev.utils.ExecutionTraceUtils;
 import io.openaev.utils.InjectStatusUtils;
 import io.openaev.utils.InjectUtils;
@@ -64,6 +65,7 @@ public class InjectStatusService {
   private final ObjectMapper mapper;
 
   private final EntityManager entityManager;
+  private final FindingRetestSettlement findingRetestSettlement;
 
   private static final String NO_STATUS = "NONE";
   static final String LATE_REPORT_SUFFIX = "It reported later, see the next traces.";
@@ -181,6 +183,16 @@ public class InjectStatusService {
     injectStatus.getInject().setUpdatedAt(Instant.now());
     deleteInjectAuthorisationIfExecutionEnded(injectStatus);
     logInjectStatusTransition(injectStatus.getInject(), previousStatus, finalStatus, agent);
+    settleFindingRetests(injectStatus.getInject(), finalStatus);
+  }
+
+  /** Settles the findings this inject was re-testing, in the transaction that finalized it. */
+  private void settleFindingRetests(Inject inject, ExecutionStatus finalStatus) {
+    if (inject == null || inject.getId() == null || inject.getTenant() == null) {
+      return;
+    }
+    findingRetestSettlement.settleRetestsOf(
+        inject.getId(), inject.getTenant().getId(), finalStatus);
   }
 
   /**

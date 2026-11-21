@@ -6457,12 +6457,23 @@ export interface FindingOutput {
    * @deprecated
    */
   finding_labels?: string[];
+  /**
+   * When a re-test last ended on the finding
+   * @format date-time
+   */
+  finding_last_tested?: string;
   /** Finding name */
   finding_name?: string;
+  /** Re-test inject queued and not finished yet */
+  finding_retest_inject_id?: string;
   /** Scenario the finding was produced in */
   finding_scenario?: ScenarioSimple;
   /** Simulation the finding was produced in */
   finding_simulation?: ExerciseSimple;
+  /** Lifecycle status: OPEN, NOT_REPRODUCED or RESOLVED */
+  finding_status?: "OPEN" | "NOT_REPRODUCED" | "RESOLVED";
+  /** Inject whose run set the current status (a detection or a re-test) */
+  finding_status_inject_id?: string;
   /**
    * Tag ids linked to the finding
    * @uniqueItems true
@@ -6511,6 +6522,27 @@ export interface FindingOutput {
    * @minLength 1
    */
   finding_value: string;
+}
+
+export interface FindingRetestInput {
+  /**
+   * Ids of the findings to re-test
+   * @minItems 1
+   */
+  finding_ids: string[];
+}
+
+export interface FindingRetestOutput {
+  /**
+   * Finding re-tested
+   * @minLength 1
+   */
+  finding_id: string;
+  /**
+   * Inject queued to re-test the finding
+   * @minLength 1
+   */
+  retest_inject_id: string;
 }
 
 export interface FindingSummaryOutput {
@@ -10928,6 +10960,12 @@ export interface PlatformSettings {
   smtp_service_available?: string;
   /** True if telemetry manager enable */
   telemetry_manager_enable?: boolean;
+  /** Container image XTM Composer reported, empty when it reported none */
+  xtm_composer_image?: string;
+  /** Last connectivity check of XTM Composer */
+  xtm_composer_last_connectivity_check?: string;
+  /** Version XTM Composer reported, 'unknown' when it reported none */
+  xtm_composer_version?: string;
   /** True if connection with XTM Hub is enabled */
   xtm_hub_enable?: boolean;
   /** True if xtmhub backend is reachable */
@@ -14990,6 +15028,13 @@ export interface WorkflowScopeRuleOutput {
   workflow_scope_rule_value_label?: string;
 }
 
+export interface XtmComposerConnectivityInput {
+  /** The container image XTM Composer runs from */
+  image?: string;
+  /** The XTM Composer version */
+  version?: string;
+}
+
 export interface XtmComposerInstanceOutput {
   /**
    * Connector image
@@ -15031,8 +15076,12 @@ export interface XtmComposerOutput {
    * @minLength 1
    */
   xtm_composer_id: string;
+  /** The container image XTM Composer reported, empty when it reported none */
+  xtm_composer_image?: string;
+  /** The version XTM Composer reported, 'unknown' when it reported none */
+  xtm_composer_reported_version?: string;
   /**
-   * XTM Composer Version
+   * The OpenAEV version XTM Composer registered against
    * @minLength 1
    */
   xtm_composer_version: string;
@@ -15044,6 +15093,8 @@ export interface XtmComposerRegisterInput {
    * @minLength 1
    */
   id: string;
+  /** The container image XTM Composer runs from, optional */
+  image?: string;
   /**
    * The XTM Composer Name
    * @minLength 1
@@ -15054,6 +15105,8 @@ export interface XtmComposerRegisterInput {
    * @minLength 1
    */
   public_key: string;
+  /** The XTM Composer version, optional: an XTM Composer that sends none is recorded as 'unknown' */
+  version?: string;
 }
 
 export interface XtmComposerUpdateStatusInput {
@@ -15097,4 +15150,58 @@ export interface XtmHubRegistrationOutput {
   tenant_xtmhub_registration_token?: string;
   tenant_xtmhub_registration_user_id?: string;
   tenant_xtmhub_registration_user_name?: string;
+}
+
+export interface XtmPeerTokenInput {
+  /**
+   * The consumer product; only opencrq is accepted today, under the email opencrq@xtm.<product>.filigran.io
+   * @minLength 0
+   * @maxLength 64
+   */
+  consumer: string;
+  /**
+   * The email identifying the service account
+   * @minLength 0
+   * @maxLength 320
+   */
+  email: string;
+  /**
+   * The display name of the service account
+   * @minLength 0
+   * @maxLength 200
+   */
+  name: string;
+  /**
+   * The name of the token, rotated at every call
+   * @minLength 0
+   * @maxLength 200
+   */
+  token_name: string;
+}
+
+export interface XtmPeerTokenOutput {
+  email?: string;
+  name?: string;
+  token?: string;
+  token_name?: string;
+  user_id?: string;
+}
+
+export interface XtmPeerTokenRevokeInput {
+  /**
+   * The email identifying the service account
+   * @minLength 0
+   * @maxLength 320
+   */
+  email: string;
+  /**
+   * The name of the token to revoke
+   * @minLength 0
+   * @maxLength 200
+   */
+  token_name: string;
+}
+
+export interface XtmPeerTokenRevokeOutput {
+  revoked?: boolean;
 }

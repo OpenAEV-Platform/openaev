@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.PlatformWrite;
+import io.openaev.api.xtm_composer.dto.XtmComposerConnectivityInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
@@ -75,10 +76,13 @@ public class XtmComposerApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @PlatformWrite
   public XtmComposerOutput refreshConnectivity(
-      TxCtx ctx, @PathVariable @NotBlank final String xtmComposerId) {
+      TxCtx ctx,
+      @PathVariable @NotBlank final String xtmComposerId,
+      // Optional: an older XTM Composer sends no body; the recorded version and image are kept.
+      @Valid @RequestBody(required = false) XtmComposerConnectivityInput input) {
     AuditLogContext.setEnabled(false);
 
-    return xtmComposerService.refreshConnectivity(xtmComposerId, Instant.now());
+    return xtmComposerService.refreshConnectivity(xtmComposerId, Instant.now(), input);
   }
 
   // The ONLY XtmComposerApi endpoint actually called from the frontend
