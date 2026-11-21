@@ -24,7 +24,7 @@ export interface GraphEntityNodeData extends Record<string, unknown> {
   truncated: boolean;
   /** A group node (same-type neighbours folded, as OpenCTI's graph collapse): how many it stands for. */
   groupCount?: number;
-  /** Its relations in the data against the ones drawn (#9572): the connection badge; null when not counted. */
+  /** Its relations in the data against the ones drawn: the connection badge; null when not counted. */
   connections?: NodeConnections | null;
   /** The node has a counterpart in the connected OpenCTI / OpenCRQ: the product mark of the list rows on its circle. */
   inOpenCti?: boolean;

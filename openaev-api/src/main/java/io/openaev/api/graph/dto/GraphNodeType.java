@@ -1,9 +1,9 @@
 package io.openaev.api.graph.dto;
 
 /**
- * The entity kinds the exploration graph (#9388) draws. Each one maps to a screen of the platform
- * the node detail panel deep-links to. Persons, organizations and teams (#9447) are the people side
- * of the estate: the person behind an identity asset, the organization it works for, its teams.
+ * The entity kinds the exploration graph draws. Each one maps to a screen of the platform the node
+ * detail panel deep-links to. Persons, organizations and teams are the people side of the estate:
+ * the person behind an identity asset, the organization it works for, its teams.
  */
 public enum GraphNodeType {
   ASSET,

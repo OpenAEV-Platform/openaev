@@ -1,4 +1,4 @@
-// Circle packing of the estate overview (landing rework, Exposure map concept, #9572): the asset
+// Circle packing of the estate overview (the Exposure map): the asset
 // groups as bubbles packed around the centre and scaled so the pack fills the canvas, instead of one
 // row of bubbles with the canvas empty below. Pure and deterministic, so it is unit tested.
 
@@ -151,8 +151,8 @@ const shifted = (bubbles: PackedBubble[], dx: number, dy: number): PackedBubble[
  * large as the canvas allows (its bounding box touches the canvas on its tighter side, PACK_GAP
  * kept around). An empty input or a canvas without size gives no bubble.
  *
- * With an obstacle (the Start here panel floating over the top right of the landing, #9572 UX round 1
- * B3), only the panel's own rectangle is kept clear, never a full-height column: the whole canvas is
+ * With an obstacle (the Start here panel floating over the top right of the landing),
+ * only the panel's own rectangle is kept clear, never a full-height column: the whole canvas is
  * used when the pack already misses the panel, else the larger of the pack below the panel (full
  * width) and the pack beside it (full height).
  */

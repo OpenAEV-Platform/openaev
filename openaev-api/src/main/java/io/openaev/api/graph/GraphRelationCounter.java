@@ -15,9 +15,9 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
- * The relation counts of the nodes of a slice (#9572): per node and per relation type, how many
- * relations the entity has in the data, drawn or not, so a node shows what an expansion would add
- * (OpenCTI's number on each node).
+ * The relation counts of the nodes of a slice: per node and per relation type, how many relations
+ * the entity has in the data, drawn or not, so a node shows what an expansion would add (OpenCTI's
+ * number on each node).
  *
  * <p>One grouped query per node type and relation over the ids of the slice, never one per node,
  * each with the same {@code tenant.id IN :tenantIds} predicate as the expansion. A count is not

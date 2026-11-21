@@ -13,15 +13,15 @@ interface GraphStartingPointsProps {
   /** The point the graph is centred on, as "<type>:<id>", highlighted in the rail. */
   current?: string | null;
   onSelect: (point: GraphStartingPointOutput) => void;
-  /** Folds the panel to its pill (the floating Start here panel of the landing, #9572 L3). */
+  /** Folds the panel to its pill (the floating Start here panel of the landing). */
   onCollapse?: () => void;
 }
 
 /**
- * The starting-points rail of the Graph landing (#9447): the top exposed assets, failing asset
+ * The starting-points rail of the Graph landing: the top exposed assets, failing asset
  * groups, attack paths, findings, exposed persons and the latest simulation, five each at most.
  * A click recentres the graph on that entity. It replaces the three "Start from" buttons, which
- * sent the user away from the graph to a list. Since #9572 (landing L3) it floats over the canvas as
+ * sent the user away from the graph to a list. It floats over the canvas as
  * the Start here panel instead of taking a 300 px column beside it, and folds to a pill.
  */
 const GraphStartingPoints = ({ points, current, onSelect, onCollapse }: GraphStartingPointsProps) => {

@@ -29,8 +29,8 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 /**
- * The exploration graph of #9388: lazy slices of the asset / asset group / finding / inject /
- * simulation / scenario graph, read on demand, never the whole tenant.
+ * The exploration graph: lazy slices of the asset / asset group / finding / inject / simulation /
+ * scenario graph, read on demand, never the whole tenant.
  *
  * <p>Every read carries an explicit {@code tenant.id IN :tenantIds} predicate on each entity it
  * returns, so isolation holds whether the table is v1 ({@code @Filter}) or v2-active (statement
@@ -71,9 +71,9 @@ public class GraphExplorationService {
     final Map<String, Instant> dates = new HashMap<>();
 
     /**
-     * Attack-path steps (#9447): per edge, the worst verdict per simulation that drew it. A step is
-     * only as visible as one of its simulations, and its verdict is the worst over the visible
-     * ones, so a simulation the caller may not read never leaks through a shared edge.
+     * Attack-path steps: per edge, the worst verdict per simulation that drew it. A step is only as
+     * visible as one of its simulations, and its verdict is the worst over the visible ones, so a
+     * simulation the caller may not read never leaks through a shared edge.
      */
     final Map<String, Map<String, GraphResult>> stepSimulations = new HashMap<>();
 
@@ -247,9 +247,9 @@ public class GraphExplorationService {
    * The landing view, "exposure hot paths": the assets carrying the most failed expectations, the
    * injects that failed on them, their asset groups and their findings. Risk first, and small.
    *
-   * <p>#9447: the ring also carries the attack-path steps that leave or reach each hot asset and
-   * the person the asset is the identity of, so the landing shows how an exposed asset chains to
-   * the next one and whose account it is, not only what failed on it. Both stay capped per asset.
+   * <p>The ring also carries the attack-path steps that leave or reach each hot asset and the
+   * person the asset is the identity of, so the landing shows how an exposed asset chains to the
+   * next one and whose account it is, not only what failed on it. Both stay capped per asset.
    */
   public GraphOutput hotPaths(Collection<String> tenantIds, int limit, GraphVisibility visibility) {
     int cap = Math.min(clamp(limit), 25);
@@ -927,10 +927,10 @@ public class GraphExplorationService {
           + " ORDER BY x.executedAt DESC";
 
   /**
-   * Attack-path steps (#9447): source asset to target asset of the attack-path executions read by
-   * {@code query} (one of the two constant queries above, never a string built from input), each
-   * pair carrying the worst verdict per simulation. Discovered targets (no asset) and injector
-   * sources (no asset) are not part of the estate graph and are skipped.
+   * Attack-path steps: source asset to target asset of the attack-path executions read by {@code
+   * query} (one of the two constant queries above, never a string built from input), each pair
+   * carrying the worst verdict per simulation. Discovered targets (no asset) and injector sources
+   * (no asset) are not part of the estate graph and are skipped.
    */
   void steps(Slice slice, Collection<String> tenantIds, String query, String id, int cap) {
     if (!STEPS_OF_ASSET.equals(query) && !STEPS_OF_SIMULATION.equals(query)) {
@@ -966,10 +966,10 @@ public class GraphExplorationService {
   }
 
   /**
-   * The assets linked to an asset in either direction ({@code assets_links}, #9447): an identity
-   * logged on to an endpoint, a service running on a host. The edge keeps the stored direction
-   * (source = the asset the link was added from); several typed links between the same two assets
-   * draw one edge, the types being listed on the asset page.
+   * The assets linked to an asset in either direction ({@code assets_links}): an identity logged on
+   * to an endpoint, a service running on a host. The edge keeps the stored direction (source = the
+   * asset the link was added from); several typed links between the same two assets draw one edge,
+   * the types being listed on the asset page.
    */
   private void linkedAssets(
       Slice slice, Collection<String> tenantIds, String assetId, String here, int cap) {
@@ -992,9 +992,9 @@ public class GraphExplorationService {
   }
 
   /**
-   * The asset groups an asset belongs to through their dynamic filter (#9447): each dynamic group
-   * of the scope is tested with one id-constrained query, at most {@value #MAX_DYNAMIC_GROUPS} of
-   * them, so a member list is never materialised.
+   * The asset groups an asset belongs to through their dynamic filter: each dynamic group of the
+   * scope is tested with one id-constrained query, at most {@value #MAX_DYNAMIC_GROUPS} of them, so
+   * a member list is never materialised.
    */
   private void dynamicGroupsOf(
       Slice slice, Collection<String> tenantIds, String assetId, String here, int cap) {
@@ -1035,8 +1035,8 @@ public class GraphExplorationService {
   }
 
   /**
-   * The ids of the assets a dynamic group's filter matches (#9447), for the estate overview counts;
-   * empty for a static group or without the asset group service.
+   * The ids of the assets a dynamic group's filter matches, for the estate overview counts; empty
+   * for a static group or without the asset group service.
    */
   List<String> dynamicMemberIds(AssetGroup group) {
     if (assetGroupService == null
@@ -1048,7 +1048,7 @@ public class GraphExplorationService {
         .toList();
   }
 
-  /** The members of an asset group through its dynamic filter (#9447), capped. */
+  /** The members of an asset group through its dynamic filter, capped. */
   private void dynamicMembersOf(
       Slice slice, Collection<String> tenantIds, String groupId, String here, int cap) {
     if (assetGroupService == null) {

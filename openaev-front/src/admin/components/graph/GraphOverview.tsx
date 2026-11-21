@@ -25,8 +25,8 @@ interface GraphOverviewProps {
   onOpenSimulation: (simulationId: string) => void;
   /**
    * The rectangle at the top right of the card the bubbles keep clear of, in px from the card's top
-   * right corner, margins included: the floating Start here panel when it is open (#9572 L3). Only
-   * that rectangle is kept clear, never a full-height column (#9572 UX round 1 B3).
+   * right corner, margins included: the floating Start here panel when it is open. Only
+   * that rectangle is kept clear, never a full-height column.
    */
   obstacleTopRight?: {
     width: number;
@@ -40,7 +40,7 @@ const LABEL_MIN_RADIUS = 52;
 const CANVAS_TOP = 36;
 
 /**
- * The estate overview of the Graph landing (#9447), reworked as the Exposure map (#9572): the canvas
+ * The estate overview of the Graph landing, reworked as the Exposure map: the canvas
  * at zoom 0, the asset groups packed as bubbles that fill the whole canvas, area by asset count,
  * coloured by coverage (failure rate, or grey when never tested). A click selects a group and lists
  * the simulations that target it in a floating card; a double-click (or Enter) unfolds its assets in

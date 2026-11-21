@@ -19,7 +19,7 @@ interface Props {
 }
 
 /**
- * The shared graph component (#9388) scoped to one entity: the Graph tab of an entity page and the
+ * The shared graph component scoped to one entity: the Graph tab of an entity page and the
  * mini graph card of its Overview. It fetches the entity's first ring only, and only once the
  * component is visible (a card below the fold costs nothing until it scrolls in). The full Graph
  * page is one click away and keeps the focus.
@@ -78,7 +78,7 @@ const EntityGraph = ({ type, entityId, variant, height }: Props) => {
   }, [visible, type, entityId, variant]);
 
   // The mini card takes the height its layout needs (at least MINI_CARD_MIN_HEIGHT), so its top and
-  // bottom rows are never cut (#9448, UX round 2 B3); the Graph tab fills the window.
+  // bottom rows are never cut; the Graph tab fills the window.
   const resolvedHeight = height ?? (variant === 'mini' ? 'auto' : (fillHeight ?? EMBEDDED_GRAPH_MIN_HEIGHT));
 
   return (
