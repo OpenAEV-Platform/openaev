@@ -4973,5 +4973,18 @@
   "Start here": "Hier beginnen",
   "Fold the Start here panel": "Bereich „Hier beginnen“ einklappen",
   "List the entities": "Entitäten auflisten",
-  "Entities of the graph": "Entitäten des Graphen"
+  "Entities of the graph": "Entitäten des Graphen",
+  "Annual loss": "Jährlicher Verlust",
+  "Confidence": "Konfidenz",
+  "Last modified": "Zuletzt geändert",
+  "Connect OpenCRQ to see the financial impact of this object: its annual loss and the loss avoided by fixing it.": "Verbinden Sie OpenCRQ, um die finanziellen Auswirkungen dieses Objekts zu sehen: seinen jährlichen Verlust und den durch die Behebung vermiedenen Verlust.",
+  "Connect OpenCTI to see the reports and intelligence on this object.": "Verbinden Sie OpenCTI, um die Berichte und Erkenntnisse zu diesem Objekt zu sehen.",
+  "Open the connection guide to connect OpenCRQ.": "Öffnen Sie die Verbindungsanleitung, um OpenCRQ zu verbinden.",
+  "Open the connection guide to connect OpenCTI.": "Öffnen Sie die Verbindungsanleitung, um OpenCTI zu verbinden.",
+  "OpenCRQ did not answer this time. The pivot comes back on its own.": "OpenCRQ hat diesmal nicht geantwortet. Der Link kehrt von selbst zurück.",
+  "OpenCTI did not answer this time. The pivot comes back on its own.": "OpenCTI hat diesmal nicht geantwortet. Der Link kehrt von selbst zurück.",
+  "OpenCRQ has not quantified this object yet: add it to a risk scenario there to see its annual loss.": "OpenCRQ hat dieses Objekt noch nicht quantifiziert: Fügen Sie es dort einem Risikoszenario hinzu, um seinen jährlichen Verlust zu sehen.",
+  "OpenCTI holds no intelligence on this object yet: it appears there once a connector or a report brings it in.": "OpenCTI hat noch keine Erkenntnisse zu diesem Objekt: Es erscheint dort, sobald ein Konnektor oder ein Bericht es einbringt.",
+  "See the financial impact of this object and the risk scenarios it drives in OpenCRQ.": "Sehen Sie in OpenCRQ die finanziellen Auswirkungen dieses Objekts und die Risikoszenarien, die es beeinflusst.",
+  "See the reports, relationships and context of this object in OpenCTI.": "Sehen Sie in OpenCTI die Berichte, Beziehungen und den Kontext dieses Objekts."
 }

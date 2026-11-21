@@ -4973,5 +4973,18 @@
   "Start here": "Inizia da qui",
   "Fold the Start here panel": "Comprimi il pannello Inizia da qui",
   "List the entities": "Elenca le entità",
-  "Entities of the graph": "Entità del grafo"
+  "Entities of the graph": "Entità del grafo",
+  "Annual loss": "Perdita annua",
+  "Confidence": "Affidabilità",
+  "Last modified": "Ultima modifica",
+  "Connect OpenCRQ to see the financial impact of this object: its annual loss and the loss avoided by fixing it.": "Collega OpenCRQ per vedere l'impatto finanziario di questo oggetto: la perdita annua e la perdita evitata correggendolo.",
+  "Connect OpenCTI to see the reports and intelligence on this object.": "Collega OpenCTI per vedere i report e l'intelligence su questo oggetto.",
+  "Open the connection guide to connect OpenCRQ.": "Apri la guida di connessione per collegare OpenCRQ.",
+  "Open the connection guide to connect OpenCTI.": "Apri la guida di connessione per collegare OpenCTI.",
+  "OpenCRQ did not answer this time. The pivot comes back on its own.": "OpenCRQ non ha risposto questa volta. Il collegamento torna da solo.",
+  "OpenCTI did not answer this time. The pivot comes back on its own.": "OpenCTI non ha risposto questa volta. Il collegamento torna da solo.",
+  "OpenCRQ has not quantified this object yet: add it to a risk scenario there to see its annual loss.": "OpenCRQ non ha ancora quantificato questo oggetto: aggiungilo a uno scenario di rischio per vederne la perdita annua.",
+  "OpenCTI holds no intelligence on this object yet: it appears there once a connector or a report brings it in.": "OpenCTI non ha ancora intelligence su questo oggetto: vi compare quando un connettore o un report lo introduce.",
+  "See the financial impact of this object and the risk scenarios it drives in OpenCRQ.": "Vedi in OpenCRQ l'impatto finanziario di questo oggetto e gli scenari di rischio che determina.",
+  "See the reports, relationships and context of this object in OpenCTI.": "Vedi in OpenCTI i report, le relazioni e il contesto di questo oggetto."
 }

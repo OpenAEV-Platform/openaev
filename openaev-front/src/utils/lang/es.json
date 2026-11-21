@@ -4973,5 +4973,18 @@
   "Start here": "Empezar aquí",
   "Fold the Start here panel": "Plegar el panel Empezar aquí",
   "List the entities": "Listar las entidades",
-  "Entities of the graph": "Entidades del grafo"
+  "Entities of the graph": "Entidades del grafo",
+  "Annual loss": "Pérdida anual",
+  "Confidence": "Confianza",
+  "Last modified": "Última modificación",
+  "Connect OpenCRQ to see the financial impact of this object: its annual loss and the loss avoided by fixing it.": "Conecte OpenCRQ para ver el impacto financiero de este objeto: su pérdida anual y la pérdida evitada al corregirlo.",
+  "Connect OpenCTI to see the reports and intelligence on this object.": "Conecte OpenCTI para ver los informes y la inteligencia sobre este objeto.",
+  "Open the connection guide to connect OpenCRQ.": "Abra la guía de conexión para conectar OpenCRQ.",
+  "Open the connection guide to connect OpenCTI.": "Abra la guía de conexión para conectar OpenCTI.",
+  "OpenCRQ did not answer this time. The pivot comes back on its own.": "OpenCRQ no respondió esta vez. El enlace vuelve por sí solo.",
+  "OpenCTI did not answer this time. The pivot comes back on its own.": "OpenCTI no respondió esta vez. El enlace vuelve por sí solo.",
+  "OpenCRQ has not quantified this object yet: add it to a risk scenario there to see its annual loss.": "OpenCRQ aún no ha cuantificado este objeto: añádalo allí a un escenario de riesgo para ver su pérdida anual.",
+  "OpenCTI holds no intelligence on this object yet: it appears there once a connector or a report brings it in.": "OpenCTI aún no tiene inteligencia sobre este objeto: aparece allí cuando un conector o un informe lo incorpora.",
+  "See the financial impact of this object and the risk scenarios it drives in OpenCRQ.": "Vea en OpenCRQ el impacto financiero de este objeto y los escenarios de riesgo que impulsa.",
+  "See the reports, relationships and context of this object in OpenCTI.": "Vea en OpenCTI los informes, las relaciones y el contexto de este objeto."
 }

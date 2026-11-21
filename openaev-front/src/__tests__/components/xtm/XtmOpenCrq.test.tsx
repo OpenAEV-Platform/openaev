@@ -5,7 +5,7 @@ import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { orderedFacts } from '../../../components/xtm/counterpartFacts';
-import { ConnectOpenCrqCta, OpenCrqCardView, OpenCrqPivotView, OpenCrqRowMark } from '../../../components/xtm/XtmOpenCrq';
+import { ConnectOpenCrqCta, OpenCrqCardView, OpenCrqMatchPreview, OpenCrqPivotView, OpenCrqRowMark } from '../../../components/xtm/XtmOpenCrq';
 
 const can = vi.fn();
 const useCounterpartMock = vi.fn();
@@ -16,6 +16,7 @@ vi.mock('../../../components/i18n', () => ({
   useFormatter: () => ({
     t: (s: string) => s,
     n: (v: number) => `${v / 1000}K`,
+    fsd: (d: string) => d.slice(0, 10),
   }),
 }));
 vi.mock('../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can }) }));
@@ -62,6 +63,32 @@ describe('OpenCrqPivotView', () => {
     renderView(<OpenCrqPivotView answer={MATCH} />);
     expect(screen.getByTestId('xtm-crq-pivot-open').getAttribute('href')).toBe('https://ocrq.example/cve/CVE-2024-0001');
     expect(screen.getByText('Open in OpenCRQ')).toBeTruthy();
+  });
+
+  it('given a match with an annual loss should carry the key figure on the button', () => {
+    renderView(<OpenCrqPivotView answer={MATCH} />);
+    expect(screen.getByTestId('xtm-crq-pivot-figure').textContent).toBe('· Annual loss 125K');
+  });
+
+  it('given a match without facts should keep the label alone', () => {
+    renderView(<OpenCrqPivotView answer={{
+      ...MATCH,
+      counterpart: {
+        ...MATCH.counterpart,
+        counterpart_facts: [],
+      },
+    }}
+    />);
+    expect(screen.getByText('Open in OpenCRQ')).toBeTruthy();
+    expect(screen.queryByTestId('xtm-crq-pivot-figure')).toBeNull();
+  });
+
+  it('given the default size should render the hero at the FDS md size, never sm', () => {
+    renderView(<OpenCrqPivotView answer={MATCH} />);
+    const hero = screen.getByTestId('xtm-crq-pivot-open').className;
+    cleanup();
+    renderView(<OpenCrqPivotView answer={MATCH} size="md" />);
+    expect(screen.getByTestId('xtm-crq-pivot-open').className).toBe(hero);
   });
 
   it('given connected without a match should say so', () => {
@@ -116,6 +143,30 @@ describe('OpenCrqPivotView', () => {
     cleanup();
     renderView(<ConnectOpenCrqCta />);
     expect(screen.queryByTestId('xtm-crq-connect-cta')).toBeNull();
+  });
+});
+
+describe('OpenCrqMatchPreview', () => {
+  afterEach(cleanup);
+
+  it('given a match should show the object, its facts and what OpenCRQ opens', () => {
+    renderView(<OpenCrqMatchPreview answer={MATCH} />);
+    expect(screen.getByText('CVE-2024-0001')).toBeTruthy();
+    expect(screen.getByTestId('xtm-preview-facts').textContent).toBe('Risk scenarios3Annual loss expectancy125K');
+    expect(screen.getByText('See the financial impact of this object and the risk scenarios it drives in OpenCRQ.')).toBeTruthy();
+  });
+
+  it('given a match without facts should show the object and the action, no fact list', () => {
+    renderView(<OpenCrqMatchPreview answer={{
+      ...MATCH,
+      counterpart: {
+        ...MATCH.counterpart,
+        counterpart_facts: [],
+      },
+    }}
+    />);
+    expect(screen.queryByTestId('xtm-preview-facts')).toBeNull();
+    expect(screen.getByTestId('xtm-preview')).toBeTruthy();
   });
 });
 

@@ -13,6 +13,7 @@ import io.openaev.xtm.counterpart.CounterpartKind;
 import io.openaev.xtm.counterpart.CounterpartProvider;
 import io.openaev.xtm.counterpart.CounterpartUnavailableException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -46,6 +47,9 @@ public class OpenCTICounterpartProvider implements CounterpartProvider {
               ... on Vulnerability { name }
               ... on System { name }
               ... on StixCyberObservable { observable_value }
+              ... on StixDomainObject { confidence modified }
+              reports(first: 1) { pageInfo { globalCount } }
+              objectMarking { definition }
             }
           }
         }
@@ -79,6 +83,16 @@ public class OpenCTICounterpartProvider implements CounterpartProvider {
 
   /** Which referencing object stands for an alert first: an incident, then a sighting. */
   static final List<String> ALERT_PREFERENCE = List.of("Incident", "stix-sighting-relationship");
+
+  /**
+   * The fact keys of an OpenCTI counterpart, shown in the preview of the pivot: how many reports
+   * mention it, its confidence, when it last changed and its markings (definitions, comma-joined).
+   */
+  static final String FACT_REPORTS = "reports";
+
+  static final String FACT_CONFIDENCE = "confidence";
+  static final String FACT_LAST_MODIFIED = "last_modified";
+  static final String FACT_MARKINGS = "markings";
 
   static final List<String> ASSET_OBSERVABLE_TYPES =
       List.of("Hostname", "IPv4-Addr", "IPv6-Addr", "Mac-Addr");
@@ -226,11 +240,43 @@ public class OpenCTICounterpartProvider implements CounterpartProvider {
                   id,
                   node.path("entity_type").asText(),
                   node.path("representative").path("main").asText(candidate),
-                  baseUrl + "dashboard/id/" + id));
+                  baseUrl + "dashboard/id/" + id,
+                  facts(node)));
         }
       }
     }
     return found;
+  }
+
+  /**
+   * The key facts of a matched node, from the fields the lookup already reads: absent fields (an
+   * observable has no confidence, an OpenCTI that does not answer them) give no fact, never zero.
+   */
+  static List<Counterpart.Fact> facts(JsonNode node) {
+    List<Counterpart.Fact> facts = new ArrayList<>();
+    JsonNode reports = node.path("reports").path("pageInfo").path("globalCount");
+    if (reports.isNumber()) {
+      facts.add(new Counterpart.Fact(FACT_REPORTS, String.valueOf(reports.asLong())));
+    }
+    JsonNode confidence = node.path("confidence");
+    if (confidence.isNumber()) {
+      facts.add(new Counterpart.Fact(FACT_CONFIDENCE, String.valueOf(confidence.asInt())));
+    }
+    String modified = node.path("modified").asText("");
+    if (!modified.isBlank()) {
+      facts.add(new Counterpart.Fact(FACT_LAST_MODIFIED, modified));
+    }
+    List<String> markings = new ArrayList<>();
+    for (JsonNode marking : node.path("objectMarking")) {
+      String definition = marking.path("definition").asText("");
+      if (!definition.isBlank()) {
+        markings.add(definition);
+      }
+    }
+    if (!markings.isEmpty()) {
+      facts.add(new Counterpart.Fact(FACT_MARKINGS, String.join(", ", markings)));
+    }
+    return facts;
   }
 
   private static List<String> identifiers(CounterpartKind kind, JsonNode node) {

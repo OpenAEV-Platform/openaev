@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConnectOpenCtiCta, OpenCtiPivotView, OpenCtiRowMark } from '../../../components/xtm/XtmPivot';
+import { ConnectOpenCtiCta, OpenCtiMatchPreview, OpenCtiPivotView, OpenCtiRowMark } from '../../../components/xtm/XtmPivot';
 
 const can = vi.fn();
 const useCounterpartMock = vi.fn();
@@ -14,7 +14,13 @@ vi.mock('../../../components/xtm/useCounterpart', () => ({
   default: (...args: unknown[]) => useCounterpartMock(...args),
   OPENCTI_PRODUCT: 'opencti',
 }));
-vi.mock('../../../components/i18n', () => ({ useFormatter: () => ({ t: (s: string) => s }) }));
+vi.mock('../../../components/i18n', () => ({
+  useFormatter: () => ({
+    t: (s: string) => s,
+    n: (v: number) => String(v),
+    fsd: (d: string) => d.slice(0, 10),
+  }),
+}));
 vi.mock('../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can }) }));
 vi.mock('../../../actions/xtm/counterpart-actions', () => ({
   fetchXtmConnections: vi.fn(),
@@ -49,6 +55,43 @@ describe('OpenCtiPivotView', () => {
     expect(screen.getByText('Open in OpenCTI')).toBeTruthy();
   });
 
+  it('given a match with reports should carry the count on the button', () => {
+    renderPivot(
+      <OpenCtiPivotView answer={{
+        state: 'match',
+        product: 'opencti',
+        counterpart: {
+          counterpart_url: 'https://octi.example/dashboard/id/abc',
+          counterpart_name: 'T1059',
+          counterpart_facts: [{
+            fact_key: 'reports',
+            fact_value: '12',
+          }],
+        },
+      }}
+      />,
+    );
+    expect(screen.getByTestId('xtm-pivot-figure').textContent).toBe('· Reports 12');
+  });
+
+  it('given a match with zero reports should keep the label alone', () => {
+    renderPivot(
+      <OpenCtiPivotView answer={{
+        state: 'match',
+        product: 'opencti',
+        counterpart: {
+          counterpart_url: 'https://octi.example/dashboard/id/abc',
+          counterpart_facts: [{
+            fact_key: 'reports',
+            fact_value: '0',
+          }],
+        },
+      }}
+      />,
+    );
+    expect(screen.queryByTestId('xtm-pivot-figure')).toBeNull();
+  });
+
   it('given the panel size should render the match at a different size than the hero', () => {
     const answer = {
       state: 'match' as const,
@@ -61,7 +104,7 @@ describe('OpenCtiPivotView', () => {
     renderPivot(<OpenCtiPivotView answer={answer} />);
     const hero = screen.getByTestId('xtm-pivot-open').className;
     cleanup();
-    renderPivot(<OpenCtiPivotView answer={answer} size="md" />);
+    renderPivot(<OpenCtiPivotView answer={answer} size="sm" />);
     const panel = screen.getByTestId('xtm-pivot-open').className;
     expect(panel).not.toBe(hero);
   });
@@ -119,6 +162,42 @@ describe('OpenCtiPivotView', () => {
     cleanup();
     renderPivot(<ConnectOpenCtiCta />);
     expect(screen.queryByTestId('xtm-connect-cta')).toBeNull();
+  });
+});
+
+describe('OpenCtiMatchPreview', () => {
+  afterEach(cleanup);
+
+  it('given a match should show the type, the name, the OpenCTI facts in order and the action', () => {
+    renderPivot(
+      <OpenCtiMatchPreview answer={{
+        state: 'match',
+        product: 'opencti',
+        counterpart: {
+          counterpart_entity_type: 'Attack-Pattern',
+          counterpart_name: 'Command and Scripting Interpreter',
+          counterpart_facts: [
+            {
+              fact_key: 'markings',
+              fact_value: 'TLP:GREEN',
+            },
+            {
+              fact_key: 'reports',
+              fact_value: '12',
+            },
+            {
+              fact_key: 'last_modified',
+              fact_value: '2026-11-20T10:00:00.000Z',
+            },
+          ],
+        },
+      }}
+      />,
+    );
+    expect(screen.getByText('Attack-Pattern')).toBeTruthy();
+    expect(screen.getByText('Command and Scripting Interpreter')).toBeTruthy();
+    expect(screen.getByTestId('xtm-preview-facts').textContent).toBe('Reports12Last modified2026-11-20MarkingsTLP:GREEN');
+    expect(screen.getByText('See the reports, relationships and context of this object in OpenCTI.')).toBeTruthy();
   });
 });
 

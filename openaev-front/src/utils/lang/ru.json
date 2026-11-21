@@ -4973,5 +4973,18 @@
   "Start here": "Начать здесь",
   "Fold the Start here panel": "Свернуть панель «Начать здесь»",
   "List the entities": "Показать список сущностей",
-  "Entities of the graph": "Сущности графа"
+  "Entities of the graph": "Сущности графа",
+  "Annual loss": "Годовые потери",
+  "Confidence": "Достоверность",
+  "Last modified": "Последнее изменение",
+  "Connect OpenCRQ to see the financial impact of this object: its annual loss and the loss avoided by fixing it.": "Подключите OpenCRQ, чтобы увидеть финансовое влияние этого объекта: его годовые потери и потери, которых можно избежать, устранив его.",
+  "Connect OpenCTI to see the reports and intelligence on this object.": "Подключите OpenCTI, чтобы увидеть отчеты и разведданные об этом объекте.",
+  "Open the connection guide to connect OpenCRQ.": "Откройте руководство по подключению, чтобы подключить OpenCRQ.",
+  "Open the connection guide to connect OpenCTI.": "Откройте руководство по подключению, чтобы подключить OpenCTI.",
+  "OpenCRQ did not answer this time. The pivot comes back on its own.": "На этот раз OpenCRQ не ответил. Ссылка восстановится сама.",
+  "OpenCTI did not answer this time. The pivot comes back on its own.": "На этот раз OpenCTI не ответил. Ссылка восстановится сама.",
+  "OpenCRQ has not quantified this object yet: add it to a risk scenario there to see its annual loss.": "OpenCRQ еще не оценил этот объект: добавьте его в сценарий риска, чтобы увидеть годовые потери.",
+  "OpenCTI holds no intelligence on this object yet: it appears there once a connector or a report brings it in.": "В OpenCTI пока нет разведданных об этом объекте: он появится там, когда его добавит коннектор или отчет.",
+  "See the financial impact of this object and the risk scenarios it drives in OpenCRQ.": "Посмотрите в OpenCRQ финансовое влияние этого объекта и связанные с ним сценарии риска.",
+  "See the reports, relationships and context of this object in OpenCTI.": "Посмотрите в OpenCTI отчеты, связи и контекст этого объекта."
 }

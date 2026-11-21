@@ -11,8 +11,10 @@ import useExplorationGraph from '../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { useFormatter } from '../i18n';
+import { keyFact, OPENCTI_FACT_LABELS } from './counterpartFacts';
 import { type CounterpartAnswer } from './counterpartStore';
 import useCounterpart, { OPENCTI_PRODUCT } from './useCounterpart';
+import { PivotNoMatch, PivotPreview, PivotTeaser } from './XtmPivotPreview';
 
 // One visual language for every cross-platform pivot of OpenAEV: the product mark, "Open in
 // OpenCTI" when the counterpart exists, a muted "Not in OpenCTI" when it does not, and a discreet
@@ -46,13 +48,45 @@ export const ProductMark: FunctionComponent<{ size?: number }> = ({ size = 18 })
   );
 };
 
+// Read by a screen reader, never shown: the hint a disabled call to action carries.
+const SR_ONLY = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+} as const;
+
 const useCanConfigure = () => {
   const ability = useAbility();
   return ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
 };
 
+// One size per slot in the three products: the hero pivot is the FDS Button md (36 px), the size of
+// its header siblings (Explore in graph is an FDS IconButton md) and of the same pivot in OpenCTI
+// and OpenCRQ. "sm" stays available for a dense panel.
+export type PivotSize = 'sm' | 'md';
+
+/** Not connected: the preview of what OpenCTI would show here, and the next step for this user. */
+const OpenCtiTeaser: FunctionComponent<{ canConfigure: boolean }> = ({ canConfigure }) => {
+  const { t } = useFormatter();
+  return (
+    <PivotTeaser
+      mark={<ProductMark />}
+      productName="OpenCTI"
+      labels={OPENCTI_FACT_LABELS}
+      pitch={t('Connect OpenCTI to see the reports and intelligence on this object.')}
+      next={canConfigure ? t('Open the connection guide to connect OpenCTI.') : t('Ask an administrator to connect OpenCTI to see this object there.')}
+    />
+  );
+};
+
 /** The "Connect OpenCTI" call to action, shown where a pivot would be when not connected. */
-export const ConnectOpenCtiCta: FunctionComponent<{ variant?: 'button' | 'inline' }> = ({ variant = 'button' }) => {
+export const ConnectOpenCtiCta: FunctionComponent<{
+  variant?: 'button' | 'inline';
+  size?: PivotSize;
+}> = ({ variant = 'button', size = 'md' }) => {
   const { t } = useFormatter();
   const canConfigure = useCanConfigure();
   const [dismissed, setDismissed] = useState(isDismissed);
@@ -68,17 +102,20 @@ export const ConnectOpenCtiCta: FunctionComponent<{ variant?: 'button' | 'inline
     setDismissed(true);
   };
   if (!canConfigure) {
+    // A disabled button fires no pointer event: the teaser hangs on a focusable wrapper.
     return (
-      <Box
-        component="span"
-        sx={{
-          typography: 'caption',
-          color: 'text.secondary',
-        }}
-        data-testid="xtm-connect-hint"
-      >
-        {t('Ask an administrator to connect OpenCTI to see this object there.')}
-      </Box>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Box component="span" tabIndex={0} sx={{ display: 'inline-flex' }} data-testid="xtm-connect-hint">
+            <Button priority="secondary" size={size} disabled>
+              <ProductMark />
+              {t('Connect OpenCTI')}
+            </Button>
+            <Box component="span" sx={SR_ONLY}>{t('Ask an administrator to connect OpenCTI to see this object there.')}</Box>
+          </Box>
+        </TooltipTrigger>
+        <TooltipContent><OpenCtiTeaser canConfigure={false} /></TooltipContent>
+      </Tooltip>
     );
   }
   return (
@@ -90,12 +127,17 @@ export const ConnectOpenCtiCta: FunctionComponent<{ variant?: 'button' | 'inline
       }}
       data-testid="xtm-connect-cta"
     >
-      <Button asChild priority="tertiary" size="sm">
-        <a href={CONNECT_OPENCTI_DOC_URL} target="_blank" rel="noopener noreferrer">
-          <ProductMark />
-          {t('Connect OpenCTI')}
-        </a>
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button asChild priority="secondary" size={size}>
+            <a href={CONNECT_OPENCTI_DOC_URL} target="_blank" rel="noopener noreferrer">
+              <ProductMark />
+              {t('Connect OpenCTI')}
+            </a>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent><OpenCtiTeaser canConfigure /></TooltipContent>
+      </Tooltip>
       {variant === 'button' && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -119,17 +161,32 @@ interface PivotProps {
   objectKey: string | null | undefined;
 }
 
-// "sm" in a hero bar beside its icon buttons; "md" in a panel of full-size actions (graph drawer).
-type PivotSize = 'sm' | 'md';
+/** The preview of an OpenCTI match: what the click opens, with the facts OpenCTI answered. */
+export const OpenCtiMatchPreview: FunctionComponent<{ answer: CounterpartAnswer }> = ({ answer }) => {
+  const { t } = useFormatter();
+  return (
+    <PivotPreview
+      mark={<ProductMark />}
+      productName="OpenCTI"
+      entityType={answer.counterpart?.counterpart_entity_type}
+      name={answer.counterpart?.counterpart_name}
+      facts={answer.counterpart?.counterpart_facts}
+      labels={OPENCTI_FACT_LABELS}
+      action={t('See the reports, relationships and context of this object in OpenCTI.')}
+    />
+  );
+};
 
 /** Renders the answer once loaded; kept separate so tests drive every state. */
 export const OpenCtiPivotView: FunctionComponent<{
   answer: CounterpartAnswer;
   size?: PivotSize;
-}> = ({ answer, size = 'sm' }) => {
+}> = ({ answer, size = 'md' }) => {
   const { t } = useFormatter();
   switch (answer.state) {
-    case 'match':
+    case 'match': {
+      // The key figure rides next to the label when OpenCTI answered one; the FDS button never wraps.
+      const reports = keyFact(answer.counterpart?.counterpart_facts, 'reports');
       return (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -137,29 +194,52 @@ export const OpenCtiPivotView: FunctionComponent<{
               <a href={answer.counterpart?.counterpart_url} target="_blank" rel="noopener noreferrer" data-testid="xtm-pivot-open">
                 <ProductMark />
                 {t('Open in OpenCTI')}
+                {reports && (
+                  <Box component="span" sx={{ opacity: 0.72 }} data-testid="xtm-pivot-figure">
+                    {`· ${t('Reports')} ${reports.fact_value}`}
+                  </Box>
+                )}
               </a>
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{answer.counterpart?.counterpart_name}</TooltipContent>
+          <TooltipContent><OpenCtiMatchPreview answer={answer} /></TooltipContent>
         </Tooltip>
       );
+    }
     case 'not_connected':
-      return <ConnectOpenCtiCta />;
+      return <ConnectOpenCtiCta size={size} />;
     case 'no_match':
       return (
-        <span data-testid="xtm-pivot-none">
-          <Chip label={t('Not in OpenCTI')} />
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Box component="span" tabIndex={0} sx={{ display: 'inline-flex' }} data-testid="xtm-pivot-none">
+              <Button priority="secondary" size={size} disabled>
+                <ProductMark />
+                {t('Not in OpenCTI')}
+              </Button>
+            </Box>
+          </TooltipTrigger>
+          <TooltipContent>
+            <PivotNoMatch
+              mark={<ProductMark />}
+              productName="OpenCTI"
+              explanation={t('OpenCTI holds no intelligence on this object yet: it appears there once a connector or a report brings it in.')}
+            />
+          </TooltipContent>
+        </Tooltip>
       );
     case 'unavailable':
       return (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Box component="span" sx={{ display: 'inline-flex' }} data-testid="xtm-pivot-unavailable">
-              <LinkOffOutlined fontSize="small" color="disabled" />
+            <Box component="span" tabIndex={0} sx={{ display: 'inline-flex' }} data-testid="xtm-pivot-unavailable">
+              <Button priority="secondary" size={size} disabled>
+                <LinkOffOutlined fontSize="small" />
+                {t('OpenCTI is unavailable')}
+              </Button>
             </Box>
           </TooltipTrigger>
-          <TooltipContent>{t('OpenCTI is unavailable')}</TooltipContent>
+          <TooltipContent>{t('OpenCTI did not answer this time. The pivot comes back on its own.')}</TooltipContent>
         </Tooltip>
       );
     default:
@@ -210,7 +290,6 @@ const OpenCtiRowMarkLookup: FunctionComponent<RowMarkProps> = ({ kind, objectKey
   if (answer.state !== 'match') {
     return reserveSlot && answer.state !== 'not_connected' ? slot(null) : null;
   }
-  const text = answer.counterpart?.counterpart_name ? `${t(label)}: ${answer.counterpart.counterpart_name}` : t(label);
   const mark = (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -235,7 +314,7 @@ const OpenCtiRowMarkLookup: FunctionComponent<RowMarkProps> = ({ kind, objectKey
           <ProductMark size={16} />
         </Box>
       </TooltipTrigger>
-      <TooltipContent>{text}</TooltipContent>
+      <TooltipContent><OpenCtiMatchPreview answer={answer} /></TooltipContent>
     </Tooltip>
   );
   return reserveSlot ? slot(mark) : mark;

@@ -4973,5 +4973,18 @@
   "Start here": "Commencer ici",
   "Fold the Start here panel": "Replier le panneau Commencer ici",
   "List the entities": "Lister les entités",
-  "Entities of the graph": "Entités du graphe"
+  "Entities of the graph": "Entités du graphe",
+  "Annual loss": "Perte annuelle",
+  "Confidence": "Confiance",
+  "Last modified": "Dernière modification",
+  "Connect OpenCRQ to see the financial impact of this object: its annual loss and the loss avoided by fixing it.": "Connectez OpenCRQ pour voir l'impact financier de cet objet : sa perte annuelle et la perte évitée en le corrigeant.",
+  "Connect OpenCTI to see the reports and intelligence on this object.": "Connectez OpenCTI pour voir les rapports et le renseignement sur cet objet.",
+  "Open the connection guide to connect OpenCRQ.": "Ouvrez le guide de connexion pour connecter OpenCRQ.",
+  "Open the connection guide to connect OpenCTI.": "Ouvrez le guide de connexion pour connecter OpenCTI.",
+  "OpenCRQ did not answer this time. The pivot comes back on its own.": "OpenCRQ n'a pas répondu cette fois. Le lien revient de lui-même.",
+  "OpenCTI did not answer this time. The pivot comes back on its own.": "OpenCTI n'a pas répondu cette fois. Le lien revient de lui-même.",
+  "OpenCRQ has not quantified this object yet: add it to a risk scenario there to see its annual loss.": "OpenCRQ n'a pas encore quantifié cet objet : ajoutez-le à un scénario de risque pour voir sa perte annuelle.",
+  "OpenCTI holds no intelligence on this object yet: it appears there once a connector or a report brings it in.": "OpenCTI ne détient encore aucun renseignement sur cet objet : il y apparaît dès qu'un connecteur ou un rapport l'apporte.",
+  "See the financial impact of this object and the risk scenarios it drives in OpenCRQ.": "Voir dans OpenCRQ l'impact financier de cet objet et les scénarios de risque qu'il alimente.",
+  "See the reports, relationships and context of this object in OpenCTI.": "Voir dans OpenCTI les rapports, les relations et le contexte de cet objet."
 }

@@ -4973,5 +4973,18 @@
   "Start here": "Start here",
   "Fold the Start here panel": "Fold the Start here panel",
   "List the entities": "List the entities",
-  "Entities of the graph": "Entities of the graph"
+  "Entities of the graph": "Entities of the graph",
+  "Annual loss": "Annual loss",
+  "Confidence": "Confidence",
+  "Last modified": "Last modified",
+  "Connect OpenCRQ to see the financial impact of this object: its annual loss and the loss avoided by fixing it.": "Connect OpenCRQ to see the financial impact of this object: its annual loss and the loss avoided by fixing it.",
+  "Connect OpenCTI to see the reports and intelligence on this object.": "Connect OpenCTI to see the reports and intelligence on this object.",
+  "Open the connection guide to connect OpenCRQ.": "Open the connection guide to connect OpenCRQ.",
+  "Open the connection guide to connect OpenCTI.": "Open the connection guide to connect OpenCTI.",
+  "OpenCRQ did not answer this time. The pivot comes back on its own.": "OpenCRQ did not answer this time. The pivot comes back on its own.",
+  "OpenCTI did not answer this time. The pivot comes back on its own.": "OpenCTI did not answer this time. The pivot comes back on its own.",
+  "OpenCRQ has not quantified this object yet: add it to a risk scenario there to see its annual loss.": "OpenCRQ has not quantified this object yet: add it to a risk scenario there to see its annual loss.",
+  "OpenCTI holds no intelligence on this object yet: it appears there once a connector or a report brings it in.": "OpenCTI holds no intelligence on this object yet: it appears there once a connector or a report brings it in.",
+  "See the financial impact of this object and the risk scenarios it drives in OpenCRQ.": "See the financial impact of this object and the risk scenarios it drives in OpenCRQ.",
+  "See the reports, relationships and context of this object in OpenCTI.": "See the reports, relationships and context of this object in OpenCTI."
 }
