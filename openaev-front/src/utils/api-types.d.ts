@@ -8905,6 +8905,8 @@ export interface NotificationTriggerInput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "APPROVAL_PENDING"
+    | "APPROVED"
     | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
@@ -9019,6 +9021,8 @@ export interface NotificationTriggerOutput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "APPROVAL_PENDING"
+    | "APPROVED"
     | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */

@@ -17,7 +17,7 @@ export const TRIGGER_RESOURCE_TYPES: TriggerResourceTypeOption[] = [
     value: 'SCENARIO',
     entityPrefix: 'scenario',
     label: 'Scenario',
-    eventTypes: [...LIFECYCLE_EVENT_TYPES, 'SCORE_DEGRADATION'],
+    eventTypes: [...LIFECYCLE_EVENT_TYPES, 'SCORE_DEGRADATION', 'APPROVAL_PENDING', 'APPROVED'],
   },
   {
     value: 'SIMULATION',
@@ -109,6 +109,8 @@ export const eventTypesOf = (resourceType?: string): TriggerEventType[] =>
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   SCORE_DEGRADATION: 'Score degradation',
+  APPROVAL_PENDING: 'Approval pending',
+  APPROVED: 'Approved',
   SYNC_BLOCKED: 'Sync blocked',
 };
 

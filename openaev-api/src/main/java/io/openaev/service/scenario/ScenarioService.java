@@ -560,9 +560,11 @@ public class ScenarioService {
 
   /** Scenario is recurring AND end date is after now */
   public List<Scenario> recurringScenarios(@NotNull final Instant instant) {
+    // A scenario waiting for an approval never starts on its schedule.
     return this.scenarioRepository.findAll(
         ScenarioSpecification.isRecurring()
-            .and(ScenarioSpecification.recurrenceStopDateAfter(instant)));
+            .and(ScenarioSpecification.recurrenceStopDateAfter(instant))
+            .and(ScenarioSpecification.notWaitingForApproval()));
   }
 
   /** Scenario is recurring AND start date is before now OR stop date is before now */
@@ -1844,13 +1846,5 @@ public class ScenarioService {
               .orElse(null));
     }
     return scenario;
-  }
-
-  /**
-   * The scenarios whose external reference is one of the given STIX ids, newest first, for the XTM
-   * counterpart lookup. Scenarios are grant-managed: the caller filters them by grant.
-   */
-  public List<Scenario> findAllByExternalReferenceIn(Collection<String> externalReferences) {
-    return scenarioRepository.findAllByExternalReferenceInOrderByUpdatedAtDesc(externalReferences);
   }
 }
