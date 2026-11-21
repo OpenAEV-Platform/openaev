@@ -13,8 +13,9 @@ import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { useFormatter } from '../i18n';
 import { FACT_LABELS, keyFact, MONEY_FACTS, orderedFacts } from './counterpartFacts';
 import { type CounterpartAnswer } from './counterpartStore';
+import { STATUS_TRIGGER } from './pivotStyles';
 import useCounterpart from './useCounterpart';
-import { CONNECT_OPENCTI_DOC_URL, type PivotSize, ROW_MARK_SLOT_WIDTH, STATUS_TRIGGER } from './XtmPivot';
+import { CONNECT_OPENCTI_DOC_URL, type PivotSize, ROW_MARK_SLOT_WIDTH } from './XtmPivot';
 import { PivotNoMatch, PivotPreview, PivotTeaser } from './XtmPivotPreview';
 
 // The OpenCRQ side of the cross-platform pivots: same visual language and wording as the OpenCTI

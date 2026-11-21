@@ -13,6 +13,7 @@ import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { useFormatter } from '../i18n';
 import { keyFact, OPENCTI_FACT_LABELS } from './counterpartFacts';
 import { type CounterpartAnswer } from './counterpartStore';
+import { STATUS_TRIGGER } from './pivotStyles';
 import useCounterpart, { OPENCTI_PRODUCT } from './useCounterpart';
 import { PivotNoMatch, PivotPreview, PivotTeaser } from './XtmPivotPreview';
 
@@ -56,15 +57,6 @@ const SR_ONLY = {
   overflow: 'hidden',
   clip: 'rect(0 0 0 0)',
   whiteSpace: 'nowrap',
-} as const;
-
-// A state with no action (no match, unavailable, cannot connect) is a status: an FDS Chip on a
-// focusable wrapper, the trigger of its explanation, centred in the slot of the 36 px pivot.
-export const STATUS_TRIGGER = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: 36,
-  borderRadius: 1,
 } as const;
 
 const useCanConfigure = () => {
