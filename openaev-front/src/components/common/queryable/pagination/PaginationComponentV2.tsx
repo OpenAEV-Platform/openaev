@@ -84,6 +84,7 @@ interface Props<T> {
   // Marketplace toolbars: the number of results, and each next page appended under the list.
   resultsCount?: boolean;
   infiniteScroll?: boolean;
+  mainBoxStyle?: React.CSSProperties;
 }
 
 const PaginationComponentV2 = <T extends object>({
@@ -107,6 +108,7 @@ const PaginationComponentV2 = <T extends object>({
   topPagination = false,
   resultsCount = false,
   infiniteScroll = false,
+  mainBoxStyle,
 }: Props<T>) => {
   const loadedRows = useRef<T[]>([]);
   const loadedQuery = useRef<string | null>(null);
@@ -255,7 +257,7 @@ const PaginationComponentV2 = <T extends object>({
 
   return (
     <>
-      <div className={disablePagination ? classes.parametersWithoutPagination : classes.parameters}>
+      <div className={disablePagination ? classes.parametersWithoutPagination : classes.parameters} style={{ ...mainBoxStyle }}>
         {topPagination
           && (
             <div className={classes.topPagination}>
