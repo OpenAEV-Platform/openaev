@@ -37,7 +37,10 @@ public class PayloadLocalVersioning {
   /** The new version this input makes; empty when the payload is to be updated in place. */
   public Optional<Payload> newVersion(
       Payload current, PayloadUpdateInput input, List<AttackPattern> attackPatterns) {
-    if (current.isManaged() || !previewFeatureService.isFeatureEnabled(PreviewFeature.CATALOG)) {
+    // A collector finds its payload by external id: it must stay one version.
+    if (current.isManaged()
+        || current.isFromCollector()
+        || !previewFeatureService.isFeatureEnabled(PreviewFeature.CATALOG)) {
       return Optional.empty();
     }
     Payload candidate = candidate(current, input);

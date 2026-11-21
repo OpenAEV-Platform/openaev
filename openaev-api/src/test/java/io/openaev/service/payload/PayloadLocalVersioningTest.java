@@ -12,6 +12,7 @@ import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.utils.fixtures.CollectorTypeFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -54,6 +55,18 @@ class PayloadLocalVersioningTest {
 
     // Act & Assert
     assertThat(payloadLocalVersioning.newVersion(catalogue, new PayloadUpdateInput(), List.of()))
+        .isEmpty();
+    verifyNoInteractions(payloadService, payloadChangeKind, previewFeatureService);
+  }
+
+  @Test
+  void given_collectorPayload_should_updateInPlace() {
+    // Arrange
+    Payload collected = PayloadFixture.createDefaultCommand();
+    collected.setCollectorType(CollectorTypeFixture.createDefaultCollectorType());
+
+    // Act & Assert
+    assertThat(payloadLocalVersioning.newVersion(collected, new PayloadUpdateInput(), List.of()))
         .isEmpty();
     verifyNoInteractions(payloadService, payloadChangeKind, previewFeatureService);
   }
