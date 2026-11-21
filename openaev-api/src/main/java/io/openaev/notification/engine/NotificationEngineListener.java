@@ -14,6 +14,9 @@ import io.openaev.database.model.TenantBase;
 import io.openaev.database.model.TenantIdBase;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.service.stream.StreamClearanceService;
+import io.openaev.service.stream.StreamVisibility;
+import io.openaev.service.stream.StreamVisibilityService;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +46,8 @@ public class NotificationEngineListener {
 
   private final NotificationEngineService notificationEngineService;
   private final UserRepository userRepository;
+  private final StreamVisibilityService streamVisibilityService;
+  private final StreamClearanceService streamClearanceService;
 
   @Async("notificationEngineExecutor")
   @TransactionalEventListener
@@ -62,10 +67,29 @@ public class NotificationEngineListener {
       // Users are not tenant-scoped entities: fan the event out once per tenant the user
       // belongs to, so a tenant's PLAYER triggers never see another tenant's users.
       for (String tenantId : resolveTenantIds(event.getInstance())) {
-        notificationEngineService.handleEvent(entry.get(), entityId, tenantId, eventType, label);
+        notificationEngineService.handleEvent(
+            entry.get(), entityId, tenantId, eventType, label, () -> visibilityOf(event, tenantId));
       }
     } catch (Exception e) {
       log.error("Notification engine failed to process entity event", e);
+    }
+  }
+
+  /**
+   * With the MARKING preview feature off, or assets not activated for marking, every event is
+   * unfiltered - the same gate {@code StreamService} uses before reading an event's markings. On
+   * failure, only the engine's own fail-closed clearance check protects it (see {@link
+   * StreamVisibility#unresolved()}).
+   */
+  private StreamVisibility visibilityOf(BaseEvent event, String tenantId) {
+    if (!streamClearanceService.isFiltering()) {
+      return StreamVisibility.UNFILTERED;
+    }
+    try {
+      return streamVisibilityService.visibilityOf(event, tenantId);
+    } catch (RuntimeException e) {
+      log.warn("Cannot read the markings of a {} event", event.getSchema(), e);
+      return StreamVisibility.unresolved();
     }
   }
 

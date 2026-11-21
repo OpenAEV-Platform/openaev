@@ -6,6 +6,7 @@ import io.openaev.notification.catalog.CatalogEvents.CatalogReleaseApplied;
 import io.openaev.notification.catalog.CatalogEvents.CatalogReleaseRefused;
 import io.openaev.notification.engine.NotificationEngineService;
 import io.openaev.notification.engine.NotificationResourceCatalog;
+import io.openaev.service.stream.StreamVisibility;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
@@ -50,7 +51,12 @@ public class CatalogNotificationListener {
 
   private void syncBlocked(String tenantId, String release, String message) {
     notificationEngineService.handleEventWithMessage(
-        NotificationResourceCatalog.CATALOG_SYNC, release, tenantId, SYNC_BLOCKED, message);
+        NotificationResourceCatalog.CATALOG_SYNC,
+        release,
+        tenantId,
+        SYNC_BLOCKED,
+        message,
+        () -> StreamVisibility.UNFILTERED);
   }
 
   private static String count(long count, String noun) {

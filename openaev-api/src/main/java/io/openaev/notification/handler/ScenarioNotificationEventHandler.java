@@ -10,6 +10,7 @@ import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
+import io.openaev.service.stream.StreamVisibility;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import jakarta.validation.constraints.NotNull;
 import java.time.ZoneId;
@@ -54,7 +55,8 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
         degradation.scenarioId(),
         degradation.tenantId(),
         NotificationTriggerEventType.SCORE_DEGRADATION,
-        degradation.message());
+        degradation.message(),
+        () -> StreamVisibility.UNFILTERED);
   }
 
   /** Compares the two most recent finished simulations of the scenario. */

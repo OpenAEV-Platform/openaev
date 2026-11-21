@@ -18,7 +18,9 @@ import org.springframework.stereotype.Service;
  * Digest stage of the notifications engine: evaluated every minute by the digest job. Digests due
  * at the current minute replay the {@link NotificationEventRecord} outbox over their period window
  * (the OpenAEV equivalent of OpenCTI re-reading {@code stream.notification}) and deliver one
- * aggregated notification per recipient.
+ * aggregated notification per recipient. No marking re-check here: {@code
+ * NotificationEngineService} already resolves clearance before writing a row, so a recipient never
+ * cleared for an event never has one recorded for it in the first place.
  */
 @Service
 @Slf4j
