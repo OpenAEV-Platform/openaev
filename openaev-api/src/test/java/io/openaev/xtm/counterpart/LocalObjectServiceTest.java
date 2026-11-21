@@ -15,16 +15,16 @@ import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Vulnerability;
-import io.openaev.database.repository.AssetRepository;
-import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ExerciseRepository.ScenarioSimulationsRow;
-import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.FindingRepository.FindingCountRow;
-import io.openaev.database.repository.InjectExpectationTraceRepository;
 import io.openaev.database.repository.InjectExpectationTraceRepository.AlertInjectRow;
-import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
+import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.finding.FindingService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.service.AssetService;
+import io.openaev.service.InjectExpectationTraceService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.xtm.counterpart.LocalObjectService.Access;
 import io.openaev.xtm.counterpart.LocalObjectService.Fact;
 import io.openaev.xtm.counterpart.LocalObjectService.LocalObject;
@@ -39,26 +39,26 @@ import org.junit.jupiter.api.Test;
 class LocalObjectServiceTest {
 
   private OpenAEVConfig config;
-  private AssetRepository assets;
+  private AssetService assets;
   private AttackPatternService attackPatterns;
   private VulnerabilityService vulnerabilities;
-  private ScenarioRepository scenarios;
-  private InjectExpectationTraceRepository traces;
-  private FindingRepository findings;
-  private ExerciseRepository exercises;
+  private ScenarioService scenarios;
+  private InjectExpectationTraceService traces;
+  private FindingService findings;
+  private ExerciseService exercises;
   private LocalObjectService service;
 
   @BeforeEach
   void setUp() {
     config = new OpenAEVConfig();
     config.setBaseUrl("https://aev.example/");
-    assets = mock(AssetRepository.class);
+    assets = mock(AssetService.class);
     attackPatterns = mock(AttackPatternService.class);
     vulnerabilities = mock(VulnerabilityService.class);
-    scenarios = mock(ScenarioRepository.class);
-    traces = mock(InjectExpectationTraceRepository.class);
-    findings = mock(FindingRepository.class);
-    exercises = mock(ExerciseRepository.class);
+    scenarios = mock(ScenarioService.class);
+    traces = mock(InjectExpectationTraceService.class);
+    findings = mock(FindingService.class);
+    exercises = mock(ExerciseService.class);
     service =
         new LocalObjectService(
             config,
@@ -160,7 +160,7 @@ class LocalObjectServiceTest {
     old.setId("s-old");
     old.setName("Old");
     old.setExternalReference("intrusion-set--1");
-    when(scenarios.findAllByExternalReferenceInOrderByUpdatedAtDesc(Set.of("intrusion-set--1")))
+    when(scenarios.findAllByExternalReferenceIn(Set.of("intrusion-set--1")))
         .thenReturn(List.of(recent, old));
 
     Instant last = Instant.parse("2026-11-17T09:30:00Z");
@@ -183,7 +183,7 @@ class LocalObjectServiceTest {
     Scenario s = new Scenario();
     s.setId("s-1");
     s.setExternalReference("malware--1");
-    when(scenarios.findAllByExternalReferenceInOrderByUpdatedAtDesc(any())).thenReturn(List.of(s));
+    when(scenarios.findAllByExternalReferenceIn(any())).thenReturn(List.of(s));
 
     assertThat(
             service
@@ -254,8 +254,7 @@ class LocalObjectServiceTest {
     granted.setId("s-granted");
     granted.setName("Granted");
     granted.setExternalReference("intrusion-set--1");
-    when(scenarios.findAllByExternalReferenceInOrderByUpdatedAtDesc(any()))
-        .thenReturn(List.of(hidden, granted));
+    when(scenarios.findAllByExternalReferenceIn(any())).thenReturn(List.of(hidden, granted));
 
     List<LocalObject> found =
         service.find(
