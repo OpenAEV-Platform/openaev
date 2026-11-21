@@ -31,6 +31,7 @@ import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.raw.RawSimulationIndexing;
 import io.openaev.database.repository.*;
+import io.openaev.database.repository.ExerciseRepository.ScenarioSimulationsRow;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
@@ -1683,5 +1684,14 @@ public class ExerciseService {
             workflow -> healthChecks.addAll(healthCheckUtils.runScopeDefinitionChecks(workflow)));
 
     return healthChecks;
+  }
+
+  /**
+   * The number of simulations and the last start per scenario id, for the XTM counterpart lookup
+   * facts.
+   */
+  public List<ScenarioSimulationsRow> countSimulationsByScenarioIdIn(
+      Collection<String> scenarioIds) {
+    return exerciseRepository.countSimulationsByScenarioIdIn(scenarioIds);
   }
 }

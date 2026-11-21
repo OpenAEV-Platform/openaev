@@ -11,6 +11,7 @@ import io.openaev.database.raw.impl.SimpleRawExpectationTrace;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectExpectationTraceRepository;
+import io.openaev.database.repository.InjectExpectationTraceRepository.AlertInjectRow;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject_expectation_trace.form.InjectExpectationTraceInput;
@@ -211,5 +212,13 @@ public class InjectExpectationTraceService {
       log.warn("Ignoring unknown inject expectation trace match type: {}", matchType);
       return null;
     }
+  }
+
+  /**
+   * The injects whose expectation traces carry one of the given alert links, newest alert first,
+   * for the XTM counterpart lookup. Injects are grant-managed: the caller filters them by grant.
+   */
+  public List<AlertInjectRow> findAlertInjectsByAlertLinkIn(Collection<String> alertLinks) {
+    return injectExpectationTraceRepository.findAlertInjectsByAlertLinkIn(alertLinks);
   }
 }

@@ -27,6 +27,7 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -249,5 +250,13 @@ public class AssetService {
         entityManager.clear();
       }
     }
+  }
+
+  /**
+   * The assets whose hostname is one of the given lower-case keys, read in the caller's transaction
+   * so the tenant and marking scope applies. Used by the XTM counterpart lookup.
+   */
+  public List<Asset> findAllByHostnameIn(Collection<String> hostnames) {
+    return assetRepository.findAllByHostnameIn(hostnames);
   }
 }
