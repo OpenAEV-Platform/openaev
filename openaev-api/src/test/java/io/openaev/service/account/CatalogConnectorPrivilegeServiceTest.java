@@ -59,6 +59,7 @@ class CatalogConnectorPrivilegeServiceTest {
   @Mock private TenantUserService tenantUserService;
   @Mock private SessionManager sessionManager;
   @Mock private MarkingClearanceCacheManager markingClearanceCacheManager;
+  @Mock private UserGroupMembershipService userGroupMembershipService;
   @Spy private TenantWriteScopeResolver writeScopeResolver = new TenantWriteScopeResolver();
 
   @InjectMocks private CatalogConnectorPrivilegeService privilegeService;
@@ -119,7 +120,7 @@ class CatalogConnectorPrivilegeServiceTest {
               eq(false),
               createdToken.capture());
       assertThat(result).isEqualTo(createdToken.getValue());
-      assertThat(account.getUnscopedGroups()).containsExactly(group);
+      verify(userGroupMembershipService).addMembership(account.getId(), group.getId());
       verify(tenantUserService).attachToTenant(any(), eq(TENANT_ID));
       verify(userService).saveUser(account);
       verify(tenantGroupService).receiveEveryMarking(TENANT_ID, group);

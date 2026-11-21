@@ -1,14 +1,12 @@
 package io.openaev.service.account;
 
+import io.openaev.api.users.dto.UserMapper;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.AuditLogContext;
-import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.service.GroupRolesInScope;
 import jakarta.persistence.EntityManager;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.FlushMode;
 import org.hibernate.Session;
@@ -35,8 +33,10 @@ import org.springframework.stereotype.Component;
  * loads eagerly with it: its groups with their tenant, grants, members, roles and markings. Those
  * loads fire the entity listeners on the request thread, so the audit before-snapshots they store
  * are put back afterwards as the request's own reads left them ({@link
- * AuditLogContext#withBeforeSnapshotsRestored}). The user returned is detached, with only those
- * associations loaded, and serves a permission decision: no caller returns it to a client.
+ * AuditLogContext#withBeforeSnapshotsRestored}). The user {@link #loadInAmbientTenant} returns is
+ * detached, with only those associations loaded, and serves a permission decision: no caller
+ * returns it to a client. {@link #describeInAmbientTenant} builds on it for a response instead: a
+ * never-persisted view that carries the same groups, safe to return.
  */
 @Component
 @RequiredArgsConstructor
@@ -61,33 +61,18 @@ public class CallerRightsInTenant {
   }
 
   /**
-   * Reads again, in the ambient tenant ({@link User#scopedTenantId()}), the roles of the groups of
-   * {@code user} that belong to that tenant, in the persistence context that holds {@code user}.
-   * One query reads the roles of all those groups ({@link GroupRolesInScope}) and only the groups
-   * whose roles differ from the ones the user holds are refreshed. For a response that describes
-   * the user in the ambient tenant: its capabilities and flags are derived from those roles, and a
-   * load that ran in a scope without the ambient tenant read none of them. The transaction moves to
-   * the ambient tenant for the reads and back, as {@link #loadInAmbientTenant} does, and the audit
-   * before-snapshots are put back after them.
+   * A view of {@code user} as a response describes it in the ambient tenant ({@link
+   * User#scopedTenantId()}): its groups are the ones {@link #loadInAmbientTenant} reads there, with
+   * the roles the ambient scope holds for them. The copy is never persisted, detached from the
+   * request's persistence context: the entity itself is the one the request serializes, with the
+   * groups of its own scope, for the rest of the request, and setting its own collection to the
+   * ambient one would make the bag dirty and recreate the whole membership at flush.
    */
-  public void loadGroupRolesInAmbientTenant(User user) {
-    String ambientTenant = user.scopedTenantId();
-    tenantTx.executeOnCurrentTransaction(
-        TxCtx.forTenant(ambientTenant),
-        () ->
-            AuditLogContext.withBeforeSnapshotsRestored(
-                () -> {
-                  List<Group> ambientGroups =
-                      user.getUnscopedGroups().stream()
-                          .filter(
-                              group ->
-                                  group.getTenant() != null
-                                      && ambientTenant.equals(group.getTenant().getId()))
-                          .toList();
-                  GroupRolesInScope.withDifferingRoles(entityManager, ambientGroups)
-                      .forEach(entityManager::refresh);
-                  return null;
-                }));
+  public User describeInAmbientTenant(User user) {
+    User ambient = loadInAmbientTenant(user);
+    User view = UserMapper.toResponseView(user, user.scopedTenantId());
+    view.setGroups(ambient.getUnscopedGroups());
+    return view;
   }
 
   private User loadInOwnSession(String userId) {

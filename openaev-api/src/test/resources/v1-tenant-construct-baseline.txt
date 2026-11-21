@@ -187,8 +187,6 @@ io.openaev.service.StreamService#listenAttackPathVersion | TenantContext.setCurr
 io.openaev.service.StreamService#makeDataFlux | TenantContext.getCurrentTenant | 1 | stream consumer reads the ambient tenant as the subscriber tenant
 io.openaev.service.StreamService#streamDatabaseEvent | TenantContext.clearCurrentTenant | 2 | stream consumer sets the ambient tenant of each event before reading it
 io.openaev.service.StreamService#streamDatabaseEvent | TenantContext.setCurrentTenant | 1 | stream consumer sets the ambient tenant of each event before reading it
-io.openaev.service.TenantGroupService#findByIdInTenant | TenantContext.getCurrentTenant | 1 | users, roles and groups read the ambient tenant as the request tenant
-io.openaev.service.TenantGroupService#search | TenantContext.getCurrentTenant | 1 | users, roles and groups read the ambient tenant as the request tenant
 io.openaev.service.account.ReservedKeyValidator#validateRoleId | TenantContext.getCurrentTenant | 1 | users, roles and groups read the ambient tenant as the request tenant
 io.openaev.service.autonomous.AutonomousRunService#create | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
 io.openaev.service.autonomous.AutonomousRunService#deleteAttackPathStep | TenantContext.clearCurrentTenant | 1 | autonomous run sets the ambient tenant of the run and restores the previous one

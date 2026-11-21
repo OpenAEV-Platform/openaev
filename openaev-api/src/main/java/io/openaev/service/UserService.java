@@ -108,6 +108,7 @@ public class UserService {
   private final UserRepository userRepository;
   private final TagRepository tagRepository;
   private final GroupRepository groupRepository;
+  private final UserGroupMembershipService userGroupMembershipService;
   private final TokenRepository tokenRepository;
   private final TenantRepository tenantRepository;
   private final ReferenceResolver referenceResolver;
@@ -200,7 +201,15 @@ public class UserService {
         new ArrayList<>(
             referenceResolver.resolve(tenantIds, Tenant.class, tenantRepository::countByIdIn)));
     String password = input.plainPassword();
-    User createdUser = createUser(user, password, UUID.randomUUID().toString(), scope);
+    User createdUser;
+    // Scope widened to the attached tenants for their auto-assign groups, then restored.
+    try (TenantScopedTransaction.CapturedScope callerScope =
+        tenantTx.captureScopeOfCurrentTransaction()) {
+      if (!CollectionUtils.isEmpty(tenantIds)) {
+        tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenants(tenantIds));
+      }
+      createdUser = createUser(user, password, UUID.randomUUID().toString(), scope);
+    }
     // A tenant creator sets the organization itself, once it knows its tenant.
     if (scope == UserCreationScope.PLATFORM) {
       applyPlatformOrganization(createdUser, input.organizationId());
@@ -240,8 +249,10 @@ public class UserService {
       user.setPassword(this.encodeUserPassword(password));
     }
     // Creation enters every scope at once: the platform when created from the platform screen,
-    // plus each tenant attached in the input.
-    assignAutoAssignGroups(
+    // plus each tenant attached in the input. The user is new, so its groups are complete in memory
+    // and the event of its creation carries them: they are set before the first save, as one
+    // insert per row, where a user that already exists is granted row by row.
+    grantAutoAssignGroupsToNewUser(
         user,
         user.getTenants().stream().map(Tenant::getId).toList(),
         scope == UserCreationScope.PLATFORM);
@@ -319,7 +330,21 @@ public class UserService {
   private User applyUpdate(String userId, UserInput input) {
     // Check if new email is reserved
     ReservedKeyValidator.validateUserEmailPattern(input.email());
-    User existing = user(userId);
+    // Group reads and writes cover the user's current and attached tenants, whatever the
+    // operator's own memberships (as the SSO login); set around each use, then restored.
+    Set<String> groupScopeTenantIds =
+        new LinkedHashSet<>(userRepository.findTenantIdsByUserId(userId));
+    if (input.tenantIds() != null) {
+      groupScopeTenantIds.addAll(input.tenantIds());
+    }
+    User existing;
+    try (TenantScopedTransaction.CapturedScope callerScope =
+        tenantTx.captureScopeOfCurrentTransaction()) {
+      if (!groupScopeTenantIds.isEmpty()) {
+        tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenants(groupScopeTenantIds));
+      }
+      existing = user(userId);
+    }
     // Check if previous email is reserved
     ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
     // Capture old tenant IDs before update for cache eviction
@@ -339,11 +364,22 @@ public class UserService {
     List<String> currentTenantIds = existing.getTenants().stream().map(Tenant::getId).toList();
     List<String> attachedTenantIds =
         currentTenantIds.stream().filter(tenantId -> !oldTenantIds.contains(tenantId)).toList();
-    assignAutoAssignGroups(existing, attachedTenantIds, false);
     // Symmetrically, a membership must not outlive the tenant attachment that granted it.
     List<String> detachedTenantIds =
         oldTenantIds.stream().filter(tenantId -> !currentTenantIds.contains(tenantId)).toList();
-    revokeTenantGroups(existing, detachedTenantIds);
+    try (TenantScopedTransaction.CapturedScope callerScope =
+        tenantTx.captureScopeOfCurrentTransaction()) {
+      if (!groupScopeTenantIds.isEmpty()) {
+        tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenants(groupScopeTenantIds));
+      }
+      // Reloaded under the wider scope: the tag replacement reloaded its groups under the narrow
+      // one.
+      entityManager.refresh(existing);
+      assignAutoAssignGroups(existing, attachedTenantIds, false);
+      revokeTenantGroups(existing, detachedTenantIds);
+    }
+    // The refresh left the streamed associations lazy again; load them in the caller's scope.
+    loadStreamedAssociations(existing);
     User savedUser = userRepository.save(existing);
     // Evict cache for old tenants (removed memberships) and new tenants (added memberships)
     List<String> newTenantIds = input.tenantIds() != null ? input.tenantIds() : List.of();
@@ -1024,30 +1060,32 @@ public class UserService {
           if (user.isEmpty()) {
             return user;
           }
-          List<Group> differing =
-              GroupRolesInScope.withDifferingRoles(entityManager, user.get().getUnscopedGroups());
-          return differing.isEmpty()
-              ? user
-              : loadRolesFromTheDatabase(user.get(), differing, scope);
+          return GroupRolesInScope.needsReload(entityManager, user.get())
+              ? loadRolesFromTheDatabase(user.get(), scope)
+              : user;
         });
   }
 
   /**
-   * Reads the roles of the groups of {@code user} the load has to hand out. A load by id of a user
-   * or a group the session already holds, read with no scope or in another tenant's scope, hands
-   * out that instance with the roles of its first read: the eager associations are not read again.
+   * Reads again the groups of {@code held} the load has to hand out, and their roles. A load by id
+   * of a user or a group the session already holds, read with no scope or in another tenant's
+   * scope, hands out that instance with the groups and roles of its first read: the eager
+   * associations are not read again.
    *
-   * <p>When the session holds no pending change, the {@code differing} groups, the ones whose roles
-   * are not the roles of the scope, are refreshed and the others are left as they are. When it
-   * holds one, a refresh would replace the pending state of a group, so the user is loaded in a
-   * persistence context of its own, which the caller's entities never join: the result is detached
-   * and the caller's session keeps what it holds.
+   * <p>When the session holds no pending change, {@code held} is refreshed first, so a group the
+   * earlier load missed is added; the groups already resident before that, whose roles are not the
+   * roles of the scope, are then refreshed in turn ({@link GroupRolesInScope#withDifferingRoles}).
+   * When the session holds one, a refresh would replace the pending state of a group, so the user
+   * is loaded in a persistence context of its own, which the caller's entities never join: the
+   * result is detached, and the caller's session holds its own state unchanged.
    */
-  private Optional<User> loadRolesFromTheDatabase(User held, List<Group> differing, TxCtx scope) {
+  private Optional<User> loadRolesFromTheDatabase(User held, TxCtx scope) {
     if (entityManager.unwrap(Session.class).isDirty()) {
       return tenantTx.executeNew(scope, () -> userRepository.findById(held.getId()));
     }
-    differing.forEach(entityManager::refresh);
+    entityManager.refresh(held);
+    GroupRolesInScope.withDifferingRoles(entityManager, held.getUnscopedGroups())
+        .forEach(entityManager::refresh);
     return Optional.of(held);
   }
 
@@ -1103,19 +1141,24 @@ public class UserService {
    * creation, plus every tenant freshly attached. Scopes the user already belonged to are skipped,
    * so a group deliberately removed from a user is never re-granted by a later update. Never
    * removes an existing group membership.
+   *
+   * <p>Each applicable group is granted through {@link UserGroupMembershipService}, one {@code
+   * users_groups} row at a time: it is already a no-op for a group the user holds, so there is no
+   * need to read the user's current groups here first.
    */
   private void assignAutoAssignGroups(
       User user, Collection<String> tenantIds, boolean includePlatformScope) {
-    if (!includePlatformScope && tenantIds.isEmpty()) {
-      return;
-    }
-    Specification<Group> spec =
-        includePlatformScope ? GroupSpecification.defaultUserAssignablePlatform() : null;
-    for (String tenantId : tenantIds) {
-      Specification<Group> tenantSpec = GroupSpecification.defaultUserAssignableTenant(tenantId);
-      spec = spec == null ? tenantSpec : spec.or(tenantSpec);
-    }
-    List<Group> applicableGroups = groupRepository.findAll(spec);
+    autoAssignGroups(tenantIds, includePlatformScope)
+        .forEach(group -> userGroupMembershipService.addMembership(user.getId(), group.getId()));
+  }
+
+  /**
+   * Sets the auto-assign groups on a user that has not been saved yet. Only for a new user: its
+   * groups are complete in memory, so setting them cannot drop a row it never loaded.
+   */
+  private void grantAutoAssignGroupsToNewUser(
+      User user, Collection<String> tenantIds, boolean includePlatformScope) {
+    List<Group> applicableGroups = autoAssignGroups(tenantIds, includePlatformScope);
     if (applicableGroups.isEmpty()) {
       return;
     }
@@ -1126,6 +1169,19 @@ public class UserService {
       }
     }
     user.setGroups(current);
+  }
+
+  private List<Group> autoAssignGroups(Collection<String> tenantIds, boolean includePlatformScope) {
+    if (!includePlatformScope && tenantIds.isEmpty()) {
+      return List.of();
+    }
+    Specification<Group> spec =
+        includePlatformScope ? GroupSpecification.defaultUserAssignablePlatform() : null;
+    for (String tenantId : tenantIds) {
+      Specification<Group> tenantSpec = GroupSpecification.defaultUserAssignableTenant(tenantId);
+      spec = spec == null ? tenantSpec : spec.or(tenantSpec);
+    }
+    return groupRepository.findAll(spec);
   }
 
   /**
@@ -1152,13 +1208,19 @@ public class UserService {
    * Drops every group scoped to a tenant the user just left: a group grants capabilities inside its
    * own tenant only, so keeping it would leave access to a tenant the user no longer belongs to.
    * Platform groups and the groups of the remaining tenants are untouched.
+   *
+   * <p>Each revoked group is removed through {@link UserGroupMembershipService}, one {@code
+   * users_groups} row at a time, from the group side: the groups to revoke are only read off the
+   * user here, never mutated on it.
    */
   private void revokeTenantGroups(User user, Collection<String> tenantIds) {
     if (tenantIds.isEmpty()) {
       return;
     }
-    user.getUnscopedGroups()
-        .removeIf(
-            group -> group.getTenant() != null && tenantIds.contains(group.getTenant().getId()));
+    user.getUnscopedGroups().stream()
+        .filter(group -> group.getTenant() != null && tenantIds.contains(group.getTenant().getId()))
+        .map(Group::getId)
+        .toList()
+        .forEach(groupId -> userGroupMembershipService.removeMembership(user.getId(), groupId));
   }
 }
