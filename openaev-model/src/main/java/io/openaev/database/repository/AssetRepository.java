@@ -186,9 +186,7 @@ public interface AssetRepository
           + " AND a.stale = false AND a.lastSeen IS NOT NULL AND a.lastSeen < :threshold"
           + " ORDER BY a.lastSeen, a.id")
   List<Asset> findFreshAssetsUnseenSince(
-      @Param("tenantId") String tenantId,
-      @Param("threshold") Instant threshold,
-      Pageable pageable);
+      @Param("tenantId") String tenantId, @Param("threshold") Instant threshold, Pageable pageable);
 
   /**
    * Freshness: the stale assets of a tenant seen again at or after the threshold (a stamp that did
@@ -198,9 +196,7 @@ public interface AssetRepository
       "SELECT a FROM Asset a WHERE a.tenant.id = :tenantId AND a.stale = true"
           + " AND a.lastSeen IS NOT NULL AND a.lastSeen >= :threshold ORDER BY a.id")
   List<Asset> findStaleAssetsSeenSince(
-      @Param("tenantId") String tenantId,
-      @Param("threshold") Instant threshold,
-      Pageable pageable);
+      @Param("tenantId") String tenantId, @Param("threshold") Instant threshold, Pageable pageable);
 
   /**
    * Business criticality, display name and seen IP for a set of asset ids, as {@code [assetId,

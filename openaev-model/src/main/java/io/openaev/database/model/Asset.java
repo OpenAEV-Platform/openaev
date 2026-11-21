@@ -217,8 +217,8 @@ public class Asset implements TenantBase {
   private Instant staleSince;
 
   /**
-   * Records an observation of this asset. The stamp moves only forward, and at most once per
-   * {@link #SEEN_THROTTLE} for the same source; a stale asset that is seen again is fresh at once.
+   * Records an observation of this asset. The stamp moves only forward, and at most once per {@link
+   * #SEEN_THROTTLE} for the same source; a stale asset that is seen again is fresh at once.
    *
    * @return true when a field changed (the caller saves the asset), false for a no-op
    */

@@ -21,7 +21,8 @@ public class V6_20261121170000000__Add_asset_freshness extends BaseJavaMigration
           "ALTER TABLE assets ADD COLUMN IF NOT EXISTS asset_last_seen_source VARCHAR(255)");
       statement.execute(
           "ALTER TABLE assets ADD COLUMN IF NOT EXISTS asset_stale BOOLEAN NOT NULL DEFAULT false");
-      statement.execute("ALTER TABLE assets ADD COLUMN IF NOT EXISTS asset_stale_since TIMESTAMPTZ");
+      statement.execute(
+          "ALTER TABLE assets ADD COLUMN IF NOT EXISTS asset_stale_since TIMESTAMPTZ");
       // Backfill once: an asset never stamped takes the latest heartbeat of its agents
       statement.execute(
           "UPDATE assets a SET asset_last_seen = s.last_seen, asset_last_seen_source = 'agent'"

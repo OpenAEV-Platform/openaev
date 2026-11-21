@@ -12,5 +12,4 @@ import jakarta.validation.constraints.NotNull;
  * @param staleAfterDays days without an observation before an asset is stale (0: never)
  */
 public record AssetFreshnessSettingsInput(
-    @JsonProperty("asset_stale_after_days") @NotNull @Min(0) @Max(3650)
-        Integer staleAfterDays) {}
+    @JsonProperty("asset_stale_after_days") @NotNull @Min(0) @Max(3650) Integer staleAfterDays) {}
