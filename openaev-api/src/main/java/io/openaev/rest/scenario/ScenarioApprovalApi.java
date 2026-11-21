@@ -18,6 +18,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.notification.handler.ScenarioApprovalNotifier;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.scenario.form.ScenarioApprovalOutput;
 import io.openaev.rest.scenario.form.ScenarioAssetGroupOrderInput;
 import io.openaev.service.scenario.ScenarioApprovalService;
 import io.openaev.service.scenario.ScenarioService;
@@ -58,7 +59,8 @@ public class ScenarioApprovalApi extends RestBehavior {
       description =
           "Records the approval with its author and time, turns the held injects back on and lets"
               + " the scheduled run start. Needs the launch right on the scenario.")
-  public Scenario approveScenario(TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
+  public ScenarioApprovalOutput approveScenario(
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     if (!scenario.isWaitingForApproval()) {
       throw new ResponseStatusException(
@@ -75,7 +77,7 @@ public class ScenarioApprovalApi extends RestBehavior {
         released,
         buildFrontScenarioUrl(
             openAEVConfig.getBaseUrl(), saved.getTenant().getId(), saved.getId()));
-    return saved;
+    return ScenarioApprovalOutput.fromScenario(saved);
   }
 
   @PutMapping({
@@ -92,7 +94,7 @@ public class ScenarioApprovalApi extends RestBehavior {
       description =
           "Injects targeting the first asset groups start first: each rank adds one minute to the"
               + " inject's start delay. Every id must be an asset group the scenario targets.")
-  public Scenario updateAssetGroupOrder(
+  public ScenarioApprovalOutput updateAssetGroupOrder(
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioAssetGroupOrderInput input) {
@@ -104,6 +106,6 @@ public class ScenarioApprovalApi extends RestBehavior {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
     }
     injectRepository.saveAll(injects);
-    return scenarioService.updateScenario(scenario);
+    return ScenarioApprovalOutput.fromScenario(scenarioService.updateScenario(scenario));
   }
 }

@@ -11965,6 +11965,16 @@ export interface ScenarioAndInjectorContractsInputs {
   scenario_input: ScenarioInput;
 }
 
+export interface ScenarioApprovalOutput {
+  scenario_approval_status?: "NOT_REQUIRED" | "PENDING" | "APPROVED";
+  /** @format date-time */
+  scenario_approved_at?: string;
+  scenario_approved_by?: string;
+  scenario_asset_group_order?: string[];
+  scenario_id?: string;
+  scenario_safe_mode?: boolean;
+}
+
 export interface ScenarioAssetGroupOrderInput {
   scenario_asset_group_order: string[];
 }

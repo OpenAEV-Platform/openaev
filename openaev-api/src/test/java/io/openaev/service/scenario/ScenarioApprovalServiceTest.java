@@ -118,6 +118,7 @@ class ScenarioApprovalServiceTest {
       service.applyGate(scenario, List.of(write), true, false);
       service.approve(scenario, List.of(write), user());
       Inject newWrite = inject(false, false);
+      newWrite.setCreatedAt(scenario.getApprovedAt().plusSeconds(1));
       ScenarioApprovalService.GateOutcome outcome =
           service.applyGate(scenario, List.of(write, newWrite), true, false);
       assertThat(outcome.waits()).isTrue();

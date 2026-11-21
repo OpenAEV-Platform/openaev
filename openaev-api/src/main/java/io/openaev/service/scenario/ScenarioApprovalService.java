@@ -69,7 +69,7 @@ public class ScenarioApprovalService {
     if (safeMode) {
       boolean alreadyApproved = APPROVAL_STATUS.APPROVED.equals(scenario.getApprovalStatus());
       for (Inject inject : injects) {
-        if (!isReadOnly(inject) && !(alreadyApproved && inject.isEnabled())) {
+        if (!isReadOnly(inject) && !(alreadyApproved && isCoveredByApproval(scenario, inject))) {
           inject.setEnabled(false);
           held.add(inject);
         }
@@ -94,6 +94,17 @@ public class ScenarioApprovalService {
       scenario.setApprovalStatus(APPROVAL_STATUS.NOT_REQUIRED);
     }
     return new GateOutcome(false, held);
+  }
+
+  /**
+   * True when the inject already existed when the scenario was approved: an inject created after
+   * the approval is new and needs one of its own.
+   */
+  static boolean isCoveredByApproval(@NotNull Scenario scenario, @NotNull Inject inject) {
+    Instant approvedAt = scenario.getApprovedAt();
+    return approvedAt != null
+        && inject.getCreatedAt() != null
+        && !inject.getCreatedAt().isAfter(approvedAt);
   }
 
   /**
