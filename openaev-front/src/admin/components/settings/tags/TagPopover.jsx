@@ -10,6 +10,7 @@ import { deleteTag, updateTag } from '../../../../actions/tags/tag-action';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import inject18n from '../../../../components/i18n';
+import { pick } from '../../../../utils/object';
 import { withAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TagForm from './TagForm';
@@ -76,9 +77,7 @@ class TagPopoverComponent extends Component {
     const { t, ability } = this.props;
     const canManageTags = ability?.can(ACTIONS.MANAGE, SUBJECTS.TAGS);
     const canDeleteTags = ability?.can(ACTIONS.DELETE, SUBJECTS.TAGS);
-    const initialValues = R.pipe(R.pick(['tag_name', 'tag_color']))(
-      this.props.tag,
-    );
+    const initialValues = pick(this.props.tag, ['tag_name', 'tag_color']);
     return (
       <>
         {(canManageTags || canDeleteTags) && (

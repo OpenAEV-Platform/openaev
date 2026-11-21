@@ -1,4 +1,3 @@
-import * as R from 'ramda';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 
@@ -46,19 +45,20 @@ const AtomicTestingCreation = () => {
   };
 
   const onCreateAtomicTesting = async (data: AtomicTestingInput) => {
-    const toCreate = R.pipe(
-      R.assoc('inject_tags', data.inject_tags),
-      R.assoc('inject_title', data.inject_title),
-      R.assoc('inject_all_teams', data.inject_all_teams),
-      R.assoc('inject_asset_groups', data.inject_asset_groups),
-      R.assoc('inject_assets', data.inject_assets),
-      R.assoc('inject_content', data.inject_content),
-      R.assoc('inject_injector_contract', data.inject_injector_contract),
-      R.assoc('inject_injector', data.inject_injector),
-      R.assoc('inject_description', data.inject_description),
-      R.assoc('inject_documents', data.inject_documents),
-      R.assoc('inject_teams', data.inject_teams),
-    )(data);
+    const toCreate = {
+      ...data,
+      inject_tags: data.inject_tags,
+      inject_title: data.inject_title,
+      inject_all_teams: data.inject_all_teams,
+      inject_asset_groups: data.inject_asset_groups,
+      inject_assets: data.inject_assets,
+      inject_content: data.inject_content,
+      inject_injector_contract: data.inject_injector_contract,
+      inject_injector: data.inject_injector,
+      inject_description: data.inject_description,
+      inject_documents: data.inject_documents,
+      inject_teams: data.inject_teams,
+    };
     await createAtomicTesting(toCreate).then((result: { data: InjectResultOverviewOutput }) => {
       navigate(`${listUrl}/${result.data.inject_id}`);
     });
