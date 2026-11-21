@@ -19,6 +19,11 @@ import org.springframework.stereotype.Service;
  * Live stage of the notifications engine: for a single entity event, evaluates every live trigger
  * watching that resource type, records an outbox {@link NotificationEventRecord} per (trigger,
  * user) match (the digest source) and dispatches the trigger's notifiers immediately.
+ *
+ * <p>Only the recipients who can read the event's object are recorded and notified ({@link
+ * NotificationRecipientFilter}): a trigger on a resource type never reveals an object of that type
+ * to a recipient the API would refuse it to. The digest replays the recorded rows, so it inherits
+ * the same filter.
  */
 @Service
 @Slf4j
@@ -28,6 +33,7 @@ public class NotificationEngineService {
   private final NotificationTriggerCacheService triggerCacheService;
   private final NotificationMatchingService matchingService;
   private final NotificationDispatchService dispatchService;
+  private final NotificationRecipientFilter recipientFilter;
   private final NotificationEventRecordRepository notificationEventRecordRepository;
   private final TenantScopedTransaction tenantTx;
 
@@ -86,7 +92,11 @@ public class NotificationEngineService {
                 if (!matchingService.matches(trigger, entry, entityId)) {
                   return;
                 }
-                recordEvents(trigger, entry, entityId, eventType, message);
+                List<String> readers = recipientFilter.readersOf(trigger, entry, entityId);
+                if (readers.isEmpty()) {
+                  return;
+                }
+                recordEvents(trigger, readers, entry, entityId, eventType, message);
                 NotificationContent.Group group =
                     new NotificationContent.Group(
                         trigger.name(),
@@ -94,10 +104,7 @@ public class NotificationEngineService {
                             new NotificationContent.Event(
                                 eventType, message, entry.getResourceType(), entityId)));
                 dispatchService.dispatch(
-                    trigger,
-                    NotificationTriggerType.LIVE,
-                    trigger.recipientUserIds(),
-                    List.of(group));
+                    trigger, NotificationTriggerType.LIVE, readers, List.of(group));
               });
         } finally {
           TenantContext.clearCurrentTenant();
@@ -115,12 +122,13 @@ public class NotificationEngineService {
 
   private void recordEvents(
       ResolvedNotificationTrigger trigger,
+      List<String> readers,
       NotificationResourceCatalog entry,
       String entityId,
       NotificationTriggerEventType eventType,
       String message) {
     List<NotificationEventRecord> records =
-        trigger.recipientUserIds().stream()
+        readers.stream()
             .map(
                 userId -> {
                   NotificationEventRecord record = new NotificationEventRecord();

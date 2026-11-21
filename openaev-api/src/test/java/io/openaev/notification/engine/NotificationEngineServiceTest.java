@@ -34,6 +34,7 @@ class NotificationEngineServiceTest {
   private NotificationTriggerCacheService cacheService;
   private NotificationMatchingService matchingService;
   private NotificationDispatchService dispatchService;
+  private NotificationRecipientFilter recipientFilter;
   private NotificationEventRecordRepository eventRecordRepository;
   private TenantScopedTransaction tenantTx;
   private NotificationEngineService engineService;
@@ -46,6 +47,12 @@ class NotificationEngineServiceTest {
     cacheService = mock(NotificationTriggerCacheService.class);
     matchingService = mock(NotificationMatchingService.class);
     dispatchService = mock(NotificationDispatchService.class);
+    recipientFilter = mock(NotificationRecipientFilter.class);
+    // Default: every recipient reads the object; the segregation tests below narrow it.
+    when(recipientFilter.readersOf(any(), any(), anyString()))
+        .thenAnswer(
+            invocation ->
+                invocation.<ResolvedNotificationTrigger>getArgument(0).recipientUserIds());
     eventRecordRepository = mock(NotificationEventRecordRepository.class);
     tenantTx = mock(TenantScopedTransaction.class);
     doAnswer(
@@ -57,7 +64,12 @@ class NotificationEngineServiceTest {
         .execute(any(TxCtx.class), ArgumentMatchers.<Runnable>any());
     engineService =
         new NotificationEngineService(
-            cacheService, matchingService, dispatchService, eventRecordRepository, tenantTx);
+            cacheService,
+            matchingService,
+            dispatchService,
+            recipientFilter,
+            eventRecordRepository,
+            tenantTx);
   }
 
   private ResolvedNotificationTrigger liveTrigger(
@@ -163,6 +175,53 @@ class NotificationEngineServiceTest {
         NotificationTriggerEventType.DELETE,
         "My scenario");
 
+    verify(dispatchService, never()).dispatch(any(), any(), anyList(), anyList());
+  }
+
+  @Test
+  @DisplayName("A recipient who cannot read the object is neither recorded nor notified")
+  void recipientWithoutReadIsDropped() {
+    ResolvedNotificationTrigger trigger =
+        liveTrigger(
+            Set.of(NotificationTriggerEventType.CREATE), TENANT_A, List.of("reader", "restricted"));
+    when(cacheService.getLiveTriggers(ResourceType.SCENARIO)).thenReturn(List.of(trigger));
+    when(matchingService.matches(eq(trigger), any(), anyString())).thenReturn(true);
+    when(recipientFilter.readersOf(
+            eq(trigger), eq(NotificationResourceCatalog.SCENARIO), eq("scenario-id")))
+        .thenReturn(List.of("reader"));
+
+    engineService.handleEvent(
+        NotificationResourceCatalog.SCENARIO,
+        "scenario-id",
+        TENANT_A,
+        NotificationTriggerEventType.CREATE,
+        "Secret scenario");
+
+    ArgumentCaptor<List<NotificationEventRecord>> recordsCaptor = ArgumentCaptor.captor();
+    verify(eventRecordRepository).saveAll(recordsCaptor.capture());
+    assertEquals(1, recordsCaptor.getValue().size());
+    assertEquals("reader", recordsCaptor.getValue().getFirst().getUser().getId());
+    verify(dispatchService)
+        .dispatch(eq(trigger), eq(NotificationTriggerType.LIVE), eq(List.of("reader")), anyList());
+  }
+
+  @Test
+  @DisplayName("No recipient can read the object: nothing is recorded, nothing is sent")
+  void noReaderSendsNothing() {
+    ResolvedNotificationTrigger trigger =
+        liveTrigger(Set.of(NotificationTriggerEventType.CREATE), TENANT_A, List.of("restricted"));
+    when(cacheService.getLiveTriggers(ResourceType.SCENARIO)).thenReturn(List.of(trigger));
+    when(matchingService.matches(eq(trigger), any(), anyString())).thenReturn(true);
+    when(recipientFilter.readersOf(any(), any(), anyString())).thenReturn(List.of());
+
+    engineService.handleEvent(
+        NotificationResourceCatalog.SCENARIO,
+        "scenario-id",
+        TENANT_A,
+        NotificationTriggerEventType.CREATE,
+        "Secret scenario");
+
+    verify(eventRecordRepository, never()).saveAll(anyCollection());
     verify(dispatchService, never()).dispatch(any(), any(), anyList(), anyList());
   }
 
