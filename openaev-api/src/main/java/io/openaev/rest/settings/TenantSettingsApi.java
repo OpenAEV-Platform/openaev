@@ -12,6 +12,7 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.engine.query.*;
 import io.openaev.rest.custom_dashboard.CustomDashboardTenantService;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.settings.form.CoverageScenarioSettingsInput;
 import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
 import io.openaev.rest.settings.form.ThemeInput;
 import io.openaev.rest.settings.response.TenantSettingsOutput;
@@ -99,6 +100,33 @@ public class TenantSettingsApi extends RestBehavior {
       TxCtx ctx, @PathVariable String tenantId, @Valid @RequestBody ThemeInput input) {
     tenantSettingsService.updateTheme(tenantId, TenantSettingsService.THEME_TYPE_DARK, input);
     return tenantSettingsService.findSettings(tenantId);
+  }
+
+  // -- COVERAGE SCENARIOS --
+
+  @GetMapping("/coverage-scenarios")
+  @Transactional
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
+  @Operation(
+      summary = "Get the safe mode and approval settings of coverage-built scenarios",
+      description =
+          "How scenarios built from an OpenCTI security coverage run: safe mode (read-only"
+              + " injects only, the others wait for an approval) and approval before the first"
+              + " run. Both off by default.")
+  public CoverageScenarioSettingsInput coverageScenarioSettings(
+      TxCtx ctx, @PathVariable String tenantId) {
+    return tenantSettingsService.findCoverageScenarioSettings(tenantId);
+  }
+
+  @PutMapping("/coverage-scenarios")
+  @Transactional
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
+  @Operation(summary = "Update the safe mode and approval settings of coverage-built scenarios")
+  public CoverageScenarioSettingsInput updateCoverageScenarioSettings(
+      TxCtx ctx,
+      @PathVariable String tenantId,
+      @Valid @RequestBody CoverageScenarioSettingsInput input) {
+    return tenantSettingsService.updateCoverageScenarioSettings(tenantId, input);
   }
 
   // -- HOME DASHBOARD --

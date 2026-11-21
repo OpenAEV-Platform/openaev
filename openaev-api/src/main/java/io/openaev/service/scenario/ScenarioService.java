@@ -560,9 +560,11 @@ public class ScenarioService {
 
   /** Scenario is recurring AND end date is after now */
   public List<Scenario> recurringScenarios(@NotNull final Instant instant) {
+    // A scenario waiting for an approval never starts on its schedule.
     return this.scenarioRepository.findAll(
         ScenarioSpecification.isRecurring()
-            .and(ScenarioSpecification.recurrenceStopDateAfter(instant)));
+            .and(ScenarioSpecification.recurrenceStopDateAfter(instant))
+            .and(ScenarioSpecification.notWaitingForApproval()));
   }
 
   /** Scenario is recurring AND start date is before now OR stop date is before now */

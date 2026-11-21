@@ -300,6 +300,58 @@ public class Scenario extends ModelBehaviour
   @Schema(implementation = String.class)
   private User scheduledBy;
 
+  // -- APPROVAL AND SAFE MODE (coverage-built scenarios) --
+
+  /** Approval state of a scenario whose runs wait for a person before they start. */
+  public enum APPROVAL_STATUS {
+    /** Nothing waits: the scenario runs as scheduled. */
+    NOT_REQUIRED,
+    /** The recurrence does not start, or the held injects stay off, until a person approves. */
+    PENDING,
+    /** A person with the launch right approved it. */
+    APPROVED,
+  }
+
+  /**
+   * Safe mode: only injects whose contract or payload is marked read-only run; every other inject
+   * is held (disabled) until the scenario is approved.
+   */
+  @Column(name = "scenario_safe_mode")
+  @JsonProperty("scenario_safe_mode")
+  @Queryable(filterable = true)
+  private boolean safeMode = false;
+
+  @Column(name = "scenario_approval_status")
+  @Enumerated(EnumType.STRING)
+  @JsonProperty("scenario_approval_status")
+  @Queryable(filterable = true)
+  private APPROVAL_STATUS approvalStatus = APPROVAL_STATUS.NOT_REQUIRED;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "scenario_approved_by")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("scenario_approved_by")
+  @Schema(implementation = String.class)
+  private User approvedBy;
+
+  @Column(name = "scenario_approved_at")
+  @JsonProperty("scenario_approved_at")
+  private Instant approvedAt;
+
+  /**
+   * Ids of the target asset groups in the order they are tested: injects targeting the first group
+   * start first. Empty means no order is set.
+   */
+  @Type(StringArrayType.class)
+  @Column(name = "scenario_asset_group_order", columnDefinition = "text[]")
+  @JsonProperty("scenario_asset_group_order")
+  private String[] assetGroupOrder = new String[0];
+
+  @JsonIgnore
+  public boolean isWaitingForApproval() {
+    return APPROVAL_STATUS.PENDING.equals(approvalStatus);
+  }
+
   // -- AUTHOR --
 
   @Embedded

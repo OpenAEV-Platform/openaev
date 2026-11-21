@@ -19,6 +19,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
+import io.openaev.notification.handler.ScenarioApprovalNotifier;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.opencti.errors.ConnectorError;
@@ -29,7 +30,9 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.scenario.ScenarioApprovalService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.stix.error.BundleValidationError;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.DomainObject;
@@ -90,6 +93,9 @@ public class SecurityCoverageService {
 
   private final SecurityCoverageUtils securityCoverageUtils;
   private final ResultsMetricCollector resultsMetricCollector;
+  private final ScenarioApprovalService scenarioApprovalService;
+  private final ScenarioApprovalNotifier scenarioApprovalNotifier;
+  private final TenantSettingsService tenantSettingsService;
 
   /**
    * Creates or updates a security coverage and the associated scenario, and updates the
@@ -404,12 +410,41 @@ public class SecurityCoverageService {
         securityCoverageInjectService.createdInjectsForScenarioAndSecurityCoverage(
             ctx, scenario, securityCoverage);
     scenario.setInjects(injects);
+    applyApprovalGate(scenario, injects, securityCoverage.getTenant().getId());
     log.info(
         "Creating or Updating Scenario with ID: {} from Security coverage with external ID: {}",
         scenario.getId(),
         securityCoverage.getExternalId());
 
     return scenario;
+  }
+
+  /**
+   * Applies the tenant's safe mode and approval settings to a coverage-built scenario: in safe mode
+   * the injects that are not read-only are held until approved; outside safe mode, with approval
+   * required, the scenario waits before its first run. A scenario that starts waiting sends one
+   * {@code APPROVAL_PENDING} event. Both settings are off by default, so nothing waits out of the
+   * box.
+   */
+  private void applyApprovalGate(Scenario scenario, Set<Inject> injects, String tenantId) {
+    boolean wasWaiting = scenario.isWaitingForApproval();
+    // io.openaev.stix.types.Boolean is imported in this file: qualify java.lang.Boolean.
+    boolean safeMode =
+        java.lang.Boolean.parseBoolean(
+            tenantSettingsService.resolveSettingValue(
+                tenantId, TenantSettingKeys.COVERAGE_SCENARIO_SAFE_MODE));
+    boolean approvalRequired =
+        java.lang.Boolean.parseBoolean(
+            tenantSettingsService.resolveSettingValue(
+                tenantId, TenantSettingKeys.COVERAGE_SCENARIO_APPROVAL_REQUIRED));
+    ScenarioApprovalService.GateOutcome outcome =
+        scenarioApprovalService.applyGate(scenario, injects, safeMode, approvalRequired);
+    if (outcome.waits() && !wasWaiting) {
+      scenarioApprovalNotifier.pending(
+          scenario,
+          outcome.heldInjects(),
+          buildFrontScenarioUrl(openAEVConfig.getBaseUrl(), tenantId, scenario.getId()));
+    }
   }
 
   /**

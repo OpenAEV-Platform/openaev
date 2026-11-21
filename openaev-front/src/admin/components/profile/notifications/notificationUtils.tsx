@@ -54,6 +54,8 @@ export const OPERATION_COLORS: Record<string, string> = {
   UPDATE: deepPurple[500],
   DELETE: red[500],
   SCORE_DEGRADATION: orange[500],
+  APPROVAL_PENDING: orange[500],
+  APPROVED: green[500],
   SYNC_BLOCKED: red[500],
   MULTIPLE: indigo[500],
 };
@@ -67,6 +69,8 @@ export const OPERATION_LABELS: Record<string, string> = {
   UPDATE: 'Modification',
   DELETE: 'Deletion',
   SCORE_DEGRADATION: 'Score degradation',
+  APPROVAL_PENDING: 'Approval pending',
+  APPROVED: 'Approved',
   SYNC_BLOCKED: 'Sync blocked',
   MULTIPLE: 'Multiple',
 };
@@ -84,6 +88,7 @@ export const operationIcon = (operation: string): ReactNode => {
     case 'DELETE':
       return <BellRemoveOutline style={{ color }} />;
     case 'SCORE_DEGRADATION':
+    case 'APPROVAL_PENDING':
     case 'SYNC_BLOCKED':
       return <BellAlertOutline style={{ color }} />;
     case 'MULTIPLE':

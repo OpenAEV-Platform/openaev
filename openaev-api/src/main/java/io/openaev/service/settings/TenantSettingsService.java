@@ -1,5 +1,7 @@
 package io.openaev.service.settings;
 
+import static io.openaev.database.model.TenantSettingKeys.COVERAGE_SCENARIO_APPROVAL_REQUIRED;
+import static io.openaev.database.model.TenantSettingKeys.COVERAGE_SCENARIO_SAFE_MODE;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_LANG;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_THEME;
 import static io.openaev.database.model.TenantSettingKeys.PLATFORM_NAME;
@@ -16,6 +18,7 @@ import io.openaev.database.repository.SettingRepository;
 import io.openaev.opencrq.config.OpenCRQConfig;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.config.XtmConfig;
+import io.openaev.rest.settings.form.CoverageScenarioSettingsInput;
 import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
 import io.openaev.rest.settings.form.ThemeInput;
 import io.openaev.rest.settings.response.TenantSettingsOutput;
@@ -96,6 +99,26 @@ public class TenantSettingsService {
     upsert(tenant, TENANT_SCENARIO_DASHBOARD.key(), input.platformScenarioDashboard());
     upsert(tenant, TENANT_SIMULATION_DASHBOARD.key(), input.platformSimulationDashboard());
     return findSettings(tenantId);
+  }
+
+  /** Effective safe mode and approval settings of coverage-built scenarios. */
+  @Transactional(readOnly = true)
+  public CoverageScenarioSettingsInput findCoverageScenarioSettings(@NotBlank String tenantId) {
+    Map<String, Setting> tenantSettings = loadTenantSettings(tenantId);
+    return new CoverageScenarioSettingsInput(
+        Boolean.parseBoolean(resolveValue(tenantSettings, COVERAGE_SCENARIO_SAFE_MODE)),
+        Boolean.parseBoolean(resolveValue(tenantSettings, COVERAGE_SCENARIO_APPROVAL_REQUIRED)));
+  }
+
+  public CoverageScenarioSettingsInput updateCoverageScenarioSettings(
+      @NotBlank String tenantId, @NotNull CoverageScenarioSettingsInput input) {
+    Tenant tenant = new Tenant(tenantId);
+    upsert(tenant, COVERAGE_SCENARIO_SAFE_MODE.key(), String.valueOf(input.safeMode()));
+    upsert(
+        tenant,
+        COVERAGE_SCENARIO_APPROVAL_REQUIRED.key(),
+        String.valueOf(input.approvalRequired()));
+    return findCoverageScenarioSettings(tenantId);
   }
 
   public void updateCatalogAutoInstall(
