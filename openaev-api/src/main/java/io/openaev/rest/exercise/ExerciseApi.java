@@ -708,10 +708,16 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @Valid @RequestBody ExerciseUpdateLogoInput input) {
     Exercise exercise = exerciseService.exercise(ctx, exerciseId);
-    exercise.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
-    exercise.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
+    String tenantId = exercise.getTenant().getId();
+    exercise.setLogoDark(logoDocument(input.getLogoDark(), tenantId));
+    exercise.setLogoLight(logoDocument(input.getLogoLight(), tenantId));
     return hydrateForResponse(
         exerciseService.withDocumentLinksInitialized(exerciseRepository.save(exercise)));
+  }
+
+  // A null id clears the logo; an id of another tenant is refused like an unknown one.
+  private Document logoDocument(String documentId, String tenantId) {
+    return documentId != null ? documentService.documentInTenant(documentId, tenantId) : null;
   }
 
   // -- OPTION --

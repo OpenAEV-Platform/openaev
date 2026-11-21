@@ -2217,6 +2217,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   void given_injectWithPayloadCommands_whenGetCommand_thenResolvePayloadVariables() {
     // Arrange
     Inject inject = new Inject();
+    inject.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     InjectorContract contract = new InjectorContract();
     Command payload = new Command();
     payload.setExecutor("bash");

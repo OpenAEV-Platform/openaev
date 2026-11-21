@@ -1,5 +1,7 @@
 package io.openaev.rest.payload;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.openaev.ProductionTablesIntegrationTest;
@@ -7,6 +9,8 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.PayloadArgument;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.PayloadRepository;
@@ -19,6 +23,7 @@ import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.PayloadInputFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -108,7 +113,86 @@ class PayloadUpsertDocumentLinkTenantTest extends ProductionTablesIntegrationTes
         ElementNotFoundException.class, () -> payloadUpsertService.upsertPayload(ctx, input));
   }
 
+  @Test
+  @DisplayName(
+      "given no payload yet for this external id when a document argument default names a file"
+          + " of another tenant then the create-from-upsert path is refused")
+  void given_argumentDefaultOfTheOtherTenant_should_refuseTheCreateFromUpsert() {
+    // -- Arrange --
+    PayloadUpsertInput input =
+        PayloadInputFixture.getDefaultExecutablePayloadUpsertInput(
+            "payload-upsert-create-arg-" + UUID.randomUUID());
+    input.setExecutableFile(saveDocument(Tenant.DEFAULT_TENANT_UUID));
+    input.setArguments(List.of(documentArgument(fileInOther)));
+    TxCtx ctx = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
+
+    // -- Act & Assert --
+    assertThrows(
+        ElementNotFoundException.class, () -> payloadUpsertService.upsertPayload(ctx, input));
+  }
+
+  @Test
+  @DisplayName(
+      "given an existing payload when a document argument default is changed to a file of"
+          + " another tenant then the update-from-upsert path is refused")
+  void given_argumentDefaultChangedToTheOtherTenant_should_refuseTheUpdateFromUpsert() {
+    // -- Arrange --
+    String externalId = "payload-upsert-update-arg-" + UUID.randomUUID();
+    String ownFile = saveDocument(Tenant.DEFAULT_TENANT_UUID);
+    saveExecutable(externalId, ownFile, documentArgument(saveDocument(Tenant.DEFAULT_TENANT_UUID)));
+    PayloadUpsertInput input =
+        PayloadInputFixture.getDefaultExecutablePayloadUpsertInput(externalId);
+    input.setExecutableFile(ownFile);
+    input.setArguments(List.of(documentArgument(fileInOther)));
+    TxCtx ctx = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
+
+    // -- Act & Assert --
+    assertThrows(
+        ElementNotFoundException.class, () -> payloadUpsertService.upsertPayload(ctx, input));
+  }
+
+  @Test
+  @DisplayName(
+      "given an existing payload whose stored argument default is a deleted document when the"
+          + " collector upserts it again unchanged then the update-from-upsert path accepts it")
+  void given_unchangedDeletedArgumentDefault_should_acceptTheUpdateFromUpsert() {
+    // -- Arrange --
+    String externalId = "payload-upsert-update-dangling-" + UUID.randomUUID();
+    String ownFile = saveDocument(Tenant.DEFAULT_TENANT_UUID);
+    String deletedDocument = saveDocument(Tenant.DEFAULT_TENANT_UUID);
+    saveExecutable(externalId, ownFile, documentArgument(deletedDocument));
+    documentRepository.deleteById(deletedDocument);
+    entityManager.flush();
+    PayloadUpsertInput input =
+        PayloadInputFixture.getDefaultExecutablePayloadUpsertInput(externalId);
+    input.setExecutableFile(ownFile);
+    input.setArguments(List.of(documentArgument(deletedDocument)));
+    TxCtx ctx = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
+
+    // -- Act --
+    Payload upserted = assertDoesNotThrow(() -> payloadUpsertService.upsertPayload(ctx, input));
+
+    // -- Assert --
+    assertThat(upserted.getArguments())
+        .singleElement()
+        .satisfies(argument -> assertThat(argument.getDefaultValue()).isEqualTo(deletedDocument));
+  }
+
   // -- Helpers --
+
+  private static PayloadArgument documentArgument(String documentId) {
+    return PayloadFixture.createPayloadArgument("file", PrimitiveType.Document, documentId, null);
+  }
+
+  private void saveExecutable(String externalId, String fileId, PayloadArgument argument) {
+    Payload existing =
+        PayloadFixture.createDefaultExecutable(documentRepository.findById(fileId).orElseThrow());
+    existing.setExternalId(externalId);
+    existing.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    existing.setArguments(new java.util.ArrayList<>(List.of(argument)));
+    payloadRepository.save(existing);
+    entityManager.flush();
+  }
 
   private String saveDocument(String tenantId) {
     Document document = DocumentFixture.getDocumentJpeg();

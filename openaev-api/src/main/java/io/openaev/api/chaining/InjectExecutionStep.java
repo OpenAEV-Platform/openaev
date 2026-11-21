@@ -1143,7 +1143,11 @@ public class InjectExecutionStep implements ActionStep {
     ObjectNode injectContent =
         inject.getContent() != null ? inject.getContent() : JsonNodeFactory.instance.objectNode();
     return executableInjectService.resolveArgumentsForDisplay(
-        resolvedCommand, args, injectorContractContentFields, injectContent);
+        resolvedCommand,
+        args,
+        injectorContractContentFields,
+        injectContent,
+        inject.getTenant().getId());
   }
 
   /**
