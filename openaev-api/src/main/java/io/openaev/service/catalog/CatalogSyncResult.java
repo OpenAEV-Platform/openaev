@@ -14,12 +14,19 @@ import java.util.Map;
 final class CatalogSyncResult {
 
   private final CatalogManifest manifest;
+  // The catalogue knew nothing before it: every version in it is new.
+  private final boolean firstSync;
   private final List<Refusal> refused = new ArrayList<>();
   private final List<AddedVersion> added = new ArrayList<>();
   private int unchanged;
 
-  CatalogSyncResult(CatalogManifest manifest) {
+  CatalogSyncResult(CatalogManifest manifest, boolean firstSync) {
     this.manifest = manifest;
+    this.firstSync = firstSync;
+  }
+
+  boolean firstSync() {
+    return firstSync;
   }
 
   void added(AddedVersion version) {
@@ -34,7 +41,7 @@ final class CatalogSyncResult {
     refused.add(new Refusal(externalId, version, reason));
   }
 
-  CatalogReleaseApplied toEvent(String tenantId, boolean firstSync) {
+  CatalogReleaseApplied toEvent(String tenantId) {
     Map<String, String> names = manifest.names();
     return new CatalogReleaseApplied(
         tenantId,

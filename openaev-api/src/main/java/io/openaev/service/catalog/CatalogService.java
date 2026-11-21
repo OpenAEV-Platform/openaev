@@ -50,9 +50,9 @@ public class CatalogService {
     }
     refuseIfOlder(latest, manifest);
     CatalogRelease release = saveRelease(tenantId, manifest);
-    CatalogSyncResult result = saveItems(release, checked);
+    CatalogSyncResult result = saveItems(release, checked, latest == null);
     removeItemsNotIn(release, manifest);
-    eventPublisher.publishEvent(result.toEvent(tenantId, latest == null));
+    eventPublisher.publishEvent(result.toEvent(tenantId));
     return result.toOutput();
   }
 
@@ -97,9 +97,10 @@ public class CatalogService {
 
   // -- ITEMS --
 
-  private CatalogSyncResult saveItems(CatalogRelease release, CheckedRelease checked) {
+  private CatalogSyncResult saveItems(
+      CatalogRelease release, CheckedRelease checked, boolean firstSync) {
     CatalogManifest manifest = checked.manifest();
-    CatalogSyncResult result = new CatalogSyncResult(manifest);
+    CatalogSyncResult result = new CatalogSyncResult(manifest, firstSync);
     for (CatalogManifest.Item item : manifest.items()) {
       itemToSave(
               release,
@@ -177,7 +178,9 @@ public class CatalogService {
       return;
     }
     boolean isNew =
-        !catalogItemRepository.existsByTypeAndExternalId(item.getType(), item.getExternalId());
+        result.firstSync()
+            || !catalogItemRepository.existsByTypeAndExternalId(
+                item.getType(), item.getExternalId());
     catalogItemRepository.save(item);
     result.added(
         new AddedVersion(
