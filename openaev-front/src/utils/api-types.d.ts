@@ -15042,3 +15042,57 @@ export interface XtmHubRegistrationOutput {
   tenant_xtmhub_registration_user_id?: string;
   tenant_xtmhub_registration_user_name?: string;
 }
+
+export interface XtmPeerTokenInput {
+  /**
+   * The consumer product (opencti, opencrq, xtm-one)
+   * @minLength 0
+   * @maxLength 64
+   */
+  consumer: string;
+  /**
+   * The email identifying the service account
+   * @minLength 0
+   * @maxLength 320
+   */
+  email: string;
+  /**
+   * The display name of the service account
+   * @minLength 0
+   * @maxLength 200
+   */
+  name: string;
+  /**
+   * The name of the token, rotated at every call
+   * @minLength 0
+   * @maxLength 200
+   */
+  token_name: string;
+}
+
+export interface XtmPeerTokenOutput {
+  email?: string;
+  name?: string;
+  token?: string;
+  token_name?: string;
+  user_id?: string;
+}
+
+export interface XtmPeerTokenRevokeInput {
+  /**
+   * The email identifying the service account
+   * @minLength 0
+   * @maxLength 320
+   */
+  email: string;
+  /**
+   * The name of the token to revoke
+   * @minLength 0
+   * @maxLength 200
+   */
+  token_name: string;
+}
+
+export interface XtmPeerTokenRevokeOutput {
+  revoked?: boolean;
+}
