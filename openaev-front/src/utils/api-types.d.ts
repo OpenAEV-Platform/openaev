@@ -310,6 +310,7 @@ export interface AiAttack {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
+  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -564,6 +565,9 @@ export interface Asset {
   asset_id: string;
   asset_internet_facing?: boolean;
   asset_ips?: string[];
+  /** @format date-time */
+  asset_last_seen?: string;
+  asset_last_seen_source?: string;
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
   asset_markings?: string[];
@@ -571,8 +575,8 @@ export interface Asset {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
-  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
-  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
+  /** Activity status: STALE when unseen past the tenant threshold, else derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS" | "STALE";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"
@@ -685,6 +689,16 @@ export interface AssetBulkReplaceMarkingsInput {
   asset_ids_to_process?: string[];
   marking_ids: string[];
   search_pagination_input?: SearchPaginationInput;
+}
+
+export interface AssetFreshnessSettingsInput {
+  asset_discovery_tag?: boolean;
+  /**
+   * @format int32
+   * @min 0
+   * @max 3650
+   */
+  asset_stale_after_days: number;
 }
 
 export interface AssetGroup {
@@ -2313,6 +2327,7 @@ interface BasePayload {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
+  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -3093,6 +3108,7 @@ export interface Command {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
+  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -3558,6 +3574,10 @@ export interface CounterpartOutput {
   counterpart_product?: string;
   counterpart_status?: string;
   counterpart_url?: string;
+}
+
+export interface CoverageScenarioSettingsInput {
+  coverage_scenario_read_only_first: boolean;
 }
 
 export interface CreateConnectorInstanceInput {
@@ -4299,6 +4319,7 @@ export interface DnsResolution {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
+  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -4449,6 +4470,9 @@ export interface Endpoint {
   asset_id: string;
   asset_internet_facing?: boolean;
   asset_ips?: string[];
+  /** @format date-time */
+  asset_last_seen?: string;
+  asset_last_seen_source?: string;
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
   asset_markings?: string[];
@@ -4456,8 +4480,8 @@ export interface Endpoint {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
-  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
-  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
+  /** Activity status: STALE when unseen past the tenant threshold, else derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS" | "STALE";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"
@@ -4741,6 +4765,11 @@ export interface EndpointOutput {
   asset_id: string;
   /** Whether the asset is internet-facing */
   asset_internet_facing?: boolean;
+  /**
+   * Last time a source observed the asset
+   * @format date-time
+   */
+  asset_last_seen?: string;
   /** Linked person (user id) for identity assets */
   asset_linked_person?: string;
   /**
@@ -4753,6 +4782,8 @@ export interface EndpointOutput {
    * @minLength 1
    */
   asset_name: string;
+  /** Activity status: STALE when unseen past the tenant threshold, else derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS" | "STALE";
   /** Asset subcategory */
   asset_subcategory?:
     | "SERVER"
@@ -5904,6 +5935,7 @@ export interface Executable {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
+  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -6367,6 +6399,7 @@ export interface FileDrop {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
+  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -7870,6 +7903,7 @@ export interface InjectorContract {
     | "kerberoastable_account"
     | "expectation_signature"
   )[];
+  injector_contract_read_only?: boolean;
   injector_contract_tags?: string[];
   /** @format date-time */
   injector_contract_updated_at: string;
@@ -8844,6 +8878,7 @@ export interface NetworkTraffic {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
+  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -11961,6 +11996,7 @@ export interface Scenario {
     | "Internal"
     | "Unknown"
   )[];
+  scenario_reachability_assertion?: boolean;
   scenario_recurrence?: string;
   /** @format date-time */
   scenario_recurrence_end?: string;
@@ -12133,6 +12169,11 @@ export interface ScenarioOutput {
   scenario_version?: string;
   /** Workflow ID associated with the scenario */
   scenario_workflow_id?: string;
+}
+
+export interface ScenarioReachabilityAssertionInput {
+  /** True to make the scenario a reachability assertion: only read-only injects may run on its schedule */
+  scenario_reachability_assertion?: boolean;
 }
 
 export interface ScenarioRecurrenceInput {
@@ -12489,6 +12530,9 @@ export interface SecurityPlatform {
   asset_id: string;
   asset_internet_facing?: boolean;
   asset_ips?: string[];
+  /** @format date-time */
+  asset_last_seen?: string;
+  asset_last_seen_source?: string;
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
   asset_markings?: string[];
@@ -12496,8 +12540,8 @@ export interface SecurityPlatform {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
-  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
-  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
+  /** Activity status: STALE when unseen past the tenant threshold, else derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS" | "STALE";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"

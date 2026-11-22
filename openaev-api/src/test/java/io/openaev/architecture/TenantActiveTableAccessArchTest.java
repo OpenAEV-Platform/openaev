@@ -3496,7 +3496,7 @@ class TenantActiveTableAccessArchTest {
             Scope.OPENED_AROUND_LAMBDA),
         at(
             io.openaev.notification.engine.NotificationEngineService.class,
-            "handleEventWithMessage",
+            "inTriggerScope",
             Scope.OPENED_AROUND_LAMBDA),
         at(
             io.openaev.service.notification.NotifierService.class,

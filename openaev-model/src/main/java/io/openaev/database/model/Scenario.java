@@ -245,6 +245,20 @@ public class Scenario extends ModelBehaviour
   @JsonProperty("scenario_type_affinity")
   private String typeAffinity;
 
+  /**
+   * Opt-in reachability assertion: the scenario declares what its targets are expected to answer (a
+   * port closed, an address answering 403, a protocol off) through the expectations of its injects,
+   * checked on its recurrence. Every enabled inject of such a scenario must be read-only (its
+   * injector contract or payload is marked read-only): scheduling is refused otherwise and the
+   * scheduler skips it. A failing check becomes a finding through the inject's output parser, and a
+   * regression against the previous run raises the existing score degradation event. Off by
+   * default; set only through {@code PUT /api/scenarios/{scenarioId}/reachability-assertion}.
+   */
+  @Column(name = "scenario_reachability_assertion")
+  @JsonProperty("scenario_reachability_assertion")
+  @Queryable(filterable = true)
+  private boolean reachabilityAssertion;
+
   // -- OCTI GENERATION SCENARIO FROM HTTP CALL--
 
   @Column(name = "scenario_external_reference")
