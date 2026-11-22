@@ -229,13 +229,7 @@ public class GraphLandingService {
     // Every group of the scope with its static member count: a group row is a few bytes, and the
     // dynamic groups need their filter resolved before the ranking, else a filter-defined group
     // such as "All endpoints" ranks and reads as empty.
-    List<AssetGroup> scopeGroups =
-        entityManager
-            .createQuery(
-                "SELECT g FROM AssetGroup g WHERE g.tenant.id IN :tenantIds ORDER BY g.name",
-                AssetGroup.class)
-            .setParameter("tenantIds", tenantIds)
-            .getResultList();
+    List<AssetGroup> scopeGroups = explorer.scopeGroups(tenantIds);
     Map<String, Long> staticCounts = new HashMap<>();
     for (Object[] r :
         entityManager

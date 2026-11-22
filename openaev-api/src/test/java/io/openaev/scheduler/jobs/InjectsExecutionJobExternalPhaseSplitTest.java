@@ -8,6 +8,8 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.helper.ExecutionTraceRepositoryHelper;
 import io.openaev.database.model.*;
@@ -54,7 +56,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * <p>Each test opens its own scoped transactions via {@code job.execute(null)} (through {@code
  * TenantScopedTransaction}), which refuses to run inside an already-active transaction, so the
  * methods below run with {@code @Transactional(NOT_SUPPORTED)} and sweep their committed rows by
- * hand, matching {@code InjectsExecutionJobTest}.
+ * hand, matching {@code InjectsExecutionJobTest}. The outcome is read back in the inject's tenant,
+ * as the job wrote it: a read with no scope sees no trace once {@code execution_traces} is active.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class InjectsExecutionJobExternalPhaseSplitTest extends IntegrationTest {
@@ -66,6 +69,7 @@ class InjectsExecutionJobExternalPhaseSplitTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private RowTenantScope rowTenantScope;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   @MockitoSpyBean private RabbitmqService rabbitmqService;
   @MockitoSpyBean private ConnectorInstanceService connectorInstanceService;
@@ -76,8 +80,17 @@ class InjectsExecutionJobExternalPhaseSplitTest extends IntegrationTest {
   @MockitoSpyBean private InjectStatusService injectStatusService;
   @Autowired private InjectEventCapture eventCapture;
 
+  private static final String INJECT_TENANT = Tenant.DEFAULT_TENANT_UUID;
+
   private void inTransaction(Runnable work) {
-    rowTenantScope.write(Tenant.DEFAULT_TENANT_UUID, work);
+    rowTenantScope.write(INJECT_TENANT, work);
+  }
+
+  /** The inject's status and its traces, read in the inject's tenant. */
+  private InjectStatus statusOf(String injectId) {
+    return tenantTx.executeReadOnly(
+        TxCtx.forTenant(INJECT_TENANT),
+        () -> injectStatusRepository.findByInjectId(injectId).orElseThrow());
   }
 
   /** An external injector with a contract, and an atomic (no exercise) inject queued to run. */
@@ -160,7 +173,7 @@ class InjectsExecutionJobExternalPhaseSplitTest extends IntegrationTest {
           .as("phase 1 must have committed and released its connection before the publish")
           .isFalse();
 
-      InjectStatus status = injectStatusRepository.findByInjectId(due.injectId()).orElseThrow();
+      InjectStatus status = statusOf(due.injectId());
       assertThat(status.getTraces())
           .as("the confirmed-publish trace is written only after the publish succeeded")
           .anyMatch(
@@ -192,7 +205,7 @@ class InjectsExecutionJobExternalPhaseSplitTest extends IntegrationTest {
       job.execute(null);
 
       // Assert
-      InjectStatus status = injectStatusRepository.findByInjectId(due.injectId()).orElseThrow();
+      InjectStatus status = statusOf(due.injectId());
       assertThat(status.getTraces())
           .as("a failed publish must never leave a trace claiming it was published")
           .noneMatch(
@@ -230,7 +243,7 @@ class InjectsExecutionJobExternalPhaseSplitTest extends IntegrationTest {
       job.execute(null);
 
       // Assert
-      InjectStatus status = injectStatusRepository.findByInjectId(due.injectId()).orElseThrow();
+      InjectStatus status = statusOf(due.injectId());
       assertThat(status.getTraces())
           .as("the real failure is recorded instead of a trace claiming success")
           .anyMatch(
@@ -272,8 +285,7 @@ class InjectsExecutionJobExternalPhaseSplitTest extends IntegrationTest {
       job.execute(null);
 
       // Assert: the other inject of the same batch still gets its real trace
-      InjectStatus healthyStatus =
-          injectStatusRepository.findByInjectId(healthy.injectId()).orElseThrow();
+      InjectStatus healthyStatus = statusOf(healthy.injectId());
       assertThat(healthyStatus.getTraces())
           .as("the rest of the batch still runs despite the other inject's recording failure")
           .anyMatch(
@@ -307,7 +319,7 @@ class InjectsExecutionJobExternalPhaseSplitTest extends IntegrationTest {
         .when(rabbitmqService)
         .publish(any(String.class), any(String.class));
     DueExternalInject due = persistDueAtomicInject();
-    String statusId = injectStatusRepository.findByInjectId(due.injectId()).orElseThrow().getId();
+    String statusId = statusOf(due.injectId()).getId();
     AtomicBoolean callbackDone = new AtomicBoolean(false);
     // The callback commits from its own thread once the publish is out, just before the outcome
     // write reaches the database
@@ -343,7 +355,7 @@ class InjectsExecutionJobExternalPhaseSplitTest extends IntegrationTest {
 
       // Assert
       assertThat(callbackDone).as("the outcome write ran").isTrue();
-      InjectStatus status = injectStatusRepository.findByInjectId(due.injectId()).orElseThrow();
+      InjectStatus status = statusOf(due.injectId());
       assertThat(status.getName())
           .as("the callback's completion is not overwritten")
           .isEqualTo(ExecutionStatus.EXECUTED);

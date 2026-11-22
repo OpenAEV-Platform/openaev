@@ -904,6 +904,19 @@ class GraphExplorationServiceTest extends IntegrationTest {
     assertThat(ids).containsExactlyInAnyOrderElementsOf(resolved);
   }
 
+  @Test
+  @DisplayName("given the scope, should read its asset groups through the asset group service")
+  void given_scope_should_readAssetGroupsThroughOwningService() {
+    // Act
+    List<AssetGroup> groups = service.scopeGroups(scope);
+
+    // Assert
+    assertThat(groups).extracting(AssetGroup::getId).contains(g.getId());
+    assertThat(assetGroupService.assetGroupOfTenants(g.getId(), scope)).isPresent();
+    assertThat(assetGroupService.assetGroupOfTenants(g.getId(), List.of("no-such-tenant")))
+        .isEmpty();
+  }
+
   private static long ungroupedCount(GraphOverviewOutput out) {
     return out.groups().stream()
         .filter(GraphOverviewGroupOutput::ungrouped)

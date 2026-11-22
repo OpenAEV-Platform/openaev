@@ -14,8 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.CredentialSecretReference;
@@ -34,6 +33,7 @@ import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.CredentialSecretReferenceFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,8 +42,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,13 +66,7 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 @DisplayName(
     "An inject links only the tags, assets, asset groups and secret references of its own tenant")
-class InjectRelationLinkTenantTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class InjectRelationLinkTenantTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String INJECT_TAGS = "SELECT tag_id FROM injects_tags WHERE inject_id = ?";
@@ -93,6 +85,7 @@ class InjectRelationLinkTenantTest extends IntegrationTest {
   @Autowired private AssetRepository assetRepository;
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private SecretReferenceRepository secretReferenceRepository;
+  @Autowired private RowTenantScope rowTenantScope;
 
   private String otherTenant;
   private String exercise;
@@ -117,13 +110,22 @@ class InjectRelationLinkTenantTest extends IntegrationTest {
     createdExercise.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     exercise = exerciseService.createExercise(createdExercise).getId();
 
-    tagInOther = saveTag(tagRepository, otherTenant);
+    // The other tenant's rows are written in that tenant's scope, as a request of that tenant
+    // would write them; the default tenant's rows are written in the test transaction's scope.
+    // The flush runs the inserts here: left pending, they would be flushed by the next service
+    // call, under the default-tenant scope its own transaction sets.
+    rowTenantScope.write(
+        otherTenant,
+        () -> {
+          tagInOther = saveTag(tagRepository, otherTenant);
+          assetInOther = saveAsset(otherTenant);
+          groupInOther = saveGroup(otherTenant);
+          secretReferenceInOther = saveSecretReference(otherTenant);
+          entityManager.flush();
+        });
     tagInDefault = saveTag(tagRepository, Tenant.DEFAULT_TENANT_UUID);
-    assetInOther = saveAsset(otherTenant);
     assetInDefault = saveAsset(Tenant.DEFAULT_TENANT_UUID);
-    groupInOther = saveGroup(otherTenant);
     groupInDefault = saveGroup(Tenant.DEFAULT_TENANT_UUID);
-    secretReferenceInOther = saveSecretReference(otherTenant);
     secretReferenceInDefault = saveSecretReference(Tenant.DEFAULT_TENANT_UUID);
 
     TenantContext.clearCurrentTenant();
