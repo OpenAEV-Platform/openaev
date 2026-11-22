@@ -1,15 +1,15 @@
 package io.openaev.service.scenario;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import io.openaev.api.catalog.CatalogFeature;
 import io.openaev.context.TxCtx;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.catalog.scenario.targeting.TargetChoice;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -27,7 +27,7 @@ class ScenarioLaunchServiceTest {
   private static final TxCtx CTX = TxCtx.forTenant("tenant-1");
 
   @Mock private ScenarioService scenarioService;
-  @Mock private CatalogFeature catalogFeature;
+  @Mock private PreviewFeatureService previewFeatureService;
 
   @InjectMocks private ScenarioLaunchService scenarioLaunchService;
 
@@ -36,9 +36,7 @@ class ScenarioLaunchServiceTest {
       "given targets while the catalogue is off, should refuse before reading the scenario")
   void given_targetsAndCatalogueOff_should_refuseTheLaunch() {
     // Arrange
-    doThrow(new ElementNotFoundException("The catalogue feature is disabled"))
-        .when(catalogFeature)
-        .require();
+    when(previewFeatureService.isFeatureEnabled(PreviewFeature.CATALOG)).thenReturn(false);
     TargetChoice targets = new TargetChoice(List.of("asset-id"), List.of(), List.of(), List.of());
 
     // Act & Assert
@@ -56,6 +54,6 @@ class ScenarioLaunchServiceTest {
     // Act & Assert
     assertThatThrownBy(() -> scenarioLaunchService.launch(CTX, SCENARIO_ID, TargetChoice.NONE))
         .isInstanceOf(ElementNotFoundException.class);
-    verify(catalogFeature, never()).require();
+    verify(previewFeatureService, never()).isFeatureEnabled(PreviewFeature.CATALOG);
   }
 }

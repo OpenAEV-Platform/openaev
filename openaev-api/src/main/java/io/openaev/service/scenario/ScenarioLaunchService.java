@@ -4,7 +4,6 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static java.time.Instant.now;
 import static java.time.temporal.ChronoUnit.MINUTES;
 
-import io.openaev.api.catalog.CatalogFeature;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
@@ -13,7 +12,9 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.FaithfulCopyTransaction;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.catalog.scenario.targeting.CatalogScenarioTargets;
@@ -38,15 +39,15 @@ public class ScenarioLaunchService {
   private final UserRepository userRepository;
   private final InjectService injectService;
   private final CatalogScenarioTargets catalogScenarioTargets;
-  private final CatalogFeature catalogFeature;
+  private final PreviewFeatureService previewFeatureService;
 
   /** The id of the simulation started; the targets go to its injects, never to the scenario. */
   @Transactional
   public String launch(TxCtx ctx, String scenarioId, TargetChoice targets)
       throws ChainingException {
     // Targets chosen at launch come with the catalogue.
-    if (!targets.isEmpty()) {
-      catalogFeature.require();
+    if (!targets.isEmpty() && !previewFeatureService.isFeatureEnabled(PreviewFeature.CATALOG)) {
+      throw new ElementNotFoundException("The catalogue feature is disabled");
     }
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     String launchedById = currentUser().getId();
