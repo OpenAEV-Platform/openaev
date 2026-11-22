@@ -74,7 +74,6 @@ public class ThreatArsenalVersionApi {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalActionIdOutput listedAction(
       @RequireTenantSelector TxCtx ctx, @PathVariable String payloadId) {
-    catalogFeature.require();
     return new ThreatArsenalActionIdOutput(
         payloadVersionService
             .listedAction(TxCtxScopeUtils.requireOneTenantOfScope(ctx), payloadId)
