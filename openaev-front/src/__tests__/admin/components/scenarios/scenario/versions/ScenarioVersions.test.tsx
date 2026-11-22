@@ -7,16 +7,28 @@ import { SCENARIO_URI } from '../../../../../../actions/scenarios/scenario-actio
 import ScenarioVersions from '../../../../../../admin/components/scenarios/scenario/versions/ScenarioVersions';
 import { type CatalogHistoryOutput, type ScenarioChangeOutput, type ScenarioRevisionOutput, type ScenarioUpdatePreviewOutput, type ScenarioVersionsOutput } from '../../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../../utils/Environment';
+import { setNotifyErrorHandler } from '../../../../../../utils/error/errorHandlerUtil';
 
 const mocks = vi.hoisted(() => ({
   simpleCall: vi.fn(),
   simplePostCall: vi.fn(),
+  realSimplePostCall: vi.fn(),
+  post: vi.fn(),
   dispatch: vi.fn(),
   canManage: vi.fn(),
 }));
 
+vi.mock('../../../../../../network', async (importOriginal) => {
+  const actual = await importOriginal() as Record<string, unknown>;
+  return {
+    ...actual,
+    api: () => ({ post: mocks.post }),
+  };
+});
+
 vi.mock('../../../../../../utils/Action', async (importOriginal) => {
   const actual = await importOriginal() as Record<string, unknown>;
+  mocks.realSimplePostCall.mockImplementation(actual.simplePostCall as typeof mocks.realSimplePostCall);
   return {
     ...actual,
     simpleCall: mocks.simpleCall,
@@ -313,6 +325,7 @@ describe('ScenarioVersions', () => {
     fireEvent.click(within(nameConflict).getByRole('radio', { name: 'Yours' }));
     fireEvent.click(within(removedConflict).getByRole('radio', { name: 'Delete it' }));
     expect(within(titleConflict).getByRole('radio', { name: 'Filigran version v1.1.0' })).not.toBeChecked();
+    expect(within(removedConflict).getByRole('radio', { name: 'Keep it as my own inject' })).not.toHaveAttribute('aria-describedby');
     fireEvent.click(apply);
 
     // Assert
@@ -331,9 +344,16 @@ describe('ScenarioVersions', () => {
     expect(mocks.simpleCall.mock.calls.filter(([uri]) => uri === `${SCENARIO}/history`)).toHaveLength(2);
   });
 
-  it('given_anUpdateRefused_should_keepTheDialogOpen', async () => {
+  it('given_anUpdateRefused_should_showWhyAndKeepTheDialogOpen', async () => {
     // Arrange
-    mocks.simplePostCall.mockRejectedValueOnce(new Error('refused'));
+    const notifyError = vi.fn();
+    setNotifyErrorHandler(notifyError);
+    const refusal = {
+      status: 400,
+      message: 'The scenario changed since the preview',
+    };
+    mocks.post.mockRejectedValueOnce(refusal);
+    mocks.simplePostCall.mockImplementationOnce(mocks.realSimplePostCall);
     renderVersions();
     const dialog = await open('Update');
     await within(dialog).findByRole('radiogroup', { name: 'Inject “Scan” · Title' });
@@ -343,6 +363,7 @@ describe('ScenarioVersions', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Update' }));
 
     // Assert
+    await waitFor(() => expect(notifyError).toHaveBeenCalledWith(refusal));
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Update' })).toBeEnabled());
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(notifySuccess).not.toHaveBeenCalled();
