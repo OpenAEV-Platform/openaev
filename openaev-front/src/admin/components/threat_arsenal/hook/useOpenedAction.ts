@@ -56,7 +56,7 @@ const useOpenedAction = (actions: ThreatArsenalAction[], searchByName: (name: st
     setOpenedTab(tab);
     setOpenedAction(action);
   };
-  const showVersions = (action: ThreatArsenalAction) => openAction(action, 'versions');
+  const showVersions = (action: ThreatArsenalAction, tab: OpenedTab = 'versions') => openAction(action, tab);
   const closeAction = () => {
     setOpenedAction(null);
     setOpenedTab(undefined);

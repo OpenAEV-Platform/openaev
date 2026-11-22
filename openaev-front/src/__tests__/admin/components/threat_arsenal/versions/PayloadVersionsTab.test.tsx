@@ -164,5 +164,25 @@ describe('PayloadVersionsTab', () => {
       expect(await screen.findByText('(0 injects)')).toBeTruthy();
       expect(screen.queryByText('1 inject still uses an older version.')).toBeNull();
     });
+
+    it('given opened to move them should open the older version with its injects ticked and fold the latest', async () => {
+      // Arrange
+      can.mockReturnValue(true);
+      Element.prototype.scrollIntoView = vi.fn();
+
+      // Act
+      renderInApp(<PayloadVersionsTab
+        versions={[{
+          ...latest,
+          payload_revoked: false,
+        }, older]}
+        focusMove
+      />);
+
+      // Assert
+      expect(await screen.findByText('Old inject')).toBeTruthy();
+      expect(await screen.findByText('1 selected')).toBeTruthy();
+      expect(screen.queryByText('Dump credentials')).toBeNull();
+    });
   });
 });

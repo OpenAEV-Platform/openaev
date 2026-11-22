@@ -13,6 +13,7 @@ import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import InjectIcon from '../../common/injects/InjectIcon';
+import { type OpenedTab } from '../hook/useOpenedAction';
 import ThreatArsenalActionPopover from '../ThreatArsenalActionPopover';
 import actionDomains from '../utils/actionDomains';
 import { getActionStatus, getPayloadSourceLabel, getStatusLabel, isShownRevoked, type PayloadStatus, STATUS_CHIP_SEVERITY } from '../utils/threatArsenalStatusUtils';
@@ -26,7 +27,7 @@ interface Props {
   onDuplicate: (result: ThreatArsenalAction) => void;
   onDelete: () => void;
   onRunTest: () => void;
-  onShowVersions: (action: ThreatArsenalAction) => void;
+  onShowVersions: (action: ThreatArsenalAction, tab?: OpenedTab) => void;
 }
 
 const ThreatArsenalCard: FunctionComponent<Props> = ({
