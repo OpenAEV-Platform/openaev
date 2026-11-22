@@ -63,7 +63,26 @@ const SubcategoryField: FunctionComponent = () => {
   if (!category || items.length === 0) {
     return null;
   }
-  return <SelectFieldController name="asset_subcategory" label={t('Subcategory')} items={items} fullWidth />;
+  return (
+    <SelectFieldController
+      name="asset_subcategory"
+      label={t('Subcategory')}
+      items={items}
+      fullWidth
+      helperText={t('Narrower type within the chosen category. Empty: each asset keeps its subcategory.')}
+    />
+  );
+};
+
+/** URL help line: a category that requires a URL says so, since an asset moved there without one asks for it at its next edit. */
+const UrlField: FunctionComponent = () => {
+  const { t } = useFormatter();
+  const category = useWatch<FormValues, 'asset_category'>({ name: 'asset_category' });
+  const def = category ? getCategoryDef(category as AssetCategory) : null;
+  const helperText = def?.fields.url === 'required'
+    ? t('{category} requires a URL: an asset without one will ask for it at its next edit. Empty: each asset keeps its URL.', { category: t(def.label) })
+    : t('Address the scans and the web injectors target. Empty: each asset keeps its URL.');
+  return <TextFieldController name="asset_url" label={t('URL')} helperText={helperText} />;
 };
 
 const BulkClassificationDialog: FunctionComponent<Props> = ({ numberOfSelectedElements, onClose, onSubmit }) => {
@@ -163,11 +182,27 @@ const BulkClassificationDialog: FunctionComponent<Props> = ({ numberOfSelectedEl
             <Text variant="content-base" className="text-default-secondary">
               {t('Selected assets: {count}. A field left empty keeps each asset\'s own value; tags are added to the ones each asset already carries.', { count: String(numberOfSelectedElements) })}
             </Text>
-            <SelectFieldController name="asset_category" label={t('Category')} items={categoryItems} fullWidth />
+            <SelectFieldController
+              name="asset_category"
+              label={t('Category')}
+              items={categoryItems}
+              fullWidth
+              helperText={t('Decides which fields each asset shows. Empty: each asset keeps its category.')}
+            />
             <SubcategoryField />
-            <TextFieldController name="asset_url" label={t('URL')} />
-            <SelectFieldController name="asset_criticality" label={t('Criticality')} items={criticalityItems} fullWidth />
-            <TagFieldController name="asset_tags_to_add" label={t('Tags to add')} />
+            <UrlField />
+            <SelectFieldController
+              name="asset_criticality"
+              label={t('Criticality')}
+              items={criticalityItems}
+              fullWidth
+              helperText={t('Impact of a compromise, from Very high (stops the business) to Low (little effect); Unknown when not assessed. Empty: each asset keeps its value.')}
+            />
+            <TagFieldController
+              name="asset_tags_to_add"
+              label={t('Tags to add')}
+              helperText={t('Added to the tags each asset already carries; none is removed.')}
+            />
             <Box sx={{ textAlign: 'right' }}>
               <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: 16 }}>
                 {t('Cancel')}

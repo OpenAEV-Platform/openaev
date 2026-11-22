@@ -5009,5 +5009,12 @@
   "Tags to add": "追加するタグ",
   "Set at least one field to update": "更新するフィールドを1つ以上設定してください",
   "This subcategory does not belong to the category": "このサブカテゴリはカテゴリに属していません",
-  "Selected assets: {count}. A field left empty keeps each asset's own value; tags are added to the ones each asset already carries.": "選択されたアセット: {count}。空のフィールドは各アセットの値を保持します。タグは各アセットの既存のタグに追加されます。"
+  "Selected assets: {count}. A field left empty keeps each asset's own value; tags are added to the ones each asset already carries.": "選択されたアセット: {count}。空のフィールドは各アセットの値を保持します。タグは各アセットの既存のタグに追加されます。",
+  "Decides which fields each asset shows. Empty: each asset keeps its category.": "各アセットに表示されるフィールドを決めます。空欄の場合、各アセットはカテゴリを維持します。",
+  "Narrower type within the chosen category. Empty: each asset keeps its subcategory.": "選択したカテゴリ内のより詳細な種類です。空欄の場合、各アセットはサブカテゴリを維持します。",
+  "{category} requires a URL: an asset without one will ask for it at its next edit. Empty: each asset keeps its URL.": "{category}にはURLが必要です。URLのないアセットは次回の編集時に入力を求められます。空欄の場合、各アセットはURLを維持します。",
+  "Address the scans and the web injectors target. Empty: each asset keeps its URL.": "スキャンとWebインジェクターが対象とするアドレスです。空欄の場合、各アセットはURLを維持します。",
+  "Impact of a compromise, from Very high (stops the business) to Low (little effect); Unknown when not assessed. Empty: each asset keeps its value.": "侵害時の影響度です。非常に高い（業務が停止）から低い（影響が小さい）まで、未評価の場合は不明です。空欄の場合、各アセットは値を維持します。",
+  "Added to the tags each asset already carries; none is removed.": "各アセットの既存のタグに追加されます。削除されるタグはありません。",
+  "Decides which fields this asset shows; a subcategory of another category is cleared.": "このアセットに表示されるフィールドを決めます。別のカテゴリのサブカテゴリはクリアされます。"
 }

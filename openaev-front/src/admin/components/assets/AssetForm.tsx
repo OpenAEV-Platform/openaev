@@ -208,7 +208,15 @@ const CategoryField: FunctionComponent = () => {
     value: c as string,
     label: t(getCategoryDef(c).label),
   }));
-  return <SelectFieldController name="asset_category" label={t('Category')} items={items} required />;
+  return (
+    <SelectFieldController
+      name="asset_category"
+      label={t('Category')}
+      items={items}
+      required
+      helperText={t('Decides which fields this asset shows; a subcategory of another category is cleared.')}
+    />
+  );
 };
 
 const AssetForm: FunctionComponent<Props> = ({

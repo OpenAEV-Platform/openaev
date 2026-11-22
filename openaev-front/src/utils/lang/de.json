@@ -5009,5 +5009,12 @@
   "Tags to add": "Hinzuzufügende Tags",
   "Set at least one field to update": "Mindestens ein Feld zum Aktualisieren ausfüllen",
   "This subcategory does not belong to the category": "Diese Unterkategorie gehört nicht zur Kategorie",
-  "Selected assets: {count}. A field left empty keeps each asset's own value; tags are added to the ones each asset already carries.": "Ausgewählte Assets: {count}. Ein leeres Feld behält den eigenen Wert jedes Assets bei; Tags werden zu den bereits vorhandenen hinzugefügt."
+  "Selected assets: {count}. A field left empty keeps each asset's own value; tags are added to the ones each asset already carries.": "Ausgewählte Assets: {count}. Ein leeres Feld behält den eigenen Wert jedes Assets bei; Tags werden zu den bereits vorhandenen hinzugefügt.",
+  "Decides which fields each asset shows. Empty: each asset keeps its category.": "Bestimmt, welche Felder jedes Asset zeigt. Leer: jedes Asset behält seine Kategorie.",
+  "Narrower type within the chosen category. Empty: each asset keeps its subcategory.": "Genauerer Typ innerhalb der gewählten Kategorie. Leer: jedes Asset behält seine Unterkategorie.",
+  "{category} requires a URL: an asset without one will ask for it at its next edit. Empty: each asset keeps its URL.": "{category} erfordert eine URL: ein Asset ohne URL fragt bei der nächsten Bearbeitung danach. Leer: jedes Asset behält seine URL.",
+  "Address the scans and the web injectors target. Empty: each asset keeps its URL.": "Adresse, auf die Scans und Web-Injektoren zielen. Leer: jedes Asset behält seine URL.",
+  "Impact of a compromise, from Very high (stops the business) to Low (little effect); Unknown when not assessed. Empty: each asset keeps its value.": "Auswirkung einer Kompromittierung, von Sehr hoch (stoppt das Geschäft) bis Niedrig (geringe Wirkung); Unbekannt, wenn nicht bewertet. Leer: jedes Asset behält seinen Wert.",
+  "Added to the tags each asset already carries; none is removed.": "Werden zu den vorhandenen Tags jedes Assets hinzugefügt; keiner wird entfernt.",
+  "Decides which fields this asset shows; a subcategory of another category is cleared.": "Bestimmt, welche Felder dieses Asset zeigt; eine Unterkategorie einer anderen Kategorie wird geleert."
 }

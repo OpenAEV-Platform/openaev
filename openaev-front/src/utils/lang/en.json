@@ -5009,5 +5009,12 @@
   "Tags to add": "Tags to add",
   "Set at least one field to update": "Set at least one field to update",
   "This subcategory does not belong to the category": "This subcategory does not belong to the category",
-  "Selected assets: {count}. A field left empty keeps each asset's own value; tags are added to the ones each asset already carries.": "Selected assets: {count}. A field left empty keeps each asset's own value; tags are added to the ones each asset already carries."
+  "Selected assets: {count}. A field left empty keeps each asset's own value; tags are added to the ones each asset already carries.": "Selected assets: {count}. A field left empty keeps each asset's own value; tags are added to the ones each asset already carries.",
+  "Decides which fields each asset shows. Empty: each asset keeps its category.": "Decides which fields each asset shows. Empty: each asset keeps its category.",
+  "Narrower type within the chosen category. Empty: each asset keeps its subcategory.": "Narrower type within the chosen category. Empty: each asset keeps its subcategory.",
+  "{category} requires a URL: an asset without one will ask for it at its next edit. Empty: each asset keeps its URL.": "{category} requires a URL: an asset without one will ask for it at its next edit. Empty: each asset keeps its URL.",
+  "Address the scans and the web injectors target. Empty: each asset keeps its URL.": "Address the scans and the web injectors target. Empty: each asset keeps its URL.",
+  "Impact of a compromise, from Very high (stops the business) to Low (little effect); Unknown when not assessed. Empty: each asset keeps its value.": "Impact of a compromise, from Very high (stops the business) to Low (little effect); Unknown when not assessed. Empty: each asset keeps its value.",
+  "Added to the tags each asset already carries; none is removed.": "Added to the tags each asset already carries; none is removed.",
+  "Decides which fields this asset shows; a subcategory of another category is cleared.": "Decides which fields this asset shows; a subcategory of another category is cleared."
 }
