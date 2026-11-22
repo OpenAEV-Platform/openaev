@@ -7,10 +7,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.opencti.connectors.ConnectorBase;
+import io.openaev.opencti.connectors.service.OpenCTIConnectorPrivilegeService;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.opencti.ConnectorFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,19 +28,22 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 
 /**
- * The membership of a service account, as the database holds it once its privilege service has
- * committed: its well-known group, and no other group of the scope the service runs in. Each
- * service writes the membership row by row in SQL, then attaches the account to its tenant, which
- * clears the persistence context, then saves the account it loaded before the writes: that save
- * must neither drop the group just granted nor write back the groups just revoked. A group of
- * another tenant is outside the scope the account's groups are read in, so it is left as it is,
- * like every other membership writer of that table.
+ * The membership of a service account once its privilege service has committed: its well-known
+ * group, and no other group of the scope the service runs in. A reused account's membership is
+ * written row by row in SQL, then the account is attached to its tenant, which clears the
+ * persistence context, and saved: that save must neither drop the group just granted nor write back
+ * the groups just revoked. A group of another tenant is outside the scope the account's groups are
+ * read in, so it is left as it is, like every other membership writer of that table. The event of
+ * the account's creation or update carries the groups the database holds, as the stream sends them.
  *
  * <p>Not transactional: each call opens and commits its own transaction, as the startup runner, the
  * onboarding and the request do, and the membership is read back through JDBC, outside any session.
  */
+@RecordApplicationEvents
 @WithMockUser(isAdmin = true)
 @DisplayName("A service account holds exactly its well-known group once provisioned")
 class ServiceAccountMembershipTest extends ProductionTablesIntegrationTest {
@@ -46,6 +54,7 @@ class ServiceAccountMembershipTest extends ProductionTablesIntegrationTest {
   enum Family {
     AGENT(ReservedServiceAccount.AGENT.access()),
     CATALOG_CONNECTOR(ReservedServiceAccount.CATALOG_CONNECTOR.access()),
+    OPENCTI_CONNECTOR(ReservedServiceAccount.OPENCTI_CONNECTOR.access()),
     XTM_PEER(ReservedServiceAccount.XTM_PEER.access());
 
     final WellKnownAccess access;
@@ -58,13 +67,16 @@ class ServiceAccountMembershipTest extends ProductionTablesIntegrationTest {
   @Autowired private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   @Autowired private CatalogConnectorPrivilegeService catalogConnectorPrivilegeService;
   @Autowired private XtmPeerPrivilegeService xtmPeerPrivilegeService;
+  @Autowired private OpenCTIConnectorPrivilegeService openCTIConnectorPrivilegeService;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private GroupRepository groupRepository;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private ApplicationEvents applicationEvents;
 
   private String tenantA;
   private String tenantB;
+  private ConnectorBase connector;
   private final List<String> createdGroupIds = new ArrayList<>();
   private boolean peerGroupExistedBefore;
   private boolean peerRoleExistedBefore;
@@ -73,6 +85,8 @@ class ServiceAccountMembershipTest extends ProductionTablesIntegrationTest {
   void seedTwoTenants() throws Exception {
     tenantA = tenantHelper.createTenant("service-account-membership-a").getId();
     tenantB = tenantHelper.createTenant("service-account-membership-b").getId();
+    connector = ConnectorFixture.getDefaultConnector();
+    connector.setTenantId(tenantA);
     assertThat(accountIdOf(PEER_EMAIL)).as("no peer account before the test").isEmpty();
     peerGroupExistedBefore = exists("groups", "group_id", wellKnownGroupId(Family.XTM_PEER));
     peerRoleExistedBefore = exists("roles", "role_id", wellKnownRoleId(Family.XTM_PEER));
@@ -84,6 +98,7 @@ class ServiceAccountMembershipTest extends ProductionTablesIntegrationTest {
         List.of(
             ReservedServiceAccount.AGENT.emailPattern().formatted(tenantA),
             CatalogConnectorPrivilegeService.accountEmail(tenantA),
+            ReservedServiceAccount.OPENCTI_CONNECTOR.emailPattern().formatted(connector.getId()),
             PEER_EMAIL);
     for (String email : emails) {
       for (String userId : accountIdOf(email)) {
@@ -121,6 +136,8 @@ class ServiceAccountMembershipTest extends ProductionTablesIntegrationTest {
     return switch (family) {
       case AGENT -> ReservedServiceAccount.AGENT.emailPattern().formatted(tenantA);
       case CATALOG_CONNECTOR -> CatalogConnectorPrivilegeService.accountEmail(tenantA);
+      case OPENCTI_CONNECTOR ->
+          ReservedServiceAccount.OPENCTI_CONNECTOR.emailPattern().formatted(connector.getId());
       case XTM_PEER -> PEER_EMAIL;
     };
   }
@@ -139,6 +156,8 @@ class ServiceAccountMembershipTest extends ProductionTablesIntegrationTest {
     switch (family) {
       case AGENT -> agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(scope, tenantA);
       case CATALOG_CONNECTOR -> catalogConnectorPrivilegeService.getOrCreateToken(scope, tenantA);
+      case OPENCTI_CONNECTOR ->
+          openCTIConnectorPrivilegeService.ensurePrivilegedUserExistsForConnector(connector);
       case XTM_PEER ->
           xtmPeerPrivilegeService.issueToken(scope, "opencrq", PEER_EMAIL, "OpenCRQ peer");
     }
@@ -260,6 +279,51 @@ class ServiceAccountMembershipTest extends ProductionTablesIntegrationTest {
 
       // Assert
       assertThat(groupIdsOf(userId)).containsExactly(wellKnownGroupId(family));
+    }
+  }
+
+  @Nested
+  @DisplayName("the event of the account")
+  class EventOfTheAccount {
+
+    private void assertEveryEventCarriesTheGroupsOfTheDatabase(String userId) {
+      List<String> inDatabase = groupIdsOf(userId).stream().sorted().toList();
+      List<BaseEvent> events =
+          applicationEvents.stream(BaseEvent.class)
+              .filter(e -> e.getInstance() instanceof User u && userId.equals(u.getId()))
+              .toList();
+      assertThat(events).as("events of the account").isNotEmpty();
+      for (BaseEvent event : events) {
+        List<String> carried =
+            ((User) event.getInstance())
+                .getUnscopedGroups().stream().map(Group::getId).sorted().toList();
+        assertThat(carried).as(event.getType() + " event groups").isEqualTo(inDatabase);
+      }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Family.class)
+    @DisplayName("given no account yet, should publish the account with its group")
+    void given_noAccountYet_should_publishTheAccountWithItsGroup(Family family) {
+      // Act
+      provision(family);
+
+      // Assert
+      assertEveryEventCarriesTheGroupsOfTheDatabase(accountIdOf(emailOf(family)).getFirst());
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Family.class)
+    @DisplayName("given a reused account, should publish the account with its group")
+    void given_reusedAccount_should_publishTheAccountWithItsGroup(Family family) {
+      // Arrange
+      String userId = accountWithoutTokenIn(family, group(tenantOf(family)));
+
+      // Act
+      provision(family);
+
+      // Assert
+      assertEveryEventCarriesTheGroupsOfTheDatabase(userId);
     }
   }
 }

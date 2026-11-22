@@ -85,7 +85,7 @@ public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
       String token = UUID.randomUUID().toString();
       User user =
           userService.createInternalUser(email, CATALOG_CONNECTOR_FIRSTNAME, null, false, token);
-      userGroupMembershipService.addMembership(user.getId(), group.getId());
+      joinGroupAsNewAccount(user, group);
       tenantUserService.attachToTenant(user.getId(), tenantId);
       userService.saveUser(user);
       return token;

@@ -479,6 +479,17 @@ public class UserService {
   }
 
   /**
+   * Writes the pending changes of a managed user, then reloads it from the database. For a caller
+   * that wrote the user's membership rows in SQL: the groups loaded before those writes are left as
+   * they were, and the event of the user's next change would carry them.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void reloadUser(User user) {
+    entityManager.flush();
+    entityManager.refresh(user);
+  }
+
+  /**
    * Saves a user entity directly. For internal/technical use only (SSO provisioning, connector
    * management, group mapping).
    */

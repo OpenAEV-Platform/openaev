@@ -120,7 +120,8 @@ class CatalogConnectorPrivilegeServiceTest {
               eq(false),
               createdToken.capture());
       assertThat(result).isEqualTo(createdToken.getValue());
-      verify(userGroupMembershipService).addMembership(account.getId(), group.getId());
+      assertThat(account.getUnscopedGroups()).containsExactly(group);
+      verify(userGroupMembershipService, never()).addMembership(any(), any());
       verify(tenantUserService).attachToTenant(any(), eq(TENANT_ID));
       verify(userService).saveUser(account);
       verify(tenantGroupService).receiveEveryMarking(TENANT_ID, group);

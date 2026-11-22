@@ -82,16 +82,32 @@ public abstract class AbstractPrivilegeService {
     return UUID.nameUUIDFromBytes((UUID.fromString(name) + ":" + tenantId).getBytes()).toString();
   }
 
+  /**
+   * Gives an existing account its attributes and makes {@code group} its only group of the scope.
+   * The membership is written first and the account reloaded before any attribute changes, so the
+   * update event published when they are written carries the groups the account holds now.
+   */
   protected void applyUserServiceAttributes(
       User user, String firstname, String lastname, String email, Group group) {
+    boolean groupsChanged = makeOnlyMembershipOf(user, group);
+    userService.reloadUser(user);
     user.setFirstname(firstname);
     user.setLastname(lastname);
     user.setEmail(email);
     user.setAdmin(false);
     // The markings a user sees are cached from their groups: refresh them when the groups change.
-    if (makeOnlyMembershipOf(user, group)) {
+    if (groupsChanged) {
       markingClearanceCacheManager.evictForUser(user.getId());
     }
+  }
+
+  /**
+   * Puts a new account in {@code group}. Nobody else can hold a membership row of an account that
+   * is not written yet, so its group is set in memory before its first flush, like the auto-assign
+   * groups of a new user, and the event of its creation carries it.
+   */
+  protected static void joinGroupAsNewAccount(User newAccount, Group group) {
+    newAccount.getUnscopedGroups().add(group);
   }
 
   /**

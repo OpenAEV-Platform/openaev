@@ -86,7 +86,7 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
       User user =
           userService.createInternalUser(
               email, SERVICE_FIRSTNAME, null, false, UUID.randomUUID().toString());
-      userGroupMembershipService.addMembership(user.getId(), group.getId());
+      joinGroupAsNewAccount(user, group);
       tenantUserService.attachToTenant(user.getId(), tenantId);
       userService.saveUser(user);
     }
