@@ -17,7 +17,11 @@ public enum TenantSettingKeys {
   AUTONOMOUS_ADDITIONAL_AGENT_MODES("platform_autonomous_additional_agent_modes", "", false),
   // Catalogue: install the payloads and scenarios a release brings that the tenant never installed
   CATALOG_PAYLOAD_AUTO_INSTALL("catalog_payload_auto_install", "true", false),
-  CATALOG_SCENARIO_AUTO_INSTALL("catalog_scenario_auto_install", "true", false);
+  CATALOG_SCENARIO_AUTO_INSTALL("catalog_scenario_auto_install", "true", false),
+  // Security coverage: build scenarios received from OpenCTI with only their read-only injects
+  // enabled, and leave the schedule unset while an inject that is not read-only is present. Off
+  // by default: a coverage builds and schedules exactly as before.
+  COVERAGE_SCENARIO_READ_ONLY_FIRST("coverage_scenario_read_only_first", "false", false);
 
   private final String key;
   private final String defaultValue;

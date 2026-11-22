@@ -287,6 +287,20 @@ DELETE /api/assets/{assetId}/links/{linkedAssetId}/{linkType}
 - **Errors**: `400` for a link to the Asset itself or to an Asset of another Tenant, `404` when either Asset (or, on `DELETE`, the link) is not found.
 - **Access**: `GET` needs the right to read the Asset, `POST` and `DELETE` the right to manage it. `GET` lists the links that start or end on the Asset; deleting an Asset deletes its links.
 
+## Coverage scenario read-only first
+
+Scenarios built from an OpenCTI Security Coverage can be built with only their read-only Injects enabled. See [Scenario generation from OpenCTI Security Coverage](../../usage/build/scenario/security-coverage.md#read-only-first-build-and-run-order).
+
+```http
+GET /api/tenants/{tenantId}/tenant-settings/coverage-scenarios
+PUT /api/tenants/{tenantId}/tenant-settings/coverage-scenarios
+```
+
+- **Settings body**: `{"coverage_scenario_read_only_first": false}`, `false` by default. With the default, a Security Coverage builds and schedules its Scenario exactly as before.
+- **Access**: `GET` needs the right to read Tenant settings, `PUT` the right to manage them.
+- **Read-only marker**: `injector_contract_read_only` on Injector contracts and `payload_read_only` on Payloads, both `false` by default.
+- **Starting a held Scenario**: the existing `PUT /api/scenarios/{scenarioId}/recurrence` (launch right on the Scenario, records `scenario_scheduled_by`) and `inject_enabled` on each held Inject. Run order: the existing `inject_depends_duration` of each Inject.
+
 ## Finding re-test
 
 A Finding carries a lifecycle status, returned by `GET /api/findings/{id}`:
