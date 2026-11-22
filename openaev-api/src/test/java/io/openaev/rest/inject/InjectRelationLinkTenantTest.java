@@ -33,6 +33,7 @@ import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.CredentialSecretReferenceFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -84,6 +85,7 @@ class InjectRelationLinkTenantTest extends ProductionTablesIntegrationTest {
   @Autowired private AssetRepository assetRepository;
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private SecretReferenceRepository secretReferenceRepository;
+  @Autowired private RowTenantScope rowTenantScope;
 
   private String otherTenant;
   private String exercise;
@@ -108,13 +110,22 @@ class InjectRelationLinkTenantTest extends ProductionTablesIntegrationTest {
     createdExercise.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     exercise = exerciseService.createExercise(createdExercise).getId();
 
-    tagInOther = saveTag(tagRepository, otherTenant);
+    // The other tenant's rows are written in that tenant's scope, as a request of that tenant
+    // would write them; the default tenant's rows are written in the test transaction's scope.
+    // The flush runs the inserts here: left pending, they would be flushed by the next service
+    // call, under the default-tenant scope its own transaction sets.
+    rowTenantScope.write(
+        otherTenant,
+        () -> {
+          tagInOther = saveTag(tagRepository, otherTenant);
+          assetInOther = saveAsset(otherTenant);
+          groupInOther = saveGroup(otherTenant);
+          secretReferenceInOther = saveSecretReference(otherTenant);
+          entityManager.flush();
+        });
     tagInDefault = saveTag(tagRepository, Tenant.DEFAULT_TENANT_UUID);
-    assetInOther = saveAsset(otherTenant);
     assetInDefault = saveAsset(Tenant.DEFAULT_TENANT_UUID);
-    groupInOther = saveGroup(otherTenant);
     groupInDefault = saveGroup(Tenant.DEFAULT_TENANT_UUID);
-    secretReferenceInOther = saveSecretReference(otherTenant);
     secretReferenceInDefault = saveSecretReference(Tenant.DEFAULT_TENANT_UUID);
 
     TenantContext.clearCurrentTenant();
