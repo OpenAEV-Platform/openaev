@@ -70,7 +70,7 @@ public class PayloadVersionService {
   /** Refused when the version is not another version of the payload, or is revoked. */
   public InjectorContract otherVersionAction(String tenantId, Payload payload, String versionId) {
     refuseUnlessOtherVersion(tenantId, payload, versionId);
-    return actionOf(tenantId, versionId);
+    return versionAction(tenantId, versionId);
   }
 
   /** Same rule as {@link #otherVersionAction}, from the action of the version. */
@@ -88,12 +88,11 @@ public class PayloadVersionService {
 
   /** The action the Threat Arsenal lists for a payload version: the one of its latest version. */
   public InjectorContract listedAction(String tenantId, String payloadId) {
-    Payload payload = payloadService.payload(tenantId, payloadId);
-    Payload listed = Optional.ofNullable(payload.getIdentity().getLatestVersion()).orElse(payload);
-    return actionOf(tenantId, listed.getId());
+    return versionAction(
+        tenantId, payloadService.payload(tenantId, payloadId).listedVersion().getId());
   }
 
-  private InjectorContract actionOf(String tenantId, String payloadId) {
+  public InjectorContract versionAction(String tenantId, String payloadId) {
     return Optional.ofNullable(
             injectorContractService
                 .injectorContractsOfPayloads(tenantId, List.of(payloadId))
