@@ -11,9 +11,14 @@ const usePayloadVersions = (actionId: string, load: boolean) => {
     if (!load) return undefined;
     setVersions(null);
     let cancelled = false;
-    fetchThreatArsenalVersions(actionId).then(({ data }: { data: PayloadVersionOutput[] }) => {
-      if (!cancelled) setVersions(data);
-    });
+    fetchThreatArsenalVersions(actionId)
+      .then(({ data }: { data: PayloadVersionOutput[] }) => {
+        if (!cancelled) setVersions(data);
+      })
+      // The call already tells the user it failed: no version instead of loading forever.
+      .catch(() => {
+        if (!cancelled) setVersions([]);
+      });
     return () => {
       cancelled = true;
     };

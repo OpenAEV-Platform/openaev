@@ -18,9 +18,15 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.With;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class PayloadUpdateInput {
 
   @NotBlank(message = MANDATORY_MESSAGE)
@@ -91,14 +97,32 @@ public class PayloadUpdateInput {
 
   @JsonProperty("payload_detection_remediations")
   @Schema(description = "List of detection remediation gaps for collectors")
+  @With
   private List<DetectionRemediationInput> detectionRemediations = new ArrayList<>();
 
   @JsonProperty("payload_output_parsers")
   @Schema(description = "Set of output parsers")
+  @With
   private Set<OutputParserInput> outputParsers = new HashSet<>();
 
   @NotNull(message = MANDATORY_MESSAGE)
   @JsonProperty("payload_domains")
   @Schema(description = "Update list of domains")
   private List<String> domainIds = new ArrayList<>();
+
+  /** A copy for a new version of the payload: its rows get their own ids. */
+  public PayloadUpdateInput withoutChildIds() {
+    return withDetectionRemediations(
+            detectionRemediations == null
+                ? null
+                : detectionRemediations.stream()
+                    .map(remediation -> remediation.withId(null))
+                    .collect(Collectors.toList()))
+        .withOutputParsers(
+            outputParsers == null
+                ? null
+                : outputParsers.stream()
+                    .map(OutputParserInput::withoutIds)
+                    .collect(Collectors.toSet()));
+  }
 }

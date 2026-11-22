@@ -52,6 +52,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.CollectorTypeHumanizer;
 import io.openaev.utils.ConditionKeyTypesUtils;
 import io.openaev.utils.WorkflowScopeRuleUtils;
+import io.openaev.utils.catalog.SemanticVersion;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
 import jakarta.activation.MimetypesFileTypeMap;
@@ -2108,8 +2109,9 @@ public class V1_DataImporter implements Importer {
       return Optional.empty();
     }
     // A step never creates a payload: the highest version stands for the exported one.
-    return payloadVersionMatcher
-        .highest(payloadRepository.findAllByTenantIdAndIdentityExternalId(writeTenant, externalId))
+    return SemanticVersion.highest(
+            payloadRepository.findAllByTenantIdAndIdentityExternalId(writeTenant, externalId),
+            Payload::getVersion)
         .flatMap(injectorContractRepository::findInjectorContractByPayload);
   }
 

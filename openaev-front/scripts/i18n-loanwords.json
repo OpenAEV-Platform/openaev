@@ -189,7 +189,8 @@
     "Video",
     "Vision",
     "Website",
-    "Workstation"
+    "Workstation",
+    "{injects} in {scenarios}"
   ],
   "es": [
     "{count} roles",
@@ -416,7 +417,8 @@
     "Test",
     "Thin Client",
     "Video",
-    "Workstation"
+    "Workstation",
+    "{injects} in {scenarios}"
   ],
   "ja": [],
   "ko": [],

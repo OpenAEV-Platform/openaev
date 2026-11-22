@@ -68,6 +68,7 @@ import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.payload.HasPayloadIdentity;
 import io.openaev.database.model.payload.PayloadDeleteGuard;
 import io.openaev.database.model.payload.PayloadIdentity;
+import io.openaev.database.model.payload.PayloadLatestVersionListener;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -2373,6 +2374,8 @@ class TenantActiveTableAccessArchTest {
               // Delete guard, run by Hibernate inside the payload, contract and threat arsenal
               // deletes, all TxCtx-carrying:
               PayloadDeleteGuard.class,
+              // Shows the highest version left when the latest goes, in the same deletes:
+              PayloadLatestVersionListener.class,
               // Payloads injects run, before an uninstall; called by TxCtx-carrying services:
               io.openaev.service.payload.PayloadUsageService.class,
               // Catalogue installs and uninstalls, each in a TxCtx-scoped transaction:
@@ -2785,6 +2788,10 @@ class TenantActiveTableAccessArchTest {
               InjectorContract.class,
               io.openaev.database.repository.PayloadIdentityRepository.class,
               CatalogPayloadService.class,
+              // Locks the identity of the payload it saves, on TxCtx-carrying update entrypoints:
+              io.openaev.service.payload.PayloadLocalVersioning.class,
+              // Moves the latest version of the identity of the payload being deleted:
+              PayloadLatestVersionListener.class,
               // Reads the identity it is handed by the catalogue, to describe the change:
               io.openaev.service.catalog.event.CatalogChangePublisher.class)
           .should()

@@ -1,6 +1,9 @@
 package io.openaev.utils.catalog;
 
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -19,6 +22,22 @@ public record SemanticVersion(int major, int minor, int patch, String preRelease
   /** Orders version strings by semver precedence; null and unparsable values come first. */
   public static final Comparator<String> ORDER =
       Comparator.comparing(SemanticVersion::parse, Comparator.naturalOrder());
+
+  public static <T> Optional<T> highest(Collection<T> versioned, Function<T, String> version) {
+    return versioned.stream().max(Comparator.comparing(version, ORDER));
+  }
+
+  public String nextMajor() {
+    return (major + 1) + ".0.0";
+  }
+
+  public String nextMinor() {
+    return major + "." + (minor + 1) + ".0";
+  }
+
+  public String nextPatch() {
+    return major + "." + minor + "." + (patch + 1);
+  }
 
   public static boolean isValid(String version) {
     return parse(version) != INVALID;

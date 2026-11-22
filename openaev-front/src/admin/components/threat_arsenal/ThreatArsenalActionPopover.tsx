@@ -29,10 +29,12 @@ import PayloadRevocationDialog from './revocation/PayloadRevocationDialog';
 import usePayloadRevocation from './revocation/usePayloadRevocation';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
+import PayloadNewVersionDialog from './versions/PayloadNewVersionDialog';
+import useNewVersionNotice from './versions/useNewVersionNotice';
 
 interface PayloadPopoverNewProps {
   action: ThreatArsenalAction;
-  onUpdate?: (action: ThreatArsenalAction) => void;
+  onUpdate?: (action: ThreatArsenalAction, replacedId?: string) => void;
   onDelete?: () => void;
   onDuplicate?: (action: ThreatArsenalAction) => void;
   onShowVersions?: (action: ThreatArsenalAction) => void;
@@ -110,6 +112,7 @@ const ThreatArsenalActionPopover = ({
   const ability = useAbility();
 
   const actionId = action.injector_contract_id;
+  const { notice, afterSave, closeNotice } = useNewVersionNotice(actionId, onUpdate);
   const payloadId = action.action_payload?.payload_id ?? '';
   const grantResourceId = action.action_grant_resource_id;
   const name = tPick(action.action_labels);
@@ -165,10 +168,10 @@ const ThreatArsenalActionPopover = ({
     } as ThreatArsenalActionUpdateInput;
 
     const response = await updateThreatArsenalAction(actionId, inputValues);
-    if (response.data && onUpdate) {
-      onUpdate(response.data as ThreatArsenalAction);
-    }
     handleCloseEdit();
+    if (response.data) {
+      afterSave(response.data as ThreatArsenalAction);
+    }
   };
 
   const onSubmitInjectorContractEdit = (data: InjectorContractFormValues) => {
@@ -296,6 +299,14 @@ const ThreatArsenalActionPopover = ({
         onClose={closeRevocation}
         onDone={revocationDone}
       />
+
+      {notice && (
+        <PayloadNewVersionDialog
+          action={notice.action}
+          olderVersions={notice.olderVersions}
+          onClose={closeNotice}
+        />
+      )}
 
       <DialogDelete
         open={deletion}

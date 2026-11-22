@@ -28,6 +28,7 @@ import io.openaev.database.model.payload.HasPayloadIdentity;
 import io.openaev.database.model.payload.PayloadChangeGuard;
 import io.openaev.database.model.payload.PayloadDeleteGuard;
 import io.openaev.database.model.payload.PayloadIdentity;
+import io.openaev.database.model.payload.PayloadLatestVersionListener;
 import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
@@ -55,7 +56,8 @@ import org.hibernate.type.SqlTypes;
   ModelBaseListener.class,
   AuditableListener.class,
   PayloadChangeGuard.class,
-  PayloadDeleteGuard.class
+  PayloadDeleteGuard.class,
+  PayloadLatestVersionListener.class
 })
 // payloads is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter, no
 // TenantBaseListener (#6437, #6430). A create path that forgets to stamp the tenant fails loudly
@@ -126,14 +128,14 @@ public class Payload
   @Setter(NONE)
   private String type;
 
-  @Hashed
+  @Hashed(change = Hashed.Change.PATCH)
   @Queryable(filterable = true, searchable = true, sortable = true)
   @Column(name = "payload_name")
   @JsonProperty("payload_name")
   @NotBlank
   private String name;
 
-  @Hashed
+  @Hashed(change = Hashed.Change.PATCH)
   @Queryable(filterable = true, sortable = true)
   @Column(name = "payload_description")
   @JsonProperty("payload_description")
@@ -153,7 +155,7 @@ public class Payload
   @JsonProperty("payload_cleanup_executor")
   private String cleanupExecutor;
 
-  @Hashed
+  @Hashed(change = Hashed.Change.MINOR)
   @Setter
   @Column(name = "payload_cleanup_command")
   @JsonProperty("payload_cleanup_command")
@@ -189,7 +191,7 @@ public class Payload
   @JsonProperty("payload_prerequisites")
   private List<PayloadPrerequisite> prerequisites = new ArrayList<>();
 
-  @Hashed(order = Hashed.Order.SET)
+  @Hashed(order = Hashed.Order.SET, change = Hashed.Change.MINOR)
   @Queryable(filterable = true, searchable = true)
   @Type(StringArrayType.class)
   @Column(name = "payload_expectations", columnDefinition = "text[]")
@@ -202,7 +204,7 @@ public class Payload
    * means "any security platform" (legacy behaviour). Used to pre-seed only the relevant collectors
    * when this payload's predefined expectations are instantiated on an inject.
    */
-  @Hashed(order = Hashed.Order.SET)
+  @Hashed(order = Hashed.Order.SET, change = Hashed.Change.MINOR)
   @Setter
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "payload_expected_security_platforms", columnDefinition = "jsonb")
@@ -297,11 +299,11 @@ public class Payload
     return version;
   }
 
-  /** The version the Threat Arsenal shows: a local payload, or the catalogue's latest installed. */
+  /** The version the Threat Arsenal shows: its identity's latest, else a local payload. */
   @JsonIgnore
   public boolean isLatest() {
     Payload latest = getIdentity().getLatestVersion();
-    return !isManaged() || (latest != null && latest.getId().equals(id));
+    return latest == null ? !isManaged() : latest.getId().equals(id);
   }
 
   // -- AUTHOR --
@@ -336,7 +338,7 @@ public class Payload
     return Authored.super.getAuthorOrganization();
   }
 
-  @Hashed(order = Hashed.Order.OBJECTS)
+  @Hashed(order = Hashed.Order.OBJECTS, change = Hashed.Change.MINOR)
   @OneToMany(
       mappedBy = "payload",
       cascade = CascadeType.ALL,
@@ -347,7 +349,7 @@ public class Payload
 
   // -- OUTPUT PARSERS
 
-  @Hashed(order = Hashed.Order.OBJECTS)
+  @Hashed(order = Hashed.Order.OBJECTS, change = Hashed.Change.MINOR)
   @OneToMany(
       mappedBy = "payload",
       fetch = FetchType.EAGER,

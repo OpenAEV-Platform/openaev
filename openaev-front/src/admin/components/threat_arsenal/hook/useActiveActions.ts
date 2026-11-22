@@ -52,8 +52,8 @@ const useActiveActions = () => {
 
   const prependActions = (results: ThreatArsenalAction[]) => setThreatArsenalActions(prev => [...results, ...prev]);
   const addAction = (result: ThreatArsenalAction) => prependActions([result]);
-  const replaceAction = (result: ThreatArsenalAction) => setThreatArsenalActions(prev => prev
-    .map(a => (a.injector_contract_id === result.injector_contract_id ? result : a)));
+  const replaceAction = (result: ThreatArsenalAction, replacedId = result.injector_contract_id) => setThreatArsenalActions(prev => prev
+    .map(a => (a.injector_contract_id === replacedId ? result : a)));
   const removeAction = (actionId: string) => setThreatArsenalActions(prev => prev.filter(a => a.injector_contract_id !== actionId));
 
   return {

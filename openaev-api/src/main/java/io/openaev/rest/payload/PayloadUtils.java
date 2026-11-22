@@ -322,6 +322,14 @@ public class PayloadUtils {
     dedupeArgumentsAndPrerequisites(target);
     outputParserService.copyOutputParsersFromInput((payloadInput).getOutputParsers(), target);
     detectionRemediationUtils.copy((payloadInput).getDetectionRemediations(), target, true);
+    String tenantId = target.getTenant().getId();
+    if (target instanceof Executable executable) {
+      executable.setExecutableFile(
+          documentService.documentInTenant(payloadInput.getExecutableFile(), tenantId));
+    } else if (target instanceof FileDrop fileDrop) {
+      fileDrop.setFileDropFile(
+          documentService.documentInTenant(payloadInput.getFileDropFile(), tenantId));
+    }
     return target;
   }
 

@@ -165,7 +165,8 @@
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectAll.tsx",
         "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsagesTable.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadNewVersionDialog.tsx"
       ]
     },
     {
@@ -604,7 +605,8 @@
         "openaev-front/src/components/common/marketplace/results/MarketplaceSectionHeader.tsx",
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
-        "openaev-front/src/components/common/marketplace/card/MarketplaceCardMeta.tsx"
+        "openaev-front/src/components/common/marketplace/card/MarketplaceCardMeta.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadNewVersionDialog.tsx"
       ]
     },
     {
@@ -870,7 +872,9 @@
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveBar.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx",
-        "openaev-front/src/admin/components/integrations/Integrations.tsx"
+        "openaev-front/src/admin/components/integrations/Integrations.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadNewVersionDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/AskAfterSavingChoice.tsx"
       ]
     },
     {
@@ -962,7 +966,8 @@
       ],
       "reason": "The revoke and lift dialog of a payload version: title, description, scrolling body and footer actions.",
       "files": [
-        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadNewVersionDialog.tsx"
       ]
     },
     {
