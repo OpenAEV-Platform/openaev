@@ -1,4 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Icon, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 
 import AssetStatus from '../../../../admin/components/assets/AssetStatus';
 import { type EndpointOutput } from '../../../../utils/api-types';
@@ -27,15 +27,26 @@ const EndpointActiveFragment = (props: Props) => {
         days: String(props.stale_after_days),
       });
     }
+    // The cause hangs on a focusable info icon beside the chip, never on a Tooltip around the
+    // Chip: the design system Chip wraps itself in its own tooltip, which swallows an outer one.
     return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span>
-            <AssetStatus variant="list" status="Stale" />
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>{tooltip}</TooltipContent>
-      </Tooltip>
+      <span className="inline-flex items-center gap-1">
+        <AssetStatus variant="list" status="Stale" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              tabIndex={0}
+              role="img"
+              aria-label={tooltip}
+              className="inline-flex rounded-sm text-icon-highlight focus-visible:outline-none focus-visible:ring-2 ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-focus"
+              style={{ cursor: 'help' }}
+            >
+              <Icon name="info" size={16} aria-hidden />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{tooltip}</TooltipContent>
+        </Tooltip>
+      </span>
     );
   }
   const status = getActiveMsgTooltip(props.activity_map ?? [], t('Active'), t('Inactive'), t('Agentless'));

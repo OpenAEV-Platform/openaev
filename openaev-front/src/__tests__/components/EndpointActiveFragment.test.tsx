@@ -41,7 +41,20 @@ describe('EndpointActiveFragment', () => {
       asset_last_seen: '2026-11-20T10:00:00Z',
       stale_after_days: 3,
     });
-    fireEvent.pointerMove(screen.getByText('Stale'));
+    const info = screen.getByRole('img', { name: 'Last seen Nov 20, 2026, threshold 3 days' });
+    fireEvent.pointerMove(info);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Last seen Nov 20, 2026, threshold 3 days');
+  });
+
+  it('opens the cause from the keyboard', async () => {
+    renderFragment({
+      asset_status: 'STALE',
+      asset_last_seen: '2026-11-20T10:00:00Z',
+      stale_after_days: 3,
+    });
+    const info = screen.getByRole('img', { name: 'Last seen Nov 20, 2026, threshold 3 days' });
+    expect(info).toHaveAttribute('tabindex', '0');
+    fireEvent.focus(info);
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Last seen Nov 20, 2026, threshold 3 days');
   });
 
@@ -51,7 +64,7 @@ describe('EndpointActiveFragment', () => {
       asset_last_seen: '2026-11-20T10:00:00Z',
       stale_after_days: 1,
     });
-    fireEvent.pointerMove(screen.getByText('Stale'));
+    fireEvent.pointerMove(screen.getByRole('img', { name: 'Last seen Nov 20, 2026, threshold 1 day' }));
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Last seen Nov 20, 2026, threshold 1 day');
   });
 
