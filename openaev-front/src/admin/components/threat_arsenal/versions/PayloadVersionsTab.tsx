@@ -15,7 +15,7 @@ import OlderVersionsAlert from './OlderVersionsAlert';
 import PayloadUsageMoveBar from './usages/PayloadUsageMoveBar';
 import PayloadUsageMoveResult from './usages/PayloadUsageMoveResult';
 import PayloadUsagesTable from './usages/PayloadUsagesTable';
-import { olderUsageCount, usageCount } from './usages/usageCounts';
+import { olderVersionsInUse, totalUsageCount, usageCount } from './usages/usageCounts';
 import useUsageMove from './usages/useUsageMove';
 import useFocusMove from './useFocusMove';
 import useOlderVersionsKept from './useOlderVersionsKept';
@@ -121,7 +121,7 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMove
   const canMove = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
   const latest = versions?.find(version => version.payload_is_latest);
   const { kept, toggle } = useOlderVersionsKept(latest);
-  const olderUsages = versions && usages ? olderUsageCount(versions, latest, usages) : 0;
+  const olderUsages = versions && usages && latest ? totalUsageCount(olderVersionsInUse(versions, usages, latest.payload_action_id)) : 0;
 
   if (versions === null) {
     return <Skeleton className="h-24" />;
@@ -133,7 +133,7 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMove
       gap: theme.spacing(2),
     }}
     >
-      {olderUsages > 0 && latest && (
+      {olderUsages > 0 && (
         <OlderVersionsAlert usageCount={olderUsages} kept={kept} onToggle={canMove ? toggle : undefined} />
       )}
       <div className={LIB_SURFACE_LAYER} style={fdsTableFrameStyle(theme)}>
