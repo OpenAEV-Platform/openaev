@@ -686,7 +686,7 @@ public class ScenarioApi extends RestBehavior {
           "A reachability assertion runs only read-only injects on its schedule. Declaring a"
               + " scheduled scenario that holds an enabled inject which is not read-only is"
               + " refused.")
-  public Scenario updateScenarioReachabilityAssertion(
+  public ScenarioOutput updateScenarioReachabilityAssertion(
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioReachabilityAssertionInput input) {
@@ -697,7 +697,10 @@ public class ScenarioApi extends RestBehavior {
     if (scheduled && refusal != null) {
       throw new BadRequestException(refusal);
     }
-    return hydrateForResponse(this.scenarioService.updateScenario(scenario));
+    this.scenarioService.updateScenario(scenario);
+    // A DTO read inside the transaction: the entity would serialise its lazy associations after
+    // the commit (LazyAssociationAfterCommitArchTest).
+    return this.scenarioService.getScenarioById(ctx, scenarioId);
   }
 
   // -- OPTION --
