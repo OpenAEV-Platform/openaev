@@ -855,6 +855,135 @@
             }
         },
         {
+            "title": "GitHub",
+            "slug": "openaev_github",
+            "description": "Register the repositories of your GitHub organizations and users in OpenAEV as source-code assets, with their GitHub Actions workflows as CI/CD pipelines and their GitHub Packages as software packages, so your code estate is in the asset inventory and in scope. Read-only on GitHub, github.com and GitHub Enterprise Server.",
+            "short_description": "Register GitHub repositories, workflows and packages as source-code assets",
+            "use_cases": [
+                "Asset collection",
+                "Supply chain security"
+            ],
+            "verified": true,
+            "last_verified_date": "",
+            "playbook_supported": false,
+            "max_confidence_level": 80,
+            "support_version": "",
+            "subscription_link": "https://github.com/",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/github",
+            "manager_supported": true,
+            "container_version": "rolling",
+            "container_image": "openaev/collector-github",
+            "container_type": "COLLECTOR",
+            "logo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAV4AAAFeCAYAAADNK3caAAAexUlEQVR42u3deVBV993H8S8RDSAIIiBKRFQUATdcMIhbQE2IxqgVt7hb45bWpKMxNammpqbVxCymY9QqLtGoZFwapsaIolB3UUQFXBAVAyogyt6A8nv+6BMneZ4kKtzlnHPfr5nfdNqZXn7n+z2/j+eeexY7EVECALCYpygBABC8AEDwAgAIXgAgeAEABC8AELwAAIIXAAheACB4AQAELwAQvAAAghcACF4AAMELAAQvABC8AACCFwAIXgAAwQsABC8AgOAFAIIXAAheAADBCwAELwCA4AUAghcAQPACAMELAAQvAIDgBQCCFwBA8AIAwQsAIHgBgOAFAIIXAEDwAgDBCwAgeAGA4AUAELwAQPACAMELACB4AYDgBQAQvABA8AIACF4AIHgBgOAFABC8AEDwAgAIXgAgeAEABC8AELwAQPACAAheACB4AQAELwAQvAAAghcACF4AIHgBAAQvABC8AACCFwAIXgAAwQsABC8AELwAAIIXAAheAADBCwAELwDgUewpAfSgfv364uLiIs7OzuLs7CwuLi5SVVUlpaWlUlJSIqWlpXLnzh0KBYIXeJTAwEBp06aNtG7dWgICAqRly5bi5ub2MGR/+M8nUVhY+JNAzs/Pl7S0NMnMzJRLly7JpUuX5NatWxQfVmMnIooywNx69eolwcHBEhAQIK1bt5a2bdtKq1atrDafsrIyOX/+vGRmZsrFixfl4sWLcubMGbl06RLNAsELHX6NsreX7t27y3PPPScRERESFhYmDg4Ouph7dna2JCQkSEJCguzfv19yc3NpKAheaHAnsrOTjh07SmRkpERGRkqvXr2e+PSAVl26dEn2798v+/fvlwMHDkhhYSENB8EL64mIiJBx48bJyy+/LA0bNrSJbT516pTExsbK+vXrJS8vj50ABC/Mr3nz5jJ58mQZP368+Pn52WwdHjx4IHv27JF169ZJXFycVFZWsnOA4IXpODo6yogRI2TSpEnSu3dvsbOzoyg/UlhYKJs2bZI1a9bIuXPnKAgIXtRc165dZfr06TJy5EjDnLM1t9OnT8vatWtl06ZNUlxcTEHwixSD8cOws7NTw4YNU4cPH1aouaKiIvXhhx+qZ555hv2K8XODIjD+O2bOnKmuXLlCappYbGys6tix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",
+            "config_schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "config.schema.json",
+                "type": "object",
+                "properties": {
+                    "OPENAEV_URL": {
+                        "description": "The OpenAEV platform URL.",
+                        "format": "uri",
+                        "maxLength": 2083,
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "OPENAEV_TOKEN": {
+                        "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
+                    "COLLECTOR_ID": {
+                        "default": "openaev_github",
+                        "description": "Collector unique identifier",
+                        "type": "string"
+                    },
+                    "COLLECTOR_NAME": {
+                        "default": "GitHub",
+                        "description": "Collector display name",
+                        "type": "string"
+                    },
+                    "COLLECTOR_LOG_LEVEL": {
+                        "default": "error",
+                        "description": "Determines the verbosity of the logs.",
+                        "enum": [
+                            "debug",
+                            "info",
+                            "warn",
+                            "error"
+                        ],
+                        "type": "string"
+                    },
+                    "COLLECTOR_PERIOD": {
+                        "default": "PT6H",
+                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "COLLECTOR_GITHUB_TOKEN": {
+                        "description": "Read-only GitHub token (fine-grained: metadata, actions and packages read).",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "COLLECTOR_GITHUB_API_URL": {
+                        "default": "https://api.github.com",
+                        "description": "GitHub REST API URL; https://<host>/api/v3 for GitHub Enterprise Server.",
+                        "format": "uri",
+                        "type": "string"
+                    },
+                    "COLLECTOR_GITHUB_ORGANIZATIONS": {
+                        "description": "Comma-separated organization logins whose repositories are collected. Set this, the users, or both.",
+                        "type": "string"
+                    },
+                    "COLLECTOR_GITHUB_USERS": {
+                        "description": "Comma-separated user logins whose own repositories are collected.",
+                        "type": "string"
+                    },
+                    "COLLECTOR_GITHUB_INCLUDE_ARCHIVED": {
+                        "default": true,
+                        "description": "Collect archived repositories (flagged archived).",
+                        "type": "boolean"
+                    },
+                    "COLLECTOR_GITHUB_INCLUDE_FORKS": {
+                        "default": false,
+                        "description": "Collect forked repositories.",
+                        "type": "boolean"
+                    },
+                    "COLLECTOR_GITHUB_COLLECT_WORKFLOWS": {
+                        "default": true,
+                        "description": "Register each GitHub Actions workflow as a CI/CD pipeline asset.",
+                        "type": "boolean"
+                    },
+                    "COLLECTOR_GITHUB_COLLECT_PACKAGES": {
+                        "default": true,
+                        "description": "Register GitHub Packages as software package assets when the token can read them.",
+                        "type": "boolean"
+                    },
+                    "COLLECTOR_GITHUB_PACKAGE_TYPES": {
+                        "default": "npm,maven,rubygems,nuget,container",
+                        "description": "Comma-separated GitHub Packages types to read (npm, maven, rubygems, docker, nuget, container).",
+                        "type": "string"
+                    },
+                    "COLLECTOR_GITHUB_END_DATE_REMOVED": {
+                        "default": true,
+                        "description": "End-date (never delete) the assets of a repository, workflow or package no longer returned by GitHub.",
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "OPENAEV_URL",
+                    "OPENAEV_TOKEN",
+                    "COLLECTOR_GITHUB_TOKEN"
+                ],
+                "additionalProperties": true
+            }
+        },
+        {
             "title": "Microsoft Sentinel",
             "slug": "openaev_microsoft_sentinel",
             "description": "Validate OpenAEV detection expectations against Microsoft Sentinel by collecting the incidents and alerts your cloud-native SIEM correlates in response to simulated attacks.",
