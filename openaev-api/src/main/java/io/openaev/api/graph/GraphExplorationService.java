@@ -1102,13 +1102,7 @@ public class GraphExplorationService {
     if (asset == null) {
       return;
     }
-    List<AssetGroup> groups =
-        entityManager
-            .createQuery(
-                "SELECT g FROM AssetGroup g WHERE g.tenant.id IN :tenantIds ORDER BY g.name",
-                AssetGroup.class)
-            .setParameter("tenantIds", tenantIds)
-            .getResultList();
+    List<AssetGroup> groups = assetGroupService.assetGroupsOfTenants(tenantIds);
     int tested = 0;
     int added = 0;
     for (AssetGroup g : groups) {
@@ -1132,6 +1126,16 @@ public class GraphExplorationService {
   }
 
   /**
+   * The asset groups of the scope, by name, read through their owning service; empty without the
+   * asset group service.
+   */
+  List<AssetGroup> scopeGroups(Collection<String> tenantIds) {
+    return assetGroupService == null
+        ? List.of()
+        : assetGroupService.assetGroupsOfTenants(tenantIds);
+  }
+
+  /**
    * The ids of the assets a dynamic group's filter matches, for the estate overview counts, read as
    * ids only so a large group never loads its assets as entities; empty for a static group or
    * without the asset group service.
@@ -1150,19 +1154,12 @@ public class GraphExplorationService {
     if (assetGroupService == null) {
       return;
     }
-    List<AssetGroup> found =
-        entityManager
-            .createQuery(
-                "SELECT g FROM AssetGroup g WHERE g.id = :id AND g.tenant.id IN :tenantIds",
-                AssetGroup.class)
-            .setParameter("id", groupId)
-            .setParameter("tenantIds", tenantIds)
-            .getResultList();
-    if (found.isEmpty()
-        || io.openaev.database.model.Filters.isEmptyFilterGroup(found.get(0).getDynamicFilter())) {
+    AssetGroup found = assetGroupService.assetGroupOfTenants(groupId, tenantIds).orElse(null);
+    if (found == null
+        || io.openaev.database.model.Filters.isEmptyFilterGroup(found.getDynamicFilter())) {
       return;
     }
-    AssetGroup group = assetGroupService.computeDynamicAssets(found.get(0));
+    AssetGroup group = assetGroupService.computeDynamicAssets(found);
     int added = 0;
     for (Asset a : group.getDynamicAssets()) {
       String assetNode = GraphNodeOutput.idOf(GraphNodeType.ASSET, a.getId());
