@@ -26,7 +26,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
@@ -69,15 +68,11 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
 
   /** A released version, offered or not, as the one a tenant installed. */
   @Transactional(readOnly = true)
-  public ReleasedScenario released(TxCtx ctx, String externalId, String version) {
-    CatalogScenario item =
+  public ReleasedScenario released(String externalId, String version) {
+    return toReleased(
         catalogListService
             .version(CatalogScenario.class, externalId, version)
-            .orElseThrow(() -> new ElementNotFoundException("Catalogue version not found"));
-    return new ReleasedScenario(
-        item.getArchiveHash(),
-        payloadRefs(item).stream()
-            .collect(Collectors.toMap(PayloadRef::externalId, PayloadRef::version)));
+            .orElseThrow(() -> new ElementNotFoundException("Catalogue version not found")));
   }
 
   /**
@@ -152,17 +147,22 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   }
 
   private InstallableScenarioVersion toInstallable(TxCtx ctx, CatalogScenario item) {
+    ReleasedScenario released = toReleased(item);
     return new InstallableScenarioVersion(
         item.getRelease().getRepository(),
         item.getExternalId(),
         item.getVersion(),
         CatalogScenarioType.of(item.getScenarioType()),
         item.getAuthor(),
-        item.getArchiveHash(),
-        payloadRefs(item).stream()
+        released.archiveHash(),
+        released.payloads().stream()
             .map(
                 ref -> catalogPayloadOfferService.installable(ctx, ref.externalId(), ref.version()))
             .toList());
+  }
+
+  private ReleasedScenario toReleased(CatalogScenario item) {
+    return new ReleasedScenario(item.getArchiveHash(), payloadRefs(item));
   }
 
   private List<PayloadRef> payloadRefs(CatalogScenario item) {

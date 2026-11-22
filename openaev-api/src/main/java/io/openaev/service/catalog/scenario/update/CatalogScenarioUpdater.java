@@ -88,7 +88,7 @@ public class CatalogScenarioUpdater {
   private ScenarioUpdate toRelease(
       TxCtx ctx, InstalledScenario installed, InstallableScenarioVersion released) {
     ReleasedScenario files =
-        catalogScenarioOfferService.released(ctx, installed.externalId(), released.version());
+        catalogScenarioOfferService.released(installed.externalId(), released.version());
     ScenarioPackage scenarioPackage = packageOf(files);
     if (scenarioPackage.linksImportedContent()) {
       throw new BadRequestException(IMPORTED_LINKS_REFUSED);
@@ -115,7 +115,7 @@ public class CatalogScenarioUpdater {
   // What the installed version brought: the client's changes are measured against it.
   private ObjectNode base(TxCtx ctx, InstalledScenario installed) {
     ReleasedScenario released =
-        catalogScenarioOfferService.released(ctx, installed.externalId(), installed.version());
+        catalogScenarioOfferService.released(installed.externalId(), installed.version());
     return reader.fromPackage(packageOf(released), released.payloadVersions());
   }
 
