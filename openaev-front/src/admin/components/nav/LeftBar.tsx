@@ -164,8 +164,7 @@ const LeftBar = () => {
       items: [
         {
           path: `/admin/integrations`,
-          // `puzzle` is asked upstream (filigran-design-system #418); `link-2` is the interim glyph shared by the five products.
-          icon: () => (<Icon name="link-2" size={16} />),
+          icon: () => (<Icon name="puzzle" size={16} />),
           label: 'Integrations',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
         },
