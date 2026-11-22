@@ -544,6 +544,7 @@ export interface Asset {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   asset_cloud_native_type?: string;
   asset_cloud_provider?:
@@ -657,7 +658,12 @@ export interface Asset {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
@@ -995,6 +1001,7 @@ export interface AssetOutput {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   /** Asset criticality */
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
@@ -1091,7 +1098,12 @@ export interface AssetOutput {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   /**
    * Tags
    * @uniqueItems true
@@ -4554,6 +4566,7 @@ export interface Endpoint {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   asset_cloud_native_type?: string;
   asset_cloud_provider?:
@@ -4667,7 +4680,12 @@ export interface Endpoint {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
@@ -4702,6 +4720,7 @@ export interface EndpointInput {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   asset_cloud_native_type?: string | null;
   asset_cloud_provider?:
@@ -4804,7 +4823,12 @@ export interface EndpointInput {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   asset_tags?: string[];
   asset_url?: string | null;
   endpoint_agent_version?: string;
@@ -4843,6 +4867,7 @@ export interface EndpointOutput {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   /** Cloud native type */
   asset_cloud_native_type?: string;
@@ -4970,7 +4995,12 @@ export interface EndpointOutput {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   /**
    * Tags
    * @uniqueItems true
@@ -5044,6 +5074,7 @@ export interface EndpointOverviewOutput {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   /** Cloud native type */
   asset_cloud_native_type?: string;
@@ -5182,7 +5213,12 @@ export interface EndpointOverviewOutput {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   /**
    * Tags
    * @uniqueItems true
@@ -5227,6 +5263,7 @@ export interface EndpointRegisterInput {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   asset_cloud_native_type?: string | null;
   asset_cloud_provider?:
@@ -5329,7 +5366,12 @@ export interface EndpointRegisterInput {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   asset_tags?: string[];
   asset_url?: string | null;
   elevated?: boolean;
@@ -12620,6 +12662,7 @@ export interface SecurityPlatform {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   asset_cloud_native_type?: string;
   asset_cloud_provider?:
@@ -12733,7 +12776,12 @@ export interface SecurityPlatform {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
