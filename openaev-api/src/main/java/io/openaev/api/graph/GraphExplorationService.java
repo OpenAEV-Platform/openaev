@@ -1154,9 +1154,13 @@ public class GraphExplorationService {
     if (assetGroupService == null) {
       return;
     }
-    AssetGroup found = assetGroupService.assetGroupOfTenants(groupId, tenantIds).orElse(null);
-    if (found == null
-        || io.openaev.database.model.Filters.isEmptyFilterGroup(found.getDynamicFilter())) {
+    AssetGroup found =
+        assetGroupService
+            .assetGroupOfTenants(groupId, tenantIds)
+            .filter(
+                g -> !io.openaev.database.model.Filters.isEmptyFilterGroup(g.getDynamicFilter()))
+            .orElse(null);
+    if (found == null) {
       return;
     }
     AssetGroup group = assetGroupService.computeDynamicAssets(found);
