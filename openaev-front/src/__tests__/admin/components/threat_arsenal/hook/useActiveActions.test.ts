@@ -145,6 +145,18 @@ describe('useActiveActions', () => {
       expect(result.current.threatArsenalActions).toEqual([A, updated, C]);
     });
 
+    it('given_aNewVersionOfAnAction_should_replaceTheSavedOneInPlace', () => {
+      // Arrange
+      const { result } = renderActive();
+      const newVersion = action('b-v2');
+
+      // Act
+      act(() => result.current.replaceAction(newVersion, 'b'));
+
+      // Assert
+      expect(result.current.threatArsenalActions).toEqual([A, newVersion, C]);
+    });
+
     it('given_aDeletedAction_should_removeIt', () => {
       // Arrange
       const { result } = renderActive();
