@@ -108,3 +108,19 @@ io.openaev.service.platform.roles.PlatformRoleService.findById tables=roles
 io.openaev.service.platform.roles.PlatformRoleService.findByIds tables=roles
 io.openaev.service.platform.roles.PlatformRoleService.lambda$search$2 tables=roles
 io.openaev.service.platform.roles.PlatformRoleService.delete tables=roles
+
+# BENIGN - roles activation (#9147). These production paths load a user with no scope, so the roles
+# of its groups come back without its tenant roles, and none of them evaluates a right from that
+# load. The password login and the password reset run before any tenant is chosen (no tenant scope,
+# no access check) and rebuild their response through PermissionService.withRolesInAmbientTenant,
+# pinned by UserApiLoginAmbientRolesTest and MeApiAmbientRolesTest (PasswordReset); the session
+# principal they leave holds the id, the admin flag and the language only. The password setup email
+# runs asynchronously after the request commits and reads the user for its name and email. The by-id
+# user read serves the platform user read and update, the player delete, the audit log and the
+# tenant detach, none of which returns or decides on a field derived from the user's roles. The
+# caller's own rights are read by the access check, inside the request's scope
+# (TenantRoleRightsAtEntryPointsTest). Waived for roles only.
+io.openaev.rest.user.UserApi.login tables=roles
+io.openaev.service.UserService.resetPassword tables=roles
+io.openaev.service.UserService.sendPasswordResetEmail tables=roles
+io.openaev.service.UserService.user tables=roles
