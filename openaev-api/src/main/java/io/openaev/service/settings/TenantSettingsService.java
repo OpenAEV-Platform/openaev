@@ -1,5 +1,7 @@
 package io.openaev.service.settings;
 
+import static io.openaev.database.model.TenantSettingKeys.ASSET_DISCOVERY_TAG;
+import static io.openaev.database.model.TenantSettingKeys.ASSET_STALE_AFTER_DAYS;
 import static io.openaev.database.model.TenantSettingKeys.COVERAGE_SCENARIO_READ_ONLY_FIRST;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_LANG;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_THEME;
@@ -9,6 +11,7 @@ import static io.openaev.database.model.TenantSettingKeys.TENANT_SCENARIO_DASHBO
 import static io.openaev.database.model.TenantSettingKeys.TENANT_SIMULATION_DASHBOARD;
 
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantSettingKeys;
@@ -17,6 +20,7 @@ import io.openaev.database.repository.SettingRepository;
 import io.openaev.opencrq.config.OpenCRQConfig;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.config.XtmConfig;
+import io.openaev.rest.settings.form.AssetFreshnessSettingsInput;
 import io.openaev.rest.settings.form.CoverageScenarioSettingsInput;
 import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
 import io.openaev.rest.settings.form.ThemeInput;
@@ -29,6 +33,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -98,6 +103,55 @@ public class TenantSettingsService {
     upsert(tenant, TENANT_SCENARIO_DASHBOARD.key(), input.platformScenarioDashboard());
     upsert(tenant, TENANT_SIMULATION_DASHBOARD.key(), input.platformSimulationDashboard());
     return findSettings(tenantId);
+  }
+
+  /** Effective asset freshness setting: the days after which an unseen asset turns stale. */
+  @Transactional(readOnly = true)
+  public AssetFreshnessSettingsInput findAssetFreshnessSettings(@NotBlank String tenantId) {
+    return readAssetFreshnessSettings(tenantId);
+  }
+
+  public AssetFreshnessSettingsInput updateAssetFreshnessSettings(
+      @NotBlank String tenantId, @NotNull AssetFreshnessSettingsInput input) {
+    Tenant tenant = new Tenant(tenantId);
+    upsert(tenant, ASSET_STALE_AFTER_DAYS.key(), String.valueOf(input.staleAfterDays()));
+    if (input.discoveryTag() != null) {
+      upsert(tenant, ASSET_DISCOVERY_TAG.key(), String.valueOf(input.discoveryTag()));
+    }
+    return readAssetFreshnessSettings(tenantId);
+  }
+
+  /**
+   * Whether the assets a run creates get the "discovered" tag in this tenant (off by default).
+   *
+   * <p>{@code ctx} scopes the read: a caller such as an inject output processor runs outside any
+   * tenant scope, and a tenant row of the dual-scope parameters table read with no scope comes back
+   * empty instead of failing. The aspect writes the scope from this parameter.
+   *
+   * <p>The read runs in its own transaction: a caller already inside a transaction scoped to
+   * several tenants (a run promoting a finding under an X-Tenant-Ids header naming two tenants)
+   * would otherwise see the aspect refuse the narrower single-tenant scope.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+  public boolean isAssetDiscoveryTagEnabled(TxCtx ctx, @NotBlank String tenantId) {
+    return readDiscoveryTag(loadTenantSettings(tenantId));
+  }
+
+  private boolean readDiscoveryTag(Map<String, Setting> tenantSettings) {
+    String value = resolveValue(tenantSettings, ASSET_DISCOVERY_TAG);
+    return value != null && Boolean.parseBoolean(value.trim());
+  }
+
+  private AssetFreshnessSettingsInput readAssetFreshnessSettings(String tenantId) {
+    Map<String, Setting> tenantSettings = loadTenantSettings(tenantId);
+    String value = resolveValue(tenantSettings, ASSET_STALE_AFTER_DAYS);
+    int days;
+    try {
+      days = Integer.parseInt(value == null ? "" : value.trim());
+    } catch (NumberFormatException e) {
+      days = Integer.parseInt(ASSET_STALE_AFTER_DAYS.defaultValue());
+    }
+    return new AssetFreshnessSettingsInput(days, readDiscoveryTag(tenantSettings));
   }
 
   /** Effective scheduling setting of coverage-built scenarios. */

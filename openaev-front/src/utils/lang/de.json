@@ -294,6 +294,7 @@
   "agent(s)": "Agent(en)",
   "Agentic AI capabilities": "Agentische KI-Fähigkeiten",
   "Agentless": "Agentenlos",
+  "Stale": "Veraltet",
   "AGENTLESS": "AGENTLESS",
   "Agentless through your EDR": "Agentenlos über Ihr EDR",
   "Agents": "Agenten",
@@ -4973,5 +4974,8 @@
   "Start here": "Hier beginnen",
   "Fold the Start here panel": "Bereich „Hier beginnen“ einklappen",
   "List the entities": "Entitäten auflisten",
-  "Entities of the graph": "Entitäten des Graphen"
+  "Entities of the graph": "Entitäten des Graphen",
+  "Last seen {date}": "Zuletzt gesehen {date}",
+  "Last seen {date}, threshold {days} days": "Zuletzt gesehen {date}, Schwellenwert {days} Tage",
+  "Last seen {date}, threshold 1 day": "Zuletzt gesehen {date}, Schwellenwert 1 Tag"
 }

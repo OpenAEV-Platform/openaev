@@ -57,6 +57,7 @@ import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.service.EndpointService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.service.asset.AssetDiscoveryMarker;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TxCtxScopeUtils;
@@ -198,6 +199,7 @@ public class AutonomousRunService {
   private final InjectExpectationRepository injectExpectationRepository;
   private final FindingRepository findingRepository;
   private final EndpointService endpointService;
+  private final AssetDiscoveryMarker assetDiscoveryMarker;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
   private final AssetGroupRepository assetGroupRepository;
@@ -3603,7 +3605,9 @@ public class AutonomousRunService {
     } else {
       input.setHostname(finding.getValue());
     }
-    // Promotion happens inside the run's own tenant; the run row carries it.
+    // Promotion happens inside the run's own tenant; the run row carries it. The new endpoint is a
+    // discovery: tagged when the tenant opted in.
+    assetDiscoveryMarker.markDiscovered(input, run.getTenant().getId());
     Endpoint endpoint = endpointService.createEndpoint(input, run.getTenant().getId());
     // Keep the original finding; just link the promoted asset onto it (promotion, not replacement).
     findingRepository.insertFindingAsset(findingId, endpoint.getId());

@@ -73,6 +73,8 @@ public class EndpointMapper {
         .cloudNativeType(endpoint.getCloudNativeType())
         .cloudRegion(endpoint.getCloudRegion())
         .linkedPerson(endpoint.getLinkedPerson())
+        .status(endpoint.getActivityStatus())
+        .lastSeen(endpoint.getLastSeen())
         .build();
   }
 
@@ -101,6 +103,8 @@ public class EndpointMapper {
         .subcategory(asset.getSubcategory())
         .criticality(asset.getCriticality())
         .internetFacing(asset.getInternetFacing())
+        .status(asset.getActivityStatus())
+        .lastSeen(asset.getLastSeen())
         .build();
   }
 

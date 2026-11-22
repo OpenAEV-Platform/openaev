@@ -287,6 +287,35 @@ DELETE /api/assets/{assetId}/links/{linkedAssetId}/{linkType}
 - **Errors**: `400` for a link to the Asset itself or to an Asset of another Tenant, `404` when either Asset (or, on `DELETE`, the link) is not found.
 - **Access**: `GET` needs the right to read the Asset, `POST` and `DELETE` the right to manage it. `GET` lists the links that start or end on the Asset; deleting an Asset deletes its links.
 
+## Asset freshness
+
+Every Asset carries when it was last observed and by what, and turns stale once it is unseen for longer than the Tenant allows.
+
+```http
+GET /api/tenants/{tenantId}/tenant-settings/asset-freshness
+PUT /api/tenants/{tenantId}/tenant-settings/asset-freshness
+```
+
+- **Asset fields**: `asset_last_seen` (the latest observation) and `asset_last_seen_source` (what observed it, e.g. `agent:openaev_agent`), filterable and sortable in the Asset searches. Staleness is not a field of its own: `asset_status` reads `STALE` when the Asset was last seen longer ago than the Tenant allows, and its usual value (`ACTIVE`, `INACTIVE`, `AGENTLESS`) otherwise. An Asset never observed has no `asset_last_seen` and is never `STALE`.
+- **Observations**: an Agent that registers or sends a heartbeat stamps its Asset, at most once an hour per source so a heartbeat does not rewrite the Asset every minute. A `STALE` Asset that is observed again leaves `STALE` at once.
+- **Settings body**: `{"asset_stale_after_days": 30}`, from 0 to 3650. `0` by default: the check is off, no Asset turns stale and no event is emitted until a user sets a number of days. The last seen stamp is recorded either way.
+- **Discovery marker**: `{"asset_discovery_tag": true}` on the same endpoint tags with `discovered` every Endpoint a run creates (an autonomous run promoting a finding, an inject whose output brings a new asset), so a filter or a live trigger on Asset creation tells it from a declared one. `false` by default: no tag is created or added. Omitted on an update, the current value is kept.
+- **Job**: every hour (`openaev.cron.config.asset.freshness.interval`, in minutes), each Asset that turned `STALE` since the previous pass gets one Asset update event, so a live trigger on Asset updates receives each transition once. Nothing is written on the Asset.
+
+## Reachability assertions
+
+A Scenario can be declared a reachability assertion: a recurring check, from where its Injects run, that its targets still answer as expected (a port closed, an address answering 403, a protocol off). The expected answer is the Expectation of each Inject; the check runs on the Scenario's recurrence.
+
+```http
+PUT /api/scenarios/{scenarioId}/reachability-assertion
+PUT /api/tenants/{tenantId}/scenarios/{scenarioId}/reachability-assertion
+```
+
+- **Body**: `{"scenario_reachability_assertion": true}` declares it, `false` clears it. `scenario_reachability_assertion` is `false` on every Scenario by default and filterable in the Scenario searches; a Scenario that is not an assertion behaves exactly as before.
+- **Read-only only**: every enabled Inject of an assertion must be read-only (`injector_contract_read_only` on its Injector contract, or `payload_read_only` on its Payload). Declaring a scheduled Scenario, or scheduling an assertion with `PUT /api/scenarios/{scenarioId}/recurrence`, is refused with `400` naming the Injects that are not read-only, and the scheduler skips an assertion that holds one (an Inject made writable after scheduling never runs on its own).
+- **Access**: the launch right on the Scenario, as for its recurrence.
+- **Results**: a failed check is reported like any simulation: the Inject's output parser records its findings (an open port, an answer) on the target, and when a run scores lower than the previous one the existing `SCORE_DEGRADATION` notification event fires.
+
 ## Coverage scenario read-only first
 
 Scenarios built from an OpenCTI Security Coverage can be built with only their read-only Injects enabled. See [Scenario generation from OpenCTI Security Coverage](../../usage/build/scenario/security-coverage.md#read-only-first-build-and-run-order).

@@ -2590,3 +2590,13 @@ Both held MUI X and, with it, the `LocalizationProvider` the rest of the product
 **Product need.** Sam's form rule: an amount is shown with its unit. Numeric settings (a threshold in minutes, a count of jobs) are number fields with a stepper, and the unit belongs next to the value, not only in the label.
 
 **The request.** A number field that shows both the stepper and a unit (the unit to the left of the stepper pair, or a `unit` prop the node lays out), or a ruling that the unit of a number field belongs in the label.
+
+## 71. `Chip` swallows a consumer `Tooltip` placed around it
+
+**Status.** Open. Worked around in the product: the cause of a Stale endpoint hangs on a focusable info icon beside the chip, not on a tooltip around the chip (Endpoints list, Status column, PR #9617).
+
+**Measured.** At library 1.9.0 the `Chip` wraps itself in its own controlled `TooltipProvider` and `Tooltip` (the clipped-label bubble, Chip.tsx lines 650-658). A consumer `Tooltip` whose `TooltipTrigger asChild` wraps a span around the chip never opens on hover: the trigger stays `data-state="closed"` while `:hover` is true. Calling the outer trigger's handler by hand opens it, so the content is right and unreachable. Neither the wrapper span nor the chip is focusable, so keyboard users cannot reach it either. The Active and Inactive status chips of the same fragment use the same pattern and are likely affected.
+
+**Product need.** Sam's design standard: never a bare status, name its cause. A status chip needs an explanation people can reach with the pointer and the keyboard.
+
+**The request.** Either let `Chip` accept a consumer tooltip (a `tooltip` prop, or composing with an outer `Tooltip` when the label is not clipped), or a ruling that a chip's explanation always goes on a separate control beside it.
