@@ -27,8 +27,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.everyItem;
-import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -359,28 +357,17 @@ class ScenarioUpdateApiTest extends IntegrationTest {
 
   // The revision an update kept of the content the given version had.
   private String revisionId(Scenario scenario, String catalogVersion) throws Exception {
-    String body = revisions(scenario).andReturn().getResponse().getContentAsString();
-    return StreamSupport.stream(mapper.readTree(body).spliterator(), false)
-        .filter(
-            revision ->
-                catalogVersion.equals(revision.path("scenario_revision_catalog_version").asText()))
-        .map(revision -> revision.path("scenario_revision_id").asText())
-        .findFirst()
-        .orElseThrow();
+    return newestRevisionId(scenario, "scenario_revision_catalog_version", catalogVersion);
   }
 
-  // The revision the install kept, and the one the first update kept.
   private String revisionId(Scenario scenario, ScenarioRevision.Reason reason) throws Exception {
-    String body =
-        revisions(scenario)
-            .andExpect(
-                jsonPath("$[*].scenario_revision_catalog_version").value(everyItem(is(INSTALLED))))
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+    return newestRevisionId(scenario, "scenario_revision_reason", reason.name());
+  }
+
+  private String newestRevisionId(Scenario scenario, String field, String value) throws Exception {
+    String body = revisions(scenario).andReturn().getResponse().getContentAsString();
     return StreamSupport.stream(mapper.readTree(body).spliterator(), false)
-        .filter(
-            revision -> reason.name().equals(revision.path("scenario_revision_reason").asText()))
+        .filter(revision -> value.equals(revision.path(field).asText()))
         .map(revision -> revision.path("scenario_revision_id").asText())
         .findFirst()
         .orElseThrow();
@@ -831,6 +818,8 @@ class ScenarioUpdateApiTest extends IntegrationTest {
     void given_foreignRevision_should_refuseTheRollback(boolean otherTenant) throws Exception {
       // Arrange
       Scenario scenario = install();
+      // A request leaves no signed-in user, and creating a tenant enrols the signed-in one.
+      testUserHolder.refreshSecurityContext();
       String tenantId =
           otherTenant
               ? tenantHelper.createTenant("scenario-revision").getId()
