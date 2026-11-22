@@ -13,6 +13,8 @@ const { state, EMPTY_STATE, DELETE_SELECTION } = vi.hoisted(() => ({
     actions: [] as ThreatArsenalAction[],
     count: 0,
     bulkDelete: vi.fn(),
+    olderVersionsInUse: [] as string[],
+    reloadOlderVersions: vi.fn(),
   },
 }));
 
@@ -40,6 +42,12 @@ vi.mock('../../../../admin/components/threat_arsenal/hook/useActiveActions', () 
     addAction: vi.fn(),
     replaceAction: vi.fn(),
     removeAction: vi.fn(),
+  }),
+}));
+vi.mock('../../../../admin/components/threat_arsenal/hook/useOlderVersionsInUse', () => ({
+  default: () => ({
+    isInUse: (actionId: string) => state.olderVersionsInUse.includes(actionId),
+    reload: state.reloadOlderVersions,
   }),
 }));
 vi.mock('../../../../admin/components/threat_arsenal/hook/useActiveFacets', () => ({ default: () => ({ domainOptions: [] }) }));
@@ -91,12 +99,14 @@ vi.mock('../../../../components/common/marketplace/results/MarketplaceSections',
       ))),
 }));
 vi.mock('../../../../admin/components/threat_arsenal/card/ThreatArsenalCard', () => ({
-  default: ({ action, onSelect, onRunTest }: {
+  default: ({ action, olderVersionsInUse, onSelect, onRunTest }: {
     action: ThreatArsenalAction;
+    olderVersionsInUse: boolean;
     onSelect: () => void;
     onRunTest: () => void;
   }) => (
     <div>
+      {olderVersionsInUse && <p>{`Older versions of ${action.injector_contract_id}`}</p>}
       <button type="button" onClick={onSelect}>{`Open ${action.injector_contract_id}`}</button>
       <button type="button" onClick={onRunTest}>{`Test ${action.injector_contract_id}`}</button>
     </div>
@@ -117,7 +127,17 @@ vi.mock('../../../../components/common/DialogDelete', () => ({
   }) => (open ? <button type="button" onClick={handleSubmit}>{text}</button> : null),
 }));
 vi.mock('../../../../admin/components/threat_arsenal/bulk/ThreatArsenalRunTestDrawer', () => ({ default: ({ selectionCount }: { selectionCount: number }) => <p>{`Run a test on ${selectionCount}`}</p> }));
-vi.mock('../../../../admin/components/threat_arsenal/ThreatArsenalInformationDrawer', () => ({ default: ({ threatArsenalAction }: { threatArsenalAction: ThreatArsenalAction }) => <p>{`Drawer of ${threatArsenalAction.injector_contract_id}`}</p> }));
+vi.mock('../../../../admin/components/threat_arsenal/ThreatArsenalInformationDrawer', () => ({
+  default: ({ threatArsenalAction, onClose }: {
+    threatArsenalAction: ThreatArsenalAction;
+    onClose: () => void;
+  }) => (
+    <div>
+      <p>{`Drawer of ${threatArsenalAction.injector_contract_id}`}</p>
+      <button type="button" aria-label="Close drawer" onClick={onClose} />
+    </div>
+  ),
+}));
 vi.mock('../../../../admin/components/threat_arsenal/ThreatArsenalEmptyState', () => ({ default: () => <p>{EMPTY_STATE}</p> }));
 vi.mock('../../../../admin/components/threat_arsenal/utils/actionDomains', () => ({ default: () => [] }));
 vi.mock('../../../../admin/components/common/domains/DomainsIcons', () => ({ DOMAIN_ICON_MAP: {} }));
@@ -143,6 +163,7 @@ describe('ThreatArsenal', () => {
     state.viewMode = 'grid';
     state.actions = [];
     state.count = 0;
+    state.olderVersionsInUse = [];
   });
 
   afterEach(() => {
@@ -171,6 +192,23 @@ describe('ThreatArsenal', () => {
     expect(screen.getAllByRole('heading', { name: 'Other' })).toHaveLength(2);
     expect(screen.getByText('Drawer of b')).toBeTruthy();
     expect(screen.getByText('Run a test on 1')).toBeTruthy();
+  });
+
+  it('given_injectsOnAnOlderVersion_should_flagTheCardAndRecheckItWhenTheDrawerCloses', () => {
+    // Arrange
+    const b = action('b');
+    state.actions = [action('a'), b];
+    state.olderVersionsInUse = ['b'];
+    renderPage();
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: 'Open b' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close drawer' }));
+
+    // Assert
+    expect(screen.getByText('Older versions of b')).toBeTruthy();
+    expect(screen.queryByText('Older versions of a')).toBeNull();
+    expect(state.reloadOlderVersions).toHaveBeenCalledWith(b);
   });
 
   it('given_theListView_should_offerToSelectAll', () => {
