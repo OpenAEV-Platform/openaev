@@ -19,7 +19,7 @@ const OlderVersionsAlert: FunctionComponent<Props> = ({ usageCount, kept, onTogg
       severity={kept ? 'info' : 'warning'}
       title={kept
         ? t('Kept on their version. The card\'s banner returns with the next version.')
-        : counted(usageCount, '1 inject uses an older version', '{count} injects use an older version')}
+        : counted(usageCount, '1 inject still uses an older version.', '{count} injects still use older versions.')}
       description={kept ? undefined : t('Move them below, or keep them where they are.')}
       action={onToggle && (
         <Button size="sm" priority="secondary" onClick={onToggle}>

@@ -108,7 +108,7 @@ describe('PayloadVersionsTab', () => {
       can.mockReturnValue(true);
       keep.mockResolvedValue({});
       renderInApp(<PayloadVersionsTab versions={[latest, older]} usages={usages} onMoved={vi.fn()} />);
-      expect(await screen.findByText('1 inject uses an older version')).toBeTruthy();
+      expect(await screen.findByText('1 inject still uses an older version.')).toBeTruthy();
       expect(screen.getByText('Move them below, or keep them where they are.')).toBeTruthy();
 
       // Act
@@ -136,7 +136,7 @@ describe('PayloadVersionsTab', () => {
       fireEvent.click(screen.getByText('Show the banner again'));
 
       // Assert
-      expect(await screen.findByText('1 inject uses an older version')).toBeTruthy();
+      expect(await screen.findByText('1 inject still uses an older version.')).toBeTruthy();
       expect(showAgain).toHaveBeenCalledWith('action-v2');
     });
 
@@ -145,7 +145,7 @@ describe('PayloadVersionsTab', () => {
       renderInApp(<PayloadVersionsTab versions={[latest, older]} usages={usages} onMoved={vi.fn()} />);
 
       // Assert
-      expect(await screen.findByText('1 inject uses an older version')).toBeTruthy();
+      expect(await screen.findByText('1 inject still uses an older version.')).toBeTruthy();
       expect(screen.queryByText('Keep them on their version')).toBeNull();
     });
 
@@ -162,7 +162,7 @@ describe('PayloadVersionsTab', () => {
 
       // Assert
       expect(await screen.findByText('(0 injects)')).toBeTruthy();
-      expect(screen.queryByText('1 inject uses an older version')).toBeNull();
+      expect(screen.queryByText('1 inject still uses an older version.')).toBeNull();
     });
   });
 });
