@@ -4,7 +4,7 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.api.catalog.CatalogFeature;
+import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.api.scenario.dto.ScenarioRevisionOutput;
 import io.openaev.api.scenario.dto.ScenarioUpdateInput;
 import io.openaev.api.scenario.dto.ScenarioUpdatePreviewOutput;
@@ -12,6 +12,7 @@ import io.openaev.api.scenario.dto.ScenarioVersionsOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.catalog.scenario.update.CatalogScenarioUpdater;
 import io.openaev.service.catalog.scenario.update.InstalledScenarioService;
 import io.openaev.service.catalog.scenario.update.ScenarioRevisionService;
@@ -31,13 +32,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Updates a catalogue scenario to another version, or rolls it back to a revision. */
 @RestController
+@RequirePreviewFeature(PreviewFeature.CATALOG)
 @RequiredArgsConstructor
 public class ScenarioUpdateApi {
 
   private final CatalogScenarioUpdater catalogScenarioUpdater;
   private final ScenarioRevisionService scenarioRevisionService;
   private final InstalledScenarioService installedScenarioService;
-  private final CatalogFeature catalogFeature;
 
   // -- READ --
 
@@ -49,7 +50,6 @@ public class ScenarioUpdateApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public List<ScenarioRevisionOutput> revisions(TxCtx ctx, @PathVariable String scenarioId) {
-    catalogFeature.require();
     return scenarioRevisionService.revisions(ctx, scenarioId).stream()
         .map(ScenarioUpdateMapper::toOutput)
         .toList();
@@ -63,7 +63,6 @@ public class ScenarioUpdateApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public ScenarioVersionsOutput versions(TxCtx ctx, @PathVariable String scenarioId) {
-    catalogFeature.require();
     return ScenarioUpdateMapper.toOutput(installedScenarioService.versions(ctx, scenarioId));
   }
 
@@ -80,7 +79,6 @@ public class ScenarioUpdateApi {
       resourceType = ResourceType.SCENARIO)
   public ScenarioUpdatePreviewOutput previewUpdate(
       TxCtx ctx, @PathVariable String scenarioId, @PathVariable String version) {
-    catalogFeature.require();
     return ScenarioUpdateMapper.toOutput(
         catalogScenarioUpdater.previewUpdate(ctx, scenarioId, version));
   }
@@ -95,7 +93,6 @@ public class ScenarioUpdateApi {
       resourceType = ResourceType.SCENARIO)
   public ScenarioUpdatePreviewOutput previewRollback(
       TxCtx ctx, @PathVariable String scenarioId, @PathVariable String revisionId) {
-    catalogFeature.require();
     return ScenarioUpdateMapper.toOutput(
         catalogScenarioUpdater.previewRollback(ctx, scenarioId, revisionId));
   }
@@ -118,7 +115,6 @@ public class ScenarioUpdateApi {
       @PathVariable String scenarioId,
       @PathVariable String version,
       @Valid @RequestBody ScenarioUpdateInput input) {
-    catalogFeature.require();
     catalogScenarioUpdater.update(ctx, scenarioId, version, input.choices(), input.edits());
   }
 
@@ -138,7 +134,6 @@ public class ScenarioUpdateApi {
       @PathVariable String scenarioId,
       @PathVariable String revisionId,
       @Valid @RequestBody ScenarioUpdateInput input) {
-    catalogFeature.require();
     catalogScenarioUpdater.rollback(ctx, scenarioId, revisionId, input.choices(), input.edits());
   }
 }
