@@ -209,13 +209,14 @@ public class StreamService {
 
   /**
    * Whether a denied event must still reach the consumer, as an id-only tombstone: only the
-   * deletion of a grant-managed root (scenario, simulation, atomic testing). Its grants are deleted
-   * with it, so the check, run after commit, denies everyone who read it through a grant, and the
-   * tombstone is what removes it from their client. Any other denial is a real one: capability
-   * checks still hold once the row is gone, and a child is checked against its parent, which still
-   * exists.
+   * deletion of a grant-managed root (scenario, simulation, atomic testing). Also read by the
+   * notification engine, which captures the readers of such a root before the delete. Its grants
+   * are deleted with it, so the check, run after commit, denies everyone who read it through a
+   * grant, and the tombstone is what removes it from their client. Any other denial is a real one:
+   * capability checks still hold once the row is gone, and a child is checked against its parent,
+   * which still exists.
    */
-  private static boolean isGrantManagedRootDeletion(BaseEvent event) {
+  public static boolean isGrantManagedRootDeletion(BaseEvent event) {
     return DATA_DELETE.equals(event.getType())
         && Objects.equals(event.getInstance().getId(), event.getPermissionResourceId())
         && PermissionService.isManagedByGrants(event.getPermissionResourceType());

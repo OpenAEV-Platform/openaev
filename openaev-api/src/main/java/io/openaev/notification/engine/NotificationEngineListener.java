@@ -14,6 +14,7 @@ import io.openaev.database.model.TenantBase;
 import io.openaev.database.model.TenantIdBase;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.service.StreamService;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,12 @@ public class NotificationEngineListener {
       if (eventType == null || event.getInstance() == null) {
         return;
       }
+      // A grant-managed root deletion is delivered from the readers captured before the delete
+      // (NotificationReadersCaptureListener): checked here, after commit, its grants are gone and
+      // every grant reader would be denied the deleted event.
+      if (StreamService.isGrantManagedRootDeletion(event)) {
+        return;
+      }
       Optional<NotificationResourceCatalog> entry =
           NotificationResourceCatalog.fromEntity(event.getInstance());
       if (entry.isEmpty()) {
@@ -66,6 +73,20 @@ public class NotificationEngineListener {
       }
     } catch (Exception e) {
       log.error("Notification engine failed to process entity event", e);
+    }
+  }
+
+  /**
+   * Delivers, after the change committed, what it took away from the readers captured before it (a
+   * deletion, a grant or a membership removed). Nothing is sent for a rolled back change.
+   */
+  @Async("notificationEngineExecutor")
+  @TransactionalEventListener(fallbackExecution = true)
+  public void onReadersSnapshot(NotificationReadersSnapshot snapshot) {
+    try {
+      notificationEngineService.deliverSnapshot(snapshot);
+    } catch (Exception e) {
+      log.error("Notification engine failed to deliver a readers snapshot", e);
     }
   }
 
@@ -106,7 +127,7 @@ public class NotificationEngineListener {
    * Extracts a human-readable label from the event's serialized entity snapshot: first {@code
    * *_name} / {@code *_title} / {@code *_email} property, falling back to the entity id.
    */
-  private String resolveLabel(BaseEvent event) {
+  static String resolveLabel(BaseEvent event) {
     if (event.getInstance() instanceof User user) {
       return user.getNameOrEmail();
     }
