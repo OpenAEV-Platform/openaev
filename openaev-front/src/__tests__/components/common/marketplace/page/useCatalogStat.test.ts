@@ -6,15 +6,21 @@ const mocks = vi.hoisted(() => ({
   search: vi.fn(),
 }));
 
-vi.mock('../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (key: string) => key }) }));
 vi.mock(import('../../../../../utils/utils'), async importOriginal => ({
   ...await importOriginal(),
   isFeatureEnabled: () => mocks.catalog,
 }));
 
-const { default: useNotInstalledStat } = await import('../../../../../components/common/marketplace/page/useNotInstalledStat');
+const { default: useCatalogStat } = await import('../../../../../components/common/marketplace/page/useCatalogStat');
 
-describe('useNotInstalledStat', () => {
+const STAT = {
+  id: 'not-installed',
+  label: 'Not installed',
+  icon: 'download' as const,
+  to: '/admin/scenarios/available',
+};
+
+describe('useCatalogStat', () => {
   beforeEach(() => {
     mocks.search.mockResolvedValue({ data: { totalElements: 7 } });
   });
@@ -24,9 +30,9 @@ describe('useNotInstalledStat', () => {
     vi.clearAllMocks();
   });
 
-  it('given_theCatalogue_should_countTheAvailableTabWithOneSmallSearch', async () => {
+  it('given_theCatalogue_should_countTheSearchWithOneSmallSearch', async () => {
     // Act
-    const { result } = renderHook(() => useNotInstalledStat(mocks.search, '/admin/scenarios/available'));
+    const { result } = renderHook(() => useCatalogStat(mocks.search, STAT));
 
     // Assert
     await waitFor(() => expect(result.current[0]?.value).toBe(7));
@@ -42,7 +48,7 @@ describe('useNotInstalledStat', () => {
     mocks.catalog = false;
 
     // Act
-    const { result } = renderHook(() => useNotInstalledStat(mocks.search, '/admin/scenarios/available'));
+    const { result } = renderHook(() => useCatalogStat(mocks.search, STAT));
 
     // Assert
     expect(result.current).toEqual([]);
