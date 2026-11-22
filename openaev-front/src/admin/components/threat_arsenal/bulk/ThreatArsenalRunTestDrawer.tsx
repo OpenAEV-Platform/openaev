@@ -7,6 +7,7 @@ import { type FunctionComponent, useState } from 'react';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type SearchPaginationInput, type ThreatArsenalAction } from '../../../../utils/api-types';
+import useCountLabel from '../../../../utils/hooks/useCountLabel';
 import ThreatArsenalExecutionModeCardComponent from '../ThreatArsenalExecutionModeCardComponent';
 import ThreatArsenalAtomicTestCreationComponent from './ThreatArsenalAtomicTestCreationComponent';
 import ThreatArsenalScenarioCreationComponent from './ThreatArsenalScenarioCreationComponent';
@@ -41,6 +42,7 @@ const ThreatArsenalRunTestDrawer: FunctionComponent<Props> = ({
   onClose,
 }) => {
   const { t } = useFormatter();
+  const countLabel = useCountLabel();
   const [selectedExecutionMode, setSelectedExecutionMode] = useState<ExecutionMode>(ExecutionMode.EMPTY);
   const activeStep = selectedExecutionMode === ExecutionMode.EMPTY ? 0 : 1;
   const handleBack = () => setSelectedExecutionMode(ExecutionMode.EMPTY);
@@ -86,9 +88,7 @@ const ThreatArsenalRunTestDrawer: FunctionComponent<Props> = ({
       title={t('Run a test')}
       headerActions={(
         <Chip
-          label={selectionCount === 1
-            ? t('1 action selected')
-            : String(t('{count} actions selected', { count: selectionCount }))}
+          label={countLabel(selectionCount, '1 action selected', '{count} actions selected')}
           severity="info"
         />
       )}

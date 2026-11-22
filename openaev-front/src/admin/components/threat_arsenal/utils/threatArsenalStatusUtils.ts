@@ -6,24 +6,17 @@ import { isFeatureEnabled } from '../../../../utils/utils';
 
 export type PayloadStatus = 'VERIFIED' | 'UNVERIFIED' | 'DEPRECATED' | 'REVOKED';
 
-// Theme-aware so cards / overview / quick filters render the same color in
-// both dark and light modes. `theme.palette.warning.main` differs across
-// themes (e.g. dark `#ffa726` vs light `#ed6c02`), so we defer to the theme
-// instead of hard-coding hex values.
-export const getStatusColor = (theme: Theme, status: PayloadStatus | string | undefined | null): string => {
-  switch (status) {
-    case 'VERIFIED':
-      return theme.palette.success.main;
-    case 'UNVERIFIED':
-      return theme.palette.warning.main;
-    case 'DEPRECATED':
-      return theme.palette.text.disabled;
-    case 'REVOKED':
-      return theme.palette.error.main;
-    default:
-      return theme.palette.text.disabled;
-  }
+// From the theme, so both modes get their own shade.
+const STATUS_COLOR: Record<PayloadStatus, (theme: Theme) => string> = {
+  VERIFIED: theme => theme.palette.success.main,
+  UNVERIFIED: theme => theme.palette.warning.main,
+  DEPRECATED: theme => theme.palette.text.disabled,
+  REVOKED: theme => theme.palette.error.main,
 };
+
+export const getStatusColor = (theme: Theme, status: PayloadStatus | string | undefined | null): string => (
+  STATUS_COLOR[status as PayloadStatus] ?? STATUS_COLOR.DEPRECATED
+)(theme);
 
 export const STATUS_LABEL_MAP: Record<PayloadStatus, string> = {
   VERIFIED: 'Verified',
