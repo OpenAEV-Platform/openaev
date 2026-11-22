@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
  * version. {@code steps} grows with use: its index is built concurrently, outside a transaction.
  */
 @Component
-public class V6_20261120160000000__Payload_identity_older_versions_kept extends BaseJavaMigration {
+public class V6_20261122210000000__Payload_identity_older_versions_kept extends BaseJavaMigration {
 
   private static final String STEP_CONTRACT_INDEX = "idx_steps_template_injector_contract";
 
