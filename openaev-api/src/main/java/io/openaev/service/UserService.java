@@ -377,6 +377,11 @@ public class UserService {
       entityManager.refresh(existing);
       assignAutoAssignGroups(existing, attachedTenantIds, false);
       revokeTenantGroups(existing, detachedTenantIds);
+      // Both write the membership rows in SQL and leave the loaded groups as they were before:
+      // reloaded, so the update event carries the groups the user holds now.
+      if (!attachedTenantIds.isEmpty() || !detachedTenantIds.isEmpty()) {
+        entityManager.refresh(existing);
+      }
     }
     // The refresh left the streamed associations lazy again; load them in the caller's scope.
     loadStreamedAssociations(existing);
