@@ -66,4 +66,31 @@ class AssetDiscoveryMarkerTest {
     verify(tagService, org.mockito.Mockito.times(2)).upsertTag(captor.capture(), eq(TENANT));
     assertThat(captor.getValue().getName()).isEqualTo(AssetDiscoveryMarker.DISCOVERED_TAG_NAME);
   }
+
+  @Test
+  @DisplayName("given no input should return null and read no setting")
+  void given_noInput_should_returnNull() {
+    // Act + Assert
+    assertThat(marker.markDiscovered(null, TENANT)).isNull();
+    verifyNoInteractions(settings, tagService);
+  }
+
+  @Test
+  @DisplayName("given an input without tags should carry the discovered tag alone")
+  void given_inputWithoutTags_should_carryTheTagAlone() {
+    // Arrange
+    when(settings.isAssetDiscoveryTagEnabled(any(TxCtx.class), eq(TENANT))).thenReturn(true);
+    Tag tag = new Tag();
+    tag.setId("tag-discovered");
+    when(tagService.upsertTag(any(TagCreateInput.class), eq(TENANT))).thenReturn(tag);
+    EndpointInput input = new EndpointInput();
+    input.setTagIds(null);
+
+    // Act
+    EndpointInput marked = marker.markDiscovered(input, TENANT);
+
+    // Assert
+    assertThat(marked).isSameAs(input);
+    assertThat(input.getTagIds()).containsExactly("tag-discovered");
+  }
 }
