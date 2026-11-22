@@ -26,24 +26,16 @@ import {
   TooltipTrigger,
 } from '@filigran/design-system';
 import {
-  AccountTreeOutlined,
   ArrowDropDownOutlined,
   AutorenewOutlined,
-  BubbleChartOutlined,
   CategoryOutlined,
   CenterFocusStrongOutlined,
   CloseOutlined,
   DeleteOutlined,
-  DonutLargeOutlined,
-  DownloadOutlined,
-  ExpandLessOutlined,
-  ExpandMoreOutlined,
   FitScreenOutlined,
-  GestureOutlined,
   HubOutlined,
   KeyboardOutlined,
   LinkOutlined,
-  ListAltOutlined,
   MoreHorizOutlined,
   OpenInFullOutlined,
   OpenInNewOutlined,
@@ -53,10 +45,8 @@ import {
   UndoOutlined,
   VisibilityOffOutlined,
   VisibilityOutlined,
-  ZoomInOutlined,
-  ZoomOutOutlined,
 } from '@mui/icons-material';
-import { Box, Drawer, List, ListItemButton, ListItemText } from '@mui/material';
+import { Box, List, ListItemButton, ListItemText } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
   Background,
@@ -79,15 +69,15 @@ import { useFormatter } from '../../../components/i18n';
 import { resolveCounterparts } from '../../../components/xtm/counterpartStore';
 import { OPENCTI_PRODUCT } from '../../../components/xtm/useCounterpart';
 import useCounterpartMatches, { type CounterpartRef, counterpartRefId } from '../../../components/xtm/useCounterpartMatches';
-import OpenCrqPivot, { OPENCRQ_PRODUCT, OpenCrqMark } from '../../../components/xtm/XtmOpenCrq';
-import OpenCtiPivot, { ProductMark } from '../../../components/xtm/XtmPivot';
+import { OPENCRQ_PRODUCT, OpenCrqMark } from '../../../components/xtm/XtmOpenCrq';
+import { ProductMark } from '../../../components/xtm/XtmPivot';
 import { toHttpUrl } from '../../../utils/url-helper';
 import { drawnRelations, nodeConnections } from './graph-connections';
 import { NODE_LABEL_OFFSET, NODE_WIDTH } from './graph-edge-geometry';
 import { type GroupedNode, groupNeighbours, isGroupId, miniView } from './graph-grouping';
-import NODE_ICON from './graph-icons';
 import { LASSO_MIN_LENGTH, nodesInLasso, pathLength } from './graph-lasso';
 import { entering, type GraphLayout, MINI_CARD_PADDING, miniCardHeight, moveAt, planMove, type Point } from './graph-layout';
+import { linkItem, menuItem, routeItem, subTriggerLabel } from './graph-menu-items';
 import {
   ALL_EDGE_TYPES,
   ALL_NODE_TYPES,
@@ -126,8 +116,12 @@ import {
   visibleGraph,
 } from './graph-state';
 import { dateBounds, followBounds, TIME_RANGE_STEP, type TimeRange } from './graph-time-range';
+import GraphCanvasToolbar, { LASSO_LABEL } from './GraphCanvasToolbar';
+import GraphContextMenu from './GraphContextMenu';
 import GraphEntityNode, { type GraphEntityNodeType } from './GraphEntityNode';
 import GraphFloatingEdge from './GraphFloatingEdge';
+import GraphLegend from './GraphLegend';
+import GraphSidePanel from './GraphSidePanel';
 
 /** The ids of the nodes whose counterpart key is among the matched ones of a product. */
 const matchedNodeIds = (refs: Map<string, CounterpartRef>, found: Set<string>) => new Set(Array.from(refs.entries())
@@ -209,22 +203,6 @@ const RESULT_CHIP_SEVERITY: Record<GraphResult, 'critical' | 'low' | 'medium'> =
   SUCCESS: 'low',
   PENDING: 'medium',
 };
-
-const LAYOUT_ICON: Record<GraphLayout, ReactNode> = {
-  force: <BubbleChartOutlined fontSize="small" />,
-  hierarchical: <AccountTreeOutlined fontSize="small" />,
-  radial: <DonutLargeOutlined fontSize="small" />,
-};
-
-/** What each layout button does, said in its tooltip (Sam, 19 Nov 2026: no button without one). */
-const LAYOUT_LABEL: Record<GraphLayout, string> = {
-  force: 'Force layout: nodes repel each other, links pull them together. Click again to re-run it.',
-  hierarchical: 'Hierarchical layout: scenarios on top, findings at the bottom',
-  radial: 'Radial layout: rings of neighbours around the selected node',
-};
-
-/** The lasso button's tooltip and its shortcut line (OpenCTI's LassoSelection). */
-const LASSO_LABEL = 'Lasso selection: draw around nodes to select them';
 
 /** The keyboard shortcuts of the page graph, listed by the shortcuts dialog (as in OpenCTI). */
 const SHORTCUTS: [string, string][] = [
@@ -909,119 +887,26 @@ const GraphExplorerInner = ({
 
   const toggle = <T, >(list: T[], value: T) => (list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
 
-  const resultColour: Record<GraphResult, string> = {
-    FAILED: theme.palette.error.main,
-    PENDING: theme.palette.warning.main,
-    SUCCESS: theme.palette.success.main,
-  };
-
-  // The legend, as OpenCTI's GraphLegend: the entity types present in the graph with their count, a
-  // click shows or hides the type (the Entities filter, in sync), then the result colours.
+  // The entity types present in the graph with their count, for the legend and the toolbar count.
   const typeCounts = useMemo(() => {
     const counts = new Map<GraphNodeType, number>();
     Object.values(state.nodes).filter(n => !state.hidden.includes(n.node_id)).forEach(n => counts.set(n.node_type, (counts.get(n.node_type) ?? 0) + 1));
     return counts;
   }, [state.nodes, state.hidden]);
   const visibleCount = Array.from(typeCounts.values()).reduce((sum, count) => sum + count, 0);
-  // As OpenCTI's GraphLegend, a card floating in the canvas (bottom left), one line per type present
-  // with its count, collapsed by its header; open on the page, closed on the smaller embedded graph.
+  // Open on the page, closed on the smaller embedded graph.
   const [legendOpen, setLegendOpen] = useState(variant === 'page');
-  const legendEntries = (
-    <>
-      {ALL_NODE_TYPES.filter(type => typeCounts.has(type)).map((type) => {
-        const Icon = NODE_ICON[type];
-        const on = filters.nodeTypes.includes(type);
-        return (
-          <Tooltip key={type}>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-pressed={on}
-                onClick={() => setFilters({
-                  ...filters,
-                  nodeTypes: toggle(filters.nodeTypes, type),
-                })}
-                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-elevation-hover"
-                style={{
-                  opacity: on ? 1 : 0.4,
-                  textDecoration: on ? 'none' : 'line-through',
-                  border: 0,
-                  background: 'transparent',
-                  color: 'inherit',
-                }}
-              >
-                <Icon />
-                <Text variant="content-caption">{`${t(NODE_TYPE_LABEL[type])} (${typeCounts.get(type)})`}</Text>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>{on ? t('Hide this type') : t('Show this type')}</TooltipContent>
-          </Tooltip>
-        );
-      })}
-      <span aria-hidden className="my-1 h-px w-full" style={{ background: theme.palette.divider }} />
-      {ALL_RESULTS.map(result => (
-        <span key={result} className="inline-flex items-center gap-1 px-1">
-          <span
-            aria-hidden
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              border: `2px solid ${resultColour[result]}`,
-            }}
-          />
-          <Text variant="content-caption">{t(RESULT_LABEL[result])}</Text>
-        </span>
-      ))}
-      <span className="inline-flex items-center gap-1 px-1">
-        <span
-          aria-hidden
-          style={{
-            width: 10,
-            height: 10,
-            borderRadius: '50%',
-            border: `2px dashed ${theme.palette.text.secondary}`,
-          }}
-        />
-        <Text variant="content-caption">{t('Group of neighbours, double-click to open')}</Text>
-      </span>
-    </>
-  );
   const renderLegend = () => (
-    <div
-      data-testid="graph-legend"
-      className="absolute flex flex-col rounded"
-      style={{
-        left: 12,
-        bottom: 12,
-        zIndex: 4,
-        maxWidth: 240,
-        maxHeight: 'calc(100% - 24px)',
-        overflowY: 'auto',
-        background: theme.palette.background.paper,
-        border: `1px solid ${theme.palette.divider}`,
-      }}
-    >
-      <button
-        type="button"
-        aria-expanded={legendOpen}
-        onClick={() => setLegendOpen(!legendOpen)}
-        className="inline-flex items-center justify-between gap-2 px-2 py-1 hover:bg-elevation-hover"
-        style={{
-          border: 0,
-          background: 'transparent',
-          color: 'inherit',
-        }}
-      >
-        <Text variant="content-caption">{t('Legend')}</Text>
-        {legendOpen ? <ExpandMoreOutlined fontSize="small" /> : <ExpandLessOutlined fontSize="small" />}
-      </button>
-      {legendOpen && (
-        <div className="flex flex-col items-start gap-1 px-1 pb-1" role="group" aria-label={t('Legend')}>
-          {legendEntries}
-        </div>
-      )}
-    </div>
+    <GraphLegend
+      typeCounts={typeCounts}
+      shownTypes={filters.nodeTypes}
+      onToggleType={type => setFilters({
+        ...filters,
+        nodeTypes: toggle(filters.nodeTypes, type),
+      })}
+      open={legendOpen}
+      onToggleOpen={() => setLegendOpen(!legendOpen)}
+    />
   );
 
   /** A multi-select of the FDS menu: a trigger that names the count, a checked item per value. */
@@ -1048,17 +933,6 @@ const GraphExplorerInner = ({
         ))}
       </MenuContent>
     </Menu>
-  );
-
-  const iconAction = (label: string, icon: ReactNode, onClick: () => void, disabled = false, active = false) => (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span>
-          <IconButton priority="tertiary" icon={icon} aria-label={label} onClick={onClick} disabled={disabled} active={active} aria-pressed={active || undefined} />
-        </span>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
   );
 
   // The filters float inside the canvas frame, top edge, left of the open side panel (a canvas
@@ -1149,54 +1023,31 @@ const GraphExplorerInner = ({
     </div>
   );
 
-  // The graph actions, as OpenCTI's GraphToolbar: ONE icon bar on the canvas (bottom right, left of
-  // the open side panel, clear of the legend card) opened by the count of entities shown. Each
-  // layout button runs its layout from scratch (a second click on the active one re-runs it), then
-  // the view is framed; every button says what it does on hover. The embedded graph keeps the count, the zoom and the fit.
-  // A theme colour, not a class: the design system ships no divider background utility.
-  const separator = <span aria-hidden className="mx-1 h-4 w-px" style={{ background: theme.palette.divider }} />;
+  // The graph actions (GraphCanvasToolbar); the embedded graph keeps the count, the zoom and the fit.
   const canvasToolbar = (offset: number) => (
-    <div
-      data-testid="graph-canvas-toolbar"
-      role="toolbar"
-      aria-label={t('Graph layout')}
-      className="absolute flex items-center gap-1 rounded px-2"
-      style={{
-        bottom: 12,
-        right: 12 + offset,
-        zIndex: 4,
-        background: theme.palette.background.paper,
-        border: `1px solid ${theme.palette.divider}`,
-      }}
-    >
-      <Text variant="content-caption" className="px-1 text-default-secondary">{`${t('Entities')}: ${visibleCount}`}</Text>
-      {separator}
-      {iconAction(t('Zoom in'), <ZoomInOutlined fontSize="small" />, () => zoomIn())}
-      {iconAction(t('Zoom out'), <ZoomOutOutlined fontSize="small" />, () => zoomOut())}
-      {iconAction(t('Fit to screen'), <FitScreenOutlined fontSize="small" />, fitToScreen)}
-      {variant === 'page' && (
-        <>
-          {separator}
-          {(['force', 'hierarchical', 'radial'] as GraphLayout[]).map(value => (
-            <span key={value}>{iconAction(t(LAYOUT_LABEL[value]), LAYOUT_ICON[value], () => relayout(value), false, layout === value)}</span>
-          ))}
-          {iconAction(t('Re-run the layout'), <AutorenewOutlined fontSize="small" />, () => relayout())}
-          {separator}
-          {iconAction(t(LASSO_LABEL), <GestureOutlined fontSize="small" />, () => setLassoOn(!lassoOn), false, lassoOn)}
-          {iconAction(t('Show hidden nodes'), <VisibilityOutlined fontSize="small" />, () => commit(showHidden), state.hidden.length === 0)}
-          {iconAction(t('Undo'), <UndoOutlined fontSize="small" />, undo, history.past.length === 0)}
-          {separator}
-          {iconAction(t('Export as PNG'), <DownloadOutlined fontSize="small" />, exportPng)}
-          {iconAction(t('Copy a link to this view'), <LinkOutlined fontSize="small" />, () => copyLink())}
-          {iconAction(t('List the entities'), <ListAltOutlined fontSize="small" />, () => setListOpen(true))}
-          {iconAction(t('Keyboard shortcuts'), <KeyboardOutlined fontSize="small" />, () => setShortcutsOpen(true))}
-        </>
-      )}
-    </div>
+    <GraphCanvasToolbar
+      full={variant === 'page'}
+      offset={offset}
+      visibleCount={visibleCount}
+      layout={layout}
+      lassoOn={lassoOn}
+      canShowHidden={state.hidden.length > 0}
+      canUndo={history.past.length > 0}
+      onZoomIn={() => zoomIn()}
+      onZoomOut={() => zoomOut()}
+      onFit={fitToScreen}
+      onRelayout={relayout}
+      onToggleLasso={() => setLassoOn(!lassoOn)}
+      onShowHidden={() => commit(showHidden)}
+      onUndo={undo}
+      onExportPng={exportPng}
+      onCopyLink={() => copyLink()}
+      onListEntities={() => setListOpen(true)}
+      onShortcuts={() => setShortcutsOpen(true)}
+    />
   );
 
   const panelOpen = Boolean(selectedNode && interactive);
-  const selectedCounterpart = selectedNode ? nodeCounterpart(selectedNode) : null;
 
   // "Targets · 12 (8 not shown)": a relation of the expand lists with its count in the data and
   // what the screen does not draw yet; the bare label when the node was not counted.
@@ -1211,117 +1062,26 @@ const GraphExplorerInner = ({
   };
 
   const panel = selectedNode && interactive && (
-    <Drawer
-      data-testid="graph-side-panel"
-      anchor="right"
-      variant="persistent"
-      open={panelOpen}
-      slotProps={{
-        paper: {
-          sx: {
-            position: 'absolute',
-            width: PANEL_WIDTH,
-            p: 2,
-          },
-        },
+    <GraphSidePanel
+      node={selectedNode}
+      width={PANEL_WIDTH}
+      neighbours={neighbours}
+      nodeActions={nodeActions}
+      pinned={state.pinned.includes(selectedNode.node_id)}
+      pathFromHere={pathFrom === selectedNode.node_id}
+      truncated={state.truncatedAt.includes(selectedNode.node_id)}
+      relationLabel={relationLabel}
+      onClose={() => setSelected(null)}
+      onExpand={(edges, limit) => expand(selectedNode, edges, limit)}
+      onFindPath={() => setPathFrom(selectedNode.node_id)}
+      onTogglePin={() => commit(s => togglePin(s, selectedNode.node_id))}
+      onHide={() => {
+        commit(s => hideNode(s, selectedNode.node_id));
+        setSelected(null);
       }}
-      sx={{
-        '& .MuiDrawer-paper': {
-          height: '100%',
-          boxSizing: 'border-box',
-        },
-      }}
-    >
-      <div className="flex items-center gap-2">
-        {NODE_ICON[selectedNode.node_type]()}
-        <Text variant="title-sm" as="div" className="min-w-0 truncate" style={{ flexGrow: 1 }}>
-          {selectedNode.node_label}
-        </Text>
-        <IconButton priority="tertiary" icon={<CloseOutlined fontSize="small" />} onClick={() => setSelected(null)} aria-label={t('Close')} />
-      </div>
-      <Text variant="content-compact" as="div" className="text-default-secondary">
-        {t(NODE_TYPE_LABEL[selectedNode.node_type])}
-        {selectedNode.node_subtype ? ` · ${selectedNode.node_subtype}` : ''}
-      </Text>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Chip severity={selectedNode.node_failed_count > 0 ? 'critical' : 'neutral'} label={`${t('Failed expectations')}: ${selectedNode.node_failed_count}`} />
-        <Chip label={`${t('Findings')}: ${selectedNode.node_finding_count}`} />
-      </div>
-      <div className="mt-4 flex flex-col gap-2">
-        {/* The node's counterparts, as on the entity's own screen: "Open in", "Not in" or the
-            connect call to action, per product. */}
-        {selectedCounterpart && <OpenCtiPivot kind={selectedCounterpart.kind} objectKey={selectedCounterpart.key} size="md" />}
-        {selectedCounterpart && <OpenCrqPivot kind={selectedCounterpart.kind} objectKey={selectedCounterpart.key} size="md" />}
-        {nodeHref(selectedNode) && (
-          <Button asChild priority="secondary">
-            <Link to={nodeHref(selectedNode) as string}>
-              <OpenInNewOutlined fontSize="small" />
-              {t('Open')}
-            </Link>
-          </Button>
-        )}
-        <Button type="button" priority="secondary" startIcon={<CenterFocusStrongOutlined fontSize="small" />} onClick={() => expand(selectedNode)}>
-          {t('Expand')}
-        </Button>
-        <Button
-          type="button"
-          priority="secondary"
-          startIcon={<RouteOutlined fontSize="small" />}
-          onClick={() => setPathFrom(selectedNode.node_id)}
-          disabled={pathFrom === selectedNode.node_id}
-        >
-          {pathFrom === selectedNode.node_id ? t('Select the destination node') : t('Find a path from here')}
-        </Button>
-        <div className="flex gap-2">
-          <Button type="button" priority="tertiary" startIcon={<PushPinOutlined fontSize="small" />} onClick={() => commit(s => togglePin(s, selectedNode.node_id))}>
-            {state.pinned.includes(selectedNode.node_id) ? t('Unpin') : t('Pin')}
-          </Button>
-          <Button
-            type="button"
-            priority="tertiary"
-            startIcon={<VisibilityOffOutlined fontSize="small" />}
-            onClick={() => {
-              commit(s => hideNode(s, selectedNode.node_id));
-              setSelected(null);
-            }}
-          >
-            {t('Hide')}
-          </Button>
-        </div>
-        {nodeActions.filter(a => a.appliesTo(selectedNode)).map(action => (
-          <Button key={action.key} type="button" priority="secondary" startIcon={action.icon} onClick={() => action.onClick(selectedNode)}>
-            {action.label}
-          </Button>
-        ))}
-      </div>
-      <Text variant="content-compact-bold" as="div" className="mt-4">{t('Expand by relation')}</Text>
-      <div className="mt-1 flex flex-wrap gap-1">
-        {EDGE_TYPES_BY_NODE_TYPE[selectedNode.node_type].map(type => (
-          <Chip key={type} label={relationLabel(selectedNode, type)} onClick={() => expand(selectedNode, [type])} />
-        ))}
-      </div>
-      {state.truncatedAt.includes(selectedNode.node_id) && (
-        <div className="mt-2">
-          <Button type="button" priority="tertiary" onClick={() => expand(selectedNode, [], 200)}>{t('Load more')}</Button>
-        </div>
-      )}
-      <Text variant="content-compact-bold" as="div" className="mt-4">{t('Neighbours')}</Text>
-      <List dense sx={{ overflowY: 'auto' }}>
-        {neighbours.map(({ node, type, result }) => (
-          <ListItemButton
-            key={`${type}-${node.node_id}`}
-            onClick={() => setSelected(node.node_id)}
-            onMouseEnter={() => setHovered(node.node_id)}
-            onMouseLeave={() => setHovered(null)}
-          >
-            <ListItemText
-              primary={node.node_label}
-              secondary={`${t(EDGE_TYPE_LABEL[type])} · ${t(NODE_TYPE_LABEL[node.node_type])}${result ? ` · ${t(RESULT_LABEL[result])}` : ''}`}
-            />
-          </ListItemButton>
-        ))}
-      </List>
-    </Drawer>
+      onSelect={setSelected}
+      onHover={setHovered}
+    />
   );
 
   // The right-click menu, as OpenCTI's GraphContextMenu: the actions that apply to what is under the
@@ -1339,49 +1099,6 @@ const GraphExplorerInner = ({
     });
   };
   const closeMenu = () => setMenu(null);
-  // Every item keeps the icon slot, an empty one when it has no icon, so all labels of a menu share
-  // one left edge.
-  const iconSlot = (icon: ReactNode) => icon ?? (
-    <span
-      aria-hidden
-      style={{
-        display: 'inline-block',
-        width: 20,
-        height: 20,
-      }}
-    />
-  );
-  const menuItem = (key: string, label: string, icon: ReactNode, onSelect: () => void, disabled = false) => (
-    <MenuItem key={key} startIcon={iconSlot(icon)} disabled={disabled} onSelect={onSelect}>{label}</MenuItem>
-  );
-  // A submenu trigger takes no startIcon: its icon sits in its label, with the same slot width.
-  const subTriggerLabel = (icon: ReactNode, label: string) => (
-    <span className="flex items-center gap-2">
-      {icon}
-      {label}
-    </span>
-  );
-  const linkItem = (key: string, label: string, icon: ReactNode, href: string | undefined) => {
-    if (!href) {
-      return [];
-    }
-    return [(
-      <MenuItem key={key} startIcon={icon} asChild>
-        <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
-      </MenuItem>
-    )];
-  };
-  // An entity of this product: a router link, so a middle click or "open in new tab" works as on any other entity link.
-  const routeItem = (key: string, label: string, icon: ReactNode, href: string | undefined) => {
-    if (!href) {
-      return [];
-    }
-    return [(
-      <MenuItem key={key} startIcon={icon} asChild>
-        <Link to={href}>{label}</Link>
-      </MenuItem>
-    )];
-  };
   const nodeMenu = (node: GraphNodeOutput) => {
     const href = nodeHref(node);
     const present = ALL_NODE_TYPES.filter(type => type !== node.node_type);
@@ -1479,34 +1196,9 @@ const GraphExplorerInner = ({
     return graphMenu();
   };
   const contextMenu = menu && (
-    <Menu
-      open
-      modal={false}
-      onOpenChange={(open) => {
-        if (!open) {
-          closeMenu();
-        }
-      }}
-    >
-      {/* The library Menu opens from a trigger only: a hidden one sits at the pointer, as in OpenCTI. */}
-      <MenuTrigger asChild>
-        <span
-          aria-hidden
-          tabIndex={-1}
-          style={{
-            position: 'absolute',
-            left: menu.x,
-            top: menu.y,
-            width: 1,
-            height: 1,
-            pointerEvents: 'none',
-          }}
-        />
-      </MenuTrigger>
-      <MenuContent align="start" side="bottom" aria-label={t('Graph actions')} collisionPadding={8} data-testid="graph-context-menu">
-        {menuSections()}
-      </MenuContent>
-    </Menu>
+    <GraphContextMenu x={menu.x} y={menu.y} onClose={closeMenu}>
+      {menuSections()}
+    </GraphContextMenu>
   );
 
   const shortcutsDialog = (

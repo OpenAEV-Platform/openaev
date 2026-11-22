@@ -28,6 +28,11 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>An OpenAEV token carries no name: the {@code token_name} of the contract names the one token
  * of the peer account, so issuing revokes every token of the account and creates a new one, and
  * revoking deletes them all. The account itself is kept.
+ *
+ * <p>Only the consumers in {@link #ACCEPTED_CONSUMERS} get an account, and only under their own
+ * email ({@code <consumer>@xtm.<product>.filigran.io}): the read-only role of {@link
+ * ReservedServiceAccount#XTM_PEER} is the set of reads that consumer makes. The group receives no
+ * marking on its own: the tenant administrator grants it the markings allowed to leave OpenAEV.
  */
 @Service
 @Slf4j
@@ -36,6 +41,13 @@ public class XtmPeerPrivilegeService extends AbstractPrivilegeService {
   /** {@code <consumer>@xtm.<product>.filigran.io}, the identity the deployment manager derives. */
   private static final Pattern PEER_EMAIL =
       Pattern.compile("^[a-z0-9-]{1,64}@xtm\\.[a-z0-9-]{1,32}\\.filigran\\.io$");
+
+  /**
+   * The consumers whose reads the peer role carries. Another consumer is refused until its reads
+   * are named in {@link ReservedServiceAccount#XTM_PEER}: OpenCTI has no reader of an OpenAEV
+   * token, and XTM One calls OpenAEV with a per-user JWT.
+   */
+  public static final Set<String> ACCEPTED_CONSUMERS = Set.of("opencrq");
 
   private final SessionManager sessionManager;
 
@@ -66,9 +78,30 @@ public class XtmPeerPrivilegeService extends AbstractPrivilegeService {
     return ReservedServiceAccount.XTM_PEER.access();
   }
 
+  /**
+   * False: what leaves OpenAEV through a peer is what the tenant administrator grants the peer
+   * group, never every marking by default.
+   */
   @Override
   protected boolean receivesEveryMarking() {
-    return true;
+    return false;
+  }
+
+  /**
+   * Refuses a consumer the peer role was not built for, and an email that names another consumer
+   * than the one declared, so one consumer can never mint the token of another.
+   */
+  public static String requireAcceptedConsumer(String consumer, String peerEmail) {
+    String normalized = consumer == null ? "" : consumer.trim().toLowerCase(Locale.ROOT);
+    if (!ACCEPTED_CONSUMERS.contains(normalized)) {
+      throw new BadRequestException(
+          "The XTM peer consumer '" + normalized + "' is not accepted by this platform");
+    }
+    if (!peerEmail.startsWith(normalized + "@")) {
+      throw new BadRequestException(
+          "The email of an XTM peer account must start with its consumer: " + normalized + "@");
+    }
+    return normalized;
   }
 
   /** Refuses an email outside the peer identity space, so the API can never reach a person. */
@@ -87,11 +120,15 @@ public class XtmPeerPrivilegeService extends AbstractPrivilegeService {
    * contain the default tenant.
    */
   @Transactional
-  public IssuedPeerToken issueToken(TxCtx ctx, String email, String name) {
+  public IssuedPeerToken issueToken(TxCtx ctx, String consumer, String email, String name) {
     String peerEmail = normalizePeerEmail(email);
+    requireAcceptedConsumer(consumer, peerEmail);
     Group group =
         ensureWellKnownGroupWithRole(
             ensureWellKnownRole(ctx, DEFAULT_TENANT_UUID), DEFAULT_TENANT_UUID);
+    // A group provisioned before the peer stopped receiving every marking keeps the markings it
+    // holds (the administrator trims them) but receives no new one.
+    tenantGroupService.stopReceivingNewMarkings(group);
     String token = UUID.randomUUID().toString();
 
     Optional<User> existing = userService.findByEmailIgnoreCase(peerEmail);

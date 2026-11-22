@@ -2,6 +2,7 @@ package io.openaev.service.connectors;
 
 import static io.openaev.database.model.SettingKeys.*;
 
+import io.openaev.api.xtm_composer.dto.XtmComposerConnectivityInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
@@ -17,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @Service
@@ -26,8 +28,31 @@ public class XtmComposerService {
 
   private final PlatformSettingsService platformSettingsService;
 
-  private XtmComposerOutput toXtmComposerOutput(String composerId, String composerVersion) {
-    return XtmComposerOutput.builder().id(composerId).version(composerVersion).build();
+  /** The version recorded for an XTM Composer that reports none: never the platform version. */
+  public static final String UNKNOWN_VERSION = "unknown";
+
+  private static String settingValue(Map<String, Setting> settings, SettingKeys key) {
+    Setting setting = settings.get(key.key());
+    return setting == null || setting.getValue() == null ? key.defaultValue() : setting.getValue();
+  }
+
+  private static XtmComposerOutput toXtmComposerOutput(Map<String, Setting> settings) {
+    return XtmComposerOutput.builder()
+        .id(settingValue(settings, XTM_COMPOSER_ID))
+        .version(settingValue(settings, XTM_COMPOSER_PLATFORM_VERSION))
+        .reportedVersion(settingValue(settings, XTM_COMPOSER_VERSION))
+        .image(settingValue(settings, XTM_COMPOSER_IMAGE))
+        .build();
+  }
+
+  /** The version XTM Composer reported, trimmed, or {@link #UNKNOWN_VERSION} when blank. */
+  static String reportedVersion(String version) {
+    return StringUtils.hasText(version) ? version.trim() : UNKNOWN_VERSION;
+  }
+
+  /** The image XTM Composer reported, trimmed, or empty when blank. */
+  static String reportedImage(String image) {
+    return StringUtils.hasText(image) ? image.trim() : "";
   }
 
   /**
@@ -120,6 +145,8 @@ public class XtmComposerService {
             XTM_COMPOSER_ID.key(),
             XTM_COMPOSER_NAME.key(),
             XTM_COMPOSER_VERSION.key(),
+            XTM_COMPOSER_IMAGE.key(),
+            XTM_COMPOSER_PLATFORM_VERSION.key(),
             XTM_COMPOSER_PUBLIC_KEY.key(),
             XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()));
   }
@@ -134,39 +161,49 @@ public class XtmComposerService {
     Map<String, String> composerSettings = new HashMap<>();
     composerSettings.put(XTM_COMPOSER_ID.key(), input.getId());
     composerSettings.put(XTM_COMPOSER_NAME.key(), input.getName());
+    // The version XTM Composer reports, never the platform version (an older XTM Composer that
+    // reports none is recorded as unknown).
+    composerSettings.put(XTM_COMPOSER_VERSION.key(), reportedVersion(input.getVersion()));
+    composerSettings.put(XTM_COMPOSER_IMAGE.key(), reportedImage(input.getImage()));
     composerSettings.put(
-        XTM_COMPOSER_VERSION.key(), this.platformSettingsService.getPlatformVersion());
+        XTM_COMPOSER_PLATFORM_VERSION.key(), this.platformSettingsService.getPlatformVersion());
     composerSettings.put(XTM_COMPOSER_PUBLIC_KEY.key(), input.getPublicKey());
     composerSettings.put(
         XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), LocalDateTime.now().toString());
 
     Map<String, Setting> savedSettings = platformSettingsService.saveSettings(composerSettings);
 
-    return toXtmComposerOutput(
-        savedSettings.get(XTM_COMPOSER_ID.key()).getValue(),
-        savedSettings.get(XTM_COMPOSER_VERSION.key()).getValue());
+    return toXtmComposerOutput(savedSettings);
   }
 
   /**
-   * Refresh connectivity with XTM Composer by updating last connectivity check time
+   * Refresh connectivity with XTM Composer: update the last connectivity check time and, when XTM
+   * Composer reports them, its version and image. A refresh without a report (an older XTM
+   * Composer) keeps the recorded values.
    *
    * @param xtmComposerId XTM Composer id
    * @param lastConnectivityCheck Last connectivity check time
+   * @param report what XTM Composer reports about itself, or null
    * @return XtmComposerOutput
    */
   public XtmComposerOutput refreshConnectivity(
-      String xtmComposerId, Instant lastConnectivityCheck) {
+      String xtmComposerId, Instant lastConnectivityCheck, XtmComposerConnectivityInput report) {
     Map<String, Setting> xtmComposerInformation = this.getXtmComposerSettings();
-    if (!xtmComposerId.equals(xtmComposerInformation.get(XTM_COMPOSER_ID.key()).getValue())) {
+    Setting composerIdSetting = xtmComposerInformation.get(XTM_COMPOSER_ID.key());
+    if (composerIdSetting == null || !xtmComposerId.equals(composerIdSetting.getValue())) {
       throw new BadRequestException("Invalid xtm-composer identifier");
     }
 
-    platformSettingsService.saveSetting(
-        XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), lastConnectivityCheck.toString());
+    Map<String, String> updates = new HashMap<>();
+    updates.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), lastConnectivityCheck.toString());
+    if (report != null && StringUtils.hasText(report.getVersion())) {
+      updates.put(XTM_COMPOSER_VERSION.key(), reportedVersion(report.getVersion()));
+      updates.put(XTM_COMPOSER_IMAGE.key(), reportedImage(report.getImage()));
+    }
+    Map<String, Setting> merged = new HashMap<>(xtmComposerInformation);
+    merged.putAll(platformSettingsService.saveSettings(updates));
 
-    return toXtmComposerOutput(
-        xtmComposerInformation.get(XTM_COMPOSER_ID.key()).getValue(),
-        xtmComposerInformation.get(XTM_COMPOSER_VERSION.key()).getValue());
+    return toXtmComposerOutput(merged);
   }
 
   /**

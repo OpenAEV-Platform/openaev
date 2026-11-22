@@ -15,6 +15,7 @@ import io.openaev.context.MarkingCtx;
 import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.MarkingDefinition;
+import io.openaev.database.model.MarkingDefinitionStixIds;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.MarkingDefinitionRepository;
@@ -222,6 +223,26 @@ public class MarkingDefinitionService {
    */
   public MarkingDefinition create(
       @NotNull MarkingDefinitionInput input, @NotBlank String tenantId, @NotBlank String userId) {
+    return create(input, tenantId, userId, null);
+  }
+
+  /**
+   * Same as {@link #create(MarkingDefinitionInput, String, String)}, naming the definition with the
+   * STIX id OpenCTI gave it (an import from OpenCTI). Without one, the id is derived from type and
+   * definition as OpenCTI derives it. An id another definition of the tenant already carries is not
+   * repeated: the new row is created without one rather than refused, as before the column existed.
+   *
+   * @param input create payload
+   * @param tenantId tenant that owns the new row
+   * @param userId the current user, whose clearance bounds the order
+   * @param stixId the STIX id to keep, or {@code null} to derive it
+   * @return persisted marking definition
+   */
+  public MarkingDefinition create(
+      @NotNull MarkingDefinitionInput input,
+      @NotBlank String tenantId,
+      @NotBlank String userId,
+      String stixId) {
     String type = normalize(input.type());
     String definition = normalize(input.definition());
     if (typeExists(tenantId, type)) {
@@ -232,6 +253,11 @@ public class MarkingDefinitionService {
     entity.setType(type);
     entity.setDefinition(definition);
     entity.setProtectedDefinition(false);
+    entity.setStixId(
+        freeStixIdOrNull(
+            stixId != null ? stixId : MarkingDefinitionStixIds.generate(type, definition),
+            tenantId,
+            null));
     entity.setTenant(new Tenant(tenantId));
     MarkingDefinition saved = repository.save(entity);
     tenantGroupService.grantToAutoNewMarkingGroups(saved);
@@ -278,6 +304,18 @@ public class MarkingDefinitionService {
       assertWithinOwnClearance(tenantId, type, input.order(), userId);
     }
     validateUniqueOrThrow(type, definition, tenantId, existing.getId());
+    // A derived STIX id follows a rename; one kept from an import is never rewritten.
+    if (!Objects.equals(existing.getDefinition(), definition)
+        && (existing.getStixId() == null
+            || existing
+                .getStixId()
+                .equals(
+                    MarkingDefinitionStixIds.generate(
+                        existing.getType(), existing.getDefinition())))) {
+      existing.setStixId(
+          freeStixIdOrNull(
+              MarkingDefinitionStixIds.generate(type, definition), tenantId, existing.getId()));
+    }
     existing.setDefinition(definition);
     existing.setColor(input.color());
     existing.setOrder(input.order());
@@ -373,6 +411,20 @@ public class MarkingDefinitionService {
     } else {
       action.run();
     }
+  }
+
+  /**
+   * The STIX id when no other definition of the tenant carries it, else {@code null}: two local
+   * definitions OpenCTI names alike (TLP:WHITE next to TLP:CLEAR) keep working, the second one
+   * without a shared name.
+   */
+  private String freeStixIdOrNull(String stixId, String tenantId, String ignoredId) {
+    boolean carriedByAnother =
+        repository
+            .findByStixIdAndTenantId(stixId, tenantId)
+            .filter(other -> !other.getId().equals(ignoredId))
+            .isPresent();
+    return carriedByAnother ? null : stixId;
   }
 
   private void validateUniqueOrThrow(
