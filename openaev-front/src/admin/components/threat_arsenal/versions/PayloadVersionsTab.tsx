@@ -11,7 +11,7 @@ import useCountLabel from '../../../../utils/hooks/useCountLabel';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import AskAfterSavingChoice from './AskAfterSavingChoice';
-import OlderVersionsAlert from './OlderVersionsAlert';
+import OlderVersionsNote from './OlderVersionsNote';
 import PayloadUsageMoveBar from './usages/PayloadUsageMoveBar';
 import PayloadUsageMoveResult from './usages/PayloadUsageMoveResult';
 import PayloadUsagesTable from './usages/PayloadUsagesTable';
@@ -134,7 +134,7 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMove
     }}
     >
       {olderUsages > 0 && (
-        <OlderVersionsAlert usageCount={olderUsages} kept={kept} onToggle={canMove ? toggle : undefined} />
+        <OlderVersionsNote usageCount={olderUsages} kept={kept} onToggle={canMove ? toggle : undefined} />
       )}
       <div className={LIB_SURFACE_LAYER} style={fdsTableFrameStyle(theme)}>
         {versionRows(versions, notInstalled).map(({ version, installed }) => (installed

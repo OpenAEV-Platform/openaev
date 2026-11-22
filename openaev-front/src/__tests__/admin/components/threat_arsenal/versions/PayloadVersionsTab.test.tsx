@@ -102,14 +102,14 @@ describe('PayloadVersionsTab', () => {
 
   describe('injects on older versions', () => {
     const KEPT = 'Kept on their version. The card\'s banner returns with the next version.';
+    const OLDER = '1 inject still uses an older version. Move them below, or keep them where they are.';
 
     it('given injects on an older version should count them and keep them on their version', async () => {
       // Arrange
       can.mockReturnValue(true);
       keep.mockResolvedValue({});
       renderInApp(<PayloadVersionsTab versions={[latest, older]} usages={usages} onMoved={vi.fn()} />);
-      expect(await screen.findByText('1 inject still uses an older version.')).toBeTruthy();
-      expect(screen.getByText('Move them below, or keep them where they are.')).toBeTruthy();
+      expect(await screen.findByText(OLDER)).toBeTruthy();
 
       // Act
       fireEvent.click(screen.getByText('Keep them on their version'));
@@ -123,20 +123,22 @@ describe('PayloadVersionsTab', () => {
       // Arrange
       can.mockReturnValue(true);
       showAgain.mockResolvedValue({});
-      renderInApp(<PayloadVersionsTab versions={[{
-        ...latest,
-        payload_older_versions_kept: true,
-      }, older]}
-      usages={usages}
-      onMoved={vi.fn()}
-      />);
+      renderInApp(
+        <PayloadVersionsTab versions={[{
+          ...latest,
+          payload_older_versions_kept: true,
+        }, older]}
+        usages={usages}
+        onMoved={vi.fn()}
+        />,
+      );
       await screen.findByText(KEPT);
 
       // Act
       fireEvent.click(screen.getByText('Show the banner again'));
 
       // Assert
-      expect(await screen.findByText('1 inject still uses an older version.')).toBeTruthy();
+      expect(await screen.findByText(OLDER)).toBeTruthy();
       expect(showAgain).toHaveBeenCalledWith('action-v2');
     });
 
@@ -145,7 +147,7 @@ describe('PayloadVersionsTab', () => {
       renderInApp(<PayloadVersionsTab versions={[latest, older]} usages={usages} onMoved={vi.fn()} />);
 
       // Assert
-      expect(await screen.findByText('1 inject still uses an older version.')).toBeTruthy();
+      expect(await screen.findByText(OLDER)).toBeTruthy();
       expect(screen.queryByText('Keep them on their version')).toBeNull();
     });
 
@@ -162,7 +164,7 @@ describe('PayloadVersionsTab', () => {
 
       // Assert
       expect(await screen.findByText('(0 injects)')).toBeTruthy();
-      expect(screen.queryByText('1 inject still uses an older version.')).toBeNull();
+      expect(screen.queryByText(OLDER)).toBeNull();
     });
 
     it('given opened to move them should open the older version with its injects ticked and fold the latest', async () => {
@@ -171,13 +173,15 @@ describe('PayloadVersionsTab', () => {
       Element.prototype.scrollIntoView = vi.fn();
 
       // Act
-      renderInApp(<PayloadVersionsTab
-        versions={[{
-          ...latest,
-          payload_revoked: false,
-        }, older]}
-        focusMove
-      />);
+      renderInApp(
+        <PayloadVersionsTab
+          versions={[{
+            ...latest,
+            payload_revoked: false,
+          }, older]}
+          focusMove
+        />,
+      );
 
       // Assert
       expect(await screen.findByText('Old inject')).toBeTruthy();
