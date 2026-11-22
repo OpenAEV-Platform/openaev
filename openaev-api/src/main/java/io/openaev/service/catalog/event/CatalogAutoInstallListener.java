@@ -35,26 +35,27 @@ public class CatalogAutoInstallListener {
   @Async
   @TransactionalEventListener
   public void onReleaseApplied(CatalogReleaseApplied event) {
-    String tenantId = event.tenantId();
-    TxCtx ctx = TxCtx.forTenant(tenantId);
-    Installed<InstallablePayloadVersion, Payload> payloads =
-        ambientTenantBridge.callInTenant(
-            tenantId, () -> catalogPayloadInstaller.autoInstall(ctx, tenantId));
-    Installed<InstallableScenarioVersion, Scenario> scenarios =
-        ambientTenantBridge.callInTenant(
-            tenantId, () -> catalogScenarioInstaller.autoInstall(ctx, tenantId));
     InstalledAutomatically installed =
-        new InstalledAutomatically(
-            tenantId,
-            event.release(),
-            payloads.installed().stream().map(Payload::getId).toList(),
-            scenarios.installed().stream().map(Scenario::getName).toList(),
-            Stream.<InstallableVersion>concat(
-                    payloads.failed().stream(), scenarios.failed().stream())
-                .map(failed -> failed.externalId() + " v" + failed.version())
-                .toList());
+        ambientTenantBridge.callInTenant(
+            event.tenantId(), () -> autoInstall(event, TxCtx.forTenant(event.tenantId())));
     if (!installed.isEmpty()) {
       eventPublisher.publishEvent(installed);
     }
+  }
+
+  private InstalledAutomatically autoInstall(CatalogReleaseApplied event, TxCtx ctx) {
+    String tenantId = event.tenantId();
+    Installed<InstallablePayloadVersion, Payload> payloads =
+        catalogPayloadInstaller.autoInstall(ctx, tenantId);
+    Installed<InstallableScenarioVersion, Scenario> scenarios =
+        catalogScenarioInstaller.autoInstall(ctx, tenantId);
+    return new InstalledAutomatically(
+        tenantId,
+        event.release(),
+        payloads.installed().stream().map(Payload::getId).toList(),
+        scenarios.installed().stream().map(Scenario::getName).toList(),
+        Stream.<InstallableVersion>concat(payloads.failed().stream(), scenarios.failed().stream())
+            .map(failed -> failed.externalId() + " v" + failed.version())
+            .toList());
   }
 }
