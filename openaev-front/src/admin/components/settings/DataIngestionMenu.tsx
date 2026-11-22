@@ -1,4 +1,4 @@
-import { TableViewOutlined } from '@mui/icons-material';
+import { Icon } from '@filigran/design-system';
 import { memo } from 'react';
 
 import RightMenu, { type RightMenuEntry } from '../../../components/common/menu/RightMenu';
@@ -7,7 +7,7 @@ const DataIngestionMenuComponent = () => {
   const entries: RightMenuEntry[] = [
     {
       path: '/admin/settings/data_ingestion/xls_mappers',
-      icon: () => (<TableViewOutlined />),
+      icon: () => (<Icon name="table-2" size={16} />),
       label: 'XLS mappers',
     },
   ];

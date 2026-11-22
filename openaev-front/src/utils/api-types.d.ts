@@ -6907,6 +6907,13 @@ export interface HealthCheckDetailsOutput {
   status?: string;
 }
 
+export interface ImportLine {
+  definition?: string;
+  outcome?: "CREATED" | "EXISTING" | "CONFLICT" | "INVALID";
+  stixId?: string;
+  type?: string;
+}
+
 export interface ImportMapper {
   /** @format date-time */
   import_mapper_created_at?: string;
@@ -8714,6 +8721,7 @@ export interface MarkingDefinitionOutput {
   /** @format int32 */
   marking_definition_order: number;
   marking_definition_protected: boolean;
+  marking_definition_stix_id?: string;
   /** @minLength 1 */
   marking_definition_type: string;
 }

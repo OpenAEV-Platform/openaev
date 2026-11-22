@@ -1,14 +1,4 @@
-import {
-  CenterFocusStrongOutlined,
-  DomainOutlined,
-  GroupsOutlined,
-  HomeWorkOutlined,
-  KeyOutlined,
-  LocalPoliceOutlined,
-  PermIdentityOutlined,
-  PublicOutlined,
-  SecurityOutlined,
-} from '@mui/icons-material';
+import { Icon } from '@filigran/design-system';
 // fds:keep-mui the text-labelled ToggleButtonGroup stays on MUI: the library ButtonGroup items are icon-only (LIBRARY-FEEDBACK #57)
 import { Box, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -81,19 +71,19 @@ const SecurityMenuComponent: FunctionComponent = () => {
       {
         path: scopedPath('users'),
         activePath: `${SECURITY_BASE}/users`,
-        icon: () => (<PermIdentityOutlined />),
+        icon: () => (<Icon name="user" size={16} />),
         label: 'Users',
       },
       {
         path: scopedPath('groups'),
         activePath: `${SECURITY_BASE}/groups`,
-        icon: () => (<GroupsOutlined />),
+        icon: () => (<Icon name="users" size={16} />),
         label: 'Groups',
       },
       {
         path: scopedPath('roles'),
         activePath: `${SECURITY_BASE}/roles`,
-        icon: () => (<SecurityOutlined />),
+        icon: () => (<Icon name="shield" size={16} />),
         label: 'Roles',
       },
     );
@@ -102,7 +92,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
   if (!isPlatform && canAccessTenantSettings) {
     entries.push({
       path: `${SECURITY_BASE}/organizations`,
-      icon: () => (<DomainOutlined />),
+      icon: () => (<Icon name="building-2" size={16} />),
       label: 'Organizations',
     });
   }
@@ -111,7 +101,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
     entries.push({
       path: scopedPath('sessions'),
       activePath: `${SECURITY_BASE}/sessions`,
-      icon: () => (<KeyOutlined />),
+      icon: () => (<Icon name="key" size={16} />),
       label: 'Sessions',
     });
   }
@@ -119,7 +109,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
   if (!isPlatform && canAccessTenantSettings) {
     entries.push({
       path: `${SECURITY_BASE}/policies`,
-      icon: () => (<LocalPoliceOutlined />),
+      icon: () => (<Icon name="shield-check" size={16} />),
       label: 'Policies',
     });
   }
@@ -127,7 +117,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
   if (isPlatform && canAccessTenants) {
     entries.push({
       path: `${SECURITY_BASE}/tenants`,
-      icon: () => (<HomeWorkOutlined />),
+      icon: () => (<Icon name="landmark" size={16} />),
       label: 'Tenants',
       chip: !isEnterpriseEdition ? (<EEChip />) : undefined,
       onClick: !isEnterpriseEdition ? () => openDialog() : undefined,
@@ -137,7 +127,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
   if (!isPlatform && canAccessMarkingDefinitions) {
     entries.push({
       path: `${SECURITY_BASE}/marking_definitions`,
-      icon: () => (<CenterFocusStrongOutlined />),
+      icon: () => (<Icon name="focus" size={16} />),
       label: 'Marking definitions',
     });
   }
@@ -174,7 +164,6 @@ const SecurityMenuComponent: FunctionComponent = () => {
                 'fontWeight': 600,
                 'lineHeight': 1.2,
                 'color': theme.palette.text.secondary,
-                '& .MuiSvgIcon-root': { fontSize: 18 },
                 '&.Mui-selected': {
                   'backgroundColor': alpha(theme.palette.primary.main, 0.16),
                   'color': theme.palette.primary.main,
@@ -184,11 +173,12 @@ const SecurityMenuComponent: FunctionComponent = () => {
             }}
           >
             <ToggleButton value="TENANT">
-              <DomainOutlined />
+              {/* The library draws 16, 20 or 24px only: 20px stands for the former 18px MUI glyph, as in OpenCRQ. */}
+              <Icon name="building-2" size={20} />
               {t('This tenant')}
             </ToggleButton>
             <ToggleButton value="PLATFORM">
-              <PublicOutlined />
+              <Icon name="earth" size={20} />
               {t('Platform')}
               {!isEnterpriseEdition && <EEChip />}
             </ToggleButton>
