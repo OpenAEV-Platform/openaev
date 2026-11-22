@@ -5004,5 +5004,10 @@
   "Not found in OpenCTI": "Introuvable dans OpenCTI",
   "Not found in OpenCRQ": "Introuvable dans OpenCRQ",
   "OpenCTI holds it once a connector or an analyst creates it there.": "OpenCTI le contiendra dès qu'un connecteur ou un analyste l'y créera.",
-  "OpenCRQ holds it once a risk scenario or a supporting asset names it.": "OpenCRQ le contiendra dès qu'un scénario de risque ou un actif support le nommera."
+  "OpenCRQ holds it once a risk scenario or a supporting asset names it.": "OpenCRQ le contiendra dès qu'un scénario de risque ou un actif support le nommera.",
+  "Edit classification": "Modifier la classification",
+  "Tags to add": "Tags à ajouter",
+  "Set at least one field to update": "Renseignez au moins un champ à mettre à jour",
+  "This subcategory does not belong to the category": "Cette sous-catégorie n'appartient pas à la catégorie",
+  "Selected assets: {count}. A field left empty keeps each asset's own value; tags are added to the ones each asset already carries.": "Actifs sélectionnés : {count}. Un champ laissé vide conserve la valeur propre à chaque actif ; les tags sont ajoutés à ceux que chaque actif porte déjà."
 }

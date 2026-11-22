@@ -5004,5 +5004,10 @@
   "Not found in OpenCTI": "OpenCTI에서 찾을 수 없음",
   "Not found in OpenCRQ": "OpenCRQ에서 찾을 수 없음",
   "OpenCTI holds it once a connector or an analyst creates it there.": "커넥터나 분석가가 생성하면 OpenCTI에 등록됩니다.",
-  "OpenCRQ holds it once a risk scenario or a supporting asset names it.": "위험 시나리오나 지원 자산이 참조하면 OpenCRQ에 등록됩니다."
+  "OpenCRQ holds it once a risk scenario or a supporting asset names it.": "위험 시나리오나 지원 자산이 참조하면 OpenCRQ에 등록됩니다.",
+  "Edit classification": "분류 편집",
+  "Tags to add": "추가할 태그",
+  "Set at least one field to update": "업데이트할 필드를 하나 이상 설정하세요",
+  "This subcategory does not belong to the category": "이 하위 카테고리는 해당 카테고리에 속하지 않습니다",
+  "Selected assets: {count}. A field left empty keeps each asset's own value; tags are added to the ones each asset already carries.": "선택된 자산: {count}. 비워 둔 필드는 각 자산의 값을 유지하며, 태그는 각 자산의 기존 태그에 추가됩니다."
 }

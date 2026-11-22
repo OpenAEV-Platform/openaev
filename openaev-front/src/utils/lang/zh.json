@@ -5004,5 +5004,10 @@
   "Not found in OpenCTI": "在 OpenCTI 中未找到",
   "Not found in OpenCRQ": "在 OpenCRQ 中未找到",
   "OpenCTI holds it once a connector or an analyst creates it there.": "连接器或分析师创建后，OpenCTI 中即会包含它。",
-  "OpenCRQ holds it once a risk scenario or a supporting asset names it.": "风险场景或支撑资产引用后，OpenCRQ 中即会包含它。"
+  "OpenCRQ holds it once a risk scenario or a supporting asset names it.": "风险场景或支撑资产引用后，OpenCRQ 中即会包含它。",
+  "Edit classification": "编辑分类",
+  "Tags to add": "要添加的标签",
+  "Set at least one field to update": "请至少设置一个要更新的字段",
+  "This subcategory does not belong to the category": "此子类别不属于该类别",
+  "Selected assets: {count}. A field left empty keeps each asset's own value; tags are added to the ones each asset already carries.": "已选资产：{count}。留空的字段保留各资产自身的值；标签将添加到各资产已有的标签中。"
 }

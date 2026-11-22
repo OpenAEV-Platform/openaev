@@ -1,12 +1,12 @@
 import { Checkbox } from '@filigran/design-system';
-import { CenterFocusStrongOutlined, HelpOutlineOutlined } from '@mui/icons-material';
+import { CategoryOutlined, CenterFocusStrongOutlined, HelpOutlineOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type EndpointHelper } from '../../../../actions/assets/asset-helper';
-import { bulkDeleteAssets, bulkReplaceAssetMarkings, searchAssets } from '../../../../actions/assets/endpoint-actions';
+import { bulkDeleteAssets, bulkReplaceAssetMarkings, bulkUpdateAssets, searchAssets } from '../../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../../actions/executors/executor-action';
 import { fetchAssetFreshnessSettings } from '../../../../actions/settings/tenant-settings-action';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
@@ -45,6 +45,7 @@ import AssetCategoryIcon from '../AssetCategoryIcon';
 import PostureScoreCell from '../PostureScoreCell';
 import usePostureScores from '../usePostureScores';
 import AssetPopover from './AssetPopover';
+import BulkClassificationDialog, { type BulkClassificationValues } from './BulkClassificationDialog';
 import BulkMarkingsDrawer from './BulkMarkingsDrawer';
 import EndpointCreation from './EndpointCreation';
 import ImportUploaderEndpoints from './ImportUploaderEndpoints';
@@ -194,6 +195,18 @@ const Endpoints = () => {
       marking_ids: markingIds,
     }).then(() => {
       setOpenEditMarkings(false);
+      handleClearSelectedElements();
+      setReloadCount(count => count + 1);
+    });
+  };
+
+  const [openEditClassification, setOpenEditClassification] = useState(false);
+  const bulkEditClassification = (values: BulkClassificationValues) => {
+    return bulkUpdateAssets({
+      ...bulkSelectionInput,
+      ...values,
+    }).then(() => {
+      setOpenEditClassification(false);
       handleClearSelectedElements();
       setReloadCount(count => count + 1);
     });
@@ -394,14 +407,24 @@ const Endpoints = () => {
                   canManage={canManage}
                   deleteConfirmationSingular={t('Do you want to delete this asset?')}
                   deleteConfirmationPlural={t('Do you want to delete these {count} assets?', { count: String(numberOfSelectedElements) })}
-                  toolTasks={canBulkEditMarkings
-                    ? [{
-                        type: 'edit-markings',
-                        title: t('Edit markings'),
-                        icon: () => <CenterFocusStrongOutlined fontSize="small" />,
-                        onClick: () => setOpenEditMarkings(true),
-                      }]
-                    : []}
+                  toolTasks={[
+                    ...(canManage
+                      ? [{
+                          type: 'edit-classification',
+                          title: t('Edit classification'),
+                          icon: () => <CategoryOutlined fontSize="small" />,
+                          onClick: () => setOpenEditClassification(true),
+                        }]
+                      : []),
+                    ...(canBulkEditMarkings
+                      ? [{
+                          type: 'edit-markings',
+                          title: t('Edit markings'),
+                          icon: () => <CenterFocusStrongOutlined fontSize="small" />,
+                          onClick: () => setOpenEditMarkings(true),
+                        }]
+                      : []),
+                  ]}
                 />
               )}
             />
@@ -485,6 +508,13 @@ const Endpoints = () => {
               })
         }
       </List>
+      {canManage && openEditClassification && (
+        <BulkClassificationDialog
+          numberOfSelectedElements={numberOfSelectedElements}
+          onClose={() => setOpenEditClassification(false)}
+          onSubmit={bulkEditClassification}
+        />
+      )}
       {canBulkEditMarkings && openEditMarkings && (
         <BulkMarkingsDrawer
           onClose={() => setOpenEditMarkings(false)}

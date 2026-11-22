@@ -5004,5 +5004,10 @@
   "Not found in OpenCTI": "OpenCTI に見つかりません",
   "Not found in OpenCRQ": "OpenCRQ に見つかりません",
   "OpenCTI holds it once a connector or an analyst creates it there.": "コネクターまたはアナリストが作成すると OpenCTI に登録されます。",
-  "OpenCRQ holds it once a risk scenario or a supporting asset names it.": "リスクシナリオまたはサポート資産が参照すると OpenCRQ に登録されます。"
+  "OpenCRQ holds it once a risk scenario or a supporting asset names it.": "リスクシナリオまたはサポート資産が参照すると OpenCRQ に登録されます。",
+  "Edit classification": "分類を編集",
+  "Tags to add": "追加するタグ",
+  "Set at least one field to update": "更新するフィールドを1つ以上設定してください",
+  "This subcategory does not belong to the category": "このサブカテゴリはカテゴリに属していません",
+  "Selected assets: {count}. A field left empty keeps each asset's own value; tags are added to the ones each asset already carries.": "選択されたアセット: {count}。空のフィールドは各アセットの値を保持します。タグは各アセットの既存のタグに追加されます。"
 }
