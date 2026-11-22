@@ -2842,6 +2842,7 @@ export interface CatalogScenarioOutput {
   catalog_scenario_description?: string;
   /** @minLength 1 */
   catalog_scenario_external_id: string;
+  catalog_scenario_installed_scenario_id?: string;
   catalog_scenario_missing_requirements: string[];
   catalog_scenario_name?: string;
   catalog_scenario_platforms: string[];

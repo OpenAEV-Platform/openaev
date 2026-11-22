@@ -7,7 +7,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { type CatalogScenarioOutput } from '../../../../utils/api-types';
 import { scenarioCategoryLabel } from '../constants';
 import { ScenarioTypeIcon } from '../scenario/ScenarioType';
-import CatalogScenarioInstallButton from './CatalogScenarioInstallButton';
+import CatalogScenarioAction from './CatalogScenarioAction';
 import { catalogScenarioType } from './catalogScenarioType';
 
 interface Props {
@@ -21,6 +21,7 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ scenario, canInstall, o
   const { t, nsd } = useFormatter();
   const category = scenario.catalog_scenario_category;
   const missing = scenario.catalog_scenario_missing_requirements.length > 0;
+  const installed = !!scenario.catalog_scenario_installed_scenario_id;
 
   return (
     <MarketplaceCard
@@ -43,11 +44,13 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ scenario, canInstall, o
       ]}
       footerStart={(
         <MarketplaceCardMeta
-          status={missing ? <Chip label={t('Requirements missing')} severity="high" /> : undefined}
+          status={installed
+            ? <Chip label={t('Installed')} severity="low" />
+            : missing && <Chip label={t('Requirements missing')} severity="high" />}
           platforms={scenario.catalog_scenario_platforms}
         />
       )}
-      action={<CatalogScenarioInstallButton scenario={scenario} canInstall={canInstall} onInstall={onInstall} />}
+      action={<CatalogScenarioAction scenario={scenario} canInstall={canInstall} onInstall={onInstall} size="sm" />}
     />
   );
 };

@@ -1,12 +1,14 @@
 import { Button } from '@filigran/design-system';
 import { RouteOutlined } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
-import { fetchCatalogScenarioFacetCounts, searchCatalogScenarios } from '../../../../actions/catalog/scenario-catalog-actions';
+import { fetchCatalogScenarioFacetCounts, installAllCatalogScenarios, searchCatalogScenarios } from '../../../../actions/catalog/scenario-catalog-actions';
 import EmptyPlaceholder from '../../../../components/common/EmptyPlaceholder';
 import MarketplaceCardMeta from '../../../../components/common/marketplace/card/MarketplaceCardMeta';
 import {
   CATALOG_ITEM_DEFAULT_SORT,
+  CATALOG_ITEM_DESCRIPTION,
   CATALOG_ITEM_NAME,
   CATALOG_ITEM_PLATFORM_FACET,
   CATALOG_ITEM_PLATFORMS,
@@ -15,6 +17,7 @@ import {
 } from '../../../../components/common/marketplace/filter/catalogItemSearch';
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../../components/common/marketplace/filter/MarketplaceFacetSidebar';
 import useMarketplaceSearch from '../../../../components/common/marketplace/filter/useMarketplaceSearch';
+import MarketplaceInstallActions from '../../../../components/common/marketplace/install/MarketplaceInstallActions';
 import useNotifyInstalled from '../../../../components/common/marketplace/install/useNotifyInstalled';
 import MarketplaceBrowser from '../../../../components/common/marketplace/page/MarketplaceBrowser';
 import MarketplaceCatalogTabs from '../../../../components/common/marketplace/page/MarketplaceCatalogTabs';
@@ -33,7 +36,8 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { scenarioCategoryLabel } from '../constants';
 import ScenariosHero from '../page/ScenariosHero';
 import { ScenarioTypeIcon } from '../scenario/ScenarioType';
-import CatalogScenarioInstallButton from './CatalogScenarioInstallButton';
+import CatalogScenarioAction from './CatalogScenarioAction';
+import { CATALOG_SCENARIO_INSTALLATION, installationLabel, INSTALLED, NOT_INSTALLED, scenarioUrl, UPDATE_AVAILABLE } from './catalogScenarioInstallation';
 import CatalogScenarioInstallDrawer from './CatalogScenarioInstallDrawer';
 import { CATALOG_SCENARIO_TYPES, catalogScenarioType, scenarioTypeOf } from './catalogScenarioType';
 import ScenarioCatalogCard from './ScenarioCatalogCard';
@@ -44,6 +48,12 @@ const CATEGORY = 'catalog_item_category';
 const AUTHOR = 'catalog_item_author';
 
 const FACETS: MarketplaceFacet[] = [
+  {
+    key: CATALOG_SCENARIO_INSTALLATION,
+    label: 'Installation',
+    values: [INSTALLED, NOT_INSTALLED, UPDATE_AVAILABLE],
+    valueLabel: installationLabel,
+  },
   {
     key: TYPE,
     label: 'Type',
@@ -63,9 +73,10 @@ const FACETS: MarketplaceFacet[] = [
   },
 ];
 
-// The catalogue scenarios the tenant has not installed.
+// The catalogue scenarios, installed or not.
 const ScenariosAvailable = () => {
   const { t, nsd } = useFormatter();
+  const theme = useTheme();
   const notifyInstalled = useNotifyInstalled();
   const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const { viewMode, handleViewModeChange } = useMarketplaceView('scenarios-catalog:view-mode');
@@ -83,10 +94,9 @@ const ScenariosAvailable = () => {
     setOpened(null);
     setInstalling(scenario);
   };
-  // An installed scenario leaves this tab for the Active one.
-  const markInstalled = (installed: CatalogScenarioOutput) => {
+  const markInstalled = (installed: CatalogScenarioOutput, scenarioId: string) => {
     setInstalling(null);
-    notifyInstalled(installed.catalog_scenario_name ?? installed.catalog_scenario_external_id, installed.catalog_scenario_version);
+    notifyInstalled(installed.catalog_scenario_name ?? installed.catalog_scenario_external_id, installed.catalog_scenario_version, scenarioUrl(scenarioId));
     catalog.reload();
   };
 
@@ -95,25 +105,31 @@ const ScenariosAvailable = () => {
       field: CATALOG_ITEM_NAME,
       label: 'Name',
       sortable: true,
-      width: '35%',
+      width: '25%',
       value: scenario => scenario.catalog_scenario_name ?? scenario.catalog_scenario_external_id,
     },
     {
       field: TYPE,
       label: 'Type',
-      width: '15%',
+      width: '10%',
       value: scenario => t(catalogScenarioType(scenario)),
     },
     {
       field: CATEGORY,
       label: 'Category',
-      width: '20%',
+      width: '15%',
       value: scenario => (scenario.catalog_scenario_category ? t(scenarioCategoryLabel(scenario.catalog_scenario_category)) : '–'),
+    },
+    {
+      field: CATALOG_ITEM_DESCRIPTION,
+      label: 'Description',
+      width: '25%',
+      value: scenario => scenario.catalog_scenario_description || '–',
     },
     {
       field: CATALOG_ITEM_PLATFORMS,
       label: 'Platforms',
-      width: '15%',
+      width: '10%',
       value: scenario => <MarketplaceCardMeta platforms={scenario.catalog_scenario_platforms} />,
     },
     {
@@ -127,7 +143,7 @@ const ScenariosAvailable = () => {
   const emptyState = (
     <EmptyPlaceholder
       icon={<RouteOutlined />}
-      title={catalog.filtered ? t('No scenario matches these filters.') : t('Every catalog scenario is installed')}
+      title={catalog.filtered ? t('No scenario matches these filters.') : t('No catalog scenario yet')}
       message={catalog.filtered ? undefined : t('New Filigran scenarios show here as soon as they are published.')}
       action={catalog.filtered && (
         <Button type="button" priority="secondary" onClick={catalog.resetFilters}>{t('Reset filters')}</Button>
@@ -156,7 +172,24 @@ const ScenariosAvailable = () => {
             filtersEndSlot={viewMode === 'grid'
               ? <MarketplaceSortSelect sortHelpers={queryableHelpers.sortHelpers} options={CATALOG_ITEM_SORT_OPTIONS} descendingFields={[CATALOG_ITEM_PUBLISHED]} />
               : null}
-            topBarButtons={<MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />}
+            topBarButtons={(
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing(1),
+              }}
+              >
+                <MarketplaceInstallActions
+                  autoInstallSetting="scenario_auto_install"
+                  autoInstallHelp={t('Installs each new Filigran scenario as soon as it is published.')}
+                  canInstall={canInstall}
+                  installAll={installAllCatalogScenarios}
+                  installedMessage={count => t('{count} scenarios installed', { count })}
+                  onInstalledAll={catalog.reload}
+                />
+                <MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />
+              </div>
+            )}
           />
         )}
       >
@@ -187,7 +220,7 @@ const ScenariosAvailable = () => {
                 rowKey={scenario => scenario.catalog_scenario_external_id}
                 icon={scenario => <ScenarioTypeIcon type={catalogScenarioType(scenario)} />}
                 open={scenario => ({ onClick: () => setOpened(scenario) })}
-                action={scenario => <CatalogScenarioInstallButton scenario={scenario} canInstall={canInstall} onInstall={() => install(scenario)} />}
+                action={scenario => <CatalogScenarioAction scenario={scenario} canInstall={canInstall} onInstall={() => install(scenario)} size="sm" />}
               />
             )}
         <MarketplaceLoadMore {...catalog.loadMore} />

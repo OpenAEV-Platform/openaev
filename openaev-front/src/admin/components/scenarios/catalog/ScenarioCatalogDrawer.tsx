@@ -1,4 +1,4 @@
-import { Button, Chip, Spinner, Text } from '@filigran/design-system';
+import { Chip, Spinner, Text } from '@filigran/design-system';
 import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 
 import { fetchCatalogScenarioVersions } from '../../../../actions/catalog/scenario-catalog-actions';
@@ -10,6 +10,7 @@ import PlatformIcon from '../../../../components/PlatformIcon';
 import { type CatalogScenarioOutput, type CatalogScenarioVersionOutput } from '../../../../utils/api-types';
 import { scenarioCategoryLabel } from '../constants';
 import ScenarioType from '../scenario/ScenarioType';
+import CatalogScenarioAction from './CatalogScenarioAction';
 import { catalogScenarioType } from './catalogScenarioType';
 
 interface Props {
@@ -125,9 +126,7 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
       open={scenario !== null}
       handleClose={onClose}
       title={scenario ? (scenario.catalog_scenario_name ?? scenario.catalog_scenario_external_id) : ''}
-      headerActions={canInstall && scenario && (
-        <Button disabled={missing.length > 0} onClick={() => onInstall(scenario)}>{t('Install')}</Button>
-      )}
+      headerActions={scenario && <CatalogScenarioAction scenario={scenario} canInstall={canInstall} onInstall={() => onInstall(scenario)} />}
     >
       {scenario && (
         <div style={{

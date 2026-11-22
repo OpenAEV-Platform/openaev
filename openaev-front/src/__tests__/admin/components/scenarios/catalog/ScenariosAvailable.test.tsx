@@ -10,6 +10,7 @@ import { MESSAGING$ } from '../../../../../utils/Environment';
 const mocks = vi.hoisted(() => ({
   searchCatalogScenarios: vi.fn(),
   fetchCatalogScenarioFacetCounts: vi.fn(),
+  installAllCatalogScenarios: vi.fn(),
   loadMore: { current: () => {} },
 }));
 
@@ -23,6 +24,14 @@ vi.mock('../../../../../components/i18n', () => ({
 vi.mock('../../../../../actions/catalog/scenario-catalog-actions', () => ({
   searchCatalogScenarios: mocks.searchCatalogScenarios,
   fetchCatalogScenarioFacetCounts: mocks.fetchCatalogScenarioFacetCounts,
+  installAllCatalogScenarios: mocks.installAllCatalogScenarios,
+}));
+vi.mock('../../../../../actions/catalog/payload-catalog-actions', () => ({
+  fetchCatalogSettings: () => Promise.resolve({
+    payload_auto_install: false,
+    scenario_auto_install: false,
+  }),
+  updateCatalogSettings: vi.fn(),
 }));
 vi.mock('../../../../../components/common/queryable/pagination/PaginationComponentV2', async () => ({ default: (await import('../../../../utils/FakePaginationComponentV2')).default }));
 vi.mock('../../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: () => true }) }));
@@ -35,8 +44,8 @@ vi.mock('../../../../../admin/components/scenarios/catalog/ScenarioCatalogDrawer
 vi.mock('../../../../../admin/components/scenarios/catalog/CatalogScenarioInstallDrawer', () => ({
   default: ({ scenario, onInstalled }: {
     scenario: CatalogScenarioOutput;
-    onInstalled: (scenario: CatalogScenarioOutput) => void;
-  }) => <button type="button" data-testid="confirm-install" onClick={() => onInstalled(scenario)} />,
+    onInstalled: (scenario: CatalogScenarioOutput, scenarioId: string) => void;
+  }) => <button type="button" data-testid="confirm-install" onClick={() => onInstalled(scenario, 'installed-phishing')} />,
 }));
 
 const { default: ScenariosAvailable } = await import('../../../../../admin/components/scenarios/catalog/ScenariosAvailable');
@@ -185,7 +194,7 @@ describe('ScenariosAvailable', () => {
     await waitFor(() => expect(lastSearch().textSearch ?? '').toBe(''));
   });
 
-  it('given_anInstalledScenario_should_notifyAndSearchAgain', async () => {
+  it('given_anInstalledScenario_should_notifyWithALinkToItAndSearchAgain', async () => {
     // Arrange
     renderPage();
     await waitFor(() => expect(cardTitles()).toHaveLength(2));
@@ -196,7 +205,9 @@ describe('ScenariosAvailable', () => {
     fireEvent.click(screen.getByTestId('confirm-install'));
 
     // Assert
-    expect(MESSAGING$.notifySuccess).toHaveBeenCalledWith('Phishing v1.0 installed');
+    const message = render(<MemoryRouter>{vi.mocked(MESSAGING$.notifySuccess).mock.lastCall?.[0]}</MemoryRouter>);
+    expect(message.container.textContent).toContain('Phishing v1.0 installed');
+    expect(message.getByRole('link', { name: 'Open' }).getAttribute('href')).toBe('/admin/scenarios/installed-phishing');
     await waitFor(() => expect(mocks.searchCatalogScenarios.mock.calls.length).toBeGreaterThan(searches));
   });
 });

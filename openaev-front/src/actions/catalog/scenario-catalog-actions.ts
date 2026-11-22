@@ -1,6 +1,7 @@
 import { type Page } from '../../components/common/queryable/Page';
 import { simpleCall, simplePostCall } from '../../utils/Action';
 import {
+  type CatalogInstallAllOutput,
   type CatalogInstallOutput,
   type CatalogScenarioOutput,
   type CatalogScenarioVersionOutput,
@@ -26,3 +27,6 @@ export const installCatalogScenario = (
   `${catalogVersionUri('scenarios', scenario.catalog_scenario_external_id, scenario.catalog_scenario_version)}/install`,
   input,
 ).then(({ data }: { data: CatalogInstallOutput }) => data);
+
+export const installAllCatalogScenarios = (): Promise<CatalogInstallAllOutput> => simplePostCall(`${CATALOG_URI}/scenarios/install-all`)
+  .then(({ data }: { data: CatalogInstallAllOutput }) => data);
