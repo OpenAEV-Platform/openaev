@@ -287,20 +287,19 @@ DELETE /api/assets/{assetId}/links/{linkedAssetId}/{linkType}
 - **Errors**: `400` for a link to the Asset itself or to an Asset of another Tenant, `404` when either Asset (or, on `DELETE`, the link) is not found.
 - **Access**: `GET` needs the right to read the Asset, `POST` and `DELETE` the right to manage it. `GET` lists the links that start or end on the Asset; deleting an Asset deletes its links.
 
-## Asset freshness
+## Coverage scenario read-only first
 
-Every Asset carries when it was last observed and by what, and turns stale once it is unseen for longer than the Tenant allows.
+Scenarios built from an OpenCTI Security Coverage can be built with only their read-only Injects enabled. See [Scenario generation from OpenCTI Security Coverage](../../usage/build/scenario/security-coverage.md#read-only-first-build-and-run-order).
 
 ```http
-GET /api/tenants/{tenantId}/tenant-settings/asset-freshness
-PUT /api/tenants/{tenantId}/tenant-settings/asset-freshness
+GET /api/tenants/{tenantId}/tenant-settings/coverage-scenarios
+PUT /api/tenants/{tenantId}/tenant-settings/coverage-scenarios
 ```
 
-- **Asset fields**: `asset_last_seen` (the latest observation) and `asset_last_seen_source` (what observed it, e.g. `agent:openaev_agent`), filterable and sortable in the Asset searches. Staleness is not a field of its own: `asset_status` reads `STALE` when the Asset was last seen longer ago than the Tenant allows, and its usual value (`ACTIVE`, `INACTIVE`, `AGENTLESS`) otherwise. An Asset never observed has no `asset_last_seen` and is never `STALE`.
-- **Observations**: an Agent that registers or sends a heartbeat stamps its Asset, at most once an hour per source so a heartbeat does not rewrite the Asset every minute. A `STALE` Asset that is observed again leaves `STALE` at once.
-- **Settings body**: `{"asset_stale_after_days": 30}`, from 0 to 3650. `0` by default: the check is off, no Asset turns stale and no event is emitted until a user sets a number of days. The last seen stamp is recorded either way.
-- **Discovery marker**: `{"asset_discovery_tag": true}` on the same endpoint tags with `discovered` every Endpoint a run creates (an autonomous run promoting a finding, an inject whose output brings a new asset), so a filter or a live trigger on Asset creation tells it from a declared one. `false` by default: no tag is created or added. Omitted on an update, the current value is kept.
-- **Job**: every hour (`openaev.cron.config.asset.freshness.interval`, in minutes), each Asset that turned `STALE` since the previous pass gets one Asset update event, so a live trigger on Asset updates receives each transition once. Nothing is written on the Asset.
+- **Settings body**: `{"coverage_scenario_read_only_first": false}`, `false` by default. With the default, a Security Coverage builds and schedules its Scenario exactly as before.
+- **Access**: `GET` needs the right to read Tenant settings, `PUT` the right to manage them.
+- **Read-only marker**: `injector_contract_read_only` on Injector contracts and `payload_read_only` on Payloads, both `false` by default.
+- **Starting a held Scenario**: the existing `PUT /api/scenarios/{scenarioId}/recurrence` (launch right on the Scenario, records `scenario_scheduled_by`) and `inject_enabled` on each held Inject. Run order: the existing `inject_depends_duration` of each Inject.
 
 ## Finding re-test
 
@@ -326,6 +325,25 @@ POST /api/findings/retest
 - **Result**: when the copy finishes, a Finding it detected again stays `OPEN`; a Finding it did not detect turns `NOT_REPRODUCED`, with the copy as `finding_status_inject_id`. A copy that ends in error leaves the status unchanged. Each change emits a Finding update event.
 - **Errors**: `400` when an Asset of a Finding is no longer a target of its Inject, directly or through an Asset group; `404` when a Finding is not in the Tenant or has no Inject left.
 - **Access**: the right to launch each Inject that is copied.
+
+## Marking definitions in OpenCTI format
+
+Every Marking definition carries `marking_definition_stix_id`, the STIX id OpenCTI gives the same marking: OpenCTI's fixed ids for TLP:CLEAR, TLP:GREEN, TLP:AMBER, TLP:AMBER+STRICT and TLP:RED, and for any other marking the id OpenCTI derives from its type and definition. A marking is then the same object in OpenAEV and in OpenCTI. The id is set when the Marking definition is created; it stays empty when another Marking definition of the Tenant already carries it (TLP:WHITE next to TLP:CLEAR).
+
+To export the Marking definitions you are cleared for as a STIX 2.1 bundle of `marking-definition` objects, with OpenCTI's order and color:
+
+```http
+GET /api/tenants/{tenantId}/marking_definitions/stix
+```
+
+To import Marking definitions from a STIX 2.1 bundle (or a list of objects), keeping the id OpenCTI gave them:
+
+```http
+POST /api/tenants/{tenantId}/marking_definitions/stix
+```
+
+- **Response**: one entry per `marking-definition` object, `{"stixId": "...", "type": "...", "definition": "...", "outcome": "..."}`, with `CREATED`, `EXISTING` (the Tenant already has this STIX id), `CONFLICT` (a Marking definition of the same type and definition exists under another id) or `INVALID`. Other object types are ignored and nothing is overwritten.
+- **Access**: the right to manage Marking definitions; a Marking definition above your own clearance on its type is refused, as when created by hand.
 
 ## What's next?
 
