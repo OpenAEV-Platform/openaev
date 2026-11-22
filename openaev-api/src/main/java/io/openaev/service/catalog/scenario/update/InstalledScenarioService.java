@@ -27,6 +27,22 @@ public class InstalledScenarioService {
 
   @Transactional(readOnly = true)
   public InstalledScenario installed(TxCtx ctx, String scenarioId) {
+    return installedScenario(ctx, scenarioId);
+  }
+
+  @Transactional(readOnly = true)
+  public ScenarioVersions versions(TxCtx ctx, String scenarioId) {
+    InstalledScenario installed = installedScenario(ctx, scenarioId);
+    List<CatalogScenario> versions =
+        catalogListService.versions(CatalogScenario.class, installed.externalId());
+    return new ScenarioVersions(
+        versions,
+        installed.version(),
+        latestOffered(versions),
+        exerciseService.countByScenario(installed.tenantId(), installed.scenarioId()));
+  }
+
+  private InstalledScenario installedScenario(TxCtx ctx, String scenarioId) {
     Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     if (scenario.getCatalogIdentity() == null) {
       throw new BadRequestException(NOT_INSTALLED);
@@ -36,18 +52,6 @@ public class InstalledScenarioService {
         scenario.getTenant().getId(),
         scenario.getCatalogExternalId(),
         scenario.getCatalogVersion());
-  }
-
-  @Transactional(readOnly = true)
-  public ScenarioVersions versions(TxCtx ctx, String scenarioId) {
-    InstalledScenario installed = installed(ctx, scenarioId);
-    List<CatalogScenario> versions =
-        catalogListService.versions(CatalogScenario.class, installed.externalId());
-    return new ScenarioVersions(
-        versions,
-        installed.version(),
-        latestOffered(versions),
-        exerciseService.countByScenario(installed.tenantId(), installed.scenarioId()));
   }
 
   private static String latestOffered(List<CatalogScenario> newestFirst) {
