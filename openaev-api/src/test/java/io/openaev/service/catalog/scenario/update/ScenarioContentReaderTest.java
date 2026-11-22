@@ -6,8 +6,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.Command;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectDependency;
+import io.openaev.database.model.InjectDependencyConditions;
+import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Variable;
 import io.openaev.rest.exception.BadRequestException;
 import java.util.List;
 import java.util.Map;
@@ -153,6 +158,85 @@ class ScenarioContentReaderTest {
                 "inject:my-check": {"title": "My check", "depends_duration": 0, "depends_on": []}
               }
               """);
+    }
+
+    @Test
+    @DisplayName(
+        "reads the variables and an installed inject with its payload, links and arguments")
+    void given_installedInjects_should_readEveryElementButTheTargets() throws Exception {
+      // Arrange
+      Scenario scenario = new Scenario();
+      scenario.setName("Recon");
+      scenario.setDescription("Find the hosts");
+      scenario.setCategory("Discovery");
+      Variable variable = new Variable();
+      variable.setKey("target");
+      variable.setValue("10.0.0.1");
+      Inject warn = installedInject("warn", "Warn", contract("email", null));
+      Command nmap = new Command();
+      nmap.setExternalId("nmap");
+      nmap.setVersion("1.2.0");
+      Inject scan = installedInject("scan", "Scan", contract("nmap-contract", nmap));
+      scan.setDescription("Scan the hosts");
+      scan.setDependsDuration(60L);
+      scan.setContent(
+          (ObjectNode)
+              MAPPER.readTree(
+                  """
+                  {"arguments": "-sV", "targets": ["a"], "target_selector": "manual", "empty": null}
+                  """));
+      InjectDependency dependency = new InjectDependency();
+      dependency.getCompositeId().setInjectParent(warn);
+      dependency.getCompositeId().setInjectChildren(scan);
+      InjectDependencyConditions.InjectDependencyCondition condition =
+          new InjectDependencyConditions.InjectDependencyCondition();
+      condition.setMode(InjectDependencyConditions.DependencyMode.and);
+      dependency.setInjectDependencyCondition(condition);
+      scan.getDependsOn().add(dependency);
+
+      // Act
+      ObjectNode content = reader.fromEntities(scenario, List.of(variable), List.of(scan, warn));
+
+      // Assert
+      assertThatJson(content)
+          .isEqualTo(
+              """
+              {
+                "scenario": {"name": "Recon", "description": "Find the hosts", "category": "Discovery"},
+                "variables": {"target": "10.0.0.1"},
+                "inject:scan": {
+                  "title": "Scan",
+                  "description": "Scan the hosts",
+                  "contract": {"payload_external_id": "nmap", "payload_version": "1.2.0"},
+                  "depends_duration": 60,
+                  "depends_on": [{"parent": "warn", "condition": {"mode": "and", "conditions": null}}],
+                  "content.arguments": "-sV"
+                },
+                "inject:warn": {
+                  "title": "Warn",
+                  "contract": {"injector_contract_id": "email"},
+                  "depends_duration": 0,
+                  "depends_on": []
+                }
+              }
+              """);
+    }
+
+    private static Inject installedInject(
+        String catalogId, String title, InjectorContract contract) {
+      Inject inject = new Inject();
+      inject.setId(catalogId + "-local");
+      inject.setCatalogId(catalogId);
+      inject.setTitle(title);
+      inject.setInjectorContract(contract);
+      return inject;
+    }
+
+    private static InjectorContract contract(String id, Command payload) {
+      InjectorContract contract = new InjectorContract();
+      contract.setId(id);
+      contract.setPayload(payload);
+      return contract;
     }
   }
 
