@@ -297,7 +297,6 @@ import io.openaev.service.autonomous.AutonomousTimeoutService;
 import io.openaev.service.autonomous.CapabilityResolverService;
 import io.openaev.service.catalog.CatalogListService;
 import io.openaev.service.catalog.CatalogService;
-import io.openaev.service.catalog.payload.CatalogPayloadOfferService;
 import io.openaev.service.catalog.payload.CatalogPayloadService;
 import io.openaev.service.chaining.ScopeSnapshotService;
 import io.openaev.service.chaining.StepEventService;
@@ -2467,10 +2466,7 @@ class TenantActiveTableAccessArchTest {
           .that()
           .doNotBelongToAnyOf(
               // Called by the catalogue API and sync, inside their scoped transactions:
-              CatalogService.class,
-              CatalogListService.class,
-              CatalogPayloadOfferService.class,
-              io.openaev.service.catalog.payload.CatalogPayloadStatuses.class)
+              CatalogService.class, CatalogListService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(CatalogItemRepository.class)
@@ -2786,7 +2782,6 @@ class TenantActiveTableAccessArchTest {
               InjectorContract.class,
               io.openaev.database.repository.PayloadIdentityRepository.class,
               CatalogPayloadService.class,
-              CatalogPayloadOfferService.class,
               // Reads the identity it is handed by the catalogue, to describe the change:
               io.openaev.service.catalog.event.CatalogChangePublisher.class)
           .should()
@@ -4446,8 +4441,7 @@ class TenantActiveTableAccessArchTest {
           .that()
           .doNotBelongToAnyOf(
               // Catalogue installs and offer, in a TxCtx-scoped transaction with the tenantId:
-              io.openaev.service.catalog.scenario.CatalogScenarioService.class,
-              io.openaev.service.catalog.scenario.CatalogScenarioOfferService.class)
+              io.openaev.service.catalog.scenario.CatalogScenarioService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(io.openaev.database.repository.ScenarioIdentityRepository.class)

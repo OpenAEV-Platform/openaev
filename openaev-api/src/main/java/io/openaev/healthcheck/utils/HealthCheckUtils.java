@@ -755,12 +755,6 @@ public class HealthCheckUtils {
     return result;
   }
 
-  /**
-   * Remove all duplicates healthchecks
-   *
-   * @param healthChecks to filter
-   * @return filtered healthchecks
-   */
   /** A revoked payload version fails the injects that run it. */
   public List<HealthCheck> runRevocationChecks(Collection<Inject> injects) {
     return payloadRevocationService.anyRevoked(injects)
@@ -773,6 +767,12 @@ public class HealthCheckUtils {
         : List.of();
   }
 
+  /**
+   * Remove all duplicates healthchecks
+   *
+   * @param healthChecks to filter
+   * @return filtered healthchecks
+   */
   public List<HealthCheck> removeDuplicates(List<HealthCheck> healthChecks) {
     if (healthChecks == null || healthChecks.isEmpty()) {
       return Collections.emptyList();

@@ -763,10 +763,8 @@ public class ScenarioApi extends RestBehavior {
     return hydrateForResponse(scenarioRepository.save(scenario));
   }
 
-  @PostMapping({
-    SCENARIO_URI + "/{scenarioId}/exercise/running",
-    TENANT_SCENARIO_URI + "/{scenarioId}/exercise/running"
-  })
+  // Legacy route for existing clients; the tenant route is ScenarioLaunchApi#launch.
+  @PostMapping(SCENARIO_URI + "/{scenarioId}/exercise/running")
   @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
