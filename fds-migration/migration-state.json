@@ -883,7 +883,7 @@
         "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/VersionsTabNote.tsx",
         "openaev-front/src/admin/components/threat_arsenal/catalog/CatalogPayloadInstallAction.tsx",
-        "openaev-front/src/admin/components/scenarios/catalog/CatalogScenarioInstallButton.tsx"
+        "openaev-front/src/admin/components/scenarios/catalog/CatalogScenarioAction.tsx"
       ]
     },
     {
