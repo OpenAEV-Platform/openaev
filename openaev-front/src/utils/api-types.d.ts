@@ -10481,8 +10481,6 @@ export interface PayloadCustomizationUpdateInput {
 export interface PayloadCustomizationUpdateOutput {
   /** The fields Filigran or the copy changed since the base version */
   update_fields: PayloadFieldUpdateOutput[];
-  /** The other keys Filigran changed: the copy takes them as they are */
-  update_other_changes: string[];
   /** @minLength 1 */
   update_payload_id: string;
   /** The release notes of the newer versions, newest first */
