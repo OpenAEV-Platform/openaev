@@ -3,7 +3,7 @@ package io.openaev.api.threat_arsenal.customization;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.api.catalog.CatalogFeature;
+import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.api.threat_arsenal.customization.dto.PayloadCustomizationOutput;
 import io.openaev.api.threat_arsenal.customization.dto.PayloadCustomizationUpdateInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
@@ -12,6 +12,7 @@ import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.payload.PayloadCustomizationService;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
@@ -28,13 +29,13 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequirePreviewFeature(PreviewFeature.CATALOG)
 @RequiredArgsConstructor
 public class ThreatArsenalCustomizationApi {
 
   private final PayloadCustomizationService payloadCustomizationService;
   private final ThreatArsenalMapper threatArsenalMapper;
   private final TenantWriteScopeResolver writeScopeResolver;
-  private final CatalogFeature catalogFeature;
 
   // -- CREATE --
 
@@ -49,7 +50,6 @@ public class ThreatArsenalCustomizationApi {
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalAction customize(TxCtx ctx, @PathVariable String actionId) {
-    catalogFeature.require();
     return threatArsenalMapper.toThreatArsenalAction(
         payloadCustomizationService.customize(
             writeScopeResolver.tenantForWrite(ctx, null), actionId));
@@ -68,7 +68,6 @@ public class ThreatArsenalCustomizationApi {
       resourceType = ResourceType.THREAT_ARSENAL)
   public PayloadCustomizationOutput customization(
       @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
-    catalogFeature.require();
     return PayloadCustomizationMapper.toOutput(
         payloadCustomizationService.customization(
             TxCtxScopeUtils.requireOneTenantOfScope(ctx), actionId));
@@ -91,7 +90,6 @@ public class ThreatArsenalCustomizationApi {
       TxCtx ctx,
       @PathVariable String actionId,
       @Valid @RequestBody PayloadCustomizationUpdateInput input) {
-    catalogFeature.require();
     return threatArsenalMapper.toThreatArsenalAction(
         payloadCustomizationService.update(
             writeScopeResolver.tenantForWrite(ctx, null),
