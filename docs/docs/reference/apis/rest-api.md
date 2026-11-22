@@ -287,6 +287,21 @@ DELETE /api/assets/{assetId}/links/{linkedAssetId}/{linkType}
 - **Errors**: `400` for a link to the Asset itself or to an Asset of another Tenant, `404` when either Asset (or, on `DELETE`, the link) is not found.
 - **Access**: `GET` needs the right to read the Asset, `POST` and `DELETE` the right to manage it. `GET` lists the links that start or end on the Asset; deleting an Asset deletes its links.
 
+## Asset freshness
+
+Every Asset carries when it was last observed and by what, and turns stale once it is unseen for longer than the Tenant allows.
+
+```http
+GET /api/tenants/{tenantId}/tenant-settings/asset-freshness
+PUT /api/tenants/{tenantId}/tenant-settings/asset-freshness
+```
+
+- **Asset fields**: `asset_last_seen` (the latest observation) and `asset_last_seen_source` (what observed it, e.g. `agent:openaev_agent`), filterable and sortable in the Asset searches. Staleness is not a field of its own: `asset_status` reads `STALE` when the Asset was last seen longer ago than the Tenant allows, and its usual value (`ACTIVE`, `INACTIVE`, `AGENTLESS`) otherwise. An Asset never observed has no `asset_last_seen` and is never `STALE`.
+- **Observations**: an Agent that registers or sends a heartbeat stamps its Asset, at most once an hour per source so a heartbeat does not rewrite the Asset every minute. A `STALE` Asset that is observed again leaves `STALE` at once.
+- **Settings body**: `{"asset_stale_after_days": 30}`, from 0 to 3650. `0` by default: the check is off, no Asset turns stale and no event is emitted until a user sets a number of days. The last seen stamp is recorded either way.
+- **Discovery marker**: `{"asset_discovery_tag": true}` on the same endpoint tags with `discovered` every Endpoint a run creates (an autonomous run promoting a finding, an inject whose output brings a new asset), so a filter or a live trigger on Asset creation tells it from a declared one. `false` by default: no tag is created or added. Omitted on an update, the current value is kept.
+- **Job**: every hour (`openaev.cron.config.asset.freshness.interval`, in minutes), each Asset that turned `STALE` since the previous pass gets one Asset update event, so a live trigger on Asset updates receives each transition once. Nothing is written on the Asset.
+
 ## Coverage scenario read-only first
 
 Scenarios built from an OpenCTI Security Coverage can be built with only their read-only Injects enabled. See [Scenario generation from OpenCTI Security Coverage](../../usage/build/scenario/security-coverage.md#read-only-first-build-and-run-order).
