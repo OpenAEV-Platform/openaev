@@ -310,7 +310,6 @@ export interface AiAttack {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -2327,7 +2326,6 @@ interface BasePayload {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -3108,7 +3106,6 @@ export interface Command {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -3574,10 +3571,6 @@ export interface CounterpartOutput {
   counterpart_product?: string;
   counterpart_status?: string;
   counterpart_url?: string;
-}
-
-export interface CoverageScenarioSettingsInput {
-  coverage_scenario_read_only_first: boolean;
 }
 
 export interface CreateConnectorInstanceInput {
@@ -4319,7 +4312,6 @@ export interface DnsResolution {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -5928,7 +5920,6 @@ export interface Executable {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -6392,7 +6383,6 @@ export interface FileDrop {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -6931,13 +6921,6 @@ export interface HealthCheckDetailsOutput {
    * @example "success"
    */
   status?: string;
-}
-
-export interface ImportLine {
-  definition?: string;
-  outcome?: "CREATED" | "EXISTING" | "CONFLICT" | "INVALID";
-  stixId?: string;
-  type?: string;
 }
 
 export interface ImportMapper {
@@ -7896,7 +7879,6 @@ export interface InjectorContract {
     | "kerberoastable_account"
     | "expectation_signature"
   )[];
-  injector_contract_read_only?: boolean;
   injector_contract_tags?: string[];
   /** @format date-time */
   injector_contract_updated_at: string;
@@ -8748,7 +8730,6 @@ export interface MarkingDefinitionOutput {
   /** @format int32 */
   marking_definition_order: number;
   marking_definition_protected: boolean;
-  marking_definition_stix_id?: string;
   /** @minLength 1 */
   marking_definition_type: string;
 }
@@ -8871,7 +8852,6 @@ export interface NetworkTraffic {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -10971,12 +10951,6 @@ export interface PlatformSettings {
   smtp_service_available?: string;
   /** True if telemetry manager enable */
   telemetry_manager_enable?: boolean;
-  /** Container image XTM Composer reported, empty when it reported none */
-  xtm_composer_image?: string;
-  /** Last connectivity check of XTM Composer */
-  xtm_composer_last_connectivity_check?: string;
-  /** Version XTM Composer reported, 'unknown' when it reported none */
-  xtm_composer_version?: string;
   /** True if connection with XTM Hub is enabled */
   xtm_hub_enable?: boolean;
   /** True if xtmhub backend is reachable */
@@ -11989,6 +11963,7 @@ export interface Scenario {
     | "Internal"
     | "Unknown"
   )[];
+  scenario_reachability_assertion?: boolean;
   scenario_recurrence?: string;
   /** @format date-time */
   scenario_recurrence_end?: string;
@@ -12161,6 +12136,12 @@ export interface ScenarioOutput {
   scenario_version?: string;
   /** Workflow ID associated with the scenario */
   scenario_workflow_id?: string;
+}
+
+/** Declares a scenario a reachability assertion, or clears it. */
+export interface ScenarioReachabilityAssertionInput {
+  /** True to make the scenario a reachability assertion: only read-only injects may run on its schedule */
+  scenario_reachability_assertion?: boolean;
 }
 
 export interface ScenarioRecurrenceInput {
@@ -15011,13 +14992,6 @@ export interface WorkflowScopeRuleOutput {
   workflow_scope_rule_value_label?: string;
 }
 
-export interface XtmComposerConnectivityInput {
-  /** The container image XTM Composer runs from */
-  image?: string;
-  /** The XTM Composer version */
-  version?: string;
-}
-
 export interface XtmComposerInstanceOutput {
   /**
    * Connector image
@@ -15059,12 +15033,8 @@ export interface XtmComposerOutput {
    * @minLength 1
    */
   xtm_composer_id: string;
-  /** The container image XTM Composer reported, empty when it reported none */
-  xtm_composer_image?: string;
-  /** The version XTM Composer reported, 'unknown' when it reported none */
-  xtm_composer_reported_version?: string;
   /**
-   * The OpenAEV version XTM Composer registered against
+   * XTM Composer Version
    * @minLength 1
    */
   xtm_composer_version: string;
@@ -15076,8 +15046,6 @@ export interface XtmComposerRegisterInput {
    * @minLength 1
    */
   id: string;
-  /** The container image XTM Composer runs from, optional */
-  image?: string;
   /**
    * The XTM Composer Name
    * @minLength 1
@@ -15088,8 +15056,6 @@ export interface XtmComposerRegisterInput {
    * @minLength 1
    */
   public_key: string;
-  /** The XTM Composer version, optional: an XTM Composer that sends none is recorded as 'unknown' */
-  version?: string;
 }
 
 export interface XtmComposerUpdateStatusInput {
@@ -15137,7 +15103,7 @@ export interface XtmHubRegistrationOutput {
 
 export interface XtmPeerTokenInput {
   /**
-   * The consumer product; only opencrq is accepted today, under the email opencrq@xtm.<product>.filigran.io
+   * The consumer product (opencti, opencrq, xtm-one)
    * @minLength 0
    * @maxLength 64
    */
