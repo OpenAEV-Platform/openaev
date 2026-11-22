@@ -114,7 +114,9 @@ public class TenantSettingsService {
         new Tenant(tenantId),
         COVERAGE_SCENARIO_READ_ONLY_FIRST.key(),
         String.valueOf(input.readOnlyFirst()));
-    return findCoverageScenarioSettings(tenantId);
+    Map<String, Setting> tenantSettings = loadTenantSettings(tenantId);
+    return new CoverageScenarioSettingsInput(
+        Boolean.parseBoolean(resolveValue(tenantSettings, COVERAGE_SCENARIO_READ_ONLY_FIRST)));
   }
 
   public void updateCatalogAutoInstall(
