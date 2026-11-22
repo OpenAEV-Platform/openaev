@@ -1,10 +1,10 @@
 import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { type ReactElement } from 'react';
+import { type ReactElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConnectOpenCtiCta, OpenCtiMatchPreview, OpenCtiPivotView, OpenCtiRowMark } from '../../../components/xtm/XtmPivot';
+import { ConnectOpenCtiCta, OpenCtiCardView, OpenCtiMatchPreview, OpenCtiPivotView, OpenCtiRowMark } from '../../../components/xtm/XtmPivot';
 
 const can = vi.fn();
 const useCounterpartMock = vi.fn();
@@ -109,17 +109,16 @@ describe('OpenCtiPivotView', () => {
     expect(panel).not.toBe(hero);
   });
 
-  it('given connected without a match should say so', () => {
-    renderPivot(
+  it('given connected without a match should render nothing', () => {
+    const { container } = renderPivot(
       <OpenCtiPivotView answer={{
         state: 'no_match',
         product: 'opencti',
       }}
       />,
     );
-    expect(screen.getByText('Not in OpenCTI')).toBeTruthy();
-    // A status, never a dead button.
-    expect(screen.getByTestId('xtm-pivot-none').querySelector('button')).toBeNull();
+    expect(container.textContent).toBe('');
+    expect(container.querySelector('[tabindex]')).toBeNull();
   });
 
   it('given not connected and an administrator should offer to connect', () => {
@@ -164,6 +163,61 @@ describe('OpenCtiPivotView', () => {
     cleanup();
     renderPivot(<ConnectOpenCtiCta />);
     expect(screen.queryByTestId('xtm-connect-cta')).toBeNull();
+  });
+});
+
+describe('OpenCtiCardView', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    can.mockReturnValue(true);
+  });
+  afterEach(cleanup);
+
+  const frame = (card: ReactNode) => <section data-testid="xtm-card-frame">{card}</section>;
+
+  it('given connected without a match should render nothing, frame included', () => {
+    const { container } = renderPivot(
+      <OpenCtiCardView
+        answer={{
+          state: 'no_match',
+          product: 'opencti',
+        }}
+        frame={frame}
+      />,
+    );
+    expect(container.textContent).toBe('');
+    expect(screen.queryByTestId('xtm-card-frame')).toBeNull();
+  });
+
+  it('given a match should render the card inside its frame', () => {
+    renderPivot(
+      <OpenCtiCardView
+        answer={{
+          state: 'match',
+          product: 'opencti',
+          counterpart: {
+            counterpart_url: 'https://octi.example/dashboard/id/abc',
+            counterpart_name: 'CVE-2024-0001',
+          },
+        }}
+        frame={frame}
+      />,
+    );
+    expect(screen.getByTestId('xtm-card-frame').querySelector('[data-testid="xtm-card"]')).toBeTruthy();
+  });
+
+  it('given not connected should keep the frame and the call to action', () => {
+    renderPivot(
+      <OpenCtiCardView
+        answer={{
+          state: 'not_connected',
+          product: 'opencti',
+        }}
+        frame={frame}
+      />,
+    );
+    expect(screen.getByTestId('xtm-card-frame')).toBeTruthy();
+    expect(screen.getByTestId('xtm-connect-cta')).toBeTruthy();
   });
 });
 
@@ -241,15 +295,24 @@ describe('OpenCtiRowMark', () => {
     expect(document.activeElement).toBe(mark);
   });
 
-  it('given no match with a reserved slot should keep an empty slot so the row controls stay aligned', () => {
+  it('given connected without a match and a reserved slot should render nothing, no empty slot', () => {
     useCounterpartMock.mockReturnValue({
       state: 'no_match',
       product: 'opencti',
     });
-    renderPivot(<OpenCtiRowMark kind="alerts" objectKey="https://edr/2" reserveSlot />);
-    const slot = screen.getByTestId('xtm-row-mark-slot');
-    expect(slot.children.length).toBe(0);
+    const { container } = renderPivot(<OpenCtiRowMark kind="alerts" objectKey="https://edr/2" reserveSlot />);
+    expect(container.textContent).toBe('');
+    expect(screen.queryByTestId('xtm-row-mark-slot')).toBeNull();
     expect(screen.queryByTestId('xtm-row-mark')).toBeNull();
+  });
+
+  it('given a loading answer with a reserved slot should keep an empty slot so the row does not shift', () => {
+    useCounterpartMock.mockReturnValue({
+      state: 'loading',
+      product: 'opencti',
+    });
+    renderPivot(<OpenCtiRowMark kind="alerts" objectKey="https://edr/4" reserveSlot />);
+    expect(screen.getByTestId('xtm-row-mark-slot').children.length).toBe(0);
   });
 
   it('given not connected with a reserved slot should render nothing', () => {

@@ -4918,7 +4918,6 @@
   "Add a node to the selection": "Добавить узел к выделению",
   "Start of the time range": "Начало периода",
   "End of the time range": "Конец периода",
-  "This object is not known in the connected OpenCTI.": "Этот объект не найден в подключенном OpenCTI.",
   "OpenCRQ is unavailable": "OpenCRQ недоступен",
   "Ask an administrator to connect OpenCTI to see this object there.": "Попросите администратора подключить OpenCTI, чтобы увидеть этот объект там.",
   "In OpenCTI": "В OpenCTI",
@@ -4928,10 +4927,7 @@
   "Investigate in OpenCTI": "Расследовать в OpenCTI",
   "OpenCTI is unavailable": "OpenCTI недоступен",
   "In OpenCRQ": "В OpenCRQ",
-  "This object is not known in the connected OpenCRQ.": "Этот объект не найден в подключенном OpenCRQ.",
   "Connect OpenCRQ": "Подключить OpenCRQ",
-  "Not in OpenCRQ": "Нет в OpenCRQ",
-  "Not in OpenCTI": "Нет в OpenCTI",
   "Loss avoided by fixing": "Потери, предотвращённые исправлением",
   "Open in OpenCRQ": "Открыть в OpenCRQ",
   "Annual loss expectancy": "Ожидаемые годовые потери",
@@ -4983,8 +4979,6 @@
   "Open the connection guide to connect OpenCTI.": "Откройте руководство по подключению, чтобы подключить OpenCTI.",
   "OpenCRQ did not answer this time. The pivot comes back on its own.": "На этот раз OpenCRQ не ответил. Ссылка восстановится сама.",
   "OpenCTI did not answer this time. The pivot comes back on its own.": "На этот раз OpenCTI не ответил. Ссылка восстановится сама.",
-  "OpenCRQ has not quantified this object yet: add it to a risk scenario there to see its annual loss.": "OpenCRQ еще не оценил этот объект: добавьте его в сценарий риска, чтобы увидеть годовые потери.",
-  "OpenCTI holds no intelligence on this object yet: it appears there once a connector or a report brings it in.": "В OpenCTI пока нет разведданных об этом объекте: он появится там, когда его добавит коннектор или отчет.",
   "See the financial impact of this object and the risk scenarios it drives in OpenCRQ.": "Посмотрите в OpenCRQ финансовое влияние этого объекта и связанные с ним сценарии риска.",
   "See the reports, relationships and context of this object in OpenCTI.": "Посмотрите в OpenCTI отчеты, связи и контекст этого объекта."
 }

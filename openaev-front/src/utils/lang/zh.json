@@ -4918,7 +4918,6 @@
   "Add a node to the selection": "将节点添加到选择",
   "Start of the time range": "时间范围开始",
   "End of the time range": "时间范围结束",
-  "This object is not known in the connected OpenCTI.": "已连接的 OpenCTI 中没有此对象。",
   "OpenCRQ is unavailable": "OpenCRQ 不可用",
   "Ask an administrator to connect OpenCTI to see this object there.": "请管理员连接 OpenCTI 以在其中查看此对象。",
   "In OpenCTI": "在 OpenCTI 中",
@@ -4928,10 +4927,7 @@
   "Investigate in OpenCTI": "在 OpenCTI 中调查",
   "OpenCTI is unavailable": "OpenCTI 不可用",
   "In OpenCRQ": "在 OpenCRQ 中",
-  "This object is not known in the connected OpenCRQ.": "已连接的 OpenCRQ 中没有此对象。",
   "Connect OpenCRQ": "连接 OpenCRQ",
-  "Not in OpenCRQ": "不在 OpenCRQ 中",
-  "Not in OpenCTI": "不在 OpenCTI 中",
   "Loss avoided by fixing": "修复可避免的损失",
   "Open in OpenCRQ": "在 OpenCRQ 中打开",
   "Annual loss expectancy": "年度预期损失",
@@ -4983,8 +4979,6 @@
   "Open the connection guide to connect OpenCTI.": "打开连接指南以连接 OpenCTI。",
   "OpenCRQ did not answer this time. The pivot comes back on its own.": "OpenCRQ 本次未响应。链接会自动恢复。",
   "OpenCTI did not answer this time. The pivot comes back on its own.": "OpenCTI 本次未响应。链接会自动恢复。",
-  "OpenCRQ has not quantified this object yet: add it to a risk scenario there to see its annual loss.": "OpenCRQ 尚未量化此对象：将其添加到风险场景中即可查看其年度损失。",
-  "OpenCTI holds no intelligence on this object yet: it appears there once a connector or a report brings it in.": "OpenCTI 尚无此对象的情报：一旦连接器或报告将其引入，它就会出现在那里。",
   "See the financial impact of this object and the risk scenarios it drives in OpenCRQ.": "在 OpenCRQ 中查看此对象的财务影响及其驱动的风险场景。",
   "See the reports, relationships and context of this object in OpenCTI.": "在 OpenCTI 中查看此对象的报告、关系和上下文。"
 }

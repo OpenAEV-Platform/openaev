@@ -16,7 +16,7 @@ import { type CounterpartAnswer } from './counterpartStore';
 import { STATUS_TRIGGER } from './pivotStyles';
 import useCounterpart from './useCounterpart';
 import { CONNECT_OPENCTI_DOC_URL, type PivotSize, ROW_MARK_SLOT_WIDTH } from './XtmPivot';
-import { PivotNoMatch, PivotPreview, PivotTeaser } from './XtmPivotPreview';
+import { PivotPreview, PivotTeaser } from './XtmPivotPreview';
 
 // The OpenCRQ side of the cross-platform pivots: same visual language and wording as the OpenCTI
 // ones (XtmPivot), the OpenCRQ mark, and the risk OpenCRQ quantifies for the object (the risk
@@ -179,23 +179,6 @@ export const OpenCrqPivotView: FunctionComponent<{
     }
     case 'not_connected':
       return <ConnectOpenCrqCta size={size} />;
-    case 'no_match':
-      return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Box component="span" tabIndex={0} sx={STATUS_TRIGGER} data-testid="xtm-crq-pivot-none">
-              <Chip label={t('Not in OpenCRQ')} startIcon={<OpenCrqMark size={16} />} />
-            </Box>
-          </TooltipTrigger>
-          <TooltipContent>
-            <PivotNoMatch
-              mark={<OpenCrqMark />}
-              productName="OpenCRQ"
-              explanation={t('OpenCRQ has not quantified this object yet: add it to a risk scenario there to see its annual loss.')}
-            />
-          </TooltipContent>
-        </Tooltip>
-      );
     case 'unavailable':
       return (
         <Tooltip>
@@ -252,7 +235,7 @@ interface PivotProps {
   objectKey: string | null | undefined;
 }
 
-/** Hero action: "Open in OpenCRQ", "Not in OpenCRQ" or "Connect OpenCRQ". */
+/** Hero action: "Open in OpenCRQ" or "Connect OpenCRQ"; nothing when a connected OpenCRQ has no match. */
 const OpenCrqPivotLookup: FunctionComponent<PivotProps & { size?: PivotSize }> = ({ kind, objectKey, size }) => {
   const answer = useCounterpart(kind, objectKey, OPENCRQ_PRODUCT);
   return <OpenCrqPivotView answer={answer} size={size} />;
@@ -266,7 +249,8 @@ interface RowMarkProps extends PivotProps {
 /**
  * List-row chip: the OpenCRQ mark linking to the counterpart, nothing otherwise (same contract as
  * OpenCtiRowMark). The tooltip names the action and the counterpart.
- * With reserveSlot, a row of a connected tenant keeps an empty slot of the mark's width.
+ * With reserveSlot, a row keeps a slot of the mark's width while the answer loads or OpenCRQ is
+ * unavailable; a row without a counterpart, or of a tenant not connected, keeps nothing.
  */
 const OpenCrqRowMarkLookup: FunctionComponent<RowMarkProps> = ({
   kind,
@@ -293,7 +277,8 @@ const OpenCrqRowMarkLookup: FunctionComponent<RowMarkProps> = ({
     </Box>
   );
   if (answer.state !== 'match') {
-    return reserveSlot && answer.state !== 'not_connected' ? slot(null) : null;
+    // Connected and not found, or not connected: nothing, not even an empty slot.
+    return reserveSlot && (answer.state === 'loading' || answer.state === 'unavailable') ? slot(null) : null;
   }
   const mark = (
     <Tooltip>
@@ -325,13 +310,18 @@ const OpenCrqRowMarkLookup: FunctionComponent<RowMarkProps> = ({
   return reserveSlot ? slot(mark) : mark;
 };
 
-/** Overview card: "In OpenCRQ" with the risk OpenCRQ quantifies for the object, or the CTA. */
-export const OpenCrqCardView: FunctionComponent<{ answer: CounterpartAnswer }> = ({ answer }) => {
-  const { t } = useFormatter();
-  if (answer.state === 'loading') {
+/**
+ * Overview card: "In OpenCRQ" with the risk OpenCRQ quantifies for the object, or the CTA. A
+ * connected OpenCRQ without the object draws nothing, frame included.
+ */
+export const OpenCrqCardView: FunctionComponent<{
+  answer: CounterpartAnswer;
+  frame?: (card: ReactNode) => ReactNode;
+}> = ({ answer, frame }) => {
+  if (answer.state === 'loading' || answer.state === 'no_match') {
     return null;
   }
-  return (
+  const card = (
     <Box
       sx={{
         display: 'flex',
@@ -364,30 +354,25 @@ export const OpenCrqCardView: FunctionComponent<{ answer: CounterpartAnswer }> =
         </>
       )}
       <OpenCrqPivotView answer={answer} />
-      {answer.state === 'no_match' && (
-        <Box
-          component="span"
-          sx={{
-            typography: 'caption',
-            color: 'text.secondary',
-          }}
-        >
-          {t('This object is not known in the connected OpenCRQ.')}
-        </Box>
-      )}
     </Box>
   );
+  return <>{frame ? frame(card) : card}</>;
 };
 
-const OpenCrqCardLookup: FunctionComponent<PivotProps> = ({ kind, objectKey }) => {
+interface CardProps extends PivotProps {
+  /** The frame of the card (a titled section): drawn only when the card has something to show. */
+  frame?: (card: ReactNode) => ReactNode;
+}
+
+const OpenCrqCardLookup: FunctionComponent<CardProps> = ({ kind, objectKey, frame }) => {
   const answer = useCounterpart(kind, objectKey, OPENCRQ_PRODUCT);
-  return <OpenCrqCardView answer={answer} />;
+  return <OpenCrqCardView answer={answer} frame={frame} />;
 };
 
 // The pivots belong to the exploration graph preview feature: off (the default), they draw nothing
 // and never ask the backend (the lookup component, and its request, is not mounted).
 export const OpenCrqRowMark: FunctionComponent<RowMarkProps> = props => (useExplorationGraph() ? <OpenCrqRowMarkLookup {...props} /> : null);
-export const OpenCrqCard: FunctionComponent<PivotProps> = props => (useExplorationGraph() ? <OpenCrqCardLookup {...props} /> : null);
+export const OpenCrqCard: FunctionComponent<CardProps> = props => (useExplorationGraph() ? <OpenCrqCardLookup {...props} /> : null);
 const OpenCrqPivot: FunctionComponent<PivotProps & { size?: PivotSize }> = props => (useExplorationGraph() ? <OpenCrqPivotLookup {...props} /> : null);
 
 export default OpenCrqPivot;

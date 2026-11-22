@@ -164,19 +164,25 @@ const FindingOverview = () => {
       )}
 
       {/* The same CVE in OpenCTI: its knowledge (threats, reports) one click away, or the
-          "Connect OpenCTI" call to action when the tenant is not connected. */}
+          "Connect OpenCTI" call to action when the tenant is not connected. A connected OpenCTI
+          without the CVE draws no section at all. */}
       {graphEnabled && isCVE && (
-        <InformationGrid title={t('In OpenCTI')}>
-          <OpenCtiCard kind="vulnerabilities" objectKey={finding.finding_value} />
-        </InformationGrid>
+        <OpenCtiCard
+          kind="vulnerabilities"
+          objectKey={finding.finding_value}
+          frame={card => <InformationGrid title={t('In OpenCTI')}>{card}</InformationGrid>}
+        />
       )}
 
       {/* The same CVE in OpenCRQ: the risk scenarios it drives, their annual loss expectancy and the
-          loss avoided by fixing it, or the "Connect OpenCRQ" call to action. */}
+          loss avoided by fixing it, or the "Connect OpenCRQ" call to action; nothing when a
+          connected OpenCRQ does not hold it. */}
       {graphEnabled && isCVE && (
-        <InformationGrid title={t('In OpenCRQ')}>
-          <OpenCrqCard kind="vulnerabilities" objectKey={finding.finding_value} />
-        </InformationGrid>
+        <OpenCrqCard
+          kind="vulnerabilities"
+          objectKey={finding.finding_value}
+          frame={card => <InformationGrid title={t('In OpenCRQ')}>{card}</InformationGrid>}
+        />
       )}
 
       {/* Pivots: the impacted assets and asset groups, and the scenarios and simulations the

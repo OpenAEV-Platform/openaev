@@ -4918,7 +4918,6 @@
   "Add a node to the selection": "ノードを選択に追加",
   "Start of the time range": "期間の開始",
   "End of the time range": "期間の終了",
-  "This object is not known in the connected OpenCTI.": "このオブジェクトは接続された OpenCTI にありません。",
   "OpenCRQ is unavailable": "OpenCRQ は利用できません",
   "Ask an administrator to connect OpenCTI to see this object there.": "このオブジェクトを OpenCTI で表示するには、管理者に OpenCTI の接続を依頼してください。",
   "In OpenCTI": "OpenCTI 内",
@@ -4928,10 +4927,7 @@
   "Investigate in OpenCTI": "OpenCTI で調査",
   "OpenCTI is unavailable": "OpenCTI は利用できません",
   "In OpenCRQ": "OpenCRQ 内",
-  "This object is not known in the connected OpenCRQ.": "このオブジェクトは接続された OpenCRQ にありません。",
   "Connect OpenCRQ": "OpenCRQ を接続",
-  "Not in OpenCRQ": "OpenCRQ にありません",
-  "Not in OpenCTI": "OpenCTI にありません",
   "Loss avoided by fixing": "修正により回避される損失",
   "Open in OpenCRQ": "OpenCRQで開く",
   "Annual loss expectancy": "年間予想損失額",
@@ -4983,8 +4979,6 @@
   "Open the connection guide to connect OpenCTI.": "接続ガイドを開いて OpenCTI を接続してください。",
   "OpenCRQ did not answer this time. The pivot comes back on its own.": "今回は OpenCRQ から応答がありませんでした。リンクは自動的に復帰します。",
   "OpenCTI did not answer this time. The pivot comes back on its own.": "今回は OpenCTI から応答がありませんでした。リンクは自動的に復帰します。",
-  "OpenCRQ has not quantified this object yet: add it to a risk scenario there to see its annual loss.": "OpenCRQ はこのオブジェクトをまだ定量化していません。リスクシナリオに追加すると年間損失を確認できます。",
-  "OpenCTI holds no intelligence on this object yet: it appears there once a connector or a report brings it in.": "OpenCTI にはこのオブジェクトのインテリジェンスがまだありません。コネクタまたはレポートが取り込むと表示されます。",
   "See the financial impact of this object and the risk scenarios it drives in OpenCRQ.": "OpenCRQ でこのオブジェクトの財務的影響と関連するリスクシナリオを確認します。",
   "See the reports, relationships and context of this object in OpenCTI.": "OpenCTI でこのオブジェクトのレポート、関係、コンテキストを確認します。"
 }

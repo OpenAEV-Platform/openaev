@@ -4918,7 +4918,6 @@
   "Add a node to the selection": "Knoten zur Auswahl hinzufügen",
   "Start of the time range": "Beginn des Zeitraums",
   "End of the time range": "Ende des Zeitraums",
-  "This object is not known in the connected OpenCTI.": "Dieses Objekt ist im verbundenen OpenCTI nicht bekannt.",
   "OpenCRQ is unavailable": "OpenCRQ ist nicht verfügbar",
   "Ask an administrator to connect OpenCTI to see this object there.": "Bitten Sie einen Administrator, OpenCTI zu verbinden, um dieses Objekt dort zu sehen.",
   "In OpenCTI": "Vorhanden in OpenCTI",
@@ -4928,10 +4927,7 @@
   "Investigate in OpenCTI": "In OpenCTI untersuchen",
   "OpenCTI is unavailable": "OpenCTI ist nicht verfügbar",
   "In OpenCRQ": "Vorhanden in OpenCRQ",
-  "This object is not known in the connected OpenCRQ.": "Dieses Objekt ist im verbundenen OpenCRQ nicht bekannt.",
   "Connect OpenCRQ": "OpenCRQ verbinden",
-  "Not in OpenCRQ": "Nicht in OpenCRQ",
-  "Not in OpenCTI": "Nicht in OpenCTI",
   "Loss avoided by fixing": "Durch Behebung vermiedener Verlust",
   "Open in OpenCRQ": "In OpenCRQ öffnen",
   "Annual loss expectancy": "Erwarteter Jahresverlust",
@@ -4983,8 +4979,6 @@
   "Open the connection guide to connect OpenCTI.": "Öffnen Sie die Verbindungsanleitung, um OpenCTI zu verbinden.",
   "OpenCRQ did not answer this time. The pivot comes back on its own.": "OpenCRQ hat diesmal nicht geantwortet. Der Link kehrt von selbst zurück.",
   "OpenCTI did not answer this time. The pivot comes back on its own.": "OpenCTI hat diesmal nicht geantwortet. Der Link kehrt von selbst zurück.",
-  "OpenCRQ has not quantified this object yet: add it to a risk scenario there to see its annual loss.": "OpenCRQ hat dieses Objekt noch nicht quantifiziert: Fügen Sie es dort einem Risikoszenario hinzu, um seinen jährlichen Verlust zu sehen.",
-  "OpenCTI holds no intelligence on this object yet: it appears there once a connector or a report brings it in.": "OpenCTI hat noch keine Erkenntnisse zu diesem Objekt: Es erscheint dort, sobald ein Konnektor oder ein Bericht es einbringt.",
   "See the financial impact of this object and the risk scenarios it drives in OpenCRQ.": "Sehen Sie in OpenCRQ die finanziellen Auswirkungen dieses Objekts und die Risikoszenarien, die es beeinflusst.",
   "See the reports, relationships and context of this object in OpenCTI.": "Sehen Sie in OpenCTI die Berichte, Beziehungen und den Kontext dieses Objekts."
 }

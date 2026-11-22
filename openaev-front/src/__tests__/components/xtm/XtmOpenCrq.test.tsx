@@ -1,7 +1,7 @@
 import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { type ReactElement } from 'react';
+import { type ReactElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { orderedFacts } from '../../../components/xtm/counterpartFacts';
@@ -93,15 +93,16 @@ describe('OpenCrqPivotView', () => {
     expect(screen.getByTestId('xtm-crq-pivot-open').className).toBe(hero);
   });
 
-  it('given connected without a match should say so', () => {
-    renderView(
+  it('given connected without a match should render nothing', () => {
+    const { container } = renderView(
       <OpenCrqPivotView answer={{
         state: 'no_match',
         product: 'opencrq',
       }}
       />,
     );
-    expect(screen.getByText('Not in OpenCRQ')).toBeTruthy();
+    expect(container.textContent).toBe('');
+    expect(container.querySelector('[tabindex]')).toBeNull();
   });
 
   it('given not connected and an administrator should offer to connect OpenCRQ', () => {
@@ -183,15 +184,25 @@ describe('OpenCrqCardView', () => {
     expect(facts).toBe('Risk scenarios3Annual loss expectancy125K');
   });
 
-  it('given no match should explain it', () => {
-    renderView(
-      <OpenCrqCardView answer={{
-        state: 'no_match',
-        product: 'opencrq',
-      }}
+  const frame = (card: ReactNode) => <section data-testid="xtm-crq-card-frame">{card}</section>;
+
+  it('given connected without a match should render nothing, frame included', () => {
+    const { container } = renderView(
+      <OpenCrqCardView
+        answer={{
+          state: 'no_match',
+          product: 'opencrq',
+        }}
+        frame={frame}
       />,
     );
-    expect(screen.getByText('This object is not known in the connected OpenCRQ.')).toBeTruthy();
+    expect(container.textContent).toBe('');
+    expect(screen.queryByTestId('xtm-crq-card-frame')).toBeNull();
+  });
+
+  it('given a match should render the card inside its frame', () => {
+    renderView(<OpenCrqCardView answer={MATCH} frame={frame} />);
+    expect(screen.getByTestId('xtm-crq-card-frame').querySelector('[data-testid="xtm-crq-card"]')).toBeTruthy();
   });
 
   it('given loading should render nothing', () => {
@@ -224,17 +235,24 @@ describe('OpenCrqRowMark', () => {
     expect(useCounterpartMock).toHaveBeenCalledWith('vulnerabilities', 'CVE-2024-0001', 'opencrq');
   });
 
-  it('given connected without a match should keep an empty slot only when asked', () => {
+  it('given connected without a match should render nothing, not even a reserved slot', () => {
     useCounterpartMock.mockReturnValue({
       state: 'no_match',
       product: 'opencrq',
     });
-    renderView(<OpenCrqRowMark kind="assets" objectKey="host-1" reserveSlot />);
-    expect(screen.getByTestId('xtm-crq-row-mark-slot')).toBeTruthy();
-    expect(screen.queryByTestId('xtm-crq-row-mark')).toBeNull();
-    cleanup();
-    const { container } = renderView(<OpenCrqRowMark kind="assets" objectKey="host-1" />);
+    const { container } = renderView(<OpenCrqRowMark kind="assets" objectKey="host-1" reserveSlot />);
     expect(container.textContent).toBe('');
+    expect(screen.queryByTestId('xtm-crq-row-mark-slot')).toBeNull();
+    expect(screen.queryByTestId('xtm-crq-row-mark')).toBeNull();
+  });
+
+  it('given a loading answer with a reserved slot should keep an empty slot so the row does not shift', () => {
+    useCounterpartMock.mockReturnValue({
+      state: 'loading',
+      product: 'opencrq',
+    });
+    renderView(<OpenCrqRowMark kind="assets" objectKey="host-2" reserveSlot />);
+    expect(screen.getByTestId('xtm-crq-row-mark-slot').children.length).toBe(0);
   });
 
   it('given not connected should render nothing, even with a reserved slot', () => {

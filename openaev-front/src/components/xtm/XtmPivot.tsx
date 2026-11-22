@@ -15,12 +15,12 @@ import { keyFact, OPENCTI_FACT_LABELS } from './counterpartFacts';
 import { type CounterpartAnswer } from './counterpartStore';
 import { STATUS_TRIGGER } from './pivotStyles';
 import useCounterpart, { OPENCTI_PRODUCT } from './useCounterpart';
-import { PivotNoMatch, PivotPreview, PivotTeaser } from './XtmPivotPreview';
+import { PivotPreview, PivotTeaser } from './XtmPivotPreview';
 
 // One visual language for every cross-platform pivot of OpenAEV: the product mark, "Open in
-// OpenCTI" when the counterpart exists, a muted "Not in OpenCTI" when it does not, and a discreet
-// "Connect OpenCTI" call to action when the tenant is not connected (configurers only; the others
-// read a one-line hint). OpenCTI renders the mirror components with the same wording.
+// OpenCTI" when the counterpart exists, nothing at all when a connected OpenCTI does not hold it, and
+// a discreet "Connect OpenCTI" call to action when the tenant is not connected (configurers only; the
+// others read a one-line hint). OpenCTI renders the mirror components with the same wording.
 
 // The OpenCTI connection of a tenant is deployment configuration (openaev.xtm.opencti.{tenant}.*),
 // so the call to action opens its documentation page.
@@ -207,23 +207,6 @@ export const OpenCtiPivotView: FunctionComponent<{
     }
     case 'not_connected':
       return <ConnectOpenCtiCta size={size} />;
-    case 'no_match':
-      return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Box component="span" tabIndex={0} sx={STATUS_TRIGGER} data-testid="xtm-pivot-none">
-              <Chip label={t('Not in OpenCTI')} startIcon={<ProductMark size={16} />} />
-            </Box>
-          </TooltipTrigger>
-          <TooltipContent>
-            <PivotNoMatch
-              mark={<ProductMark />}
-              productName="OpenCTI"
-              explanation={t('OpenCTI holds no intelligence on this object yet: it appears there once a connector or a report brings it in.')}
-            />
-          </TooltipContent>
-        </Tooltip>
-      );
     case 'unavailable':
       return (
         <Tooltip>
@@ -240,7 +223,7 @@ export const OpenCtiPivotView: FunctionComponent<{
   }
 };
 
-/** Hero action: "Open in OpenCTI", "Not in OpenCTI" or "Connect OpenCTI". */
+/** Hero action: "Open in OpenCTI" or "Connect OpenCTI"; nothing when a connected OpenCTI has no match. */
 const OpenCtiPivotLookup: FunctionComponent<PivotProps & { size?: PivotSize }> = ({ kind, objectKey, size }) => {
   const answer = useCounterpart(kind, objectKey, OPENCTI_PRODUCT);
   return <OpenCtiPivotView answer={answer} size={size} />;
@@ -258,8 +241,9 @@ interface RowMarkProps extends PivotProps {
 /**
  * List-row chip: the product mark linking to the counterpart, nothing otherwise. The label names
  * the action ("Investigate in OpenCTI" on a collected alert), "Open in OpenCTI" by default.
- * With reserveSlot, a row of a connected tenant keeps an empty slot of the mark's width when it
- * has no counterpart, so controls placed after the mark line up on every row.
+ * With reserveSlot, a row keeps a slot of the mark's width while the answer loads or OpenCTI is
+ * unavailable; a row without a counterpart, or of a tenant not connected, keeps nothing (Sam,
+ * 22 Nov 2026: connected and not found shows nothing).
  */
 const OpenCtiRowMarkLookup: FunctionComponent<RowMarkProps> = ({ kind, objectKey, label = 'Open in OpenCTI', reserveSlot = false }) => {
   const { t } = useFormatter();
@@ -281,7 +265,8 @@ const OpenCtiRowMarkLookup: FunctionComponent<RowMarkProps> = ({ kind, objectKey
     </Box>
   );
   if (answer.state !== 'match') {
-    return reserveSlot && answer.state !== 'not_connected' ? slot(null) : null;
+    // Connected and not found, or not connected: nothing, not even an empty slot.
+    return reserveSlot && (answer.state === 'loading' || answer.state === 'unavailable') ? slot(null) : null;
   }
   const mark = (
     <Tooltip>
@@ -313,14 +298,25 @@ const OpenCtiRowMarkLookup: FunctionComponent<RowMarkProps> = ({ kind, objectKey
   return reserveSlot ? slot(mark) : mark;
 };
 
-/** Overview card: "In OpenCTI" with the counterpart's name and type, or the CTA. */
-const OpenCtiCardLookup: FunctionComponent<PivotProps & { children?: ReactNode }> = ({ kind, objectKey, children }) => {
-  const { t } = useFormatter();
-  const answer = useCounterpart(kind, objectKey, OPENCTI_PRODUCT);
-  if (answer.state === 'loading') {
+interface CardProps extends PivotProps {
+  children?: ReactNode;
+  /** The frame of the card (a titled section): drawn only when the card has something to show. */
+  frame?: (card: ReactNode) => ReactNode;
+}
+
+/**
+ * Overview card: "In OpenCTI" with the counterpart's name and type, or the CTA. A connected OpenCTI
+ * without the object draws nothing, frame included: no empty section, no "not found" line.
+ */
+export const OpenCtiCardView: FunctionComponent<{
+  answer: CounterpartAnswer;
+  children?: ReactNode;
+  frame?: (card: ReactNode) => ReactNode;
+}> = ({ answer, children, frame }) => {
+  if (answer.state === 'loading' || answer.state === 'no_match') {
     return null;
   }
-  return (
+  const card = (
     <Box
       sx={{
         display: 'flex',
@@ -355,25 +351,20 @@ const OpenCtiCardLookup: FunctionComponent<PivotProps & { children?: ReactNode }
       ) : (
         <OpenCtiPivotView answer={answer} />
       )}
-      {answer.state === 'no_match' && (
-        <Box
-          component="span"
-          sx={{
-            typography: 'caption',
-            color: 'text.secondary',
-          }}
-        >
-          {t('This object is not known in the connected OpenCTI.')}
-        </Box>
-      )}
     </Box>
   );
+  return <>{frame ? frame(card) : card}</>;
+};
+
+const OpenCtiCardLookup: FunctionComponent<CardProps> = ({ kind, objectKey, children, frame }) => {
+  const answer = useCounterpart(kind, objectKey, OPENCTI_PRODUCT);
+  return <OpenCtiCardView answer={answer} frame={frame}>{children}</OpenCtiCardView>;
 };
 
 // The pivots belong to the exploration graph preview feature: off (the default), they draw nothing
 // and never ask the backend (the lookup component, and its request, is not mounted).
 export const OpenCtiRowMark: FunctionComponent<RowMarkProps> = props => (useExplorationGraph() ? <OpenCtiRowMarkLookup {...props} /> : null);
-export const OpenCtiCard: FunctionComponent<PivotProps & { children?: ReactNode }> = props => (useExplorationGraph() ? <OpenCtiCardLookup {...props} /> : null);
+export const OpenCtiCard: FunctionComponent<CardProps> = props => (useExplorationGraph() ? <OpenCtiCardLookup {...props} /> : null);
 const OpenCtiPivot: FunctionComponent<PivotProps & { size?: PivotSize }> = props => (useExplorationGraph() ? <OpenCtiPivotLookup {...props} /> : null);
 
 export default OpenCtiPivot;

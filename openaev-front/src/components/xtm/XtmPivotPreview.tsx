@@ -172,33 +172,3 @@ export const PivotTeaser: FunctionComponent<TeaserProps> = ({ mark, productName,
     </Box>
   );
 };
-
-/** Connected without a match: what the other product would hold, and how it gets there. */
-interface PivotNoMatchProps {
-  mark: ReactNode;
-  productName: string;
-  explanation: string;
-}
-
-export const PivotNoMatch: FunctionComponent<PivotNoMatchProps> = ({ mark, productName, explanation }) => (
-  <Box
-    sx={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 1,
-      minWidth: 220,
-    }}
-    data-testid="xtm-preview-none"
-  >
-    <Box sx={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 1,
-    }}
-    >
-      {mark}
-      <Box component="span" sx={{ fontWeight: 600 }}>{productName}</Box>
-    </Box>
-    <Box component="span">{explanation}</Box>
-  </Box>
-);
