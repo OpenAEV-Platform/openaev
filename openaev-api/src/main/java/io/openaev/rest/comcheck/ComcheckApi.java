@@ -25,6 +25,9 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class ComcheckApi extends RestBehavior {
 
+  /** The public route a comcheck mail links to. It carries no tenant: the status id names it. */
+  public static final String COMCHECK_URI = "/api/comcheck";
+
   private ComcheckRepository comcheckRepository;
   private TeamRepository teamRepository;
   private ExerciseService exerciseService;
@@ -50,7 +53,7 @@ public class ComcheckApi extends RestBehavior {
     this.exerciseService = exerciseService;
   }
 
-  @GetMapping("/api/comcheck/{comcheckStatusId}")
+  @GetMapping(COMCHECK_URI + "/{comcheckStatusId}")
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackFor = Exception.class)
   public ComcheckStatus checkValidation(TxCtx ctx, @PathVariable String comcheckStatusId) {
