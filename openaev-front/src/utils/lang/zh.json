@@ -294,8 +294,8 @@
   "agent(s)": "代理",
   "Agentic AI capabilities": "人工智能代理能力",
   "Agentless": "无代理",
+  "Stale": "过时",
   "AGENTLESS": "AGENTLESS",
-  "STALE": "过时",
   "Agentless through your EDR": "通过您的EDR实现无代理部署",
   "Agents": "Agent",
   "Agents Privileges": "代理權限",
@@ -4974,5 +4974,8 @@
   "Start here": "从这里开始",
   "Fold the Start here panel": "折叠“从这里开始”面板",
   "List the entities": "列出实体",
-  "Entities of the graph": "图中的实体"
+  "Entities of the graph": "图中的实体",
+  "Last seen {date}": "最后发现 {date}",
+  "Last seen {date}, threshold {days} days": "最后发现 {date}，阈值 {days} 天",
+  "Last seen {date}, threshold 1 day": "最后发现 {date}，阈值 1 天"
 }

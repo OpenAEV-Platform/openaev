@@ -294,8 +294,8 @@
   "agent(s)": "agente(s)",
   "Agentic AI capabilities": "Capacidades de la IA del agente",
   "Agentless": "Sin agente",
+  "Stale": "Obsoleto",
   "AGENTLESS": "AGENTLESS",
-  "STALE": "OBSOLETO",
   "Agentless through your EDR": "Sin agentes a través de su EDR",
   "Agents": "Agentes",
   "Agents Privileges": "Agentes Privilegios",
@@ -4974,5 +4974,8 @@
   "Start here": "Empezar aquí",
   "Fold the Start here panel": "Plegar el panel Empezar aquí",
   "List the entities": "Listar las entidades",
-  "Entities of the graph": "Entidades del grafo"
+  "Entities of the graph": "Entidades del grafo",
+  "Last seen {date}": "Visto por última vez {date}",
+  "Last seen {date}, threshold {days} days": "Visto por última vez {date}, umbral {days} días",
+  "Last seen {date}, threshold 1 day": "Visto por última vez {date}, umbral 1 día"
 }

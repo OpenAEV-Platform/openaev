@@ -8,6 +8,7 @@ import { makeStyles } from 'tss-react/mui';
 import { type EndpointHelper } from '../../../../actions/assets/asset-helper';
 import { bulkDeleteAssets, bulkReplaceAssetMarkings, searchAssets } from '../../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../../actions/executors/executor-action';
+import { fetchAssetFreshnessSettings } from '../../../../actions/settings/tenant-settings-action';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ExportButton from '../../../../components/common/ExportButton';
 import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
@@ -89,6 +90,14 @@ const Endpoints = () => {
   useDataLoader(() => {
     dispatch(fetchExecutors());
   });
+
+  // The stale threshold, named in the tooltip of a STALE status; absent when not readable.
+  const [staleAfterDays, setStaleAfterDays] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    fetchAssetFreshnessSettings()
+      .then((result: { data?: { asset_stale_after_days?: number } }) => setStaleAfterDays(result?.data?.asset_stale_after_days || undefined))
+      .catch(() => setStaleAfterDays(undefined));
+  }, []);
 
   // Query param
   const [searchParams] = useSearchParams();
@@ -241,7 +250,14 @@ const Endpoints = () => {
       field: EndpointListItemFragments.ENDPOINT_ACTIVE,
       label: 'Status',
       isSortable: false,
-      value: (endpoint: EndpointOutput) => <EndpointActiveFragment activity_map={(endpoint.asset_agents ?? []).map(a => a.agent_active ?? false)} />,
+      value: (endpoint: EndpointOutput) => (
+        <EndpointActiveFragment
+          activity_map={(endpoint.asset_agents ?? []).map(a => a.agent_active ?? false)}
+          asset_status={endpoint.asset_status}
+          asset_last_seen={endpoint.asset_last_seen}
+          stale_after_days={staleAfterDays}
+        />
+      ),
     },
     {
       field: EndpointListItemFragments.ENDPOINT_PLATFORM,

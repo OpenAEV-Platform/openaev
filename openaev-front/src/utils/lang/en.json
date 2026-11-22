@@ -294,8 +294,8 @@
   "agent(s)": "agent(s)",
   "Agentic AI capabilities": "Agentic AI capabilities",
   "Agentless": "Agentless",
+  "Stale": "Stale",
   "AGENTLESS": "AGENTLESS",
-  "STALE": "STALE",
   "Agentless through your EDR": "Agentless through your EDR",
   "Agents": "Agents",
   "Agents Privileges": "Agents Privileges",
@@ -4974,5 +4974,8 @@
   "Start here": "Start here",
   "Fold the Start here panel": "Fold the Start here panel",
   "List the entities": "List the entities",
-  "Entities of the graph": "Entities of the graph"
+  "Entities of the graph": "Entities of the graph",
+  "Last seen {date}": "Last seen {date}",
+  "Last seen {date}, threshold {days} days": "Last seen {date}, threshold {days} days",
+  "Last seen {date}, threshold 1 day": "Last seen {date}, threshold 1 day"
 }

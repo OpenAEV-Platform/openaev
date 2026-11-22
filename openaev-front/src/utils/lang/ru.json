@@ -294,8 +294,8 @@
   "agent(s)": "агент(ы)",
   "Agentic AI capabilities": "Возможности агентского искусственного интеллекта",
   "Agentless": "Без агентов",
+  "Stale": "Устаревший",
   "AGENTLESS": "AGENTLESS",
-  "STALE": "УСТАРЕВШИЙ",
   "Agentless through your EDR": "Без агентов через вашу систему EDR",
   "Agents": "Агенты",
   "Agents Privileges": "Привилегии агентов",
@@ -4974,5 +4974,8 @@
   "Start here": "Начать здесь",
   "Fold the Start here panel": "Свернуть панель «Начать здесь»",
   "List the entities": "Показать список сущностей",
-  "Entities of the graph": "Сущности графа"
+  "Entities of the graph": "Сущности графа",
+  "Last seen {date}": "Последний раз замечен {date}",
+  "Last seen {date}, threshold {days} days": "Последний раз замечен {date}, порог {days} дн.",
+  "Last seen {date}, threshold 1 day": "Последний раз замечен {date}, порог 1 день"
 }

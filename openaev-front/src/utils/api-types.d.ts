@@ -4765,6 +4765,11 @@ export interface EndpointOutput {
   asset_id: string;
   /** Whether the asset is internet-facing */
   asset_internet_facing?: boolean;
+  /**
+   * Last time a source observed the asset
+   * @format date-time
+   */
+  asset_last_seen?: string;
   /** Linked person (user id) for identity assets */
   asset_linked_person?: string;
   /**
@@ -4777,6 +4782,8 @@ export interface EndpointOutput {
    * @minLength 1
    */
   asset_name: string;
+  /** Activity status: STALE when unseen past the tenant threshold, else derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS" | "STALE";
   /** Asset subcategory */
   asset_subcategory?:
     | "SERVER"

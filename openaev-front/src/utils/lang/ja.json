@@ -294,8 +294,8 @@
   "agent(s)": "エージェント",
   "Agentic AI capabilities": "エージェントのAI機能",
   "Agentless": "エージェントレス",
+  "Stale": "古い",
   "AGENTLESS": "AGENTLESS",
-  "STALE": "古い",
   "Agentless through your EDR": "EDRを活用したエージェントレス",
   "Agents": "エージェント",
   "Agents Privileges": "エージェント特権",
@@ -4974,5 +4974,8 @@
   "Start here": "ここから開始",
   "Fold the Start here panel": "「ここから開始」パネルを折りたたむ",
   "List the entities": "エンティティを一覧表示",
-  "Entities of the graph": "グラフのエンティティ"
+  "Entities of the graph": "グラフのエンティティ",
+  "Last seen {date}": "最終確認 {date}",
+  "Last seen {date}, threshold {days} days": "最終確認 {date}、しきい値 {days} 日",
+  "Last seen {date}, threshold 1 day": "最終確認 {date}、しきい値 1 日"
 }
