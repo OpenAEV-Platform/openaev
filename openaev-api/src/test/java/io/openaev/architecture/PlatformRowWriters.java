@@ -343,6 +343,12 @@ final class PlatformRowWriters {
               "saves the group it is given, already a tenant row: the caller holds it"),
           new TenantRowWriter(
               io.openaev.service.TenantGroupService.class,
+              "stopReceivingNewMarkings",
+              List.of(Group.class),
+              "saves the group it is given, already a tenant row: its one caller,"
+                  + " XtmPeerPrivilegeService.issueToken, passes the default tenant's peer group"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
               "delete",
               List.of(String.class, String.class),
               "deletes the group looked up by (id, tenantId) through findByIdAndTenantForWrite: a"
