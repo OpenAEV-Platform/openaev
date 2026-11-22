@@ -1,3 +1,4 @@
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { updateThreatArsenalAction } from '../../../actions/threat_arsenals/threatArsenal-actions';
@@ -8,9 +9,12 @@ import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-ty
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import PayloadUpdateBanner from './customization/PayloadUpdateBanner';
 import useActionEdit from './hook/useActionEdit';
+import PayloadRevocationBanner from './revocation/PayloadRevocationBanner';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import { buildInitialValues, toActionInput } from './utils/actionFormValues';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
+import { isShownRevoked } from './utils/threatArsenalStatusUtils';
+import usePayloadVersions from './versions/usePayloadVersions';
 
 interface Props {
   // The action edited; closed without one.
@@ -21,8 +25,11 @@ interface Props {
 
 const ThreatArsenalActionEditDrawer: FunctionComponent<Props> = ({ action, onClose, onSaved }) => {
   const { t, tPick } = useFormatter();
+  const theme = useTheme();
   const edit = useActionEdit(action);
   const actionId = action?.injector_contract_id ?? '';
+  const revoked = usePayloadVersions(actionId, !!action && isShownRevoked(action))
+    ?.find(version => version.payload_action_id === actionId && version.payload_revoked);
   const payloadId = action?.action_payload?.payload_id ?? '';
   const name = action ? tPick(action.action_labels) : '';
   const customized = !!edit?.customization;
@@ -59,6 +66,11 @@ const ThreatArsenalActionEditDrawer: FunctionComponent<Props> = ({ action, onClo
     >
       <>
         <PayloadUpdateBanner actionId={actionId} customization={edit?.customization ?? null} canUpdate onUpdated={saved} />
+        {revoked && (
+          <div style={{ marginBottom: theme.spacing(2) }}>
+            <PayloadRevocationBanner version={revoked} />
+          </div>
+        )}
         {edit && !!payloadId && (
           <SnapshotRemediationProvider>
             <ThreatArsenalActionForm

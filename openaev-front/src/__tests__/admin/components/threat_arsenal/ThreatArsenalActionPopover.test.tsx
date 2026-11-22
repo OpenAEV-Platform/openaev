@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   customize: vi.fn(),
   fetchAction: vi.fn(),
   fetchCustomization: vi.fn(),
+  fetchVersions: vi.fn(),
 }));
 
 vi.mock('../../../../utils/utils', () => ({
@@ -22,6 +23,7 @@ vi.mock('../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
   customizeThreatArsenalAction: mocks.customize,
   fetchThreatArsenalAction: mocks.fetchAction,
   fetchThreatArsenalCustomization: mocks.fetchCustomization,
+  fetchThreatArsenalVersions: mocks.fetchVersions,
   deleteThreatArsenalAction: vi.fn(),
   duplicateThreatArsenalAction: vi.fn(),
   exportThreatArsenalAction: vi.fn(),
@@ -119,6 +121,36 @@ describe('ThreatArsenalActionPopover', () => {
       // Assert
       expect(screen.getByRole('menuitem', { name: 'Export' })).toBeInTheDocument();
       expect(screen.queryByRole('menuitem', { name: 'Customize' })).toBeNull();
+    });
+  });
+
+  describe('Edit customization', () => {
+    it('given_aRevokedCopy_should_showItsRevocationAboveTheForm', async () => {
+      // Arrange
+      mocks.fetchVersions.mockResolvedValue({
+        data: [{
+          payload_action_id: 'action-v2',
+          payload_revoked: true,
+          payload_revoked_by_catalogue: true,
+          payload_revocation_reason: 'Unsafe',
+        }],
+      });
+      const copy = anAction({
+        action_injector_type: 'openaev_implant',
+        action_payload_customized: true,
+        action_payload_revoked: true,
+      });
+      renderInApp(<ThreatArsenalActionPopover action={copy} />);
+      openMenu();
+
+      // Act
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Edit customization' }));
+
+      // Assert
+      const drawer = await screen.findByRole('region', { name: 'Customize · Mimikatz' });
+      expect(await within(drawer).findByText('Revoked by Filigran')).toBeInTheDocument();
+      expect(within(drawer).getByText('Reason: Unsafe')).toBeInTheDocument();
+      expect(mocks.fetchVersions).toHaveBeenCalledWith('action-v2');
     });
   });
 });
