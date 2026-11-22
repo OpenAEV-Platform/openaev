@@ -56,6 +56,7 @@ io.openaev.service.AssetGroupService#assetGroupsOfAssets -> AssetGroupRepository
 io.openaev.service.AssetGroupService#bulkDeleteAssetGroups -> AssetGroupRepository | other | 1 | loads in chunks the asset groups named in the bulk delete body, which are the rows deleted, not linked rows
 io.openaev.service.AssetService#assets -> AssetRepository | link | 1 | service wrapper whose remaining caller, InjectExecutionStep, links the assets named in the stored data of a chained step to the inject
 io.openaev.service.AssetService#bulkDeleteAssets -> AssetRepository | other | 1 | loads in chunks the assets named in the bulk delete body, which are the rows deleted, not linked rows
+io.openaev.service.AssetService#bulkUpdateAssets -> AssetRepository | other | 1 | loads in chunks the assets named in the bulk update body, which are the rows updated, not linked rows
 io.openaev.service.AssetService#getOptionsByIds -> AssetRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.service.ChallengeService#fetchTags -> ChallengeRepository | other | 1 | fetches the tags of challenges already loaded, by their own ids, so a response can serialize them
 io.openaev.service.ChallengeService#findAllByIdWithDocumentsAndTags -> ChallengeRepository | other | 1 | loads with their documents the challenges named in a read request, for a response; nothing is written

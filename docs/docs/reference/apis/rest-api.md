@@ -287,6 +287,27 @@ DELETE /api/assets/{assetId}/links/{linkedAssetId}/{linkType}
 - **Errors**: `400` for a link to the Asset itself or to an Asset of another Tenant, `404` when either Asset (or, on `DELETE`, the link) is not found.
 - **Access**: `GET` needs the right to read the Asset, `POST` and `DELETE` the right to manage it. `GET` lists the links that start or end on the Asset; deleting an Asset deletes its links.
 
+## Asset bulk update
+
+Updates the classification of many Assets in one call, over the same selection as the bulk delete: explicit ids, or the Asset search input with exclusions. Security platforms are never selected. Available under `/api/assets/bulk` and under the Tenant prefix `/api/tenants/{tenantId}/assets/bulk`.
+
+```
+PUT /api/assets/bulk
+```
+
+- **Selection**: `asset_ids_to_process`, or `search_pagination_input` with `asset_ids_to_ignore`.
+- **Body**: `asset_category`, `asset_subcategory`, `asset_url`, `asset_criticality`, `asset_tags_to_add`. A field left out is unchanged; tags are added to the existing ones, never replaced. A category change with no subcategory clears a subcategory that no longer belongs to the new category.
+- **Errors**: `400` when nothing is to be updated, for a subcategory without a category, or for a subcategory outside its category; `404` when a tag id is unknown in the Tenant. Nothing is written on an error.
+- **Access**: the right to manage Assets.
+- **Example**, reclassify every Asset carrying a tag:
+
+```json
+{"search_pagination_input": {"filterGroup": {"mode": "and", "filters": [{"key": "asset_tags", "operator": "contains", "values": ["<tag id>"], "mode": "or"}]}},
+ "asset_category": "WEB_APPLICATION", "asset_subcategory": "WEBSITE"}
+```
+
+The subcategory is checked against its category on Asset creation and update too (`400`); an Agent, collector or injector registration drops a mismatched subcategory instead of failing.
+
 ## Asset freshness
 
 Every Asset carries when it was last observed and by what, and turns stale once it is unseen for longer than the Tenant allows.
