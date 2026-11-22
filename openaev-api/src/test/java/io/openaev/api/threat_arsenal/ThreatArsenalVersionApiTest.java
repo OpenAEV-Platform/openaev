@@ -473,6 +473,22 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
     }
   }
 
+  @Test
+  @DisplayName("does not open the action of a payload of another tenant")
+  void given_payloadOfAnotherTenant_should_notFindItsAction() throws Exception {
+    // Arrange
+    String payloadId = localAction().getPayload().getId();
+    String otherTenantId = tenantHelper.createTenantWithCurrentUser("listed-action-other").getId();
+
+    // Act & Assert
+    mvc.perform(
+            get(
+                TENANT_THREAT_ARSENAL_URL + "/payloads/{payloadId}/action",
+                otherTenantId,
+                payloadId))
+        .andExpect(status().isNotFound());
+  }
+
   // -- HISTORY --
 
   @Test
