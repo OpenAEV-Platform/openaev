@@ -1,4 +1,4 @@
-import { Button, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { HelpOutlineOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type ReactNode, useEffect, useState } from 'react';
@@ -60,7 +60,7 @@ const MarketplaceInstallActions = ({ autoInstallSetting, autoInstallHelp, canIns
           <Switch label={t('Auto-install')} checked={settings[autoInstallSetting]} onCheckedChange={changeAutoInstall} />
           <Tooltip>
             <TooltipTrigger asChild>
-              <HelpOutlineOutlined fontSize="small" color="action" aria-label={autoInstallHelp} />
+              <IconButton icon={<HelpOutlineOutlined fontSize="small" />} aria-label={autoInstallHelp} priority="tertiary" size="sm" />
             </TooltipTrigger>
             <TooltipContent>{autoInstallHelp}</TooltipContent>
           </Tooltip>
