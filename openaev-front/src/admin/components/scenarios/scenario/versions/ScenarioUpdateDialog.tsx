@@ -13,10 +13,10 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
-import ChangeDiff from '../../../../../components/common/update/ChangeDiff';
+import ChangesTable from '../../../../../components/common/update/ChangesTable';
 import { useFormatter } from '../../../../../components/i18n';
 import { type ScenarioChangeOutput, type ScenarioPayloadVersionOutput } from '../../../../../utils/api-types';
-import { changeDiffRow, elementLabel } from './scenarioChanges';
+import { changesTableRow, elementLabel } from './scenarioChanges';
 import ScenarioConflicts from './ScenarioConflicts';
 import ScenarioUpdateSummary from './ScenarioUpdateSummary';
 import { type ScenarioUpdateTarget } from './scenarioUpdateTargets';
@@ -146,8 +146,8 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
             {added.map(change => injectLine(change, t('Will be added'), target.addedReason))}
             {removed.map(change => injectLine(change, t('Will be deleted'), target.removedReason))}
             {taken.length > 0 && (
-              <ChangeDiff
-                rows={taken.map(change => changeDiffRow(change, change.scenario_change_local, change.scenario_change_applied, t))}
+              <ChangesTable
+                rows={taken.map(change => changesTableRow(change, change.scenario_change_local, change.scenario_change_applied, t))}
                 beforeLabel={t('Before · now')}
                 afterLabel={target.afterLabel}
               />
@@ -157,8 +157,8 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
         {kept.length > 0 && (
           <div style={column}>
             <Text variant="title-xs">{target.keptTitle}</Text>
-            <ChangeDiff
-              rows={kept.map(change => changeDiffRow(change, change.scenario_change_base, change.scenario_change_local, t))}
+            <ChangesTable
+              rows={kept.map(change => changesTableRow(change, change.scenario_change_base, change.scenario_change_local, t))}
               beforeLabel={t('Before · Filigran v{version}', { version: target.installedVersion })}
               afterLabel={t('After · your edit')}
             />

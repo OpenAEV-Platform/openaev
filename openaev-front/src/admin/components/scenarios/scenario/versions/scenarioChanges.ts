@@ -1,4 +1,4 @@
-import { type ChangeDiffRow } from '../../../../../components/common/update/ChangeDiff';
+import { type ChangesTableRow } from '../../../../../components/common/update/ChangesTable';
 import { type Translate } from '../../../../../components/i18n';
 import { type ScenarioChangeOutput } from '../../../../../utils/api-types';
 
@@ -51,7 +51,7 @@ export const withStatus = (changes: ScenarioChangeOutput[], status: ScenarioChan
   .filter(change => change.scenario_change_status === status);
 
 /** A changed field as the diff shows it. */
-export const changeDiffRow = (change: ScenarioChangeOutput, before: unknown, after: unknown, t: Translate): ChangeDiffRow => ({
+export const changesTableRow = (change: ScenarioChangeOutput, before: unknown, after: unknown, t: Translate): ChangesTableRow => ({
   id: change.scenario_change_id,
   field: changeLabel(change, t),
   before: valueText(change, before),

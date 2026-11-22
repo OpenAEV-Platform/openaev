@@ -3,6 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import ConflictChoice, { type ConflictSide } from '../../../../../components/common/update/ConflictChoice';
+import TextDiff from '../../../../../components/common/update/TextDiff';
 import { useFormatter } from '../../../../../components/i18n';
 import { type ScenarioChangeOutput } from '../../../../../utils/api-types';
 import { changeLabel, valueText } from './scenarioChanges';
@@ -42,8 +43,8 @@ const ScenarioConflicts: FunctionComponent<Props> = ({ target, conflicts, choice
       title={`${changeLabel(conflict, t)} · ${target.removedConflictLabel}`}
       theirsLabel={t('Delete it')}
       mineLabel={t('Keep it as my own inject')}
-      theirs=""
-      mine=""
+      theirs={null}
+      mine={null}
       selected={SIDES[choices[conflict.scenario_change_id]]}
       onSelect={side => choose(conflict.scenario_change_id, side === 'theirs' ? 'TAKE_APPLIED' : 'KEEP_MINE')}
     />
@@ -52,14 +53,16 @@ const ScenarioConflicts: FunctionComponent<Props> = ({ target, conflicts, choice
   const fieldConflict = (conflict: ScenarioChangeOutput) => {
     const id = conflict.scenario_change_id;
     const editing = choices[id] === 'EDIT';
+    const theirs = valueText(conflict, conflict.scenario_change_applied);
+    const mine = valueText(conflict, conflict.scenario_change_local);
     return (
       <div key={id} style={column}>
         <ConflictChoice
           title={changeLabel(conflict, t)}
           theirsLabel={target.theirsLabel}
           mineLabel={t('Yours')}
-          theirs={valueText(conflict, conflict.scenario_change_applied)}
-          mine={valueText(conflict, conflict.scenario_change_local)}
+          theirs={<TextDiff text={theirs} other={mine} />}
+          mine={<TextDiff text={mine} other={theirs} />}
           selected={SIDES[choices[id]]}
           onSelect={side => choose(id, side === 'theirs' ? 'TAKE_APPLIED' : 'KEEP_MINE')}
         />

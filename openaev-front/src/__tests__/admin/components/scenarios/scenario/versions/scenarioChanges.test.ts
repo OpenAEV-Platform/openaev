@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { changeDiffRow, changeLabel, valueText, withStatus } from '../../../../../../admin/components/scenarios/scenario/versions/scenarioChanges';
+import { changeLabel, changesTableRow, valueText, withStatus } from '../../../../../../admin/components/scenarios/scenario/versions/scenarioChanges';
 import { type ScenarioChangeOutput } from '../../../../../../utils/api-types';
 
 const t = ((key: string, values?: Record<string, string>) => `t:${key.replace(/\{(\w+)\}/g, (_, name: string) => values?.[name] ?? name)}`) as Parameters<typeof changeLabel>[1];
@@ -63,7 +63,7 @@ describe('scenarioChanges', () => {
 
   it('reads a change as a diff row', () => {
     // Act & Assert
-    expect(changeDiffRow(change('INJECT', 'TITLE', { scenario_change_title: 'Scan' }), 'nmap', null, t)).toEqual({
+    expect(changesTableRow(change('INJECT', 'TITLE', { scenario_change_title: 'Scan' }), 'nmap', null, t)).toEqual({
       id: 'INJECT/TITLE',
       field: 't:Inject “Scan” · t:Title',
       before: 'nmap',
