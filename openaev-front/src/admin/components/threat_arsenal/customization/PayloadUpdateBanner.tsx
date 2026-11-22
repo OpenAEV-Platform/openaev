@@ -37,7 +37,6 @@ const PayloadUpdateBanner: FunctionComponent<Props> = ({ actionId, customization
       {reviewing && (
         <PayloadUpdateDialog
           actionId={actionId}
-          baseVersion={customization.customization_base_version}
           update={update}
           onClose={() => setReviewing(false)}
           onUpdated={(saved) => {

@@ -47,29 +47,3 @@ const ITEM_TEXT: Partial<Record<CustomizableField, (item: unknown) => string>> =
 export const fieldText = (field: CustomizableField, value: unknown) => asList(value)
   .map(ITEM_TEXT[field] ?? String)
   .join('\n');
-
-/** One side of a conflicting block as text: each field under its label when the block has several. */
-export const blockText = (
-  fields: PayloadFieldUpdateOutput[],
-  valueOf: (field: PayloadFieldUpdateOutput) => unknown,
-  labelOf: (field: PayloadFieldUpdateOutput) => string,
-) => (fields.length === 1
-  ? fieldText(fields[0].field_name, valueOf(fields[0]))
-  : fields.map(field => `${labelOf(field)}\n${fieldText(field.field_name, valueOf(field))}`).join('\n\n'));
-
-// Keys of the payload's hashed content (the backend's canonical form); an unknown key shows as is.
-const OTHER_CHANGE_LABELS: Record<string, string> = {
-  payload_name: 'Name',
-  payload_description: 'Description',
-  payload_attack_patterns: 'Attack patterns',
-  payload_expectations: 'Expectations',
-  payload_expected_security_platforms: 'Expected security platforms',
-  payload_execution_arch: 'Architecture',
-  payload_detection_remediations: 'Remediation',
-  payload_output_parsers: 'Output',
-  executable_file: 'Executable file',
-  file_drop_file: 'File to drop',
-  dns_resolution_hostname: 'Hostname',
-};
-
-export const otherChangeLabel = (key: string) => OTHER_CHANGE_LABELS[key] ?? key;

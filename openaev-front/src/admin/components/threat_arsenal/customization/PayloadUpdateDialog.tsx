@@ -10,30 +10,29 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
-import ChangeDiff from '../../../../components/common/update/ChangeDiff';
+import ChangesTable from '../../../../components/common/update/ChangesTable';
 import ConflictChoice from '../../../../components/common/update/ConflictChoice';
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadCustomizationUpdateOutput, type PayloadFieldUpdateOutput, type ThreatArsenalAction } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
-import { blockText, CUSTOMIZABLE_FIELD_LABELS, fieldText, otherChangeLabel } from './fieldUpdates';
+import BlockSide from './BlockSide';
+import { CUSTOMIZABLE_FIELD_LABELS, fieldText } from './fieldUpdates';
 import useCustomizationUpdate from './useCustomizationUpdate';
 
 interface Props {
   actionId: string;
-  // The Filigran version the copy is built from.
-  baseVersion: string;
   update: PayloadCustomizationUpdateOutput;
   onClose: () => void;
   onUpdated: (action: ThreatArsenalAction) => void;
 }
 
 // Taking a newer Filigran version: a choice on each block both changed, the rest combined.
-const PayloadUpdateDialog: FunctionComponent<Props> = ({ actionId, baseVersion, update, onClose, onUpdated }) => {
+const PayloadUpdateDialog: FunctionComponent<Props> = ({ actionId, update, onClose, onUpdated }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const { conflicts, news, kept, sides, choose, ready, applying, apply } = useCustomizationUpdate(actionId, update);
   const version = update.update_version;
-  const filigranVersion = t('Filigran version v{version}', { version });
+  const notes = update.update_release_notes;
   const label = (field: PayloadFieldUpdateOutput) => t(CUSTOMIZABLE_FIELD_LABELS[field.field_name]);
   const submit = () => apply()
     .then((action) => {
@@ -65,10 +64,10 @@ const PayloadUpdateDialog: FunctionComponent<Props> = ({ actionId, baseVersion, 
                   <ConflictChoice
                     key={block}
                     title={fields.map(label).join(', ')}
-                    theirsLabel={filigranVersion}
+                    theirsLabel={t('Filigran version v{version}', { version })}
                     mineLabel={t('Yours')}
-                    theirs={blockText(fields, field => field.field_filigran, label)}
-                    mine={blockText(fields, field => field.field_yours, label)}
+                    theirs={<BlockSide fields={fields} side="theirs" />}
+                    mine={<BlockSide fields={fields} side="mine" />}
                     selected={sides[block]}
                     onSelect={side => choose(block, side)}
                   />
@@ -77,30 +76,30 @@ const PayloadUpdateDialog: FunctionComponent<Props> = ({ actionId, baseVersion, 
             )}
             <div style={section}>
               <Text variant="title-xs">{t('What\'s new in Filigran v{version}', { version })}</Text>
-              {update.update_release_notes.map(note => (
-                <div key={note.release_version}>
+              {notes.map(note => (
+                <div
+                  key={note.release_version}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: `${theme.spacing(8)} minmax(0, 1fr)`,
+                    gap: theme.spacing(1.5),
+                  }}
+                >
                   <Text variant="content-caption" className="text-default-secondary">{`v${note.release_version}`}</Text>
                   <Text variant="content-base" style={{ whiteSpace: 'pre-line' }}>{note.release_changelog}</Text>
                 </div>
               ))}
               {news.length > 0 && (
-                <ChangeDiff
+                <ChangesTable
                   rows={news.map(field => ({
                     id: field.field_name,
                     field: label(field),
                     before: fieldText(field.field_name, field.field_base),
                     after: fieldText(field.field_name, field.field_filigran),
                   }))}
-                  beforeLabel={t('Filigran version v{version}', { version: baseVersion })}
-                  afterLabel={filigranVersion}
                 />
               )}
-              {update.update_other_changes.length > 0 && (
-                <Text variant="content-base">
-                  {`${t('Also changed')}: ${update.update_other_changes.map(key => t(otherChangeLabel(key))).join(', ')}`}
-                </Text>
-              )}
-              {news.length === 0 && update.update_other_changes.length === 0 && (
+              {notes.length === 0 && news.length === 0 && (
                 <Text variant="content-caption" className="text-default-secondary">{t('No change in the fields you can customize.')}</Text>
               )}
             </div>

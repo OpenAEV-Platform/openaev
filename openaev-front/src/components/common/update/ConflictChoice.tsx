@@ -2,25 +2,23 @@ import { Radio, RadioGroup, Text } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type ReactNode, useId } from 'react';
 
-import TextDiff from './TextDiff';
-
 export type ConflictSide = 'theirs' | 'mine';
 
 interface Props {
   title: ReactNode;
   theirsLabel: string;
   mineLabel: string;
-  theirs: string;
-  mine: string;
+  theirs: ReactNode;
+  mine: ReactNode;
   selected?: ConflictSide;
   onSelect: (side: ConflictSide) => void;
 }
 
-// One conflict of an update: both values side by side, the words that differ highlighted, one to keep.
+// One conflict of an update: both values side by side, one to keep.
 const ConflictChoice = ({ title, theirsLabel, mineLabel, theirs, mine, selected, onSelect }: Props) => {
   const titleId = useId();
   const theme = useTheme();
-  const side = (value: ConflictSide, label: string, text: string, other: string) => (
+  const side = (value: ConflictSide, label: string, content: ReactNode) => (
     <div style={{
       minWidth: 0,
       padding: theme.spacing(1.5),
@@ -28,7 +26,7 @@ const ConflictChoice = ({ title, theirsLabel, mineLabel, theirs, mine, selected,
       border: `1px solid ${selected === value ? 'var(--color-filigran-brand-primary)' : 'var(--border-elevation-subtle-soft)'}`,
     }}
     >
-      <Radio value={value} label={label} description={<TextDiff text={text} other={other} />} />
+      <Radio value={value} label={label} description={content} />
     </div>
   );
   return (
@@ -49,8 +47,8 @@ const ConflictChoice = ({ title, theirsLabel, mineLabel, theirs, mine, selected,
           gap: theme.spacing(1.5),
         }}
       >
-        {side('theirs', theirsLabel, theirs, mine)}
-        {side('mine', mineLabel, mine, theirs)}
+        {side('theirs', theirsLabel, theirs)}
+        {side('mine', mineLabel, mine)}
       </RadioGroup>
     </div>
   );

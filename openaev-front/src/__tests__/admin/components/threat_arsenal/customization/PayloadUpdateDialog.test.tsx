@@ -60,9 +60,9 @@ const update: PayloadCustomizationUpdateOutput = {
   }],
 };
 
-const renderDialog = () => {
+const renderDialog = (shown = update) => {
   const onUpdated = vi.fn();
-  render(<PayloadUpdateDialog actionId="copy-action" baseVersion="1.0.0" update={update} onClose={vi.fn()} onUpdated={onUpdated} />);
+  render(<PayloadUpdateDialog actionId="copy-action" update={shown} onClose={vi.fn()} onUpdated={onUpdated} />);
   return onUpdated;
 };
 
@@ -91,19 +91,32 @@ describe('PayloadUpdateDialog', () => {
     expectNoMuiControls(dialog, 'Update dialog');
   });
 
-  it('given_anUpdate_should_showWhatIsNewAsADiff', () => {
+  it('given_anUpdate_should_showItsReleaseNotesThenWhatChanged', () => {
     // Act
     renderDialog();
 
     // Assert
-    const changes = screen.getByRole('group', { name: 'Changes' });
-    expect(within(changes).getByText('Filigran version v1.0.0')).toBeInTheDocument();
-    expect(within(changes).getByRole('group', { name: 'Platforms · 1 lines added, 0 lines removed' })).toBeInTheDocument();
-    expect(screen.getByText('Also changed: Description')).toBeInTheDocument();
     expect(screen.getByText('v1.1.0')).toBeInTheDocument();
     expect(screen.getByText('Lists every privilege.')).toBeInTheDocument();
+    const changes = screen.getByRole('group', { name: 'Changes' });
+    expect(within(changes).getByText('Before')).toBeInTheDocument();
+    expect(within(changes).getByRole('group', { name: 'Platforms · 1 lines added, 0 lines removed' })).toBeInTheDocument();
+    expect(screen.queryByText(/Also changed/)).not.toBeInTheDocument();
     expect(screen.getByText('Your edits — the update keeps them')).toBeInTheDocument();
     expect(screen.getByText('Arguments')).toBeInTheDocument();
+  });
+
+  it('given_noReleaseNoteNorFiligranChange_should_sayNothingChanged', () => {
+    // Act
+    renderDialog({
+      ...update,
+      update_fields: update.update_fields.filter(field => field.field_status === 'KEEP_MINE'),
+      update_release_notes: [],
+    });
+
+    // Assert
+    expect(screen.getByText('No change in the fields you can customize.')).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Changes' })).not.toBeInTheDocument();
   });
 
   it('given_aChoiceOnEveryConflict_should_updateWithTheChoices', async () => {

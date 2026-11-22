@@ -6,7 +6,7 @@ import { tint } from '../../../utils/tint';
 import { useFormatter } from '../../i18n';
 import { type DiffLine, diffRuns, lineDiff } from './textDiffRuns';
 
-export interface ChangeDiffRow {
+export interface ChangesTableRow {
   id: string;
   field: string;
   before: string;
@@ -14,9 +14,10 @@ export interface ChangeDiffRow {
 }
 
 interface Props {
-  rows: ChangeDiffRow[];
-  beforeLabel: string;
-  afterLabel: string;
+  rows: ChangesTableRow[];
+  // "Before" and "After" unless the sides are named.
+  beforeLabel?: string;
+  afterLabel?: string;
 }
 
 const KINDS: Record<DiffLine['kind'], {
@@ -75,7 +76,7 @@ const lineText = (line: ShownLine) => {
     : token));
 };
 
-interface FieldDiffProps { row: ChangeDiffRow }
+interface FieldDiffProps { row: ChangesTableRow }
 
 // One changed field read line by line: removed lines in red, added ones in green, both numbered.
 const FieldDiff = ({ row }: FieldDiffProps) => {
@@ -171,7 +172,7 @@ const FieldDiff = ({ row }: FieldDiffProps) => {
 };
 
 // What changes field by field, as a code diff under one key of the two sides compared.
-const ChangeDiff = ({ rows, beforeLabel, afterLabel }: Props) => {
+const ChangesTable = ({ rows, beforeLabel, afterLabel }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const key = (kind: 'removed' | 'added', label: string) => (
@@ -201,12 +202,12 @@ const ChangeDiff = ({ rows, beforeLabel, afterLabel }: Props) => {
         gap: theme.spacing(2),
       }}
       >
-        {key('removed', beforeLabel)}
-        {key('added', afterLabel)}
+        {key('removed', beforeLabel ?? t('Before'))}
+        {key('added', afterLabel ?? t('After'))}
       </div>
       {rows.map(row => <FieldDiff key={row.id} row={row} />)}
     </div>
   );
 };
 
-export default ChangeDiff;
+export default ChangesTable;

@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import ChangeDiff from '../../../../components/common/update/ChangeDiff';
+import ChangesTable from '../../../../components/common/update/ChangesTable';
 
 vi.mock('../../../../components/i18n', async (importOriginal) => {
   const actual = await importOriginal() as Record<string, unknown>;
@@ -13,13 +13,13 @@ vi.mock('../../../../components/i18n', async (importOriginal) => {
   };
 });
 
-describe('ChangeDiff', () => {
+describe('ChangesTable', () => {
   afterEach(cleanup);
 
   it('shows each field as removed and added lines, the changed words marked', () => {
     // Act
     render(
-      <ChangeDiff
+      <ChangesTable
         rows={[{
           id: 'variables/target',
           field: 'Variables · Variable target',
@@ -41,5 +41,23 @@ describe('ChangeDiff', () => {
     expect(field.querySelectorAll('[data-kind="same"]')).toHaveLength(1);
     expect(field.querySelector('[data-kind="removed"] mark')).toHaveTextContent('10.0.0.1');
     expect(field.querySelector('[data-kind="added"] mark')).toHaveTextContent('10.0.0.2');
+  });
+
+  it('given_unnamedSides_should_keyThemBeforeAndAfter', () => {
+    // Act
+    render(
+      <ChangesTable rows={[{
+        id: 'command',
+        field: 'Command',
+        before: 'whoami',
+        after: 'whoami /all',
+      }]}
+      />,
+    );
+
+    // Assert
+    const changes = screen.getByRole('group', { name: 'Changes' });
+    expect(within(changes).getByText('Before')).toBeInTheDocument();
+    expect(within(changes).getByText('After')).toBeInTheDocument();
   });
 });
