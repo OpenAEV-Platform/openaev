@@ -29,7 +29,10 @@ export const OPENCRQ_PRODUCT = 'opencrq';
 export const CONNECT_OPENCRQ_DOC_URL = CONNECT_OPENCTI_DOC_URL;
 
 /** The OpenCRQ glyph in the theme primary, the one colour of every found emblem (Sam, 22 Nov 2026). */
-export const OpenCrqMark: FunctionComponent<{ size?: number; muted?: boolean }> = ({ size = 18, muted = false }) => (
+export const OpenCrqMark: FunctionComponent<{
+  size?: number;
+  muted?: boolean;
+}> = ({ size = 18, muted = false }) => (
   <MaskedEmblem maskUrl={ocrqMask} size={size} color={muted ? EMBLEM_MUTED : EMBLEM_FOUND} />
 );
 

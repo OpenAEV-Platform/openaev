@@ -26,7 +26,10 @@ import { PivotPreview, PivotTeaser } from './XtmPivotPreview';
 export const CONNECT_OPENCTI_DOC_URL = 'https://docs.openaev.io/latest/integrations/xtm-suite/xtm-suite-connector/';
 
 /** The OpenCTI glyph in the theme primary, the one colour of every found emblem (Sam, 22 Nov 2026). */
-export const ProductMark: FunctionComponent<{ size?: number; muted?: boolean }> = ({ size = 18, muted = false }) => (
+export const ProductMark: FunctionComponent<{
+  size?: number;
+  muted?: boolean;
+}> = ({ size = 18, muted = false }) => (
   <MaskedEmblem maskUrl={octiDark} size={size} color={muted ? EMBLEM_MUTED : EMBLEM_FOUND} />
 );
 
