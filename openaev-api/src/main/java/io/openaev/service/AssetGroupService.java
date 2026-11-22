@@ -181,6 +181,17 @@ public class AssetGroupService implements AssetGroupMembershipResolver {
         .orElseThrow(() -> new ElementNotFoundException("Asset group not found: " + assetGroupId));
   }
 
+  /** The asset groups of the given tenants, by name. Dynamic members are not computed. */
+  public List<AssetGroup> assetGroupsOfTenants(@NotNull final Collection<String> tenantIds) {
+    return this.assetGroupRepository.findAllByTenantIdInOrderByNameAsc(tenantIds);
+  }
+
+  /** One asset group of the given tenants. Dynamic members are not computed. */
+  public Optional<AssetGroup> assetGroupOfTenants(
+      @NotBlank final String assetGroupId, @NotNull final Collection<String> tenantIds) {
+    return this.assetGroupRepository.findByIdAndTenantIdIn(assetGroupId, tenantIds);
+  }
+
   public Optional<AssetGroup> findByExternalReference(String externalReference, String tenantId) {
     return this.assetGroupRepository.findByExternalReferenceAndTenantId(
         externalReference, tenantId);
