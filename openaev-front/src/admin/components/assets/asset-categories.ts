@@ -286,6 +286,19 @@ export const ASSET_CATEGORY_DEFS: Record<string, AssetCategoryDef> = {
     // model / token), not the network-field carrier, so no generic fields are shown here.
     fields: { ...noFields },
   },
+  SOURCE_CODE: {
+    value: 'SOURCE_CODE',
+    label: 'Source code',
+    description: 'Code repository, pipeline or package your teams build and ship.',
+    domain: 'To classify',
+    subcategories: ['CODE_REPOSITORY', 'CI_CD_PIPELINE', 'PACKAGE_REGISTRY', 'SOFTWARE_PACKAGE', 'CODE_OTHER'],
+    subcategoryRequired: false,
+    fields: {
+      ...noFields,
+      url: 'optional',
+      internetFacing: true,
+    },
+  },
   GENERIC_ASSET: {
     value: 'GENERIC_ASSET',
     label: 'Generic asset',
@@ -315,6 +328,7 @@ export const ASSET_FORM_CATEGORIES: AssetCategory[] = [
   'IDENTITY',
   'SAAS_APPLICATION',
   'AI_TARGET',
+  'SOURCE_CODE',
   'GENERIC_ASSET',
 ];
 
@@ -338,6 +352,8 @@ const SPECIAL_LABELS: Record<string, string> = {
   IAC_TEMPLATE: 'IaC template',
   CLOUD_OTHER: 'Other',
   NETWORK_OTHER: 'Other',
+  CI_CD_PIPELINE: 'CI/CD pipeline',
+  CODE_OTHER: 'Other code asset',
   WIRELESS_AP: 'Wireless AP',
   POINT_OF_SALE: 'Point of sale',
   SCADA_HISTORIAN: 'SCADA / Historian',
