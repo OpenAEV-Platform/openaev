@@ -258,9 +258,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
                         SCENARIO_ID,
                         INSTALLED)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(
-                        mapper.writeValueAsString(
-                            new TimeBasedScenarioInstallInput(null, null, null, null))))
+                    .content(mapper.writeValueAsString(new TimeBasedScenarioInstallInput(null))))
             .andExpect(status().isCreated())
             .andReturn()
             .getResponse()
