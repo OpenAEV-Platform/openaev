@@ -480,7 +480,8 @@ const ScenarioHeader = ({
   // Normal launch: through the launch check with the catalogue preview, else after a confirm dialog.
   const scenarioType = isScenarioChaining ? SCENARIO_TYPE_CHAINED : SCENARIO_TYPE_TIME_BASED;
   const { launch, launchDrawer } = useScenarioLaunch(onAutonomousRunCleared);
-  const handleLaunchNormal = () => (isFeatureEnabled('CATALOG')
+  const isCatalogEnabled = isFeatureEnabled('CATALOG');
+  const handleLaunchNormal = () => (isCatalogEnabled
     ? launch({
         scenarioId,
         name: scenario.scenario_name,
