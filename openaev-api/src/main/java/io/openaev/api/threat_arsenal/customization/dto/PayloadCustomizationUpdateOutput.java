@@ -13,10 +13,6 @@ public record PayloadCustomizationUpdateOutput(
         @JsonProperty("update_fields")
         @NotNull
         List<PayloadFieldUpdateOutput> fields,
-    @Schema(description = "The other keys Filigran changed: the copy takes them as they are")
-        @JsonProperty("update_other_changes")
-        @NotNull
-        List<String> otherChanges,
     @Schema(description = "The release notes of the newer versions, newest first")
         @JsonProperty("update_release_notes")
         @NotNull

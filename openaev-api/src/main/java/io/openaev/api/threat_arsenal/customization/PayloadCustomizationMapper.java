@@ -30,7 +30,6 @@ public class PayloadCustomizationMapper {
         update.target().getId(),
         update.target().getVersion(),
         update.fields().stream().map(PayloadCustomizationMapper::toOutput).toList(),
-        update.otherChanges(),
         releaseNotes.stream()
             .map(
                 release ->

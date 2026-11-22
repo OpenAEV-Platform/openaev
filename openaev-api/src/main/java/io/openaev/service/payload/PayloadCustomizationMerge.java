@@ -50,9 +50,8 @@ public class PayloadCustomizationMerge {
   public record FieldUpdate(
       CustomizableField field, JsonNode base, JsonNode filigran, JsonNode yours, Status status) {}
 
-  /** The fields either side changed, and the other keys Filigran changed. */
-  public record Update(
-      Payload current, Payload target, List<FieldUpdate> fields, List<String> otherChanges) {
+  /** The fields either side changed. */
+  public record Update(Payload current, Payload target, List<FieldUpdate> fields) {
 
     Set<CustomizableBlock> conflicts() {
       return fields.stream()
@@ -115,12 +114,7 @@ public class PayloadCustomizationMerge {
     Set<CustomizableBlock> conflicts = conflicts(diffs);
     List<FieldUpdate> fields =
         diffs.stream().map(diff -> diff.update(conflicts.contains(diff.block()))).toList();
-    List<String> otherChanges =
-        filigran.keys().stream()
-            .filter(key -> CustomizableField.ofKey(key).isEmpty())
-            .sorted()
-            .toList();
-    return new Update(current, target, fields, otherChanges);
+    return new Update(current, target, fields);
   }
 
   /** The blocks both changed, to different values. */
