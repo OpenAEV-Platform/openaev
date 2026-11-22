@@ -163,6 +163,9 @@ public class SecurityService {
     if (adminConfigured) {
       userMappingService.mapAdminGroup(user, providerTenantId(registrationId), isAdmin);
     }
+    // The membership rows were written in SQL and left the loaded groups as they were before:
+    // reloaded, so the event of the user carries the groups the login left.
+    userService.reloadUser(user);
     User savedUser = this.userService.saveUser(user);
     // The new membership is only flushed at commit, but granting the auto-assign groups already
     // cached the user's tenants without it (JDBC read), which would deny every request in the

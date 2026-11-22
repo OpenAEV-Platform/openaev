@@ -3,6 +3,7 @@ package io.openaev.config.security;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
@@ -27,10 +28,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@RecordApplicationEvents
 @TestPropertySource(
     properties = {
       "openaev.provider.oidc.tenant_id=2cffad3a-0001-4078-b0e2-ef74274022c3", // Default tenant ID
@@ -54,6 +58,7 @@ class SecurityServiceTest extends ProductionTablesIntegrationTest {
   @Autowired private UserComposer userComposer;
   @Autowired private GroupRepository groupRepository;
   @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private ApplicationEvents applicationEvents;
 
   @BeforeEach
   void setup() {
@@ -454,6 +459,91 @@ class SecurityServiceTest extends ProductionTablesIntegrationTest {
 
     private void clearAmbientScope() {
       DefaultTenantScopeTestListener.setAmbientScope(entityManager, "");
+    }
+  }
+
+  /**
+   * The login writes the membership rows in SQL; the event of the user, sent to the stream, must
+   * carry the groups those writes left, not the ones loaded before them.
+   */
+  @Nested
+  @DisplayName("event of the user after the login")
+  class EventOfTheLogin {
+
+    @Test
+    @DisplayName("a login granting a mapped group publishes the user with that group")
+    void given_loginGrantingAMappedGroup_should_publishTheUserWithTheMappedGroup() {
+      // -- ARRANGE --
+      userComposer.forUser(UserFixture.getUser("Old", "Name", SSO_EMAIL)).persist();
+      entityManager.flush();
+      long eventsBefore = applicationEvents.stream(BaseEvent.class).count();
+
+      // -- ACT --
+      User result =
+          securityService.userManagement(
+              SSO_EMAIL, REGISTRATION_ID, List.of(), List.of(MAPPED_IDP_GROUP), "New", "Name");
+
+      // -- ASSERT --
+      List<String> inDatabase = groupIdsInTheDatabase(result.getId());
+      assertThat(inDatabase).isNotEmpty();
+      assertEveryEventCarries(result.getId(), eventsBefore, inDatabase);
+    }
+
+    @Test
+    @DisplayName("a login removing the admin role publishes the user without the Admin group")
+    void given_loginRemovingTheAdminRole_should_publishTheUserWithoutTheAdminGroup() {
+      // -- ARRANGE --
+      Group adminGroup =
+          groupRepository
+              .findByNameAndTenantId(PresetTenantData.ADMIN, Tenant.DEFAULT_TENANT_UUID)
+              .orElseGet(
+                  () ->
+                      tenantGroupComposer
+                          .forGroup(TenantGroupFixture.getGroup(PresetTenantData.ADMIN))
+                          .persist()
+                          .get());
+      User user = UserFixture.getUser("John", "Doe", SSO_EMAIL);
+      user.setAdmin(true);
+      user.getUnscopedGroups().add(adminGroup);
+      userComposer.forUser(user).persist();
+      entityManager.flush();
+      long eventsBefore = applicationEvents.stream(BaseEvent.class).count();
+
+      // -- ACT --
+      User result =
+          securityService.userManagement(
+              SSO_EMAIL, ADMIN_REGISTRATION_ID, List.of(), List.of(), "John", "Doe");
+
+      // -- ASSERT --
+      List<String> inDatabase = groupIdsInTheDatabase(result.getId());
+      assertThat(inDatabase).doesNotContain(adminGroup.getId());
+      assertEveryEventCarries(result.getId(), eventsBefore, inDatabase);
+    }
+
+    private List<String> groupIdsInTheDatabase(String userId) {
+      entityManager.flush();
+      @SuppressWarnings("unchecked")
+      List<String> ids =
+          entityManager
+              .createNativeQuery("SELECT group_id FROM users_groups WHERE user_id = :userId")
+              .setParameter("userId", userId)
+              .getResultList();
+      return ids;
+    }
+
+    private void assertEveryEventCarries(String userId, long eventsBefore, List<String> expected) {
+      List<BaseEvent> events =
+          applicationEvents.stream(BaseEvent.class)
+              .skip(eventsBefore)
+              .filter(event -> event.getInstance() instanceof User u && userId.equals(u.getId()))
+              .toList();
+      assertThat(events).as("events of the user").isNotEmpty();
+      for (BaseEvent event : events) {
+        assertThat(((User) event.getInstance()).getUnscopedGroups())
+            .as(event.getType() + " event groups")
+            .extracting(Group::getId)
+            .containsExactlyInAnyOrderElementsOf(expected);
+      }
     }
   }
 }
