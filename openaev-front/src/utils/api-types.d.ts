@@ -710,6 +710,7 @@ export interface AssetBulkUpdateInput {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_ids_to_ignore?: string[];
@@ -795,7 +796,12 @@ export interface AssetBulkUpdateInput {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   /** Tag ids added to every selected asset (existing tags are kept) */
   asset_tags_to_add?: string[];
   asset_url?: string | null;
