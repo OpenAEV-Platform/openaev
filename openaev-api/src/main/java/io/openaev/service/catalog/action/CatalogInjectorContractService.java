@@ -1,4 +1,4 @@
-package io.openaev.service.catalog;
+package io.openaev.service.catalog.action;
 
 import io.openaev.database.model.CatalogConnectorInjectorContract;
 import io.openaev.database.model.ConnectorType;
