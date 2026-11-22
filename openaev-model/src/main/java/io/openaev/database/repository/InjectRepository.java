@@ -682,13 +682,9 @@ public interface InjectRepository
   /** Scenario injects and atomic testings: a simulation keeps the version it ran. */
   String OUTSIDE_SIMULATIONS = "i.inject_exercise IS NULL";
 
-  // Native: shares its rule with the native query of the older versions in use; a read.
   @Query(
-      value =
-          "SELECT i.* FROM injects i WHERE i.tenant_id = :tenantId"
-              + " AND i.inject_injector_contract = :injectorContractId AND "
-              + OUTSIDE_SIMULATIONS,
-      nativeQuery = true)
+      "SELECT i FROM Inject i WHERE i.tenant.id = :tenantId"
+          + " AND i.injectorContract.compositeId.id = :injectorContractId AND i.exercise IS NULL")
   List<Inject> findAllOutsideSimulationsByTenantIdAndInjectorContractId(
       @Param("tenantId") String tenantId, @Param("injectorContractId") String injectorContractId);
 }

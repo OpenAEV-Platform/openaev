@@ -2795,6 +2795,9 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.payload.PayloadLocalVersioning.class,
               // Moves the latest version of the identity of the payload being deleted:
               PayloadLatestVersionListener.class,
+              // Reads and keeps the older versions of the identity of the action it loads in the
+              // tenant of its TxCtx-carrying threat arsenal version endpoints:
+              PayloadVersionService.class,
               // Reads the identity it is handed by the catalogue, to describe the change:
               io.openaev.service.catalog.event.CatalogChangePublisher.class)
           .should()
@@ -3026,7 +3029,10 @@ class TenantActiveTableAccessArchTest {
               io.openaev.rest.payload.service.PayloadService.class,
               io.openaev.service.InjectorService.class,
               io.openaev.rest.inject.service.InjectAssistantService.class,
-              io.openaev.service.stix.SecurityCoverageInjectService.class));
+              io.openaev.service.stix.SecurityCoverageInjectService.class,
+              // Reached only from the threat arsenal older versions endpoint, a read-only
+              // transaction that carries a TxCtx and passes the one tenant of its scope:
+              PayloadVersionService.class));
 
   @ArchTest
   static final ArchRule
