@@ -1,3 +1,4 @@
+// fds:keep-mui moved unchanged from ScenarioForm: SelectField is a MUI Select, its options and the form's section titles stay MUI until the forms move
 import { MenuItem, Typography } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { type UseFormReturn } from 'react-hook-form';

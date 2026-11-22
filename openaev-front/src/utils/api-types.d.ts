@@ -7960,7 +7960,7 @@ export interface InjectTargetsOutput {
   /** @minLength 1 */
   inject_id: string;
   inject_target_kinds: ("ASSETS" | "ASSET_GROUPS" | "TEAMS" | "HOSTS")[];
-  inject_targeted: boolean;
+  inject_targeted?: boolean;
   /** @minLength 1 */
   inject_title: string;
 }
