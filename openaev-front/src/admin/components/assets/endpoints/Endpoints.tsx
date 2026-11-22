@@ -215,8 +215,9 @@ const Endpoints = () => {
           {endpoint.asset_name}
           {endpoint.asset_category !== 'AI_TARGET' && (
             <>
-              <OpenCtiRowMark kind="assets" objectKey={endpoint.asset_hostname} />
-              <OpenCrqRowMark kind="assets" objectKey={endpoint.asset_hostname} />
+              {/* Contract v3: a 16 px mark only when found (source link first), nothing otherwise. */}
+              <OpenCtiRowMark kind="assets" objectKey={endpoint.asset_hostname} sourceUrl={endpoint.asset_external_reference} />
+              <OpenCrqRowMark kind="assets" objectKey={endpoint.asset_hostname} sourceUrl={endpoint.asset_external_reference} />
             </>
           )}
         </span>

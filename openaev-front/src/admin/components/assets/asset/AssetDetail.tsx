@@ -71,6 +71,8 @@ type AssetOverview = EndpointOverviewOutput & {
   ai_target_model?: string;
   ai_target_system_prompt?: string;
   asset_markings?: string[];
+  asset_external_reference?: string;
+  asset_last_seen_source?: string;
 };
 
 const AssetDetail = () => {
@@ -219,9 +221,11 @@ const AssetDetail = () => {
         action={(
           <>
             <ExploreInGraphButton type="ASSET" entityId={id} />
-            {!isAiTarget && <OpenCtiPivot kind="assets" objectKey={counterpartKey} />}
-            {/* OpenCRQ keys its supporting assets by hostname only. */}
-            {!isAiTarget && <OpenCrqPivot kind="assets" objectKey={asset.asset_hostname} />}
+            {/* Contract v3: one icon-only emblem per counterpart product, OpenCTI then OpenCRQ. An
+                asset imported from one of them is found from its source link first (rule 5);
+                OpenCRQ keys its supporting assets by hostname only. */}
+            {!isAiTarget && <OpenCtiPivot kind="assets" objectKey={counterpartKey} sourceUrl={asset.asset_external_reference} />}
+            {!isAiTarget && <OpenCrqPivot kind="assets" objectKey={asset.asset_hostname} sourceUrl={asset.asset_external_reference} />}
             {/* Entity-scoped reports - self-hides without the reporting
                 access capability. */}
             <EntityReportsPanel
