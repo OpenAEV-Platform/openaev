@@ -75,6 +75,7 @@ users_tenants OTHER io.openaev.service.UserService.createUser
 users_tenants OTHER io.openaev.service.UserService.updateUser
 users_tenants OTHER io.openaev.api.platform.users.PlatformUserApi.create
 users_tenants OTHER io.openaev.api.platform.users.PlatformUserApi.update
+users_tenants DEFAULT io.openaev.api.platform.users.PlatformUserApi.create
 users_tenants DEFAULT io.openaev.api.platform.users.PlatformUserApi.update
 
 # --- RETIRED by the documents activation (#7904), confirmed on a re-check
