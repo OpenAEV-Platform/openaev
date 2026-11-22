@@ -183,7 +183,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
         <DialogBody>{body()}</DialogBody>
         <DialogFooter>
           <Button priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
-          <Button onClick={update.apply} disabled={!update.ready || update.applying}>{target.applyLabel}</Button>
+          <Button onClick={update.apply} loading={update.applying} disabled={!update.ready}>{target.applyLabel}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
