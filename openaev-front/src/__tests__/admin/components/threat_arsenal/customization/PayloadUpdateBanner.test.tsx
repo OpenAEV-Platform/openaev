@@ -27,7 +27,6 @@ const newer: PayloadCustomizationOutput['customization_update'] = {
   update_payload_id: 'filigran-1.1.0',
   update_version: '1.1.0',
   update_fields: [],
-  update_other_changes: [],
   update_release_notes: [],
 };
 

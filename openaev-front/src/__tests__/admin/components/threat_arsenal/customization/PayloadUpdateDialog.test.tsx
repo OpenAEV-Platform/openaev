@@ -53,7 +53,6 @@ const update: PayloadCustomizationUpdateOutput = {
       field_status: 'KEEP_MINE',
     },
   ],
-  update_other_changes: ['payload_description'],
   update_release_notes: [{
     release_version: '1.1.0',
     release_changelog: 'Lists every privilege.',
