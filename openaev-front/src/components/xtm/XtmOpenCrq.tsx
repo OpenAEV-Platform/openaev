@@ -5,6 +5,8 @@ import { type FunctionComponent, type MouseEvent, type ReactNode } from 'react';
 
 import { type CounterpartKindPath } from '../../actions/xtm/counterpart-actions';
 import ocrqMark from '../../static/images/xtm/ocrq.svg';
+// The greyed emblem is a CSS mask: it needs the glyph alone, without the coloured square ground.
+import ocrqMask from '../../static/images/xtm/ocrq-mask.svg';
 import useExplorationGraph from '../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
@@ -70,7 +72,7 @@ export const OpenCrqPivotView: FunctionComponent<{ answer: CounterpartAnswer }> 
     <CounterpartEmblem
       answer={answer}
       colour={<OpenCrqMark />}
-      maskUrl={ocrqMark}
+      maskUrl={ocrqMask}
       labels={{
         open: t('Open in OpenCRQ'),
         connect: t('Connect OpenCRQ'),
