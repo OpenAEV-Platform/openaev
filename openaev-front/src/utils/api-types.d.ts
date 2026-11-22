@@ -4957,6 +4957,8 @@ export interface EndpointOverviewOutput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   /** Asset description */
   asset_description?: string;
+  /** Reference of the asset in the system it was imported from (a link or an id), read by the cross-product pivots to mark that product as holding the asset */
+  asset_external_reference?: string;
   /** Hostname */
   asset_hostname?: string;
   /**
@@ -4971,6 +4973,8 @@ export interface EndpointOverviewOutput {
    * @uniqueItems true
    */
   asset_ips?: string[];
+  /** Source of the last observation of the asset (collector or product) */
+  asset_last_seen_source?: string;
   /** Linked person (user id) for identity assets */
   asset_linked_person?: string;
   /**
