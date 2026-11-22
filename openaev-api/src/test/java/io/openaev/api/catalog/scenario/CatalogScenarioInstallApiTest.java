@@ -448,20 +448,21 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
 
     static Stream<Arguments> scenarioStates() {
       return Stream.of(
-          Arguments.of("never installed", false, false, 1),
-          Arguments.of("installed", true, false, 0),
-          Arguments.of("uninstalled", true, true, 1));
+          Arguments.of("never installed", false, false),
+          Arguments.of("installed", true, false),
+          Arguments.of("uninstalled", true, true));
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("scenarioStates")
-    @DisplayName("lists a scenario only while the tenant does not show it")
-    void given_scenarioState_should_listItOnlyWhenNotInstalled(
-        String description, boolean installed, boolean uninstalled, int listed) throws Exception {
+    @DisplayName("lists a scenario with the one the tenant installed from it, if any")
+    void given_scenarioState_should_listItWithTheScenarioInstalled(
+        String description, boolean installed, boolean uninstalled) throws Exception {
       // Arrange
       publish(Map.of());
+      Scenario scenario = null;
       if (installed) {
-        Scenario scenario = installedScenario(install().andExpect(status().isCreated()));
+        scenario = installedScenario(install().andExpect(status().isCreated()));
         if (uninstalled) {
           uninstall(scenario);
         }
@@ -471,7 +472,15 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       ResultActions result = available();
 
       // Assert
-      result.andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(listed));
+      result.andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(1));
+      if (installed && !uninstalled) {
+        result.andExpect(
+            jsonPath("$.content[0].catalog_scenario_installed_scenario_id")
+                .value(scenario.getId()));
+      } else {
+        result.andExpect(
+            jsonPath("$.content[0].catalog_scenario_installed_scenario_id").doesNotExist());
+      }
     }
 
     @Test

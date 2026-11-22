@@ -1,7 +1,8 @@
 package io.openaev.service.catalog.scenario;
 
-import static io.openaev.database.specification.CatalogItemSpecification.latestOffered;
+import static io.openaev.database.specification.CatalogItemSpecification.scenarioInstalled;
 import static io.openaev.database.specification.CatalogItemSpecification.scenarioNotInstalled;
+import static io.openaev.database.specification.CatalogItemSpecification.scenarioUpdateAvailable;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,16 +11,20 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.catalog.CatalogItem;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.model.catalog.ContentType;
+import io.openaev.database.specification.CatalogItemSpecification;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.catalog.CatalogFacet;
+import io.openaev.service.catalog.CatalogFacetCounter;
 import io.openaev.service.catalog.CatalogListService;
 import io.openaev.service.catalog.CatalogOffer;
 import io.openaev.service.catalog.CatalogSettingsService;
 import io.openaev.service.catalog.payload.CatalogPayloadOfferService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
@@ -31,18 +36,16 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CatalogScenarioOfferService implements CatalogOffer<InstallableScenarioVersion> {
 
-  private static final List<CatalogFacet> FACETS =
-      List.of(
-          CatalogFacet.of(CatalogFacet.SCENARIO_TYPE_KEY),
-          CatalogFacet.PLATFORMS,
-          CatalogFacet.of(CatalogFacet.CATEGORY_KEY),
-          CatalogFacet.of(CatalogFacet.AUTHOR_KEY));
+  private static final String INSTALLED = "INSTALLED";
+  private static final String NOT_INSTALLED = "NOT_INSTALLED";
+  private static final String UPDATE_AVAILABLE = "UPDATE_AVAILABLE";
 
   private final CatalogListService catalogListService;
   private final CatalogPayloadOfferService catalogPayloadOfferService;
   private final CatalogScenarioRequirements catalogScenarioRequirements;
   private final CatalogSettingsService catalogSettingsService;
   private final CatalogScenarioService catalogScenarioService;
+  private final CatalogFacetCounter catalogFacetCounter;
   private final ObjectMapper mapper;
 
   // -- LIST --
@@ -83,24 +86,43 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
 
   // -- SEARCH --
 
-  /** A page of the offered scenarios the tenant does not show, with what each lacks. */
+  /** A page of the offered scenarios, with what each lacks and the scenario installed from it. */
   @Transactional(readOnly = true)
-  public Page<OfferedScenario> searchNotInstalled(String tenantId, SearchPaginationInput input) {
-    return catalogScenarioRequirements.offered(
-        catalogListService.search(CatalogScenario.class, notInstalled(tenantId), input));
+  public Page<OfferedScenario> search(String tenantId, SearchPaginationInput input) {
+    Page<CatalogScenario> page =
+        catalogListService.search(
+            CatalogScenario.class, latestOffered(tenantId), input, facets(tenantId));
+    Function<CatalogScenario, List<String>> missing = catalogScenarioRequirements.missingForEach();
+    Map<String, String> installed =
+        catalogScenarioService.installedScenarioIds(tenantId, page.getContent());
+    return page.map(
+        item ->
+            new OfferedScenario(item, missing.apply(item), installed.get(CatalogOffer.key(item))));
   }
 
   @Transactional(readOnly = true)
-  public Map<String, Map<String, Long>> notInstalledFacetCounts(
-      String tenantId, SearchPaginationInput input) {
-    return catalogListService.facetCounts(
-        CatalogScenario.class, notInstalled(tenantId), input, FACETS);
+  public Map<String, Map<String, Long>> facetCounts(String tenantId, SearchPaginationInput input) {
+    return catalogFacetCounter.count(
+        CatalogScenario.class, latestOffered(tenantId), input, facets(tenantId));
   }
 
   // -- STEPS --
 
-  private static Specification<CatalogItem> notInstalled(String tenantId) {
-    return latestOffered(tenantId, CatalogScenario.class).and(scenarioNotInstalled(tenantId));
+  private static Specification<CatalogItem> latestOffered(String tenantId) {
+    return CatalogItemSpecification.latestOffered(tenantId, CatalogScenario.class);
+  }
+
+  private static List<CatalogFacet> facets(String tenantId) {
+    Map<String, Specification<CatalogItem>> installation = new LinkedHashMap<>();
+    installation.put(INSTALLED, scenarioInstalled(tenantId));
+    installation.put(NOT_INSTALLED, scenarioNotInstalled(tenantId));
+    installation.put(UPDATE_AVAILABLE, scenarioUpdateAvailable(tenantId));
+    return List.of(
+        new CatalogFacet.Condition(CatalogFacet.INSTALLATION_KEY, installation),
+        new CatalogFacet.Grouped(CatalogFacet.SCENARIO_TYPE_KEY),
+        CatalogFacet.PLATFORMS,
+        new CatalogFacet.Grouped(CatalogFacet.CATEGORY_KEY),
+        new CatalogFacet.Grouped(CatalogFacet.AUTHOR_KEY));
   }
 
   private List<InstallableScenarioVersion> installableNeverInstalled(TxCtx ctx, String tenantId) {

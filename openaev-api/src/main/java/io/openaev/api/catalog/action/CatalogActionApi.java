@@ -40,10 +40,8 @@ public class CatalogActionApi {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public Page<AvailableActionOutput> searchActions(
       TxCtx ctx, @RequestBody @Valid SearchPaginationInput input) {
-    return availableActionService
-        .search(writeScopeResolver.tenantForWrite(ctx, null), input)
-        .<AvailableActionOutput>map(
-            AvailableActionMapper::toOutput, AvailableActionMapper::toOutput);
+    return AvailableActionMapper.toPage(
+        availableActionService.search(writeScopeResolver.tenantForWrite(ctx, null), input));
   }
 
   @LogExecutionTime

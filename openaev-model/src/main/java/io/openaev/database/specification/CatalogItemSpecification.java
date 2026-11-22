@@ -37,18 +37,40 @@ public class CatalogItemSpecification {
     };
   }
 
+  /** A scenario of the tenant comes from the item. */
+  public static Specification<CatalogItem> scenarioInstalled(String tenantId) {
+    return installedScenario(tenantId, false);
+  }
+
   /** No scenario of the tenant comes from the item. */
   public static Specification<CatalogItem> scenarioNotInstalled(String tenantId) {
+    return Specification.not(scenarioInstalled(tenantId));
+  }
+
+  /** A scenario of the tenant comes from the item, none at the version offered. */
+  public static Specification<CatalogItem> scenarioUpdateAvailable(String tenantId) {
+    return scenarioInstalled(tenantId).and(Specification.not(installedScenario(tenantId, true)));
+  }
+
+  private static Specification<CatalogItem> installedScenario(
+      String tenantId, boolean atItemVersion) {
     return (root, query, cb) -> {
       Subquery<Integer> installed = query.subquery(Integer.class);
       Root<ScenarioIdentity> identity = installed.from(ScenarioIdentity.class);
       Subquery<Integer> scenarios = installed.subquery(Integer.class);
       Root<Scenario> scenario = scenarios.from(Scenario.class);
-      scenarios.select(cb.literal(1)).where(cb.equal(scenario.get("catalogIdentity"), identity));
+      Predicate fromIdentity = cb.equal(scenario.get("catalogIdentity"), identity);
+      scenarios
+          .select(cb.literal(1))
+          .where(
+              atItemVersion
+                  ? cb.and(
+                      fromIdentity, cb.equal(scenario.get("catalogVersion"), root.get("version")))
+                  : fromIdentity);
       installed
           .select(cb.literal(1))
           .where(sameItem(cb, identity, tenantId, root), cb.exists(scenarios));
-      return cb.not(cb.exists(installed));
+      return cb.exists(installed);
     };
   }
 

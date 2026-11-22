@@ -13,7 +13,6 @@ import io.openaev.database.model.Filters;
 import io.openaev.database.repository.CatalogConnectorInjectorContractRepository;
 import io.openaev.service.catalog.CatalogFacet;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,40 +34,24 @@ public class CatalogInjectorContractService {
   private final CatalogConnectorInjectorContractRepository
       catalogConnectorInjectorContractRepository;
 
-  /** The Available tab filters a contract answers, and the contract column each one reads. */
-  private enum Facet {
-    DOMAIN(
-        CatalogFacet.DOMAIN_KEY,
-        "catalog_connector_injector_contract_domains",
-        CatalogConnectorInjectorContract::getDomains),
-    PLATFORMS(
-        CatalogFacet.PLATFORMS_KEY,
-        "catalog_connector_injector_contract_platforms",
-        CatalogConnectorInjectorContract::getPlatforms);
+  /** A contract column an Available tab facet reads. */
+  private record Column(
+      String field, Function<CatalogConnectorInjectorContract, List<String>> values) {}
 
-    private static final Map<String, String> FIELDS =
-        Arrays.stream(values()).collect(Collectors.toMap(facet -> facet.key, facet -> facet.field));
+  private static final Map<String, Column> COLUMNS =
+      Map.of(
+          CatalogFacet.DOMAIN_KEY,
+          new Column(
+              "catalog_connector_injector_contract_domains",
+              CatalogConnectorInjectorContract::getDomains),
+          CatalogFacet.PLATFORMS_KEY,
+          new Column(
+              "catalog_connector_injector_contract_platforms",
+              CatalogConnectorInjectorContract::getPlatforms));
 
-    private final String key;
-    private final String field;
-    private final Function<CatalogConnectorInjectorContract, List<String>> values;
-
-    Facet(
-        String key, String field, Function<CatalogConnectorInjectorContract, List<String>> values) {
-      this.key = key;
-      this.field = field;
-      this.values = values;
-    }
-
-    // A filter a contract has no column for matches none of them.
-    static boolean answers(SearchPaginationInput input) {
-      return Optional.ofNullable(input.getFilterGroup())
-          .map(Filters.FilterGroup::getFilters)
-          .orElse(List.of())
-          .stream()
-          .allMatch(filter -> FIELDS.containsKey(filter.getKey()));
-    }
-  }
+  private static final Map<String, String> FIELDS =
+      COLUMNS.entrySet().stream()
+          .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().field()));
 
   // -- LIST --
 
@@ -82,17 +65,23 @@ public class CatalogInjectorContractService {
     return matching(tenantId, input);
   }
 
-  /** The number of listed contracts per value of each facet, under the other filters. */
+  /**
+   * The number of listed contracts per value of each facet, under the other filters; a facet no
+   * contract column holds counts none.
+   */
   @Transactional(readOnly = true)
   public Map<String, Map<String, Long>> notRegisteredFacetCounts(
-      String tenantId, SearchPaginationInput input) {
+      String tenantId, SearchPaginationInput input, List<CatalogFacet> facets) {
     Map<String, Map<String, Long>> counts = new LinkedHashMap<>();
-    for (Facet facet : Facet.values()) {
-      counts.put(
-          facet.key,
-          matching(tenantId, withoutFilter(input, facet.key)).stream()
-              .flatMap(contract -> facet.values.apply(contract).stream())
-              .collect(groupingBy(Function.identity(), LinkedHashMap::new, counting())));
+    for (CatalogFacet facet : facets) {
+      Column column = COLUMNS.get(facet.key());
+      if (column != null) {
+        counts.put(
+            facet.key(),
+            matching(tenantId, withoutFilter(input, facet.key())).stream()
+                .flatMap(contract -> column.values().apply(contract).stream())
+                .collect(groupingBy(Function.identity(), LinkedHashMap::new, counting())));
+      }
     }
     return counts;
   }
@@ -101,10 +90,10 @@ public class CatalogInjectorContractService {
 
   private List<CatalogConnectorInjectorContract> matching(
       String tenantId, SearchPaginationInput input) {
-    if (!Facet.answers(input)) {
+    if (!answers(input)) {
       return List.of();
     }
-    SearchPaginationInput translated = translateFields(input, Facet.FIELDS);
+    SearchPaginationInput translated = translateFields(input, FIELDS);
     Specification<CatalogConnectorInjectorContract> filters =
         computeFilterGroupJpa(translated.getFilterGroup());
     return catalogConnectorInjectorContractRepository.findAll(
@@ -112,5 +101,14 @@ public class CatalogInjectorContractService {
             .and(filters)
             .and(computeSearchJpa(translated.getTextSearch())),
         BY_INTEGRATION);
+  }
+
+  // A filter a contract has no column for matches none of them.
+  private static boolean answers(SearchPaginationInput input) {
+    return Optional.ofNullable(input.getFilterGroup())
+        .map(Filters.FilterGroup::getFilters)
+        .orElse(List.of())
+        .stream()
+        .allMatch(filter -> COLUMNS.containsKey(filter.getKey()));
   }
 }

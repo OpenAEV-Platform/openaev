@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-/** The catalogue scenarios a tenant has not installed, and their versions. */
+/** The catalogue scenarios of a tenant, installed or not, and their versions. */
 @RestController
 @RequirePreviewFeature(PreviewFeature.CATALOG)
 @RequiredArgsConstructor
@@ -43,25 +43,25 @@ public class CatalogScenarioApi {
 
   // -- READ --
 
-  @Operation(summary = "Search catalogue scenarios not installed")
+  @Operation(summary = "Search catalogue scenarios, installed or not")
   @PostMapping(TENANT_CATALOG_URI + "/scenarios/search")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public Page<CatalogScenarioOutput> searchScenarios(
       TxCtx ctx, @RequestBody @Valid SearchPaginationInput input) {
     return catalogScenarioOfferService
-        .searchNotInstalled(writeScopeResolver.tenantForWrite(ctx, null), input)
+        .search(writeScopeResolver.tenantForWrite(ctx, null), input)
         .map(catalogItemMapper::toOutput);
   }
 
   @LogExecutionTime
-  @Operation(summary = "Facet counts of catalogue scenarios not installed")
+  @Operation(summary = "Facet counts of catalogue scenarios")
   @PostMapping(TENANT_CATALOG_URI + "/scenarios/facet-counts")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public Map<String, Map<String, Long>> scenarioFacetCounts(
       TxCtx ctx, @RequestBody @Valid SearchPaginationInput input) {
-    return catalogScenarioOfferService.notInstalledFacetCounts(
+    return catalogScenarioOfferService.facetCounts(
         writeScopeResolver.tenantForWrite(ctx, null), input);
   }
 

@@ -124,7 +124,8 @@ public class CatalogItemMapper {
         version.getCategory(),
         version.getPlatforms(),
         version.getPublishedAt(),
-        offered.missingRequirements());
+        offered.missingRequirements(),
+        offered.installedScenarioId());
   }
 
   public CatalogScenarioVersionOutput toVersionOutput(CatalogScenario version) {

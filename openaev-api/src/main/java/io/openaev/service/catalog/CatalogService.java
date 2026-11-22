@@ -20,6 +20,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -33,7 +34,6 @@ public class CatalogService {
   private final CatalogItemRepository catalogItemRepository;
   private final CatalogReleaseRepository catalogReleaseRepository;
   private final CatalogItemMapper catalogItemMapper;
-  private final CatalogListService catalogListService;
   private final EntityManager entityManager;
   private final ApplicationEventPublisher eventPublisher;
 
@@ -53,7 +53,7 @@ public class CatalogService {
     CatalogRelease release = saveRelease(tenantId, manifest);
     CatalogSyncResult result = saveItems(release, checked, latest == null);
     removeItemsNotIn(release, manifest);
-    catalogListService.markLatestOffered(release.getRepository());
+    markLatestOffered(release);
     eventPublisher.publishEvent(result.toEvent(tenantId));
     return result.toOutput();
   }
@@ -203,5 +203,17 @@ public class CatalogService {
                     !listed.contains(CatalogManifest.key(item.getExternalId(), item.getVersion())))
             .toList();
     catalogItemRepository.deleteAll(removed);
+  }
+
+  // Each item now offers its latest version not withdrawn.
+  private void markLatestOffered(CatalogRelease release) {
+    List<CatalogItem> items =
+        catalogItemRepository.findAllByReleaseRepository(release.getRepository());
+    Set<String> latest =
+        items.stream().collect(Collectors.groupingBy(CatalogItem::getType)).values().stream()
+            .flatMap(sameType -> CatalogListService.latestVersions(sameType).stream())
+            .map(CatalogItem::getId)
+            .collect(Collectors.toSet());
+    items.forEach(item -> item.setLatestOffered(latest.contains(item.getId())));
   }
 }

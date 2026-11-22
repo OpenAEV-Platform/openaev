@@ -5,7 +5,9 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.CatalogItem;
 import io.openaev.database.model.scenario.ScenarioIdentity;
+import io.openaev.database.raw.RawCatalogInstalledScenario;
 import io.openaev.database.repository.ScenarioIdentityRepository;
 import io.openaev.importer.ImportResult;
 import io.openaev.rest.exception.BadRequestException;
@@ -77,6 +79,23 @@ public class CatalogScenarioService {
   }
 
   // -- READ --
+
+  /** The scenario of the tenant installed from each of these items, by item key. */
+  @Transactional(readOnly = true)
+  public Map<String, String> installedScenarioIds(
+      String tenantId, List<? extends CatalogItem> items) {
+    if (items.isEmpty()) {
+      return Map.of();
+    }
+    return scenarioService
+        .installedFromCatalog(tenantId, items.stream().map(CatalogItem::getExternalId).toList())
+        .stream()
+        .collect(
+            Collectors.toMap(
+                installed -> CatalogOffer.key(installed.getRepository(), installed.getExternalId()),
+                RawCatalogInstalledScenario::getScenarioId,
+                (first, other) -> first));
+  }
 
   /** The key of every catalogue scenario the tenant ever installed: an identity is kept. */
   @Transactional(readOnly = true)

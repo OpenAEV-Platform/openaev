@@ -8,6 +8,7 @@ import io.openaev.database.model.catalog.CatalogItem;
 import io.openaev.database.model.catalog.CatalogPayload;
 import io.openaev.database.model.catalog.ContentType;
 import io.openaev.service.catalog.CatalogFacet;
+import io.openaev.service.catalog.CatalogFacetCounter;
 import io.openaev.service.catalog.CatalogListService;
 import io.openaev.service.catalog.CatalogOffer;
 import io.openaev.service.catalog.CatalogSettingsService;
@@ -28,12 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CatalogPayloadOfferService implements CatalogOffer<InstallablePayloadVersion> {
 
-  private static final List<CatalogFacet> FACETS =
-      List.of(CatalogFacet.of(CatalogFacet.DOMAIN_KEY), CatalogFacet.PLATFORMS);
-
   private final CatalogPayloadService catalogPayloadService;
   private final CatalogSettingsService catalogSettingsService;
   private final CatalogListService catalogListService;
+  private final CatalogFacetCounter catalogFacetCounter;
 
   // -- LIST --
 
@@ -69,15 +68,15 @@ public class CatalogPayloadOfferService implements CatalogOffer<InstallablePaylo
 
   /** A page of the offered payloads the tenant does not show. */
   @Transactional(readOnly = true)
-  public Page<CatalogPayload> searchNotInstalled(String tenantId, SearchPaginationInput input) {
-    return catalogListService.search(CatalogPayload.class, notInstalled(tenantId), input);
+  public Page<CatalogPayload> searchNotInstalled(
+      String tenantId, SearchPaginationInput input, List<CatalogFacet> facets) {
+    return catalogListService.search(CatalogPayload.class, notInstalled(tenantId), input, facets);
   }
 
   @Transactional(readOnly = true)
   public Map<String, Map<String, Long>> notInstalledFacetCounts(
-      String tenantId, SearchPaginationInput input) {
-    return catalogListService.facetCounts(
-        CatalogPayload.class, notInstalled(tenantId), input, FACETS);
+      String tenantId, SearchPaginationInput input, List<CatalogFacet> facets) {
+    return catalogFacetCounter.count(CatalogPayload.class, notInstalled(tenantId), input, facets);
   }
 
   // -- STEPS --
