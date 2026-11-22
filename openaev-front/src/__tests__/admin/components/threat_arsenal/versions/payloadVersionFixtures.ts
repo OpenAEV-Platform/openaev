@@ -17,6 +17,7 @@ export const payloadVersion = (version: string): PayloadVersionOutput => ({
   payload_action_id: actionId(version),
   payload_version: version,
   payload_is_latest: false,
+  payload_older_versions_kept: false,
   payload_revoked: false,
   payload_revoked_by_catalogue: false,
 });
