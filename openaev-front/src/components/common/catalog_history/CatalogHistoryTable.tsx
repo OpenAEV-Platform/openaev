@@ -14,6 +14,8 @@ const ACTION_LABELS: Record<CatalogHistoryOutput['catalog_history_action'], stri
   UNINSTALL: 'Uninstalled',
   REVOKE: 'Revoked',
   LIFT_REVOCATION: 'Revocation lifted',
+  UPDATE: 'Updated',
+  ROLLBACK: 'Rolled back',
 };
 
 interface Props { history: CatalogHistoryOutput[] | null }
