@@ -4,7 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, type ReactNode } from 'react';
 
 import { type CounterpartKindPath } from '../../actions/xtm/counterpart-actions';
-import octiDark from '../../static/images/xtm/octi_dark.png';
+import octiMask from '../../static/images/xtm/xtm-mark-opencti.svg';
 import useExplorationGraph from '../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
@@ -13,7 +13,7 @@ import { OPENCTI_FACT_LABELS } from './counterpartFacts';
 import { type CounterpartAnswer } from './counterpartStore';
 import { withSourceLink } from './sourcedCounterpart';
 import useCounterpart, { OPENCTI_PRODUCT } from './useCounterpart';
-import CounterpartEmblem, { EMBLEM_FOUND, EMBLEM_MUTED, MaskedEmblem } from './XtmEmblem';
+import CounterpartEmblem, { EMBLEM_FOUND, EMBLEM_GLYPH_SIZE, EMBLEM_MUTED, MaskedEmblem } from './XtmEmblem';
 import { PivotPreview, PivotTeaser } from './XtmPivotPreview';
 
 // One visual language for every cross-platform pivot of OpenAEV (contract v3, Sam, 22 Nov 2026,
@@ -29,8 +29,8 @@ export const CONNECT_OPENCTI_DOC_URL = 'https://docs.openaev.io/latest/integrati
 export const ProductMark: FunctionComponent<{
   size?: number;
   muted?: boolean;
-}> = ({ size = 18, muted = false }) => (
-  <MaskedEmblem maskUrl={octiDark} size={size} color={muted ? EMBLEM_MUTED : EMBLEM_FOUND} />
+}> = ({ size = EMBLEM_GLYPH_SIZE, muted = false }) => (
+  <MaskedEmblem maskUrl={octiMask} size={size} color={muted ? EMBLEM_MUTED : EMBLEM_FOUND} />
 );
 
 const useCanConfigure = () => {
@@ -43,7 +43,7 @@ const OpenCtiTeaser: FunctionComponent<{ canConfigure: boolean }> = ({ canConfig
   const { t } = useFormatter();
   return (
     <PivotTeaser
-      mark={<ProductMark muted />}
+      mark={<ProductMark size={16} muted />}
       productName="OpenCTI"
       labels={OPENCTI_FACT_LABELS}
       pitch={t('Connect OpenCTI to see the reports and intelligence on this object.')}
@@ -64,7 +64,7 @@ export const OpenCtiMatchPreview: FunctionComponent<{ answer: CounterpartAnswer 
   const { t } = useFormatter();
   return (
     <PivotPreview
-      mark={<ProductMark />}
+      mark={<ProductMark size={16} />}
       productName="OpenCTI"
       entityType={answer.counterpart?.counterpart_entity_type}
       name={answer.counterpart?.counterpart_name}
@@ -82,7 +82,7 @@ export const OpenCtiPivotView: FunctionComponent<{ answer: CounterpartAnswer }> 
   return (
     <CounterpartEmblem
       answer={answer}
-      maskUrl={octiDark}
+      maskUrl={octiMask}
       labels={{
         open: t('Open in OpenCTI'),
         connect: t('Connect OpenCTI'),

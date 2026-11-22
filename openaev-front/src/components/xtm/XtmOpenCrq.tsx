@@ -5,7 +5,7 @@ import { type FunctionComponent, type MouseEvent, type ReactNode } from 'react';
 
 import { type CounterpartKindPath } from '../../actions/xtm/counterpart-actions';
 // The OpenCRQ glyph alone (no coloured square ground), painted through a CSS mask in every state.
-import ocrqMask from '../../static/images/xtm/ocrq-mask.svg';
+import ocrqMask from '../../static/images/xtm/xtm-mark-opencrq.svg';
 import useExplorationGraph from '../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
@@ -14,7 +14,7 @@ import { FACT_LABELS } from './counterpartFacts';
 import { type CounterpartAnswer } from './counterpartStore';
 import { withSourceLink } from './sourcedCounterpart';
 import useCounterpart from './useCounterpart';
-import CounterpartEmblem, { EMBLEM_FOUND, EMBLEM_MUTED, MaskedEmblem } from './XtmEmblem';
+import CounterpartEmblem, { EMBLEM_FOUND, EMBLEM_GLYPH_SIZE, EMBLEM_MUTED, MaskedEmblem } from './XtmEmblem';
 import { CONNECT_OPENCTI_DOC_URL, ROW_MARK_SLOT_WIDTH } from './XtmPivot';
 import { PivotPreview, PivotTeaser } from './XtmPivotPreview';
 
@@ -32,7 +32,7 @@ export const CONNECT_OPENCRQ_DOC_URL = CONNECT_OPENCTI_DOC_URL;
 export const OpenCrqMark: FunctionComponent<{
   size?: number;
   muted?: boolean;
-}> = ({ size = 18, muted = false }) => (
+}> = ({ size = EMBLEM_GLYPH_SIZE, muted = false }) => (
   <MaskedEmblem maskUrl={ocrqMask} size={size} color={muted ? EMBLEM_MUTED : EMBLEM_FOUND} />
 );
 
@@ -41,7 +41,7 @@ const OpenCrqTeaser: FunctionComponent<{ canConfigure: boolean }> = ({ canConfig
   const { t } = useFormatter();
   return (
     <PivotTeaser
-      mark={<OpenCrqMark muted />}
+      mark={<OpenCrqMark size={16} muted />}
       productName="OpenCRQ"
       labels={FACT_LABELS}
       pitch={t('Connect OpenCRQ to see the financial impact of this object: its annual loss and the loss avoided by fixing it.')}
@@ -55,7 +55,7 @@ export const OpenCrqMatchPreview: FunctionComponent<{ answer: CounterpartAnswer 
   const { t } = useFormatter();
   return (
     <PivotPreview
-      mark={<OpenCrqMark />}
+      mark={<OpenCrqMark size={16} />}
       productName="OpenCRQ"
       entityType={answer.counterpart?.counterpart_entity_type}
       name={answer.counterpart?.counterpart_name}

@@ -6,7 +6,7 @@ import { type CounterpartAnswer } from './counterpartStore';
 
 // Contract v3 of the cross-product pivots (Sam, 22 Nov 2026), the same in OpenCTI, OpenAEV and
 // OpenCRQ: one ICON-ONLY button per counterpart product, its emblem and no text, at the size of the
-// sibling header actions (FDS IconButton md, 36 px, the size of "Explore in graph"), ordered
+// sibling header actions (FDS IconButton md secondary, 36 px, glyph 20 px), ordered
 // OpenCTI, OpenAEV, OpenCRQ (self skipped).
 // - found: the emblem in the theme primary, a link to the counterpart; hover and focus open the rich preview;
 // - connected and not found: the same emblem greyed (aria-disabled, still focusable), the tooltip
@@ -18,18 +18,22 @@ import { type CounterpartAnswer } from './counterpartStore';
 // The greyed emblem is the product asset used as a CSS mask over currentColor, so the FDS disabled
 // ink (text-icon-disabled) draws it: never a CSS filter on the logo.
 
-// Two colours only, the same for every product (Sam, 22 Nov 2026): found = the theme primary,
-// not found, not connected and unavailable = the theme's disabled grey. No per-product colour and
-// no full-colour artwork: every emblem is its glyph painted through a CSS mask.
-export const EMBLEM_FOUND = 'primary.main';
-export const EMBLEM_MUTED = 'text.disabled';
+// Two colours only, the same for every product and the same hex in OpenCTI, OpenAEV and OpenCRQ
+// (Sam, 22 Nov 2026): found = the design system's highlight ink (--icon-highlight, the brand primary
+// of the theme, a custom primary included), not found, not connected and unavailable = its disabled
+// ink (--icon-disabled). No per-product colour and no full-colour artwork: every emblem is the
+// design system's product-switcher glyph painted through a CSS mask.
+export const EMBLEM_FOUND = 'var(--icon-highlight)';
+export const EMBLEM_MUTED = 'var(--icon-disabled)';
+/** The glyph inside the 36 px header button, the same in the three products. */
+export const EMBLEM_GLYPH_SIZE = 20;
 
 /** The emblem shape, painted in `color` (a theme palette path; currentColor by default). */
 export const MaskedEmblem: FunctionComponent<{
   maskUrl: string;
   size?: number;
   color?: string;
-}> = ({ maskUrl, size = 18, color = 'currentColor' }) => (
+}> = ({ maskUrl, size = EMBLEM_GLYPH_SIZE, color = 'currentColor' }) => (
   <Box
     component="span"
     aria-hidden
@@ -89,12 +93,12 @@ const CounterpartEmblem: FunctionComponent<CounterpartEmblemProps> = ({
   if (answer.state === 'loading') {
     return null;
   }
-  const greyed = <MaskedEmblem maskUrl={maskUrl} />;
+  const greyed = <MaskedEmblem maskUrl={maskUrl} color={EMBLEM_MUTED} />;
   if (answer.state === 'match') {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <IconButton asChild icon={<MaskedEmblem maskUrl={maskUrl} color={EMBLEM_FOUND} />} aria-label={labels.open} priority="tertiary" size="md">
+          <IconButton asChild icon={<MaskedEmblem maskUrl={maskUrl} color={EMBLEM_FOUND} />} aria-label={labels.open} priority="secondary" size="md">
             <a
               href={answer.counterpart?.counterpart_url}
               target="_blank"
@@ -116,7 +120,7 @@ const CounterpartEmblem: FunctionComponent<CounterpartEmblemProps> = ({
             asChild
             icon={greyed}
             aria-label={labels.connect}
-            priority="tertiary"
+            priority="secondary"
             size="md"
             className="text-icon-disabled"
           >
@@ -139,7 +143,7 @@ const CounterpartEmblem: FunctionComponent<CounterpartEmblemProps> = ({
           display: 'flex',
           flexDirection: 'column',
           gap: 0.5,
-          maxWidth: 260,
+          maxWidth: 288,
         }}
         data-testid="xtm-emblem-not-found"
       >
@@ -161,7 +165,7 @@ const CounterpartEmblem: FunctionComponent<CounterpartEmblemProps> = ({
           icon={greyed}
           aria-label={label}
           aria-disabled
-          priority="tertiary"
+          priority="secondary"
           size="md"
           data-testid={`${testId}-${state}`}
         />
