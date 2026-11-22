@@ -4,8 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, type ReactNode } from 'react';
 
 import { type CounterpartKindPath } from '../../actions/xtm/counterpart-actions';
-import ocrqMark from '../../static/images/xtm/ocrq.svg';
-// The greyed emblem is a CSS mask: it needs the glyph alone, without the coloured square ground.
+// The OpenCRQ glyph alone (no coloured square ground), painted through a CSS mask in every state.
 import ocrqMask from '../../static/images/xtm/ocrq-mask.svg';
 import useExplorationGraph from '../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../utils/permissions/permissionsContext';
@@ -15,7 +14,7 @@ import { FACT_LABELS } from './counterpartFacts';
 import { type CounterpartAnswer } from './counterpartStore';
 import { withSourceLink } from './sourcedCounterpart';
 import useCounterpart from './useCounterpart';
-import CounterpartEmblem from './XtmEmblem';
+import CounterpartEmblem, { EMBLEM_FOUND, EMBLEM_MUTED, MaskedEmblem } from './XtmEmblem';
 import { CONNECT_OPENCTI_DOC_URL, ROW_MARK_SLOT_WIDTH } from './XtmPivot';
 import { PivotPreview, PivotTeaser } from './XtmPivotPreview';
 
@@ -29,8 +28,9 @@ export const OPENCRQ_PRODUCT = 'opencrq';
 // documented on the same XTM integration page as the OpenCTI one.
 export const CONNECT_OPENCRQ_DOC_URL = CONNECT_OPENCTI_DOC_URL;
 
-export const OpenCrqMark: FunctionComponent<{ size?: number }> = ({ size = 18 }) => (
-  <img src={ocrqMark} alt="" aria-hidden width={size} height={size} style={{ borderRadius: 2 }} />
+/** The OpenCRQ glyph in the theme primary, the one colour of every found emblem (Sam, 22 Nov 2026). */
+export const OpenCrqMark: FunctionComponent<{ size?: number; muted?: boolean }> = ({ size = 18, muted = false }) => (
+  <MaskedEmblem maskUrl={ocrqMask} size={size} color={muted ? EMBLEM_MUTED : EMBLEM_FOUND} />
 );
 
 /** Not connected: the preview of what OpenCRQ would show here, and the next step for this user. */
@@ -38,7 +38,7 @@ const OpenCrqTeaser: FunctionComponent<{ canConfigure: boolean }> = ({ canConfig
   const { t } = useFormatter();
   return (
     <PivotTeaser
-      mark={<OpenCrqMark />}
+      mark={<OpenCrqMark muted />}
       productName="OpenCRQ"
       labels={FACT_LABELS}
       pitch={t('Connect OpenCRQ to see the financial impact of this object: its annual loss and the loss avoided by fixing it.')}
@@ -71,7 +71,6 @@ export const OpenCrqPivotView: FunctionComponent<{ answer: CounterpartAnswer }> 
   return (
     <CounterpartEmblem
       answer={answer}
-      colour={<OpenCrqMark />}
       maskUrl={ocrqMask}
       labels={{
         open: t('Open in OpenCRQ'),

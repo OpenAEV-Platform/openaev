@@ -1,11 +1,10 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Avatar, Box } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, type ReactNode } from 'react';
 
 import { type CounterpartKindPath } from '../../actions/xtm/counterpart-actions';
 import octiDark from '../../static/images/xtm/octi_dark.png';
-import octiLight from '../../static/images/xtm/octi_light.png';
 import useExplorationGraph from '../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
@@ -14,7 +13,7 @@ import { OPENCTI_FACT_LABELS } from './counterpartFacts';
 import { type CounterpartAnswer } from './counterpartStore';
 import { withSourceLink } from './sourcedCounterpart';
 import useCounterpart, { OPENCTI_PRODUCT } from './useCounterpart';
-import CounterpartEmblem from './XtmEmblem';
+import CounterpartEmblem, { EMBLEM_FOUND, EMBLEM_MUTED, MaskedEmblem } from './XtmEmblem';
 import { PivotPreview, PivotTeaser } from './XtmPivotPreview';
 
 // One visual language for every cross-platform pivot of OpenAEV (contract v3, Sam, 22 Nov 2026,
@@ -26,19 +25,10 @@ import { PivotPreview, PivotTeaser } from './XtmPivotPreview';
 // so the emblem of a configurer opens its documentation page.
 export const CONNECT_OPENCTI_DOC_URL = 'https://docs.openaev.io/latest/integrations/xtm-suite/xtm-suite-connector/';
 
-export const ProductMark: FunctionComponent<{ size?: number }> = ({ size = 18 }) => {
-  const theme = useTheme();
-  return (
-    <Avatar
-      src={theme.palette.mode === 'dark' ? octiDark : octiLight}
-      alt=""
-      style={{
-        width: size,
-        height: size,
-      }}
-    />
-  );
-};
+/** The OpenCTI glyph in the theme primary, the one colour of every found emblem (Sam, 22 Nov 2026). */
+export const ProductMark: FunctionComponent<{ size?: number; muted?: boolean }> = ({ size = 18, muted = false }) => (
+  <MaskedEmblem maskUrl={octiDark} size={size} color={muted ? EMBLEM_MUTED : EMBLEM_FOUND} />
+);
 
 const useCanConfigure = () => {
   const ability = useAbility();
@@ -50,7 +40,7 @@ const OpenCtiTeaser: FunctionComponent<{ canConfigure: boolean }> = ({ canConfig
   const { t } = useFormatter();
   return (
     <PivotTeaser
-      mark={<ProductMark />}
+      mark={<ProductMark muted />}
       productName="OpenCTI"
       labels={OPENCTI_FACT_LABELS}
       pitch={t('Connect OpenCTI to see the reports and intelligence on this object.')}
@@ -89,7 +79,6 @@ export const OpenCtiPivotView: FunctionComponent<{ answer: CounterpartAnswer }> 
   return (
     <CounterpartEmblem
       answer={answer}
-      colour={<ProductMark />}
       maskUrl={octiDark}
       labels={{
         open: t('Open in OpenCTI'),

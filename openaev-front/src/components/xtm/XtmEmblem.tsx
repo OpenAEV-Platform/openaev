@@ -8,7 +8,7 @@ import { type CounterpartAnswer } from './counterpartStore';
 // OpenCRQ: one ICON-ONLY button per counterpart product, its emblem and no text, at the size of the
 // sibling header actions (FDS IconButton md, 36 px, the size of "Explore in graph"), ordered
 // OpenCTI, OpenAEV, OpenCRQ (self skipped).
-// - found: the emblem in colour, a link to the counterpart; hover and focus open the rich preview;
+// - found: the emblem in the theme primary, a link to the counterpart; hover and focus open the rich preview;
 // - connected and not found: the same emblem greyed (aria-disabled, still focusable), the tooltip
 //   says it is not there and how it gets there;
 // - not connected: the same emblem greyed, the tooltip is the teaser of what the product would show
@@ -18,11 +18,18 @@ import { type CounterpartAnswer } from './counterpartStore';
 // The greyed emblem is the product asset used as a CSS mask over currentColor, so the FDS disabled
 // ink (text-icon-disabled) draws it: never a CSS filter on the logo.
 
-/** The emblem shape, drawn in the current text colour (the FDS disabled ink on a greyed button). */
+// Two colours only, the same for every product (Sam, 22 Nov 2026): found = the theme primary,
+// not found, not connected and unavailable = the theme's disabled grey. No per-product colour and
+// no full-colour artwork: every emblem is its glyph painted through a CSS mask.
+export const EMBLEM_FOUND = 'primary.main';
+export const EMBLEM_MUTED = 'text.disabled';
+
+/** The emblem shape, painted in `color` (a theme palette path; currentColor by default). */
 export const MaskedEmblem: FunctionComponent<{
   maskUrl: string;
   size?: number;
-}> = ({ maskUrl, size = 18 }) => (
+  color?: string;
+}> = ({ maskUrl, size = 18, color = 'currentColor' }) => (
   <Box
     component="span"
     aria-hidden
@@ -31,7 +38,7 @@ export const MaskedEmblem: FunctionComponent<{
       display: 'inline-block',
       width: size,
       height: size,
-      backgroundColor: 'currentColor',
+      backgroundColor: color,
       maskImage: `url("${maskUrl}")`,
       maskSize: 'contain',
       maskRepeat: 'no-repeat',
@@ -57,8 +64,6 @@ export interface EmblemLabels {
 
 export interface CounterpartEmblemProps {
   answer: CounterpartAnswer;
-  /** The colour emblem (the product's own artwork), shown when found. */
-  colour: ReactNode;
   /** The URL of an emblem asset whose alpha draws the shape, for the greyed states. */
   maskUrl: string;
   labels: EmblemLabels;
@@ -74,7 +79,6 @@ export interface CounterpartEmblemProps {
 /** The icon-only pivot of one counterpart product, in the state of its answer. */
 const CounterpartEmblem: FunctionComponent<CounterpartEmblemProps> = ({
   answer,
-  colour,
   maskUrl,
   labels,
   preview,
@@ -90,7 +94,7 @@ const CounterpartEmblem: FunctionComponent<CounterpartEmblemProps> = ({
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <IconButton asChild icon={colour} aria-label={labels.open} priority="tertiary" size="md">
+          <IconButton asChild icon={<MaskedEmblem maskUrl={maskUrl} color={EMBLEM_FOUND} />} aria-label={labels.open} priority="tertiary" size="md">
             <a
               href={answer.counterpart?.counterpart_url}
               target="_blank"
