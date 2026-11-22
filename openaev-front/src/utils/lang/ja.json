@@ -4007,6 +4007,7 @@
   "Switch view": "ビューを切り替える",
   "Switching the theme resets the colors to the platform defaults of that theme.": "テーマを切り替えると、色は当該テーマのプラットフォームのデフォルト設定にリセットされます。",
   "Sync blocked": "同期がブロックされました",
+  "Critical asset reached": "重要資産に到達",
   "System prompt": "システムプロンプト",
   "System prompt (optional)": "システムプロンプト（任意）",
   "Table": "テーブル",

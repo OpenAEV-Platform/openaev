@@ -4007,6 +4007,7 @@
   "Switch view": "Переключить вид",
   "Switching the theme resets the colors to the platform defaults of that theme.": "При смене темы цвета сбрасываются на значения по умолчанию платформы для данной темы.",
   "Sync blocked": "Синхронизация заблокирована",
+  "Critical asset reached": "Достигнут критический актив",
   "System prompt": "Системный промпт",
   "System prompt (optional)": "Системный промпт (необязательно)",
   "Table": "Таблица",

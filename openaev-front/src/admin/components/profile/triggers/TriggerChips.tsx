@@ -1,10 +1,10 @@
-import { Chip, type ChipSeverity } from '@filigran/design-system';
+import { Chip } from '@filigran/design-system';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type NotificationTriggerOutput } from '../../../../utils/api-types';
-import { eventTypeLabel, resourceTypeLabel } from './triggerUtils';
+import { eventTypeLabel, eventTypeSeverity, resourceTypeLabel } from './triggerUtils';
 
 // Design system list chips: square corners, 20px height, uppercase, alpha-tinted background
 // (same pattern as ItemSeverity / ItemStatus)
@@ -15,23 +15,6 @@ const useStyles = makeStyles()(() => ({
     gap: 4,
   },
 }));
-
-const eventTypeSeverity = (eventType: string): ChipSeverity => {
-  switch (eventType) {
-    case 'CREATE':
-      return 'low';
-    case 'UPDATE':
-      return 'info';
-    case 'DELETE':
-      return 'critical';
-    case 'SCORE_DEGRADATION':
-      return 'medium';
-    case 'SYNC_BLOCKED':
-      return 'critical';
-    default:
-      return 'neutral';
-  }
-};
 
 // -- TYPE --
 

@@ -13,7 +13,9 @@ public enum NotificationTriggerEventType {
   UPDATE(null),
   DELETE(null),
   SCORE_DEGRADATION(ResourceType.SCENARIO),
-  SYNC_BLOCKED(ResourceType.CATALOG_SYNC);
+  SYNC_BLOCKED(ResourceType.CATALOG_SYNC),
+  /** The attack path of a finished simulation reached an asset of high or very high criticality. */
+  CRITICAL_ASSET_REACHED(ResourceType.SIMULATION);
 
   // Resource type the event is limited to; null when every resource type sends it
   private final ResourceType onlyFor;

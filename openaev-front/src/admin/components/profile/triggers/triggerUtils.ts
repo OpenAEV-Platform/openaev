@@ -1,3 +1,5 @@
+import { type ChipSeverity } from '@filigran/design-system';
+
 import { type NotificationTriggerInput } from '../../../../utils/api-types';
 
 export type TriggerEventType = NonNullable<NotificationTriggerInput['notification_trigger_event_types']>[number];
@@ -23,7 +25,7 @@ export const TRIGGER_RESOURCE_TYPES: TriggerResourceTypeOption[] = [
     value: 'SIMULATION',
     entityPrefix: 'exercise',
     label: 'Simulation',
-    eventTypes: LIFECYCLE_EVENT_TYPES,
+    eventTypes: [...LIFECYCLE_EVENT_TYPES, 'CRITICAL_ASSET_REACHED'],
   },
   {
     value: 'INJECT',
@@ -110,10 +112,31 @@ export const eventTypesOf = (resourceType?: string): TriggerEventType[] =>
 const EVENT_TYPE_LABELS: Record<string, string> = {
   SCORE_DEGRADATION: 'Score degradation',
   SYNC_BLOCKED: 'Sync blocked',
+  CRITICAL_ASSET_REACHED: 'Critical asset reached',
 };
 
 export const eventTypeLabel = (eventType: string) =>
   EVENT_TYPE_LABELS[eventType] ?? eventType.charAt(0) + eventType.slice(1).toLowerCase();
+
+/** Chip severity of a trigger event type; every event type of TRIGGER_RESOURCE_TYPES has an explicit case. */
+export const eventTypeSeverity = (eventType: string): ChipSeverity => {
+  switch (eventType) {
+    case 'CREATE':
+      return 'low';
+    case 'UPDATE':
+      return 'info';
+    case 'DELETE':
+      return 'critical';
+    case 'SCORE_DEGRADATION':
+      return 'medium';
+    case 'SYNC_BLOCKED':
+      return 'critical';
+    case 'CRITICAL_ASSET_REACHED':
+      return 'critical';
+    default:
+      return 'neutral';
+  }
+};
 
 export const DIGEST_PERIODS = ['HOUR', 'DAY', 'WEEK', 'MONTH'] as const;
 
