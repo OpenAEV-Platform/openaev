@@ -1,11 +1,11 @@
 import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { type ReactElement, type ReactNode } from 'react';
+import { cleanup, render, screen } from '@testing-library/react';
+import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { orderedFacts } from '../../../components/xtm/counterpartFacts';
-import { ConnectOpenCrqCta, OpenCrqCardView, OpenCrqMatchPreview, OpenCrqPivotView, OpenCrqRowMark } from '../../../components/xtm/XtmOpenCrq';
+import { OpenCrqMatchPreview, OpenCrqPivotView, OpenCrqRowMark } from '../../../components/xtm/XtmOpenCrq';
 
 const can = vi.fn();
 const useCounterpartMock = vi.fn();
@@ -52,60 +52,41 @@ const MATCH = {
   },
 };
 
-describe('OpenCrqPivotView', () => {
+describe('OpenCrqPivotView (contract v3: icon-only emblem)', () => {
   beforeEach(() => {
-    window.localStorage.clear();
     can.mockReturnValue(true);
   });
   afterEach(cleanup);
 
-  it('given a match should link to the OpenCRQ object', () => {
+  it('given a match should be an icon-only link to the OpenCRQ object, named, with no text', () => {
     renderView(<OpenCrqPivotView answer={MATCH} />);
-    expect(screen.getByTestId('xtm-crq-pivot-open').getAttribute('href')).toBe('https://ocrq.example/cve/CVE-2024-0001');
-    expect(screen.getByText('Open in OpenCRQ')).toBeTruthy();
+    const link = screen.getByTestId('xtm-crq-pivot-found');
+    expect(link.getAttribute('href')).toBe('https://ocrq.example/cve/CVE-2024-0001');
+    expect(link.getAttribute('aria-label')).toBe('Open in OpenCRQ');
+    expect(link.textContent).toBe('');
   });
 
-  it('given a match with an annual loss should carry the key figure on the button', () => {
+  it('given a match should render at the same FDS IconButton md size as the OpenCTI emblem', () => {
     renderView(<OpenCrqPivotView answer={MATCH} />);
-    expect(screen.getByTestId('xtm-crq-pivot-figure').textContent).toBe('· Annual loss 125K');
+    const className = screen.getByTestId('xtm-crq-pivot-found').className;
+    expect(className).toContain('h-9');
+    expect(className).toContain('w-9');
   });
 
-  it('given a match without facts should keep the label alone', () => {
+  it('given connected without a match should show the greyed emblem named "Not found in OpenCRQ"', () => {
     renderView(
-      <OpenCrqPivotView answer={{
-        ...MATCH,
-        counterpart: {
-          ...MATCH.counterpart,
-          counterpart_facts: [],
-        },
-      }}
-      />,
-    );
-    expect(screen.getByText('Open in OpenCRQ')).toBeTruthy();
-    expect(screen.queryByTestId('xtm-crq-pivot-figure')).toBeNull();
-  });
-
-  it('given the default size should render the hero at the FDS md size, never sm', () => {
-    renderView(<OpenCrqPivotView answer={MATCH} />);
-    const hero = screen.getByTestId('xtm-crq-pivot-open').className;
-    cleanup();
-    renderView(<OpenCrqPivotView answer={MATCH} size="md" />);
-    expect(screen.getByTestId('xtm-crq-pivot-open').className).toBe(hero);
-  });
-
-  it('given connected without a match should render nothing', () => {
-    const { container } = renderView(
       <OpenCrqPivotView answer={{
         state: 'no_match',
         product: 'opencrq',
       }}
       />,
     );
-    expect(container.textContent).toBe('');
-    expect(container.querySelector('[tabindex]')).toBeNull();
+    const button = screen.getByTestId('xtm-crq-pivot-not-found');
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(button.getAttribute('aria-label')).toBe('Not found in OpenCRQ');
   });
 
-  it('given not connected and an administrator should offer to connect OpenCRQ', () => {
+  it('given not connected and an administrator should link the greyed emblem to the connection guide', () => {
     renderView(
       <OpenCrqPivotView answer={{
         state: 'not_connected',
@@ -113,10 +94,12 @@ describe('OpenCrqPivotView', () => {
       }}
       />,
     );
-    expect(screen.getByText('Connect OpenCRQ')).toBeTruthy();
+    const link = screen.getByTestId('xtm-crq-pivot-not-connected');
+    expect(link.tagName).toBe('A');
+    expect(link.getAttribute('aria-label')).toBe('Connect OpenCRQ');
   });
 
-  it('given not connected and no right to configure should show the read-only hint', () => {
+  it('given not connected and no right to configure should show the greyed emblem with no action', () => {
     can.mockReturnValue(false);
     renderView(
       <OpenCrqPivotView answer={{
@@ -125,11 +108,12 @@ describe('OpenCrqPivotView', () => {
       }}
       />,
     );
-    expect(screen.queryByTestId('xtm-crq-connect-cta')).toBeNull();
-    expect(screen.getByTestId('xtm-crq-connect-hint').querySelector('button')).toBeNull();
+    const button = screen.getByTestId('xtm-crq-pivot-not-connected');
+    expect(button.tagName).toBe('BUTTON');
+    expect(button.getAttribute('aria-label')).toBe('OpenCRQ is not connected');
   });
 
-  it('given an unavailable OpenCRQ should degrade to a muted mark', () => {
+  it('given an unavailable OpenCRQ should show the greyed emblem with no action', () => {
     renderView(
       <OpenCrqPivotView answer={{
         state: 'unavailable',
@@ -137,15 +121,7 @@ describe('OpenCrqPivotView', () => {
       }}
       />,
     );
-    expect(screen.getByTestId('xtm-crq-pivot-unavailable').querySelector('button')).toBeNull();
-  });
-
-  it('given a dismissed call to action should stay hidden', () => {
-    renderView(<ConnectOpenCrqCta />);
-    fireEvent.click(screen.getByLabelText('Hide this suggestion'));
-    cleanup();
-    renderView(<ConnectOpenCrqCta />);
-    expect(screen.queryByTestId('xtm-crq-connect-cta')).toBeNull();
+    expect(screen.getByTestId('xtm-crq-pivot-unavailable').getAttribute('aria-disabled')).toBe('true');
   });
 });
 
@@ -172,48 +148,6 @@ describe('OpenCrqMatchPreview', () => {
     );
     expect(screen.queryByTestId('xtm-preview-facts')).toBeNull();
     expect(screen.getByTestId('xtm-preview')).toBeTruthy();
-  });
-});
-
-describe('OpenCrqCardView', () => {
-  afterEach(cleanup);
-
-  it('given a match should show the known facts in order with amounts formatted', () => {
-    renderView(<OpenCrqCardView answer={MATCH} />);
-    const facts = screen.getByTestId('xtm-crq-facts').textContent;
-    expect(facts).toBe('Risk scenarios3Annual loss expectancy125K');
-  });
-
-  const frame = (card: ReactNode) => <section data-testid="xtm-crq-card-frame">{card}</section>;
-
-  it('given connected without a match should render nothing, frame included', () => {
-    const { container } = renderView(
-      <OpenCrqCardView
-        answer={{
-          state: 'no_match',
-          product: 'opencrq',
-        }}
-        frame={frame}
-      />,
-    );
-    expect(container.textContent).toBe('');
-    expect(screen.queryByTestId('xtm-crq-card-frame')).toBeNull();
-  });
-
-  it('given a match should render the card inside its frame', () => {
-    renderView(<OpenCrqCardView answer={MATCH} frame={frame} />);
-    expect(screen.getByTestId('xtm-crq-card-frame').querySelector('[data-testid="xtm-crq-card"]')).toBeTruthy();
-  });
-
-  it('given loading should render nothing', () => {
-    const { container } = renderView(
-      <OpenCrqCardView answer={{
-        state: 'loading',
-        product: 'opencrq',
-      }}
-      />,
-    );
-    expect(container.textContent).toBe('');
   });
 });
 

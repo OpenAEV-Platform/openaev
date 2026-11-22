@@ -4984,5 +4984,11 @@
   "OpenCRQ did not answer this time. The pivot comes back on its own.": "OpenCRQ 本次未响应。链接会自动恢复。",
   "OpenCTI did not answer this time. The pivot comes back on its own.": "OpenCTI 本次未响应。链接会自动恢复。",
   "See the financial impact of this object and the risk scenarios it drives in OpenCRQ.": "在 OpenCRQ 中查看此对象的财务影响及其驱动的风险场景。",
-  "See the reports, relationships and context of this object in OpenCTI.": "在 OpenCTI 中查看此对象的报告、关系和上下文。"
+  "See the reports, relationships and context of this object in OpenCTI.": "在 OpenCTI 中查看此对象的报告、关系和上下文。",
+  "OpenCTI is not connected": "OpenCTI 未连接",
+  "OpenCRQ is not connected": "OpenCRQ 未连接",
+  "Not found in OpenCTI": "在 OpenCTI 中未找到",
+  "Not found in OpenCRQ": "在 OpenCRQ 中未找到",
+  "OpenCTI holds it once a connector or an analyst creates it there.": "连接器或分析师创建后，OpenCTI 中即会包含它。",
+  "OpenCRQ holds it once a risk scenario or a supporting asset names it.": "风险场景或支撑资产引用后，OpenCRQ 中即会包含它。"
 }

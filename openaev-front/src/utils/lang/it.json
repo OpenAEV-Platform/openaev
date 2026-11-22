@@ -4984,5 +4984,11 @@
   "OpenCRQ did not answer this time. The pivot comes back on its own.": "OpenCRQ non ha risposto questa volta. Il collegamento torna da solo.",
   "OpenCTI did not answer this time. The pivot comes back on its own.": "OpenCTI non ha risposto questa volta. Il collegamento torna da solo.",
   "See the financial impact of this object and the risk scenarios it drives in OpenCRQ.": "Vedi in OpenCRQ l'impatto finanziario di questo oggetto e gli scenari di rischio che determina.",
-  "See the reports, relationships and context of this object in OpenCTI.": "Vedi in OpenCTI i report, le relazioni e il contesto di questo oggetto."
+  "See the reports, relationships and context of this object in OpenCTI.": "Vedi in OpenCTI i report, le relazioni e il contesto di questo oggetto.",
+  "OpenCTI is not connected": "OpenCTI non è connesso",
+  "OpenCRQ is not connected": "OpenCRQ non è connesso",
+  "Not found in OpenCTI": "Non trovato in OpenCTI",
+  "Not found in OpenCRQ": "Non trovato in OpenCRQ",
+  "OpenCTI holds it once a connector or an analyst creates it there.": "OpenCTI lo conterrà quando un connettore o un analista lo creerà lì.",
+  "OpenCRQ holds it once a risk scenario or a supporting asset names it.": "OpenCRQ lo conterrà quando uno scenario di rischio o un asset di supporto lo nominerà."
 }

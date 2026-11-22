@@ -1,54 +1,35 @@
-import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { CloseOutlined, LinkOffOutlined } from '@mui/icons-material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type MouseEvent, type ReactNode, useState } from 'react';
+import { type FunctionComponent, type MouseEvent, type ReactNode } from 'react';
 
 import { type CounterpartKindPath } from '../../actions/xtm/counterpart-actions';
 import ocrqMark from '../../static/images/xtm/ocrq.svg';
-import { type FactOutput } from '../../utils/api-types';
 import useExplorationGraph from '../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { useFormatter } from '../i18n';
-import { FACT_LABELS, keyFact, MONEY_FACTS, orderedFacts } from './counterpartFacts';
+import { FACT_LABELS } from './counterpartFacts';
 import { type CounterpartAnswer } from './counterpartStore';
-import { STATUS_TRIGGER } from './pivotStyles';
+import { withSourceLink } from './sourcedCounterpart';
 import useCounterpart from './useCounterpart';
-import { CONNECT_OPENCTI_DOC_URL, type PivotSize, ROW_MARK_SLOT_WIDTH } from './XtmPivot';
+import CounterpartEmblem from './XtmEmblem';
+import { CONNECT_OPENCTI_DOC_URL, ROW_MARK_SLOT_WIDTH } from './XtmPivot';
 import { PivotPreview, PivotTeaser } from './XtmPivotPreview';
 
-// The OpenCRQ side of the cross-platform pivots: same visual language and wording as the OpenCTI
-// ones (XtmPivot), the OpenCRQ mark, and the risk OpenCRQ quantifies for the object (the risk
-// scenarios it drives, their annual loss expectancy and, for a CVE, the loss avoided by fixing it).
+// The OpenCRQ side of the cross-platform pivots, contract v3 (Sam, 22 Nov 2026): the same
+// icon-only emblem as the OpenCTI one (XtmPivot), the OpenCRQ mark, and the risk OpenCRQ quantifies
+// for the object (the risk scenarios it drives, their annual loss expectancy and, for a CVE, the
+// loss avoided by fixing it) in its preview.
 
 export const OPENCRQ_PRODUCT = 'opencrq';
 // The OpenCRQ connection of a tenant is deployment configuration (openaev.xtm.opencrq.{tenant}.*),
 // documented on the same XTM integration page as the OpenCTI one.
 export const CONNECT_OPENCRQ_DOC_URL = CONNECT_OPENCTI_DOC_URL;
-const DISMISS_KEY = 'xtm-connect-opencrq-dismissed';
-
-const isDismissed = () => {
-  try {
-    return window.localStorage.getItem(DISMISS_KEY) === 'true';
-  } catch {
-    return false;
-  }
-};
 
 export const OpenCrqMark: FunctionComponent<{ size?: number }> = ({ size = 18 }) => (
   <img src={ocrqMark} alt="" aria-hidden width={size} height={size} style={{ borderRadius: 2 }} />
 );
-
-// Read by a screen reader, never shown: the hint a disabled call to action carries.
-const SR_ONLY = {
-  position: 'absolute',
-  width: 1,
-  height: 1,
-  overflow: 'hidden',
-  clip: 'rect(0 0 0 0)',
-  whiteSpace: 'nowrap',
-} as const;
 
 /** Not connected: the preview of what OpenCRQ would show here, and the next step for this user. */
 const OpenCrqTeaser: FunctionComponent<{ canConfigure: boolean }> = ({ canConfigure }) => {
@@ -61,74 +42,6 @@ const OpenCrqTeaser: FunctionComponent<{ canConfigure: boolean }> = ({ canConfig
       pitch={t('Connect OpenCRQ to see the financial impact of this object: its annual loss and the loss avoided by fixing it.')}
       next={canConfigure ? t('Open the connection guide to connect OpenCRQ.') : t('Ask an administrator to connect OpenCRQ to see this object there.')}
     />
-  );
-};
-
-/** The "Connect OpenCRQ" call to action, shown where a pivot would be when not connected. */
-export const ConnectOpenCrqCta: FunctionComponent<{ size?: PivotSize }> = ({ size = 'md' }) => {
-  const { t } = useFormatter();
-  const ability = useAbility();
-  const canConfigure = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
-  const [dismissed, setDismissed] = useState(isDismissed);
-  if (dismissed) {
-    return null;
-  }
-  if (!canConfigure) {
-    // This user cannot connect OpenCRQ: a status (FDS Chip), never a dead button. The teaser hangs on
-    // a focusable wrapper so keyboard users open it too.
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Box component="span" tabIndex={0} sx={STATUS_TRIGGER} data-testid="xtm-crq-connect-hint">
-            <Chip label={t('Connect OpenCRQ')} startIcon={<OpenCrqMark size={16} />} />
-            <Box component="span" sx={SR_ONLY}>{t('Ask an administrator to connect OpenCRQ to see this object there.')}</Box>
-          </Box>
-        </TooltipTrigger>
-        <TooltipContent><OpenCrqTeaser canConfigure={false} /></TooltipContent>
-      </Tooltip>
-    );
-  }
-  const dismiss = () => {
-    try {
-      window.localStorage.setItem(DISMISS_KEY, 'true');
-    } catch {
-      // Storage refused: dismissed for this view only.
-    }
-    setDismissed(true);
-  };
-  return (
-    <Box
-      sx={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 0.5,
-      }}
-      data-testid="xtm-crq-connect-cta"
-    >
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button asChild priority="secondary" size={size}>
-            <a href={CONNECT_OPENCRQ_DOC_URL} target="_blank" rel="noopener noreferrer">
-              <OpenCrqMark />
-              {t('Connect OpenCRQ')}
-            </a>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent><OpenCrqTeaser canConfigure /></TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <IconButton
-            icon={<CloseOutlined fontSize="small" />}
-            onClick={dismiss}
-            aria-label={t('Hide this suggestion')}
-            priority="tertiary"
-            size={size}
-          />
-        </TooltipTrigger>
-        <TooltipContent>{t('Hide this suggestion')}</TooltipContent>
-      </Tooltip>
-    </Box>
   );
 };
 
@@ -148,97 +61,44 @@ export const OpenCrqMatchPreview: FunctionComponent<{ answer: CounterpartAnswer 
   );
 };
 
-/** Renders one answer; kept separate so tests drive every state. */
-export const OpenCrqPivotView: FunctionComponent<{
-  answer: CounterpartAnswer;
-  size?: PivotSize;
-}> = ({ answer, size = 'md' }) => {
-  const { t, n } = useFormatter();
-  switch (answer.state) {
-    case 'match': {
-      // The annual loss rides next to the label when OpenCRQ answered one; the FDS button never wraps.
-      const loss = keyFact(answer.counterpart?.counterpart_facts, 'annual_loss');
-      return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button asChild priority="secondary" size={size}>
-              <a href={answer.counterpart?.counterpart_url} target="_blank" rel="noopener noreferrer" data-testid="xtm-crq-pivot-open">
-                <OpenCrqMark />
-                {t('Open in OpenCRQ')}
-                {loss && (
-                  <Box component="span" sx={{ opacity: 0.72 }} data-testid="xtm-crq-pivot-figure">
-                    {`· ${t('Annual loss')} ${n(Number(loss.fact_value))}`}
-                  </Box>
-                )}
-              </a>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent><OpenCrqMatchPreview answer={answer} /></TooltipContent>
-        </Tooltip>
-      );
-    }
-    case 'not_connected':
-      return <ConnectOpenCrqCta size={size} />;
-    case 'unavailable':
-      return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Box component="span" tabIndex={0} sx={STATUS_TRIGGER} data-testid="xtm-crq-pivot-unavailable">
-              <Chip label={t('OpenCRQ is unavailable')} startIcon={<LinkOffOutlined fontSize="small" />} />
-            </Box>
-          </TooltipTrigger>
-          <TooltipContent>{t('OpenCRQ did not answer this time. The pivot comes back on its own.')}</TooltipContent>
-        </Tooltip>
-      );
-    default:
-      return null;
-  }
-};
-
-/** The OpenCRQ facts of a counterpart: risk scenarios driven, annual loss, loss avoided by fixing. */
-export const OpenCrqFacts: FunctionComponent<{ facts: FactOutput[] | undefined }> = ({ facts }) => {
-  const { t, n } = useFormatter();
-  const shown = orderedFacts(facts);
-  if (shown.length === 0) {
-    return null;
-  }
+/** Renders one answer as the icon-only emblem of contract v3; tests drive every state. */
+export const OpenCrqPivotView: FunctionComponent<{ answer: CounterpartAnswer }> = ({ answer }) => {
+  const { t } = useFormatter();
+  const ability = useAbility();
+  const canConfigure = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
   return (
-    <Box
-      component="dl"
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: 'max-content 1fr',
-        columnGap: 2,
-        rowGap: 0.5,
-        margin: 0,
-        typography: 'body2',
+    <CounterpartEmblem
+      answer={answer}
+      colour={<OpenCrqMark />}
+      maskUrl={ocrqMark}
+      labels={{
+        open: t('Open in OpenCRQ'),
+        connect: t('Connect OpenCRQ'),
+        notConnected: t('OpenCRQ is not connected'),
+        notFound: t('Not found in OpenCRQ'),
+        notFoundHint: t('OpenCRQ holds it once a risk scenario or a supporting asset names it.'),
+        unavailable: t('OpenCRQ is unavailable'),
+        unavailableHint: t('OpenCRQ did not answer this time. The pivot comes back on its own.'),
       }}
-      data-testid="xtm-crq-facts"
-    >
-      {shown.map((fact) => {
-        const value = Number(fact.fact_value);
-        // Amounts are whole units of the OpenCRQ tenant's currency, shown compact (125K).
-        const display = MONEY_FACTS.has(fact.fact_key ?? '') && Number.isFinite(value) ? n(value) : fact.fact_value;
-        return (
-          <Box key={fact.fact_key} sx={{ display: 'contents' }}>
-            <Box component="dt" sx={{ color: 'text.secondary' }}>{t(FACT_LABELS[fact.fact_key ?? ''])}</Box>
-            <Box component="dd" sx={{ margin: 0 }}>{display}</Box>
-          </Box>
-        );
-      })}
-    </Box>
+      preview={<OpenCrqMatchPreview answer={answer} />}
+      teaser={<OpenCrqTeaser canConfigure={canConfigure} />}
+      connectUrl={canConfigure ? CONNECT_OPENCRQ_DOC_URL : undefined}
+      testId="xtm-crq-pivot"
+    />
   );
 };
 
 interface PivotProps {
   kind: CounterpartKindPath;
   objectKey: string | null | undefined;
+  /** The object's source link (an asset's external reference): found from it first. */
+  sourceUrl?: string | null;
 }
 
-/** Hero action: "Open in OpenCRQ" or "Connect OpenCRQ"; nothing when a connected OpenCRQ has no match. */
-const OpenCrqPivotLookup: FunctionComponent<PivotProps & { size?: PivotSize }> = ({ kind, objectKey, size }) => {
+/** Hero action: the OpenCRQ emblem, in the state of the counterpart (source link first). */
+const OpenCrqPivotLookup: FunctionComponent<PivotProps> = ({ kind, objectKey, sourceUrl }) => {
   const answer = useCounterpart(kind, objectKey, OPENCRQ_PRODUCT);
-  return <OpenCrqPivotView answer={answer} size={size} />;
+  return <OpenCrqPivotView answer={withSourceLink(answer, sourceUrl)} />;
 };
 
 interface RowMarkProps extends PivotProps {
@@ -255,12 +115,13 @@ interface RowMarkProps extends PivotProps {
 const OpenCrqRowMarkLookup: FunctionComponent<RowMarkProps> = ({
   kind,
   objectKey,
+  sourceUrl,
   label = 'Open in OpenCRQ',
   reserveSlot = false,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const answer = useCounterpart(kind, objectKey, OPENCRQ_PRODUCT);
+  const answer = withSourceLink(useCounterpart(kind, objectKey, OPENCRQ_PRODUCT), sourceUrl);
   const slot = (content: ReactNode) => (
     <Box
       component="span"
@@ -310,69 +171,9 @@ const OpenCrqRowMarkLookup: FunctionComponent<RowMarkProps> = ({
   return reserveSlot ? slot(mark) : mark;
 };
 
-/**
- * Overview card: "In OpenCRQ" with the risk OpenCRQ quantifies for the object, or the CTA. A
- * connected OpenCRQ without the object draws nothing, frame included.
- */
-export const OpenCrqCardView: FunctionComponent<{
-  answer: CounterpartAnswer;
-  frame?: (card: ReactNode) => ReactNode;
-}> = ({ answer, frame }) => {
-  if (answer.state === 'loading' || answer.state === 'no_match') {
-    return null;
-  }
-  const card = (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1,
-      }}
-      data-testid="xtm-crq-card"
-    >
-      {answer.state === 'match' && (
-        <>
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-          }}
-          >
-            <OpenCrqMark />
-            <Box
-              component="span"
-              sx={{
-                typography: 'body2',
-                fontWeight: 600,
-              }}
-            >
-              {answer.counterpart?.counterpart_name}
-            </Box>
-            {answer.counterpart?.counterpart_entity_type && <Chip label={answer.counterpart.counterpart_entity_type} />}
-          </Box>
-          <OpenCrqFacts facts={answer.counterpart?.counterpart_facts} />
-        </>
-      )}
-      <OpenCrqPivotView answer={answer} />
-    </Box>
-  );
-  return <>{frame ? frame(card) : card}</>;
-};
-
-interface CardProps extends PivotProps {
-  /** The frame of the card (a titled section): drawn only when the card has something to show. */
-  frame?: (card: ReactNode) => ReactNode;
-}
-
-const OpenCrqCardLookup: FunctionComponent<CardProps> = ({ kind, objectKey, frame }) => {
-  const answer = useCounterpart(kind, objectKey, OPENCRQ_PRODUCT);
-  return <OpenCrqCardView answer={answer} frame={frame} />;
-};
-
 // The pivots belong to the exploration graph preview feature: off (the default), they draw nothing
 // and never ask the backend (the lookup component, and its request, is not mounted).
 export const OpenCrqRowMark: FunctionComponent<RowMarkProps> = props => (useExplorationGraph() ? <OpenCrqRowMarkLookup {...props} /> : null);
-export const OpenCrqCard: FunctionComponent<CardProps> = props => (useExplorationGraph() ? <OpenCrqCardLookup {...props} /> : null);
-const OpenCrqPivot: FunctionComponent<PivotProps & { size?: PivotSize }> = props => (useExplorationGraph() ? <OpenCrqPivotLookup {...props} /> : null);
+const OpenCrqPivot: FunctionComponent<PivotProps> = props => (useExplorationGraph() ? <OpenCrqPivotLookup {...props} /> : null);
 
 export default OpenCrqPivot;

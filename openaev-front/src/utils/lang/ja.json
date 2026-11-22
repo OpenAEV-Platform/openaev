@@ -4984,5 +4984,11 @@
   "OpenCRQ did not answer this time. The pivot comes back on its own.": "今回は OpenCRQ から応答がありませんでした。リンクは自動的に復帰します。",
   "OpenCTI did not answer this time. The pivot comes back on its own.": "今回は OpenCTI から応答がありませんでした。リンクは自動的に復帰します。",
   "See the financial impact of this object and the risk scenarios it drives in OpenCRQ.": "OpenCRQ でこのオブジェクトの財務的影響と関連するリスクシナリオを確認します。",
-  "See the reports, relationships and context of this object in OpenCTI.": "OpenCTI でこのオブジェクトのレポート、関係、コンテキストを確認します。"
+  "See the reports, relationships and context of this object in OpenCTI.": "OpenCTI でこのオブジェクトのレポート、関係、コンテキストを確認します。",
+  "OpenCTI is not connected": "OpenCTI は未接続です",
+  "OpenCRQ is not connected": "OpenCRQ は未接続です",
+  "Not found in OpenCTI": "OpenCTI に見つかりません",
+  "Not found in OpenCRQ": "OpenCRQ に見つかりません",
+  "OpenCTI holds it once a connector or an analyst creates it there.": "コネクターまたはアナリストが作成すると OpenCTI に登録されます。",
+  "OpenCRQ holds it once a risk scenario or a supporting asset names it.": "リスクシナリオまたはサポート資産が参照すると OpenCRQ に登録されます。"
 }

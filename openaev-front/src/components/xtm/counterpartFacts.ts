@@ -24,16 +24,3 @@ export const DATE_FACTS = new Set(['last_modified']);
 export const orderedFacts = (facts: FactOutput[] | undefined, labels: Record<string, string> = FACT_LABELS): FactOutput[] => Object.keys(labels)
   .map(key => (facts ?? []).find(f => f.fact_key === key && f.fact_value != null && f.fact_value !== ''))
   .filter((f): f is FactOutput => !!f);
-
-/**
- * The key figure the hero pivot carries next to its label, when the other product answered one:
- * the annual loss expectancy for OpenCRQ, the reports count for OpenCTI. Null when there is none,
- * so the label stays "Open in <product>" alone.
- */
-export const keyFact = (facts: FactOutput[] | undefined, key: 'annual_loss' | 'reports'): FactOutput | null => {
-  const fact = (facts ?? []).find(f => f.fact_key === key && f.fact_value != null && f.fact_value !== '');
-  if (!fact || !Number.isFinite(Number(fact.fact_value)) || Number(fact.fact_value) <= 0) {
-    return null;
-  }
-  return fact;
-};

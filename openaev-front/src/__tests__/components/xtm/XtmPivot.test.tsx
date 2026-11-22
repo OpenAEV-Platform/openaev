@@ -1,10 +1,11 @@
 import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { type ReactElement, type ReactNode } from 'react';
+import { cleanup, render, screen } from '@testing-library/react';
+import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConnectOpenCtiCta, OpenCtiCardView, OpenCtiMatchPreview, OpenCtiPivotView, OpenCtiRowMark } from '../../../components/xtm/XtmPivot';
+import { withSourceLink } from '../../../components/xtm/sourcedCounterpart';
+import { CONNECT_OPENCTI_DOC_URL, OpenCtiMatchPreview, OpenCtiPivotView, OpenCtiRowMark } from '../../../components/xtm/XtmPivot';
 
 const can = vi.fn();
 const useCounterpartMock = vi.fn();
@@ -31,97 +32,60 @@ const renderPivot = (element: ReactElement) => render(
   <ThemeProvider theme={createTheme()}><TooltipProvider>{element}</TooltipProvider></ThemeProvider>,
 );
 
-describe('OpenCtiPivotView', () => {
+describe('OpenCtiPivotView (contract v3: icon-only emblem)', () => {
   beforeEach(() => {
-    window.localStorage.clear();
     can.mockReturnValue(true);
   });
   afterEach(cleanup);
 
-  it('given a match should link to the counterpart', () => {
-    renderPivot(
-      <OpenCtiPivotView answer={{
-        state: 'match',
-        product: 'opencti',
-        counterpart: {
-          counterpart_url: 'https://octi.example/dashboard/id/abc',
-          counterpart_name: 'srv-01',
-        },
-      }}
-      />,
-    );
-    const link = screen.getByTestId('xtm-pivot-open');
+  const match = {
+    state: 'match' as const,
+    product: 'opencti',
+    counterpart: {
+      counterpart_url: 'https://octi.example/dashboard/id/abc',
+      counterpart_name: 'srv-01',
+      counterpart_facts: [{
+        fact_key: 'reports',
+        fact_value: '12',
+      }],
+    },
+  };
+
+  it('given a match should be an icon-only link to the counterpart, named, with no text', () => {
+    renderPivot(<OpenCtiPivotView answer={match} />);
+    const link = screen.getByTestId('xtm-pivot-found');
+    expect(link.tagName).toBe('A');
     expect(link.getAttribute('href')).toBe('https://octi.example/dashboard/id/abc');
-    expect(screen.getByText('Open in OpenCTI')).toBeTruthy();
+    expect(link.getAttribute('aria-label')).toBe('Open in OpenCTI');
+    expect(link.textContent).toBe('');
+    expect(link.getAttribute('aria-disabled')).toBeNull();
   });
 
-  it('given a match with reports should carry the count on the button', () => {
+  it('given a match should render at the FDS IconButton md size of the header actions (36 px)', () => {
+    renderPivot(<OpenCtiPivotView answer={match} />);
+    const className = screen.getByTestId('xtm-pivot-found').className;
+    expect(className).toContain('h-9');
+    expect(className).toContain('w-9');
+  });
+
+  it('given connected and not found should show the greyed emblem, focusable, named "Not found in OpenCTI"', () => {
     renderPivot(
-      <OpenCtiPivotView answer={{
-        state: 'match',
-        product: 'opencti',
-        counterpart: {
-          counterpart_url: 'https://octi.example/dashboard/id/abc',
-          counterpart_name: 'T1059',
-          counterpart_facts: [{
-            fact_key: 'reports',
-            fact_value: '12',
-          }],
-        },
-      }}
-      />,
-    );
-    expect(screen.getByTestId('xtm-pivot-figure').textContent).toBe('· Reports 12');
-  });
-
-  it('given a match with zero reports should keep the label alone', () => {
-    renderPivot(
-      <OpenCtiPivotView answer={{
-        state: 'match',
-        product: 'opencti',
-        counterpart: {
-          counterpart_url: 'https://octi.example/dashboard/id/abc',
-          counterpart_facts: [{
-            fact_key: 'reports',
-            fact_value: '0',
-          }],
-        },
-      }}
-      />,
-    );
-    expect(screen.queryByTestId('xtm-pivot-figure')).toBeNull();
-  });
-
-  it('given the panel size should render the match at a different size than the hero', () => {
-    const answer = {
-      state: 'match' as const,
-      product: 'opencti',
-      counterpart: {
-        counterpart_url: 'https://octi.example/dashboard/id/abc',
-        counterpart_name: 'srv-01',
-      },
-    };
-    renderPivot(<OpenCtiPivotView answer={answer} />);
-    const hero = screen.getByTestId('xtm-pivot-open').className;
-    cleanup();
-    renderPivot(<OpenCtiPivotView answer={answer} size="sm" />);
-    const panel = screen.getByTestId('xtm-pivot-open').className;
-    expect(panel).not.toBe(hero);
-  });
-
-  it('given connected without a match should render nothing', () => {
-    const { container } = renderPivot(
       <OpenCtiPivotView answer={{
         state: 'no_match',
         product: 'opencti',
       }}
       />,
     );
-    expect(container.textContent).toBe('');
-    expect(container.querySelector('[tabindex]')).toBeNull();
+    const button = screen.getByTestId('xtm-pivot-not-found');
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(button.hasAttribute('disabled')).toBe(false);
+    expect(button.getAttribute('aria-label')).toBe('Not found in OpenCTI');
+    expect(button.querySelector('[data-testid="xtm-emblem-mask"]')).toBeTruthy();
+    button.focus();
+    expect(document.activeElement).toBe(button);
   });
 
-  it('given not connected and an administrator should offer to connect', () => {
+  it('given not connected and an administrator should show the greyed emblem linking to the connection guide', () => {
     renderPivot(
       <OpenCtiPivotView answer={{
         state: 'not_connected',
@@ -129,11 +93,14 @@ describe('OpenCtiPivotView', () => {
       }}
       />,
     );
-    expect(screen.getByTestId('xtm-connect-cta')).toBeTruthy();
-    expect(screen.getByText('Connect OpenCTI')).toBeTruthy();
+    const link = screen.getByTestId('xtm-pivot-not-connected');
+    expect(link.tagName).toBe('A');
+    expect(link.getAttribute('href')).toBe(CONNECT_OPENCTI_DOC_URL);
+    expect(link.getAttribute('aria-label')).toBe('Connect OpenCTI');
+    expect(link.querySelector('[data-testid="xtm-emblem-mask"]')).toBeTruthy();
   });
 
-  it('given not connected and no right to configure should show the read-only hint', () => {
+  it('given not connected and no right to configure should show the greyed emblem with no action', () => {
     can.mockReturnValue(false);
     renderPivot(
       <OpenCtiPivotView answer={{
@@ -142,11 +109,13 @@ describe('OpenCtiPivotView', () => {
       }}
       />,
     );
-    expect(screen.queryByTestId('xtm-connect-cta')).toBeNull();
-    expect(screen.getByTestId('xtm-connect-hint').querySelector('button')).toBeNull();
+    const button = screen.getByTestId('xtm-pivot-not-connected');
+    expect(button.tagName).toBe('BUTTON');
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(button.getAttribute('aria-label')).toBe('OpenCTI is not connected');
   });
 
-  it('given an unavailable product should degrade to a muted mark, never an error', () => {
+  it('given an unavailable OpenCTI should show the greyed emblem with no action', () => {
     renderPivot(
       <OpenCtiPivotView answer={{
         state: 'unavailable',
@@ -154,70 +123,64 @@ describe('OpenCtiPivotView', () => {
       }}
       />,
     );
-    expect(screen.getByTestId('xtm-pivot-unavailable').querySelector('button')).toBeNull();
+    expect(screen.getByTestId('xtm-pivot-unavailable').getAttribute('aria-disabled')).toBe('true');
   });
 
-  it('given a dismissed call to action should stay hidden', () => {
-    renderPivot(<ConnectOpenCtiCta />);
-    fireEvent.click(screen.getByLabelText('Hide this suggestion'));
-    cleanup();
-    renderPivot(<ConnectOpenCtiCta />);
-    expect(screen.queryByTestId('xtm-connect-cta')).toBeNull();
-  });
-});
-
-describe('OpenCtiCardView', () => {
-  beforeEach(() => {
-    window.localStorage.clear();
-    can.mockReturnValue(true);
-  });
-  afterEach(cleanup);
-
-  const frame = (card: ReactNode) => <section data-testid="xtm-card-frame">{card}</section>;
-
-  it('given connected without a match should render nothing, frame included', () => {
+  it('given loading should render nothing yet', () => {
     const { container } = renderPivot(
-      <OpenCtiCardView
-        answer={{
-          state: 'no_match',
-          product: 'opencti',
-        }}
-        frame={frame}
+      <OpenCtiPivotView answer={{
+        state: 'loading',
+        product: 'opencti',
+      }}
       />,
     );
     expect(container.textContent).toBe('');
-    expect(screen.queryByTestId('xtm-card-frame')).toBeNull();
+    expect(container.querySelector('button, a')).toBeNull();
+  });
+});
+
+describe('withSourceLink (contract v3, rule 5)', () => {
+  const connectionUrl = 'https://octi.example/';
+
+  it('given an object sourced from the connected product should be found from its source link', () => {
+    const answer = withSourceLink({
+      state: 'no_match',
+      product: 'opencti',
+      connectionUrl,
+    }, 'https://octi.example/dashboard/id/xyz');
+    expect(answer.state).toBe('match');
+    expect(answer.counterpart?.counterpart_url).toBe('https://octi.example/dashboard/id/xyz');
   });
 
-  it('given a match should render the card inside its frame', () => {
-    renderPivot(
-      <OpenCtiCardView
-        answer={{
-          state: 'match',
-          product: 'opencti',
-          counterpart: {
-            counterpart_url: 'https://octi.example/dashboard/id/abc',
-            counterpart_name: 'CVE-2024-0001',
-          },
-        }}
-        frame={frame}
-      />,
-    );
-    expect(screen.getByTestId('xtm-card-frame').querySelector('[data-testid="xtm-card"]')).toBeTruthy();
+  it('given a source link into another system should keep the lookup answer', () => {
+    const answer = withSourceLink({
+      state: 'no_match',
+      product: 'opencti',
+      connectionUrl,
+    }, 'https://edr.example/devices/1');
+    expect(answer.state).toBe('no_match');
   });
 
-  it('given not connected should keep the frame and the call to action', () => {
-    renderPivot(
-      <OpenCtiCardView
-        answer={{
-          state: 'not_connected',
-          product: 'opencti',
-        }}
-        frame={frame}
-      />,
-    );
-    expect(screen.getByTestId('xtm-card-frame')).toBeTruthy();
-    expect(screen.getByTestId('xtm-connect-cta')).toBeTruthy();
+  it('given a lookup match should keep the match and its facts', () => {
+    const lookup = {
+      state: 'match' as const,
+      product: 'opencti',
+      connectionUrl,
+      counterpart: { counterpart_url: 'https://octi.example/dashboard/id/abc' },
+    };
+    expect(withSourceLink(lookup, 'https://octi.example/dashboard/id/xyz')).toBe(lookup);
+  });
+
+  it('given not connected or a source that is not a URL should keep the answer', () => {
+    expect(withSourceLink({
+      state: 'not_connected',
+      product: 'opencti',
+    }, 'https://octi.example/x').state).toBe('not_connected');
+    expect(withSourceLink({
+      state: 'no_match',
+      product: 'opencti',
+      connectionUrl,
+    }, 'device-42').state).toBe('no_match');
   });
 });
 

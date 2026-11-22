@@ -12,8 +12,8 @@ import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
-import OpenCrqPivot, { OpenCrqCard } from '../../../components/xtm/XtmOpenCrq';
-import OpenCtiPivot, { OpenCtiCard } from '../../../components/xtm/XtmPivot';
+import OpenCrqPivot from '../../../components/xtm/XtmOpenCrq';
+import OpenCtiPivot from '../../../components/xtm/XtmPivot';
 import type { FindingOutput, FindingSummaryOutput } from '../../../utils/api-types';
 import useExplorationGraph from '../../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
@@ -160,28 +160,6 @@ const FindingOverview = () => {
         <FindingVulnerabilityPanel
           cveId={finding.finding_value}
           onCvssScore={setCvssScore}
-        />
-      )}
-
-      {/* The same CVE in OpenCTI: its knowledge (threats, reports) one click away, or the
-          "Connect OpenCTI" call to action when the tenant is not connected. A connected OpenCTI
-          without the CVE draws no section at all. */}
-      {graphEnabled && isCVE && (
-        <OpenCtiCard
-          kind="vulnerabilities"
-          objectKey={finding.finding_value}
-          frame={card => <InformationGrid title={t('In OpenCTI')}>{card}</InformationGrid>}
-        />
-      )}
-
-      {/* The same CVE in OpenCRQ: the risk scenarios it drives, their annual loss expectancy and the
-          loss avoided by fixing it, or the "Connect OpenCRQ" call to action; nothing when a
-          connected OpenCRQ does not hold it. */}
-      {graphEnabled && isCVE && (
-        <OpenCrqCard
-          kind="vulnerabilities"
-          objectKey={finding.finding_value}
-          frame={card => <InformationGrid title={t('In OpenCRQ')}>{card}</InformationGrid>}
         />
       )}
 

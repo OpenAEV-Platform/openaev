@@ -120,10 +120,14 @@ const GraphSidePanel = ({
         <Chip label={`${t('Findings')}: ${node.node_finding_count}`} />
       </div>
       <div className="mt-4 flex flex-col gap-2">
-        {/* The node's counterparts, as on the entity's own screen: "Open in", "Not in" or the
-            connect call to action, per product. */}
-        {counterpart && <OpenCtiPivot kind={counterpart.kind} objectKey={counterpart.key} size="md" />}
-        {counterpart && <OpenCrqPivot kind={counterpart.kind} objectKey={counterpart.key} size="md" />}
+        {/* The node's counterparts, as on the entity's own screen: the icon-only emblem of each
+            product (contract v3), OpenCTI then OpenCRQ. */}
+        {counterpart && (
+          <div className="flex items-center gap-1">
+            <OpenCtiPivot kind={counterpart.kind} objectKey={counterpart.key} />
+            <OpenCrqPivot kind={counterpart.kind} objectKey={counterpart.key} />
+          </div>
+        )}
         {href && (
           <Button asChild priority="secondary">
             <Link to={href}>
