@@ -6,7 +6,13 @@ describe('eventTypeSeverity', () => {
   it('gives every event type of every trigger resource type an explicit severity', () => {
     const eventTypes = new Set(TRIGGER_RESOURCE_TYPES.flatMap(option => option.eventTypes));
     eventTypes.forEach((eventType) => {
-      expect({ eventType, severity: eventTypeSeverity(eventType) }).not.toEqual({ eventType, severity: 'neutral' });
+      expect({
+        eventType,
+        severity: eventTypeSeverity(eventType),
+      }).not.toEqual({
+        eventType,
+        severity: 'neutral',
+      });
     });
   });
 
