@@ -245,6 +245,44 @@ class CatalogSyncApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "The latest offered flag moves to a newer verified version, and back when it is deprecated")
+    void given_newerThenDeprecatedVersion_should_moveTheLatestOfferedFlag() throws Exception {
+      // Arrange
+      byte[] first = archive("{\"v\":1}");
+      byte[] second = archive("{\"v\":2}");
+      release("1.261105.0").scenario("1.0.0", "VERIFIED", first).sync();
+
+      // Act
+      release("1.261106.0")
+          .scenario("1.0.0", "VERIFIED", first)
+          .scenario("1.1.0", "VERIFIED", second)
+          .sync()
+          .andExpect(status().isOk());
+      List<Object> afterNewer = latestOfferedScenarioVersions();
+      release("1.261107.0")
+          .scenario("1.0.0", "VERIFIED", first)
+          .scenario("1.1.0", "DEPRECATED", second)
+          .sync()
+          .andExpect(status().isOk());
+      List<Object> afterDeprecated = latestOfferedScenarioVersions();
+
+      // Assert
+      assertThat(afterNewer).containsExactly("1.1.0");
+      assertThat(afterDeprecated).containsExactly("1.0.0");
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Object> latestOfferedScenarioVersions() {
+      return entityManager
+          .createNativeQuery(
+              "SELECT catalog_item_version FROM catalog_items"
+                  + " WHERE catalog_item_external_id = :id AND catalog_item_latest_offered")
+          .setParameter("id", SCENARIO_ID)
+          .getResultList();
+    }
+
+    @Test
     @DisplayName("A version failing its checks is refused alone, the rest is applied")
     void given_wrongHash_should_refuseTheVersionAlone() throws Exception {
       // Act
