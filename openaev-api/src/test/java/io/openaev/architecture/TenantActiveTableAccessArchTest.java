@@ -310,6 +310,7 @@ import io.openaev.service.finding.FindingRecordingService;
 import io.openaev.service.finding.FindingValueDisplayBackfill;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
+import io.openaev.service.marking_definition.MarkingDefinitionStixService;
 import io.openaev.service.notification.NotificationService;
 import io.openaev.service.notification.NotificationTriggerService;
 import io.openaev.service.notification.NotifierService;
@@ -773,6 +774,12 @@ class TenantActiveTableAccessArchTest {
               MarkingDefinitionApi.class,
               // Service behind the handler; every caller is a wired handler:
               MarkingDefinitionService.class,
+              // OpenCTI-format import behind MarkingDefinitionApi.importStix, a TxCtx-carrying
+              // @Transactional handler: its two reads take the write tenant the handler resolved
+              // (findByStixIdAndTenantId, findByTypeAndDefinitionAndTenantId) and creation
+              // goes through MarkingDefinitionService.create.
+              // Pinned by MarkingDefinitionStixServiceTest:
+              MarkingDefinitionStixService.class,
               // Provisioning datapack: seeds protected defaults during tenant creation.
               V20260330_Default_tenant_data.class,
               // Provisioning datapack: seeds the default TLP markings. Runs under the same
