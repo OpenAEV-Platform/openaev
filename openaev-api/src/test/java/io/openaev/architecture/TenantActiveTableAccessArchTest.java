@@ -1050,6 +1050,9 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.scenario.ScenarioService.class,
               io.openaev.rest.user.PlayerService.class,
               io.openaev.service.EndpointService.class,
+              // Bulk asset update: resolves the tags to add with findAllByIdInTenant(ids, tenantId)
+              // in the caller's write tenant.
+              io.openaev.service.AssetService.class,
               io.openaev.rest.payload.service.PayloadCreationService.class,
               io.openaev.rest.payload.service.PayloadUpdateService.class,
               io.openaev.service.AtomicTestingService.class,

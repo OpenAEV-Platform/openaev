@@ -150,6 +150,7 @@ public class EndpointService implements AuditLoggedService {
     validateLinkedPersonInTenant(input.getLinkedPerson(), tenantId);
     Endpoint endpoint = new Endpoint();
     endpoint.setUpdateAttributes(input);
+    AssetCategorizationValidator.validate(endpoint.getCategory(), endpoint.getSubcategory());
     String[] ips = EndpointMapper.setIps(input.getIps());
     endpoint.setIps(ips);
     ensureSeenIp(endpoint);
@@ -317,6 +318,7 @@ public class EndpointService implements AuditLoggedService {
     validateLinkedPersonInTenant(input.getLinkedPerson(), tenantId);
     Endpoint toUpdate = this.endpoint(endpointId, tenantId);
     toUpdate.setUpdateAttributes(input);
+    AssetCategorizationValidator.validate(toUpdate.getCategory(), toUpdate.getSubcategory());
     ensureSeenIp(toUpdate);
     toUpdate.setEoL(input.isEol());
     toUpdate.setTags(
@@ -1094,8 +1096,23 @@ public class EndpointService implements AuditLoggedService {
       if (input.getCategory() != null) {
         endpointToUpdate.setCategory(input.getCategory());
       }
-      if (input.getSubcategory() != null) {
+      // Machine path (agents, collectors, injectors): an inconsistent pair is dropped with a
+      // warning rather than failing the registration; user-facing writes refuse it with a 400.
+      if (input.getSubcategory() != null
+          && AssetSubCategory.belongsTo(input.getSubcategory(), endpointToUpdate.getCategory())) {
         endpointToUpdate.setSubcategory(input.getSubcategory());
+      } else if (input.getSubcategory() != null) {
+        log.warn(
+            "Ignoring subcategory {} outside category {} on endpoint upsert {}",
+            input.getSubcategory(),
+            endpointToUpdate.getCategory(),
+            endpointToUpdate.getId());
+      } else if (endpointToUpdate.getSubcategory() != null
+          && endpointToUpdate.getCategory() != null
+          && !AssetSubCategory.belongsTo(
+              endpointToUpdate.getSubcategory(), endpointToUpdate.getCategory())) {
+        // A source that moves the category without naming a subcategory leaves no stale child.
+        endpointToUpdate.setSubcategory(null);
       }
       if (input.getCriticality() != null) {
         endpointToUpdate.setCriticality(input.getCriticality());

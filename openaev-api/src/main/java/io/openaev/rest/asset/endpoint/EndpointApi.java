@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.asset.dto.AssetBulkUpdateInput;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -362,6 +363,22 @@ public class EndpointApi extends RestBehavior {
   public List<String> bulkDeleteAssets(
       TxCtx ctx, @RequestBody @Valid final AssetBulkProcessingInput input) {
     return this.assetService.bulkDeleteAssets(ctx, input);
+  }
+
+  /**
+   * Bulk update of the classification (category, subcategory, URL, criticality) and tag addition of
+   * assets, by explicit ids or by the inventory filter (same selection model as the bulk delete).
+   * Returns the ids of the updated assets.
+   */
+  @LogExecutionTime
+  @PutMapping({ASSET_URI + "/bulk", TENANT_ASSET_URI + "/bulk"})
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)
+  // SUPPORTS (not REQUIRED) on purpose: the service writes in small independent transactions.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  public List<String> bulkUpdateAssets(
+      TxCtx ctx, @RequestBody @Valid final AssetBulkUpdateInput input) {
+    return this.assetService.bulkUpdateAssets(
+        ctx, writeScopeResolver.tenantForWrite(ctx, null), input);
   }
 
   @GetMapping({ENDPOINT_URI + "/resolve", TENANT_ENDPOINT_URI + "/resolve"})
