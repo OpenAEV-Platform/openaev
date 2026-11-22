@@ -11,6 +11,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -88,19 +89,21 @@ public class CatalogListService {
   /** A version the catalogue still offers; refused when it is unknown, deprecated or revoked. */
   @Transactional(readOnly = true)
   public <T extends CatalogItem> T offered(Class<T> type, String externalId, String version) {
-    T item = released(type, externalId, version);
+    T item =
+        catalogItemRepository
+            .findVersion(type, externalId, version)
+            .orElseThrow(() -> new ElementNotFoundException("Catalogue version not found"));
     if (!isOffered(item)) {
       throw new BadRequestException("This version is no longer offered");
     }
     return item;
   }
 
-  /** A released version, offered or not, as one a tenant installed. */
+  /** One version of a catalogue item, whatever its status. */
   @Transactional(readOnly = true)
-  public <T extends CatalogItem> T released(Class<T> type, String externalId, String version) {
-    return catalogItemRepository
-        .findVersion(type, externalId, version)
-        .orElseThrow(() -> new ElementNotFoundException("Catalogue version not found"));
+  public <T extends CatalogItem> Optional<T> version(
+      Class<T> type, String externalId, String version) {
+    return catalogItemRepository.findVersion(type, externalId, version);
   }
 
   // -- SEARCH --

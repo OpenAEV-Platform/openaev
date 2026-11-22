@@ -13,6 +13,7 @@ import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.model.catalog.ContentType;
 import io.openaev.database.specification.CatalogItemSpecification;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.catalog.CatalogFacet;
 import io.openaev.service.catalog.CatalogFacetCounter;
 import io.openaev.service.catalog.CatalogListService;
@@ -69,7 +70,10 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   /** A released version, offered or not, as the one a tenant installed. */
   @Transactional(readOnly = true)
   public ReleasedScenario released(TxCtx ctx, String externalId, String version) {
-    CatalogScenario item = catalogListService.released(CatalogScenario.class, externalId, version);
+    CatalogScenario item =
+        catalogListService
+            .version(CatalogScenario.class, externalId, version)
+            .orElseThrow(() -> new ElementNotFoundException("Catalogue version not found"));
     return new ReleasedScenario(
         item.getArchiveHash(),
         payloadRefs(item).stream()
