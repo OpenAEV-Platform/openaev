@@ -39,6 +39,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
   @Mock private TenantUserService tenantUserService;
   @Mock private SessionManager sessionManager;
   @Mock private MarkingClearanceCacheManager markingClearanceCacheManager;
+  @Mock private UserGroupMembershipService userGroupMembershipService;
   @Spy private TenantWriteScopeResolver writeScopeResolver = new TenantWriteScopeResolver();
 
   @InjectMocks private AgentServiceAccountPrivilegeService privilegeService;
@@ -112,6 +113,8 @@ public class AgentServiceAccountPrivilegeServiceTest {
         .thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
     when(userService.userHasToken(any())).thenReturn(false);
+    when(userGroupMembershipService.addMembership(mockUser.getId(), mockGroup.getId()))
+        .thenReturn(true);
 
     // act
     privilegeService.ensurePrivilegedUserExists(TxCtx.forTenant(TENANT_ID), TENANT_ID);

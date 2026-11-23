@@ -120,19 +120,29 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
         AbstractPrivilegeService.getUUIDFromName(
             AdminPrivilegeService.ADMIN_ACCESS.groupId(), DEFAULT_TENANT_UUID);
 
-    // Act
+    // The runner loads the admin and ensures its group under the default tenant's scope; the user
+    // is read the same way here, since its groups bag is empty under no scope once groups is
+    // active.
     TxCtx ctx = TxCtx.forTenant(DEFAULT_TENANT_UUID);
+
+    // Act
     this.adminPrivilegeService.ensureAdminGroup(
-        ctx, DEFAULT_TENANT_UUID, this.userRepository.findById(ADMIN_UUID).orElseThrow());
+        ctx,
+        DEFAULT_TENANT_UUID,
+        tenantTx.execute(ctx, () -> this.userRepository.findById(ADMIN_UUID).orElseThrow()));
     this.adminPrivilegeService.ensureAdminGroup(
-        ctx, DEFAULT_TENANT_UUID, this.userRepository.findById(ADMIN_UUID).orElseThrow());
+        ctx,
+        DEFAULT_TENANT_UUID,
+        tenantTx.execute(ctx, () -> this.userRepository.findById(ADMIN_UUID).orElseThrow()));
 
     // Assert
-    User adminUser = this.userRepository.findById(ADMIN_UUID).orElseThrow();
     long adminGroupCount =
-        adminUser.getUnscopedGroups().stream()
-            .filter(group -> adminGroupId.equals(group.getId()))
-            .count();
+        tenantTx.execute(
+            ctx,
+            () ->
+                this.userRepository.findById(ADMIN_UUID).orElseThrow().getUnscopedGroups().stream()
+                    .filter(group -> adminGroupId.equals(group.getId()))
+                    .count());
 
     assertThat(adminGroupCount).isEqualTo(1);
   }
