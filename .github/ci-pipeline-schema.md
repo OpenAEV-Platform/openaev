@@ -111,7 +111,7 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + dependency-cruiser + knip + Vitest + coverage |
 | 🐳 **Docker Build** ×4 | 25 min | `standard`/`ubi9` × `amd64`/`arm64`, native runners, no QEMU. `fail-fast: false` |
 | 🐳 **Merge Platforms** ×2 | 45 min | Multi-arch OCI index per variant, with artifact fallback when the registry is unavailable |
-| 🔍 **Aikido Image Scan** | 25 min | Aikido gate on both amd64 images, threshold `high`: issues added by a pull request, or open on `main`, post a red **Aikido Image Scan (advisory)** check. Skipped with a notice without the `AIKIDO_TOKEN` secret, except on `main` |
+| 🔍 **Aikido Image Scan** | 25 min | Aikido gate on both amd64 images, threshold `high`: issues added by a pull request, or open on `main`, are listed in the job summary and do not fail the job. Skipped with a notice without the `AIKIDO_TOKEN` secret, except on `main` |
 | 🧪 **API Tests** | 30 min | Spring Boot integration tests vs PostgreSQL + search engine. `fail-fast: false` |
 | 🔎 **API Types Check** | 20 min | Generated TS types must match the live API schema |
 | 🧪 **E2E Tests** | 45 min | Playwright against the built container. `fail-fast: false` |
@@ -168,30 +168,20 @@ issues of the images `openaev-ci-standard` and `openaev-ci-ubi9`; other branches
 their own image names in Aikido. Issues ignored in Aikido do not count, so a false positive is
 handled there by a member of the workspace.
 
-Like the backend coverage check, the job does not turn red on issues: it posts a separate
-**Aikido Image Scan (advisory)** check with the PR checks app. That check is red, with the count
-per image as its title, and lists the issues in its details, each CVE linked to its public osv.dev
-page: on a pull request with the installed and fixed versions and the file, on `main` by package
-with a link to the issue in Aikido. A clean run posts no check. For now
-the gate treats the job as advisory, like any new check. Taking `aikido-image-scan` out of the
-gate's advisory list makes it blocking.
+The job does not turn red on issues: it lists them in its job summary, each CVE linked to its
+public osv.dev page, and uploads the JSON results and the scanner output as the
+`aikido-image-scan` artifact. On a pull request the summary gives the installed and fixed versions
+and the file; on `main` it groups the issues by package, with a link to each in Aikido. No check is
+posted on the pull request. For now the gate treats the job as advisory, like any new check. Taking
+`aikido-image-scan` out of the gate's advisory list makes it blocking.
 
-| Case | Job | Aikido Image Scan (advisory) check | Gate |
-|------|-----|------------------------------------|------|
-| High/critical issue counted by Aikido | ✅ | ❌ with the details | ✅ |
-| Same, but the check cannot be posted | ❌ fails | none | ⚠️ advisory |
-| Issue already on the base branch (pull requests), or ignored in Aikido | ✅ | none | ✅ |
-| Scanner error | ❌ fails | none | ⚠️ advisory |
-| No `AIKIDO_TOKEN` secret on `main` | ❌ fails | none | ⚠️ advisory |
-| No `AIKIDO_TOKEN` secret elsewhere (pull requests from forks) | ✅, scan skipped with a notice | none | ✅ |
-
-------|-----|------------------------------------|------|
-| High/critical finding with a fix | ✅ | ❌ with the details | ✅ |
-| Same, but the check cannot be posted | ❌ fails | none | ⚠️ advisory |
-| High/critical finding with no fix | ✅, reported in the job summary and artifacts | none | ✅ |
-| Scanner error | ❌ fails | none | ⚠️ advisory |
-| No `AIKIDO_TOKEN` secret on `main` | ❌ fails | none | ⚠️ advisory |
-| No `AIKIDO_TOKEN` secret elsewhere (pull requests from forks) | ✅, scan skipped with a notice | none | ✅ |
+| Case | Job | Gate |
+|------|-----|------|
+| High/critical issue counted by Aikido | ✅, listed in the job summary and artifact | ✅ |
+| Issue already on the base branch (pull requests), or ignored in Aikido | ✅ | ✅ |
+| Scanner error | ❌ fails | ⚠️ advisory |
+| No `AIKIDO_TOKEN` secret on `main` | ❌ fails | ⚠️ advisory |
+| No `AIKIDO_TOKEN` secret elsewhere (pull requests from forks) | ✅, scan skipped with a notice | ✅ |
 
 ---
 

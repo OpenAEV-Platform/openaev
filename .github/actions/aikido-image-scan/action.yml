@@ -5,25 +5,15 @@ description: >
   request adds, compared with its base branch; on a push the release gate counts the open issues
   of the image. Each scan is kept in Aikido under a fixed image name, and issues ignored in Aikido
   do not count. The issues at or above the threshold are listed in the job summary and uploaded
-  with the JSON results and the scanner output as the aikido-image-scan artifact. When an image
-  has some, an "Aikido Image Scan (advisory)" check explains them, posted with the PR checks app
-  like the PR title check, and the action stays green: that check carries the result. When it
-  cannot be posted, the action fails, so issues are never silent. A scanner error fails it too.
-  Without the scanner token (pull requests from forks) the scan is skipped with a notice, except
-  on main, where it fails, so a missing secret cannot pass for a clean scan. Requires a checkout,
-  and the job to set GH_TOKEN for the image handoff.
+  with the JSON results and the scanner output as the aikido-image-scan artifact. The action
+  stays green on issues and posts no check on the pull request. A scanner error fails it. Without
+  the scanner token (pull requests from forks) the scan is skipped with a notice, except on main,
+  where it fails, so a missing secret cannot pass for a clean scan. Requires a checkout, and the
+  job to set GH_TOKEN for the image handoff.
 
 inputs:
   api-key:
     description: "Aikido local scanner token; empty on pull requests from forks"
-    required: false
-    default: ""
-  client-id:
-    description: "PR checks app client id; empty on pull requests from forks"
-    required: false
-    default: ""
-  private-key:
-    description: "PR checks app private key"
     required: false
     default: ""
   severity-threshold:
@@ -127,9 +117,7 @@ runs:
         set +e -uo pipefail
         out=aikido-image-scan
         mkdir -p "$out"
-        : > "$out/results.tsv"
         failed=0
-        total=0
         for entry in "standard openaev:ci" "ubi9 openaev-ubi9:ci"; do
           read -r label image <<< "$entry"
           echo "::group::$image"
@@ -157,17 +145,13 @@ runs:
             failed=1
             continue
           fi
-          if ! issues=$(python3 "$GITHUB_ACTION_PATH/gate_report.py" "$MODE" "$out/$label.json" \
-            "$image" "$THRESHOLD" "$out/$label.md"); then
+          if ! python3 "$GITHUB_ACTION_PATH/gate_report.py" "$MODE" "$out/$label.json" \
+            "$image" "$THRESHOLD" "$out/$label.md" > /dev/null; then
             failed=1
             continue
           fi
-          issues=${issues#issues=}
-          total=$((total + issues))
-          printf '%s\t%s\t%s\n' "$label" "$issues" "$out/$label.md" >> "$out/results.tsv"
           cat "$out/$label.md" >> "$GITHUB_STEP_SUMMARY"
         done
-        echo "total=$total" >> "$GITHUB_OUTPUT"
         exit "$failed"
 
     - name: Upload the scan results
@@ -177,44 +161,3 @@ runs:
         name: aikido-image-scan
         path: aikido-image-scan
         if-no-files-found: ignore
-
-    # Only when both scans finished and one found issues: a clean run gets no extra check, and a
-    # scan that failed already fails the action.
-    - name: Generate a token
-      id: generate-token
-      if: ${{ steps.scan.outcome == 'success' && steps.scan.outputs.total != '0' && inputs.client-id != '' && inputs.private-key != '' }}
-      continue-on-error: true
-      uses: actions/create-github-app-token@v3
-      with:
-        client-id: ${{ inputs.client-id }}
-        private-key: ${{ inputs.private-key }}
-        permission-checks: write
-
-    - name: Explain the issues in a check
-      id: explain
-      if: ${{ steps.generate-token.outputs.token != '' }}
-      continue-on-error: true
-      shell: bash
-      env:
-        GH_TOKEN: ${{ steps.generate-token.outputs.token }}
-        HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        MODE: ${{ steps.gate.outputs.mode }}
-        THRESHOLD: ${{ inputs.severity-threshold }}
-      run: |
-        python3 "$GITHUB_ACTION_PATH/post_check.py" \
-          --sha "$HEAD_SHA" \
-          --mode "$MODE" \
-          --threshold "$THRESHOLD" \
-          --results aikido-image-scan/results.tsv
-
-    # The explanation check reports the issues when it was posted; otherwise this step does.
-    - name: Fail on issues nobody was told about
-      if: ${{ steps.scan.outcome == 'success' && steps.scan.outputs.total != '0' && steps.explain.outcome != 'success' }}
-      shell: bash
-      env:
-        TOTAL: ${{ steps.scan.outputs.total }}
-        THRESHOLD: ${{ inputs.severity-threshold }}
-      run: |
-        echo "::error::$TOTAL issue(s) rated $THRESHOLD or above in Aikido: see the job summary"
-        echo "The explanation check was not posted (no PR checks app token, or the post failed)."
-        exit 1
