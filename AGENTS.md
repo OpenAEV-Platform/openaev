@@ -36,14 +36,19 @@ The team is actively working on parts of the codebase. Before writing any code, 
 already taken and does not collide with ongoing work. GitHub is the source of truth: do not rely on memory,
 and do not expect a list of ongoing work in this file.
 
-1. **Issue** — every PR is linked to a public issue (see [Opening a Pull Request](#opening-a-pull-request)).
-   Check that it is open and not assigned to someone else:
-   `gh issue view <number> --repo OpenAEV-Platform/openaev`
+1. **Issue** — every PR is linked to an issue (see [Opening a Pull Request](#opening-a-pull-request)).
+   Check that the linked issue is open and not assigned to someone else:
+   `gh issue view <number> --repo OpenAEV-Platform/openaev`. Skip this check when the user says the issue is
+   in a private repository.
 2. **Ongoing refactors** — list the open issues and epics labeled `refactoring-in-progress`, and read their
    description to see which modules or paths they cover:
    `gh issue list --repo OpenAEV-Platform/openaev --label "refactoring-in-progress" --state open`
-3. **Open pull requests** — look for open PRs, drafts included, that touch the same area:
-   `gh pr list --repo OpenAEV-Platform/openaev --state open --search "<keyword>"`
+3. **Open pull requests** — look for open PRs, drafts included, that reference the same issue or touch the
+   same area. Searching by issue number is the surest way to find a duplicate:
+   ```bash
+   gh pr list --repo OpenAEV-Platform/openaev --state open --search "<issue number>"
+   gh pr list --repo OpenAEV-Platform/openaev --state open --search "<keyword>"
+   ```
 
 If `gh` is not installed or not authenticated, open the same lists in a browser:
 [refactors in progress](https://github.com/OpenAEV-Platform/openaev/issues?q=is%3Aissue+is%3Aopen+label%3Arefactoring-in-progress)
