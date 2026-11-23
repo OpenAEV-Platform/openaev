@@ -8,6 +8,7 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService.CHANGED_MEANWHILE;
 import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService.CONFLICT_LEFT;
+import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService.INSTALLED_BEFORE_UPDATES;
 import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdater.CHAINED_REFUSED;
 import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdater.IMPORTED_LINKS_REFUSED;
 import static io.openaev.service.catalog.scenario.update.InstalledScenarioService.NOT_INSTALLED;
@@ -77,6 +78,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -267,12 +269,15 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   }
 
   private ResultActions previewUpdate(Scenario scenario, String version) throws Exception {
-    return committed(
-        get(
-            TENANT_SCENARIO_URI + "/{scenarioId}/versions/{version}/preview",
-            DEFAULT_TENANT_UUID,
-            scenario.getId(),
-            version));
+    return committed(previewUpdateRequest(scenario, version));
+  }
+
+  private MockHttpServletRequestBuilder previewUpdateRequest(Scenario scenario, String version) {
+    return get(
+        TENANT_SCENARIO_URI + "/{scenarioId}/versions/{version}/preview",
+        DEFAULT_TENANT_UUID,
+        scenario.getId(),
+        version);
   }
 
   private ResultActions update(Scenario scenario, Map<String, String> choices) throws Exception {
@@ -306,6 +311,15 @@ class ScenarioUpdateApiTest extends IntegrationTest {
 
   private ResultActions rollback(Scenario scenario, String revisionId) throws Exception {
     return committed(rollbackRequest(scenario, revisionId));
+  }
+
+  private MockHttpServletRequestBuilder previewRollbackRequest(
+      Scenario scenario, String revisionId) {
+    return get(
+        TENANT_SCENARIO_URI + "/{scenarioId}/revisions/{revisionId}/preview",
+        DEFAULT_TENANT_UUID,
+        scenario.getId(),
+        revisionId);
   }
 
   private MockHttpServletRequestBuilder rollbackRequest(Scenario scenario, String revisionId) {
@@ -394,6 +408,24 @@ class ScenarioUpdateApiTest extends IntegrationTest {
     injectRepository.save(inject);
     entityManager.flush();
     entityManager.clear();
+  }
+
+  // As an install made before the injects kept their package ID left them.
+  private void forgetPackageInjectIds(Scenario scenario) {
+    Set<Inject> injects = injectRepository.findByScenarioId(scenario.getId());
+    injects.forEach(inject -> inject.setCatalogId(null));
+    injectRepository.saveAll(injects);
+    entityManager.flush();
+    entityManager.clear();
+  }
+
+  private void refusedAsInstalledBeforeUpdates(List<MockHttpServletRequestBuilder> requests)
+      throws Exception {
+    for (MockHttpServletRequestBuilder request : requests) {
+      committed(request)
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(INSTALLED_BEFORE_UPDATES));
+    }
   }
 
   private void simulate(Scenario scenario) {
@@ -674,12 +706,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
       String revisionId = revisionId(scenario, ScenarioRevision.Reason.UPDATE);
 
       // Act
-      committed(
-              get(
-                  TENANT_SCENARIO_URI + "/{scenarioId}/revisions/{revisionId}/preview",
-                  DEFAULT_TENANT_UUID,
-                  scenario.getId(),
-                  revisionId))
+      committed(previewRollbackRequest(scenario, revisionId))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.scenario_update_changes").isNotEmpty());
       rollback(scenario, revisionId).andExpect(status().isNoContent());
@@ -832,6 +859,45 @@ class ScenarioUpdateApiTest extends IntegrationTest {
       // Assert
       rollback.andExpect(status().isNotFound());
       revisions(scenario).andExpect(jsonPath("$.length()").value(1));
+      assertThat(installedVersion(scenario)).isEqualTo(INSTALLED);
+    }
+
+    @Test
+    @DisplayName("refuses a scenario whose injects lost their package ID, and writes nothing")
+    void given_injectsWithoutPackageId_should_refuseUpdateAndRollback() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      String revisionId = revisionId(scenario, ScenarioRevision.Reason.INSTALL);
+      forgetPackageInjectIds(scenario);
+
+      // Act & Assert
+      refusedAsInstalledBeforeUpdates(
+          List.of(
+              previewUpdateRequest(scenario, NEWER),
+              updateRequest(scenario, NEWER, Map.of(), Map.of()),
+              previewRollbackRequest(scenario, revisionId),
+              rollbackRequest(scenario, revisionId)));
+      assertThat(onlyInject(scenario).getTitle()).isEqualTo("whoami");
+      revisions(scenario).andExpect(jsonPath("$.length()").value(1));
+      assertThat(installedVersion(scenario)).isEqualTo(INSTALLED);
+    }
+
+    @Test
+    @DisplayName("refuses a scenario with no install revision, and writes nothing")
+    void given_noInstallRevision_should_refuseTheUpdate() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      scenarioRevisionRepository.deleteById(revisionId(scenario, ScenarioRevision.Reason.INSTALL));
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act & Assert
+      refusedAsInstalledBeforeUpdates(
+          List.of(
+              previewUpdateRequest(scenario, NEWER),
+              updateRequest(scenario, NEWER, Map.of(), Map.of())));
+      assertThat(onlyInject(scenario).getTitle()).isEqualTo("whoami");
+      revisions(scenario).andExpect(jsonPath("$.length()").value(0));
       assertThat(installedVersion(scenario)).isEqualTo(INSTALLED);
     }
 
