@@ -370,6 +370,30 @@ describe('ScenarioVersions', () => {
     expect(mocks.dispatch).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['Update', 'Update'],
+    ['Roll back to this revision', 'Roll back'],
+  ])('given_aPreviewRefused_should_showWhyInsteadOfLoading (%s)', async (action, applyLabel) => {
+    // Arrange
+    const refusal = 'This scenario was installed before updates were supported: it cannot be updated or rolled back';
+    renderVersions();
+    await screen.findAllByRole('button', { name: action });
+    mocks.simpleCall.mockRejectedValueOnce({
+      status: 400,
+      message: refusal,
+    });
+
+    // Act
+    const dialog = await open(action);
+
+    // Assert
+    expect(await within(dialog).findByText(refusal)).toBeInTheDocument();
+    expect(dialog.querySelector('[class*="animate-spin"]')).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: applyLabel })).toBeDisabled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
   it('given_anEditStarted_should_markTheEditButtonPressed', async () => {
     // Arrange
     renderVersions();

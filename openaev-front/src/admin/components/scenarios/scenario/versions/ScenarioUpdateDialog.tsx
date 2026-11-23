@@ -42,7 +42,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
     gap: theme.spacing(1.5),
   };
   const update = useScenarioUpdate(target, onApplied);
-  const { preview, conflicts, taken, kept, added, removed } = update;
+  const { preview, refusal, conflicts, taken, kept, added, removed } = update;
   const notes = preview?.scenario_update_changelogs ?? [];
 
   const injectLine = (change: ScenarioChangeOutput, label: string, reason: string) => (
@@ -62,6 +62,9 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
   );
 
   const body = () => {
+    if (refusal !== null) {
+      return <Alert severity="error" title={refusal || t('Something went wrong. Please refresh the page or try again later.')} />;
+    }
     if (preview === null) {
       return <Spinner />;
     }

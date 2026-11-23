@@ -10,15 +10,21 @@ export type ScenarioUpdateChoice = NonNullable<ScenarioUpdateInput['scenario_upd
 // The changes an update or a rollback brings, the side chosen or the value typed for each conflict, and applying it.
 const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) => {
   const [preview, setPreview] = useState<ScenarioUpdatePreviewOutput | null>(null);
+  // Why the server refused the preview, empty when it gave no reason.
+  const [refusal, setRefusal] = useState<string | null>(null);
   const [choices, setChoices] = useState<Record<string, ScenarioUpdateChoice>>({});
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [applying, setApplying] = useState(false);
 
   useEffect(() => {
     let active = true;
-    target.preview().then((previewed) => {
-      if (active) setPreview(previewed);
-    });
+    target.preview()
+      .then((previewed) => {
+        if (active) setPreview(previewed);
+      })
+      .catch((error: { message?: string } | false) => {
+        if (active) setRefusal((error && error.message) || '');
+      });
     return () => {
       active = false;
     };
@@ -71,6 +77,7 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
 
   return {
     preview,
+    refusal,
     ...changes,
     choices,
     edits,
