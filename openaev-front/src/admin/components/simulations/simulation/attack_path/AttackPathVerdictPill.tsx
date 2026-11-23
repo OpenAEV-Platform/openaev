@@ -28,6 +28,10 @@ const AttackPathVerdictPill: FunctionComponent<Props> = ({ label, status }) => {
         borderRadius: 1,
         backgroundColor: alpha(color, 0.08),
         color,
+        // Standard colours ("Pastel colours" off): outlined in the tone, as the design-system
+        // Chip; the `pastel` root class (useFdsThemeScope) keeps today's borderless pill.
+        border: `1px solid ${color}`,
+        '.pastel &': { borderColor: 'transparent' },
         fontSize: 11,
         fontWeight: 700,
         letterSpacing: '0.04em',
