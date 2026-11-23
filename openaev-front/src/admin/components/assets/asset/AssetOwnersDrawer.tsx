@@ -27,11 +27,11 @@ import { type AxiosResponse } from 'axios';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 
 import { addAssetOwner, deleteAssetOwner } from '../../../../actions/assets/asset-owner-actions';
-import { searchTeamsAsOption } from '../../../../actions/teams/team-actions';
+import { searchTeams } from '../../../../actions/teams/team-actions';
 import { searchPlayersAsOption } from '../../../../actions/users/User';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import { type Option } from '../../../../utils/api-types';
+import { type Option, type Team } from '../../../../utils/api-types';
 import {
   ASSET_OWNER_ROLES,
   type AssetOwnerKind,
@@ -69,9 +69,20 @@ const AssetOwnersDrawer: FunctionComponent<Props> = ({ open, onClose, assetId, a
     if (!open) {
       return;
     }
-    const search = kind === 'team' ? searchTeamsAsOption(inputValue) : searchPlayersAsOption(inputValue);
+    // Teams come from the team search (every team of the tenant): the team options endpoint only
+    // lists the teams already targeted by an inject, which is the wrong pool for an owner.
+    const search: Promise<Option[]> = kind === 'team'
+      ? searchTeams({
+          page: 0,
+          size: 50,
+          textSearch: inputValue,
+        }).then((response: AxiosResponse<{ content?: Team[] }>) => (response.data?.content ?? []).map(team => ({
+          id: team.team_id,
+          label: team.team_name,
+        })))
+      : searchPlayersAsOption(inputValue).then((response: AxiosResponse<Option[]>) => response.data ?? []);
     search
-      .then((response: AxiosResponse<Option[]>) => setOptions(response.data ?? []))
+      .then(next => setOptions(next))
       .catch(() => setOptions([]));
   }, [inputValue, open, kind]);
 
