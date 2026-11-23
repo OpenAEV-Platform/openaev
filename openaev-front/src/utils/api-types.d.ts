@@ -11159,6 +11159,12 @@ export interface PayloadUpsertInput {
   payload_type: string;
 }
 
+export interface PayloadUsageCountOutput {
+  payload_id: string;
+  /** @format int64 */
+  payload_usage_count: number;
+}
+
 export interface PayloadUsageMoveInput {
   /** @minLength 1 */
   target_payload_id: string;

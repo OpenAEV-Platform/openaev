@@ -32,7 +32,7 @@ const useRevocationForm = ({ open, lift, versions, currentPayloadId, onDone }: O
   }, [open, versions, currentPayloadId]);
 
   const version = versions.find(v => v.payload_id === selected);
-  const usages = useUsagesByVersion(open && version ? [version] : null)?.[selected] ?? null;
+  const usages = useUsagesByVersion(open && version ? [version] : [])[selected] ?? null;
 
   const { targets: replacements, defaultTarget } = moveTargets(versions, selected);
   useEffect(() => setReplacement(defaultTarget), [defaultTarget]);
