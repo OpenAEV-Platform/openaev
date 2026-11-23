@@ -55,8 +55,8 @@ public class CatalogScenarioTargets {
   }
 
   /**
-   * The kinds of target an inject takes, none when it takes no target, and whether it has one: an
-   * inject with a target selector has a target of the kind it selects.
+   * The kinds of target an inject needs, none when its contract makes no target mandatory, and
+   * whether it has them: an inject with a target selector has a target of the kind it selects.
    */
   public InjectTargets targetsOf(Inject inject) {
     InjectorContract contract = inject.getInjectorContract().orElse(null);
@@ -66,11 +66,18 @@ public class CatalogScenarioTargets {
           TargetKind.SELECTABLE,
           TargetKind.selectedOn(inject).filter(kind -> kind.isSetOn(inject)).isPresent());
     }
+    List<List<TargetKind>> needs =
+        contractContent.mandatoryFieldGroups(inject).stream()
+            .flatMap(group -> TargetKind.filling(group).stream())
+            .toList();
     List<TargetKind> kinds =
         TargetKind.FIELDS.stream()
-            .filter(kind -> contractContent.hasField(contract, kind.field()))
+            .filter(kind -> needs.stream().anyMatch(need -> need.contains(kind)))
             .toList();
-    return new InjectTargets(inject, kinds, kinds.stream().anyMatch(kind -> kind.isSetOn(inject)));
+    return new InjectTargets(
+        inject,
+        kinds,
+        needs.stream().allMatch(need -> need.stream().anyMatch(kind -> kind.isSetOn(inject))));
   }
 
   /**

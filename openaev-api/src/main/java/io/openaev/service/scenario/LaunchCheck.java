@@ -6,7 +6,7 @@ import io.openaev.service.catalog.scenario.targeting.InjectTargets;
 import java.util.List;
 
 /**
- * What a scenario's launch meets: its injects that take a target, those running a revoked payload
+ * What a scenario's launch meets: its injects that need a target, those running a revoked payload
  * version, and what this platform lacks to run a catalogue scenario.
  */
 public record LaunchCheck(

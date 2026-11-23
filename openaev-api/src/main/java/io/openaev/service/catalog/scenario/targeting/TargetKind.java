@@ -106,6 +106,12 @@ public enum TargetKind {
     this.selectorValue = selectorValue;
   }
 
+  /** The kinds that fill a group of mandatory fields, none when another field can fill it. */
+  static Optional<List<TargetKind>> filling(Set<String> group) {
+    List<TargetKind> kinds = FIELDS.stream().filter(kind -> group.contains(kind.field)).toList();
+    return kinds.size() == group.size() ? Optional.of(kinds) : Optional.empty();
+  }
+
   abstract boolean isChosenIn(ChosenTargets chosen);
 
   abstract void addTo(Inject inject, ChosenTargets chosen);
