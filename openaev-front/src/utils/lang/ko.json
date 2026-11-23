@@ -5198,5 +5198,10 @@
   "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.": "XTM One을 연결하면 CTEM 인벤토리에서 이 자산의 중요도, 범주, 이를 보고하는 모든 소스를 볼 수 있습니다.",
   "Open the connection guide to connect XTM One.": "연결 가이드를 열어 XTM One을 연결하세요.",
   "Ask an administrator to connect XTM One to see this asset there.": "이 자산을 XTM One에서 보려면 관리자에게 XTM One 연결을 요청하세요.",
-  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "XTM One CTEM 인벤토리에서 이 자산과 이를 보고하는 모든 소스를 확인하세요."
+  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "XTM One CTEM 인벤토리에서 이 자산과 이를 보고하는 모든 소스를 확인하세요.",
+  "Across the XTM Platform": "XTM 플랫폼 전체",
+  "Not found across the XTM Platform": "XTM 플랫폼에서 찾을 수 없음",
+  "Found": "찾음",
+  "Not found": "찾을 수 없음",
+  "Unavailable": "사용할 수 없음"
 }

@@ -5198,5 +5198,10 @@
   "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.": "Подключите XTM One, чтобы видеть этот актив в инвентаре CTEM: его критичность, категорию и все источники, которые о нем сообщают.",
   "Open the connection guide to connect XTM One.": "Откройте руководство по подключению, чтобы подключить XTM One.",
   "Ask an administrator to connect XTM One to see this asset there.": "Попросите администратора подключить XTM One, чтобы видеть там этот актив.",
-  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "Просмотр этого актива в инвентаре CTEM XTM One со всеми источниками, которые о нем сообщают."
+  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "Просмотр этого актива в инвентаре CTEM XTM One со всеми источниками, которые о нем сообщают.",
+  "Across the XTM Platform": "На платформе XTM",
+  "Not found across the XTM Platform": "Не найдено на платформе XTM",
+  "Found": "Найдено",
+  "Not found": "Не найдено",
+  "Unavailable": "Недоступно"
 }

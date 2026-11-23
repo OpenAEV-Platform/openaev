@@ -5198,5 +5198,10 @@
   "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.": "连接 XTM One 以在 CTEM 清单中查看此资产：其关键性、类别以及报告它的每个来源。",
   "Open the connection guide to connect XTM One.": "打开连接指南以连接 XTM One。",
   "Ask an administrator to connect XTM One to see this asset there.": "请管理员连接 XTM One，以便在其中查看此资产。",
-  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "在 XTM One CTEM 清单中查看此资产及报告它的每个来源。"
+  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "在 XTM One CTEM 清单中查看此资产及报告它的每个来源。",
+  "Across the XTM Platform": "整个 XTM 平台",
+  "Not found across the XTM Platform": "在 XTM 平台中未找到",
+  "Found": "已找到",
+  "Not found": "未找到",
+  "Unavailable": "不可用"
 }

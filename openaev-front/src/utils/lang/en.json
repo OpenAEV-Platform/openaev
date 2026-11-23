@@ -5198,5 +5198,10 @@
   "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.": "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.",
   "Open the connection guide to connect XTM One.": "Open the connection guide to connect XTM One.",
   "Ask an administrator to connect XTM One to see this asset there.": "Ask an administrator to connect XTM One to see this asset there.",
-  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "See this asset in the XTM One CTEM inventory, with every source that reports it."
+  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "See this asset in the XTM One CTEM inventory, with every source that reports it.",
+  "Across the XTM Platform": "Across the XTM Platform",
+  "Not found across the XTM Platform": "Not found across the XTM Platform",
+  "Found": "Found",
+  "Not found": "Not found",
+  "Unavailable": "Unavailable"
 }
