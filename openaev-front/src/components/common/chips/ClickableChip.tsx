@@ -7,12 +7,13 @@ import { makeStyles } from 'tss-react/mui';
 import { useFormatter } from '../../i18n';
 import convertOperatorToIcon from './ChipUtils';
 import ClickableChipPopover from './ClickableChipPopover';
+import { neutralChipSx, STANDARD_CHIP_EDGE } from './standardChip';
 
 const useStyles = makeStyles()(theme => ({
   mode: {
     'display': 'inline-block',
     'height': '100%',
-    'border': `1px solid ${theme.palette.divider}`,
+    'border': STANDARD_CHIP_EDGE,
     'borderRadius': 4,
     'backgroundColor': 'transparent',
     '.pastel &': {
@@ -189,11 +190,8 @@ const ClickableChip: FunctionComponent<Props> = ({
             // Standard colours ("Pastel colours" off): outlined, as the design-system Chip; the
             // `pastel` root class (useFdsThemeScope) keeps today's filled chip.
             sx={theme => ({
-              'borderRadius': 1,
-              '.pastel &': {
-                borderColor: 'transparent',
-                backgroundColor: theme.palette.action.selected,
-              },
+              borderRadius: 1,
+              ...neutralChipSx(theme),
             })}
             ref={chipRef}
           />

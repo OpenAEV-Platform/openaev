@@ -2,6 +2,7 @@ import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../i18n';
+import { STANDARD_CHIP_EDGE } from './standardChip';
 
 const useStyles = makeStyles()(theme => ({
   mode: {
@@ -9,7 +10,7 @@ const useStyles = makeStyles()(theme => ({
     'fontFamily': 'Consolas, monaco, monospace',
     // Standard colours ("Pastel colours" off): outlined, as the design-system Chip; the
     // `pastel` root class (useFdsThemeScope) keeps today's filled pill.
-    'border': `1px solid ${theme.palette.divider}`,
+    'border': STANDARD_CHIP_EDGE,
     'backgroundColor': 'transparent',
     '.pastel &': {
       borderColor: 'transparent',
