@@ -1,4 +1,4 @@
-import { Button, Chip, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ExtensionOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
@@ -13,6 +13,7 @@ import { useHelper } from '../../../../store';
 import { type Domain } from '../../../../utils/api-types';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import IntegrationFixButton from '../../integrations/common/IntegrationFixButton';
 
 interface Props { contract: CatalogInjectorContract }
 
@@ -86,11 +87,9 @@ const ThreatArsenalContractCatalogCard: FunctionComponent<Props> = ({ contract }
         </>
       )}
       onClick={canEnable ? openIntegration : undefined}
-      action={canEnable && (
+      action={canEnable && contract.catalog_connector_id && (
         <span onClick={event => event.stopPropagation()}>
-          <Button size="sm" onClick={openIntegration}>
-            {t('Enable integration')}
-          </Button>
+          <IntegrationFixButton catalogConnectorId={contract.catalog_connector_id} priority="primary" />
         </span>
       )}
     />

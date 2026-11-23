@@ -4986,5 +4986,6 @@
   "{count, plural, one {Keep it on its version} other {Keep them on their version}}": "{count, plural, one {Mantienilo sulla sua versione} other {Mantienili sulla loro versione}}",
   "{count, plural, one {# inject still uses} other {# injects still use}} {versions}.": "{count, plural, one {# inject usa ancora} other {# inject usano ancora}} {versions}.",
   "{count, plural, one {Keep it on v{version}} other {Keep them on v{version}}}": "{count, plural, one {Tienilo su v{version}} other {Tienili su v{version}}}",
-  "What changed in v{version}": "Cosa è cambiato in v{version}"
+  "What changed in v{version}": "Cosa è cambiato in v{version}",
+  "Deployment guide": "Guida al deployment"
 }

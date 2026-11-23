@@ -8,6 +8,7 @@ import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import healthcheckFixLink from '../../common/healthchecks/healthcheckFixLink';
+import IntegrationFixButton from '../../integrations/common/IntegrationFixButton';
 import ScenarioLaunchTargetsDrawer from '../catalog/ScenarioLaunchTargetsDrawer';
 import RevokedPayloadFix from './RevokedPayloadFix';
 import loadScenarioLaunchBlockers, { hardBlockerCount, type LaunchTarget, type RevokedInject, type ScenarioLaunchBlockers } from './scenarioLaunchBlockers';
@@ -158,13 +159,7 @@ const ScenarioLaunchCheckDrawer: FunctionComponent<Props> = ({ scenario, open, o
                         : t('{name} is missing on this platform', { name: prerequisite.requirement_catalog_connector_title ?? prerequisite.requirement_label })}
                       description={t('The injects that need it cannot run.')}
                       action={prerequisite.requirement_kind === 'INJECTOR' && prerequisite.requirement_catalog_connector_id && canManageIntegrations
-                        ? (
-                            <Button asChild size="sm" priority="secondary">
-                              <Link to={`/admin/integrations/catalog/${prerequisite.requirement_catalog_connector_id}`} target="_blank">
-                                {t('Enable integration')}
-                              </Link>
-                            </Button>
-                          )
+                        ? <IntegrationFixButton catalogConnectorId={prerequisite.requirement_catalog_connector_id} />
                         : undefined}
                     />
                   ))}

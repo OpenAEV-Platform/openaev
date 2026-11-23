@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type CatalogItemOutput } from '../../../../utils/api-types';
+import IntegrationFixButton from '../../integrations/common/IntegrationFixButton';
 import ScenarioForm, { type ScenarioFormInput } from '../ScenarioForm';
 
 interface Props {
@@ -98,11 +99,7 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ item, canInstall, onC
                         <Chip label={t(prerequisite.requirement_status === 'NOT_RUNNING' ? 'Not running' : 'Not deployed')} severity="high" />
                       )}
                       {prerequisite.requirement_kind === 'INJECTOR' && prerequisite.requirement_catalog_connector_id && (
-                        <Button asChild size="sm" priority="secondary">
-                          <Link to={`/admin/integrations/catalog/${prerequisite.requirement_catalog_connector_id}`} target="_blank">
-                            {t('Enable integration')}
-                          </Link>
-                        </Button>
+                        <IntegrationFixButton catalogConnectorId={prerequisite.requirement_catalog_connector_id} />
                       )}
                     </div>
                   ))}

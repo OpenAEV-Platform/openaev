@@ -21,3 +21,8 @@ export const fetchConnector = (connectorId: string) => (dispatch: Dispatch) => {
 export const fetchCatalogConnectorConfigurations = (catalogConnectorId: string) => {
   return simpleCall(`${CATALOG_CONNECTORS_URI}/${catalogConnectorId}/configurations`);
 };
+
+// One catalog connector, without the error toast: a caller falling back on a default needs no alert.
+export const fetchCatalogConnectorQuietly = (catalogConnectorId: string) => {
+  return simpleCall(`${CATALOG_CONNECTORS_URI}/${encodeURIComponent(catalogConnectorId)}`, undefined, false);
+};

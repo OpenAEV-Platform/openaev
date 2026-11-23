@@ -4986,5 +4986,6 @@
   "{count, plural, one {Keep it on its version} other {Keep them on their version}}": "{count, plural, other {현재 버전 유지}}",
   "{count, plural, one {# inject still uses} other {# injects still use}} {versions}.": "{count, plural, other {# 개의 인젝트가 아직}} {versions}을(를) 사용합니다.",
   "{count, plural, one {Keep it on v{version}} other {Keep them on v{version}}}": "{count, plural, other {v{version}에 유지}}",
-  "What changed in v{version}": "v{version}의 변경 사항"
+  "What changed in v{version}": "v{version}의 변경 사항",
+  "Deployment guide": "배포 가이드"
 }
