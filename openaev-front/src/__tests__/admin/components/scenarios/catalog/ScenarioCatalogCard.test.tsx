@@ -35,7 +35,7 @@ const renderCard = (scenario: CatalogScenarioOutput) => render(
   <MemoryRouter>
     <ThemeProvider theme={createTheme()}>
       <TooltipProvider>
-        <ScenarioCatalogCard scenario={scenario} canInstall canLaunch onInstall={vi.fn()} onLaunch={vi.fn()} onOpen={vi.fn()} />
+        <ScenarioCatalogCard scenario={scenario} canInstall onInstall={vi.fn()} onLaunch={vi.fn()} onOpen={vi.fn()} />
       </TooltipProvider>
     </ThemeProvider>
   </MemoryRouter>,

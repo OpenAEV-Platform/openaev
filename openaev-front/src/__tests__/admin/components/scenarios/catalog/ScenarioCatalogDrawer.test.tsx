@@ -208,12 +208,12 @@ describe('ScenarioCatalogDrawer', () => {
       expect(onInstall).toHaveBeenCalledWith(SCENARIO);
     });
 
-    it('given_noRightToInstall_should_disableTheInstall', () => {
+    it('given_noRightToInstall_should_hideTheInstall', () => {
       // Act
       renderDrawer(SCENARIO, { canInstall: false });
 
       // Assert
-      expect(installButton().disabled).toBe(true);
+      expect(screen.queryByRole('button', { name: 'Install' })).toBeNull();
     });
 
     it('given_cancelClicked_should_closeTheDrawer', () => {

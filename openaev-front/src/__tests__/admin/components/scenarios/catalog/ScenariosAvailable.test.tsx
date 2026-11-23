@@ -57,6 +57,7 @@ const scenario = (name: string, type: string): CatalogScenarioOutput => ({
   catalog_scenario_version: '1.0',
   catalog_scenario_platforms: ['Linux'],
   catalog_scenario_missing_requirements: [],
+  catalog_scenario_payloads: [],
 });
 const PHISHING = scenario('Phishing', 'TIME_BASED');
 const RANSOMWARE = scenario('Ransomware', 'CHAINED');
