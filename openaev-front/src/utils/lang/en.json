@@ -2612,6 +2612,8 @@
   "Log manual actions carried out outside the platform so they are tracked in a scenario.": "Log manual actions carried out outside the platform so they are tracked in a scenario.",
   "logged": "logged",
   "Logged": "Logged",
+  "Logged only": "Logged only",
+  "Logging checks whether a security control recorded this technique on the endpoint, even without raising an alert.": "Logging checks whether a security control recorded this technique on the endpoint, even without raising an alert.",
   "LOGGING": "Logging",
   "Logging": "Logging",
   "Logging rate": "Logging rate",

@@ -5,6 +5,7 @@ import { type ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import FindingDetailPanel, { type ProducingAction } from '../../../../../../admin/components/simulations/simulation/attack_path/FindingDetailPanel';
+import ThemeDark from '../../../../../../components/ThemeDark';
 
 // The execution-status badge does its own fetching (execution detail, then inject status): stub it and
 // assert the panel wires each producing action to it, rather than re-testing the badge here.
@@ -20,6 +21,13 @@ vi.mock('../../../../../../admin/components/simulations/simulation/attack_path/E
 
 vi.mock('../../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (s: string) => s }) }));
 
+// The Logging badge follows the LOGGING_EXPECTATION preview feature, read from the settings store.
+const features = vi.hoisted(() => ({ logging: false }));
+vi.mock('../../../../../../utils/utils', async importOriginal => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  isFeatureEnabled: () => features.logging,
+}));
+
 const action = (ref: string): ProducingAction => ({
   ref,
   contract: `contract-${ref}`,
@@ -30,7 +38,7 @@ const action = (ref: string): ProducingAction => ({
 
 const renderPanel = (props: Partial<Parameters<typeof FindingDetailPanel>[0]> = {}): ReactElement => {
   const element = (
-    <ThemeProvider theme={createTheme()}>
+    <ThemeProvider theme={createTheme(ThemeDark())}>
       <TooltipProvider>
         <FindingDetailPanel
           value="445"
@@ -85,7 +93,7 @@ describe('FindingDetailPanel value clamping', () => {
     // The panel is not remounted between two findings: without a reset the second long value would
     // open already expanded because the first one's toggle left the state on.
     const panel = (value: string) => (
-      <ThemeProvider theme={createTheme()}>
+      <ThemeProvider theme={createTheme(ThemeDark())}>
         <TooltipProvider>
           <FindingDetailPanel
             value={value}
@@ -121,6 +129,38 @@ describe('FindingDetailPanel value clamping', () => {
       },
     });
     expect(screen.getByText('Show more')).toBeDefined();
+  });
+});
+
+describe('FindingDetailPanel verdict badges', () => {
+  afterEach(() => {
+    cleanup();
+    features.logging = false;
+  });
+
+  const expectations = {
+    prevention: 'failed',
+    detection: 'failed',
+    logging: 'success',
+    vulnerability: 'unknown',
+  } as const;
+
+  it('shows the logging verdict between detection and vulnerability when Logging is enabled', () => {
+    features.logging = true;
+    renderPanel({ expectations });
+
+    expect(screen.getAllByRole('img').map(badge => badge.getAttribute('aria-label'))).toEqual([
+      'Prevention: Failed',
+      'Detection: Failed',
+      'Logging: Success',
+      'Vulnerability: Unknown',
+    ]);
+  });
+
+  it('shows no logging verdict while Logging is disabled', () => {
+    renderPanel({ expectations });
+
+    expect(screen.queryByRole('img', { name: 'Logging: Success' })).toBeNull();
   });
 });
 

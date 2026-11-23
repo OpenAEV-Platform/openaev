@@ -128,14 +128,16 @@ const COVERED_FINDING_TYPES = new Set(['share', 'file', 'credentials', 'username
 // Finding categories fetched (with per-finding executionIds) to attribute findings to an injector.
 const INJECTOR_FINDING_CATEGORIES = ['credentials', 'users', 'cves', 'shares', 'files'];
 
-// Backend prevention/detection status -> a human label (also used for accessibility, so status is
-// never conveyed by colour alone). GREEN = prevented, ORANGE = detected, RED = neither.
+// Backend execution status -> a human label (also used for accessibility, so status is never conveyed
+// by colour alone). GREEN = prevented, ORANGE = detected, YELLOW = only logged, RED = none of them.
 const statusLabelKey = (status?: string): string => {
   switch (status) {
     case 'GREEN':
       return 'Prevented';
     case 'ORANGE':
       return 'Detected';
+    case 'YELLOW':
+      return 'Logged';
     case 'RED':
       return 'Undetected';
     default:
@@ -2219,6 +2221,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     return {
       prevention: norm(v?.prevention),
       detection: norm(v?.detection),
+      logging: norm(v?.logging),
       vulnerability: norm(v?.vulnerability),
     };
   }, [findingDetail, selectedFindingId, fullDto?.attackPathNodes, dto?.staticAttackPathFindings, dto?.attackPathNodes]);

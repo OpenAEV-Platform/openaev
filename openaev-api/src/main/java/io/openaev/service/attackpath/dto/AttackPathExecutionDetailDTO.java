@@ -6,8 +6,8 @@ import java.util.List;
 /**
  * One execution's full detail for the Result &amp; Terminal drawer (issue 5048), read from the
  * frozen snapshot (never the live inject). Three groups: the header (payload/agent/privilege), the
- * result (target, prevention/detection status, findings), and the terminal (command, output).
- * Credentials are masked server-side in the command, the output, and the finding values.
+ * result (target, expectation statuses, findings), and the terminal (command, output). Credentials
+ * are masked server-side in the command, the output, and the finding values.
  */
 public record AttackPathExecutionDetailDTO(
     // header
@@ -27,8 +27,9 @@ public record AttackPathExecutionDetailDTO(
     String preventionStatus,
     String detectionStatus,
     String vulnerabilityStatus,
+    String loggingStatus,
     // Whether the inject actually RAN (EXECUTED / ERROR / PENDING…), as opposed to whether it was
-    // caught, which the three statuses above carry. Resolved from the inject this row's step points
+    // caught, which the statuses above carry. Resolved from the inject this row's step points
     // at, so the drawer renders it on open instead of fetching the inject's status itself.
     String executionStatus,
     String executedAt,

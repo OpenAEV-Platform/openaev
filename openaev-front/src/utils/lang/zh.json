@@ -2612,6 +2612,8 @@
   "Log manual actions carried out outside the platform so they are tracked in a scenario.": "记录在平台外执行的手动操作，以便在场景中进行跟踪。",
   "logged": "已记录",
   "Logged": "已记录",
+  "Logged only": "仅记录",
+  "Logging checks whether a security control recorded this technique on the endpoint, even without raising an alert.": "日志记录功能用于检查终端上的安全控制措施是否记录了此技术，即使未触发警报。",
   "LOGGING": "日志记录",
   "Logging": "日志记录",
   "Logging rate": "日志记录率",

@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import FindingIcon from '../../../../../components/FindingIcon';
 import { useFormatter } from '../../../../../components/i18n';
+import { isFeatureEnabled } from '../../../../../utils/utils';
 import LogicNodeTooltip from '../../../chaining/logic/chaining_flow/NodeTooltip';
 import expectationIconByType from '../../../common/ExpectationIconByType';
 import InjectFormSection from '../../../common/injects/form/InjectFormSection';
@@ -30,6 +31,7 @@ export type ExpectationVerdict = 'success' | 'failed' | 'unknown';
 export interface FindingExpectations {
   prevention?: ExpectationVerdict;
   detection?: ExpectationVerdict;
+  logging?: ExpectationVerdict;
   vulnerability?: ExpectationVerdict;
 }
 
@@ -42,7 +44,7 @@ interface Props {
   endpointSub?: string;
   // Endpoint hostname, used to resolve this execution's own target when reading its run status.
   endpointName?: string;
-  // Prevention / detection / vulnerability verdicts for this finding (backend-provided).
+  // Prevention / detection / logging / vulnerability verdicts for this finding (backend-provided).
   expectations?: FindingExpectations;
   actions: ProducingAction[];
   activeRef: string | null;
@@ -52,8 +54,6 @@ interface Props {
   onSelect: (ref: string) => void;
   onClose: () => void;
 }
-
-const EXPECTATION_ORDER: (keyof FindingExpectations)[] = ['prevention', 'detection', 'vulnerability'];
 
 // An output-only value can be a whole command output (an Nmap XML report is several KB), which pushed
 // everything else in the panel — the type chip, the endpoint, the producing actions — kilometres below
@@ -83,12 +83,19 @@ const FindingDetailPanel = ({
     setValueExpanded(false);
   }
   const isValueLong = value.length > VALUE_CLAMP_CHARS;
+  const expectationOrder: (keyof FindingExpectations)[] = isFeatureEnabled('LOGGING_EXPECTATION')
+    ? ['prevention', 'detection', 'logging', 'vulnerability']
+    : ['prevention', 'detection', 'vulnerability'];
 
   // Colour a verdict per its expectation type: a successful prevention is green, a successful
-  // detection is orange, a failed verdict is red, and an unknown one is muted.
+  // detection is orange, a successful logging is yellow, a failed verdict is red, and an unknown one
+  // is muted.
   const verdictColor = (key: keyof FindingExpectations, verdict?: ExpectationVerdict): string => {
     if (verdict === 'success') {
-      return key === 'detection' ? theme.palette.warning.main : theme.palette.success.main;
+      if (key === 'detection') {
+        return theme.palette.designSystem.alert.warning.primary;
+      }
+      return key === 'logging' ? theme.palette.designSystem.alert.alert.primary : theme.palette.success.main;
     }
     if (verdict === 'failed') {
       return theme.palette.error.main;
@@ -96,11 +103,12 @@ const FindingDetailPanel = ({
     return theme.palette.text.disabled;
   };
 
-  // Plain-language explanation of each expectation type, so a newcomer understands what the three
-  // badges actually mean rather than facing an unlabelled icon row.
+  // Plain-language explanation of each expectation type, so a newcomer understands what the badges
+  // actually mean rather than facing an unlabelled icon row.
   const expectationHelp: Record<keyof FindingExpectations, string> = {
     prevention: t('Prevention checks whether a security control blocked or stopped this technique on the endpoint.'),
     detection: t('Detection checks whether a security control raised an alert on this technique on the endpoint.'),
+    logging: t('Logging checks whether a security control recorded this technique on the endpoint, even without raising an alert.'),
     vulnerability: t('Vulnerability checks whether the endpoint was actually found vulnerable to this technique.'),
   };
   const verdictHelp = (verdict: ExpectationVerdict): string => {
@@ -191,7 +199,7 @@ const FindingDetailPanel = ({
                     gap: 1,
                   }}
                   >
-                    {EXPECTATION_ORDER.map((key) => {
+                    {expectationOrder.map((key) => {
                       const verdict = expectations[key] ?? 'unknown';
                       const label = `${t(cap(key))}: ${t(cap(verdict))}`;
                       const color = verdictColor(key, verdict);

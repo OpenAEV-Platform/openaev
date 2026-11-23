@@ -2612,6 +2612,8 @@
   "Log manual actions carried out outside the platform so they are tracked in a scenario.": "플랫폼 외부에서 수행한 수동 작업을 기록하여 시나리오에서 추적합니다.",
   "logged": "로깅됨",
   "Logged": "로깅됨",
+  "Logged only": "로깅만 됨",
+  "Logging checks whether a security control recorded this technique on the endpoint, even without raising an alert.": "이 로깅 기능은 경고가 발생하지 않았더라도 엔드포인트에서 보안 제어 기능이 이 기법을 기록했는지 확인합니다.",
   "LOGGING": "로깅",
   "Logging": "로깅",
   "Logging rate": "로깅 비율",

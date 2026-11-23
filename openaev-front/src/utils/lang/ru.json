@@ -2612,6 +2612,8 @@
   "Log manual actions carried out outside the platform so they are tracked in a scenario.": "Фиксируйте ручные действия, выполненные вне платформы, чтобы отслеживать их в сценарии.",
   "logged": "записано в журнал",
   "Logged": "Записано в журнал",
+  "Logged only": "Только записано в журнал",
+  "Logging checks whether a security control recorded this technique on the endpoint, even without raising an alert.": "Проверка журналирования: проверяется, записало ли средство защиты данную методику на конечной точке, даже без тревоги.",
   "LOGGING": "Журналирование",
   "Logging": "Журналирование",
   "Logging rate": "Уровень журналирования",

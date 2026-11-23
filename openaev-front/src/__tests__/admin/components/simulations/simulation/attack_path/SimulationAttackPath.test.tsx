@@ -6,6 +6,7 @@ import type * as ReactRouter from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SimulationAttackPath from '../../../../../../admin/components/simulations/simulation/attack_path/SimulationAttackPath';
+import ThemeDark from '../../../../../../components/ThemeDark';
 import { defineAbility } from '../../../../../../utils/permissions/ability';
 import { AbilityProvider } from '../../../../../../utils/permissions/permissionsContext';
 
@@ -139,7 +140,7 @@ vi.mock('../../../../../../admin/components/common/entreprise_edition/EEChip', (
 const ability = defineAbility([], {}, false);
 
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <ThemeProvider theme={createTheme()}>
+  <ThemeProvider theme={createTheme(ThemeDark())}>
     <TooltipProvider>
       <AbilityProvider value={ability}>{children}</AbilityProvider>
     </TooltipProvider>
@@ -205,6 +206,7 @@ const setup = () => {
       targetPlatform: 'Linux',
       preventionStatus: 'FAILED',
       detectionStatus: 'DETECTED',
+      loggingStatus: 'Logged',
       // The platforms that actually acted, as the backend resolves them from the inject's
       // expectations — the panel renders these, it never fabricates a platform row.
       securityPlatforms: [{
@@ -216,6 +218,12 @@ const setup = () => {
           id: 'alert-1',
           title: 'Suspicious activity flagged',
         }],
+      }, {
+        platformName: 'Splunk',
+        platformType: 'openaev_splunk',
+        bucket: 'LOGGING',
+        status: 'SUCCESS',
+        alerts: [],
       }],
       findings: [{
         type: 'credentials',
@@ -311,16 +319,18 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     fireEvent.click(feedRow);
     await waitFor(() => expect(mocks.fetchExecutionDetail).toHaveBeenCalledWith('sim-1', 'exec-1'));
 
-    // Header (agent · privilege) + both tabs render; the Result tab shows the prevention/detection
-    // rows, each carrying the expectation's own verdict and the platforms the run actually recorded
-    // (detection by CrowdStrike here; prevention has no platform, so it says so instead of inventing
-    // one).
+    // Header (agent · privilege) + both tabs render; the Result tab shows the prevention/detection/
+    // logging rows, each carrying the expectation's own verdict and the platforms the run actually
+    // recorded (detection by CrowdStrike and logging by Splunk here; prevention has no platform, so it
+    // says so instead of inventing one).
     expect(await screen.findByText('agent-x · user')).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Result' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Terminal view' })).toBeTruthy();
     expect(screen.getByText('Prevention')).toBeTruthy();
     expect(screen.getByText('Detection')).toBeTruthy();
     expect(screen.getByText('CrowdStrike')).toBeTruthy();
+    expect(screen.getByText('Logging')).toBeTruthy();
+    expect(screen.getByText('Splunk')).toBeTruthy();
     expect(screen.getByText('Not Prevented')).toBeTruthy();
 
     // The Terminal tab shows the masked command and output via the shared Terminal.

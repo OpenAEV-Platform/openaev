@@ -5,8 +5,8 @@ import java.util.Collection;
 
 /**
  * The verdict semantics of a finding, in one place. A finding's verdict for each bucket
- * (prevention, detection, vulnerability) is derived from the status of its producing execution
- * rows.
+ * (prevention, detection, vulnerability, logging) is derived from the status of its producing
+ * execution rows.
  *
  * <p>Mapping is done against the {@link ExpectationType} labels of the SAME bucket
  * (case-insensitive), not a global string list: the definitive failure labels ({@code Not
@@ -41,28 +41,34 @@ public final class AttackPathFindingVerdicts {
     }
   }
 
-  /** The three per-finding verdicts. */
-  public record Verdicts(Verdict prevention, Verdict detection, Verdict vulnerability) {
+  /** The per-finding verdicts, one per bucket. */
+  public record Verdicts(
+      Verdict prevention, Verdict detection, Verdict vulnerability, Verdict logging) {
     public static final Verdicts UNKNOWN =
-        new Verdicts(Verdict.UNKNOWN, Verdict.UNKNOWN, Verdict.UNKNOWN);
+        new Verdicts(Verdict.UNKNOWN, Verdict.UNKNOWN, Verdict.UNKNOWN, Verdict.UNKNOWN);
   }
 
   private AttackPathFindingVerdicts() {}
 
   /**
-   * The verdicts of a single producing execution, from its three status strings. Applies {@code
-   * prevented => detected} (a prevented execution is at least detected, overriding an explicit
-   * failed).
+   * The verdicts of a single producing execution, from its status strings. Applies {@code prevented
+   * => detected} (a prevented execution is at least detected, overriding an explicit failed).
+   * Logging is not lifted: a log is collected by its own security platforms, which may have missed
+   * an action another platform blocked.
    */
   public static Verdicts ofExecution(
-      String preventionStatus, String detectionStatus, String vulnerabilityStatus) {
+      String preventionStatus,
+      String detectionStatus,
+      String vulnerabilityStatus,
+      String loggingStatus) {
     Verdict prevention = map(ExpectationType.PREVENTION, preventionStatus);
     Verdict detection = map(ExpectationType.DETECTION, detectionStatus);
     Verdict vulnerability = map(ExpectationType.VULNERABILITY, vulnerabilityStatus);
+    Verdict logging = map(ExpectationType.LOGGING, loggingStatus);
     if (prevention == Verdict.SUCCESS) {
       detection = Verdict.SUCCESS; // prevented => detected
     }
-    return new Verdicts(prevention, detection, vulnerability);
+    return new Verdicts(prevention, detection, vulnerability, logging);
   }
 
   /** Worst-of over a finding's producers, per bucket. Empty producers = all unknown. */
@@ -70,6 +76,7 @@ public final class AttackPathFindingVerdicts {
     Verdict prevention = Verdict.SUCCESS;
     Verdict detection = Verdict.SUCCESS;
     Verdict vulnerability = Verdict.SUCCESS;
+    Verdict logging = Verdict.SUCCESS;
     if (producers.isEmpty()) {
       return Verdicts.UNKNOWN;
     }
@@ -77,8 +84,9 @@ public final class AttackPathFindingVerdicts {
       prevention = worst(prevention, p.prevention());
       detection = worst(detection, p.detection());
       vulnerability = worst(vulnerability, p.vulnerability());
+      logging = worst(logging, p.logging());
     }
-    return new Verdicts(prevention, detection, vulnerability);
+    return new Verdicts(prevention, detection, vulnerability, logging);
   }
 
   private static Verdict worst(Verdict a, Verdict b) {

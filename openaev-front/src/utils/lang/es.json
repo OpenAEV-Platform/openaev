@@ -2612,6 +2612,8 @@
   "Log manual actions carried out outside the platform so they are tracked in a scenario.": "Registre acciones manuales realizadas fuera de la plataforma para incluirlas en un escenario.",
   "logged": "registrado",
   "Logged": "Registrado",
+  "Logged only": "Solo registrado",
+  "Logging checks whether a security control recorded this technique on the endpoint, even without raising an alert.": "El registro comprueba si algún control de seguridad ha registrado esta técnica en el endpoint, aunque no haya generado una alerta.",
   "LOGGING": "Registro",
   "Logging": "Registro",
   "Logging rate": "Tasa de registro",

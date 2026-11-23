@@ -2612,6 +2612,8 @@
   "Log manual actions carried out outside the platform so they are tracked in a scenario.": "Erfassen Sie manuelle Aktionen außerhalb der Plattform, damit sie in einem Szenario nachverfolgt werden.",
   "logged": "protokolliert",
   "Logged": "Protokolliert",
+  "Logged only": "Nur protokolliert",
+  "Logging checks whether a security control recorded this technique on the endpoint, even without raising an alert.": "Die Protokollierung prüft, ob eine Sicherheitskontrolle diese Technik auf dem Endpunkt aufgezeichnet hat, auch ohne einen Alert auszulösen.",
   "LOGGING": "Protokollierung",
   "Logging": "Protokollierung",
   "Logging rate": "Protokollierungsrate",
