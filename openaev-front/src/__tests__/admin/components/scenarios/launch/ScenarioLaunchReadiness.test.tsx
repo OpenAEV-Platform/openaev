@@ -58,6 +58,30 @@ describe('ScenarioLaunchReadiness', () => {
     expect(onOpen).toHaveBeenCalled();
   });
 
+  it('given only injects on a revoked version should say how many will fail', async () => {
+    // Arrange
+    checkFinds({
+      launch_check_revoked_injects: [
+        {
+          inject_id: 'dump',
+          inject_title: 'Credential dump',
+          inject_action_id: 'dump-action',
+        },
+        {
+          inject_id: 'scan',
+          inject_title: 'Port scan',
+          inject_action_id: 'dump-action',
+        },
+      ],
+    });
+
+    // Act
+    render(<ScenarioLaunchReadiness scenarioId="scenario-1" onOpen={vi.fn()} />);
+
+    // Assert
+    expect(await screen.findByRole('button', { name: '2 injects will fail' })).toBeTruthy();
+  });
+
   it('given nothing to fix should show nothing', async () => {
     // Arrange
     checkFinds({});

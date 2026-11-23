@@ -108,6 +108,18 @@ describe('PayloadRevocationDialog', () => {
     expect(screen.queryByRole('link')).toBeNull();
   });
 
+  it('given a version nothing uses should say what keeps running on the others', async () => {
+    // Arrange
+    mocks.fetchUsages.mockImplementation((actionId: string) => Promise.resolve({ data: actionId === 'action-v2' ? someUsages([]) : someUsages([aUsage(), aUsage({ usage_id: 'usage-2' })]) }));
+
+    // Act
+    renderDialog(false, [current, older]);
+
+    // Assert
+    expect(await screen.findByText('Nothing fails: v2 isn\'t used.')).toBeTruthy();
+    expect(await screen.findByText('2 injects keep running on other versions.')).toBeTruthy();
+  });
+
   it('given a reason should revoke the version', async () => {
     // Arrange
     const { onDone } = renderDialog();

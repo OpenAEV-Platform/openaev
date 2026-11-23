@@ -26,6 +26,9 @@ const ScenarioLaunchReadiness: FunctionComponent<Props> = ({ scenarioId, onOpen,
 
   const blocking = launchCheck?.blocking ?? 0;
   const failing = launchCheck?.failing ?? 0;
+  // Injects on a revoked version count as one check; when they are all there is, the button counts them.
+  const failingInjects = launchCheck?.check.launch_check_revoked_injects.length ?? 0;
+  const onlyInjectsFail = failingInjects > 0 && failing === 1;
   if (blocking > 0) {
     return (
       <Button
@@ -49,7 +52,9 @@ const ScenarioLaunchReadiness: FunctionComponent<Props> = ({ scenarioId, onOpen,
         onClick={onOpen}
         data-testid="scenario-launch-readiness"
       >
-        {counted(failing, '1 to check before launch', '{count} to check before launch')}
+        {onlyInjectsFail
+          ? counted(failingInjects, '1 inject will fail', '{count} injects will fail')
+          : counted(failing, '1 to check before launch', '{count} to check before launch')}
       </Button>
     );
   }

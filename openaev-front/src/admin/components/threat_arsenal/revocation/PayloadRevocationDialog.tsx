@@ -11,6 +11,7 @@ import { versionsTabLink } from '../hook/useOpenedAction';
 import PayloadVersionSelect from '../versions/PayloadVersionSelect';
 import { usageCount } from '../versions/usages/usageCounts';
 import useUsageImpact from '../versions/usages/useUsageImpact';
+import useUsagesByVersion from '../versions/usages/useUsagesByVersion';
 import useRevocationForm from './useRevocationForm';
 
 interface Props {
@@ -44,6 +45,11 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, lift, v
   const impact = useUsageImpact(usages);
   const count = usages ? usageCount(usages) : 0;
   const versionLabel = version?.payload_version ?? '';
+  // What keeps running elsewhere, said even when revoking breaks nothing.
+  const allUsages = useUsagesByVersion(open && !lift ? versions : null);
+  const otherUsages = allUsages
+    ? versions.filter(v => v.payload_id !== selected).reduce((sum, v) => sum + (allUsages[v.payload_id] ? usageCount(allUsages[v.payload_id]) : 0), 0)
+    : 0;
 
   // The button says what happens: moving the injects first is part of the action.
   let submitLabel = lift ? t('Lift revocation') : t('Revoke');
@@ -76,7 +82,16 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, lift, v
       );
     }
     if (count === 0) {
-      return <Alert elevation={1} severity="success" title={t('Nothing fails: v{version} isn\'t used.', { version: versionLabel })} />;
+      return (
+        <Alert
+          elevation={1}
+          severity="success"
+          title={t('Nothing fails: v{version} isn\'t used.', { version: versionLabel })}
+          description={otherUsages > 0
+            ? counted(otherUsages, '1 inject keeps running on another version.', '{count} injects keep running on other versions.')
+            : undefined}
+        />
+      );
     }
     return (
       <Alert
