@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
@@ -18,6 +19,7 @@ import io.openaev.service.account.ReservedServiceAccount;
 import io.openaev.service.platform.groups.PlatformGroupService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utilstest.WithoutTenantScope;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -337,6 +339,69 @@ class UserGroupMembershipWriteSafetyTest extends IntegrationTest {
 
       // Assert: tenant A's group is revoked, tenant B's row survives
       assertThat(groupIdsOf(user.getId())).containsExactly(groupB.getId());
+    }
+
+    @Test
+    @DisplayName("given_noTenantScope_should_refuseTheRevocationAndKeepEveryGroup")
+    @WithoutTenantScope
+    void given_noTenantScope_should_refuseTheRevocationAndKeepEveryGroup() {
+      // Arrange
+      Group groupA = tenantAGroupHeldByTheUser();
+
+      // Act + Assert: an unscoped load sees platform groups only, so it would match nothing
+      assertThatThrownBy(() -> userService.revokeTenantGroups(user.getId(), List.of(tenantA)))
+          .isInstanceOf(IllegalStateException.class);
+      assertThat(groupIdsOf(user.getId()))
+          .containsExactlyInAnyOrder(groupA.getId(), groupB.getId());
+    }
+
+    @Test
+    @DisplayName("given_aScopeMissingOneRevokedTenant_should_refuseTheRevocationAndKeepEveryGroup")
+    void given_aScopeMissingOneRevokedTenant_should_refuseTheRevocationAndKeepEveryGroup() {
+      // Arrange
+      Group groupA = tenantAGroupHeldByTheUser();
+
+      // Act + Assert: the scope holds tenant A only, tenant B's group would be silently kept
+      assertThatThrownBy(
+              () ->
+                  tenantTx.execute(
+                      TxCtx.forTenant(tenantA),
+                      () -> {
+                        userService.revokeTenantGroups(user.getId(), List.of(tenantA, tenantB));
+                        return null;
+                      }))
+          .isInstanceOf(IllegalStateException.class);
+      assertThat(groupIdsOf(user.getId()))
+          .containsExactlyInAnyOrder(groupA.getId(), groupB.getId());
+    }
+
+    @Test
+    @DisplayName("given_aScopeListingTheTenantTwice_should_revokeThatTenantsGroups")
+    void given_aScopeListingTheTenantTwice_should_revokeThatTenantsGroups() {
+      // Arrange: a duplicated scope is a valid TxCtx and covers tenant A
+      tenantAGroupHeldByTheUser();
+
+      // Act
+      tenantTx.execute(
+          TxCtx.forTenants(List.of(tenantA, tenantA)),
+          () -> {
+            userService.revokeTenantGroups(user.getId(), List.of(tenantA));
+            return null;
+          });
+
+      // Assert: tenant A's group is revoked, tenant B's row survives
+      assertThat(groupIdsOf(user.getId())).containsExactly(groupB.getId());
+    }
+
+    private Group tenantAGroupHeldByTheUser() {
+      Group groupA =
+          tenantTx.executeAsPlatformWrite(
+              TxCtx.forTenant(tenantA), () -> groupRepository.save(plainGroup(tenantA)));
+      jdbc.update(
+          "INSERT INTO users_groups (user_id, group_id) VALUES (?, ?)",
+          user.getId(),
+          groupA.getId());
+      return groupA;
     }
   }
 
