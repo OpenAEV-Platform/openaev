@@ -187,6 +187,73 @@ class FailClosedGateExtensionTest {
     }
   }
 
+  @Nested
+  @DisplayName("reads of the groups table at the sites a caller of an empty scope reaches")
+  class GroupsReads {
+
+    private Violation read(String tables, String site) {
+      return new Violation(tables, site + ":1", "select ... where can_access_tenant(g.tenant_id)");
+    }
+
+    @Test
+    @DisplayName("given_theGroupReadsOfTheEmptyScopeCallers_should_beWaived")
+    void given_theGroupReadsOfTheEmptyScopeCallers_should_beWaived() {
+      // Arrange: each read as the detector labels it in a production-list run
+      List<Violation> reads =
+          List.of(
+              read("groups", "io.openaev.service.UserService.findWithRoles"),
+              read("groups", "io.openaev.service.UserService.replaceTags"),
+              read("groups", "io.openaev.service.UserService.resetPassword"),
+              read("groups", "io.openaev.service.UserService.sendPasswordResetEmail"),
+              read(
+                  "groups",
+                  "io.openaev.service.platform.groups.PlatformGroupService.lambda$search$1"),
+              read(
+                  "groups,marking_definitions",
+                  "io.openaev.service.platform.groups.PlatformGroupService.lambda$search$1"),
+              read(
+                  "groups,scenarios",
+                  "io.openaev.service.scenario.ScenarioService.lambda$scenarios$4"),
+              read(
+                  "assets,exercises,groups,injects",
+                  "io.openaev.rest.exercise.service.ExerciseService.lambda$exercises$5"));
+
+      // Act
+      List<String> offending = FailClosedGateExtension.offendingSignatures(reads);
+
+      // Assert
+      assertTrue(offending.isEmpty(), "the baseline waives these group reads, got " + offending);
+    }
+
+    @Test
+    @DisplayName("given_aGroupReadAtAnotherSite_should_beOffending")
+    void given_aGroupReadAtAnotherSite_should_beOffending() {
+      // Arrange: a read of groups where no waiver was written
+      String site = "io.openaev.service.GroupReadNobodyWaived.load";
+
+      // Act
+      List<String> offending =
+          FailClosedGateExtension.offendingSignatures(List.of(read("groups", site)));
+
+      // Assert
+      assertEquals(List.of(site), offending);
+    }
+
+    @Test
+    @DisplayName("given_aReadOfGroupsAndAnotherTableAtAWaivedSite_should_beOffending")
+    void given_aReadOfGroupsAndAnotherTableAtAWaivedSite_should_beOffending() {
+      // Arrange
+      String site = "io.openaev.service.UserService.resetPassword";
+
+      // Act
+      List<String> offending =
+          FailClosedGateExtension.offendingSignatures(List.of(read("groups,tags", site)));
+
+      // Assert
+      assertEquals(List.of(site), offending);
+    }
+  }
+
   /**
    * The gate asserts per test in the normal pipeline and reports instead under a shadow mode. Three
    * directions, because a gate measured in two of them is not measured: the normal path still

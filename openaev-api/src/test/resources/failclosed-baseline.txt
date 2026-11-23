@@ -109,6 +109,38 @@ io.openaev.service.platform.roles.PlatformRoleService.findByIds tables=roles
 io.openaev.service.platform.roles.PlatformRoleService.lambda$search$2 tables=roles
 io.openaev.service.platform.roles.PlatformRoleService.delete tables=roles
 
+# BENIGN - groups activation. These reads run with an empty scope and return the platform groups
+# of the caller and none of its tenant groups, which is all they need. groups is dual-scope: a row
+# with no tenant is readable under any scope, a tenant group needs its tenant in scope. The scope is
+# empty for a caller who belongs to no tenant (a platform operator, a user a test builds with no
+# membership), who holds no tenant group: leaving a tenant revokes its groups (UserTenantGroupScopeTest),
+# and for the pre-auth password reset, which runs before a tenant is chosen. A caller who belongs to
+# a tenant has it in its scope, so the same reads return its tenant groups (the control of each
+# pin below).
+# - findWithRoles, the user load of the access check: the capabilities of an operator of no tenant
+#   come from its platform groups (ScopedCurrentUserLoadTest, no-membership case).
+# - replaceTags: the reload after the tag replacement is read again under the scope of the user's
+#   tenants (UserService.applyUpdate), and the groups it leaves are checked by
+#   UserLoadUnscopedGroupsTest (WhatTheCallersWrite) and UserTenantGroupScopeTest.
+# - resetPassword and sendPasswordResetEmail: pre-auth, the load saves the user without touching its
+#   groups (the link rows are unchanged, UserLoadUnscopedGroupsTest), and the mail reads a name and
+#   an address.
+# - PlatformGroupService.search: the platform group search lists the groups with no tenant by
+#   construction; a tenant group never appears and a platform group does
+#   (PlatformGroupApiTest, Isolation). The group output carries no role and no marking.
+# - ScenarioService.scenarios and ExerciseService.exercises by id: the granted half of the read joins
+#   groups through the grants of the caller. A caller of no tenant holds none, so it reads nothing,
+#   and a member reads its grants (ExerciseApiSearchTest and ScenarioApiSearchTest, the
+#   no_grants and with_grants tests of the by-id search). Waived for the tables each read names.
+io.openaev.service.UserService.findWithRoles tables=groups
+io.openaev.service.UserService.replaceTags tables=groups
+io.openaev.service.UserService.resetPassword tables=groups
+io.openaev.service.UserService.sendPasswordResetEmail tables=groups
+io.openaev.service.platform.groups.PlatformGroupService.lambda$search$1 tables=groups
+io.openaev.service.platform.groups.PlatformGroupService.lambda$search$1 tables=groups,marking_definitions
+io.openaev.service.scenario.ScenarioService.lambda$scenarios$4 tables=groups,scenarios
+io.openaev.rest.exercise.service.ExerciseService.lambda$exercises$5 tables=assets,exercises,groups,injects
+
 # BENIGN - roles activation (#9147). These production paths load a user with no scope, so the roles
 # of its groups come back without its tenant roles, and none of them evaluates a right from that
 # load. The password login and the password reset run before any tenant is chosen (no tenant scope,
