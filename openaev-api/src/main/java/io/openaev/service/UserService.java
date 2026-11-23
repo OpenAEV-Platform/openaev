@@ -1206,6 +1206,9 @@ public class UserService {
    *
    * <p>Evicts the user's marking clearance cache: a removed group can only shrink clearance, and a
    * stale, larger cached entry would fail open.
+   *
+   * @throws IllegalStateException when the transaction's tenant scope does not hold every tenant of
+   *     {@code tenantIds}
    */
   @Transactional(rollbackFor = Exception.class)
   public void revokeTenantGroups(
@@ -1213,6 +1216,9 @@ public class UserService {
     if (tenantIds.isEmpty()) {
       return;
     }
+    // Groups are read in the transaction's scope: a tenant outside it has its groups left in place
+    // without a word.
+    tenantTx.requireScopeCovers(tenantIds);
     User user = user(userId);
     revokeTenantGroups(user, tenantIds);
     User savedUser = userRepository.save(user);
