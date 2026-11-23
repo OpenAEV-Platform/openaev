@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 
 /** Lets the Available tabs search the catalogue in the database: latest offered versions, types. */
 @Component
-public class V6_20261122235000000__Catalog_items_search extends BaseJavaMigration {
+public class V6_20261123050000000__Catalog_items_search extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
