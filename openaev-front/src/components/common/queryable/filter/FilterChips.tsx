@@ -1,4 +1,4 @@
-import { Box } from '@mui/material';
+import { Box, type SxProps, type Theme } from '@mui/material';
 import { Fragment, type FunctionComponent, useCallback } from 'react';
 
 import { type Filter, type FilterGroup, type PropertySchemaDTO } from '../../../../utils/api-types';
@@ -13,6 +13,8 @@ interface Props {
   helpers: FilterHelpers;
   pristine: boolean;
   contextId?: string;
+  /** Spacing override for a page whose layout differs (e.g. the findings cards: no top margin, 16px under the row). */
+  sx?: SxProps<Theme>;
 }
 
 const FilterChips: FunctionComponent<Props> = ({
@@ -22,6 +24,7 @@ const FilterChips: FunctionComponent<Props> = ({
   helpers,
   pristine,
   contextId,
+  sx,
 }) => {
   const filters = filterGroup?.filters?.filter(f => availableFilterNames.length === 0 || availableFilterNames.includes(f.key)) ?? [];
 
@@ -59,6 +62,7 @@ const FilterChips: FunctionComponent<Props> = ({
         flexWrap: 'wrap',
         gap: 1,
         marginTop: 1,
+        ...sx,
       }}
     >
       {renderableFilters.map(({ filter, property }, idx) => (

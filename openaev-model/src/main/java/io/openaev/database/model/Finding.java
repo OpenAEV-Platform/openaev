@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.AuditLogIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdListSerializer;
@@ -197,6 +198,42 @@ public class Finding implements TenantBase {
   @JsonProperty("finding_updated_at")
   @NotNull
   private Instant updateDate = now();
+
+  // -- SEVERITY --
+
+  /**
+   * CVSS v3.1 qualitative rating of a CVE finding, used to filter the findings by severity. A CVE
+   * finding has no score of its own: it is read from the vulnerability of the same external id and
+   * tenant (the tenant predicate is explicit, a native subquery is not rewritten for it). Any other
+   * finding, or a CVE the platform does not know or that has no score, has no severity.
+   */
+  public enum FINDING_SEVERITY {
+    @JsonProperty("CRITICAL")
+    CRITICAL,
+    @JsonProperty("HIGH")
+    HIGH,
+    @JsonProperty("MEDIUM")
+    MEDIUM,
+    @JsonProperty("LOW")
+    LOW,
+  }
+
+  @Queryable(filterable = true, label = "severity", refEnumClazz = FINDING_SEVERITY.class)
+  @Formula(
+      "(SELECT CASE"
+          + " WHEN v.vulnerability_cvss_v31 >= 9.0 THEN 'CRITICAL'"
+          + " WHEN v.vulnerability_cvss_v31 >= 7.0 THEN 'HIGH'"
+          + " WHEN v.vulnerability_cvss_v31 >= 4.0 THEN 'MEDIUM'"
+          + " WHEN v.vulnerability_cvss_v31 > 0 THEN 'LOW' END"
+          + " FROM vulnerabilities v"
+          + " WHERE finding_type = 'CVE'"
+          + " AND v.vulnerability_external_id = finding_value"
+          + " AND v.tenant_id = tenant_id)")
+  @Enumerated(EnumType.STRING)
+  @JsonProperty("finding_severity")
+  @Schema(description = "CVSS v3.1 rating of a known CVE finding (CRITICAL / HIGH / MEDIUM / LOW)")
+  @AuditLogIgnore
+  private FINDING_SEVERITY severity;
 
   // Relation
   @Schema(implementation = String[].class)

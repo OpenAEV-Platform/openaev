@@ -1872,6 +1872,7 @@
   "finding_labels": "Labels",
   "finding_name": "Name",
   "finding_scenario": "Scenario",
+  "finding_severity": "Severity",
   "finding_simulation": "Simulation",
   "finding_tags": "Tags",
   "finding_teams": "Teams",

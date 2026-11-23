@@ -1,6 +1,6 @@
 import { ButtonGroup, ButtonGroupItem, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GridViewOutlined, HelpOutlineOutlined, ViewListOutlined } from '@mui/icons-material';
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, Skeleton } from '@mui/material';
+import { List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -8,6 +8,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { searchSecurityPlatforms } from '../../../../actions/assets/securityPlatform-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
+import CardGrid from '../../../../components/common/card/CardGrid';
 import PaginationComponent from '../../../../components/common/pagination/PaginationComponent';
 import SortHeadersComponent from '../../../../components/common/pagination/SortHeadersComponent';
 import { initSorting } from '../../../../components/common/queryable/Page';
@@ -143,42 +144,19 @@ const SecurityPlatforms = () => {
     </ButtonGroup>
   );
 
-  const renderCards = () => {
-    if (loading) {
-      return (
-        <Box sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-          gap: 2,
-          mt: 2,
-        }}
-        >
-          {Array.from({ length: 8 }).map((_, idx) => (
-            <Skeleton key={idx} variant="rectangular" height={150} animation="wave" sx={{ borderRadius: 1 }} />
-          ))}
-        </Box>
-      );
-    }
-    return (
-      <Box sx={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-        gap: 2,
-        mt: 2,
-      }}
-      >
-        {securityPlatforms.map((securityPlatform: SecurityPlatform) => (
-          <SecurityPlatformCard
-            key={securityPlatform.asset_id}
-            securityPlatform={securityPlatform}
-            onUpdate={result => setSecurityPlatforms(securityPlatforms.map(e => (e.asset_id !== result.asset_id ? e : result)))}
-            onDelete={result => setSecurityPlatforms(securityPlatforms.filter(e => (e.asset_id !== result)))}
-            openEditOnInit={securityPlatform.asset_id === searchId}
-          />
-        ))}
-      </Box>
-    );
-  };
+  const renderCards = () => (
+    <CardGrid loading={loading} style={{ marginTop: 16 }}>
+      {securityPlatforms.map((securityPlatform: SecurityPlatform) => (
+        <SecurityPlatformCard
+          key={securityPlatform.asset_id}
+          securityPlatform={securityPlatform}
+          onUpdate={result => setSecurityPlatforms(securityPlatforms.map(e => (e.asset_id !== result.asset_id ? e : result)))}
+          onDelete={result => setSecurityPlatforms(securityPlatforms.filter(e => (e.asset_id !== result)))}
+          openEditOnInit={securityPlatform.asset_id === searchId}
+        />
+      ))}
+    </CardGrid>
+  );
 
   return (
     <>

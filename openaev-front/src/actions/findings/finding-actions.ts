@@ -9,8 +9,10 @@ export const fetchFinding = (findingId: string) => {
 
 // Group-wide summary (deduplicated by type + value): true first/last seen and
 // distinct impact counts across every occurrence, computed server-side.
-export const fetchFindingSummary = (findingId: string) => {
-  return simpleCall(`${FINDING_URI}/${findingId}/summary`);
+// notifyErrors: false for callers that can do without it (e.g. the findings cards), so a
+// failure does not raise an error toast per card.
+export const fetchFindingSummary = (findingId: string, notifyErrors = true) => {
+  return simpleCall(`${FINDING_URI}/${findingId}/summary`, undefined, notifyErrors);
 };
 
 export const searchFindings = (searchPaginationInput: SearchPaginationInput) => {
