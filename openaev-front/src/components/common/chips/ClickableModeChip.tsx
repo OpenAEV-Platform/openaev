@@ -5,12 +5,19 @@ import { useFormatter } from '../../i18n';
 
 const useStyles = makeStyles()(theme => ({
   mode: {
-    borderRadius: 4,
-    fontFamily: 'Consolas, monaco, monospace',
-    backgroundColor: theme.palette.action?.selected,
-    padding: '0 8px',
-    display: 'flex',
-    alignItems: 'center',
+    'borderRadius': 4,
+    'fontFamily': 'Consolas, monaco, monospace',
+    // Standard colours ("Pastel colours" off): outlined, as the design-system Chip; the
+    // `pastel` root class (useFdsThemeScope) keeps today's filled pill.
+    'border': `1px solid ${theme.palette.divider}`,
+    'backgroundColor': 'transparent',
+    '.pastel &': {
+      borderColor: 'transparent',
+      backgroundColor: theme.palette.action?.selected,
+    },
+    'padding': '0 8px',
+    'display': 'flex',
+    'alignItems': 'center',
   },
   hasClickEvent: {
     'cursor': 'pointer',

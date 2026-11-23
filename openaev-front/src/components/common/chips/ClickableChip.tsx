@@ -10,11 +10,17 @@ import ClickableChipPopover from './ClickableChipPopover';
 
 const useStyles = makeStyles()(theme => ({
   mode: {
-    display: 'inline-block',
-    height: '100%',
-    backgroundColor: theme.palette.action?.selected,
-    margin: '0 4px',
-    padding: '0 4px',
+    'display': 'inline-block',
+    'height': '100%',
+    'border': `1px solid ${theme.palette.divider}`,
+    'borderRadius': 4,
+    'backgroundColor': 'transparent',
+    '.pastel &': {
+      borderColor: 'transparent',
+      backgroundColor: theme.palette.action?.selected,
+    },
+    'margin': '0 4px',
+    'padding': '0 4px',
   },
   modeTooltip: { margin: '0 4px' },
   container: {
@@ -172,17 +178,23 @@ const ClickableChip: FunctionComponent<Props> = ({
     );
   };
 
-  const chipVariant = 'filled';
-
   return (
     <>
       <Tooltip>
         <TooltipTrigger asChild>
           <Chip
-            variant={chipVariant}
+            variant="outlined"
             label={filterValues(false)}
             onDelete={onDelete ? handleRemoveFilter : undefined}
-            sx={{ borderRadius: 1 }}
+            // Standard colours ("Pastel colours" off): outlined, as the design-system Chip; the
+            // `pastel` root class (useFdsThemeScope) keeps today's filled chip.
+            sx={theme => ({
+              'borderRadius': 1,
+              '.pastel &': {
+                borderColor: 'transparent',
+                backgroundColor: theme.palette.action.selected,
+              },
+            })}
             ref={chipRef}
           />
         </TooltipTrigger>
