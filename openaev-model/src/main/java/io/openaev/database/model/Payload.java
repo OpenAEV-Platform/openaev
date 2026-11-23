@@ -42,8 +42,10 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import org.hibernate.annotations.*;
 import org.hibernate.type.SqlTypes;
 
@@ -257,6 +259,20 @@ public class Payload
   @Column(name = "payload_version", nullable = false)
   @JsonIgnore
   private String version = FIRST_VERSION;
+
+  // The Filigran version a customized copy is built from; null for any other payload.
+  @NotHashed
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "payload_base")
+  @JsonIgnore
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
+  private Payload base;
+
+  @JsonIgnore
+  public boolean isCustomized() {
+    return base != null;
+  }
 
   @NotHashed
   @Formula("EXISTS (SELECT 1 FROM payload_revocations r WHERE r.payload_id = payload_id)")

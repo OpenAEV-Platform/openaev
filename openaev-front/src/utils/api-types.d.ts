@@ -10456,6 +10456,58 @@ export type PayloadCreateInput = BasePayloadCreateInput &
     | BasePayloadCreateInputPayloadTypeMapping<"NetworkTraffic", NetworkTraffic>
   );
 
+export interface PayloadCustomizationOutput {
+  /**
+   * The action of the Filigran version the copy is built from
+   * @minLength 1
+   */
+  customization_base_action_id: string;
+  /** @minLength 1 */
+  customization_base_version: string;
+  /** The newer Filigran version the copy can take; empty when none */
+  customization_update?: PayloadCustomizationUpdateOutput;
+}
+
+export interface PayloadCustomizationUpdateInput {
+  /** Keep mine or take Filigran's, for every conflicting block */
+  update_choices?: Record<string, "KEEP_MINE" | "TAKE_APPLIED">;
+  /**
+   * The Filigran version reviewed
+   * @minLength 1
+   */
+  update_payload_id: string;
+}
+
+export interface PayloadCustomizationUpdateOutput {
+  /** The fields Filigran or the copy changed since the base version */
+  update_fields: PayloadFieldUpdateOutput[];
+  /** @minLength 1 */
+  update_payload_id: string;
+  /** The release notes of the newer versions, newest first */
+  update_release_notes: PayloadReleaseNoteOutput[];
+  /** @minLength 1 */
+  update_version: string;
+}
+
+export interface PayloadFieldUpdateOutput {
+  /** The value of the base version; empty when it has none */
+  field_base?: JsonNode;
+  /** The fields of a block conflict together: one choice settles them all */
+  field_block: "EXECUTION" | "PLATFORMS";
+  field_filigran?: JsonNode;
+  field_name:
+    | "COMMAND_EXECUTOR"
+    | "COMMAND_CONTENT"
+    | "CLEANUP_EXECUTOR"
+    | "CLEANUP_COMMAND"
+    | "PLATFORMS"
+    | "ARGUMENTS"
+    | "PREREQUISITES";
+  /** What the update does with the field; a conflict needs a choice */
+  field_status: "TAKE_APPLIED" | "KEEP_MINE" | "CONFLICT";
+  field_yours?: JsonNode;
+}
+
 export interface PayloadInput {
   agent_slug?: string;
   command_content?: string | null;
@@ -10636,6 +10688,13 @@ export interface PayloadPrerequisite {
   executor: string;
   /** @minLength 1 */
   get_command: string;
+}
+
+export interface PayloadReleaseNoteOutput {
+  /** @minLength 1 */
+  release_changelog: string;
+  /** @minLength 1 */
+  release_version: string;
 }
 
 export interface PayloadRevocationInput {
@@ -13840,6 +13899,8 @@ export interface ThreatArsenalAction {
   action_labels?: Record<string, string>;
   /** Payload attached */
   action_payload?: PayloadSimple;
+  /** The attached payload is a customized copy of a Filigran payload */
+  action_payload_customized?: boolean;
   /** The attached payload comes from the Filigran catalogue */
   action_payload_managed?: boolean;
   /** The attached payload version is revoked in the tenant */

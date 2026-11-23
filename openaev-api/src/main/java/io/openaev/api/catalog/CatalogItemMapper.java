@@ -46,6 +46,7 @@ public class CatalogItemMapper {
     target.setPlatforms(platforms.toArray(new String[0]));
     target.setDomain(primaryDomain(file));
     target.setContentHash(version.sha256().toLowerCase(Locale.ROOT));
+    target.setChangelog(version.changelog());
     target.setPublishedAt(manifest.issuedAt());
     target.setArchiveName(version.file().name());
   }

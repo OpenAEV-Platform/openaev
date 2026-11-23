@@ -43,15 +43,16 @@ public class PayloadLocalVersioning {
       return Optional.empty();
     }
     Payload candidate = candidate(current, input);
-    return payloadChangeKind
-        .of(current, candidate, attackPatterns)
-        .map(change -> linkAsNewest(current, candidate, change));
+    PayloadChange change = payloadChangeKind.of(current, candidate, attackPatterns);
+    CustomizableField.refuseLockedChanges(current, change);
+    return change.kind().map(kind -> addVersion(current, candidate, kind));
   }
 
   // A duplicate carries the grants of the version; the input then replaces its content.
   private Payload candidate(Payload current, PayloadUpdateInput input) {
     Payload candidate = payloadService.generateDuplicatedPayload(current);
     payloadUtils.copyProperties(input.withoutChildIds(), candidate);
+    candidate.setBase(current.getBase());
     if (input.getDetectionRemediations() == null) {
       // Without the license the rules are not sent: they stay as they are.
       detectionRemediationUtils.copy(current.getDetectionRemediations(), candidate, false);
@@ -59,8 +60,11 @@ public class PayloadLocalVersioning {
     return candidate;
   }
 
-  // Locked: two saves at once number one after the other instead of taking the same number.
-  private Payload linkAsNewest(Payload current, Payload candidate, Hashed.Change change) {
+  /**
+   * Numbers the candidate after the newest version and makes it the one shown. Locked: two saves at
+   * once number one after the other instead of taking the same number.
+   */
+  public Payload addVersion(Payload current, Payload candidate, Hashed.Change change) {
     PayloadIdentity identity =
         payloadIdentityRepository
             .findForUpdateById(current.getIdentity().getId())
