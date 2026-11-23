@@ -43,6 +43,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.model.payload.PayloadRevocation;
+import io.openaev.database.raw.RawScenarioUsageCount;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
@@ -401,6 +402,123 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.payload_usages.length()").value(2))
         .andExpect(jsonPath("$.payload_usages_hidden_count").value(0));
+  }
+
+  // -- USAGE COUNTS --
+
+  @Nested
+  @DisplayName("Usage counts of each version")
+  class UsageCounts {
+
+    private void simulationInjectOn(InjectorContract contract) {
+      injectComposer
+          .forInject(InjectFixture.createInject(contract, "Simulation inject"))
+          .withExercise(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+          .persist();
+      entityManager.flush();
+    }
+
+    /** An atomic testing of another tenant, on its own copy of the action under the same id. */
+    private void atomicTestingOfAnotherTenantOn(InjectorContract contract) throws Exception {
+      String otherTenantId = tenantHelper.createTenantWithCurrentUser("usage-counts-other").getId();
+      Inject atomicTesting = InjectFixture.createInject(contract, "Other tenant atomic testing");
+      atomicTesting.setTenant(new Tenant(otherTenantId));
+      rowTenantScope.write(
+          otherTenantId,
+          () -> {
+            entityManager
+                .createNativeQuery(
+                    "INSERT INTO injectors_contracts (injector_contract_id, tenant_id,"
+                        + " injector_contract_content, injector_contract_import_available)"
+                        + " VALUES (:id, :tenant, '{}', false)")
+                .setParameter("id", contract.getId())
+                .setParameter("tenant", otherTenantId)
+                .executeUpdate();
+            injectRepository.save(atomicTesting);
+          });
+      entityManager.flush();
+    }
+
+    private Map<String, Long> counts(InjectorContract action) throws Exception {
+      JsonNode counts =
+          body(
+              mvc.perform(
+                      get(
+                          TENANT_THREAT_ARSENAL_URL + "/{actionId}/usage-counts",
+                          DEFAULT_TENANT_UUID,
+                          action.getId()))
+                  .andExpect(status().isOk()));
+      Map<String, Long> byVersion = new LinkedHashMap<>();
+      counts.forEach(
+          count ->
+              byVersion.put(
+                  count.path("payload_id").asText(), count.path("payload_usage_count").asLong()));
+      return byVersion;
+    }
+
+    @Test
+    @DisplayName(
+        "counts the injects, atomic testings and chained steps of each version in one call")
+    void given_versionsInUse_should_countTheUsagesOfEach() throws Exception {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      InjectorContract older = versions.get(0);
+      InjectorContract latest = versions.get(1);
+      atomicTestingOn(older);
+      scenarioRunning(older);
+      atomicTestingOn(latest);
+      entityManager.flush();
+
+      // Act
+      Map<String, Long> counts = counts(latest);
+
+      // Assert
+      assertThat(counts)
+          .containsExactlyInAnyOrderEntriesOf(
+              Map.of(older.getPayload().getId(), 3L, latest.getPayload().getId(), 1L));
+    }
+
+    @Test
+    @DisplayName("counts neither simulation injects nor the injects of another tenant")
+    void given_simulationAndOtherTenantInjects_should_notCountThem() throws Exception {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      InjectorContract older = versions.get(0);
+      atomicTestingOn(older);
+      simulationInjectOn(older);
+      simulationInjectOn(versions.get(1));
+      atomicTestingOfAnotherTenantOn(older);
+
+      // Act
+      Map<String, Long> counts = counts(versions.get(1));
+
+      // Assert
+      assertThat(counts).containsExactlyEntriesOf(Map.of(older.getPayload().getId(), 1L));
+    }
+
+    @Test
+    @DisplayName("counts the scenario injects and chained steps of each scenario, nothing else")
+    void given_versionsInUse_should_countTheirUsagesByScenario() {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      InjectorContract older = versions.get(0);
+      String scenarioId = scenarioRunning(older);
+      atomicTestingOn(older);
+      simulationInjectOn(older);
+      scenarioRunning(versions.get(1));
+
+      // Act
+      List<RawScenarioUsageCount> scenarios =
+          payloadVersionService.scenarioUsages(
+              DEFAULT_TENANT_UUID, List.of(payload(older.getPayload().getId())));
+
+      // Assert
+      assertThat(scenarios).hasSize(1);
+      assertThat(scenarios.getFirst().getScenarioId()).isEqualTo(scenarioId);
+      assertThat(scenarios.getFirst().getScenarioName())
+          .isEqualTo(ScenarioFixture.getScenario().getName());
+      assertThat(scenarios.getFirst().getUsageCount()).isEqualTo(2L);
+    }
   }
 
   // -- OTHER VERSION --
