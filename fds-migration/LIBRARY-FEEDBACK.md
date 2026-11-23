@@ -2613,7 +2613,7 @@ Both held MUI X and, with it, the `LocalizationProvider` the rest of the product
 
 ## 73. `Switch` has no size variant
 
-**Status.** Open. The product accepted the single size for the Switch adoption.
+**Status.** Answered by the library, kept as the design. The single size is by design (Switch RFC, Q1); the grey off thumb in the light theme is the Figma token `feedback-neutral-off`; the focus ring around the track is the library's standard focus ring. The product accepted the single size for the Switch adoption.
 
 **Needed.** The product laid its toggles out on MUI's two sizes: 40x24 (small) in list rows and dense forms, 58x38 (medium) in forms and dialogs.
 

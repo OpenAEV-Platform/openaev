@@ -882,3 +882,10 @@ in filigran-design-system).
 - Review round 2: label size and labelled row height corrected from the
   captures (12px label, row 38 -> 20px), the `aria-label` list updated, the
   reporting row spacing recorded.
+- Review round 3: each read-only switch of the custom injector contract form
+  is named after its field (`<field label>: Read only`); the reporting row
+  actions get an 8px gap (`gap: 1`) and the switch wrapper becomes a `div`,
+  so the quiet-control pull-back no longer applies: the switch sits 8px from
+  the edit icon, edit to delete stays 4px; LIBRARY-FEEDBACK #73 marked
+  answered by the library; the forms using
+  SwitchFieldController checked before/after in both themes, no code change.

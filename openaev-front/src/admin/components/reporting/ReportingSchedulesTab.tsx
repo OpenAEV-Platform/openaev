@@ -279,19 +279,21 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                         sx={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 0.5,
+                          gap: 1,
                         }}
                       >
+                        {/* A div, not a span: the quiet-control spacing rule would read the
+                            wrapped switch as a quiet button and pull the edit icon 4px back. */}
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="inline-flex">
+                            <div className="inline-flex">
                               <Switch
                                 checked={schedule.reporting_schedule_enabled}
                                 disabled={!canManage}
                                 onCheckedChange={checked => toggleEnabled(schedule, checked === true)}
                                 aria-label={schedule.reporting_schedule_name || t('Schedule')}
                               />
-                            </span>
+                            </div>
                           </TooltipTrigger>
                           <TooltipContent>{schedule.reporting_schedule_enabled ? t('Disable') : t('Enable')}</TooltipContent>
                         </Tooltip>

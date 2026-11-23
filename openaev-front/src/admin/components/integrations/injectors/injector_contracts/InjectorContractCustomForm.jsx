@@ -170,7 +170,7 @@ const InjectorContractForm = (props) => {
                         ...fields,
                         [field.key]: { readOnly: checked === true },
                       })}
-                      aria-label={t('Read only')}
+                      aria-label={`${field.label}: ${t('Read only')}`}
                     />
                   </Grid>
                 </Grid>
