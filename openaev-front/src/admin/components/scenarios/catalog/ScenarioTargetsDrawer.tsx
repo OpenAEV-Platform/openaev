@@ -40,7 +40,6 @@ import {
 } from '../../../../utils/api-types';
 import { type Option } from '../../../../utils/Option';
 import { EMPTY_SCOPE, type ScopeSelection, scopeSelectionCount, selectionToRules } from '../../autonomous/useAutonomousRunConfig';
-import IntegrationFixButton from '../../integrations/common/IntegrationFixButton';
 import ChainedScopeFields from './ChainedScopeFields';
 
 const ASSETS = 'assets';
@@ -378,7 +377,11 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ overline, title, vers
                               {/* One Check again: beside the fix of the last row. */}
                               {index === missingPrerequisites.length - 1 && checkAgainButton}
                               {prerequisite.requirement_kind === 'INJECTOR' && prerequisite.requirement_catalog_connector_id && (
-                                <IntegrationFixButton catalogConnectorId={prerequisite.requirement_catalog_connector_id} priority="primary" />
+                                <Button asChild size="sm">
+                                  <Link to={`/admin/integrations/catalog/${prerequisite.requirement_catalog_connector_id}`} target="_blank">
+                                    {t('Enable integration')}
+                                  </Link>
+                                </Button>
                               )}
                             </span>
                           ))}
