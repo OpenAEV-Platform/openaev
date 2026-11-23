@@ -9,7 +9,6 @@ import CountryFieldController from '../../../components/fields/CountryFieldContr
 import CustomDashboardAutocompleteFieldController from '../../../components/fields/CustomDashboardAutocompleteFieldController';
 import OrganizationFieldController from '../../../components/fields/OrganizationFieldController';
 import SelectFieldController from '../../../components/fields/SelectFieldController';
-import SwitchFieldController from '../../../components/fields/SwitchFieldController';
 import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
 import type { UpdateProfileInput, User } from '../../../utils/api-types';
@@ -37,7 +36,6 @@ const UserForm: FunctionComponent<UserFormProps> = ({
         user_organization: z.string().optional(),
         user_country: z.string().optional(),
         user_theme: z.string().min(1, { message: t('Should not be empty') }),
-        user_pastel_colours: z.boolean().optional(),
         user_lang: z.string().min(1, { message: t('Should not be empty') }),
         user_home_dashboard: z.string().optional(),
       }),
@@ -76,22 +74,6 @@ const UserForm: FunctionComponent<UserFormProps> = ({
         <OrganizationFieldController name="user_organization" label={t('Organization')} />
         <CountryFieldController name="user_country" label={t('Country')} />
         <SelectFieldController name="user_theme" label={t('Theme')} items={themeItems(t)} />
-        {/* Same name, place and behaviour as in every XTM Platform module; on by default here. */}
-        <SwitchFieldController
-          name="user_pastel_colours"
-          label={(
-            <span style={{
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-            >
-              <span>{t('Pastel colours')}</span>
-              <span style={{ color: theme.palette.text.secondary }}>
-                {t('Show chips in soft pastel fills instead of the standard outlined colours.')}
-              </span>
-            </span>
-          )}
-        />
         <SelectFieldController name="user_lang" label={t('Language')} items={langItems(t)} />
         <CustomDashboardAutocompleteFieldController name="user_home_dashboard" label={t('Home dashboard')} disabled={false} withPlatformDefault />
         <div style={{
