@@ -136,12 +136,32 @@ class FailClosedGateExtensionTest {
     }
 
     @Test
+    @DisplayName("given_aReadOfTheMarkingsOfTheGroupsAtTheUserLoads_should_beWaived")
+    void given_aReadOfTheMarkingsOfTheGroupsAtTheUserLoads_should_beWaived() {
+      // Arrange: the sites that load a user with no scope read the markings of its groups too
+      List<String> sites =
+          List.of(
+              "io.openaev.rest.user.UserApi.login:81",
+              TOKEN_LOAD + ":810",
+              "io.openaev.service.UserService.resetPassword:751",
+              "io.openaev.service.UserService.sendPasswordResetEmail:505",
+              "io.openaev.service.UserService.user:267");
+
+      // Act
+      List<String> offending =
+          FailClosedGateExtension.offendingSignatures(
+              sites.stream().map(site -> read("marking_definitions", site)).toList());
+
+      // Assert
+      assertTrue(offending.isEmpty(), "the user loads are waived for markings, got " + offending);
+    }
+
+    @Test
     @DisplayName("given_aReadOfAnotherTableAtTheSameSite_should_beOffending")
     void given_aReadOfAnotherTableAtTheSameSite_should_beOffending() {
       // Act
       List<String> offending =
-          FailClosedGateExtension.offendingSignatures(
-              List.of(read("marking_definitions", TOKEN_LOAD + ":810")));
+          FailClosedGateExtension.offendingSignatures(List.of(read("tags", TOKEN_LOAD + ":810")));
 
       // Assert
       assertEquals(List.of(TOKEN_LOAD), offending);
@@ -153,7 +173,7 @@ class FailClosedGateExtensionTest {
       // Act
       List<String> offending =
           FailClosedGateExtension.offendingSignatures(
-              List.of(read("roles,marking_definitions", TOKEN_LOAD + ":810")));
+              List.of(read("roles,tags", TOKEN_LOAD + ":810")));
 
       // Assert
       assertEquals(List.of(TOKEN_LOAD), offending);

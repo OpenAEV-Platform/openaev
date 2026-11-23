@@ -124,3 +124,19 @@ io.openaev.rest.user.UserApi.login tables=roles
 io.openaev.service.UserService.resetPassword tables=roles
 io.openaev.service.UserService.sendPasswordResetEmail tables=roles
 io.openaev.service.UserService.user tables=roles
+
+# BENIGN - marking_definitions activation. The same unscoped loads of a user as the roles block
+# above also read the markings of the user's groups (the eager Group.markings collection), and with
+# no scope that collection comes back empty. Nothing at these sites returns, writes or decides from
+# it: no response carries the markings of a group (the user serializes its groups as ids), the
+# groups_markings links are never rewritten from the loaded collection (the password reset saves
+# the user and leaves the links in place), and the clearance of a request is read by JDBC from the
+# link table, not from the entity (MarkingClearanceCacheManager.findClearance). The setup email
+# reads the name and the email only. The by-id user read serves the platform user read, the player
+# delete, the audit log and the tenant detach, which drops the user's group links and evicts its
+# clearance. Pinned by UserLoadUnscopedMarkingsTest. Waived for marking_definitions only.
+io.openaev.rest.user.UserApi.login tables=marking_definitions
+io.openaev.service.UserService.findByToken tables=marking_definitions
+io.openaev.service.UserService.resetPassword tables=marking_definitions
+io.openaev.service.UserService.sendPasswordResetEmail tables=marking_definitions
+io.openaev.service.UserService.user tables=marking_definitions
