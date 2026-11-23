@@ -96,7 +96,8 @@ public class AgentSessionLinkService {
 
   /**
    * The names an identity asset may carry for an OS account, lower case: the account as reported
-   * and, for {@code DOMAIN\\user} or {@code user@domain}, the bare user. Empty for a system account.
+   * and, for {@code DOMAIN\\user} or {@code user@domain}, the bare user. Empty for a system
+   * account.
    */
   static Set<String> accountNames(String account) {
     if (account == null || account.isBlank()) {

@@ -66,7 +66,8 @@ class AgentSessionLinkServiceTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("given a reported session, should create the link with source AGENT, then refresh it")
+  @DisplayName(
+      "given a reported session, should create the link with source AGENT, then refresh it")
   void given_reportedSession_should_createThenRefreshTheLink() {
     // Act
     Instant first = Instant.parse("2026-11-23T10:00:00Z");
@@ -98,8 +99,7 @@ class AgentSessionLinkServiceTest extends IntegrationTest {
   void given_systemOrUnknownAccount_should_linkNothing() {
     assertThat(sessions.recordSession(host, "root", Instant.now())).isNull();
     assertThat(sessions.recordSession(host, "NT AUTHORITY\\SYSTEM", Instant.now())).isNull();
-    assertThat(sessions.recordSession(host, "nobody-" + UUID.randomUUID(), Instant.now()))
-        .isNull();
+    assertThat(sessions.recordSession(host, "nobody-" + UUID.randomUUID(), Instant.now())).isNull();
     assertThat(storedLinks()).isZero();
   }
 
@@ -136,8 +136,7 @@ class AgentSessionLinkServiceTest extends IntegrationTest {
             post(LINKS_URI, account.getId())
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    asJsonString(new AssetLinkInput(host.getId(), AssetLinkType.LOGGED_ON))))
+                .content(asJsonString(new AssetLinkInput(host.getId(), AssetLinkType.LOGGED_ON))))
         .andExpect(status().isOk());
 
     // Act
@@ -153,7 +152,8 @@ class AgentSessionLinkServiceTest extends IntegrationTest {
   @Test
   @DisplayName("account names: domain and UPN forms give the bare user, system accounts nothing")
   void accountNames() {
-    assertThat(AgentSessionLinkService.accountNames("CORP\\Alice")).contains("corp\\alice", "alice");
+    assertThat(AgentSessionLinkService.accountNames("CORP\\Alice"))
+        .contains("corp\\alice", "alice");
     assertThat(AgentSessionLinkService.accountNames("alice@corp.io")).contains("alice");
     assertThat(AgentSessionLinkService.accountNames("root")).isEmpty();
     assertThat(AgentSessionLinkService.accountNames("  ")).isEmpty();
