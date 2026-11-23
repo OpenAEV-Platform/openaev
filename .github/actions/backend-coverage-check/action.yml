@@ -21,8 +21,8 @@ inputs:
   max-drop:
     description: "Largest drop of backend line coverage allowed, in points"
     required: true
-  app-id:
-    description: "PR checks app id; empty on pull requests from forks, which then get no explanation check"
+  client-id:
+    description: "PR checks app client id; empty on pull requests from forks, which then get no explanation check"
     required: false
     default: ""
   private-key:
@@ -35,10 +35,10 @@ runs:
   steps:
     - name: Generate a token
       id: generate-token
-      if: ${{ inputs.app-id != '' && github.event.pull_request.head.repo.full_name == github.repository }}
+      if: ${{ inputs.client-id != '' && inputs.private-key != '' && github.event.pull_request.head.repo.full_name == github.repository }}
       uses: actions/create-github-app-token@v3
       with:
-        app-id: ${{ inputs.app-id }}
+        client-id: ${{ inputs.client-id }}
         private-key: ${{ inputs.private-key }}
 
     - name: Check backend patch coverage
