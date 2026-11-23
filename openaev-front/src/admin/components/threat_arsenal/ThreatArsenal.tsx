@@ -196,6 +196,7 @@ const ThreatArsenal = () => {
             active.replaceAction(result, replacedId);
             openAction(result);
           }}
+          onShowSaved={saved => showVersions(saved, 'saved')}
         />
       )}
 

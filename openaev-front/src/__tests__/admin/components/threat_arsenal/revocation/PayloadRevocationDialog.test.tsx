@@ -7,11 +7,15 @@ import { aUsage, aVersion, renderInApp, someUsages } from '../threatArsenalTestU
 
 const mocks = vi.hoisted(() => ({
   fetchUsages: vi.fn(),
+  move: vi.fn(),
   revoke: vi.fn(),
   lift: vi.fn(),
 }));
 
-vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({ fetchThreatArsenalUsages: mocks.fetchUsages }));
+vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
+  fetchThreatArsenalUsages: mocks.fetchUsages,
+  moveThreatArsenalUsages: mocks.move,
+}));
 vi.mock('../../../../../actions/payloads/payload-revocation-actions', () => ({
   revokePayload: mocks.revoke,
   liftPayloadRevocation: mocks.lift,
@@ -24,7 +28,13 @@ const current = aVersion({
   payload_is_latest: true,
 });
 
-const renderDialog = (lift = false) => {
+const older = aVersion({
+  payload_id: 'payload-v1',
+  payload_action_id: 'action-v1',
+  payload_version: '1',
+});
+
+const renderDialog = (lift = false, versions = [current]) => {
   const onClose = vi.fn();
   const onDone = vi.fn();
   renderInApp(
@@ -32,7 +42,7 @@ const renderDialog = (lift = false) => {
       open
       name="Mimikatz"
       lift={lift}
-      versions={[current]}
+      versions={versions}
       currentPayloadId="payload-v2"
       actionId="card-action"
       onClose={onClose}
@@ -57,6 +67,12 @@ describe('PayloadRevocationDialog', () => {
         }),
       ], 1),
     });
+    mocks.move.mockResolvedValue({
+      data: {
+        moved_ids: ['usage-1', 'usage-2'],
+        refused: [],
+      },
+    });
     mocks.revoke.mockResolvedValue({});
     mocks.lift.mockResolvedValue({});
   });
@@ -71,11 +87,11 @@ describe('PayloadRevocationDialog', () => {
     renderDialog();
 
     // Assert
-    expect(await screen.findByText('Used by 3 injects')).toBeTruthy();
-    expect(screen.getByRole('dialog', { name: 'Revoke Mimikatz' })).toBeTruthy();
-    expect(screen.getByText('What will fail:')).toBeTruthy();
+    expect(await screen.findByText('Revoked versions don\'t run. What uses v2 will fail:')).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Revoke a version' })).toBeTruthy();
+    expect(screen.getByText('Mimikatz')).toBeTruthy();
     expect(screen.getByText('1 scenario · 1 scenario inject · 1 atomic test')).toBeTruthy();
-    const link = screen.getByRole('link', { name: /See where it is used/ });
+    const link = screen.getByRole('link', { name: /See where/ });
     expect(link.getAttribute('href')).toBe('/admin/threat-arsenal?action=card-action&tab=versions');
     expect(mocks.fetchUsages).toHaveBeenCalledWith('action-v2');
   });
@@ -89,20 +105,19 @@ describe('PayloadRevocationDialog', () => {
 
     // Assert
     expect(await screen.findByText('Nothing fails: v2 isn\'t used.')).toBeTruthy();
-    expect(screen.getByText('Used by 0 injects')).toBeTruthy();
     expect(screen.queryByRole('link')).toBeNull();
   });
 
   it('given a reason should revoke the version', async () => {
     // Arrange
     const { onDone } = renderDialog();
-    await screen.findByText('Used by 3 injects');
+    await screen.findByText('1 scenario · 1 scenario inject · 1 atomic test');
     const revoke = screen.getByRole('button', { name: 'Revoke' }) as HTMLButtonElement;
     expectLibraryButton(revoke, 'revoke button', { variant: 'destructive' });
     expect(revoke.disabled).toBe(true);
 
     // Act
-    fireEvent.change(screen.getByRole('textbox', { name: 'Reason' }), { target: { value: 'Flagged' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Reason/ }), { target: { value: 'Flagged' } });
     fireEvent.click(revoke);
 
     // Assert
@@ -110,12 +125,39 @@ describe('PayloadRevocationDialog', () => {
     expect(mocks.revoke).toHaveBeenCalledWith('payload-v2', { payload_revocation_reason: 'Flagged' });
   });
 
+  it('given another version should move the injects first and say so on the button', async () => {
+    // Arrange
+    const { onDone } = renderDialog(false, [current, older]);
+    await screen.findByText('1 scenario · 1 scenario inject · 1 atomic test');
+    fireEvent.change(screen.getByRole('textbox', { name: /Reason/ }), { target: { value: 'Flagged' } });
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: 'Move 2 injects and revoke' }));
+
+    // Assert
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(current));
+    expect(mocks.move).toHaveBeenCalledWith('action-v2', expect.objectContaining({ target_payload_id: 'payload-v1' }));
+    expect(mocks.move.mock.invocationCallOrder[0]).toBeLessThan(mocks.revoke.mock.invocationCallOrder[0]);
+  });
+
+  it('given the injects still loading should not let the user revoke', async () => {
+    // Arrange
+    mocks.fetchUsages.mockReturnValue(new Promise(() => {}));
+
+    // Act
+    renderDialog(false, [current, older]);
+    fireEvent.change(screen.getByRole('textbox', { name: /Reason/ }), { target: { value: 'Flagged' } });
+
+    // Assert
+    expect((screen.getByRole('button', { name: 'Revoke' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('given a lift should lift the version without a reason', async () => {
     // Arrange
     const { onDone } = renderDialog(true);
-    await screen.findByText('Used by 3 injects');
-    expect(screen.getByText('Runs again in:')).toBeTruthy();
-    expect(screen.queryByRole('textbox', { name: 'Reason' })).toBeNull();
+    expect(await screen.findByText('v2 runs again in this tenant.')).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Lift a revocation' })).toBeTruthy();
+    expect(screen.queryByRole('textbox', { name: /Reason/ })).toBeNull();
 
     // Act
     fireEvent.click(screen.getByRole('button', { name: 'Lift revocation' }));
@@ -128,7 +170,7 @@ describe('PayloadRevocationDialog', () => {
   it('given cancel should close the dialog', async () => {
     // Arrange
     const { onClose } = renderDialog();
-    await screen.findByText('Used by 3 injects');
+    await screen.findByText('1 scenario · 1 scenario inject · 1 atomic test');
 
     // Act
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));

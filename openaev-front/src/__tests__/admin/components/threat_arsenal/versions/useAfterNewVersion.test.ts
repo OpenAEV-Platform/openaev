@@ -1,8 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import useNewVersionNotice from '../../../../../admin/components/threat_arsenal/versions/useNewVersionNotice';
-import useSkipNewVersionDialog from '../../../../../admin/components/threat_arsenal/versions/useSkipNewVersionDialog';
+import useAfterNewVersion from '../../../../../admin/components/threat_arsenal/versions/useAfterNewVersion';
 import { type PayloadUsagesOutput, type PayloadVersionOutput } from '../../../../../utils/api-types';
 import { actionId, payloadId, payloadVersion, usage, usagesOf, versionAction } from './payloadVersionFixtures';
 
@@ -24,18 +23,19 @@ const versionsLoaded = (usagesByVersion: Record<string, PayloadUsagesOutput>) =>
     : null));
 };
 
-const renderNotice = () => {
+const renderAfterSave = () => {
   const onUpdate = vi.fn();
-  const { result } = renderHook(() => useNewVersionNotice(SAVED_ID, onUpdate));
+  const onShowSaved = vi.fn();
+  const { result } = renderHook(() => useAfterNewVersion(SAVED_ID, onUpdate, onShowSaved));
   return {
-    result,
+    afterSave: result.current,
     onUpdate,
+    onShowSaved,
   };
 };
 
-describe('useNewVersionNotice', () => {
+describe('useAfterNewVersion', () => {
   beforeEach(() => {
-    localStorage.clear();
     mocks.usePayloadVersions.mockReset();
     mocks.useUsagesByVersion.mockReset();
   });
@@ -43,96 +43,60 @@ describe('useNewVersionNotice', () => {
   it('given_saveInPlace_should_updateTheCardRightAway', () => {
     // Arrange
     versionsLoaded({});
-    const { result, onUpdate } = renderNotice();
+    const { afterSave, onUpdate, onShowSaved } = renderAfterSave();
 
     // Act
-    act(() => result.current.afterSave(versionAction('1.0.0')));
+    act(() => afterSave(versionAction('1.0.0')));
 
     // Assert
     expect(onUpdate).toHaveBeenCalledWith(versionAction('1.0.0'), SAVED_ID);
-    expect(result.current.notice).toBeNull();
+    expect(onShowSaved).not.toHaveBeenCalled();
   });
 
-  it('given_injectsOnOlderVersions_should_offerToMoveThem', () => {
+  it('given_injectsOnOlderVersions_should_replaceTheCardAndOpenItsVersions', () => {
     // Arrange
     versionsLoaded({
       '1.1.0': usagesOf(usage('inject-new')),
       '1.0.0': usagesOf(usage('inject-1'), usage('inject-2')),
       '0.9.0': usagesOf(),
     });
-    const { result, onUpdate } = renderNotice();
+    const { afterSave, onUpdate, onShowSaved } = renderAfterSave();
 
     // Act
-    act(() => result.current.afterSave(versionAction('1.1.0')));
-
-    // Assert
-    expect(onUpdate).not.toHaveBeenCalled();
-    expect(result.current.notice?.action).toEqual(versionAction('1.1.0'));
-    expect(result.current.notice?.olderVersions.map(older => older.version.payload_version)).toEqual(['1.0.0']);
-  });
-
-  it('given_noticeClosed_should_replaceTheCard', () => {
-    // Arrange
-    versionsLoaded({
-      '1.1.0': usagesOf(),
-      '1.0.0': usagesOf(usage('inject-1')),
-    });
-    const { result, onUpdate } = renderNotice();
-    act(() => result.current.afterSave(versionAction('1.1.0')));
-
-    // Act
-    act(() => result.current.closeNotice());
+    act(() => afterSave(versionAction('1.1.0')));
 
     // Assert
     expect(onUpdate).toHaveBeenCalledWith(versionAction('1.1.0'), SAVED_ID);
-    expect(result.current.notice).toBeNull();
+    expect(onShowSaved).toHaveBeenCalledWith(versionAction('1.1.0'));
   });
 
-  it('given_noInjectOnOlderVersions_should_replaceTheCardWithoutNotice', () => {
+  it('given_noInjectOnOlderVersions_should_replaceTheCardOnly', () => {
     // Arrange
     versionsLoaded({
       '1.1.0': usagesOf(),
       '1.0.0': usagesOf(),
     });
-    const { result, onUpdate } = renderNotice();
+    const { afterSave, onUpdate, onShowSaved } = renderAfterSave();
 
     // Act
-    act(() => result.current.afterSave(versionAction('1.1.0')));
+    act(() => afterSave(versionAction('1.1.0')));
 
     // Assert
     expect(onUpdate).toHaveBeenCalledWith(versionAction('1.1.0'), SAVED_ID);
-    expect(result.current.notice).toBeNull();
+    expect(onShowSaved).not.toHaveBeenCalled();
   });
 
-  it('given_usagesStillLoading_should_waitWithoutNotice', () => {
+  it('given_usagesStillLoading_should_wait', () => {
     // Arrange
     mocks.usePayloadVersions.mockReturnValue([payloadVersion('1.1.0'), payloadVersion('1.0.0')]);
     mocks.useUsagesByVersion.mockReturnValue(null);
-    const { result, onUpdate } = renderNotice();
+    const { afterSave, onUpdate, onShowSaved } = renderAfterSave();
 
     // Act
-    act(() => result.current.afterSave(versionAction('1.1.0')));
+    act(() => afterSave(versionAction('1.1.0')));
 
     // Assert
     expect(onUpdate).not.toHaveBeenCalled();
-    expect(result.current.notice).toBeNull();
-  });
-
-  it('given_dialogSwitchedOff_should_updateTheCardRightAway', () => {
-    // Arrange
-    versionsLoaded({
-      '1.1.0': usagesOf(),
-      '1.0.0': usagesOf(usage('inject-1')),
-    });
-    const skip = renderHook(() => useSkipNewVersionDialog());
-    act(() => skip.result.current[1](true));
-    const { result, onUpdate } = renderNotice();
-
-    // Act
-    act(() => result.current.afterSave(versionAction('1.1.0')));
-
-    // Assert
-    expect(onUpdate).toHaveBeenCalledWith(versionAction('1.1.0'), SAVED_ID);
-    expect(result.current.notice).toBeNull();
+    expect(onShowSaved).not.toHaveBeenCalled();
   });
 });

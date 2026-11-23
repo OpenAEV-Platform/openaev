@@ -1,4 +1,16 @@
-import { IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+  IconButton,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@filigran/design-system';
 import { ArrowDownwardOutlined, ArrowUpwardOutlined } from '@mui/icons-material';
 import { type FunctionComponent } from 'react';
 
@@ -22,6 +34,7 @@ const MarketplaceSortSelect: FunctionComponent<Props> = ({ sortHelpers, options,
   const sortBy = sortHelpers.getSortBy();
   const sortAsc = sortHelpers.getSortAsc();
   const value = options.some(option => option.field === sortBy) ? sortBy : '';
+  const selected = options.find(option => option.field === value) ?? null;
 
   const handleFieldChange = (field: string) => {
     const asc = field === value ? sortAsc : !descendingFields.includes(field);
@@ -31,35 +44,35 @@ const MarketplaceSortSelect: FunctionComponent<Props> = ({ sortHelpers, options,
   return (
     <div style={{
       display: 'flex',
-      alignItems: 'flex-end',
+      alignItems: 'center',
       gap: 4,
       marginLeft: 8,
       flexShrink: 0,
     }}
     >
-      <Select
-        value={value}
-        onValueChange={next => handleFieldChange(next)}
-      >
-        {/* Select renders no wrapper: the label sits above its trigger in a column. */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
+      {/* The DS Combobox, whose labelPosition puts "Sort by" beside the field; 140px fits the widest
+          option and the chevron. */}
+      <Combobox
+        labelPosition="left"
+        options={options}
+        value={selected}
+        onValueChange={(next: SortOption | SortOption[] | null) => {
+          if (next && !Array.isArray(next)) handleFieldChange(next.field);
         }}
-        >
-          <SelectLabel>{t('Sort by')}</SelectLabel>
-          <SelectTrigger>
-            <SelectValue placeholder={t('Sort by')} />
-          </SelectTrigger>
-        </div>
-        <SelectContent>
-          {options.map(option => (
-            <SelectItem key={option.field} value={option.field}>
-              {t(option.label)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        getOptionLabel={option => t(option.label)}
+        isOptionEqualToValue={(a, b) => a.field === b.field}
+        clearable={false}
+        openOnFocus
+      >
+        <ComboboxLabel>{t('Sort by')}</ComboboxLabel>
+        <ComboboxField style={{ width: 140 }}>
+          <ComboboxInput placeholder={t('Sort by')} />
+          <ComboboxControls>
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent />
+      </Combobox>
       <Tooltip>
         <TooltipTrigger asChild>
           <span>

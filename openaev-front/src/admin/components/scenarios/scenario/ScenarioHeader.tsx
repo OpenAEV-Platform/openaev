@@ -89,6 +89,7 @@ import ExploreInGraphButton from '../../graph/ExploreInGraphButton';
 import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
+import ScenarioLaunchReadiness from '../launch/ScenarioLaunchReadiness';
 import useOpenLaunchedSimulation from '../launch/useOpenLaunchedSimulation';
 import useScenarioLaunch from '../launch/useScenarioLaunch';
 import {
@@ -776,16 +777,22 @@ const ScenarioHeader = ({
           )}
           // The alert-toned controls sit in the body row, right-aligned, where the
           // design file draws them (Figma 7929:13294). Each self-hides when healthy.
-          bodyAction={canManage && (
+          bodyAction={(canManage || canLaunch) && (
             <>
-              <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />
-              <ExpectationsDriftIndicator
-                drift={expectationsDrift}
-                variant="scenario"
-                onRealign={onRealignExpectations}
-                onDismiss={onDismissExpectations}
-                placement="warning"
-              />
+              {/* With the launch check, one control says what it finds (targets, integrations, revoked
+                  versions and the healthchecks) and opens it; without it, the healthchecks as before. */}
+              {isCatalogEnabled
+                ? <ScenarioLaunchReadiness scenarioId={scenarioId} onOpen={handleLaunchNormal} checkOpen={!!launchDrawer} />
+                : canManage && <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />}
+              {canManage && (
+                <ExpectationsDriftIndicator
+                  drift={expectationsDrift}
+                  variant="scenario"
+                  onRealign={onRealignExpectations}
+                  onDismiss={onDismissExpectations}
+                  placement="warning"
+                />
+              )}
             </>
           )}
           action={(

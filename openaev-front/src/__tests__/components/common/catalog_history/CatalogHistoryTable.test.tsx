@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import CatalogHistoryTable from '../../../../components/common/catalog_history/CatalogHistoryTable';
@@ -7,7 +7,8 @@ import { type CatalogHistoryOutput } from '../../../../utils/api-types';
 vi.mock('../../../../components/i18n', () => ({
   useFormatter: () => ({
     t: (s: string) => s,
-    nsdt: (date: string) => date,
+    fsd: (date: string) => `day ${date}`,
+    ft: (date: string) => `time ${date}`,
   }),
 }));
 
@@ -83,13 +84,39 @@ describe('CatalogHistoryTable', () => {
 
     // Assert
     const rows = within(screen.getByRole('table', { name: 'History' })).getAllByRole('row').slice(1);
+    const when = 'day 2026-11-20T10:00:00Ztime 2026-11-20T10:00:00Z';
     expect(rows.map(row => within(row).getAllByRole('cell').map(cell => cell.textContent))).toEqual([
-      ['Rolled back', 'v1.0.0', 'Jane', '2026-11-20T10:00:00Z'],
-      ['Updated', 'v1.1.0', 'Jane', '2026-11-20T10:00:00Z'],
-      ['Revocation lifted', 'v1.1.0', 'Jane', '2026-11-20T10:00:00Z'],
-      ['Revoked', 'v1.1.0', 'Automatic', '2026-11-20T10:00:00Z'],
-      ['Uninstalled', 'v1.1.0', 'Jane', '2026-11-20T10:00:00Z'],
-      ['Installed', 'v1.0.0', 'Automatic', '2026-11-20T10:00:00Z'],
+      ['v1.0.0Rolled back', 'Jane', when],
+      ['v1.1.0Updated', 'Jane', when],
+      ['v1.1.0Revocation lifted', 'Jane', when],
+      ['v1.1.0Revoked', 'Automatic', when],
+      ['v1.1.0Uninstalled', 'Jane', when],
+      ['v1.0.0Installed', 'Automatic', when],
     ]);
+  });
+
+  it('given_changes_should_readFromVersionToVersionWithTheFieldsAndOpenOnThem', () => {
+    // Arrange
+    render(
+      <CatalogHistoryTable
+        history={[entry({
+          catalog_history_action: 'UPDATE',
+          catalog_history_version: '1.1.0',
+        })]}
+        changesOf={() => ({
+          fromVersion: '1.0.0',
+          summary: 'Command',
+          details: 'The before / after',
+        })}
+      />,
+    );
+    const row = within(screen.getByRole('table', { name: 'History' })).getAllByRole('row')[1];
+
+    // Act
+    fireEvent.click(within(row).getByRole('button', { name: 'Show the changes' }));
+
+    // Assert
+    expect(within(row).getAllByRole('cell').map(cell => cell.textContent).slice(0, 3)).toEqual(['v1.0.0 → v1.1.0Updated', 'Command', 'Jane']);
+    expect(screen.getByText('The before / after')).toBeTruthy();
   });
 });

@@ -43,6 +43,8 @@ vi.mock('../../../../../../components/i18n', async (importOriginal) => {
     useFormatter: () => ({
       t: (message: string, values?: Record<string, string>) => message.replace(/\{(\w+)\}/g, (_, key: string) => values?.[key] ?? key),
       nsdt: (date: string) => `time ${date}`,
+      fsd: (date: string) => `day ${date}`,
+      ft: (date: string) => `at ${date}`,
     }),
   };
 });

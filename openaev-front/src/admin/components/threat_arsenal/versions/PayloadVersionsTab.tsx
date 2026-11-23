@@ -10,7 +10,6 @@ import { type PayloadUsagesOutput, type PayloadVersionOutput } from '../../../..
 import useCountLabel from '../../../../utils/hooks/useCountLabel';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import AskAfterSavingChoice from './AskAfterSavingChoice';
 import OlderVersionsNote from './OlderVersionsNote';
 import PayloadUsageMoveBar from './usages/PayloadUsageMoveBar';
 import PayloadUsageMoveResult from './usages/PayloadUsageMoveResult';
@@ -19,6 +18,7 @@ import { olderVersionsInUse, totalUsageCount, usageCount } from './usages/usageC
 import useUsageMove from './usages/useUsageMove';
 import useFocusMove from './useFocusMove';
 import useOlderVersionsKept from './useOlderVersionsKept';
+import VersionChanges from './VersionChanges';
 import { versionRows } from './versionRows';
 
 interface VersionProps {
@@ -27,11 +27,13 @@ interface VersionProps {
   usages: PayloadUsagesOutput | null;
   canMove: boolean;
   onMoved: () => void;
-  // Opened from the New version dialog: an older version in use opens with every usage ticked; the latest stays folded.
+  // Opened to move injects: an older version in use opens; the latest stays folded.
   focusMove: boolean;
+  // Its usages ticked too (a card's Move link); right after a save nothing is: the user picks what moves.
+  preselect: boolean;
 }
 
-const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, usages, canMove, onMoved, focusMove }) => {
+const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, usages, canMove, onMoved, focusMove, preselect }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const counted = useCountLabel();
@@ -48,7 +50,7 @@ const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, us
     active: focusMove && canMove,
     onFocus: (focused) => {
       setExpanded(true);
-      move.selection.setSelectedElements(Object.fromEntries(focused.payload_usages.map(usage => [usage.usage_id, usage])));
+      if (preselect) move.selection.setSelectedElements(Object.fromEntries(focused.payload_usages.map(usage => [usage.usage_id, usage])));
     },
   });
 
@@ -111,17 +113,24 @@ interface Props {
   onMoved: () => void;
   notInstalled?: string[];
   focusMove?: boolean;
+  // Opened right after a save that added the latest version: "Saved as v…" on top, nothing ticked.
+  saved?: boolean;
   // The catalogue version being installed.
   installing?: string | null;
   onInstall?: (version: string) => void;
 }
 
-const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMoved, notInstalled, focusMove = false, installing, onInstall }) => {
+const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMoved, notInstalled, focusMove = false, saved = false, installing, onInstall }) => {
+  const { t } = useFormatter();
   const theme = useTheme();
   const canMove = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
   const latest = versions?.find(version => version.payload_is_latest);
   const { kept, toggle } = useOlderVersionsKept(latest);
-  const olderUsages = versions && usages && latest ? totalUsageCount(olderVersionsInUse(versions, usages, latest.payload_action_id)) : 0;
+  const olderVersions = versions && usages && latest ? olderVersionsInUse(versions, usages, latest.payload_action_id) : [];
+  const olderUsages = totalUsageCount(olderVersions);
+  // Right after a save: what it changed, the saved version against the one before it (newest first).
+  const previous = latest && versions ? versions[versions.indexOf(latest) + 1] : undefined;
+  const [changesOpen, setChangesOpen] = useState(true);
 
   if (versions === null) {
     return <Skeleton className="h-24" />;
@@ -134,7 +143,52 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMove
     }}
     >
       {olderUsages > 0 && (
-        <OlderVersionsNote usageCount={olderUsages} kept={kept} onToggle={canMove ? toggle : undefined} />
+        // After a save, the note and what the save changed share one frame above the usual tab.
+        <div style={saved && !kept
+          ? {
+              ...fdsTableFrameStyle(theme),
+              display: 'flex',
+              flexDirection: 'column',
+              gap: theme.spacing(1.5),
+              padding: theme.spacing(2),
+            }
+          : undefined}
+        >
+          <OlderVersionsNote
+            usageCount={olderUsages}
+            versions={olderVersions.map(older => older.version.payload_version)}
+            savedVersion={saved ? latest?.payload_version : undefined}
+            kept={kept}
+            onToggle={canMove ? toggle : undefined}
+          />
+          {saved && !kept && latest && previous && (
+            <>
+              <button
+                type="button"
+                aria-expanded={changesOpen}
+                onClick={() => setChangesOpen(!changesOpen)}
+                style={{
+                  ...fdsGroupRowStyle(theme),
+                  padding: 0,
+                  background: 'none',
+                  border: 0,
+                }}
+              >
+                <Text variant="content-base-bold">{t('What changed in v{version}', { version: latest.payload_version })}</Text>
+                <span style={{ flex: 1 }} />
+                {changesOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+              </button>
+              {changesOpen && (
+                <VersionChanges
+                  beforeActionId={previous.payload_action_id}
+                  afterActionId={latest.payload_action_id}
+                  beforeVersion={previous.payload_version}
+                  afterVersion={latest.payload_version}
+                />
+              )}
+            </>
+          )}
+        </div>
       )}
       <div className={LIB_SURFACE_LAYER} style={fdsTableFrameStyle(theme)}>
         {versionRows(versions, notInstalled).map(({ version, installed }) => (installed
@@ -147,11 +201,11 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMove
                 canMove={canMove}
                 onMoved={onMoved}
                 focusMove={focusMove}
+                preselect={!saved}
               />
             )
           : <NotInstalledVersion key={version} version={version} installing={installing === version} onInstall={onInstall} />))}
       </div>
-      {canMove && <AskAfterSavingChoice />}
     </div>
   );
 };

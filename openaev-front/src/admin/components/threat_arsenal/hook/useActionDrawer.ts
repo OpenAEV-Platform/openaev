@@ -9,7 +9,7 @@ import useCatalogPayloadVersions from '../catalog/useCatalogPayloadVersions';
 import useCustomization from '../customization/useCustomization';
 import { olderVersionsInUse, totalUsageCount } from '../versions/usages/usageCounts';
 import useUsagesByVersion from '../versions/usages/useUsagesByVersion';
-import useNewVersionNotice from '../versions/useNewVersionNotice';
+import useAfterNewVersion from '../versions/useAfterNewVersion';
 import usePayloadVersions from '../versions/usePayloadVersions';
 import useShownVersion from '../versions/useShownVersion';
 import { notInstalledVersions } from '../versions/versionRows';
@@ -27,6 +27,7 @@ const useActionDrawer = (
   action: ThreatArsenalAction | null,
   initialTab: OpenedTab | undefined,
   onUpdate?: (action: ThreatArsenalAction, replacedId?: string) => void,
+  onShowSaved?: (action: ThreatArsenalAction) => void,
 ) => {
   const { t, tPick } = useFormatter();
   const [tab, setTab] = useState<string>(initialTab ? 'versions' : 'overview');
@@ -74,7 +75,7 @@ const useActionDrawer = (
       .finally(() => setInstalling(null));
   };
 
-  const { notice, afterSave, closeNotice } = useNewVersionNotice(action?.injector_contract_id ?? '', onUpdate);
+  const afterSave = useAfterNewVersion(action?.injector_contract_id ?? '', onUpdate, onShowSaved);
 
   return {
     tab,
@@ -97,9 +98,7 @@ const useActionDrawer = (
     toMove,
     installing,
     install,
-    notice,
     afterSave,
-    closeNotice,
   };
 };
 
