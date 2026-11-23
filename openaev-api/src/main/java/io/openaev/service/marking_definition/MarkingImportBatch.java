@@ -5,6 +5,7 @@ import static io.openaev.service.marking_definition.MarkingDefinitionFactory.bui
 import static io.openaev.service.marking_definition.MarkingDefinitionFactory.normalize;
 
 import io.openaev.database.model.MarkingDefinition;
+import io.openaev.database.model.MarkingDefinitionStixIds;
 import io.openaev.service.import_report.ImportResult;
 import io.openaev.service.import_report.ImportResultRow;
 import io.openaev.service.import_report.ImportRowStatus;
@@ -57,6 +58,8 @@ final class MarkingImportBatch {
   // The types the tenant has, or the file created so far: the first definition of a type is not
   // above any clearance.
   private final Set<String> types = new HashSet<>();
+  // The STIX ids the tenant carries, or the file gave so far.
+  private final Set<String> stixIds = new HashSet<>();
   // Null when the caller holds every level.
   private final List<MarkingDefinition> held;
   private final List<MarkingDefinition> created = new ArrayList<>();
@@ -72,6 +75,9 @@ final class MarkingImportBatch {
     for (MarkingDefinition marking : existing) {
       String type = normalize(marking.getType());
       types.add(type);
+      if (marking.getStixId() != null) {
+        stixIds.add(marking.getStixId());
+      }
       inTenant.put(
           new MarkingKey(type, normalize(marking.getDefinition())),
           new KnownMarking(marking.getColor(), marking.getOrder(), null));
@@ -115,11 +121,19 @@ final class MarkingImportBatch {
       return skipped(
           row, MarkingDefinitionImportRowReason.INSUFFICIENT_ACCESS, notClearedParams(type, order));
     }
-    created.add(buildEntity(tenantId, type, definition, row.color(), order));
+    created.add(
+        buildEntity(tenantId, type, definition, row.color(), order, freeStixId(type, definition)));
     types.add(type);
     inFile.put(key, new KnownMarking(row.color(), order, row.position()));
     return new ImportResultRow(
         row.position(), ImportRowStatus.CREATED, null, Map.of(), valuesOf(row));
+  }
+
+  // Derived as when a marking is created by hand: an id another marking of the tenant, or an
+  // earlier row of the file, already carries is not repeated, the new marking gets none.
+  private String freeStixId(String type, String definition) {
+    String stixId = MarkingDefinitionStixIds.generate(type, definition);
+    return stixIds.add(stixId) ? stixId : null;
   }
 
   // Never overwritten: identical is ignored, anything else is a conflict.

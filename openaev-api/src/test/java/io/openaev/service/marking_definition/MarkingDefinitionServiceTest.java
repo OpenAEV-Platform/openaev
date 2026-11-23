@@ -33,6 +33,7 @@ import io.openaev.context.MarkingCtx;
 import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.MarkingDefinition;
+import io.openaev.database.model.MarkingDefinitionStixIds;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.MarkingDefinitionRepository;
@@ -755,6 +756,66 @@ class MarkingDefinitionServiceTest {
       assertTrue(saved.stream().allMatch(marking -> "PAP".equals(marking.getType())));
       assertTrue(saved.stream().noneMatch(MarkingDefinition::getProtectedDefinition));
       assertTrue(saved.stream().allMatch(marking -> TENANT_ID.equals(marking.getTenant().getId())));
+    }
+
+    private List<MarkingDefinition> savedMarkings() {
+      verify(repository).saveAll(savedCaptor.capture());
+      List<MarkingDefinition> saved = new java.util.ArrayList<>();
+      savedCaptor.getValue().forEach(saved::add);
+      return saved;
+    }
+
+    @Test
+    @DisplayName("given_validRows_should_carryTheStixIdOpenCtiGivesThem")
+    void given_validRows_should_carryTheStixIdOpenCtiGivesThem() {
+      // Arrange
+      tenantHas(tlpClear);
+
+      // Act
+      importAs(
+          User.ADMIN_UUID,
+          row(1, "pap", "pap:amber", "#ffc107", "3"),
+          row(2, "TLP", "TLP:GREEN", "#4caf50", "2"));
+
+      // Assert
+      assertEquals(
+          List.of(
+              MarkingDefinitionStixIds.generate("PAP", "PAP:AMBER"),
+              "marking-definition--34098fce-860f-48ae-8e50-ebd3cc5e41da"),
+          savedMarkings().stream().map(MarkingDefinition::getStixId).toList());
+    }
+
+    @Test
+    @DisplayName("given_aStixIdCarriedByTheTenant_should_createWithoutOne")
+    void given_aStixIdCarriedByTheTenant_should_createWithoutOne() {
+      // Arrange - TLP:WHITE next to TLP:CLEAR: OpenCTI names both with one id.
+      tlpClear.setStixId("marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9");
+      tenantHas(tlpClear);
+
+      // Act
+      importAs(User.ADMIN_UUID, row(1, "TLP", "TLP:WHITE", "#ffffff", "5"));
+
+      // Assert
+      assertEquals(null, savedMarkings().get(0).getStixId());
+    }
+
+    @Test
+    @DisplayName("given_aStixIdGivenByAnEarlierRow_should_createWithoutOne")
+    void given_aStixIdGivenByAnEarlierRow_should_createWithoutOne() {
+      // Arrange
+      tenantHas(tlpGreen);
+
+      // Act
+      importAs(
+          User.ADMIN_UUID,
+          row(1, "TLP", "TLP:CLEAR", "#ffffff", "1"),
+          row(2, "TLP", "TLP:WHITE", "#ffffff", "5"));
+
+      // Assert
+      List<MarkingDefinition> saved = savedMarkings();
+      assertEquals(
+          "marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9", saved.get(0).getStixId());
+      assertEquals(null, saved.get(1).getStixId());
     }
 
     @Test

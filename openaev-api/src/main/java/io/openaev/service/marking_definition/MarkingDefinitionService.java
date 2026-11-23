@@ -19,7 +19,6 @@ import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.MarkingDefinitionStixIds;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
@@ -262,8 +261,14 @@ public class MarkingDefinitionService {
       assertWithinOwnClearance(tenantId, type, input.order(), userId);
     }
     validateUniqueOrThrow(type, definition, tenantId, null);
+    String freeStixId =
+        freeStixIdOrNull(
+            stixId != null ? stixId : MarkingDefinitionStixIds.generate(type, definition),
+            tenantId,
+            null);
     MarkingDefinition saved =
-        repository.save(buildEntity(tenantId, type, definition, input.color(), input.order()));
+        repository.save(
+            buildEntity(tenantId, type, definition, input.color(), input.order(), freeStixId));
     tenantGroupService.grantToAutoNewMarkingGroups(saved);
     markingClearanceCacheManager.evictAll();
     runAfterCommit(actionMetricCollector::addMarkingDefinitionCreatedCount);

@@ -19,12 +19,13 @@ final class MarkingDefinitionFactory {
   }
 
   static MarkingDefinition buildEntity(
-      String tenantId, String type, String definition, String color, int order) {
+      String tenantId, String type, String definition, String color, int order, String stixId) {
     MarkingDefinition entity = new MarkingDefinition();
     entity.setType(type);
     entity.setDefinition(definition);
     entity.setColor(color);
     entity.setOrder(order);
+    entity.setStixId(stixId);
     entity.setProtectedDefinition(false);
     entity.setTenant(new Tenant(tenantId));
     return entity;
