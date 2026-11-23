@@ -21,23 +21,23 @@ const AttackPathVerdictPill: FunctionComponent<Props> = ({ label, status }) => {
     <Box
       component="span"
       sx={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        paddingInline: 1,
-        paddingBlock: 0.25,
-        borderRadius: 1,
-        backgroundColor: alpha(color, 0.08),
+        'display': 'inline-flex',
+        'alignItems': 'center',
+        'paddingInline': 1,
+        'paddingBlock': 0.25,
+        'borderRadius': 1,
+        'backgroundColor': alpha(color, 0.08),
         color,
         // Standard colours ("Pastel colours" off): outlined in the tone, as the design-system
         // Chip; the `pastel` root class (useFdsThemeScope) keeps today's borderless pill.
-        border: `1px solid ${color}`,
+        'border': `1px solid ${color}`,
         '.pastel &': { borderColor: 'transparent' },
-        fontSize: 11,
-        fontWeight: 700,
-        letterSpacing: '0.04em',
-        textTransform: 'uppercase',
-        whiteSpace: 'nowrap',
-        flexShrink: 0,
+        'fontSize': 11,
+        'fontWeight': 700,
+        'letterSpacing': '0.04em',
+        'textTransform': 'uppercase',
+        'whiteSpace': 'nowrap',
+        'flexShrink': 0,
       }}
     >
       {label}
