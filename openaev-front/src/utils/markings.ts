@@ -1,3 +1,5 @@
+import { type ChipSeverity } from '@filigran/design-system';
+
 import { type MarkingDefinitionOutput } from './api-types';
 import { type Option } from './Option';
 
@@ -23,6 +25,32 @@ export const markingLabel = (marking: MarkingDefinitionOutput) => {
   const type = marking.marking_definition_type.toUpperCase();
   const definition = marking.marking_definition_definition.toUpperCase();
   return definition.startsWith(`${type}:`) ? definition : `${type}:${definition}`;
+};
+
+// The tone a predefined marking (TLP, PAP) is drawn with, the same mapping every XTM Platform
+// module uses (OpenCTI, OpenCRQ, XTM One): red is critical, amber high, green low, clear neutral.
+// Drawn through the design system's severity chip, it follows the user's "Pastel colours"
+// preference. `undefined`: a custom marking, which keeps its administrator's colour.
+export const markingTone = (marking: MarkingDefinitionOutput): ChipSeverity | undefined => {
+  switch (markingLabel(marking)) {
+    case 'TLP:RED':
+    case 'PAP:RED':
+      return 'critical';
+    case 'TLP:AMBER':
+    case 'TLP:AMBER+STRICT':
+    case 'PAP:AMBER':
+      return 'high';
+    case 'TLP:GREEN':
+    case 'PAP:GREEN':
+      return 'low';
+    case 'TLP:CLEAR':
+    case 'TLP:WHITE':
+    case 'PAP:CLEAR':
+    case 'PAP:WHITE':
+      return 'neutral';
+    default:
+      return undefined;
+  }
 };
 
 // The `{ id, label }` option of a marking definition, for the value pickers of the marking filter.

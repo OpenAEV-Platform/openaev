@@ -34,4 +34,8 @@ public class UpdateProfileInput {
 
   @JsonProperty("user_home_dashboard")
   private String homeDashboard;
+
+  // Optional: a client that does not send it leaves the stored preference unchanged.
+  @JsonProperty("user_pastel_colours")
+  private Boolean pastelColours;
 }

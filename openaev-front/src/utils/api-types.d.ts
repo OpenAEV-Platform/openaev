@@ -14375,6 +14375,7 @@ export interface UpdateProfileInput {
   /** @minLength 1 */
   user_lastname: string;
   user_organization?: string;
+  user_pastel_colours?: boolean;
   /** @minLength 1 */
   user_theme: string;
 }
@@ -14565,6 +14566,8 @@ export interface User {
   /** @uniqueItems true */
   user_tags?: string[];
   user_teams?: string[];
+  /** Pastel colours preference of the user: soft pastel chips when true (default), the standard colours shared by every XTM Platform module when false */
+  user_pastel_colours?: boolean;
   /** Theme of the user */
   user_theme?: string;
   /**
