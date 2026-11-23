@@ -4963,7 +4963,7 @@
   "Select": "Auswählen",
   "Show hidden nodes": "Ausgeblendete Knoten anzeigen",
   "Show or hide the legend": "Legende ein- oder ausblenden",
-  "Show severity, priority and marking chips in soft pastel fills instead of the standard colours.": "Schweregrad-, Prioritäts- und Markierungs-Chips in sanften Pastellfarben statt in den Standardfarben anzeigen.",
+  "Show chips in soft pastel fills instead of the standard outlined colours.": "Chips in sanften Pastellfarben statt in den umrandeten Standardfarben anzeigen.",
   "Show this list": "Diese Liste anzeigen",
   "Show this type": "Diesen Typ anzeigen",
   "Ungroup": "Gruppierung aufheben",

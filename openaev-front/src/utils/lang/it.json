@@ -4963,7 +4963,7 @@
   "Select": "Seleziona",
   "Show hidden nodes": "Mostra i nodi nascosti",
   "Show or hide the legend": "Mostra o nascondi la legenda",
-  "Show severity, priority and marking chips in soft pastel fills instead of the standard colours.": "Mostra i chip di gravità, priorità e marcatura con riempimenti pastello tenui invece dei colori standard.",
+  "Show chips in soft pastel fills instead of the standard outlined colours.": "Mostra i chip con riempimenti pastello tenui invece dei colori standard con contorno.",
   "Show this list": "Mostra questo elenco",
   "Show this type": "Mostra questo tipo",
   "Ungroup": "Separa",

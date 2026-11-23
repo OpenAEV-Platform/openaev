@@ -4963,7 +4963,7 @@
   "Select": "选择",
   "Show hidden nodes": "显示隐藏的节点",
   "Show or hide the legend": "显示或隐藏图例",
-  "Show severity, priority and marking chips in soft pastel fills instead of the standard colours.": "以柔和的粉彩填充而非标准颜色显示严重性、优先级和标记标签。",
+  "Show chips in soft pastel fills instead of the standard outlined colours.": "以柔和的粉彩填充而非标准描边颜色显示标签。",
   "Show this list": "显示此列表",
   "Show this type": "显示此类型",
   "Ungroup": "取消分组",

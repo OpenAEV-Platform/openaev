@@ -4963,7 +4963,7 @@
   "Select": "선택",
   "Show hidden nodes": "숨긴 노드 표시",
   "Show or hide the legend": "범례 표시 또는 숨기기",
-  "Show severity, priority and marking chips in soft pastel fills instead of the standard colours.": "심각도, 우선순위 및 마킹 칩을 표준 색상 대신 부드러운 파스텔 색상으로 표시합니다.",
+  "Show chips in soft pastel fills instead of the standard outlined colours.": "칩을 표준 윤곽선 색상 대신 부드러운 파스텔 색상으로 표시합니다.",
   "Show this list": "이 목록 표시",
   "Show this type": "이 유형 표시",
   "Ungroup": "그룹 해제",
