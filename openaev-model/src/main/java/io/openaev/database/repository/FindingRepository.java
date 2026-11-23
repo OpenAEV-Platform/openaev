@@ -218,22 +218,11 @@ public interface FindingRepository
     String getValue();
   }
 
-  // -- INDEXING --
-
-  // One row PER FINDING: assets, and the injects, simulations, scenarios, asset groups and fields
-  // of its occurrences, are aggregated. The previous per-(finding, asset) rows shared the same
-  // base_id, so multi-asset findings kept only one arbitrary asset in the search index (each bulk
-  // upsert overwrote the previous row).
-  //
-  // Each array comes from its own correlated sub-query, and the outer query joins nothing that
-  // fans out. Joining every collection into one GROUP BY multiplied them (occurrences x scenarios
-  // x assets x asset groups rows per finding), and the LIMIT only applied once every candidate
-  // finding was joined and aggregated: during a re-feed from epoch, that is the whole table on
-  // every batch (30-60 s per batch of 500 once injects_asset_groups was added). Here the LIMIT
-  // takes the next findings off the cursor index and the sub-queries only run for those.
-  // With no GROUP BY, the query also stays valid once the tenant statement inspector rewrites
-  // "FROM findings f" into a derived table.
-  // Native: array_agg in correlated sub-queries. Read only, no side effect.
+  // One row PER FINDING: assets, and the injects, simulations, scenarios and fields of its
+  // occurrences, are aggregated. The previous per-(finding, asset) rows shared the same base_id, so
+  // multi-asset findings kept only one arbitrary asset in the search index (each bulk upsert
+  // overwrote the previous row) and the LIMIT applied to joined rows, not findings.
+  // Native: array_agg over the occurrences and assets. Read only, no side effect.
   @Query(
       value =
           "SELECT f.finding_id, f.finding_value, f.finding_value_display, f.finding_type,"
@@ -246,45 +235,12 @@ public interface FindingRepository
               + " array_agg(DISTINCT se.scenario_id)"
               + " FILTER ( WHERE se.scenario_id IS NOT NULL ) AS scenario_ids,"
               + " fl.finding_location_asset_id, fl.finding_location_user_id,"
-              + " (SELECT array_agg(DISTINCT fo.finding_occurrence_field)"
-              + " FROM finding_occurrences fo"
-              + " WHERE fo.finding_occurrence_finding_id = f.finding_id"
-              + " AND fo.finding_occurrence_field IS NOT NULL) AS finding_fields,"
-              + " (SELECT array_agg(DISTINCT fo.finding_occurrence_inject_id)"
-              + " FROM finding_occurrences fo"
-              + " WHERE fo.finding_occurrence_finding_id = f.finding_id"
-              + " AND fo.finding_occurrence_inject_id IS NOT NULL) AS inject_ids,"
-              + " (SELECT array_agg(DISTINCT i.inject_exercise)"
-              + " FROM finding_occurrences fo"
-              + " JOIN injects i ON i.inject_id = fo.finding_occurrence_inject_id"
-              + " WHERE fo.finding_occurrence_finding_id = f.finding_id"
-              + " AND i.inject_exercise IS NOT NULL) AS simulation_ids,"
-              + " (SELECT array_agg(DISTINCT se.scenario_id)"
-              + " FROM finding_occurrences fo"
-              + " JOIN injects i ON i.inject_id = fo.finding_occurrence_inject_id"
-              + " JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise"
-              + " WHERE fo.finding_occurrence_finding_id = f.finding_id) AS scenario_ids,"
-              + " (SELECT array_agg(fa.asset_id) FROM findings_assets fa"
-              + " WHERE fa.finding_id = f.finding_id) AS asset_ids,"
-              // The asset groups that statically contain one of the finding's assets. Never the
-              // groups the inject targeted: those include groups the hit asset is not in. The
-              // dynamic memberships are added by FindingHandler through the membership resolver.
-              + " (SELECT array_agg(DISTINCT aga.asset_group_id)"
-              + " FROM findings_assets fa"
-              + " JOIN asset_groups_assets aga ON aga.asset_id = fa.asset_id"
-              + " WHERE fa.finding_id = f.finding_id) AS asset_group_ids,"
-              // The inject the finding is deleted with (ON DELETE CASCADE), and its context. One
-              // row at most: injects is joined on its primary key.
-              + " f.finding_inject_id, li.inject_exercise AS finding_simulation_id,"
-              + " (SELECT MAX(lse.scenario_id) FROM scenarios_exercises lse"
-              + " WHERE lse.exercise_id = li.inject_exercise) AS finding_scenario_id,"
               + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
               + "FROM findings f "
               + "LEFT JOIN finding_occurrences fo ON fo.finding_occurrence_finding_id = f.finding_id "
               + "LEFT JOIN injects i ON i.inject_id = fo.finding_occurrence_inject_id "
               + "LEFT JOIN scenarios_exercises se ON i.inject_exercise = se.exercise_id "
               + "LEFT JOIN finding_locations fl ON fl.finding_location_id = f.finding_location_id "
-              + "LEFT JOIN injects li ON li.inject_id = f.finding_inject_id "
               // Keyset resume on (updated_at, id): a batch whose LIMIT falls inside a group of
               // findings sharing one timestamp - an upsert stamps a whole transaction with now() -
               // resumes after its last id instead of skipping the rest of the group. A null id
@@ -304,78 +260,6 @@ public interface FindingRepository
       nativeQuery = true)
   List<RawFindingIndexing> findForIndexing(
       @Param("from") Instant from, @Param("fromId") String fromId, @Param("limit") int limit);
-
-  // The finding upsert, its asset link and its tag links used to be one modifying CTE
-  // (WITH ... INSERT ... RETURNING), which JSQLParser cannot parse, so the tenant inspector would
-  // fail-close on it. They are split into three parseable statements run together in one
-  // transaction by FindingWriter (REQUIRES_NEW). The transaction boundary lives in the API layer,
-  // not here.
-  //
-  // The conflict branch MUST bump finding_updated_at: search indexing is driven by an updated_at
-  // cursor (findForIndexing), so a re-detected finding (same natural key, possibly a new asset
-  // link added right after by insertFindingAsset) would otherwise never be re-indexed and its
-  // ES document would keep a stale asset list forever.
-  //
-  // This native write skips the JPA callbacks of Finding, so the caller passes the displayed value
-  // computed by SensitiveValueMaskingUtils.maskIfNeededFailClosed. The conflict branch writes it
-  // again, so a row written before the column existed gets it the next time the finding is
-  // detected.
-  //
-  // Being native, the upsert and the asset link skip ModelBaseListener: FindingWriter publishes
-  // the lifecycle event itself, which notification triggers and the stream depend on. "inserted"
-  // tells a create from an update: xmax is 0 only on a row version this statement inserted, the
-  // conflict branch stamps it with its own transaction id. insertFindingAsset returns 0 when the
-  // link already existed, which tells a new asset from a repeated report.
-
-  /** Projection for {@link #upsertFinding}. */
-  interface UpsertedFinding {
-    String getId();
-
-    boolean getInserted();
-  }
-
-  @Query(
-      value =
-          """
-        INSERT INTO findings
-          (finding_id, finding_field, finding_type, finding_value, finding_value_display,
-           finding_labels, finding_inject_id, finding_name, tenant_id)
-        VALUES
-          (gen_random_uuid(), :findingField, :findingType, :findingValue, :findingValueDisplay,
-           :findingLabels, :findingInjectId, :findingName, :tenantId)
-        ON CONFLICT (finding_inject_id, finding_field, finding_type, finding_value)
-        DO UPDATE SET finding_name = EXCLUDED.finding_name,
-          finding_value_display = EXCLUDED.finding_value_display,
-          finding_updated_at = now()
-        RETURNING finding_id AS id, (xmax = 0) AS inserted
-        """,
-      nativeQuery = true)
-  UpsertedFinding upsertFinding(
-      @Param("findingField") String findingField,
-      @Param("findingType") String findingType,
-      @Param("findingValue") String findingValue,
-      @Param("findingValueDisplay") String findingValueDisplay,
-      @Param("findingLabels") String[] findingLabels,
-      @Param("findingInjectId") String injectId,
-      @Param("findingName") String name,
-      @Param("tenantId") String tenantId);
-
-  @Modifying
-  @Query(
-      value =
-          "INSERT INTO findings_assets (finding_id, asset_id) VALUES (:findingId, :assetId)"
-              + " ON CONFLICT DO NOTHING",
-      nativeQuery = true)
-  int insertFindingAsset(@Param("findingId") String findingId, @Param("assetId") String assetId);
-
-  @Modifying
-  @Query(
-      value =
-          "INSERT INTO findings_tags (finding_id, tag_id)"
-              + " SELECT :findingId, tag_id FROM unnest(CAST(:tagIds AS varchar[])) AS tag_id"
-              + " ON CONFLICT DO NOTHING",
-      nativeQuery = true)
-  void insertFindingTags(@Param("findingId") String findingId, @Param("tagIds") String[] tagIds);
 
   // -- COUNTERPART FACTS (the key facts another XTM product shows next to its pivot) --
 
