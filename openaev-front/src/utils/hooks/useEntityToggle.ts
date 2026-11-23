@@ -1,4 +1,3 @@
-import * as R from 'ramda';
 import { type SyntheticEvent, useState } from 'react';
 
 import { omit } from '../object';

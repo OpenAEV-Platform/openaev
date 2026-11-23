@@ -80,7 +80,6 @@ const legacyRamdaFiles = [
   'src/utils/BrowserLanguage.ts',
   'src/utils/Environment.ts',
   'src/utils/SortingFiltering.jsx',
-  'src/utils/hooks/useEntityToggle.ts',
   'src/utils/injector_contract/InjectorContractUtils.ts',
   'src/utils/permissions/useScenarioPermissions.ts',
   'src/utils/utils.ts',
