@@ -13,5 +13,6 @@ public enum ReportingModuleType {
   FINDINGS,
   ATTACK_PATHS,
   MITIGATIONS,
+  REMEDIATIONS,
   CUSTOM_MARKDOWN
 }

@@ -1,26 +1,22 @@
-import { type RemediationMitigationCategory } from '../../remediation_mitigation/remediationMitigationMock';
-import RemediationMitigationPanel from '../../remediation_mitigation/RemediationMitigationPanel';
-import AtomicTestingMitigations from './AtomicTestingMitigations';
-import useHostLevelMitigations from './useHostLevelMitigations';
+import RemediationMitigationTabs from '../../remediation_mitigation/RemediationMitigationTabs';
+import useActionContext from './useActionContext';
 
 interface Props {
-  category: RemediationMitigationCategory;
   injectTitle?: string;
   injectType?: string;
 }
 
-// PROTOTYPE: the Remediation tab of an atomic testing. A remediation has no vendor, so its list is the
-// groups of assets only (same grouping as the host-level part of the Mitigation tab).
-const AtomicTestingRemediation = ({ injectTitle, injectType }: Omit<Props, 'category'>) => {
-  const hostLevel = useHostLevelMitigations(injectType, injectTitle, 'remediation');
-  return <RemediationMitigationPanel category="remediation" payloadName={injectTitle} hostLevel={hostLevel} />;
+// PROTOTYPE: the Remediation tab of an atomic testing, with its three views: the remediation (with the findings it
+// answers and the hosts it must be applied on), the vendor-specific mitigations and the generic ones.
+const AtomicTestingRemediationMitigation = ({ injectTitle, injectType }: Props) => {
+  const { affectedHosts, findingTypes } = useActionContext(injectType, injectTitle);
+  return (
+    <RemediationMitigationTabs
+      payloadName={injectTitle}
+      findingTypes={findingTypes}
+      affectedHosts={affectedHosts}
+    />
+  );
 };
-
-// PROTOTYPE: the "Mitigation" and "Remediation" tabs of an atomic testing (read-mostly).
-const AtomicTestingRemediationMitigation = ({ category, injectTitle, injectType }: Props) => (
-  category === 'mitigation'
-    ? <AtomicTestingMitigations injectTitle={injectTitle} injectType={injectType} />
-    : <AtomicTestingRemediation injectTitle={injectTitle} injectType={injectType} />
-);
 
 export default AtomicTestingRemediationMitigation;

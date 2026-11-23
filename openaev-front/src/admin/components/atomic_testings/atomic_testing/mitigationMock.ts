@@ -220,6 +220,17 @@ const GENERIC_MITIGATIONS: Record<'prevention' | 'detection', Pick<MockMitigatio
 // Finding types whose values are sensitive: only the type is known outside the platform.
 export const SENSITIVE_TYPES = ['credentials', 'password', 'hash', 'secret', 'token'];
 
+// The mock content is written per scenario. A finding type of the product (cve) is refined by its value:
+// CVE-2020-1472 is the Zerologon content, CVE-2021-44228 the Log4Shell one.
+const CVE_SCENARIOS: Record<string, string> = {
+  'cve-2020-1472': 'zerologon',
+  'cve-2021-44228': 'log4shell',
+};
+export const mockKeyOf = (finding: MitigationFinding) => {
+  const type = finding.type.toLowerCase();
+  return type === 'cve' ? (CVE_SCENARIOS[(finding.value ?? '').toLowerCase()] ?? type) : type;
+};
+
 /**
  * Mock of what XTM One would answer: a LIST of mitigations, one per kind of finding the execution
  * produced, each tied to the findings it addresses and carrying its own criticality (returned by
@@ -235,7 +246,7 @@ export const buildMitigations = (input: {
 }): MockMitigation[] => {
   const byKey = new Map<string, MitigationFinding[]>();
   input.findings.forEach((finding) => {
-    const key = Object.keys(FINDING_TYPE_MITIGATIONS).find(k => finding.type.toLowerCase().includes(k));
+    const key = Object.keys(FINDING_TYPE_MITIGATIONS).find(k => mockKeyOf(finding).includes(k));
     if (key) byKey.set(key, [...(byKey.get(key) ?? []), finding]);
   });
   const kinds = ['prevention', 'detection'] as const;
@@ -463,7 +474,7 @@ const buildPatches = (findings: MitigationFinding[], hasAgent: boolean): MockMit
       ? 'smb'
       : (port === '3389' && 'rdp') || (port === '22' && 'ssh') || undefined;
     if (key) services.set(key, [...(services.get(key) ?? []), finding]);
-    const cveKey = (['zerologon', 'log4shell'] as const).find(k => finding.type.toLowerCase().includes(k));
+    const cveKey = (['zerologon', 'log4shell'] as const).find(k => mockKeyOf(finding).includes(k));
     if (cveKey) cves.set(cveKey, [...(cves.get(cveKey) ?? []), finding]);
   });
   const addressesOf = (matching: MitigationFinding[]) => matching.map(finding => ({
@@ -501,7 +512,7 @@ export const buildRemediations = (input: {
 }): MockMitigation[] => {
   const byKey = new Map<string, MitigationFinding[]>();
   input.findings.forEach((finding) => {
-    const key = Object.keys(FINDING_TYPE_REMEDIATIONS).find(k => finding.type.toLowerCase().includes(k));
+    const key = Object.keys(FINDING_TYPE_REMEDIATIONS).find(k => mockKeyOf(finding).includes(k));
     if (key) byKey.set(key, [...(byKey.get(key) ?? []), finding]);
   });
   if (byKey.size === 0) {

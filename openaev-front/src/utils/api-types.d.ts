@@ -11027,6 +11027,7 @@ export interface ReportingModule {
     | "FINDINGS"
     | "ATTACK_PATHS"
     | "MITIGATIONS"
+    | "REMEDIATIONS"
     | "CUSTOM_MARKDOWN";
 }
 

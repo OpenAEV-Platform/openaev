@@ -25,9 +25,9 @@ import expectationIconByType from '../../../common/ExpectationIconByType';
 import GlobalExecutionTraces from '../../../common/injects/status/traces/GlobalExecutionTraces';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
 import FindingList from '../../../findings/FindingList';
-import RemediationMitigationPanel, { type PanelContext } from '../../../remediation_mitigation/RemediationMitigationPanel';
+import { type PanelContext } from '../../../remediation_mitigation/RemediationMitigationPanel';
 import { type Verdict } from '../../../remediation_mitigation/remediationMitigationStore';
-import ExecutionMitigationTab from './ExecutionMitigationTab';
+import RemediationMitigationTabs from '../../../remediation_mitigation/RemediationMitigationTabs';
 import { InjectorExecutionStatusBadge, PayloadExecutionStatusBadge } from './ExecutionStatusBadge';
 import ExpectationPlatformsTable, {
   type ExpectationPlatformAlert,
@@ -54,7 +54,6 @@ const RESULT_TAB = 'result';
 const TERMINAL_TAB = 'terminal';
 const FINDINGS_TAB = 'findings';
 const REMEDIATION_TAB = 'remediation';
-const MITIGATION_TAB = 'mitigation';
 
 interface SecurityPlatformRow {
   key: string;
@@ -420,6 +419,12 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
     return succeeded ? 'met' : 'not_met';
   };
   const firstFindingType = (detail?.findings ?? []).find(finding => !!finding.type)?.type;
+  // ATT&CK techniques of the execution: the generic mitigations are the ones MITRE publishes for them.
+  const techniques = (detail?.attackPatterns ?? []).map(ap => ap.externalId ?? '').filter(Boolean);
+  // A remediation is applied on the host the action was not prevented on.
+  const wasPrevented = detail ? getSecurityPlatforms(detail).some(platform => platform.bucket === 'prevention') : false;
+  const executionHost = endpointLabel || detail?.targetHostname || detail?.targetIp || detail?.endpointKey;
+  const affectedHosts = executionHost && !wasPrevented ? [executionHost] : [];
   const panelContext: PanelContext = {
     findingType: firstFindingType,
     verdicts: {
@@ -727,10 +732,6 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 key: REMEDIATION_TAB,
                 label: t('Remediation'),
               },
-              {
-                key: MITIGATION_TAB,
-                label: t('Mitigation'),
-              },
             ]}
             currentTab={currentTab}
             onChange={handleChangeTab}
@@ -850,43 +851,13 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
             )}
 
             {currentTab === REMEDIATION_TAB && (
-              <RemediationMitigationPanel
-                category="remediation"
+              <RemediationMitigationTabs
                 payloadName={detail.payloadName}
                 editable
                 context={panelContext}
+                affectedHosts={affectedHosts}
+                techniques={techniques}
               />
-            )}
-
-            {currentTab === MITIGATION_TAB && (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: theme.spacing(3),
-              }}
-              >
-                <RemediationMitigationPanel
-                  category="mitigation"
-                  payloadName={detail.payloadName}
-                  editable
-                  context={panelContext}
-                  onSwitchToRemediation={() => handleChangeTab(REMEDIATION_TAB)}
-                />
-                <ExecutionMitigationTab
-                  executionLabel={endpointLabel ?? detail.agentName ?? 'execution'}
-                  actionName={detail.payloadName ?? t('Execution')}
-                  command={detail.command ?? detail.injectorCommandLine ?? undefined}
-                  findings={(detail.findings ?? []).filter(finding => !!finding.type).map(finding => ({
-                    type: finding.type as string,
-                    value: finding.value,
-                  }))}
-                  attackPatterns={(detail.attackPatterns ?? []).map(ap => ap.externalId ?? ap.name ?? '').filter(Boolean)}
-                  targetPlatform={detail.targetPlatform ?? undefined}
-                  agentName={detail.agentName ?? undefined}
-                  agentPrivilege={detail.agentPrivilege ?? undefined}
-                  prevented={getSecurityPlatforms(detail).some(platform => platform.bucket === 'prevention')}
-                />
-              </div>
             )}
           </div>
         </div>

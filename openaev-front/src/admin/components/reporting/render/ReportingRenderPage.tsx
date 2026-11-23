@@ -13,6 +13,7 @@ import FindingsModule from './modules/FindingsModule';
 import MitigationsModule from './modules/MitigationsModule';
 import MitreCoverageModule from './modules/MitreCoverageModule';
 import { ModuleSection } from './modules/ModuleSection';
+import RemediationsModule from './modules/RemediationsModule';
 import ResultsBreakdownModule from './modules/ResultsBreakdownModule';
 import ScoreTrendsModule from './modules/ScoreTrendsModule';
 import SecurityDomainsModule from './modules/SecurityDomainsModule';
@@ -126,6 +127,8 @@ const ReportingRenderPage: FunctionComponent<Props> = ({ reporting, token }) => 
         return <AttackPathsModule attackPaths={data.attackPaths} />;
       case 'MITIGATIONS':
         return <MitigationsModule module={module} />;
+      case 'REMEDIATIONS':
+        return <RemediationsModule module={module} />;
       case 'CUSTOM_MARKDOWN':
         return <CustomMarkdownModule module={module} />;
       default:

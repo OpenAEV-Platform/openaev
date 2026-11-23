@@ -33,18 +33,6 @@ const AtomicTestingRoutes = ({ injectResultOverview }: Props) => {
           <Route
             path="remediations"
             element={errorWrapper(AtomicTestingRemediationMitigation)({
-              category: 'remediation',
-              injectTitle: injectResultOverview.inject_title,
-              injectType: injectResultOverview.inject_type,
-            })}
-          />
-        )}
-        {(injectResultOverview.inject_injector_contract?.injector_contract_payload
-          || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
-          <Route
-            path="mitigations"
-            element={errorWrapper(AtomicTestingRemediationMitigation)({
-              category: 'mitigation',
               injectTitle: injectResultOverview.inject_title,
               injectType: injectResultOverview.inject_type,
             })}

@@ -67,14 +67,7 @@ const InjectIndexTabs = ({ injectResultOverview, exercise, backlabel, backuri }:
             <Link to={computePath(`${base}/findings`)} aria-current={current(`${base}/findings`)}>{t('Findings')}</Link>
           </TabsTrigger>
         )}
-        {hasPayload && (
-          <TabsTrigger value={`${base}/mitigations`} asChild>
-            <Link to={computePath(`${base}/mitigations`)} aria-current={current(`${base}/mitigations`)}>
-              {t('Mitigation')}
-            </Link>
-          </TabsTrigger>
-        )}
-        {hasPayload && (
+        {(hasPayload || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
           <TabsTrigger value={`${base}/remediations`} asChild>
             <Link to={computePath(`${base}/remediations`)} onClick={handleRemediationClick} aria-current={current(`${base}/remediations`)}>
               {t('Remediation')}

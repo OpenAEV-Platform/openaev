@@ -56,13 +56,6 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
           </TabsTrigger>
         )}
         {(hasPayload || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
-          <TabsTrigger value={`${base}/mitigations`} asChild>
-            <Link to={`${base}/mitigations`} aria-current={current(`${base}/mitigations`)}>
-              {t('Mitigation')}
-            </Link>
-          </TabsTrigger>
-        )}
-        {(hasPayload || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
           <TabsTrigger value={`${base}/remediations`} asChild>
             <Link to={`${base}/remediations`} onClick={handleRemediationClick} aria-current={current(`${base}/remediations`)}>
               {t('Remediation')}

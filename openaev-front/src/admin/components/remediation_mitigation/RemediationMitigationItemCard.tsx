@@ -90,6 +90,8 @@ interface Props {
   extraDetails?: ReactNode;
   // Types of the findings the guidance answers: shown next to where it applies, not in Details.
   findingTypes?: string[];
+  // Remediation only: the hosts where it must be applied (the targets the action was not prevented on).
+  affectedHosts?: string[];
   // Set on the Threat Arsenal / attack path screens: review, edit and delete are then available.
   payloadId?: string;
   editable?: boolean;
@@ -98,7 +100,7 @@ interface Props {
 }
 
 // One remediation or mitigation. The remediation shows its ordered actions, the mitigation its rule.
-const RemediationMitigationItemCard = ({ item, payload, extraDetails, findingTypes = [], payloadId, editable = false, onSwitchToRemediation }: Props) => {
+const RemediationMitigationItemCard = ({ item, payload, extraDetails, findingTypes = [], affectedHosts = [], payloadId, editable = false, onSwitchToRemediation }: Props) => {
   const { t } = useFormatter();
   const labels = useRemediationMitigationLabels();
   const [editing, setEditing] = useState(false);
@@ -129,7 +131,7 @@ const RemediationMitigationItemCard = ({ item, payload, extraDetails, findingTyp
           gap: 6,
         }}
         >
-          <Text variant="content-base-bold">{`${t('Affected findings')}:`}</Text>
+          <Text variant="content-base-bold">{`${t('Discovered findings')}:`}</Text>
           {findingTypes.map(type => <Chip key={type} label={type} severity="info" />)}
         </div>
       )}
@@ -152,14 +154,6 @@ const RemediationMitigationItemCard = ({ item, payload, extraDetails, findingTyp
       {editing && item.category === 'remediation'
         ? null
         : <Text variant="content-compact">{item.summary}</Text>}
-
-      {/* Where the guidance is valid and where the change is made: one line. */}
-      <Text variant="content-caption" className="text-default-secondary">
-        {[
-          item.applies_to ?? PLATFORM_LABELS[item.platform],
-          `${t('Where to apply')}: ${labels.applyLayer[item.apply_layer ?? 'host']}`,
-        ].filter(Boolean).join(' · ')}
-      </Text>
 
       {/* One warning strip: verify the guidance, and a prevention only blocks the behavior. */}
       {(item.verify || (item.category === 'mitigation' && item.control_type === 'prevention')) && (
@@ -230,7 +224,13 @@ const RemediationMitigationItemCard = ({ item, payload, extraDetails, findingTyp
         />
       )}
 
-      {/* Everything else is closed by default. Prerequisites and assumptions are one list. */}
+      {/* Everything else is closed by default. The hosts the remediation must be applied on come first. */}
+      {item.category === 'remediation' && affectedHosts.length > 0 && (
+        <Collapsible title={`${t('Affected hosts')} (${affectedHosts.length})`}>
+          <BulletList entries={affectedHosts} />
+        </Collapsible>
+      )}
+      {/* Prerequisites and assumptions are one list. */}
       {prerequisites.length > 0 && (
         <Collapsible title={t('Prerequisites')}>
           <BulletList entries={prerequisites} />

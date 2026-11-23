@@ -97,7 +97,7 @@ const MitigationCard = ({ mitigation, reusedFrom, onRegenerate }: Props) => {
       {mitigation.addresses.length > 0 && (
         <div>
           <Text variant="content-base-bold" className="mb-1 block text-default-secondary">
-            {t('Affected findings')}
+            {t('Discovered findings')}
           </Text>
           <div style={{
             display: 'flex',

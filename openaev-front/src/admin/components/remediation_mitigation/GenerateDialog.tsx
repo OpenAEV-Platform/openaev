@@ -69,7 +69,6 @@ const Choice = <T extends string>({ label, value, options, onChange }: {
 const GenerateDialog = ({ open, onClose, payload, category, context, defaults }: Props) => {
   const { t } = useFormatter();
   const [controlType, setControlType] = useState<MitigationControl>('detection');
-  const [vendorSpecific, setVendorSpecific] = useState(true);
   const [collector, setCollector] = useState<CollectorType>('splunk');
   const [loading, setLoading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -81,14 +80,13 @@ const GenerateDialog = ({ open, onClose, payload, category, context, defaults }:
     if (!open) return;
     setControlType(defaults?.controlType ?? 'detection');
     const target = defaults?.collector;
-    setVendorSpecific(target !== 'generic');
     setCollector(target && target !== 'generic' ? target : 'splunk');
     setLoading(false);
     setNoSuggestion(undefined);
   }, [open, defaults?.controlType, defaults?.collector]);
 
   const isMitigation = category === 'mitigation';
-  const selectedCollector = isMitigation && vendorSpecific ? collector : undefined;
+  const selectedCollector = isMitigation ? collector : undefined;
   const unsupported = isMitigation
     ? unsupportedReason({
         controlType,
@@ -146,32 +144,15 @@ const GenerateDialog = ({ open, onClose, payload, category, context, defaults }:
                     ]}
                     onChange={setControlType}
                   />
-                  <Choice<'vendor' | 'generic'>
-                    label={t('Target')}
-                    value={vendorSpecific ? 'vendor' : 'generic'}
-                    options={[
-                      {
-                        value: 'vendor',
-                        label: t('Vendor-specific'),
-                      },
-                      {
-                        value: 'generic',
-                        label: t('Generic / host-level'),
-                      },
-                    ]}
-                    onChange={value => setVendorSpecific(value === 'vendor')}
+                  <Choice<CollectorType>
+                    label={t('Collector')}
+                    value={collector}
+                    options={(Object.keys(COLLECTOR_LABELS) as CollectorType[]).map(key => ({
+                      value: key,
+                      label: COLLECTOR_LABELS[key],
+                    }))}
+                    onChange={setCollector}
                   />
-                  {vendorSpecific && (
-                    <Choice<CollectorType>
-                      label={t('Collector')}
-                      value={collector}
-                      options={(Object.keys(COLLECTOR_LABELS) as CollectorType[]).map(key => ({
-                        value: key,
-                        label: COLLECTOR_LABELS[key],
-                      }))}
-                      onChange={setCollector}
-                    />
-                  )}
                   {controlType === 'prevention' && !unsupported && (
                     <Text variant="content-caption" className="text-default-secondary">
                       {t('A prevention rule is generated to run in monitor/detect mode first.')}

@@ -253,7 +253,7 @@ const SimulationMitigations: FunctionComponent<Props> = ({ simulationLabel }) =>
                 alignItems: 'center',
               }}
               >
-                <Text variant="content-caption" className="text-default-secondary">{t('Affected findings')}</Text>
+                <Text variant="content-caption" className="text-default-secondary">{t('Discovered findings')}</Text>
                 {top.addresses.map(finding => (
                   <Chip key={`${finding.type}-${finding.value ?? ''}`} label={finding.value ? `${finding.type}: ${finding.value}` : `${finding.type} (${t('value masked')})`} severity="neutral" />
                 ))}

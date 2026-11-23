@@ -66,6 +66,7 @@ export const REPORTING_MODULE_TYPES = [
   'FINDINGS',
   'ATTACK_PATHS',
   'MITIGATIONS',
+  'REMEDIATIONS',
   'CUSTOM_MARKDOWN',
 ] as const;
 
@@ -94,7 +95,8 @@ export const MODULE_TYPE_DESCRIPTIONS: Record<ReportingModuleType, string> = {
   FAILED_EXPECTATIONS: 'Most recent failed expectations of the period.',
   FINDINGS: 'Findings collected over the period, by type and most recent.',
   ATTACK_PATHS: 'Kill chain phase progression of the executed injects.',
-  MITIGATIONS: 'How to close the attacks that were not prevented: existing mitigations only, grouped by mitigation. Optional.',
+  MITIGATIONS: 'How to stop or detect the attacks that were not prevented: existing mitigations only, grouped by mitigation. Optional.',
+  REMEDIATIONS: 'How to remove the weakness behind the attacks that were not prevented, with the hosts to apply each remediation on: existing remediations only. Optional.',
   CUSTOM_MARKDOWN: 'Free-form content written in markdown.',
 };
 

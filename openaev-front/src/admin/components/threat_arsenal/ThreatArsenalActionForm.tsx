@@ -15,7 +15,7 @@ import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import EEChip from '../common/entreprise_edition/EEChip';
 import { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../findings/ContractOutputElementType';
 import { hasSpecificDirtyFieldAI, trackedFields } from '../payloads/utils/payloadFormToPayloadInput';
-import RemediationMitigationPanel from '../remediation_mitigation/RemediationMitigationPanel';
+import RemediationMitigationTabs from '../remediation_mitigation/RemediationMitigationTabs';
 import CommandsFormTab from './form/CommandsFormTab';
 import GeneralFormTab from './form/GeneralFormTab';
 import OutputFormTab from './form/OutputFormTab';
@@ -217,9 +217,6 @@ const ThreatArsenalActionForm = ({
     key: 'Output',
     label: 'Output',
   }, {
-    key: 'Mitigation',
-    label: t('Mitigation'),
-  }, {
     key: 'Remediation',
     label: (
       // The theme lowercases MuiTab labels and re-capitalises via ::first-letter,
@@ -334,18 +331,8 @@ const ThreatArsenalActionForm = ({
           )}
 
           {/* PROTOTYPE: sample data, the tabs are fed by an in-memory mock (see remediation_mitigation). */}
-          {currentTab === 'Mitigation' && (
-            <RemediationMitigationPanel
-              category="mitigation"
-              payloadName={methods.watch('action_name')}
-              editable
-              onSwitchToRemediation={() => handleChangeTab('Remediation')}
-            />
-          )}
-
           {currentTab === 'Remediation' && (
-            <RemediationMitigationPanel
-              category="remediation"
+            <RemediationMitigationTabs
               payloadName={methods.watch('action_name')}
               editable
             />

@@ -30,6 +30,7 @@ export const MODULE_TYPE_LABELS: Record<NonNullable<ReportingModule['module_type
   FINDINGS: 'Findings',
   ATTACK_PATHS: 'Attack paths',
   MITIGATIONS: 'Mitigations',
+  REMEDIATIONS: 'Remediations',
   CUSTOM_MARKDOWN: 'Custom content',
 };
 
