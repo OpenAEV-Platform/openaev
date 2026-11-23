@@ -4,13 +4,11 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.xtm.counterpart.form.CounterpartLookupInput;
@@ -30,15 +28,14 @@ import org.springframework.web.bind.annotation.*;
 /**
  * Cross-platform awareness: which connected XTM products this tenant reaches, and which of our
  * objects they also hold. Each lookup is guarded by the right to search the object kind it reads.
- * Part of the exploration graph preview feature: every route answers a 404 while {@code
- * EXPLORATION_GRAPH} is off (the default).
+ * Not behind a preview feature: the pivots and the deep integration are their own feature, apart
+ * from the exploration graph (which {@code EXPLORATION_GRAPH} keeps gated).
  *
  * <p>The counterpart lookups call the connected products over the network and read no table, so
  * they run outside any database transaction: a slow remote product never holds a connection of the
  * pool.
  */
 @RestController
-@RequirePreviewFeature(PreviewFeature.EXPLORATION_GRAPH)
 @RequiredArgsConstructor
 @RequestMapping(CounterpartApi.XTM_API)
 @Tag(name = "XTM counterparts", description = "Objects shared with the other XTM products")

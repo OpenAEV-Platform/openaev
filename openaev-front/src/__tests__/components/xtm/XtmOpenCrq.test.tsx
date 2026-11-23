@@ -9,7 +9,7 @@ import { OpenCrqMatchPreview, OpenCrqPivotView, OpenCrqRowMark } from '../../../
 
 const can = vi.fn();
 const useCounterpartMock = vi.fn();
-const graphEnabled = vi.fn(() => true);
+const graphEnabled = vi.fn(() => false);
 vi.mock('../../../utils/hooks/useExplorationGraph', () => ({ default: () => graphEnabled() }));
 vi.mock('../../../components/xtm/useCounterpart', () => ({ default: (...args: unknown[]) => useCounterpartMock(...args) }));
 vi.mock('../../../components/i18n', () => ({
@@ -154,12 +154,13 @@ describe('OpenCrqMatchPreview', () => {
 describe('OpenCrqRowMark', () => {
   afterEach(cleanup);
 
-  it('given the exploration graph feature off should render nothing and never look the object up', () => {
-    graphEnabled.mockReturnValueOnce(false);
+  it('given the exploration graph feature off should still look the object up and draw the mark', () => {
     useCounterpartMock.mockClear();
-    const { container } = renderView(<OpenCrqRowMark kind="vulnerabilities" objectKey="CVE-2024-0001" reserveSlot />);
-    expect(container.textContent).toBe('');
-    expect(useCounterpartMock).not.toHaveBeenCalled();
+    useCounterpartMock.mockReturnValue(MATCH);
+    renderView(<OpenCrqRowMark kind="vulnerabilities" objectKey="CVE-2024-0001" reserveSlot />);
+    expect(graphEnabled()).toBe(false);
+    expect(screen.getByTestId('xtm-crq-row-mark')).toBeTruthy();
+    expect(useCounterpartMock).toHaveBeenCalledWith('vulnerabilities', 'CVE-2024-0001', 'opencrq');
   });
 
   it('given a match should link the OpenCRQ mark to the object', () => {

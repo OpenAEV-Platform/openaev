@@ -44,7 +44,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @WithMockUser(isAdmin = false)
-@TestPropertySource(properties = "openaev.enabled-dev-features=MARKING,EXPLORATION_GRAPH")
+// EXPLORATION_GRAPH off on purpose: the pivots and their routes are not behind the graph flag.
+@TestPropertySource(properties = "openaev.enabled-dev-features=MARKING")
 @DisplayName("XTM reverse lookups: rights through the HTTP stack")
 class CounterpartApiGrantTest extends IntegrationTest {
 

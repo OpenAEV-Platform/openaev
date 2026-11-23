@@ -220,12 +220,14 @@ const AssetDetail = () => {
         title={asset.asset_name}
         action={(
           <>
-            <ExploreInGraphButton type="ASSET" entityId={id} />
-            {/* Contract v3: one icon-only emblem per counterpart product, OpenCTI then OpenCRQ. An
-                asset imported from one of them is found from its source link first (rule 5);
-                OpenCRQ keys its supporting assets by hostname only. */}
+            {/* Contract v3: the cross-product emblems come first, leftmost, before the page's own
+                actions; one icon-only emblem per counterpart product in the fixed order XTM One,
+                OpenCTI, OpenAEV, OpenCRQ (the page's own product skipped). An asset imported from
+                one of them is found from its source link first (rule 5); OpenCRQ keys its
+                supporting assets by hostname only. */}
             {!isAiTarget && <OpenCtiPivot kind="assets" objectKey={counterpartKey} sourceUrl={asset.asset_external_reference} />}
             {!isAiTarget && <OpenCrqPivot kind="assets" objectKey={asset.asset_hostname} sourceUrl={asset.asset_external_reference} />}
+            <ExploreInGraphButton type="ASSET" entityId={id} />
             {/* Entity-scoped reports - self-hides without the reporting
                 access capability. */}
             <EntityReportsPanel

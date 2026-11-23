@@ -9,7 +9,7 @@ import { CONNECT_OPENCTI_DOC_URL, OpenCtiMatchPreview, OpenCtiPivotView, OpenCti
 
 const can = vi.fn();
 const useCounterpartMock = vi.fn();
-const graphEnabled = vi.fn(() => true);
+const graphEnabled = vi.fn(() => false);
 vi.mock('../../../utils/hooks/useExplorationGraph', () => ({ default: () => graphEnabled() }));
 vi.mock('../../../components/xtm/useCounterpart', () => ({
   default: (...args: unknown[]) => useCounterpartMock(...args),
@@ -232,13 +232,13 @@ describe('OpenCtiRowMark', () => {
     },
   };
 
-  it('given the exploration graph feature off should render nothing and never look the object up', () => {
-    graphEnabled.mockReturnValueOnce(false);
+  it('given the exploration graph feature off should still look the object up and draw the mark', () => {
     useCounterpartMock.mockClear();
-    const { container } = renderPivot(<OpenCtiRowMark kind="alerts" objectKey="https://edr/1" reserveSlot />);
-    expect(container.textContent).toBe('');
-    expect(screen.queryByTestId('xtm-row-mark-slot')).toBeNull();
-    expect(useCounterpartMock).not.toHaveBeenCalled();
+    useCounterpartMock.mockReturnValue(match);
+    renderPivot(<OpenCtiRowMark kind="alerts" objectKey="https://edr/1" reserveSlot />);
+    expect(graphEnabled()).toBe(false);
+    expect(screen.getByTestId('xtm-row-mark')).toBeTruthy();
+    expect(useCounterpartMock).toHaveBeenCalled();
   });
 
   it('given a match with a reserved slot should render the mark inside a fixed-width slot', () => {
