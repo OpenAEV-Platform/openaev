@@ -42,7 +42,9 @@ public final class MarkingDerivedTables {
           // A typed link between two assets (#9447) follows the asset it was added from; the
           // graph and the asset page also join the other end, which the inspector filters, so a
           // link is shown only when both of its assets are.
-          linkedTo("assets_links", "asset_id", "assets", "asset_id"));
+          linkedTo("assets_links", "asset_id", "assets", "asset_id"),
+          // An owner of an asset (#9725) is visible when its asset is.
+          linkedTo("assets_owners", "asset_id", "assets", "asset_id"));
 
   /**
    * The objects a run produces on an asset: what an execution on a restricted asset leaves behind

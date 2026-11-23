@@ -24,6 +24,10 @@ public enum GraphEdgeType {
   TEAM_OF,
   /** Asset is linked to another asset ({@code assets_links}, typed: uses, runs on, ...). */
   LINKED_TO,
+  /** Asset is owned by a person or a team, business owner ({@code assets_owners}). */
+  OWNED_BY,
+  /** Asset is managed by a person or a team, technical owner ({@code assets_owners}). */
+  MANAGED_BY,
   /**
    * Attack path step: an attack-path execution of a simulation went from the source asset to the
    * target asset ({@code attackpath_execution}), with its worst prevention / detection verdict.

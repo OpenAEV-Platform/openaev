@@ -62,14 +62,16 @@ public class GraphRelationCounter {
                 GraphEdgeType.LINKED_TO,
                 GraphNodeType.ASSET,
                 "SELECT l.assetId, COUNT(DISTINCT b.id) FROM AssetLink l, Asset b"
-                    + " WHERE l.assetId IN :ids AND b.id = l.linkedAssetId AND b.tenant.id"
+                    + " WHERE l.assetId IN :ids AND b.id = l.linkedAssetId AND l.suppressed = false"
+                    + " AND b.tenant.id"
                     + T
                     + " GROUP BY l.assetId"),
             new CountQuery(
                 GraphEdgeType.LINKED_TO,
                 GraphNodeType.ASSET,
                 "SELECT l.linkedAssetId, COUNT(DISTINCT b.id) FROM AssetLink l, Asset b"
-                    + " WHERE l.linkedAssetId IN :ids AND b.id = l.assetId AND b.tenant.id"
+                    + " WHERE l.linkedAssetId IN :ids AND b.id = l.assetId AND l.suppressed = false"
+                    + " AND b.tenant.id"
                     + T
                     + " GROUP BY l.linkedAssetId"),
             new CountQuery(

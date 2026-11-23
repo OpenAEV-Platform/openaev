@@ -34,6 +34,7 @@ class GraphFeatureGateTest extends IntegrationTest {
 
   static final String STORY = TENANT_PREFIX + "/graph/story";
   static final String LINKS = "/api/assets/{assetId}/links";
+  static final String OWNERS = "/api/assets/{assetId}/owners";
   static final String CONNECTIONS = TENANT_PREFIX + "/xtm/connections";
   static final String LOCAL_ASSETS = TENANT_PREFIX + "/xtm/objects/assets";
 
@@ -62,6 +63,12 @@ class GraphFeatureGateTest extends IntegrationTest {
   @DisplayName("given the flag off, the links of an existing asset are not found")
   void given_flagOff_should_refuseAssetLinks() throws Exception {
     mvc.perform(get(LINKS, assetId).with(csrf())).andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("given the flag off, the owners of an existing asset are not found")
+  void given_flagOff_should_refuseAssetOwners() throws Exception {
+    mvc.perform(get(OWNERS, assetId).with(csrf())).andExpect(status().isNotFound());
   }
 
   @Test
