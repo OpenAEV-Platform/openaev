@@ -11,10 +11,8 @@ import io.openaev.database.model.NotificationTriggerType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.NotificationEventRecordRepository;
-import java.util.LinkedHashMap;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.stream.StreamVisibility;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -31,6 +29,13 @@ import org.springframework.stereotype.Service;
  * NotificationRecipientFilter}): a trigger on a resource type never reveals an object of that type
  * to a recipient the API would refuse it to. The digest replays the recorded rows, so it inherits
  * the same filter, and re-checks each row at send time.
+ *
+ * <p>Built on top of that RBAC/grant check, a recipient also needs the live event's marking
+ * clearance when the resource carries any ({@link StreamVisibility}, resolved from the same payload
+ * the activity stream reads): a trigger never reveals an object whose marking a reader is not
+ * cleared for, the same way the stream itself never shows it. Unlike the RBAC check, this is
+ * resolved only once per live event, not re-checked by the digest (see {@link
+ * NotificationDigestService}).
  *
  * <p>A message is rendered per recipient ({@link NotificationMessage}): a related object the
  * recipient cannot read is named "Restricted", the event is never dropped for it. A recipient who
@@ -49,6 +54,21 @@ public class NotificationEngineService {
   private final NotificationEventRecordRepository notificationEventRecordRepository;
   private final TenantScopedTransaction tenantTx;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
+
+  /**
+   * Processes one entity lifecycle event of a resource type that never carries markings - the
+   * event's visibility is unfiltered. For one that may, use {@link #handleEvent(
+   * NotificationResourceCatalog, String, String, NotificationTriggerEventType, String, Supplier)}.
+   */
+  public void handleEvent(
+      NotificationResourceCatalog entry,
+      String entityId,
+      String entityTenantId,
+      NotificationTriggerEventType eventType,
+      String label) {
+    handleEvent(
+        entry, entityId, entityTenantId, eventType, label, () -> StreamVisibility.UNFILTERED);
+  }
 
   /**
    * Processes one entity lifecycle event.
@@ -79,6 +99,21 @@ public class NotificationEngineService {
   }
 
   /**
+   * Processes one event with a pre-built notification message, of a resource type that never
+   * carries markings. For one that may, use {@link #handleEventWithMessage(
+   * NotificationResourceCatalog, String, String, NotificationTriggerEventType, String, Supplier)}.
+   */
+  public void handleEventWithMessage(
+      NotificationResourceCatalog entry,
+      String entityId,
+      String entityTenantId,
+      NotificationTriggerEventType eventType,
+      String message) {
+    handleEventWithMessage(
+        entry, entityId, entityTenantId, eventType, message, () -> StreamVisibility.UNFILTERED);
+  }
+
+  /**
    * Processes one event with a pre-built notification message. Used for semantic events (e.g.
    * scenario score degradation) whose message carries more context than a lifecycle operation.
    */
@@ -90,12 +125,18 @@ public class NotificationEngineService {
       String message,
       Supplier<StreamVisibility> visibilitySupplier) {
     handleEventWithMessage(
-        entry, entityId, entityTenantId, eventType, NotificationMessage.of(message));
+        entry,
+        entityId,
+        entityTenantId,
+        eventType,
+        NotificationMessage.of(message),
+        visibilitySupplier);
   }
 
   /**
-   * Processes one event whose message names related objects: each recipient gets the message with
-   * the names of the related objects it cannot read replaced by "Restricted".
+   * Processes one event whose message names related objects, of a resource type that never carries
+   * markings. For one that may, use {@link #handleEventWithMessage(NotificationResourceCatalog,
+   * String, String, NotificationTriggerEventType, NotificationMessage, Supplier)}.
    */
   public void handleEventWithMessage(
       NotificationResourceCatalog entry,
@@ -103,6 +144,26 @@ public class NotificationEngineService {
       String entityTenantId,
       NotificationTriggerEventType eventType,
       NotificationMessage message) {
+    handleEventWithMessage(
+        entry, entityId, entityTenantId, eventType, message, () -> StreamVisibility.UNFILTERED);
+  }
+
+  /**
+   * Processes one event whose message names related objects: each recipient gets the message with
+   * the names of the related objects it cannot read replaced by "Restricted".
+   *
+   * @param visibilitySupplier the event's marking visibility (see {@link #handleEvent(
+   *     NotificationResourceCatalog, String, String, NotificationTriggerEventType, String,
+   *     Supplier)}), applied on top of the RBAC-cleared readers {@link NotificationRecipientFilter}
+   *     returns
+   */
+  public void handleEventWithMessage(
+      NotificationResourceCatalog entry,
+      String entityId,
+      String entityTenantId,
+      NotificationTriggerEventType eventType,
+      NotificationMessage message,
+      Supplier<StreamVisibility> visibilitySupplier) {
     List<ResolvedNotificationTrigger> triggers =
         triggerCacheService.getLiveTriggers(entry.getResourceType());
     if (triggers.isEmpty()) {
@@ -124,6 +185,10 @@ public class NotificationEngineService {
         if (entityTenantId == null || !entityTenantId.equals(trigger.tenantId())) {
           continue;
         }
+        if (visibilityHolder[0] == null) {
+          visibilityHolder[0] = visibilitySupplier.get();
+        }
+        StreamVisibility visibility = visibilityHolder[0];
         inTriggerScope(
             trigger,
             () -> {
@@ -131,7 +196,8 @@ public class NotificationEngineService {
                 return List.of();
               }
               List<String> readers = recipientFilter.readersOf(trigger, entry, entityId);
-              return recordRendered(trigger, readers, entry, entityId, eventType, message);
+              List<String> cleared = narrowByClearance(trigger, readers, visibility);
+              return recordRendered(trigger, cleared, entry, entityId, eventType, message);
             });
       } catch (Exception e) {
         log.error(
@@ -308,19 +374,20 @@ public class NotificationEngineService {
   }
 
   /**
-   * Narrows a trigger's recipients to those the event's {@link StreamVisibility} shows - unchanged
-   * when the visibility is unfiltered (the MARKING preview feature off, assets not marking-active,
-   * or the resource carries none, all folded into {@link StreamVisibility#isUnfiltered()} by the
-   * supplier the caller built). Resolved once, before both the outbox write and the live dispatch
-   * use it: a recipient never cleared for this event gets neither a {@link #recordEvents} row nor
-   * the live notification, so a later digest built from that outbox never has to re-check it.
+   * Narrows RBAC-cleared {@code readers} (see {@link NotificationRecipientFilter}) to those the
+   * event's {@link StreamVisibility} also shows - unchanged when the visibility is unfiltered (the
+   * MARKING preview feature off, assets not marking-active, or the resource carries none, all
+   * folded into {@link StreamVisibility#isUnfiltered()} by the supplier the caller built). Resolved
+   * once, before both the outbox write and the live dispatch use it: a recipient never cleared for
+   * this event gets neither a {@link #recordEvents} row nor the live notification, so a later
+   * digest built from that outbox never has to re-check it.
    */
-  private List<String> recipientsUnderClearance(
-      ResolvedNotificationTrigger trigger, StreamVisibility visibility) {
+  private List<String> narrowByClearance(
+      ResolvedNotificationTrigger trigger, List<String> readers, StreamVisibility visibility) {
     if (visibility.isUnfiltered()) {
-      return trigger.recipientUserIds();
+      return readers;
     }
-    return trigger.recipientUserIds().stream()
+    return readers.stream()
         .filter(
             userId ->
                 visibility.visibleUnder(
@@ -334,8 +401,7 @@ public class NotificationEngineService {
       NotificationResourceCatalog entry,
       String entityId,
       NotificationTriggerEventType eventType,
-      String message,
-      List<String> recipients) {
+      String message) {
     List<NotificationEventRecord> records =
         readers.stream()
             .map(

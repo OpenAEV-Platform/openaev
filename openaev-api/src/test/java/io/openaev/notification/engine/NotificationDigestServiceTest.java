@@ -34,7 +34,6 @@ class NotificationDigestServiceTest {
 
   private NotificationTriggerLoader triggerLoader;
   private NotificationDispatchService dispatchService;
-  private NotificationMarkingResolver markingResolver;
   private NotificationRecipientFilter recipientFilter;
   private NotificationDigestService digestService;
 
@@ -55,14 +54,10 @@ class NotificationDigestServiceTest {
               invocation.getArgument(1, Runnable.class).run();
               return null;
             })
-        .when(tenantJobRunner)
-        .runInTenant(any(), any(Runnable.class));
-    markingResolver = mock(NotificationMarkingResolver.class);
-    // Default: every event is visible, matching the real resolver's behavior with the MARKING
-    // preview feature off - tests of marking narrowing override this per-event below.
-    when(markingResolver.isVisibleTo(any(), any(), any(), any(), any())).thenReturn(true);
+        .when(tenantTx)
+        .execute(any(TxCtx.class), any(Runnable.class));
     digestService =
-        new NotificationDigestService(triggerLoader, dispatchService, recipientFilter, tenantTx, markingResolver);
+        new NotificationDigestService(triggerLoader, dispatchService, recipientFilter, tenantTx);
   }
 
   private ResolvedNotificationTrigger digest(List<String> childIds, List<String> userIds) {

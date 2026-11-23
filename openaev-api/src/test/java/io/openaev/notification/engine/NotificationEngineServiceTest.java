@@ -80,7 +80,8 @@ class NotificationEngineServiceTest {
             cacheService,
             matchingService,
             dispatchService,
-           recipientFilter, eventRecordRepository,
+            recipientFilter,
+            eventRecordRepository,
             tenantTx,
             markingClearanceCacheManager);
   }
