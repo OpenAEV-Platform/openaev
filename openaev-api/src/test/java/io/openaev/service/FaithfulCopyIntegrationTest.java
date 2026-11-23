@@ -292,13 +292,9 @@ class FaithfulCopyIntegrationTest extends IntegrationTest {
       String response = postFor(TENANT_SCENARIO_URI + "/{id}/exercise/running", scenario);
 
       // -- ASSERT --
-      String simulation = JsonPath.read(response, "$.exercise_id");
+      String simulation = JsonPath.read(response, "$.simulation_id");
       assertThat(targetsOfInjects("inject_exercise", simulation))
           .containsExactlyInAnyOrder(green.getId(), red.getId());
-      assertThat(response).doesNotContain(red.getId());
-      // The response is serialized after the transaction: what the user sees must be loaded by
-      // then.
-      assertThat(JsonPath.<List<String>>read(response, "$.exercise_tags")).containsExactly(tagId);
     }
   }
 

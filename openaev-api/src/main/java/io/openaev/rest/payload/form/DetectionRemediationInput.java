@@ -5,12 +5,18 @@ import io.openaev.database.model.DetectionRemediation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.With;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class DetectionRemediationInput {
 
   @JsonProperty("detection_remediation_id")
+  @With
   private String id;
 
   @JsonProperty("detection_remediation_security_platform")

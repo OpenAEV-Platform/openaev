@@ -2,6 +2,7 @@ import { type FunctionComponent } from 'react';
 
 import MarketplaceTabs from '../../../../components/common/marketplace/page/MarketplaceTabs';
 import { useFormatter } from '../../../../components/i18n';
+import { THREAT_ARSENAL_BASE_URL } from '../../../../constants/BaseUrls';
 import { isFeatureEnabled } from '../../../../utils/utils';
 
 interface Props { active: 'active' | 'available' }
@@ -19,12 +20,12 @@ const ThreatArsenalTabs: FunctionComponent<Props> = ({ active }) => {
         {
           value: 'active',
           label: t('Active'),
-          to: '/admin/threat-arsenal',
+          to: THREAT_ARSENAL_BASE_URL,
         },
         {
           value: 'available',
           label: t('Available'),
-          to: '/admin/threat-arsenal/available',
+          to: `${THREAT_ARSENAL_BASE_URL}/available`,
         },
       ]}
     />

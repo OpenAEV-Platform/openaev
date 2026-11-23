@@ -1,5 +1,4 @@
-import { BugReportOutlined, RouteOutlined, StyleOutlined } from '@mui/icons-material';
-import { LockPattern } from 'mdi-material-ui';
+import { Icon } from '@filigran/design-system';
 import { type FunctionComponent, memo } from 'react';
 
 import RightMenu, { type RightMenuEntry } from '../../../components/common/menu/RightMenu';
@@ -15,24 +14,24 @@ const TaxonomiesMenuComponent: FunctionComponent = () => {
     ...(hasTagsAccess
       ? [{
           path: '/admin/settings/taxonomies/tags',
-          icon: () => (<StyleOutlined />),
+          icon: () => (<Icon name="tag" size={16} />),
           label: 'Tags',
         }]
       : []),
     ...(hasTenantSettingsAccess
       ? [{
           path: '/admin/settings/taxonomies/attack_patterns',
-          icon: () => (<LockPattern />),
+          icon: () => (<Icon name="chess-knight" size={16} />),
           label: 'Attack patterns',
         },
         {
           path: '/admin/settings/taxonomies/kill_chain_phases',
-          icon: () => (<RouteOutlined />),
+          icon: () => (<Icon name="route" size={16} />),
           label: 'Kill chain phases',
         },
         {
           path: '/admin/settings/taxonomies/vulnerabilities',
-          icon: () => (<BugReportOutlined />),
+          icon: () => (<Icon name="bug" size={16} />),
           label: 'Vulnerabilities',
         }]
       : []),

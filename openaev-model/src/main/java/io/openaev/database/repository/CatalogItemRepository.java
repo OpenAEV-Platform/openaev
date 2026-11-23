@@ -1,7 +1,6 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.catalog.CatalogItem;
-import io.openaev.database.model.catalog.CatalogPayload;
 import io.openaev.database.model.catalog.ContentType;
 import java.util.List;
 import java.util.Optional;
@@ -17,8 +16,7 @@ public interface CatalogItemRepository extends JpaRepository<CatalogItem, String
 
   List<CatalogItem> findAllByReleaseRepository(String repository);
 
-  Optional<CatalogItem> findByTypeAndExternalIdAndVersion(
-      ContentType type, String externalId, String version);
+  boolean existsByTypeAndExternalId(ContentType type, String externalId);
 
   @Query("SELECT i FROM CatalogItem i WHERE TYPE(i) = :type")
   <T extends CatalogItem> List<T> findAllOfType(@Param("type") Class<T> type);
@@ -34,9 +32,4 @@ public interface CatalogItemRepository extends JpaRepository<CatalogItem, String
   @Query("SELECT i FROM CatalogItem i WHERE TYPE(i) = :type AND i.externalId = :externalId")
   <T extends CatalogItem> List<T> findAllVersions(
       @Param("type") Class<T> type, @Param("externalId") String externalId);
-
-  // -- PAYLOADS --
-
-  @Query("SELECT p FROM CatalogPayload p")
-  List<CatalogPayload> findAllPayloads();
 }

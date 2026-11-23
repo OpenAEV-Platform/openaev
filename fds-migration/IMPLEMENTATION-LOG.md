@@ -852,7 +852,7 @@ in filigran-design-system).
 - Changed: SwitchFieldController.tsx, SchedulingDialog.tsx, ExerciseDateForm.tsx,
   ReportingSchedulesTab.tsx, EnterpriseEditionSettings.tsx,
   InjectorContractCustomForm.jsx, FieldOutputLink.tsx; `libComponentUsage`
-  entry `Switch` (guard `imported-from-library`); LIBRARY-FEEDBACK #71.
+  entry `Switch` (guard `imported-from-library`); LIBRARY-FEEDBACK #73.
 - Every MUI `Switch` site in these files is converted, none is held. The
   labelled sites drop their MUI `FormControlLabel` and pass the text to the
   Switch's own `label`; the label-less ones carry an `aria-label` (`Read only`,
@@ -873,12 +873,12 @@ in filigran-design-system).
   about 4px from the edit icon, closer than before.
 - The "Read only" switch of the custom injector contract form keeps its
   existing behaviour, including its known defect; it is not fixed here.
-- Friction / process feedback: none upstream beyond #71.
+- Friction / process feedback: none upstream beyond #73.
 - Review round 1: the "Limit to Local Scope" caption moves into the Switch's
   own `label` (the separate caption is dropped, so it now uses the library
   label text); the reporting-row Switch is named after its schedule instead of
   an action; the label, focus ring and light off-thumb differences recorded
-  in LIBRARY-FEEDBACK #71.
+  in LIBRARY-FEEDBACK #73.
 - Review round 2: label size and labelled row height corrected from the
   captures (12px label, row 38 -> 20px), the `aria-label` list updated, the
   reporting row spacing recorded.

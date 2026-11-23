@@ -7,6 +7,7 @@ import { useContext } from 'react';
 import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import Paper from '../../../../../components/common/Paper';
 import { useFormatter } from '../../../../../components/i18n';
+import { OpenCtiRowMark } from '../../../../../components/xtm/XtmPivot';
 import type { InjectResultOverviewOutput, InjectTarget } from '../../../../../utils/api-types';
 import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -105,6 +106,15 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
 
   const showMissingSecurityPlatformMessage = injectExpectation.inject_expectation_collector_missing_at_init;
 
+  // A failed technical expectation on an asset is the moment an analyst wants the OpenCTI
+  // knowledge of that asset (sightings, related threats): the mark appears only when the
+  // connected OpenCTI holds the asset (System by name, or a Hostname / IP observable).
+  const investigateAssetKey = injectExpectation.inject_expectation_status === 'FAILED'
+    && isTechnicalExpectation(injectExpectation.inject_expectation_type)
+    && isAssets(target)
+    ? target.target_name
+    : undefined;
+
   const firstResult = injectExpectation.inject_expectation_results?.[0] ?? null;
   const entries = [{
     label: t('Update'),
@@ -193,6 +203,9 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
               label={t(statusResult)}
               status={injectExpectation.inject_expectation_status}
             />
+          )}
+          {investigateAssetKey && (
+            <OpenCtiRowMark kind="assets" objectKey={investigateAssetKey} label="Investigate in OpenCTI" />
           )}
           {injectExpectation.inject_expectation_score !== null && (
             <Tooltip>

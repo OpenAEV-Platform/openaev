@@ -125,12 +125,7 @@ public interface AssetGroupRepository
           + "   :simulationOrScenarioId is NULL AND i.exercise.id is NULL AND i.scenario.id IS NULL"
           + "   OR (i.exercise.id = :simulationOrScenarioId"
           + "   OR i.scenario.id = :simulationOrScenarioId)"
-          + " ) AND (:name IS NULL OR lower(ag.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))"
-          // TODO v2: once injects gets v2 activated, drop this predicate; the inspector will
-          // scope the join automatically. It stays for now because the Hibernate @Filter does not
-          // reach a JPQL join on a still-v1 table here. No issue number: epic #6393 has no injects
-          // activation issue yet, and the table name is what the future Phase 7.5 grep looks for.
-          + " AND i.tenant.id = :#{#tenantContext.currentTenant}")
+          + " ) AND (:name IS NULL OR lower(ag.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))")
   List<AssetGroup> findAllBySimulationOrScenarioIdAndName(
       String simulationOrScenarioId, String name);
 
@@ -185,6 +180,14 @@ public interface AssetGroupRepository
       nativeQuery = true)
   List<RawAssetGroupIndexing> findForIndexing(
       @Param("from") Instant from, @Param("limit") int limit);
+
+  /** The asset groups of the given tenants, by name. */
+  @NotNull
+  List<AssetGroup> findAllByTenantIdInOrderByNameAsc(@NotNull Collection<String> tenantIds);
+
+  /** One asset group, when it belongs to one of the given tenants. */
+  Optional<AssetGroup> findByIdAndTenantIdIn(
+      @NotNull String id, @NotNull Collection<String> tenantIds);
 
   /** The asset groups among the given ids that belong to the given tenant. */
   @NotNull

@@ -5,6 +5,7 @@ import {
   ComboboxContent,
   ComboboxControls,
   ComboboxField,
+  ComboboxHelperText,
   ComboboxInput,
   ComboboxLabel,
   ComboboxTrigger,
@@ -59,6 +60,8 @@ interface Props {
   style?: CSSProperties;
   disabled?: boolean;
   required?: boolean;
+  /** Help line under the field, always visible; an error message takes its place. */
+  helperText?: string;
 }
 
 const TagField: FunctionComponent<Props> = ({
@@ -69,6 +72,7 @@ const TagField: FunctionComponent<Props> = ({
   style = {},
   disabled = false,
   required = false,
+  helperText,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -169,6 +173,7 @@ const TagField: FunctionComponent<Props> = ({
           </ComboboxControls>
         </ComboboxField>
         <ComboboxContent />
+        {(error?.message || helperText) ? <ComboboxHelperText>{error?.message || helperText}</ComboboxHelperText> : null}
       </Combobox>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.TAGS}>
         <Dialog

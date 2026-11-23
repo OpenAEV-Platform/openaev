@@ -10,6 +10,7 @@ import io.openaev.database.repository.ScenarioIdentityRepository;
 import io.openaev.importer.ImportResult;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.ImportService;
+import io.openaev.service.catalog.CatalogOffer;
 import io.openaev.service.catalog.event.CatalogChangePublisher;
 import io.openaev.service.catalog.payload.CatalogPayloadService;
 import io.openaev.service.catalog.payload.InstallablePayloadVersion;
@@ -73,6 +74,24 @@ public class CatalogScenarioService {
     markInstalled(scenario, identity, tenantId, released);
     changePublisher.changed(scenario, CatalogHistory.Action.INSTALL, mode);
     return scenario;
+  }
+
+  // -- READ --
+
+  /** The key of every catalogue scenario the tenant installed and still has. */
+  @Transactional(readOnly = true)
+  public Set<String> installedKeys(String tenantId) {
+    return keys(scenarioIdentityRepository.findAllInstalledByTenantId(tenantId));
+  }
+
+  /** The key of every catalogue scenario the tenant ever installed: an identity is kept. */
+  @Transactional(readOnly = true)
+  public Set<String> knownKeys(String tenantId) {
+    return keys(scenarioIdentityRepository.findAllByTenantId(tenantId));
+  }
+
+  private static Set<String> keys(List<ScenarioIdentity> identities) {
+    return identities.stream().map(CatalogOffer::key).collect(Collectors.toSet());
   }
 
   // -- STEPS --

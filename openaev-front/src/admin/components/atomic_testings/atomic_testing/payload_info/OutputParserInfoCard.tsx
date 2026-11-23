@@ -1,3 +1,4 @@
+import { Text } from '@filigran/design-system';
 import { DataObjectOutlined } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -65,7 +66,7 @@ const OutputParserInfoCard = ({ outputParsers }: Props) => {
               >
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                  gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
                   gap: theme.spacing(2),
                 }}
                 >
@@ -83,6 +84,11 @@ const OutputParserInfoCard = ({ outputParsers }: Props) => {
                   </Field>
                   <Field label="Tags">
                     <ItemTags variant="reduced-view" tags={contractOutput.contract_output_element_tags} />
+                  </Field>
+                  <Field label="create_findings">
+                    <Text variant="content-base">
+                      {contractOutput.contract_output_element_is_finding ? t('Yes') : t('No')}
+                    </Text>
                   </Field>
                 </div>
 

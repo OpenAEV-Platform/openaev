@@ -1,4 +1,4 @@
-export default function buildSimulationTabs(params: {
+function buildAllSimulationTabs(params: {
   lessonsEnabled: boolean | undefined;
   isAutonomous: boolean;
   hasWorkflow: boolean;
@@ -19,6 +19,7 @@ export default function buildSimulationTabs(params: {
       ...(hasWorkflow ? [['/attack-path', t('Attack Path')] as [string, string]] : []),
       ['/execution', t('Execution')],
       ['/findings', t('Findings')],
+      ['/graph', t('Graph')],
       ['/statistics', t('Statistics')],
     ];
   }
@@ -32,6 +33,7 @@ export default function buildSimulationTabs(params: {
       ['/attack-path', t('Attack Path')],
       ['/findings', t('Findings')],
       ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
+      ['/graph', t('Graph')],
       ['/statistics', t('Statistics')],
     ];
   }
@@ -43,6 +45,19 @@ export default function buildSimulationTabs(params: {
     ['/execution', t('Execution')],
     ['/findings', t('Findings')],
     ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
+    ['/graph', t('Graph')],
     ['/statistics', t('Statistics')],
   ];
+}
+
+export default function buildSimulationTabs(params: {
+  lessonsEnabled: boolean | undefined;
+  isAutonomous: boolean;
+  hasWorkflow: boolean;
+  // The Graph tab belongs to the exploration graph preview feature (off by default).
+  graphEnabled?: boolean;
+  t: (value: string) => string;
+}): [string, string][] {
+  const { graphEnabled = false } = params;
+  return buildAllSimulationTabs(params).filter(([suffix]) => graphEnabled || suffix !== '/graph');
 }

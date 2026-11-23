@@ -1,6 +1,6 @@
 package io.openaev.api.catalog.scenario;
 
-import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
+import static io.openaev.api.catalog.CatalogRoutes.TENANT_CATALOG_URI;
 import static io.openaev.api.catalog.CatalogSettingsApi.CATALOG_SETTINGS_URI;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
@@ -23,6 +23,8 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -178,8 +180,12 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
             .content(mapper.writeValueAsString(targets)));
   }
 
+  private static TimeBasedScenarioInstallInput timeBased(List<String> assetIds) {
+    return new TimeBasedScenarioInstallInput(new ScenarioTargetsInput(assetIds, null, null, null));
+  }
+
   private ResultActions install() throws Exception {
-    return install(new TimeBasedScenarioInstallInput(null, null, null, null));
+    return install(timeBased(null));
   }
 
   private Scenario installedScenario(ResultActions result) throws Exception {
@@ -247,10 +253,7 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       // Act
       Scenario scenario =
           installedScenario(
-              install(
-                      new TimeBasedScenarioInstallInput(
-                          List.of(endpoint.getId()), null, null, null))
-                  .andExpect(status().isCreated()));
+              install(timeBased(List.of(endpoint.getId()))).andExpect(status().isCreated()));
 
       // Assert
       assertThat(injectsOf(scenario).getFirst().getAssets())
@@ -531,14 +534,14 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
           .readTree(
               committed(
                       post(
-                              TENANT_SCENARIO_URI + "/{scenarioId}/launch",
+                              TENANT_SCENARIO_URI + "/{scenarioId}/exercise/running",
                               DEFAULT_TENANT_UUID,
                               scenario.getId())
                           .contentType(MediaType.APPLICATION_JSON)
                           .content(
                               mapper.writeValueAsString(
                                   new ScenarioTargetsInput(List.of(assetIds), null, null, null))))
-                  .andExpect(status().isCreated())
+                  .andExpect(status().isOk())
                   .andReturn()
                   .getResponse()
                   .getContentAsString())
@@ -556,8 +559,7 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       Endpoint second = endpointRepository.save(EndpointFixture.createEndpoint());
       Scenario scenario =
           installedScenario(
-              install(new TimeBasedScenarioInstallInput(List.of(first.getId()), null, null, null))
-                  .andExpect(status().isCreated()));
+              install(timeBased(List.of(first.getId()))).andExpect(status().isCreated()));
 
       // Act
       String simulationId = launch(scenario, second.getId());
@@ -642,6 +644,47 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
                 assertThat(identity.getExternalId()).isEqualTo(SCENARIO_ID);
                 assertThat(identity.getId()).isEqualTo(reinstalled.getCatalogIdentity().getId());
               });
+    }
+  }
+
+  // -- HISTORY --
+
+  @Nested
+  @DisplayName("History")
+  class History {
+
+    @Test
+    @DisplayName("lists the installs and uninstalls of the scenario, newest first")
+    void given_reinstalledScenario_should_listItsHistoryNewestFirst() throws Exception {
+      // Arrange
+      publish(Map.of());
+      uninstall(installedScenario(install().andExpect(status().isCreated())));
+      Scenario reinstalled = installedScenario(install().andExpect(status().isCreated()));
+
+      // Act & Assert
+      committed(
+              get(
+                  TENANT_SCENARIO_URI + "/{scenarioId}/history",
+                  DEFAULT_TENANT_UUID,
+                  reinstalled.getId()))
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$[*].catalog_history_action")
+                  .value(contains("INSTALL", "UNINSTALL", "INSTALL")))
+          .andExpect(jsonPath("$[*].catalog_history_version").value(everyItem(is(VERSION))));
+    }
+
+    @Test
+    @DisplayName("shows the installed catalogue version on the scenario")
+    void given_installedScenario_should_showItsCatalogueVersion() throws Exception {
+      // Arrange
+      publish(Map.of());
+      Scenario scenario = installedScenario(install().andExpect(status().isCreated()));
+
+      // Act & Assert
+      committed(get(TENANT_SCENARIO_URI + "/{scenarioId}", DEFAULT_TENANT_UUID, scenario.getId()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.scenario_version").value(VERSION));
     }
   }
 }

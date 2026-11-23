@@ -104,6 +104,7 @@
       ],
       "reason": "Form-field wave: the multiline branch of the same wrapper. `resize` is pinned to none on every site, as arbitrated; `rows` and autosize (`minRows`/`maxRows`) replay the previous heights.",
       "files": [
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
         "openaev-front/src/components/fields/TextFieldFds.tsx"
       ]
     },
@@ -162,7 +163,10 @@
         "openaev-front/src/components/fields/CheckboxFieldController.tsx",
         "openaev-front/src/public/components/login/Login.tsx",
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectAll.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsagesTable.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadNewVersionDialog.tsx"
       ]
     },
     {
@@ -568,6 +572,8 @@
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalScenarioUpdateComponent.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/DetectionRemediationInfo.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/OutputFormTab.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadTrustLine.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
         "openaev-front/src/admin/components/workspaces/custom_dashboards/results/ResultsListCells.tsx",
         "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/list/elements/ExpectationTypeChip.tsx",
         "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/list/elements/InjectExpectationSourceFragment.tsx",
@@ -599,7 +605,9 @@
         "openaev-front/src/components/common/marketplace/results/MarketplaceSectionHeader.tsx",
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
-        "openaev-front/src/components/common/marketplace/card/MarketplaceCardMeta.tsx"
+        "openaev-front/src/components/common/marketplace/card/MarketplaceCardMeta.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadNewVersionDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/customization/BlockSide.tsx"
       ]
     },
     {
@@ -623,6 +631,7 @@
         "openaev-front/src/admin/components/simulations/simulation/injects/InjectIndexTabs.tsx",
         "openaev-front/src/admin/components/simulations/simulation/variables/AvailableVariablesDialog.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/RemediationFormTabs.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalInformationDrawer.tsx",
         "openaev-front/src/components/common/tabs/Tabs.tsx",
         "openaev-front/src/components/common/marketplace/page/MarketplaceTabs.tsx"
       ]
@@ -861,7 +870,17 @@
         "openaev-front/src/public/components/trialbanners/TopBanner.tsx",
         "openaev-front/src/utils/ai/ResponseDialog.tsx",
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectionBar.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveBar.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx",
+        "openaev-front/src/admin/components/integrations/Integrations.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadNewVersionDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateBanner.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/customization/RevertToFiligran.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalInformationDrawer.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/VersionsTabNote.tsx"
       ]
     },
     {
@@ -933,12 +952,106 @@
       ]
     },
     {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "A message about the payload a drawer shows: its revocation, and what a revoked version breaks.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationBanner.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateBanner.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalInformationDrawer.tsx"
+      ]
+    },
+    {
+      "component": "Dialog",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The revoke and lift dialog of a payload version: title, description, scrolling body and footer actions.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadNewVersionDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateDialog.tsx"
+      ]
+    },
+    {
+      "component": "Select",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The payload version picker.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionSelect.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Warning shown when another payload version of the action needs values the previous one did not.",
+      "files": [
+        "openaev-front/src/admin/components/common/injects/create/InjectCreationConfig.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Inline warnings with an optional action button (e.g. Dismiss) instead of the MUI Alert.",
+      "files": [
+        "openaev-front/src/admin/components/integrations/Integrations.tsx"
+      ]
+    },
+    {
+      "component": "RadioGroup",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "One side to keep for each conflict of an update.",
+      "files": [
+        "openaev-front/src/components/common/update/ConflictChoice.tsx"
+      ]
+    },
+    {
+      "component": "Menu",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The actions menu of a Threat Arsenal action: trigger, items and separator.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalActionPopover.tsx"
+      ]
+    },
+    {
+      "component": "CardBanner",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The one banner of a Threat Arsenal card, a direct child of the library Card: a revoked version, or injects left on an older version.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/card/useThreatArsenalCardBanner.tsx"
+      ]
+    },
+    {
       "component": "Switch",
       "importFrom": "@filigran/design-system",
       "guards": [
         "imported-from-library"
       ],
-      "reason": "Switch wave 1: form, list-row and dialog toggles. The library Switch has a single size (36x20); the size change was explicitly accepted for this adoption (LIBRARY-FEEDBACK entry 71 asks for a size variant). Labels go in the Switch's own label prop, label-less toggles carry an aria-label.",
+      "reason": "Switch wave 1: form, list-row and dialog toggles. The library Switch has a single size (36x20); the size change was explicitly accepted for this adoption (LIBRARY-FEEDBACK entry 73 asks for a size variant). Labels go in the Switch's own label prop, label-less toggles carry an aria-label.",
       "files": [
         "openaev-front/src/components/fields/SwitchFieldController.tsx",
         "openaev-front/src/admin/components/common/scheduling/SchedulingDialog.tsx",

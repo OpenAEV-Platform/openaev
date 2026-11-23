@@ -17,6 +17,8 @@ import { type Header } from '../../../../components/common/SortHeadersList';
 import CVSSBadge from '../../../../components/CvssBadge';
 import { useFormatter } from '../../../../components/i18n';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
+import OpenCrqPivot, { OpenCrqRowMark } from '../../../../components/xtm/XtmOpenCrq';
+import OpenCtiPivot, { OpenCtiRowMark } from '../../../../components/xtm/XtmPivot';
 import { type SearchPaginationInput, type VulnerabilitySimple } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -68,7 +70,18 @@ const Vulnerabilities = () => {
       field: 'vulnerability_external_id',
       label: 'VULNERABILITY ID',
       isSortable: true,
-      value: (vulnerability: VulnerabilitySimple) => vulnerability.vulnerability_external_id,
+      value: (vulnerability: VulnerabilitySimple) => (
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+        }}
+        >
+          {vulnerability.vulnerability_external_id}
+          <OpenCtiRowMark kind="vulnerabilities" objectKey={vulnerability.vulnerability_external_id} />
+          <OpenCrqRowMark kind="vulnerabilities" objectKey={vulnerability.vulnerability_external_id} />
+        </span>
+      ),
     },
     {
       field: 'vulnerability_cvss_v31',
@@ -188,9 +201,16 @@ const Vulnerabilities = () => {
           additionalChipLabel={selectedVulnerability?.vulnerability_cvss_v31?.toFixed(1)}
         >
           {selectedVulnerability && (
-            <VulnerabilityDetail
-              selectedVulnerability={selectedVulnerability}
-            />
+            <>
+              {/* Contract v3: the icon-only emblems of the counterpart products, OpenCTI then OpenCRQ. */}
+              <div className="flex items-center gap-1">
+                <OpenCtiPivot kind="vulnerabilities" objectKey={selectedVulnerability.vulnerability_external_id} />
+                <OpenCrqPivot kind="vulnerabilities" objectKey={selectedVulnerability.vulnerability_external_id} />
+              </div>
+              <VulnerabilityDetail
+                selectedVulnerability={selectedVulnerability}
+              />
+            </>
           )}
         </Drawer>
       </div>

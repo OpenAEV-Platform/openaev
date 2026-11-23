@@ -373,8 +373,13 @@ public class HealthCheckUtils {
    * @return found healthchecks
    */
   public List<HealthCheck> runContentChecks(Inject inject) {
+    return runContentChecks(inject.getInjectorContract().orElse(null), inject);
+  }
+
+  /** Run the content checks of this inject as if it ran this injector contract. */
+  public List<HealthCheck> runContentChecks(InjectorContract injectorContract, Inject inject) {
     return runContentChecks(
-        inject.getInjectorContract().orElse(null),
+        injectorContract,
         inject.getContent(),
         inject.isAllTeams(),
         ofNullable(inject.getTeams())
@@ -463,11 +468,8 @@ public class HealthCheckUtils {
               content,
               injectContractFields)) {
         result.add(
-            new HealthCheck(
-                HealthCheck.Type.fromValue(jsonField.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()),
-                HealthCheck.Detail.MANDATORY_CONTENT,
-                HealthCheck.Status.ERROR,
-                now()));
+            HealthCheck.missingMandatoryField(
+                jsonField.get(CONTRACT_ELEMENT_CONTENT_KEY).asText(), now()));
       }
 
       // If field is mandatory group
@@ -501,12 +503,7 @@ public class HealthCheckUtils {
           }
           if (!atLeastOneSet) {
             for (JsonNode mandatoryFieldKey : mandatoryGroups) {
-              result.add(
-                  new HealthCheck(
-                      HealthCheck.Type.fromValue(mandatoryFieldKey.asText()),
-                      HealthCheck.Detail.MANDATORY_CONTENT,
-                      HealthCheck.Status.ERROR,
-                      now()));
+              result.add(HealthCheck.missingMandatoryField(mandatoryFieldKey.asText(), now()));
             }
           }
         }
@@ -579,12 +576,8 @@ public class HealthCheckUtils {
                   content,
                   injectContractFields)) {
                 result.add(
-                    new HealthCheck(
-                        HealthCheck.Type.fromValue(
-                            fieldOpt.get().get(CONTRACT_ELEMENT_CONTENT_KEY).asText()),
-                        HealthCheck.Detail.MANDATORY_CONTENT,
-                        HealthCheck.Status.ERROR,
-                        now()));
+                    HealthCheck.missingMandatoryField(
+                        fieldOpt.get().get(CONTRACT_ELEMENT_CONTENT_KEY).asText(), now()));
               }
             }
           }
@@ -762,12 +755,6 @@ public class HealthCheckUtils {
     return result;
   }
 
-  /**
-   * Remove all duplicates healthchecks
-   *
-   * @param healthChecks to filter
-   * @return filtered healthchecks
-   */
   /** A revoked payload version fails the injects that run it. */
   public List<HealthCheck> runRevocationChecks(Collection<Inject> injects) {
     return payloadRevocationService.anyRevoked(injects)
@@ -780,6 +767,12 @@ public class HealthCheckUtils {
         : List.of();
   }
 
+  /**
+   * Remove all duplicates healthchecks
+   *
+   * @param healthChecks to filter
+   * @return filtered healthchecks
+   */
   public List<HealthCheck> removeDuplicates(List<HealthCheck> healthChecks) {
     if (healthChecks == null || healthChecks.isEmpty()) {
       return Collections.emptyList();
@@ -794,8 +787,27 @@ public class HealthCheckUtils {
         .toList();
   }
 
+  // The field key keeps apart two missing mandatory fields whose keys are not known check types
+  // (both typed UNKNOWN), so each is still named.
   private String createHealthCheckKey(HealthCheck healthCheck) {
-    return healthCheck.getType() + "_" + healthCheck.getDetail();
+    return healthCheck.getType()
+        + "_"
+        + healthCheck.getDetail()
+        + (healthCheck.getField() == null ? "" : "_" + healthCheck.getField());
+  }
+
+  /**
+   * The keys of the injector contract fields these checks report as mandatory and missing, in a
+   * stable order (an injector contract absent or unreadable is reported as {@code
+   * injector_contract}).
+   */
+  public static List<String> missingMandatoryFields(Collection<HealthCheck> healthChecks) {
+    return healthChecks.stream()
+        .filter(check -> HealthCheck.Detail.MANDATORY_CONTENT.equals(check.getDetail()))
+        .map(check -> check.getField() != null ? check.getField() : check.getType().getValue())
+        .distinct()
+        .sorted()
+        .toList();
   }
 
   private HealthCheck keepErrorStatusPriority(HealthCheck first, HealthCheck second) {

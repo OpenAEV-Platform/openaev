@@ -307,8 +307,12 @@ public interface ScenarioRepository
               + "       pf.scenario_platforms, "
               + "       sta.scenario_tags, "
               + "       rt.scenario_reply_to, "
-              + "       su.scenario_teams_users "
+              + "       su.scenario_teams_users, "
+              + "       sb.user_firstname AS scenario_scheduled_by_firstname, "
+              + "       sb.user_lastname AS scenario_scheduled_by_lastname, "
+              + "       sb.user_email AS scenario_scheduled_by_email "
               + "FROM scenarios s "
+              + "LEFT JOIN users sb ON sb.user_id = s.scenario_scheduled_by "
               + "LEFT JOIN all_users au ON au.scenario_id = s.scenario_id "
               + "LEFT JOIN scenario_users su ON su.scenario_id = s.scenario_id "
               + "LEFT JOIN exercises_agg ex ON ex.scenario_id = s.scenario_id "
@@ -421,6 +425,14 @@ public interface ScenarioRepository
       @NotNull String id, @NotNull Collection<String> tenantIds);
 
   boolean existsByIdAndTenantIdIn(@NotNull String id, @NotNull Collection<String> tenantIds);
+
+  /**
+   * Scenarios generated from the given external references (the STIX id of the threat knowledge
+   * they came from), most recently updated first, scoped by the transaction alone. Used by the XTM
+   * counterpart lookup another product runs on its threat objects.
+   */
+  List<Scenario> findAllByExternalReferenceInOrderByUpdatedAtDesc(
+      @NotNull Collection<String> externalReferences);
 
   // -- CATALOGUE --
 

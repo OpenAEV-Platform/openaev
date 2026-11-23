@@ -1308,14 +1308,18 @@ public class ScenarioService {
     this.injectRepository.touchUpdatedAtByScenarioId(scenarioId);
 
     // Replace teams from a scenario
-    List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));
+    List<Team> teams =
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(targetTeamIds, scenario.getTenant().getId()));
     scenario.setTeams(teams);
     this.scenarioRepository.save(scenario);
 
     List<String> teamIdsAdded =
         targetTeamIds.stream().filter(id -> !previousTeamIds.contains(id)).toList();
 
-    List<Team> teamsAdded = fromIterable(this.teamRepository.findAllById(teamIdsAdded));
+    List<Team> teamsAdded =
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(teamIdsAdded, scenario.getTenant().getId()));
 
     // Enable user
     teamsAdded.forEach(
@@ -1840,5 +1844,13 @@ public class ScenarioService {
               .orElse(null));
     }
     return scenario;
+  }
+
+  /**
+   * The scenarios whose external reference is one of the given STIX ids, newest first, for the XTM
+   * counterpart lookup. Scenarios are grant-managed: the caller filters them by grant.
+   */
+  public List<Scenario> findAllByExternalReferenceIn(Collection<String> externalReferences) {
+    return scenarioRepository.findAllByExternalReferenceInOrderByUpdatedAtDesc(externalReferences);
   }
 }

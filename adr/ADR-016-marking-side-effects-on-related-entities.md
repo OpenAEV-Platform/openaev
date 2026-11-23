@@ -138,7 +138,8 @@ Concretely:
   // Links from a parent to an asset: editing them must keep the hidden ones
   LINKS_TO_ASSETS = List.of(
       linkedTo("injects_assets", "asset_id", "assets", "asset_id"),
-      linkedTo("asset_groups_assets", "asset_id", "assets", "asset_id"));
+      linkedTo("asset_groups_assets", "asset_id", "assets", "asset_id"),
+      linkedTo("assets_links", "asset_id", "assets", "asset_id"));
 
   // What a run produces on an asset
   FROM_ASSETS = List.of(

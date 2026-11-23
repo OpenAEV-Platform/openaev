@@ -1,6 +1,6 @@
 package io.openaev.api.catalog;
 
-import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
+import static io.openaev.api.catalog.CatalogRoutes.TENANT_CATALOG_URI;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.REPOSITORY;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.archive;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.manifest;
@@ -40,7 +40,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Isolation of {@code catalog_items} and {@code catalog_releases} on their own rows, through the
- * real {@link CatalogApi} and {@link CatalogSyncApi} endpoints on the tenant path.
+ * real {@link io.openaev.api.catalog.action.CatalogActionApi} and {@link CatalogSyncApi} endpoints
+ * on the tenant path.
  *
  * <p>The catalogue has no parent row that a tenant could be refused first. The payload list reads
  * every catalogue payload with no tenant predicate and no join, and the sync reads the last release

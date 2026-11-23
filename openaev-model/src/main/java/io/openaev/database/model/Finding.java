@@ -134,6 +134,31 @@ public class Finding implements TenantBase {
   @JsonIgnore
   private Instant lastSeen;
 
+  // -- LIFECYCLE --
+
+  /** Whether the finding is still reproduced: moved by detections and re-tests. */
+  @Queryable(filterable = true, sortable = true, label = "status")
+  @Enumerated(EnumType.STRING)
+  @Column(name = "finding_status", nullable = false)
+  @JsonProperty("finding_status")
+  @NotNull
+  private FindingStatus status = FindingStatus.OPEN;
+
+  /** When a re-test last ended on this finding, reproduced or not. */
+  @Column(name = "finding_last_tested")
+  @JsonIgnore
+  private Instant lastTested;
+
+  /** The inject whose run set the current status (a detection or a re-test). */
+  @Column(name = "finding_status_inject_id")
+  @JsonIgnore
+  private String statusInjectId;
+
+  /** The re-test inject queued for this finding and not finished yet, null when none. */
+  @Column(name = "finding_retest_inject_id")
+  @JsonIgnore
+  private String retestInjectId;
+
   // -- RELATION --
 
   // Write path only, until every source writes occurrences (chunk 4). Readers go through

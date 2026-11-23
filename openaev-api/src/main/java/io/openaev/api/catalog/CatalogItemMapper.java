@@ -46,6 +46,7 @@ public class CatalogItemMapper {
     target.setPlatforms(platforms.toArray(new String[0]));
     target.setDomain(primaryDomain(file));
     target.setContentHash(version.sha256().toLowerCase(Locale.ROOT));
+    target.setChangelog(version.changelog());
     target.setPublishedAt(manifest.issuedAt());
     target.setArchiveName(version.file().name());
   }
@@ -57,7 +58,7 @@ public class CatalogItemMapper {
   }
 
   // Same rule as the Threat Arsenal sections: the first domain by name.
-  static String primaryDomain(List<String> names) {
+  public static String primaryDomain(List<String> names) {
     return names.stream()
         .filter(name -> !name.isBlank() && !DomainService.TO_CLASSIFY.equals(name))
         .sorted()

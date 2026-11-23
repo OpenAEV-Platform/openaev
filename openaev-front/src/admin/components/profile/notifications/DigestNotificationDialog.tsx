@@ -5,11 +5,11 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type NotificationOutput } from '../../../../utils/api-types';
 import NotificationOperationChip from './NotificationOperationChip';
-import { contentGroupsOf, eventUrl, operationIcon } from './notificationUtils';
+import { contentGroupsOf, displayMessage, eventUrl, operationIcon } from './notificationUtils';
 
 /**
- * Details of a digest notification: every composed trigger group with its
- * matched events. Events pointing to an existing entity are navigable
+ * Details of a digest or a sync alert: every composed trigger group with its
+ * matched events, each on as many lines as it has. Events pointing to an existing entity are navigable
  * (mirrors OpenCTI's digest drawer).
  */
 const DigestNotificationDialog = ({ notification, onClose }: {
@@ -26,7 +26,7 @@ const DigestNotificationDialog = ({ notification, onClose }: {
       slots={{ transition: Transition }}
       slotProps={{ paper: { elevation: 1 } }}
     >
-      <DialogTitle>{t('Digest details')}</DialogTitle>
+      <DialogTitle>{notification?.notification_type === 'DIGEST' ? t('Digest details') : t('Details')}</DialogTitle>
       <DialogContent>
         {notification !== null && contentGroupsOf(notification).map((group, groupIndex) => (
           <div key={`${notification.notification_id}-${groupIndex}`}>
@@ -50,7 +50,7 @@ const DigestNotificationDialog = ({ notification, onClose }: {
                     >
                       <NotificationOperationChip operation={event.operation ?? 'NONE'} />
                     </div>
-                    <ListItemText primary={event.message} />
+                    <ListItemText primary={displayMessage(event.message)} sx={{ whiteSpace: 'pre-line' }} />
                   </>
                 );
                 return url

@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.asset.dto.AssetBulkUpdateInput;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -54,7 +55,7 @@ import org.springframework.web.bind.annotation.*;
 public class EndpointApi extends RestBehavior {
 
   public static final String ENDPOINT_URI = "/api/endpoints";
-  private static final String TENANT_ENDPOINT_URI = TENANT_PREFIX + "/endpoints";
+  public static final String TENANT_ENDPOINT_URI = TENANT_PREFIX + "/endpoints";
   public static final String ASSET_URI = "/api/assets";
   public static final String TENANT_ASSET_URI = TENANT_PREFIX + "/assets";
 
@@ -184,9 +185,12 @@ public class EndpointApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
   // executors table (each endpoint's agents eager-load their executor).
-  public List<Endpoint> endpoints(TxCtx ctx) {
-    return this.endpointService.endpoints(
-        EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints());
+  public List<EndpointOutput> endpoints(TxCtx ctx) {
+    return this.endpointService
+        .endpoints(EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints())
+        .stream()
+        .map(endpointMapper::toEndpointOutput)
+        .toList();
   }
 
   @LogExecutionTime
@@ -248,9 +252,11 @@ public class EndpointApi extends RestBehavior {
   @Transactional(readOnly = true)
   // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
   // executors table (each endpoint's agents eager-load their executor).
-  public List<Endpoint> findEndpoints(
+  public List<EndpointOutput> findEndpoints(
       TxCtx ctx, @RequestBody @Valid @NotNull final List<String> endpointIds) {
-    return this.endpointService.endpoints(endpointIds);
+    return this.endpointService.endpoints(endpointIds).stream()
+        .map(endpointMapper::toEndpointOutput)
+        .toList();
   }
 
   @PutMapping({ENDPOINT_URI + "/{endpointId}", TENANT_ENDPOINT_URI + "/{endpointId}"})
@@ -357,6 +363,22 @@ public class EndpointApi extends RestBehavior {
   public List<String> bulkDeleteAssets(
       TxCtx ctx, @RequestBody @Valid final AssetBulkProcessingInput input) {
     return this.assetService.bulkDeleteAssets(ctx, input);
+  }
+
+  /**
+   * Bulk update of the classification (category, subcategory, URL, criticality) and tag addition of
+   * assets, by explicit ids or by the inventory filter (same selection model as the bulk delete).
+   * Returns the ids of the updated assets.
+   */
+  @LogExecutionTime
+  @PutMapping({ASSET_URI + "/bulk", TENANT_ASSET_URI + "/bulk"})
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)
+  // SUPPORTS (not REQUIRED) on purpose: the service writes in small independent transactions.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  public List<String> bulkUpdateAssets(
+      TxCtx ctx, @RequestBody @Valid final AssetBulkUpdateInput input) {
+    return this.assetService.bulkUpdateAssets(
+        ctx, writeScopeResolver.tenantForWrite(ctx, null), input);
   }
 
   @GetMapping({ENDPOINT_URI + "/resolve", TENANT_ENDPOINT_URI + "/resolve"})

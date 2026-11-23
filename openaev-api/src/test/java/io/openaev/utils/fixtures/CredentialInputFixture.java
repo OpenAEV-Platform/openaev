@@ -105,6 +105,43 @@ public class CredentialInputFixture {
       String azureTenantId,
       String azureSubscriptionId,
       String azureAuthorityHostUri) {
+    return azureInput(
+        name,
+        authMethod,
+        azureEnvironment,
+        azureClientId,
+        azureClientSecret,
+        azureTenantId,
+        azureSubscriptionId,
+        azureAuthorityHostUri,
+        null);
+  }
+
+  /** A complete AZURE_SERVICE_PRINCIPAL input targeting the resource manager of a given scope. */
+  public static CredentialInput azureServicePrincipalInputWithScope(
+      String name, String azureScope) {
+    return azureInput(
+        name,
+        CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL,
+        AZURE_ENVIRONMENT,
+        AZURE_CLIENT_ID,
+        AZURE_CLIENT_SECRET,
+        AZURE_TENANT_ID,
+        AZURE_SUBSCRIPTION_ID,
+        null,
+        azureScope);
+  }
+
+  public static CredentialInput azureInput(
+      String name,
+      CREDENTIAL_AUTH_METHOD authMethod,
+      String azureEnvironment,
+      String azureClientId,
+      String azureClientSecret,
+      String azureTenantId,
+      String azureSubscriptionId,
+      String azureAuthorityHostUri,
+      String azureScope) {
     return new CredentialInput(
         name,
         CREDENTIAL_TYPE.CLOUD_AZURE,
@@ -134,6 +171,7 @@ public class CredentialInputFixture {
         azureTenantId,
         azureSubscriptionId,
         azureAuthorityHostUri,
+        azureScope,
         // GCP
         null,
         null,
@@ -203,6 +241,7 @@ public class CredentialInputFixture {
         null,
         null,
         // AZURE
+        null,
         null,
         null,
         null,
