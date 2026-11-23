@@ -1122,7 +1122,6 @@
   "Customization": "カスタマイズ",
   "Customize": "カスタマイズ",
   "Customize columns": "カラムのカスタマイズ",
-  "Customized": "カスタマイズ済み",
   "Customized copy created: it keeps receiving Filigran updates": "カスタマイズしたコピーを作成しました。Filigran の更新は引き続き受け取れます",
   "Cve": "CVE",
   "CVE": "CVE",
@@ -5066,5 +5065,15 @@
   "Address the scans and the web injectors target. Empty: each asset keeps its URL.": "スキャンとWebインジェクターが対象とするアドレスです。空欄の場合、各アセットはURLを維持します。",
   "Impact of a compromise, from Very high (stops the business) to Low (little effect); Unknown when not assessed. Empty: each asset keeps its value.": "侵害時の影響度です。非常に高い（業務が停止）から低い（影響が小さい）まで、未評価の場合は不明です。空欄の場合、各アセットは値を維持します。",
   "Added to the tags each asset already carries; none is removed.": "各アセットの既存のタグに追加されます。削除されるタグはありません。",
-  "Decides which fields this asset shows; a subcategory of another category is cleared.": "このアセットに表示されるフィールドを決めます。別のカテゴリのサブカテゴリはクリアされます。"
+  "Decides which fields this asset shows; a subcategory of another category is cleared.": "このアセットに表示されるフィールドを決めます。別のカテゴリのサブカテゴリはクリアされます。",
+  "Connect XTM One": "XTM One を接続",
+  "XTM One is not connected": "XTM One は接続されていません",
+  "Not found in XTM One": "XTM One に見つかりません",
+  "XTM One holds it once a source of its inventory reports this asset.": "インベントリのソースがこのアセットを報告すると、XTM One に登録されます。",
+  "XTM One is unavailable": "XTM One は利用できません",
+  "XTM One did not answer this time. The pivot comes back on its own.": "今回は XTM One から応答がありませんでした。リンクは自動的に戻ります。",
+  "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.": "XTM One を接続すると、CTEM インベントリでこのアセットの重要度、カテゴリ、報告元のすべてのソースを確認できます。",
+  "Open the connection guide to connect XTM One.": "接続ガイドを開いて XTM One を接続します。",
+  "Ask an administrator to connect XTM One to see this asset there.": "このアセットを XTM One で表示するには、管理者に XTM One の接続を依頼してください。",
+  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "XTM One の CTEM インベントリで、このアセットとその報告元のすべてのソースを確認します。"
 }

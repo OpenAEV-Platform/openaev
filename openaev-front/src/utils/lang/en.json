@@ -1122,7 +1122,6 @@
   "Customization": "Customization",
   "Customize": "Customize",
   "Customize columns": "Customize columns",
-  "Customized": "Customized",
   "Customized copy created: it keeps receiving Filigran updates": "Customized copy created: it keeps receiving Filigran updates",
   "Cve": "CVE",
   "CVE": "CVE",
@@ -5066,5 +5065,15 @@
   "Address the scans and the web injectors target. Empty: each asset keeps its URL.": "Address the scans and the web injectors target. Empty: each asset keeps its URL.",
   "Impact of a compromise, from Very high (stops the business) to Low (little effect); Unknown when not assessed. Empty: each asset keeps its value.": "Impact of a compromise, from Very high (stops the business) to Low (little effect); Unknown when not assessed. Empty: each asset keeps its value.",
   "Added to the tags each asset already carries; none is removed.": "Added to the tags each asset already carries; none is removed.",
-  "Decides which fields this asset shows; a subcategory of another category is cleared.": "Decides which fields this asset shows; a subcategory of another category is cleared."
+  "Decides which fields this asset shows; a subcategory of another category is cleared.": "Decides which fields this asset shows; a subcategory of another category is cleared.",
+  "Connect XTM One": "Connect XTM One",
+  "XTM One is not connected": "XTM One is not connected",
+  "Not found in XTM One": "Not found in XTM One",
+  "XTM One holds it once a source of its inventory reports this asset.": "XTM One holds it once a source of its inventory reports this asset.",
+  "XTM One is unavailable": "XTM One is unavailable",
+  "XTM One did not answer this time. The pivot comes back on its own.": "XTM One did not answer this time. The pivot comes back on its own.",
+  "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.": "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.",
+  "Open the connection guide to connect XTM One.": "Open the connection guide to connect XTM One.",
+  "Ask an administrator to connect XTM One to see this asset there.": "Ask an administrator to connect XTM One to see this asset there.",
+  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "See this asset in the XTM One CTEM inventory, with every source that reports it."
 }

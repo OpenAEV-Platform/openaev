@@ -1122,7 +1122,6 @@
   "Customization": "自定义",
   "Customize": "自定义",
   "Customize columns": "专栏标准化",
-  "Customized": "已自定义",
   "Customized copy created: it keeps receiving Filigran updates": "已创建自定义副本：它会继续接收 Filigran 的更新",
   "Cve": "CVE",
   "CVE": "CVE",
@@ -5066,5 +5065,15 @@
   "Address the scans and the web injectors target. Empty: each asset keeps its URL.": "扫描和 Web 注入器所针对的地址。留空：每个资产保留其 URL。",
   "Impact of a compromise, from Very high (stops the business) to Low (little effect); Unknown when not assessed. Empty: each asset keeps its value.": "失陷的影响程度，从非常高（业务中断）到低（影响很小）；未评估时为未知。留空：每个资产保留其值。",
   "Added to the tags each asset already carries; none is removed.": "添加到每个资产已有的标签中；不会移除任何标签。",
-  "Decides which fields this asset shows; a subcategory of another category is cleared.": "决定此资产显示哪些字段；其他类别的子类别会被清除。"
+  "Decides which fields this asset shows; a subcategory of another category is cleared.": "决定此资产显示哪些字段；其他类别的子类别会被清除。",
+  "Connect XTM One": "连接 XTM One",
+  "XTM One is not connected": "XTM One 未连接",
+  "Not found in XTM One": "在 XTM One 中未找到",
+  "XTM One holds it once a source of its inventory reports this asset.": "一旦其清单的某个来源报告此资产，XTM One 就会收录它。",
+  "XTM One is unavailable": "XTM One 不可用",
+  "XTM One did not answer this time. The pivot comes back on its own.": "XTM One 这次没有响应。链接会自动恢复。",
+  "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.": "连接 XTM One 以在 CTEM 清单中查看此资产：其关键性、类别以及报告它的每个来源。",
+  "Open the connection guide to connect XTM One.": "打开连接指南以连接 XTM One。",
+  "Ask an administrator to connect XTM One to see this asset there.": "请管理员连接 XTM One，以便在其中查看此资产。",
+  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "在 XTM One CTEM 清单中查看此资产及报告它的每个来源。"
 }

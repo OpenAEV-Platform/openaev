@@ -6,8 +6,9 @@ import { type CounterpartAnswer } from './counterpartStore';
 
 // Contract v3 of the cross-product pivots (Sam, 22 Nov 2026), the same in OpenCTI, OpenAEV and
 // OpenCRQ: one ICON-ONLY button per counterpart product, its emblem and no text, at the size of the
-// sibling header actions (FDS IconButton md secondary, 36 px, glyph 20 px), ordered
-// OpenCTI, OpenAEV, OpenCRQ (self skipped).
+// sibling header actions (FDS IconButton md secondary, 36 px, glyph 20 px). The emblem group comes
+// first in every action row, before the module's own actions, ordered XTM One, OpenCTI, OpenAEV,
+// OpenCRQ (self skipped; Sam, 23 Nov 2026).
 // - found: the emblem in the theme primary, a link to the counterpart; hover and focus open the rich preview;
 // - connected and not found: the same emblem greyed (aria-disabled, still focusable), the tooltip
 //   says it is not there and how it gets there;
@@ -25,6 +26,13 @@ import { type CounterpartAnswer } from './counterpartStore';
 // design system's product-switcher glyph painted through a CSS mask.
 export const EMBLEM_FOUND = 'var(--icon-highlight)';
 export const EMBLEM_MUTED = 'var(--icon-disabled)';
+/**
+ * The one exception (Sam, 23 Nov 2026): a found XTM One emblem is the canonical XTM One purple, the
+ * design system's --color-filigran-ia-primary (--purple-500 #651fe5 light, --purple-300 #a47af0
+ * dark, filigran-design-system src/tokens/theme.css; the brand mark xtm-one-logo-light.svg fills
+ * #651FE5). Its greyed states keep EMBLEM_MUTED.
+ */
+export const EMBLEM_FOUND_XTM_ONE = 'var(--color-filigran-ia-primary)';
 /** The glyph inside the 36 px header button, the same in the three products. */
 export const EMBLEM_GLYPH_SIZE = 20;
 
@@ -77,6 +85,8 @@ export interface CounterpartEmblemProps {
   teaser: ReactNode;
   /** Not connected: where a configurer connects the product; absent for a read-only user. */
   connectUrl?: string;
+  /** Found: the emblem ink, EMBLEM_FOUND unless the product has its own (XTM One). */
+  foundColor?: string;
   testId: string;
 }
 
@@ -88,6 +98,7 @@ const CounterpartEmblem: FunctionComponent<CounterpartEmblemProps> = ({
   preview,
   teaser,
   connectUrl,
+  foundColor = EMBLEM_FOUND,
   testId,
 }) => {
   if (answer.state === 'loading') {
@@ -98,7 +109,7 @@ const CounterpartEmblem: FunctionComponent<CounterpartEmblemProps> = ({
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <IconButton asChild icon={<MaskedEmblem maskUrl={maskUrl} color={EMBLEM_FOUND} />} aria-label={labels.open} priority="secondary" size="md">
+          <IconButton asChild icon={<MaskedEmblem maskUrl={maskUrl} color={foundColor} />} aria-label={labels.open} priority="secondary" size="md">
             <a
               href={answer.counterpart?.counterpart_url}
               target="_blank"

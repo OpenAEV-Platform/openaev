@@ -92,11 +92,12 @@ const FindingOverview = () => {
         iconNode={<FindingIcon findingType={finding.finding_type} />}
         overline={typeLabel}
         title={finding.finding_value}
-        action={graphEnabled ? (
+        action={(isCVE || graphEnabled) ? (
           <>
-            <ExploreInGraphButton type="FINDING" entityId={findingId} />
+            {/* Cross-product emblems first (not behind the graph flag), then the graph. */}
             {isCVE && <OpenCtiPivot kind="vulnerabilities" objectKey={finding.finding_value} />}
             {isCVE && <OpenCrqPivot kind="vulnerabilities" objectKey={finding.finding_value} />}
+            {graphEnabled && <ExploreInGraphButton type="FINDING" entityId={findingId} />}
           </>
         ) : undefined}
         chips={cvssScore != null

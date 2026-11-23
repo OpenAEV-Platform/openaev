@@ -1122,7 +1122,6 @@
   "Customization": "Персонализация",
   "Customize": "Настроить",
   "Customize columns": "Настроить колонки",
-  "Customized": "Настроено",
   "Customized copy created: it keeps receiving Filigran updates": "Создана настроенная копия: она продолжает получать обновления Filigran",
   "Cve": "CVE",
   "CVE": "CVE",
@@ -5066,5 +5065,15 @@
   "Address the scans and the web injectors target. Empty: each asset keeps its URL.": "Адрес, на который нацелены сканирования и веб-инжекторы. Пусто: каждый актив сохраняет свой URL.",
   "Impact of a compromise, from Very high (stops the business) to Low (little effect); Unknown when not assessed. Empty: each asset keeps its value.": "Последствия компрометации, от Очень высокой (останавливает бизнес) до Низкой (малый эффект); Неизвестно, если не оценено. Пусто: каждый актив сохраняет своё значение.",
   "Added to the tags each asset already carries; none is removed.": "Добавляются к тегам, которые уже есть у каждого актива; ни один не удаляется.",
-  "Decides which fields this asset shows; a subcategory of another category is cleared.": "Определяет, какие поля показывает этот актив; подкатегория другой категории очищается."
+  "Decides which fields this asset shows; a subcategory of another category is cleared.": "Определяет, какие поля показывает этот актив; подкатегория другой категории очищается.",
+  "Connect XTM One": "Подключить XTM One",
+  "XTM One is not connected": "XTM One не подключен",
+  "Not found in XTM One": "Не найдено в XTM One",
+  "XTM One holds it once a source of its inventory reports this asset.": "XTM One получит его, как только источник его инвентаря сообщит об этом активе.",
+  "XTM One is unavailable": "XTM One недоступен",
+  "XTM One did not answer this time. The pivot comes back on its own.": "XTM One на этот раз не ответил. Ссылка вернется сама.",
+  "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.": "Подключите XTM One, чтобы видеть этот актив в инвентаре CTEM: его критичность, категорию и все источники, которые о нем сообщают.",
+  "Open the connection guide to connect XTM One.": "Откройте руководство по подключению, чтобы подключить XTM One.",
+  "Ask an administrator to connect XTM One to see this asset there.": "Попросите администратора подключить XTM One, чтобы видеть там этот актив.",
+  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "Просмотр этого актива в инвентаре CTEM XTM One со всеми источниками, которые о нем сообщают."
 }

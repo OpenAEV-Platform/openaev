@@ -11,6 +11,7 @@ import { Drawer, List, ListItemButton, ListItemText } from '@mui/material';
 import { Link } from 'react-router';
 
 import { useFormatter } from '../../../components/i18n';
+import XtmOnePivot from '../../../components/xtm/XtmOnePivot';
 import OpenCrqPivot from '../../../components/xtm/XtmOpenCrq';
 import OpenCtiPivot from '../../../components/xtm/XtmPivot';
 import NODE_ICON from './graph-icons';
@@ -121,9 +122,10 @@ const GraphSidePanel = ({
       </div>
       <div className="mt-4 flex flex-col gap-2">
         {/* The node's counterparts, as on the entity's own screen: the icon-only emblem of each
-            product (contract v3), OpenCTI then OpenCRQ. */}
+            product (contract v3), XTM One (assets only: its inventory), OpenCTI, then OpenCRQ. */}
         {counterpart && (
           <div className="flex items-center gap-1">
+            {counterpart.kind === 'assets' && <XtmOnePivot kind={counterpart.kind} objectKey={counterpart.key} />}
             <OpenCtiPivot kind={counterpart.kind} objectKey={counterpart.key} />
             <OpenCrqPivot kind={counterpart.kind} objectKey={counterpart.key} />
           </div>
