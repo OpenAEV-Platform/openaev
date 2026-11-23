@@ -2,6 +2,7 @@ import { Button } from '@filigran/design-system';
 import { RouteOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import { fetchCatalogScenarioFacetCounts, installAllCatalogScenarios, searchCatalogScenarios } from '../../../../actions/catalog/scenario-catalog-actions';
 import EmptyPlaceholder from '../../../../components/common/EmptyPlaceholder';
@@ -79,6 +80,7 @@ const ScenariosAvailable = () => {
   const { t, nsd } = useFormatter();
   const theme = useTheme();
   const notifyInstalled = useNotifyInstalled();
+  const navigate = useNavigate();
   const ability = useAbility();
   const canInstall = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.ASSESSMENT);
@@ -109,13 +111,15 @@ const ScenariosAvailable = () => {
     const name = installed.catalog_scenario_name ?? installed.catalog_scenario_external_id;
     setInstalling(null);
     notifyInstalled(name, installed.catalog_scenario_version, scenarioUrl(scenarioId));
-    catalog.reload();
     if (installing?.thenLaunch) {
+      catalog.reload();
       launch({
         scenarioId,
         name,
         type: catalogScenarioType(installed),
       });
+    } else {
+      navigate(scenarioUrl(scenarioId));
     }
   };
 
