@@ -73,7 +73,7 @@ const LessonsPlayer = (props) => {
     [`${n.lessons_answer_question}_score`]: n.lessons_answer_score || 0,
     [`${n.lessons_answer_question}_positive`]: n.lessons_answer_positive || 0,
     [`${n.lessons_answer_question}_negative`]: n.lessons_answer_negative || 0,
-  })), R.mergeAll)(lessonsAnswers);
+  })), list => Object.assign({}, ...list))(lessonsAnswers);
   if (source) {
     return (
       <div className={classes.root}>
