@@ -408,4 +408,70 @@ class FailClosedGateExtensionTest {
       assertEquals("", FailClosedGateExtension.shadowMode("  "));
     }
   }
+
+  /**
+   * The user load of the access check reads the roles and the markings of the groups of a caller of
+   * an empty scope. Each read is waived for its own table, at that site only.
+   */
+  @Nested
+  @DisplayName("reads of the user load of the access check")
+  class UserLoadOfTheAccessCheck {
+
+    private static final String USER_LOAD = "io.openaev.service.UserService.findWithRoles";
+
+    private Violation read(String tables, String site) {
+      return new Violation(
+          tables, site + ":1065", "select ... where can_access_tenant(r.tenant_id)");
+    }
+
+    @Test
+    @DisplayName("given_theRolesAndTheMarkingsOfTheGroupsAtTheUserLoad_should_beWaived")
+    void given_theRolesAndTheMarkingsOfTheGroupsAtTheUserLoad_should_beWaived() {
+      // Arrange: each read as the detector labels it in a production-list run
+      List<Violation> reads =
+          List.of(read("roles", USER_LOAD), read("marking_definitions", USER_LOAD));
+
+      // Act
+      List<String> offending = FailClosedGateExtension.offendingSignatures(reads);
+
+      // Assert
+      assertTrue(offending.isEmpty(), "the user load is waived for these tables, got " + offending);
+    }
+
+    @Test
+    @DisplayName("given_aReadOfAnotherTableAtTheUserLoad_should_beOffending")
+    void given_aReadOfAnotherTableAtTheUserLoad_should_beOffending() {
+      // Act
+      List<String> offending =
+          FailClosedGateExtension.offendingSignatures(List.of(read("tags", USER_LOAD)));
+
+      // Assert
+      assertEquals(List.of(USER_LOAD), offending);
+    }
+
+    @Test
+    @DisplayName("given_aReadOfAWaivedTableAndAnotherAtTheUserLoad_should_beOffending")
+    void given_aReadOfAWaivedTableAndAnotherAtTheUserLoad_should_beOffending() {
+      // Act: a read that names one more table than the waivers do is a different read
+      List<String> offending =
+          FailClosedGateExtension.offendingSignatures(List.of(read("roles,tags", USER_LOAD)));
+
+      // Assert
+      assertEquals(List.of(USER_LOAD), offending);
+    }
+
+    @Test
+    @DisplayName("given_aReadOfRolesAtAnotherSite_should_beOffending")
+    void given_aReadOfRolesAtAnotherSite_should_beOffending() {
+      // Arrange
+      String site = "io.openaev.service.UserService.nobodyWaivedThisLoad";
+
+      // Act
+      List<String> offending =
+          FailClosedGateExtension.offendingSignatures(List.of(read("roles", site)));
+
+      // Assert
+      assertEquals(List.of(site), offending);
+    }
+  }
 }
