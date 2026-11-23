@@ -20,11 +20,14 @@ import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.utils.catalog.SemanticVersion;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -67,11 +70,7 @@ public class PayloadVersionService {
   /** Refused when the version is not another version of the payload, or is revoked. */
   public InjectorContract otherVersionAction(String tenantId, Payload payload, String versionId) {
     refuseUnlessOtherVersion(tenantId, payload, versionId);
-    return Optional.ofNullable(
-            injectorContractService
-                .injectorContractsOfPayloads(tenantId, List.of(versionId))
-                .get(versionId))
-        .orElseThrow(() -> new ElementNotFoundException(NO_PAYLOAD));
+    return versionAction(tenantId, versionId);
   }
 
   /** Same rule as {@link #otherVersionAction}, from the action of the version. */
@@ -85,6 +84,20 @@ public class PayloadVersionService {
   /** The payload version the action runs. */
   public Payload payload(String tenantId, String actionId) {
     return payloadAction(tenantId, actionId).getPayload();
+  }
+
+  /** The action the Threat Arsenal lists for a payload version: the one of its latest version. */
+  public InjectorContract listedAction(String tenantId, String payloadId) {
+    return versionAction(
+        tenantId, payloadService.payload(tenantId, payloadId).listedVersion().getId());
+  }
+
+  public InjectorContract versionAction(String tenantId, String payloadId) {
+    return Optional.ofNullable(
+            injectorContractService
+                .injectorContractsOfPayloads(tenantId, List.of(payloadId))
+                .get(payloadId))
+        .orElseThrow(() -> new ElementNotFoundException(NO_PAYLOAD));
   }
 
   /** Only what the user can read is listed; the others are counted. */
@@ -107,6 +120,20 @@ public class PayloadVersionService {
                                 Action.READ)))
             .toList();
     return new PayloadUsagesOutput(visible, usages.size() - visible.size());
+  }
+
+  /** The scenario injects and steps running these versions, by scenario id. */
+  public Map<String, List<PayloadUsageOutput>> scenarioUsages(
+      String tenantId, Collection<Payload> versions) {
+    return injectorContractService
+        .injectorContractsOfPayloads(tenantId, versions.stream().map(Payload::getId).toList())
+        .values()
+        .stream()
+        .flatMap(action -> usages(tenantId, action).stream())
+        .filter(usage -> usage.scenarioId() != null)
+        .collect(
+            Collectors.groupingBy(
+                PayloadUsageOutput::scenarioId, LinkedHashMap::new, Collectors.toList()));
   }
 
   private List<PayloadUsageOutput> usages(String tenantId, InjectorContract action) {

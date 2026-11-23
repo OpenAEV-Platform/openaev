@@ -11,6 +11,7 @@ import io.openaev.database.model.catalog.CatalogRelease;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.database.repository.CatalogReleaseRepository;
+import io.openaev.notification.catalog.CatalogEvents.AddedVersion;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.utils.catalog.SemanticVersion;
 import jakarta.persistence.EntityManager;
@@ -49,7 +50,7 @@ public class CatalogService {
     }
     refuseIfOlder(latest, manifest);
     CatalogRelease release = saveRelease(tenantId, manifest);
-    CatalogSyncResult result = saveItems(release, checked);
+    CatalogSyncResult result = saveItems(release, checked, latest == null);
     removeItemsNotIn(release, manifest);
     eventPublisher.publishEvent(result.toEvent(tenantId));
     return result.toOutput();
@@ -96,9 +97,10 @@ public class CatalogService {
 
   // -- ITEMS --
 
-  private CatalogSyncResult saveItems(CatalogRelease release, CheckedRelease checked) {
+  private CatalogSyncResult saveItems(
+      CatalogRelease release, CheckedRelease checked, boolean firstSync) {
     CatalogManifest manifest = checked.manifest();
-    CatalogSyncResult result = new CatalogSyncResult(manifest);
+    CatalogSyncResult result = new CatalogSyncResult(manifest, firstSync);
     for (CatalogManifest.Item item : manifest.items()) {
       itemToSave(
               release,
@@ -170,13 +172,24 @@ public class CatalogService {
   }
 
   private void save(CatalogItem item, CatalogSyncResult result) {
-    boolean added = item.getId() == null;
-    catalogItemRepository.save(item);
-    if (added) {
-      result.added();
-    } else {
+    if (item.getId() != null) {
+      catalogItemRepository.save(item);
       result.unchanged();
+      return;
     }
+    boolean isNew =
+        result.firstSync()
+            || !catalogItemRepository.existsByTypeAndExternalId(
+                item.getType(), item.getExternalId());
+    catalogItemRepository.save(item);
+    result.added(
+        new AddedVersion(
+            item.getType(),
+            item.getRelease().getRepository(),
+            item.getExternalId(),
+            item.getName(),
+            item.getVersion(),
+            isNew));
   }
 
   private void removeItemsNotIn(CatalogRelease release, CatalogManifest manifest) {

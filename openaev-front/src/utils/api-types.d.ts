@@ -9137,6 +9137,12 @@ export interface NotificationTriggerInput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "PAYLOAD_REVOKED"
+    | "NEW_PAYLOAD_VERSION"
+    | "REVOKED"
+    | "REVOCATION_LIFTED"
+    | "INSTALLED_AUTOMATICALLY"
+    | "RELEASE_RECEIVED"
     | "SYNC_BLOCKED"
     | "CRITICAL_ASSET_REACHED"
   )[];
@@ -9252,6 +9258,12 @@ export interface NotificationTriggerOutput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "PAYLOAD_REVOKED"
+    | "NEW_PAYLOAD_VERSION"
+    | "REVOKED"
+    | "REVOCATION_LIFTED"
+    | "INSTALLED_AUTOMATICALLY"
+    | "RELEASE_RECEIVED"
     | "SYNC_BLOCKED"
     | "CRITICAL_ASSET_REACHED"
   )[];
@@ -14067,6 +14079,11 @@ export interface ThreatArsenalActionFullOutput {
   executable_file?: string;
   /** Dropped file path for file-drop actions */
   file_drop_file?: string;
+}
+
+export interface ThreatArsenalActionIdOutput {
+  /** @minLength 1 */
+  action_id: string;
 }
 
 export interface ThreatArsenalActionUpdateInput {

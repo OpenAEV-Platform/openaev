@@ -2,7 +2,7 @@ import { Icon } from '@filigran/design-system';
 
 import AppNavbar from '../../../components/common/menu/navbar/AppNavbar';
 import { type NavMenuEntries } from '../../../components/common/menu/navbar/nav-menu-model';
-import { DASHBOARD_BASE_URL } from '../../../constants/BaseUrls';
+import { DASHBOARD_BASE_URL, THREAT_ARSENAL_BASE_URL } from '../../../constants/BaseUrls';
 import useAuth from '../../../utils/hooks/useAuth';
 import useExplorationGraph from '../../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
@@ -102,7 +102,7 @@ const LeftBar = () => {
           userRight: canAccessAssessments,
         },
         {
-          path: `/admin/threat-arsenal`,
+          path: THREAT_ARSENAL_BASE_URL,
           icon: () => (<Icon name="layers" size={16} />),
           label: 'Threat Arsenal',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.THREAT_ARSENALS)

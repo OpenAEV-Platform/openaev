@@ -306,6 +306,11 @@ public class Payload
     return latest == null ? !isManaged() : latest.getId().equals(id);
   }
 
+  /** The version the Threat Arsenal lists for this payload: its identity's latest, else itself. */
+  public Payload listedVersion() {
+    return Optional.ofNullable(getIdentity().getLatestVersion()).orElse(this);
+  }
+
   // -- AUTHOR --
   @NotHashed
   @Embedded
