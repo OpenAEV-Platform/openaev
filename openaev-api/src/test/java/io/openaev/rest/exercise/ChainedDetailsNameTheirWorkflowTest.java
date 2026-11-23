@@ -7,8 +7,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
@@ -29,8 +28,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,13 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("The detail of a chained simulation or scenario names its workflow")
-class ChainedDetailsNameTheirWorkflowTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class ChainedDetailsNameTheirWorkflowTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private ExerciseComposer exerciseComposer;

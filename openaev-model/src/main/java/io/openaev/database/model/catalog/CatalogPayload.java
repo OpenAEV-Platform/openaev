@@ -1,6 +1,7 @@
 package io.openaev.database.model.catalog;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.annotation.Queryable;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
@@ -22,5 +23,6 @@ public class CatalogPayload extends CatalogItem {
   /** First domain of the payload, as the Threat Arsenal sections show it. */
   @Column(name = "catalog_item_domain")
   @JsonProperty("catalog_item_domain")
+  @Queryable(filterable = true)
   private String domain;
 }

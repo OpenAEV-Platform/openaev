@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,16 @@ public class CatalogScenarioRequirements {
   private final ObjectMapper mapper;
 
   public List<String> missing(CatalogScenario item) {
+    return missing(item, injectorTypes());
+  }
+
+  /** What each scenario of a list lacks, reading the injectors once. */
+  public Function<CatalogScenario, List<String>> missingForEach() {
+    Set<String> injectors = injectorTypes();
+    return item -> missing(item, injectors);
+  }
+
+  private List<String> missing(CatalogScenario item, Set<String> injectors) {
     Requires requires = read(item);
     List<String> missing = new ArrayList<>();
     if (requires == null) {
@@ -39,12 +50,14 @@ public class CatalogScenarioRequirements {
             requires.openaev(), platformSettingsService.getPlatformVersion())) {
       missing.add("OpenAEV " + requires.openaev());
     }
-    Set<String> injectors =
-        injectorService.findAll().stream().map(Injector::getType).collect(Collectors.toSet());
     Optional.ofNullable(requires.injectors()).orElse(List.of()).stream()
         .filter(type -> !injectors.contains(type))
         .forEach(type -> missing.add("Injector " + type));
     return missing;
+  }
+
+  private Set<String> injectorTypes() {
+    return injectorService.findAll().stream().map(Injector::getType).collect(Collectors.toSet());
   }
 
   private Requires read(CatalogScenario item) {

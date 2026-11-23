@@ -88,7 +88,8 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
     accent: activeThemeConfig?.accent_color,
     text: activeThemeConfig?.text_color,
   }), [activeThemeKey]);
-  useFdsThemeScope(mode, custom);
+  // The user's "Pastel colours" preference; unset is pastel, the OpenAEV default.
+  useFdsThemeScope(mode, custom, me?.user_pastel_colours ?? true);
   const fdsTheme = useMemo(() => ({
     mode,
     custom,

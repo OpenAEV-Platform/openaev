@@ -89,6 +89,17 @@ export const isVisibleField = (field: ContractElement, fields: ContractElement[]
   return visible;
 };
 
+const SINGLE_VALUE_SELECT_TYPES: ContractElement['type'][] = ['select', 'choice', 'dependency-select'];
+
+// A cardinality "1" select holds a single id, validated as a string. A value stored as an array
+// (a write through the API) is read as its first element, so the form shows it instead of failing.
+export const normalizeSingleSelectValue = (field: ContractElement, value: unknown): unknown => {
+  if (field.cardinality === '1' && SINGLE_VALUE_SELECT_TYPES.includes(field.type) && Array.isArray(value)) {
+    return value.length > 0 ? value[0] : '';
+  }
+  return value;
+};
+
 export const getValidatingRule = (field: ContractElement, t: Translate) => {
   let rule: ZodType;
   switch (field.type) {

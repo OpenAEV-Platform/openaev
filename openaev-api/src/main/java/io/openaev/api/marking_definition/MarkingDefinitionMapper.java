@@ -16,7 +16,8 @@ public final class MarkingDefinitionMapper {
         entity.getColor(),
         entity.getOrder(),
         entity.getProtectedDefinition(),
-        entity.getCreatedAt());
+        entity.getCreatedAt(),
+        entity.getStixId());
   }
 
   public static MarkingDefinition fromInput(MarkingDefinitionInput input) {

@@ -2,6 +2,7 @@ package io.openaev.utils.mapper;
 
 import static io.openaev.service.catalog_connectors.CatalogConnectorIngestionService.OPENAEV_KEY_TOKEN;
 
+import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
@@ -16,12 +17,35 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class ConnectorInstanceMapper {
 
+  /**
+   * The instance read: id and statuses, plus, for a deployed (persisted) instance, the image the
+   * composer runs and the container state it last reported. A built-in instance has none of them.
+   */
   public ConnectorInstanceOutput toConnectorInstanceOutput(ConnectorInstance connectorInstance) {
-    return ConnectorInstanceOutput.builder()
-        .id(connectorInstance.getId())
-        .currentStatus(connectorInstance.getCurrentStatus())
-        .requestedStatus(connectorInstance.getRequestedStatus())
-        .build();
+    ConnectorInstanceOutput.ConnectorInstanceOutputBuilder builder =
+        ConnectorInstanceOutput.builder()
+            .id(connectorInstance.getId())
+            .currentStatus(connectorInstance.getCurrentStatus())
+            .requestedStatus(connectorInstance.getRequestedStatus());
+    if (connectorInstance instanceof ConnectorInstancePersisted persisted) {
+      builder
+          .image(containerImage(persisted.getCatalogConnector()))
+          .startedAt(persisted.getStartedAt())
+          .restartCount(persisted.getRestartCount())
+          .inRebootLoop(persisted.isInRebootLoop());
+    }
+    return builder.build();
+  }
+
+  /** image:version as the composer deploys it, or null when the catalog names no image. */
+  static String containerImage(CatalogConnector catalogConnector) {
+    if (catalogConnector == null
+        || catalogConnector.getContainerImage() == null
+        || catalogConnector.getContainerImage().isBlank()) {
+      return null;
+    }
+    return String.format(
+        "%s:%s", catalogConnector.getContainerImage(), catalogConnector.getContainerVersion());
   }
 
   /**

@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -37,6 +39,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.servlet.ServletException;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Supplier;
 import org.json.JSONArray;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,6 +74,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @Autowired private AssetRepository assetRepository;
   @Autowired private EntityManager entityManager;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private InjectAssistantService injectAssistantService;
   @Autowired private AssetGroupService assetGroupService;
@@ -127,6 +131,11 @@ class ScenarioInjectApiTest extends IntegrationTest {
             AssetGroupFixture.createAssetGroupWithAssets(
                 "all", List.of(WINDOWS_ARM64, WINDOWS_X86_64)),
             Tenant.DEFAULT_TENANT_UUID);
+  }
+
+  /** Reads in the default tenant, where this class's fixtures live: injects is an active table. */
+  private <T> T inDefaultTenant(Supplier<T> read) {
+    return tenantTx.execute(TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), read);
   }
 
   @AfterAll
@@ -221,7 +230,8 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateInjectForScenarioTest() throws Exception {
     // -- PREPARE --
-    Inject inject = injectRepository.findById(SCENARIO_INJECT_ID).orElseThrow();
+    Inject inject =
+        inDefaultTenant(() -> injectRepository.findById(SCENARIO_INJECT_ID).orElseThrow());
     InjectInput input = new InjectInput();
     String injectTitle = "A new title";
     input.setTitle(injectTitle);
@@ -258,7 +268,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
-    assertFalse(injectRepository.existsById(SCENARIO_INJECT_ID));
+    assertFalse(inDefaultTenant(() -> injectRepository.existsById(SCENARIO_INJECT_ID)));
   }
 
   @Nested
@@ -951,7 +961,8 @@ class ScenarioInjectApiTest extends IntegrationTest {
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void updateInjectForScenario_shouldReturnInjectOutputWithChecks() throws Exception {
       // -- PREPARE --
-      Inject inject = injectRepository.findById(SCENARIO_INJECT_ID).orElseThrow();
+      Inject inject =
+          inDefaultTenant(() -> injectRepository.findById(SCENARIO_INJECT_ID).orElseThrow());
       InjectInput input = new InjectInput();
       String newTitle = "Updated inject title";
       input.setTitle(newTitle);
@@ -1019,7 +1030,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
       assertTrue(
           response.contains("inject_ready"), "The duplication response must include inject_ready.");
 
-      assertTrue(injectRepository.existsById(duplicatedInjectId));
+      assertTrue(inDefaultTenant(() -> injectRepository.existsById(duplicatedInjectId)));
       String duplicatedTitle = JsonPath.read(response, "$.inject_title");
       assertTrue(
           duplicatedTitle.contains("duplicate"),

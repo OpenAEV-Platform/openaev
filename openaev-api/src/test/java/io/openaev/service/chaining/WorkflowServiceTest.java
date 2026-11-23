@@ -76,6 +76,7 @@ class WorkflowServiceTest {
   @Mock private InjectService injectService;
   @Mock private InjectStatusService injectStatusService;
   @Mock private AttackPathExecutionIngestionService attackPathExecutionIngestionService;
+  @Mock private io.openaev.service.NotificationEventService notificationEventService;
 
   private WorkflowService workflowService;
   private WorkflowEndService workflowEndService;
@@ -94,7 +95,8 @@ class WorkflowServiceTest {
             scopeSnapshotService,
             assetAgentJobRepository,
             workflowStateStore,
-            attackPathExecutionIngestionService);
+            attackPathExecutionIngestionService,
+            notificationEventService);
 
     workflowService =
         new WorkflowService(

@@ -55,14 +55,6 @@ io.openaev.database.model.User#scopedTenantId | TenantContext.getCurrentTenant |
 io.openaev.database.model.attackpath.AttackPathExecution | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.attackpath.AttackPathFinding | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.attackpath.AttackPathGraphVersion | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
-io.openaev.database.repository.AssetGroupRepository#findAllBySimulationOrScenarioIdAndName | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.EndpointRepository#findAllBySimulationOrScenarioIdAndName | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ExerciseRepository#findAllOptionByNameLinkedToFindings | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.ExerciseRepository#findAllOptionByNameLinkedToFindingsWithContext | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.InjectRepository#findAllByTitleLinkedToFindings | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.InjectRepository#findAllByTitleLinkedToFindingsWithContext | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.InjectRepository#findAllIdsForChallengeId | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.InjectRepository#findContentTargetContentsByExerciseIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
 io.openaev.debug.DebugTenantSource#currentTenant | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
 io.openaev.executors.caldera.service.CalderaExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
 io.openaev.executors.caldera.service.CalderaExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
@@ -106,8 +98,8 @@ io.openaev.injectors.phishing.api.PhishingPublicApi#page | TenantContext.setCurr
 io.openaev.injectors.phishing.api.PhishingPublicApi#submit | TenantContext.setCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
 io.openaev.injectors.phishing.service.PhishingLandingPageService#resolveTenantId | TenantContext.getCurrentTenant | 1 | tenant resolution falls back to the ambient tenant when the landing page has none
 io.openaev.jsonapi.GenericJsonApiImporter#handleImportEntity | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
-io.openaev.notification.engine.NotificationEngineService#handleEventWithMessage | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.notification.engine.NotificationEngineService#handleEventWithMessage | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.notification.engine.NotificationEngineService#inTriggerScope | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.notification.engine.NotificationEngineService#inTriggerScope | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.processor.MigrationProcessor#init | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.rest.asset.endpoint.EndpointApi#endpoint | TenantContext.getCurrentTenant | 1 | access-controlled route loads the endpoint with the ambient tenant of the request
 io.openaev.rest.asset.endpoint.EndpointApi#updateEndpoint | TenantContext.getCurrentTenant | 1 | access-controlled route updates the endpoint with the ambient tenant of the request

@@ -2,6 +2,7 @@ package io.openaev.rest.atomic_testing.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.users.dto.UserSimple;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -89,7 +90,24 @@ public class InjectResultOverviewOutput {
   @JsonProperty("inject_recurrence_end")
   private Instant recurrenceEnd;
 
+  @Schema(description = "User who launched this inject")
+  @JsonProperty("inject_launched_by_user")
+  private UserSimple launchedBy;
+
+  @Schema(description = "User who last configured this inject's recurrence")
+  @JsonProperty("inject_scheduled_by_user")
+  private UserSimple scheduledBy;
+
   // -- COMPUTED ATTRIBUTES --
+
+  @Builder.Default
+  @Schema(
+      description =
+          "Keys of the injector contract's mandatory fields this inject leaves empty: the reasons"
+              + " it is not ready (empty when it is ready)")
+  @JsonProperty("inject_missing_mandatory_fields")
+  @NotNull
+  private List<String> missingMandatoryFields = new ArrayList<>();
 
   @Builder.Default
   @Schema(description = "Result of expectations")

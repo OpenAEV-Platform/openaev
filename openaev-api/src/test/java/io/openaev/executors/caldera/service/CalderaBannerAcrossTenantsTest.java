@@ -8,8 +8,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.BannerMessage;
@@ -38,8 +37,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * The Caldera-unavailable banner is one platform row derived from the reports of every Caldera
@@ -52,18 +49,12 @@ import org.springframework.test.context.DynamicPropertySource;
  */
 @WithoutTenantScope
 @DisplayName("Caldera unavailable banner across tenants")
-class CalderaBannerAcrossTenantsTest extends IntegrationTest {
+class CalderaBannerAcrossTenantsTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_B = "caldera-banner-tenant-b";
   private static final BannerMessage.BANNER_KEYS BANNER =
       BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE;
   private static final String BANNER_KEY = SettingKeys.PLATFORM_BANNER + "." + BANNER.key();
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private PlatformSettingsService platformSettingsService;
   @Autowired private SettingRepository settingRepository;

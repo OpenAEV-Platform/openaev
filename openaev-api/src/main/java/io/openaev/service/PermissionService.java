@@ -4,6 +4,7 @@ import static io.openaev.utils.TxCtxScopeUtils.requestReadScope;
 import static io.openaev.utils.TxCtxScopeUtils.tenantIdsFromHTTPCtx;
 
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -12,6 +13,7 @@ import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ObjectiveRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.account.CallerRightsInTenant;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
@@ -29,11 +31,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @RequiredArgsConstructor
 @Service
@@ -91,6 +95,8 @@ public class PermissionService {
   private final StepService stepService;
   private final ConditionService conditionService;
   private final AmbientTenantBridge ambientTenantBridge;
+  private final CallerRightsInTenant callerRightsInTenant;
+  private final TenantMembershipCacheManager tenantMembershipCacheManager;
 
   /**
    * Resolves the resource with {@link TxCtx#missing()}, which {@code
@@ -224,15 +230,88 @@ public class PermissionService {
   /**
    * Whether {@code decision} holds in the ambient tenant and in every tenant of {@code ctx}, as
    * {@link #holdsInTenant} evaluates it. For a decision taken before the rows are read, or on rows
-   * whose tenant is not known: they can come from any tenant of the scope.
+   * whose tenant is not known: they can come from any tenant of the scope. In the ambient tenant
+   * the decision is taken on the caller as {@link #callerInAmbientTenant} loads it.
    *
    * @param ctx the request scope
-   * @param decision a check of this service, such as {@link #hasPermission}
+   * @param caller the caller, as the request loaded it
+   * @param decision a check of this service on the caller it is given, such as {@link
+   *     #hasPermission}
    */
-  public boolean holdsInScope(@NotNull final TxCtx ctx, final BooleanSupplier decision) {
-    return decision.getAsBoolean()
+  public boolean holdsInScope(
+      @NotNull final TxCtx ctx, @NotNull final User caller, final Predicate<User> decision) {
+    return decision.test(callerInAmbientTenant(caller, ctx))
         && tenantIdsFromHTTPCtx(ctx).stream()
-            .allMatch(tenantId -> holdsInTenant(tenantId, decision));
+            .allMatch(tenantId -> holdsInTenant(tenantId, () -> decision.test(caller)));
+  }
+
+  /**
+   * The caller with the roles it holds in the ambient tenant. A request loads its caller in the
+   * scope of its transaction, which reads the roles of the tenants of {@code ctx} and the platform
+   * roles only. When the ambient tenant is outside that scope, as on the non-prefixed route whose
+   * {@code X-Tenant-Ids} header names a tenant other than the default one, the caller is loaded
+   * again with its roles read in the ambient tenant ({@link CallerRightsInTenant}); the data reads
+   * of the request keep their scope. The tenants of the scope need no such load, nor does an admin,
+   * whose flag is on its user row. With no transaction open, as in the access check of an endpoint
+   * whose method opens none ({@code Propagation.SUPPORTS}), there is no transaction to move, and
+   * the caller was loaded in the scope of its memberships already.
+   *
+   * @param caller the caller, as the request loaded it
+   * @param ctx the request scope
+   */
+  public User callerInAmbientTenant(@NotNull final User caller, final TxCtx ctx) {
+    if (!ambientRolesToLoad(caller, ctx)) {
+      return caller;
+    }
+    return callerRightsInTenant.loadInAmbientTenant(caller);
+  }
+
+  /**
+   * The user, as the request loaded it, with the roles of its groups of the ambient tenant read
+   * again when the request's scope does not hold that tenant (see {@link #callerInAmbientTenant}).
+   * For a response that describes the user in the ambient tenant: the capabilities and flags it
+   * serializes come from those roles. The user returned is the one given, in the request's
+   * persistence context, so what the response serializes of its other associations is unchanged.
+   *
+   * @param user the user, as the request loaded it
+   * @param ctx the request scope
+   */
+  public User withRolesInAmbientTenant(@NotNull final User user, final TxCtx ctx) {
+    if (ambientRolesToLoad(user, ctx)) {
+      callerRightsInTenant.loadGroupRolesInAmbientTenant(user);
+    }
+    return user;
+  }
+
+  /**
+   * The user, as the transaction loaded it, with the roles of its groups of the ambient tenant read
+   * again, for a response that describes the user in that tenant. For an endpoint whose transaction
+   * has no tenant scope: a load there reads no role of a tenant. The roles are read when the
+   * ambient tenant is one of the user's memberships and the user is not an admin, whose flag is on
+   * its user row; the user returned is the one given.
+   *
+   * @param user the user, as the transaction loaded it
+   */
+  public User withRolesInAmbientTenant(@NotNull final User user) {
+    boolean memberOfAmbientTenant =
+        tenantMembershipCacheManager
+            .findTenantIdsByUserId(user.getId())
+            .contains(user.scopedTenantId());
+    if (!user.isAdmin()
+        && memberOfAmbientTenant
+        && TransactionSynchronizationManager.isActualTransactionActive()) {
+      callerRightsInTenant.loadGroupRolesInAmbientTenant(user);
+    }
+    return user;
+  }
+
+  private boolean ambientRolesToLoad(User user, TxCtx ctx) {
+    boolean ambientRolesRead =
+        !(ctx instanceof TxCtx.Restricted restricted)
+            || restricted.tenantIds().contains(user.scopedTenantId());
+    return !user.isAdmin()
+        && !ambientRolesRead
+        && TransactionSynchronizationManager.isActualTransactionActive();
   }
 
   /**
@@ -242,16 +321,20 @@ public class PermissionService {
    * row.
    *
    * @param ctx the request scope
-   * @param decision a check of this service, such as {@link #hasCapabilityPermission}
+   * @param caller the caller, as the request loaded it
+   * @param decision a check of this service on the caller it is given, such as {@link
+   *     #hasCapabilityPermission}; in the ambient tenant it is given the caller as {@link
+   *     #callerInAmbientTenant} loads it
    */
   public TenantDecision decideInEachTenant(
-      @NotNull final TxCtx ctx, final BooleanSupplier decision) {
+      @NotNull final TxCtx ctx, @NotNull final User caller, final Predicate<User> decision) {
     Set<String> holding = new HashSet<>();
     Set<String> notHolding = new HashSet<>();
     for (String tenantId : tenantIdsFromHTTPCtx(ctx)) {
-      (holdsInTenant(tenantId, decision) ? holding : notHolding).add(tenantId);
+      (holdsInTenant(tenantId, () -> decision.test(caller)) ? holding : notHolding).add(tenantId);
     }
-    return new TenantDecision(holding, notHolding, decision.getAsBoolean());
+    return new TenantDecision(
+        holding, notHolding, decision.test(callerInAmbientTenant(caller, ctx)));
   }
 
   /**
@@ -261,14 +344,17 @@ public class PermissionService {
    * otherwise, whatever the number of tenants.
    *
    * @param ctx the request scope
-   * @param decision a check of this service, such as {@link #hasCapabilityPermission}
+   * @param caller the caller, as the request loaded it
+   * @param decision a check of this service on the caller it is given, as {@link
+   *     #decideInEachTenant} takes it
    * @param rows the filter of the rows of one tenant, given the decision taken there
    */
   public <T extends Base> Specification<T> filterInEachTenant(
       @NotNull final TxCtx ctx,
-      final BooleanSupplier decision,
+      @NotNull final User caller,
+      final Predicate<User> decision,
       final Function<Boolean, Specification<T>> rows) {
-    TenantDecision taken = decideInEachTenant(ctx, decision);
+    TenantDecision taken = decideInEachTenant(ctx, caller, decision);
     if (taken.everywhere() || taken.nowhere()) {
       return rows.apply(taken.everywhere());
     }
@@ -287,7 +373,9 @@ public class PermissionService {
    * two lists when the decision is the same in every tenant, both otherwise.
    *
    * @param ctx the request scope
-   * @param decision a check of this service, such as {@link #hasCapabilityPermission}
+   * @param caller the caller, as the request loaded it
+   * @param decision a check of this service on the caller it is given, as {@link
+   *     #decideInEachTenant} takes it
    * @param all every row the caller could read
    * @param granted the rows the caller holds a grant on
    * @param tenantOf the tenant of a row of {@code all}
@@ -295,12 +383,13 @@ public class PermissionService {
    */
   public <R> List<R> listInEachTenant(
       @NotNull final TxCtx ctx,
-      final BooleanSupplier decision,
+      @NotNull final User caller,
+      final Predicate<User> decision,
       final Supplier<List<R>> all,
       final Supplier<List<R>> granted,
       final Function<R, String> tenantOf,
       final Function<R, String> idOf) {
-    TenantDecision taken = decideInEachTenant(ctx, decision);
+    TenantDecision taken = decideInEachTenant(ctx, caller, decision);
     if (taken.everywhere()) {
       return all.get();
     }
@@ -534,9 +623,7 @@ public class PermissionService {
         yield new Target(run.getParentResourceId(), run.getParentResourceType(), parentAction);
       }
       case INJECT -> {
-        // injects is not yet v2-active, so the table carries no scoping of its own (its @Filter
-        // does not apply to this find-by-id); load it in the request's read scope explicitly,
-        // resolving to not found when it is outside it.
+        // The inject resolves in the request's read scope: outside it, it is not found.
         Inject inject = injectService.inject(ctx, resourceId);
         // Parent action rule: READ stays READ, LAUNCH stays LAUNCH, the rest becomes WRITE.
         Action parentAction =

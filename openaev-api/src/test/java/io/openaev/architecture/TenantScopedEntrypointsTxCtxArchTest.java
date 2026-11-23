@@ -680,17 +680,31 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installAllPayloads",
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#uninstallPayload",
           // catalog_items, payload_identities, injectors: the Available tab of the Threat Arsenal.
-          "io.openaev.api.catalog.CatalogApi#actions",
-          "io.openaev.api.catalog.CatalogApi#payloadVersions",
-          "io.openaev.api.catalog.CatalogApi#payloadVersionContent",
+          "io.openaev.api.catalog.action.CatalogActionApi#searchActions",
+          "io.openaev.api.catalog.action.CatalogActionApi#actionFacetCounts",
+          "io.openaev.api.catalog.payload.CatalogPayloadApi#payloadVersions",
+          "io.openaev.api.catalog.payload.CatalogPayloadApi#payloadVersionContent",
           // catalog_items, scenario_identities: the Available tab of the Scenarios page.
-          "io.openaev.api.catalog.CatalogApi#scenarios",
-          "io.openaev.api.catalog.CatalogApi#scenarioVersions",
+          "io.openaev.api.catalog.scenario.CatalogScenarioApi#searchScenarios",
+          "io.openaev.api.catalog.scenario.CatalogScenarioApi#scenarioFacetCounts",
+          "io.openaev.api.catalog.scenario.CatalogScenarioApi#scenarioVersions",
           // exercises, injects: a scenario launched with targets for its simulation only.
           "io.openaev.api.scenario.ScenarioLaunchApi#launch",
           // payload_revocations: a tenant admin revokes a payload version.
           "io.openaev.api.payload.PayloadRevocationApi#revoke",
-          "io.openaev.api.payload.PayloadRevocationApi#lift");
+          "io.openaev.api.payload.PayloadRevocationApi#lift",
+          // injects, steps: moving the usages of a payload version to another version.
+          "io.openaev.api.threat_arsenal.move.PayloadUsageMoveApi#moveUsages",
+          // catalog_history: the History tabs of an action and of a scenario.
+          "io.openaev.api.catalog.CatalogHistoryApi#payloadHistory",
+          "io.openaev.api.catalog.CatalogHistoryApi#scenarioHistory",
+          // payloads, payload_identities: customized copies of Filigran payloads.
+          "io.openaev.api.threat_arsenal.customization.ThreatArsenalCustomizationApi#customize",
+          "io.openaev.api.threat_arsenal.customization.ThreatArsenalCustomizationApi#update",
+          // payload_identities, injects, steps: the injects left on an older version.
+          "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#olderVersionsInUse",
+          "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#keepOlderVersions",
+          "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#showOlderVersions");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =

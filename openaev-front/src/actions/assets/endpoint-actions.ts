@@ -1,7 +1,7 @@
 import { type Dispatch } from 'redux';
 
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import { type AssetBulkProcessingInput, type AssetBulkReplaceMarkingsInput, type AssetUpdateMarkingsInput, type Endpoint, type EndpointInput, type EndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
+import { type AssetBulkProcessingInput, type AssetBulkReplaceMarkingsInput, type AssetBulkUpdateInput, type AssetUpdateMarkingsInput, type Endpoint, type EndpointInput, type EndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
 import { arrayOfEndpoints, endpoint } from './asset-schema';
 
 const ENDPOINT_URI = '/api/endpoints';
@@ -63,6 +63,12 @@ export const bulkDeleteAssets = (input: AssetBulkProcessingInput) => {
 // Bulk mirror of updateAssetMarkings, same scope as bulkDeleteAssets; empty list clears all markings.
 export const bulkReplaceAssetMarkings = (input: AssetBulkReplaceMarkingsInput) => {
   return simplePutCall('/api/assets/markings/bulk', input);
+};
+
+// Bulk update of the classification (category, subcategory, URL, criticality) and tag addition, same
+// scope as bulkDeleteAssets; a field left out keeps each asset's value. Resolves to the updated ids.
+export const bulkUpdateAssets = (input: AssetBulkUpdateInput) => {
+  return simplePutCall('/api/assets/bulk', input);
 };
 
 // Generic asset overview for the unified detail page: any asset type, with its category-specific fields.

@@ -78,6 +78,161 @@ class TenantActiveTableAccessRulesTest {
   }
 
   @Nested
+  @DisplayName("execution_traces: association guard sees method references")
+  class ExecutionTracesAssociationMethodReferences {
+
+    @Test
+    @DisplayName("given an unreviewed method-reference reader, should violate")
+    void given_anUnreviewedMethodReferenceReader_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest
+                  .execution_traces_inject_status_association_access_is_reviewed,
+              TenantActiveTableAccessFixtures.UnreviewedExecutionTraceMethodReferenceReader.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("UnreviewedExecutionTraceMethodReferenceReader")
+          .contains("InjectStatus");
+    }
+  }
+
+  @Nested
+  @DisplayName("roles repository access")
+  class RolesRepositoryAccess {
+
+    @Test
+    @DisplayName("given an accessor outside the allowlist, should violate")
+    void given_anAccessorOutsideTheAllowlist_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.roles_repository_access_is_reviewed,
+              TenantActiveTableAccessFixtures.UnreviewedRoleAccessor.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("UnreviewedRoleAccessor")
+          .contains("RoleRepository");
+    }
+  }
+
+  @Nested
+  @DisplayName("roles platform row writers")
+  class RolesPlatformRowWriters {
+
+    private EvaluationResult roleWriters(Class<?>... fixtures) {
+      return evaluate(
+          TenantActiveTableAccessArchTest.roles_platform_row_writers_run_under_platform_write,
+          fixtures);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+        classes = {
+          TenantActiveTableAccessFixtures.UnmarkedPlatformRoleWriter.class,
+          TenantActiveTableAccessFixtures.UnmarkedRoleCapabilityJdbcWriter.class
+        })
+    @DisplayName("given a write of a role reached from no marker, should violate")
+    void given_aWriteOfARoleReachedFromNoMarker_should_violate(Class<?> fixture) {
+      // Act
+      EvaluationResult result = roleWriters(fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains(fixture.getSimpleName() + ".entry");
+    }
+
+    @Test
+    @DisplayName("given a role writer under the annotation, should not violate")
+    void given_aRoleWriterUnderTheAnnotation_should_notViolate() {
+      // Act
+      EvaluationResult result =
+          roleWriters(TenantActiveTableAccessFixtures.PlatformRoleWriterUnderTheAnnotation.class);
+
+      // Assert
+      assertThat(result.hasViolation()).as(result.getFailureReport().toString()).isFalse();
+    }
+
+    @Test
+    @DisplayName("given a writer of each table, should count it as a writer of its own table only")
+    void given_aWriterOfEachTable_should_countItAsAWriterOfItsOwnTableOnly() {
+      // Arrange
+      var classes =
+          new ClassFileImporter()
+              .importClasses(
+                  TenantActiveTableAccessFixtures.UnmarkedPlatformRowWriter.class,
+                  TenantActiveTableAccessFixtures.UnmarkedPlatformRoleWriter.class);
+
+      // Act
+      List<String> roleWriters =
+          classes.stream()
+              .flatMap(c -> c.getMethods().stream())
+              .filter(PlatformRowWriters.writeARow(PlatformRowWriters.ROLES, List.of()))
+              .map(m -> m.getOwner().getSimpleName())
+              .toList();
+      List<String> settingWriters =
+          classes.stream()
+              .flatMap(c -> c.getMethods().stream())
+              .filter(PlatformRowWriters.writeARow(PlatformRowWriters.PARAMETERS, List.of()))
+              .map(m -> m.getOwner().getSimpleName())
+              .toList();
+
+      // Assert
+      assertThat(roleWriters).containsExactly("UnmarkedPlatformRoleWriter");
+      assertThat(settingWriters).containsExactly("UnmarkedPlatformRowWriter");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        delimiter = '|',
+        value = {
+          "update Role r set r.name = :n where r.id = :id|true",
+          "DELETE FROM roles WHERE role_id = ?1|true",
+          "insert into roles_capabilities (role_id, capability) values (?, ?)|true",
+          "delete from groups_roles where role_id = ?|false",
+          "select r from Role r where r.id = :id|false",
+          "update groups set group_name = 'roles'|false"
+        })
+    @DisplayName("given a statement, should recognise a write of a role")
+    void given_aStatement_should_recogniseAWriteOfARole(String statement, boolean write) {
+      // Act + Assert
+      assertThat(PlatformRowWriters.isWriteOnTheTable(PlatformRowWriters.ROLES, statement))
+          .isEqualTo(write);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({
+      "TenantRoleWriterBuildingARoleWithoutATenant,1",
+      "TenantRoleWriterLookingUpByIdOnly,1"
+    })
+    @DisplayName("given an exempt role writer, should report what takes it out of the tenant rows")
+    void given_anExemptRoleWriter_should_reportWhatTakesItOutOfTheTenantRows(
+        String fixture, int violations) throws ClassNotFoundException {
+      // Arrange
+      Class<?> type =
+          Class.forName(TenantActiveTableAccessFixtures.class.getName() + "$" + fixture);
+      var write =
+          new ClassFileImporter()
+              .importClasses(type).stream()
+                  .flatMap(c -> c.getMethods().stream())
+                  .filter(m -> m.getName().equals("write"))
+                  .findFirst()
+                  .orElseThrow();
+
+      // Act
+      List<String> found =
+          PlatformRowWriters.tenantRowOnlyViolations(PlatformRowWriters.ROLES, write);
+
+      // Assert
+      assertThat(found).as(found.toString()).hasSize(violations);
+    }
+  }
+
+  @Nested
   @DisplayName("parameters platform row writers")
   class ParametersPlatformRowWriters {
 
@@ -250,7 +405,8 @@ class TenantActiveTableAccessRulesTest {
       var writers =
           writer.stream()
               .flatMap(c -> c.getMethods().stream())
-              .filter(PlatformRowWriters.writeASetting(java.util.List.of()))
+              .filter(
+                  PlatformRowWriters.writeARow(PlatformRowWriters.PARAMETERS, java.util.List.of()))
               .map(m -> m.getOwner().getSimpleName())
               .toList();
 
@@ -310,7 +466,8 @@ class TenantActiveTableAccessRulesTest {
     @DisplayName("given a statement, should recognise a write of the table")
     void given_aStatement_should_recogniseAWriteOfTheTable(String statement, boolean write) {
       // Act + Assert
-      assertThat(PlatformRowWriters.isWriteOnTheTable(statement)).isEqualTo(write);
+      assertThat(PlatformRowWriters.isWriteOnTheTable(PlatformRowWriters.PARAMETERS, statement))
+          .isEqualTo(write);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -357,7 +514,8 @@ class TenantActiveTableAccessRulesTest {
       var writers =
           classes.stream()
               .flatMap(c -> c.getMethods().stream())
-              .filter(PlatformRowWriters.writeASetting(java.util.List.of()))
+              .filter(
+                  PlatformRowWriters.writeARow(PlatformRowWriters.PARAMETERS, java.util.List.of()))
               .toList();
 
       // Assert
@@ -377,7 +535,8 @@ class TenantActiveTableAccessRulesTest {
       var writers =
           classes.stream()
               .flatMap(c -> c.getMethods().stream())
-              .filter(PlatformRowWriters.writeASetting(java.util.List.of()))
+              .filter(
+                  PlatformRowWriters.writeARow(PlatformRowWriters.PARAMETERS, java.util.List.of()))
               .toList();
 
       // Assert
@@ -432,7 +591,7 @@ class TenantActiveTableAccessRulesTest {
       return new ClassFileImporter()
           .importClasses(fixture).stream()
               .flatMap(c -> c.getMethods().stream())
-              .filter(PlatformRowWriters.writeASetting(ex))
+              .filter(PlatformRowWriters.writeARow(PlatformRowWriters.PARAMETERS, ex))
               .map(m -> m.getName() + "/" + m.getRawParameterTypes().size())
               .toList();
     }
@@ -498,7 +657,8 @@ class TenantActiveTableAccessRulesTest {
                   .orElseThrow();
 
       // Act
-      List<String> found = PlatformRowWriters.tenantRowOnlyViolations(write);
+      List<String> found =
+          PlatformRowWriters.tenantRowOnlyViolations(PlatformRowWriters.PARAMETERS, write);
 
       // Assert
       assertThat(found).as(found.toString()).hasSize(violations);
@@ -626,7 +786,7 @@ class TenantActiveTableAccessRulesTest {
       var readers =
           classes.stream()
               .flatMap(c -> c.getMethods().stream())
-              .filter(PlatformRowWriters.readATenantRowOfSettings())
+              .filter(PlatformRowWriters.readATenantRow(PlatformRowWriters.PARAMETERS))
               .toList();
 
       // Assert

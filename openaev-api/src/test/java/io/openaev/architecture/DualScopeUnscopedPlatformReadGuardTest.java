@@ -36,7 +36,11 @@ class DualScopeUnscopedPlatformReadGuardTest {
    * read of its platform rows fail.
    */
   private static final Map<String, String> PINNED =
-      Map.of("parameters", "io.openaev.rest.settings.PlatformSettingsUnscopedAccessTest");
+      Map.of(
+          "parameters",
+          "io.openaev.rest.settings.PlatformSettingsUnscopedAccessTest",
+          "roles",
+          "io.openaev.runner.DualScopeRolesBootTest");
 
   static Set<String> unpinned(Set<String> armed, Set<String> dualScope) {
     Set<String> unpinned = new TreeSet<>(armed);

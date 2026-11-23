@@ -1,6 +1,6 @@
-import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { EventAvailableOutlined, LabelOutlined, RouteOutlined, ScheduleOutlined, TimerOutlined } from '@mui/icons-material';
-import { Box, Typography } from '@mui/material';
+import { Chip, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { EventAvailableOutlined, LabelOutlined, PersonOutlined, RouteOutlined, ScheduleOutlined, TimerOutlined } from '@mui/icons-material';
+import { Box } from '@mui/material';
 import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
 import { getInjectStatusWithGlobalExecutionTraces } from '../../../../actions/injects/inject-action';
@@ -111,6 +111,8 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
   // so the hero stays light (no empty "-" rows like the old info tooltip).
   // The execution window (start / end / duration) lives here since the
   // dedicated "Execution details" tab was dropped.
+  const launchedBy = injectResultOverview.inject_launched_by_user;
+  const scheduledBy = isScheduled ? injectResultOverview.inject_scheduled_by_user : undefined;
   const startDate = injectResultOverview.inject_status?.tracking_sent_date;
   const endDate = injectResultOverview.inject_status?.tracking_end_date;
   const duration = startDate && endDate
@@ -122,11 +124,7 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
     fontSize: 15,
     color: 'text.disabled',
   } as const;
-  const metaTextSx = {
-    fontSize: 12.5,
-    color: 'text.secondary',
-  } as const;
-  const hasMeta = !!startDate || !!endDate || platforms.length > 0 || killChainPhases.length > 0;
+  const hasMeta = !!launchedBy || !!scheduledBy || !!startDate || !!endDate || platforms.length > 0 || killChainPhases.length > 0;
 
   return (
     <DetailHero
@@ -165,31 +163,49 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
               rowGap: 1,
             }}
             >
+              {scheduledBy && (
+                <MetaItem icon={<PersonOutlined sx={metaIconSx} />}>
+                  <Text variant="content-compact" className="text-default-secondary">
+                    {t('Scheduled by')}
+                    {': '}
+                    {scheduledBy.user_name ?? scheduledBy.user_email}
+                  </Text>
+                </MetaItem>
+              )}
+              {launchedBy && (
+                <MetaItem icon={<PersonOutlined sx={metaIconSx} />}>
+                  <Text variant="content-compact" className="text-default-secondary">
+                    {t('Launched by')}
+                    {': '}
+                    {launchedBy.user_name ?? launchedBy.user_email}
+                  </Text>
+                </MetaItem>
+              )}
               {startDate && (
                 <MetaItem icon={<ScheduleOutlined sx={metaIconSx} />}>
-                  <Typography component="span" sx={metaTextSx}>
+                  <Text variant="content-compact" className="text-default-secondary">
                     {t('Start date')}
                     {': '}
                     {nsdt(startDate)}
-                  </Typography>
+                  </Text>
                 </MetaItem>
               )}
               {endDate && (
                 <MetaItem icon={<EventAvailableOutlined sx={metaIconSx} />}>
-                  <Typography component="span" sx={metaTextSx}>
+                  <Text variant="content-compact" className="text-default-secondary">
                     {t('End date')}
                     {': '}
                     {nsdt(endDate)}
-                  </Typography>
+                  </Text>
                 </MetaItem>
               )}
               {duration && (
                 <MetaItem icon={<TimerOutlined sx={metaIconSx} />}>
-                  <Typography component="span" sx={metaTextSx}>
+                  <Text variant="content-compact" className="text-default-secondary">
                     {t('Duration')}
                     {': '}
                     {duration}
-                  </Typography>
+                  </Text>
                 </MetaItem>
               )}
               {platforms.length > 0 && (
@@ -208,18 +224,18 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
               )}
               {killChainPhases.length > 0 && (
                 <MetaItem icon={<RouteOutlined sx={metaIconSx} />}>
-                  <Typography component="span" sx={metaTextSx}>
+                  <Text variant="content-compact" className="text-default-secondary">
                     {killChainPhases.map(phase => phase.phase_name).join(', ')}
-                  </Typography>
+                  </Text>
                 </MetaItem>
               )}
               {(injectResultOverview.injects_tags?.length ?? 0) > 0 && (
                 <MetaItem icon={<LabelOutlined sx={metaIconSx} />}>
-                  <Typography component="span" sx={metaTextSx}>
+                  <Text variant="content-compact" className="text-default-secondary">
                     {injectResultOverview.injects_tags?.length}
                     {' '}
                     {t('tag(s)')}
-                  </Typography>
+                  </Text>
                 </MetaItem>
               )}
             </Box>

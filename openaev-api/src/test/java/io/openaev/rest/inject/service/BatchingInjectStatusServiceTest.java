@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -77,6 +78,11 @@ class BatchingInjectStatusServiceTest {
             })
         .when(tenantTx)
         .execute(any(), any(Runnable.class));
+    // The owners of the batch's injects are read through the primitive's returning overload.
+    lenient()
+        .doAnswer(invocation -> invocation.getArgument(1, Supplier.class).get())
+        .when(tenantTx)
+        .execute(any(), any(Supplier.class));
   }
 
   private Inject createInjectWithPendingStatus(String injectId) {

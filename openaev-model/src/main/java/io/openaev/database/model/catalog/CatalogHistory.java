@@ -22,7 +22,9 @@ public class CatalogHistory implements TenantBase {
 
   public enum Action {
     INSTALL,
-    UNINSTALL
+    UNINSTALL,
+    REVOKE,
+    LIFT_REVOCATION
   }
 
   public enum Mode {

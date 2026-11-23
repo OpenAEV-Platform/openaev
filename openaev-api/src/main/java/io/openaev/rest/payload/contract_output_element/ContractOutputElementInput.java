@@ -11,13 +11,20 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.With;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ContractOutputElementInput {
 
   @JsonProperty("contract_output_element_id")
+  @With
   private String id;
 
   // Fixes a bug due to a new version of jackson and lombok
@@ -60,5 +67,12 @@ public class ContractOutputElementInput {
   @Schema(description = "Set of regex groups")
   @NotNull
   @Valid
+  @With
   private Set<RegexGroupInput> regexGroups = new HashSet<>();
+
+  public ContractOutputElementInput withoutIds() {
+    return withId(null)
+        .withRegexGroups(
+            regexGroups.stream().map(group -> group.withId(null)).collect(Collectors.toSet()));
+  }
 }

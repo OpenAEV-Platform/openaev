@@ -424,6 +424,110 @@ class EndpointApiTest extends IntegrationTest {
     assertThatJson(response).node("asset_ips").isEqualTo(endpointCreated.getIps());
   }
 
+  private Endpoint saveInventoryEndpoint(String externalReference) {
+    Endpoint endpoint = new Endpoint();
+    endpoint.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    endpoint.setName("ww-onedev-control-001");
+    endpoint.setHostname("control-001.onedev.ww.example.org");
+    endpoint.setIps(new String[] {"198.51.100.7"});
+    endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
+    endpoint.setArch(Endpoint.PLATFORM_ARCH.x86_64);
+    endpoint.setCategory(AssetCategory.HOST);
+    endpoint.setDescription("Created by the inventory collector");
+    endpoint.setExternalReference(externalReference);
+    return endpointRepository.save(endpoint);
+  }
+
+  private EndpointInput discoveredWebApplicationInput(String externalReference) {
+    EndpointInput input = new EndpointInput();
+    input.setName("control-001.onedev.ww.example.org");
+    input.setHostname("control-001.onedev.ww.example.org");
+    input.setIps(new String[] {"198.51.100.7", "198.51.100.8"});
+    input.setCategory(AssetCategory.WEB_APPLICATION);
+    input.setSubcategory(AssetSubCategory.WEBSITE);
+    input.setExternalReference(externalReference);
+    return input;
+  }
+
+  @DisplayName(
+      "Given an upsert matched by hostname and IP on another source's endpoint, should keep its"
+          + " name, category and external reference and only merge addresses")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_upsertMatchingForeignEndpointByHostnameAndIp_should_keepItsIdentity()
+      throws Exception {
+    // --PREPARE--
+    Endpoint foreign = saveInventoryEndpoint("inventory-collector:vps-001");
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post(ENDPOINT_URI + "/agentless/upsert")
+                    .content(
+                        asJsonString(
+                            discoveredWebApplicationInput(
+                                "dns-enum:control-001.onedev.ww.example.org")))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    assertThatJson(response).node("asset_id").isEqualTo(foreign.getId());
+    assertThatJson(response).node("asset_name").isEqualTo("ww-onedev-control-001");
+    assertThatJson(response).node("asset_category").isEqualTo("HOST");
+    assertThatJson(response)
+        .node("asset_description")
+        .isEqualTo("Created by the inventory collector");
+    assertThatJson(response)
+        .node("asset_external_reference")
+        .isEqualTo("inventory-collector:vps-001");
+    assertThatJson(response).node("endpoint_platform").isEqualTo("Linux");
+    assertThatJson(response)
+        .node("asset_ips")
+        .isArray()
+        .containsExactlyInAnyOrder("198.51.100.7", "198.51.100.8");
+    Endpoint stored =
+        endpointRepository
+            .findByIdAndTenantId(foreign.getId(), TenantContext.getCurrentTenant())
+            .orElseThrow();
+    assertThat(stored.getSubcategory()).isNull();
+    assertThat(stored.getHostname()).isEqualTo("control-001.onedev.ww.example.org");
+  }
+
+  @DisplayName(
+      "Given an upsert matched by the caller's own external reference, should update name and"
+          + " category")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_upsertMatchingOwnExternalReference_should_updateIdentity() throws Exception {
+    // --PREPARE--
+    String externalReference = "dns-enum:control-001.onedev.ww.example.org";
+    Endpoint own = saveInventoryEndpoint(externalReference);
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post(ENDPOINT_URI + "/agentless/upsert")
+                    .content(asJsonString(discoveredWebApplicationInput(externalReference)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    assertThatJson(response).node("asset_id").isEqualTo(own.getId());
+    assertThatJson(response).node("asset_name").isEqualTo("control-001.onedev.ww.example.org");
+    assertThatJson(response).node("asset_category").isEqualTo("WEB_APPLICATION");
+    assertThatJson(response).node("asset_subcategory").isEqualTo("WEBSITE");
+  }
+
   @DisplayName("Given valid input, should delete an endpoint successfully")
   @Test
   @WithMockUser(isAdmin = true)
