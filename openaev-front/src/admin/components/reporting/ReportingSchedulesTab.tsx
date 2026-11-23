@@ -282,8 +282,6 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                           gap: 1,
                         }}
                       >
-                        {/* A div, not a span: the quiet-control spacing rule would read the
-                            wrapped switch as a quiet button and pull the edit icon 4px back. */}
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div className="inline-flex">
