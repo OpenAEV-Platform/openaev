@@ -5,7 +5,6 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.catalog.CatalogHistory;
-import io.openaev.database.model.catalog.CatalogItem;
 import io.openaev.database.model.scenario.ScenarioIdentity;
 import io.openaev.database.raw.RawCatalogInstalledScenario;
 import io.openaev.database.repository.ScenarioIdentityRepository;
@@ -19,6 +18,7 @@ import io.openaev.service.catalog.payload.InstallablePayloadVersion;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.scenario.ScenarioService;
 import java.io.ByteArrayInputStream;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -80,16 +80,13 @@ public class CatalogScenarioService {
 
   // -- READ --
 
-  /** The scenario of the tenant installed from each of these items, by item key. */
+  /** The scenario of the tenant installed from each of these catalogue items, by item key. */
   @Transactional(readOnly = true)
-  public Map<String, String> installedScenarioIds(
-      String tenantId, List<? extends CatalogItem> items) {
-    if (items.isEmpty()) {
+  public Map<String, String> installedScenarioIds(String tenantId, Collection<String> externalIds) {
+    if (externalIds.isEmpty()) {
       return Map.of();
     }
-    return scenarioService
-        .installedFromCatalog(tenantId, items.stream().map(CatalogItem::getExternalId).toList())
-        .stream()
+    return scenarioService.installedFromCatalog(tenantId, externalIds).stream()
         .collect(
             Collectors.toMap(
                 installed -> CatalogOffer.key(installed.getRepository(), installed.getExternalId()),

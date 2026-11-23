@@ -94,7 +94,8 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
             CatalogScenario.class, latestOffered(tenantId), input, facets(tenantId));
     Function<CatalogScenario, List<String>> missing = catalogScenarioRequirements.missingForEach();
     Map<String, String> installed =
-        catalogScenarioService.installedScenarioIds(tenantId, page.getContent());
+        catalogScenarioService.installedScenarioIds(
+            tenantId, page.getContent().stream().map(CatalogItem::getExternalId).toList());
     return page.map(
         item ->
             new OfferedScenario(item, missing.apply(item), installed.get(CatalogOffer.key(item))));
