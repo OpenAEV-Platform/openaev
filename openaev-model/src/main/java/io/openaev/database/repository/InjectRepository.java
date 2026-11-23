@@ -74,6 +74,17 @@ public interface InjectRepository
           + " where i.id = :injectId")
   Optional<String> findLauncherId(@Param("injectId") @NotNull String injectId);
 
+  /** Projection of {@link #findContentsByIds(Collection)}. */
+  interface InjectContent {
+    String getId();
+
+    ObjectNode getContent();
+  }
+
+  /** The content of the given injects, without loading their associations. */
+  @Query("SELECT i.id AS id, i.content AS content FROM Inject i WHERE i.id IN :ids")
+  List<InjectContent> findContentsByIds(@Param("ids") Collection<String> ids);
+
   /** Projection of {@link #findTenantRefById(String)}. */
   interface InjectTenantRef {
     String getId();

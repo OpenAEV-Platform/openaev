@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
-import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.SecurityPlatform;
@@ -76,13 +75,16 @@ public class V20261119_Add_logging_expectation_to_manual_payloads extends Runtim
 
   @Override
   protected boolean doMigrate(Tenant tenant) {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION)) {
+    String tenantId = tenant.getId();
+    // Without a payload injector the contracts cannot be rebuilt: checked before any change, so
+    // the migration is not recorded and runs again at the next startup.
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION)
+        || !payloadService.hasPayloadInjector(tenantId)) {
       return false;
     }
     // Injects carry the v1 filter: the inject reads below are keyed by ids already scoped to the
     // tenant, the filter is armed for consistency with the other runtime migrations.
     enableV1TenantFilter(tenant);
-    String tenantId = tenant.getId();
     List<String> payloadIds =
         payloadService.findAllBySource(tenantId, Payload.PAYLOAD_SOURCE.MANUAL).stream()
             .filter(this::needsLogging)
@@ -152,7 +154,8 @@ public class V20261119_Add_logging_expectation_to_manual_payloads extends Runtim
     for (int start = 0; start < injectIds.size(); start += INJECT_CHUNK_SIZE) {
       List<String> chunk =
           injectIds.subList(start, Math.min(start + INJECT_CHUNK_SIZE, injectIds.size()));
-      for (Inject inject : injectRepository.findAllById(chunk)) {
+      // Id and content only: loading the injects would load their associations with them.
+      for (InjectRepository.InjectContent inject : injectRepository.findContentsByIds(chunk)) {
         Optional<ObjectNode> content = withLogging(inject.getContent(), logging);
         if (content.isPresent()) {
           // Content-only update, as the expectations realignment does: it neither merges the

@@ -131,11 +131,7 @@ public class PayloadService {
     // rows. Narrow to the payload's own tenant before picking the reference injector and building
     // the injector links, otherwise the contract (stamped on the payload's tenant) could reference
     // another tenant's injector or fail on the injectors_injector_contracts FK.
-    String payloadTenantId = payload.getTenant().getId();
-    List<Injector> injectors =
-        this.injectorRepository.findAllByPayloads(true).stream()
-            .filter(injector -> payloadTenantId.equals(injector.getTenantId()))
-            .toList();
+    List<Injector> injectors = payloadInjectors(payload.getTenant().getId());
 
     Injector referenceInjector = injectors.isEmpty() ? null : injectors.getFirst();
     if (referenceInjector == null) {
@@ -167,6 +163,17 @@ public class PayloadService {
         injectorIds, injectorContractSaved.getCompositeId().getId());
 
     return injectorContractSaved;
+  }
+
+  /** Without an injector running payloads in the tenant, no payload contract can be rebuilt. */
+  public boolean hasPayloadInjector(String tenantId) {
+    return !payloadInjectors(tenantId).isEmpty();
+  }
+
+  private List<Injector> payloadInjectors(String tenantId) {
+    return this.injectorRepository.findAllByPayloads(true).stream()
+        .filter(injector -> tenantId.equals(injector.getTenantId()))
+        .toList();
   }
 
   /**

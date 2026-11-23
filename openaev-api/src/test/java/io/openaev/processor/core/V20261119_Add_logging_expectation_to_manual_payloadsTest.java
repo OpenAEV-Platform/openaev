@@ -182,16 +182,28 @@ class V20261119_Add_logging_expectation_to_manual_payloadsTest extends Integrati
   }
 
   @Nested
-  @DisplayName("While the Logging preview feature is off")
-  class FeatureOff {
+  @DisplayName("When the migration cannot run yet")
+  class Deferred {
+
+    private InjectorContract persistManualPayloadExpectingDetection() {
+      return persistPayloadWithContract(
+          Payload.PAYLOAD_SOURCE.MANUAL, new EXPECTATION_TYPE[] {DETECTION}, Map.of());
+    }
+
+    private void assertChangedNothingAndNotRecorded(InjectorContract contract) {
+      assertFalse(
+          List.of(reloadPayload(contract).getExpectations()).contains(LOGGING),
+          "The payload must not get Logging");
+      assertTrue(
+          dataPackService.findByIdAndTenant(migration.getMigrationId(), tenant()).isEmpty(),
+          "The migration must not be recorded, to run at the next startup");
+    }
 
     @Test
-    @DisplayName("Should change nothing and run again at the next startup")
+    @DisplayName("Should change nothing while the Logging preview feature is off")
     void given_featureOff_should_changeNothingAndNotRecordTheMigration() {
       // Arrange
-      InjectorContract contract =
-          persistPayloadWithContract(
-              Payload.PAYLOAD_SOURCE.MANUAL, new EXPECTATION_TYPE[] {DETECTION}, Map.of());
+      InjectorContract contract = persistManualPayloadExpectingDetection();
       setLoggingFeature("");
 
       // Act
@@ -199,12 +211,28 @@ class V20261119_Add_logging_expectation_to_manual_payloadsTest extends Integrati
 
       // Assert
       assertEquals(MigrationProcessingResult.PROCESSED, result);
-      assertFalse(
-          List.of(reloadPayload(contract).getExpectations()).contains(LOGGING),
-          "The payload must not get Logging while the feature is off");
-      assertTrue(
-          dataPackService.findByIdAndTenant(migration.getMigrationId(), tenant()).isEmpty(),
-          "The migration must not be recorded, to run at the next startup");
+      assertChangedNothingAndNotRecorded(contract);
+    }
+
+    @Test
+    @DisplayName("Should change nothing while no injector can rebuild the contracts")
+    void given_noPayloadInjector_should_changeNothingAndNotRecordTheMigration() {
+      // Arrange
+      InjectorContract contract = persistManualPayloadExpectingDetection();
+      injectorRepository
+          .findAllByPayloads(true)
+          .forEach(
+              injector -> {
+                injector.setPayloads(false);
+                injectorRepository.save(injector);
+              });
+
+      // Act
+      MigrationProcessingResult result = migration.process(tenant());
+
+      // Assert
+      assertEquals(MigrationProcessingResult.PROCESSED, result);
+      assertChangedNothingAndNotRecorded(contract);
     }
   }
 
