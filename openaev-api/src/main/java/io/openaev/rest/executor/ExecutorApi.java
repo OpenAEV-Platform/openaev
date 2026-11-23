@@ -446,7 +446,9 @@ public class ExecutorApi extends RestBehavior {
         @ApiResponse(
             responseCode = "200",
             description = "Successfully generated the install command."),
-        @ApiResponse(responseCode = "400", description = "Invalid platform specified."),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid platform, installation directory or service name specified."),
         @ApiResponse(responseCode = "404", description = "Token not found."),
       })
   @GetMapping(
