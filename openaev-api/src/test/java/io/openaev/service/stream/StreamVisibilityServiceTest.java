@@ -29,6 +29,7 @@ import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.ManualInjectExpectation;
 import io.openaev.database.model.PreventionInjectExpectation;
 import io.openaev.database.model.SecurityPlatform;
@@ -38,6 +39,7 @@ import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.FindingFixture;
 import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import jakarta.persistence.Entity;
@@ -325,6 +327,25 @@ class StreamVisibilityServiceTest {
           .isTrue();
       assertThat(visibility.payloadFor(RED).path("collector_security_platform").path("asset_id"))
           .hasToString("\"platform-r\"");
+    }
+
+    @Test
+    @DisplayName("a single id is removed when hidden")
+    void given_injectorOfAHiddenSecurityPlatform_should_removeItsId() {
+      // Arrange
+      SecurityPlatform platform = SecurityPlatformFixture.createDefault("platform", "EDR");
+      platform.setId("r");
+      Injector injector = InjectorFixture.createDefaultInjector("injector");
+      injector.setSecurityPlatform(platform);
+
+      // Act
+      StreamVisibility visibility = visibilityOf(injector);
+
+      // Assert
+      assertThat(visibility.visibleUnder(AMBER)).isTrue();
+      assertThat(visibility.payloadFor(AMBER).path("injector_security_platform").isNull()).isTrue();
+      assertThat(visibility.payloadFor(RED).path("injector_security_platform"))
+          .hasToString("\"r\"");
     }
 
     @Test

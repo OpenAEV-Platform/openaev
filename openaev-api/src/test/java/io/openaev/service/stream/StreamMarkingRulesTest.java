@@ -13,6 +13,7 @@ import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.ManualInjectExpectation;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Team;
@@ -82,7 +83,12 @@ class StreamMarkingRulesTest {
 
     // Assert
     assertThat(rules.forEntity(Inject.class).listings())
-        .containsExactly(new ListingRule("inject_assets", "assets"));
+        .containsExactlyInAnyOrder(
+            new ListingRule("inject_assets", "assets"),
+            new ListingRule(
+                "inject_injector_contract.injector_contract_payload.payload_detection_remediations"
+                    + ".detection_remediation_security_platform",
+                "assets"));
     assertThat(rules.forEntity(Inject.class).row()).isNull();
     assertThat(rules.forEntity(AssetGroup.class).listings())
         .containsExactlyInAnyOrder(
@@ -135,6 +141,21 @@ class StreamMarkingRulesTest {
   }
 
   @Test
+  @DisplayName("a single id of a marked row is filtered, but not the id of the row's own parent")
+  void given_singleId_should_beFilteredUnlessItIsTheRowParent() {
+    // Act
+    StreamMarkingRules rules = rules(ASSETS_ACTIVE);
+
+    // Assert
+    assertThat(rules.forEntity(Injector.class).listings())
+        .containsExactly(new ListingRule("injector_security_platform", "assets"));
+    // An agent is hidden with its asset: its asset id needs no filtering
+    assertThat(rules.forEntity(Agent.class).listings())
+        .extracting(ListingRule::path)
+        .doesNotContain("agent_asset");
+  }
+
+  @Test
   @DisplayName("a table out of the registry, or no marked table at all, is not filtered")
   void given_tableOutOfTheRegistry_should_notBeFiltered() {
     // Arrange
@@ -149,7 +170,10 @@ class StreamMarkingRulesTest {
     StreamMarkingRules rules = rules(withoutTraces);
 
     // Assert
-    assertThat(rules.forEntity(ExecutionTrace.class).isEmpty()).isTrue();
+    // The trace is sent whatever its agent; only the agent's id is still filtered
+    assertThat(rules.forEntity(ExecutionTrace.class).row()).isNull();
+    assertThat(rules.forEntity(ExecutionTrace.class).listings())
+        .containsExactly(new ListingRule("agent", "agents"));
     assertThat(rules.forEntity(Inject.class).embedded())
         .extracting(EmbeddedRule::path)
         .containsExactly("inject_expectations");

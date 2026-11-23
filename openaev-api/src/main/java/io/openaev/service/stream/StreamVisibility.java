@@ -3,6 +3,7 @@ package io.openaev.service.stream;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import io.openaev.context.MarkingCtx;
 import io.openaev.service.stream.StreamMarkingRules.EmbeddedRule;
 import io.openaev.service.stream.StreamMarkingRules.EntityRule;
@@ -198,10 +199,10 @@ public final class StreamVisibility {
     List<JsonNode> elements = new ArrayList<>();
     for (ObjectNode holder : holdersOf(root, path)) {
       JsonNode value = holder.path(lastStep(path));
-      if (value.isObject()) {
-        elements.add(value);
-      } else {
+      if (value.isArray()) {
         value.forEach(elements::add);
+      } else if (value.isObject() || value.isTextual()) {
+        elements.add(value);
       }
     }
     return elements;
@@ -209,14 +210,15 @@ public final class StreamVisibility {
 
   /**
    * Keeps, in every array the path reaches, only the elements {@code visible} accepts; a single
-   * object it does not accept becomes null.
+   * object or id it does not accept becomes null.
    */
   private static void keepOnly(ObjectNode root, String path, Predicate<JsonNode> visible) {
     String property = lastStep(path);
     for (ObjectNode holder : holdersOf(root, path)) {
-      if (holder.get(property) instanceof ObjectNode element && !visible.test(element)) {
+      JsonNode value = holder.get(property);
+      if ((value instanceof ObjectNode || value instanceof TextNode) && !visible.test(value)) {
         holder.putNull(property);
-      } else if (holder.get(property) instanceof ArrayNode elements) {
+      } else if (value instanceof ArrayNode elements) {
         ArrayNode kept = holder.putArray(property);
         elements.forEach(
             element -> {
