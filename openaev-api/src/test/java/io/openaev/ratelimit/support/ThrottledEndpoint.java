@@ -2,6 +2,7 @@ package io.openaev.ratelimit.support;
 
 import io.openaev.annotation.NoTenantScope;
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.ratelimit.aop.RateLimit;
@@ -28,12 +29,15 @@ public class ThrottledEndpoint extends RestBehavior {
   // this endpoint piggybacks on the AppSecurityConfig setting of `permitAll()` on "/api/reset/**"
   public static final String OPEN_SIMPLE_GET = "/api/reset/ratelimit-integration-test";
 
+  /**
+   * Takes a {@link TxCtx}, as every production endpoint whose access is checked does, so that the
+   * access check loads the caller in the request's scope.
+   */
   @GetMapping(AUTHED_SIMPLE_GET)
   @Transactional
-  @NoTenantScope
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.JOB)
   @RateLimit(rps = THROTTLED_ENDPOINT_AUTHED_RPS)
-  public String simpleGet() {
+  public String simpleGet(TxCtx ctx) {
     return SIMPLE_GET_RESPONSE_BODY;
   }
 

@@ -3,8 +3,7 @@ package io.openaev.rest.settings;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.openaev.App;
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.SettingKeys;
@@ -13,8 +12,6 @@ import io.openaev.database.repository.SettingRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * With {@code parameters} active, {@code App.init()} must survive being run a second time against a
@@ -28,13 +25,7 @@ import org.springframework.test.context.DynamicPropertySource;
  * TenantScopedTransactionIntegrationTest}, the reference pattern this follows).
  */
 @DisplayName("App.init() survives a restart with parameters active")
-class DualScopeParametersBootTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class DualScopeParametersBootTest extends ProductionTablesIntegrationTest {
 
   @Autowired private App app;
   @Autowired private SettingRepository settingRepository;

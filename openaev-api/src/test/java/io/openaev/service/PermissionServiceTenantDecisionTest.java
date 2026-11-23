@@ -19,8 +19,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,10 +80,12 @@ class PermissionServiceTenantDecisionTest extends IntegrationTest {
     @DisplayName("given the right only outside B should hold in the default tenant only")
     void given_rightOnlyOutsideB_should_holdInDefaultTenantOnly() {
       // -- ARRANGE --
-      BooleanSupplier accessRight = accessRight();
+      Predicate<User> accessRight = accessRight();
 
       // -- ACT --
-      TenantDecision decision = permissionService.decideInEachTenant(bothTenants(), accessRight);
+      TenantDecision decision =
+          permissionService.decideInEachTenant(
+              bothTenants(), userService.currentUser(), accessRight);
 
       // -- ASSERT --
       assertThat(decision.holding()).containsExactly(Tenant.DEFAULT_TENANT_UUID);
@@ -285,14 +287,21 @@ class PermissionServiceTenantDecisionTest extends IntegrationTest {
 
   private List<Row> listInEachTenant(TxCtx ctx, List<Row> all, List<Row> granted) {
     return permissionService.listInEachTenant(
-        ctx, accessRight(), () -> all, () -> granted, Row::tenantId, Row::id);
+        ctx,
+        userService.currentUser(),
+        accessRight(),
+        () -> all,
+        () -> granted,
+        Row::tenantId,
+        Row::id);
   }
 
   private List<String> filterInEachTenant(TxCtx ctx, Tags tags) {
     Function<Boolean, Specification<Tag>> rows =
         readsEveryRow ->
             readsEveryRow ? (root, query, cb) -> cb.conjunction() : idIn(tags.granted());
-    Specification<Tag> readable = permissionService.filterInEachTenant(ctx, accessRight(), rows);
+    Specification<Tag> readable =
+        permissionService.filterInEachTenant(ctx, userService.currentUser(), accessRight(), rows);
     List<String> read = new ArrayList<>();
     StreamSupport.stream(tagRepository.findAll(readable.and(idIn(tags.all()))).spliterator(), false)
         .map(Tag::getId)
@@ -300,9 +309,8 @@ class PermissionServiceTenantDecisionTest extends IntegrationTest {
     return read;
   }
 
-  private BooleanSupplier accessRight() {
-    User caller = userService.currentUser();
-    return () -> caller.getCapabilities().contains(Capability.ACCESS_ASSESSMENT);
+  private static Predicate<User> accessRight() {
+    return caller -> caller.getCapabilities().contains(Capability.ACCESS_ASSESSMENT);
   }
 
   private Tags seedTags() {

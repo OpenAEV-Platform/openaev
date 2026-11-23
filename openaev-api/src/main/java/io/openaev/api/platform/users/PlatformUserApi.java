@@ -48,7 +48,7 @@ public class PlatformUserApi {
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
   public UserOutput create(TxCtx ctx, @Valid @RequestBody UserInput input) {
-    return toPlatformOutput(userService.createUser(input, UserCreationScope.PLATFORM));
+    return toPlatformOutput(userService.createUser(ctx, input, UserCreationScope.PLATFORM));
   }
 
   // -- READ --
@@ -102,7 +102,7 @@ public class PlatformUserApi {
   @Transactional
   public UserOutput update(
       TxCtx ctx, @PathVariable String userId, @Valid @RequestBody UserInput input) {
-    return toPlatformOutput(userService.updateUser(userId, input));
+    return toPlatformOutput(userService.updateUser(ctx, userId, input));
   }
 
   // -- DELETE --

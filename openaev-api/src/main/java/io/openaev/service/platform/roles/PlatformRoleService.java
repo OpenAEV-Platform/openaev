@@ -84,9 +84,7 @@ public class PlatformRoleService {
 
   @Transactional(readOnly = true)
   public List<Role> findByIds(List<String> ids) {
-    return roleRepository.findAllById(ids).stream()
-        .filter(role -> role.getTenant() == null)
-        .toList();
+    return roleRepository.findAllByIdInAndTenantIsNull(ids);
   }
 
   @Transactional(readOnly = true)

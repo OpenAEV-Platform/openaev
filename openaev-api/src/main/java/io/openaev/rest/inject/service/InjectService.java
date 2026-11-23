@@ -1746,10 +1746,11 @@ public class InjectService {
         .getObject()
         .filterInEachTenant(
             ctx,
-            () ->
-                currentUser.isAdmin()
-                    || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
-                    || currentUser.getCapabilities().contains(Capability.BYPASS),
+            currentUser,
+            caller ->
+                caller.isAdmin()
+                    || caller.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
+                    || caller.getCapabilities().contains(Capability.BYPASS),
             accessRight ->
                 accessRight
                     ? (root, query, cb) -> cb.conjunction()

@@ -17,6 +17,7 @@ import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.repository.*;
@@ -30,6 +31,7 @@ import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.user_events.UserPasswordSetupRequestedEvent;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.ReferenceResolver;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.users.UserQueryHelper;
 import jakarta.annotation.Resource;
@@ -166,6 +168,22 @@ public class UserService {
    */
   @Transactional(rollbackFor = Exception.class)
   public User createUser(UserInput input, UserCreationScope scope) {
+    return applyCreate(input, scope);
+  }
+
+  /**
+   * Creates a platform user from a request whose scope is {@code ctx}. The roles of the groups
+   * auto-assigned from the input's tenants are read in that scope, so the event of the creation is
+   * attributed to a tenant of it, the ambient one when it is of the scope: a consumer of a tenant
+   * outside the scope is not sent fields derived from roles that were not read for it.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public User createUser(TxCtx ctx, UserInput input, UserCreationScope scope) {
+    BaseEvent.attributeRequestEventsToOneOf(TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx), User.class);
+    return applyCreate(input, scope);
+  }
+
+  private User applyCreate(UserInput input, UserCreationScope scope) {
     ReservedKeyValidator.validateUserEmailPattern(input.email());
     if (userRepository.findByEmailIgnoreCase(input.email()).isPresent()) {
       throw new DataIntegrityViolationException(
@@ -283,6 +301,22 @@ public class UserService {
 
   @Transactional(rollbackFor = Exception.class)
   public User updateUser(String userId, UserInput input) {
+    return applyUpdate(userId, input);
+  }
+
+  /**
+   * Updates a user from a request whose scope is {@code ctx}. The roles of the user's groups are
+   * read in that scope, so the event of the update is attributed to a tenant of it, the ambient one
+   * when it is of the scope: a consumer of a tenant outside the scope is not sent fields derived
+   * from roles that were not read for it.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public User updateUser(TxCtx ctx, String userId, UserInput input) {
+    BaseEvent.attributeRequestEventsToOneOf(TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx), User.class);
+    return applyUpdate(userId, input);
+  }
+
+  private User applyUpdate(String userId, UserInput input) {
     // Check if new email is reserved
     ReservedKeyValidator.validateUserEmailPattern(input.email());
     User existing = user(userId);

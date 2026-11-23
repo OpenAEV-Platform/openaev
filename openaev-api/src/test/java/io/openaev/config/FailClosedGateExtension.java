@@ -9,13 +9,17 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -29,9 +33,9 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  *
  * <p>Waiving is a baseline diff, per-test so it is shard-safe. A read whose nearest caller is test
  * or fixture code is auto-waived (a test choosing not to scope is never a production bug). A read
- * from production code must be listed in {@code failclosed-baseline.txt} (by {@code class.method});
- * anything else fails, i.e. a genuinely new unscoped production path as tables are onboarded
- * (WS2/WS3).
+ * from production code must be listed in {@code failclosed-baseline.txt} (by {@code class.method},
+ * optionally limited to the tables it names, see {@link #isWaived}); anything else fails, i.e. a
+ * genuinely new unscoped production path as tables are onboarded (WS2/WS3).
  *
  * <p><strong>Shadow modes.</strong> A shadow run arms a much wider active-tables list than the one
  * the test classpath declares (which is none at all), so every production method reading a newly
@@ -56,7 +60,14 @@ public class FailClosedGateExtension implements BeforeEachCallback, AfterEachCal
       "on".equals(System.getProperty("openaev.failclosed.detector"));
   private static final String UNKNOWN_CALLER = FailClosedDetectorListener.UNKNOWN_CALLER;
   private static final String BASELINE_RESOURCE = "/failclosed-baseline.txt";
-  private static final Set<String> WAIVED = loadSignatureList(BASELINE_RESOURCE);
+  private static final Map<String, Set<String>> WAIVED =
+      waivers(loadSignatureList(BASELINE_RESOURCE));
+
+  /**
+   * Separates the signature of a baseline line from the tables the line is limited to: {@code
+   * io.openaev.Foo.bar tables=roles,groups}.
+   */
+  static final String TABLES_QUALIFIER = " tables=";
 
   /**
    * System property carrying the armed shadow mode. Absent or blank means the normal pipeline,
@@ -252,10 +263,57 @@ public class FailClosedGateExtension implements BeforeEachCallback, AfterEachCal
     return violations.stream()
         .filter(v -> !UNKNOWN_CALLER.equals(v.caller()))
         .filter(v -> !isTestCaller(v.caller()))
+        .filter(v -> !isWaived(v, WAIVED))
         .map(v -> signature(v.caller()))
-        .filter(sig -> !WAIVED.contains(sig))
         .distinct()
         .toList();
+  }
+
+  /**
+   * Whether the baseline waives the read. A line with no tables waives every read at its site. A
+   * line naming tables waives a read only when every active table the read names is listed, so a
+   * read of another table at the same site stays offending. A read whose tables the detector could
+   * not name is waived only by a line with no tables.
+   */
+  static boolean isWaived(
+      FailClosedAccessRecorder.Violation violation, Map<String, Set<String>> waivers) {
+    Set<String> tables = waivers.get(signature(violation.caller()));
+    if (tables == null) {
+      return false;
+    }
+    return tables.isEmpty()
+        || tables.containsAll(Arrays.asList(violation.activeTables().split(",")));
+  }
+
+  /**
+   * The baseline lines by signature, each with the tables it is limited to, empty for a line that
+   * names none. A site listed both ways is waived for every table.
+   */
+  static Map<String, Set<String>> waivers(Set<String> lines) {
+    Map<String, Set<String>> waivers = new HashMap<>();
+    for (String line : lines) {
+      int qualifier = line.indexOf(TABLES_QUALIFIER);
+      String site = qualifier < 0 ? line : line.substring(0, qualifier).trim();
+      Set<String> tables =
+          qualifier < 0
+              ? Set.of()
+              : Arrays.stream(line.substring(qualifier + TABLES_QUALIFIER.length()).split(","))
+                  .map(String::trim)
+                  .filter(table -> !table.isEmpty())
+                  .collect(Collectors.toSet());
+      waivers.merge(
+          site,
+          tables,
+          (known, added) -> {
+            if (known.isEmpty() || added.isEmpty()) {
+              return Set.of();
+            }
+            Set<String> union = new HashSet<>(known);
+            union.addAll(added);
+            return union;
+          });
+    }
+    return waivers;
   }
 
   /**
