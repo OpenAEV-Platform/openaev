@@ -28,7 +28,7 @@ const ThreatArsenalActionEditDrawer: FunctionComponent<Props> = ({ action, onClo
   const theme = useTheme();
   const edit = useActionEdit(action);
   const actionId = action?.injector_contract_id ?? '';
-  const revoked = usePayloadVersions(actionId, !!action && isShownRevoked(action))
+  const revoked = usePayloadVersions(actionId, isShownRevoked(action))
     ?.find(version => version.payload_action_id === actionId && version.payload_revoked);
   const payloadId = action?.action_payload?.payload_id ?? '';
   const name = action ? tPick(action.action_labels) : '';
