@@ -2,12 +2,10 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
-import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.hash.Hashed;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -16,7 +14,6 @@ import lombok.EqualsAndHashCode;
 @Data
 @Entity
 @DiscriminatorValue(DnsResolution.DNS_RESOLUTION_TYPE)
-@EntityListeners(ModelBaseListener.class)
 public class DnsResolution extends Payload {
 
   public static final String DNS_RESOLUTION_TYPE = "DnsResolution";
