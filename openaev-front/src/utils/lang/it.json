@@ -5024,5 +5024,17 @@
   "Not found in OpenCTI": "Non trovato in OpenCTI",
   "Not found in OpenCRQ": "Non trovato in OpenCRQ",
   "OpenCTI holds it once a connector or an analyst creates it there.": "OpenCTI lo conterrà quando un connettore o un analista lo creerà lì.",
-  "OpenCRQ holds it once a risk scenario or a supporting asset names it.": "OpenCRQ lo conterrà quando uno scenario di rischio o un asset di supporto lo nominerà."
+  "OpenCRQ holds it once a risk scenario or a supporting asset names it.": "OpenCRQ lo conterrà quando uno scenario di rischio o un asset di supporto lo nominerà.",
+  "Edit classification": "Modifica classificazione",
+  "Tags to add": "Tag da aggiungere",
+  "Set at least one field to update": "Compila almeno un campo da aggiornare",
+  "This subcategory does not belong to the category": "Questa sottocategoria non appartiene alla categoria",
+  "Selected assets: {count}. A field left empty keeps each asset's own value; tags are added to the ones each asset already carries.": "Asset selezionati: {count}. Un campo lasciato vuoto mantiene il valore di ciascun asset; i tag vengono aggiunti a quelli già presenti su ciascun asset.",
+  "Decides which fields each asset shows. Empty: each asset keeps its category.": "Determina quali campi mostra ogni asset. Vuoto: ogni asset mantiene la sua categoria.",
+  "Narrower type within the chosen category. Empty: each asset keeps its subcategory.": "Tipo più preciso nella categoria scelta. Vuoto: ogni asset mantiene la sua sottocategoria.",
+  "{category} requires a URL: an asset without one will ask for it at its next edit. Empty: each asset keeps its URL.": "{category} richiede un URL: un asset senza URL lo chiederà alla prossima modifica. Vuoto: ogni asset mantiene il suo URL.",
+  "Address the scans and the web injectors target. Empty: each asset keeps its URL.": "Indirizzo preso di mira dalle scansioni e dagli iniettori web. Vuoto: ogni asset mantiene il suo URL.",
+  "Impact of a compromise, from Very high (stops the business) to Low (little effect); Unknown when not assessed. Empty: each asset keeps its value.": "Impatto di una compromissione, da Molto alta (ferma l'attività) a Bassa (poco effetto); Sconosciuta se non valutata. Vuoto: ogni asset mantiene il suo valore.",
+  "Added to the tags each asset already carries; none is removed.": "Aggiunti ai tag che ogni asset ha già; nessuno viene rimosso.",
+  "Decides which fields this asset shows; a subcategory of another category is cleared.": "Determina quali campi mostra questo asset; una sottocategoria di un'altra categoria viene cancellata."
 }

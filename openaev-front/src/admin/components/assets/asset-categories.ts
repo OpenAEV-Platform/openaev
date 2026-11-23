@@ -332,6 +332,16 @@ export const ASSET_FORM_CATEGORIES: AssetCategory[] = [
   'GENERIC_ASSET',
 ];
 
+/**
+ * Categories an existing asset can be moved to from the edit form and the bulk edit: AI targets
+ * have their own form (provider, endpoint, model, token), so they are neither a source nor a target.
+ */
+export const ASSET_EDITABLE_CATEGORIES: AssetCategory[] = ASSET_FORM_CATEGORIES.filter(c => c !== 'AI_TARGET');
+
+/** Whether a subcategory belongs to a category: the same mapping the API enforces (issue #9653). */
+export const subcategoryBelongsTo = (subcategory: AssetSubCategory, category?: AssetCategory | null): boolean =>
+  !!category && (ASSET_CATEGORY_DEFS[category]?.subcategories ?? []).includes(subcategory);
+
 export const getCategoryDef = (category?: AssetCategory | null): AssetCategoryDef =>
   (category && ASSET_CATEGORY_DEFS[category]) || ASSET_CATEGORY_DEFS.GENERIC_ASSET;
 

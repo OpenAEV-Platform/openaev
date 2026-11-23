@@ -5024,5 +5024,17 @@
   "Not found in OpenCTI": "在 OpenCTI 中未找到",
   "Not found in OpenCRQ": "在 OpenCRQ 中未找到",
   "OpenCTI holds it once a connector or an analyst creates it there.": "连接器或分析师创建后，OpenCTI 中即会包含它。",
-  "OpenCRQ holds it once a risk scenario or a supporting asset names it.": "风险场景或支撑资产引用后，OpenCRQ 中即会包含它。"
+  "OpenCRQ holds it once a risk scenario or a supporting asset names it.": "风险场景或支撑资产引用后，OpenCRQ 中即会包含它。",
+  "Edit classification": "编辑分类",
+  "Tags to add": "要添加的标签",
+  "Set at least one field to update": "请至少设置一个要更新的字段",
+  "This subcategory does not belong to the category": "此子类别不属于该类别",
+  "Selected assets: {count}. A field left empty keeps each asset's own value; tags are added to the ones each asset already carries.": "已选资产：{count}。留空的字段保留各资产自身的值；标签将添加到各资产已有的标签中。",
+  "Decides which fields each asset shows. Empty: each asset keeps its category.": "决定每个资产显示哪些字段。留空：每个资产保留其类别。",
+  "Narrower type within the chosen category. Empty: each asset keeps its subcategory.": "所选类别中更具体的类型。留空：每个资产保留其子类别。",
+  "{category} requires a URL: an asset without one will ask for it at its next edit. Empty: each asset keeps its URL.": "{category}需要 URL：没有 URL 的资产会在下次编辑时要求填写。留空：每个资产保留其 URL。",
+  "Address the scans and the web injectors target. Empty: each asset keeps its URL.": "扫描和 Web 注入器所针对的地址。留空：每个资产保留其 URL。",
+  "Impact of a compromise, from Very high (stops the business) to Low (little effect); Unknown when not assessed. Empty: each asset keeps its value.": "失陷的影响程度，从非常高（业务中断）到低（影响很小）；未评估时为未知。留空：每个资产保留其值。",
+  "Added to the tags each asset already carries; none is removed.": "添加到每个资产已有的标签中；不会移除任何标签。",
+  "Decides which fields this asset shows; a subcategory of another category is cleared.": "决定此资产显示哪些字段；其他类别的子类别会被清除。"
 }
