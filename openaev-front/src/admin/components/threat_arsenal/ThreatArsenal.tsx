@@ -182,6 +182,11 @@ const ThreatArsenal = () => {
           onClose={closeAction}
           threatArsenalAction={openedAction}
           initialTab={openedTab}
+          onRunTest={setRunTestAction}
+          onUpdate={(result, replacedId) => {
+            active.replaceAction(result, replacedId);
+            openAction(result);
+          }}
         />
       )}
 

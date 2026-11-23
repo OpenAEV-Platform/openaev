@@ -1,7 +1,7 @@
-import { Alert, Chip, Skeleton, Text } from '@filigran/design-system';
+import { Alert, Button, Chip, Skeleton, Text } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useReducer, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 
 import { fdsGroupRowStyle, fdsTableFrameStyle } from '../../../../components/common/fdsTableSpec';
 import { LIB_SURFACE_LAYER } from '../../../../components/common/libSurfaceBorder';
@@ -16,8 +16,8 @@ import PayloadUsageMoveResult from './usages/PayloadUsageMoveResult';
 import PayloadUsagesTable from './usages/PayloadUsagesTable';
 import { usageCount } from './usages/usageCounts';
 import useUsageMove from './usages/useUsageMove';
-import useUsagesByVersion from './usages/useUsagesByVersion';
 import useFocusMove from './useFocusMove';
+import { versionRows } from './versionRows';
 
 interface VersionProps {
   version: PayloadVersionOutput;
@@ -77,17 +77,46 @@ const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, us
   );
 };
 
-interface Props {
-  versions: PayloadVersionOutput[] | null;
-  focusMove?: boolean;
+interface NotInstalledProps {
+  version: string;
+  installing: boolean;
+  // Without the right to install, the row only tells the version is not installed.
+  onInstall?: (version: string) => void;
 }
 
-const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, focusMove = false }) => {
+// A catalogue version not installed in the tenant: nothing runs it.
+const NotInstalledVersion: FunctionComponent<NotInstalledProps> = ({ version, installing, onInstall }) => {
+  const { t } = useFormatter();
+  const theme = useTheme();
+  return (
+    <div style={{
+      ...fdsGroupRowStyle(theme),
+      cursor: 'default',
+    }}
+    >
+      <Text variant="content-base-bold">{`v${version}`}</Text>
+      <Chip label={t('Not installed')} />
+      <span style={{ flex: 1 }} />
+      {onInstall && <Button priority="secondary" size="sm" loading={installing} onClick={() => onInstall(version)}>{t('Install')}</Button>}
+    </div>
+  );
+};
+
+interface Props {
+  versions: PayloadVersionOutput[] | null;
+  usages: Record<string, PayloadUsagesOutput> | null;
+  // A move changes the usages of two versions: they are all loaded again.
+  onMoved: () => void;
+  notInstalled?: string[];
+  focusMove?: boolean;
+  // The catalogue version being installed.
+  installing?: string | null;
+  onInstall?: (version: string) => void;
+}
+
+const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMoved, notInstalled, focusMove = false, installing, onInstall }) => {
   const theme = useTheme();
   const canMove = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
-  // A move changes the usages of two versions: they are all loaded again.
-  const [reloadKey, reload] = useReducer((key: number) => key + 1, 0);
-  const usages = useUsagesByVersion(versions, reloadKey);
 
   if (versions === null) {
     return <Skeleton className="h-24" />;
@@ -100,17 +129,19 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, focusMove = fa
     }}
     >
       <div className={LIB_SURFACE_LAYER} style={fdsTableFrameStyle(theme)}>
-        {versions.map(version => (
-          <PayloadVersion
-            key={version.payload_id}
-            version={version}
-            versions={versions}
-            usages={usages?.[version.payload_id] ?? null}
-            canMove={canMove}
-            onMoved={reload}
-            focusMove={focusMove}
-          />
-        ))}
+        {versionRows(versions, notInstalled).map(({ version, installed }) => (installed
+          ? (
+              <PayloadVersion
+                key={installed.payload_id}
+                version={installed}
+                versions={versions}
+                usages={usages?.[installed.payload_id] ?? null}
+                canMove={canMove}
+                onMoved={onMoved}
+                focusMove={focusMove}
+              />
+            )
+          : <NotInstalledVersion key={version} version={version} installing={installing === version} onInstall={onInstall} />))}
       </div>
       {canMove && <AskAfterSavingChoice />}
     </div>
