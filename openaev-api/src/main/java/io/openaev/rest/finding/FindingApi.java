@@ -7,10 +7,16 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.finding.form.FindingOutput;
+import io.openaev.rest.finding.form.FindingRetestInput;
+import io.openaev.rest.finding.form.FindingRetestOutput;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.service.finding.FindingRetestService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.FindingMapper;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +31,7 @@ public class FindingApi extends RestBehavior {
 
   private final FindingService findingService;
   private final FindingMapper findingMapper;
+  private final FindingRetestService findingRetestService;
 
   // -- CRUD --
 
@@ -67,5 +74,26 @@ public class FindingApi extends RestBehavior {
   public ResponseEntity<FindingSummaryOutput> findingSummary(
       TxCtx ctx, @PathVariable @NotNull final String id) {
     return ResponseEntity.ok(this.findingService.findingSummary(id));
+  }
+
+  // -- LIFECYCLE --
+
+  /**
+   * Re-tests findings: queues a copy of the inject that last produced each of them, on the same
+   * targets and under the same contract, and returns the queued inject per finding. When a copy
+   * finishes, the finding stays OPEN if it was detected again, else it turns NOT_REPRODUCED. The
+   * caller needs the launch right on each inject re-run, checked in the service.
+   */
+  @PostMapping({FINDING_URI + "/retest", TENANT_FINDING_URI + "/retest"})
+  @Transactional
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.FINDING)
+  public ResponseEntity<List<FindingRetestOutput>> retestFindings(
+      TxCtx ctx, @Valid @RequestBody final FindingRetestInput input) {
+    return ResponseEntity.ok(
+        this.findingRetestService
+            .retest(ctx, TxCtxScopeUtils.requireOneTenantOfScope(ctx), input.getFindingIds())
+            .stream()
+            .map(retest -> new FindingRetestOutput(retest.findingId(), retest.retestInjectId()))
+            .toList());
   }
 }

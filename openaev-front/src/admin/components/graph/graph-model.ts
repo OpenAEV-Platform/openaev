@@ -1,4 +1,4 @@
-// Types of the exploration graph API (#9388), mirroring io.openaev.api.graph.dto.
+// Types of the exploration graph API, mirroring io.openaev.api.graph.dto.
 
 import { type CounterpartKindPath } from '../../../actions/xtm/counterpart-actions';
 
@@ -20,6 +20,8 @@ export interface GraphNodeOutput {
   node_finding_count: number;
   /** When the entity happened (a simulation's start, a finding's last update), else absent: the time range filters on it. */
   node_date?: string | null;
+  /** The entity's relations in the data per relation type, drawn or not; absent when not counted. */
+  node_relation_counts?: Partial<Record<GraphEdgeType, number>> | null;
 }
 
 export interface GraphEdgeOutput {

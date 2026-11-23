@@ -1,34 +1,8 @@
-import {
-  DashboardOutlined,
-  DescriptionOutlined,
-  DnsOutlined,
-  DomainOutlined,
-  ExtensionOutlined,
-  GroupsOutlined,
-  HubOutlined,
-  InsertChartOutlined,
-  KeyOutlined,
-  LayersOutlined,
-  PersonOutlined,
-  PhishingOutlined,
-  PlayCircleOutlineOutlined,
-  RocketLaunchOutlined,
-  RouteOutlined,
-  RowingOutlined,
-} from '@mui/icons-material';
-import {
-  Binoculars,
-  FileChartOutline,
-  NewspaperVariantMultipleOutline,
-  PostOutline,
-  SecurityNetwork,
-  SelectGroup,
-  Target,
-} from 'mdi-material-ui';
+import { Icon } from '@filigran/design-system';
 
 import AppNavbar from '../../../components/common/menu/navbar/AppNavbar';
 import { type NavMenuEntries } from '../../../components/common/menu/navbar/nav-menu-model';
-import { DASHBOARD_BASE_URL } from '../../../constants/BaseUrls';
+import { DASHBOARD_BASE_URL, THREAT_ARSENAL_BASE_URL } from '../../../constants/BaseUrls';
 import useAuth from '../../../utils/hooks/useAuth';
 import useExplorationGraph from '../../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
@@ -62,7 +36,7 @@ const LeftBar = () => {
       items: [
         {
           path: `/admin`,
-          icon: () => (<DashboardOutlined />),
+          icon: () => (<Icon name="house" size={16} />),
           label: 'Home',
           userRight: true,
         },
@@ -70,7 +44,7 @@ const LeftBar = () => {
           ? [
               {
                 path: '/admin/graph',
-                icon: () => (<HubOutlined />),
+                icon: () => (<Icon name="waypoints" size={16} />),
                 label: 'Graph',
                 userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
               },
@@ -79,7 +53,7 @@ const LeftBar = () => {
                 // first tab the user can open and stays current on both routes.
                 path: analyticsEntryPath(analyticsTabs),
                 matchPaths: [DASHBOARD_BASE_URL, REPORTING_BASE_URL],
-                icon: () => (<InsertChartOutlined />),
+                icon: () => (<Icon name="layout-dashboard" size={16} />),
                 label: 'Dashboards',
                 userRight: analyticsTabs.length > 0,
               },
@@ -87,20 +61,20 @@ const LeftBar = () => {
           : [
               {
                 path: DASHBOARD_BASE_URL,
-                icon: () => (<InsertChartOutlined />),
+                icon: () => (<Icon name="layout-dashboard" size={16} />),
                 label: 'Dashboards',
                 userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DASHBOARDS),
               },
               {
                 path: REPORTING_BASE_URL,
-                icon: () => (<FileChartOutline />),
+                icon: () => (<Icon name="file-text" size={16} />),
                 label: 'Reporting',
                 userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.REPORTINGS),
               },
             ]),
         {
           path: '/admin/findings',
-          icon: () => (<Binoculars />),
+          icon: () => (<Icon name="custom/binocular" size={16} />),
           label: 'Findings',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.FINDINGS),
         },
@@ -111,25 +85,25 @@ const LeftBar = () => {
       items: [
         {
           path: `/admin/scenarios`,
-          icon: () => (<RouteOutlined />),
+          icon: () => (<Icon name="route" size={16} />),
           label: 'Scenarios',
           userRight: canAccessAssessments,
         },
         {
           path: `/admin/simulations`,
-          icon: () => (<PlayCircleOutlineOutlined />),
+          icon: () => (<Icon name="circle-play" size={16} />),
           label: 'Simulations',
           userRight: canAccessAssessments,
         },
         {
           path: `/admin/atomic_testings`,
-          icon: () => (<Target />),
+          icon: () => (<Icon name="custom/target" size={16} />),
           label: 'Atomic testings',
           userRight: canAccessAssessments,
         },
         {
-          path: `/admin/threat-arsenal`,
-          icon: () => (<LayersOutlined />),
+          path: THREAT_ARSENAL_BASE_URL,
+          icon: () => (<Icon name="layers" size={16} />),
           label: 'Threat Arsenal',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.THREAT_ARSENALS)
             || ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS)
@@ -142,20 +116,20 @@ const LeftBar = () => {
       items: [
         {
           path: `/admin/assets`,
-          icon: () => (<DnsOutlined />),
+          icon: () => (<Icon name="server" size={16} />),
           label: 'Assets',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
         },
         {
           path: `/admin/asset_groups`,
-          icon: () => (<SelectGroup />),
+          icon: () => (<Icon name="custom/asset-groups" size={16} />),
           label: 'Asset groups',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
         },
         ...isCredentialAssetEnabled
           ? [{
               path: `/admin/credentials`,
-              icon: () => (<KeyOutlined />),
+              icon: () => (<Icon name="key-round" size={16} />),
               label: 'Credentials',
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.CREDENTIALS),
             }]
@@ -167,19 +141,19 @@ const LeftBar = () => {
       items: [
         {
           path: `/admin/persons`,
-          icon: () => (<PersonOutlined />),
+          icon: () => (<Icon name="user" size={16} />),
           label: 'Persons',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
         },
         {
           path: `/admin/teams`,
-          icon: () => (<GroupsOutlined />),
+          icon: () => (<Icon name="users" size={16} />),
           label: 'Teams',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
         },
         {
           path: `/admin/organizations`,
-          icon: () => (<DomainOutlined />),
+          icon: () => (<Icon name="building-2" size={16} />),
           label: 'Organizations',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
         },
@@ -190,19 +164,19 @@ const LeftBar = () => {
       items: [
         {
           path: `/admin/integrations`,
-          icon: () => (<ExtensionOutlined />),
+          icon: () => (<Icon name="puzzle" size={16} />),
           label: 'Integrations',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
         },
         {
           path: `/admin/security_platforms`,
-          icon: () => (<SecurityNetwork />),
+          icon: () => (<Icon name="custom/security-platforms" size={16} />),
           label: 'Security platforms',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
         },
         {
           path: `/admin/components`,
-          icon: () => (<NewspaperVariantMultipleOutline />),
+          icon: () => (<Icon name="newspaper" size={16} />),
           label: 'Components',
           href: 'components',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DOCUMENTS)
@@ -213,25 +187,25 @@ const LeftBar = () => {
             {
               link: '/admin/components/documents',
               label: 'Documents',
-              icon: () => (<DescriptionOutlined fontSize="small" />),
+              icon: () => (<Icon name="file" size={16} />),
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DOCUMENTS),
             },
             {
               link: '/admin/components/channels',
               label: 'Channels',
-              icon: () => (<PostOutline fontSize="small" />),
+              icon: () => (<Icon name="megaphone" size={16} />),
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.CHANNELS),
             },
             {
               link: '/admin/components/phishing',
               label: 'Phishing',
-              icon: () => (<PhishingOutlined fontSize="small" />),
+              icon: () => (<Icon name="mail" size={16} />),
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PHISHING),
             },
             {
               link: '/admin/components/challenges',
               label: 'Challenges',
-              icon: () => (<RowingOutlined fontSize="small" />),
+              icon: () => (<Icon name="flag" size={16} />),
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.CHALLENGES),
             },
           ],
@@ -248,7 +222,7 @@ const LeftBar = () => {
         ...settingsItems,
         {
           path: `/admin/${GETTING_STARTED_URI}`,
-          icon: () => (<RocketLaunchOutlined />),
+          icon: () => (<Icon name="rocket" size={16} />),
           label: 'Getting Started',
           userRight: true,
         },

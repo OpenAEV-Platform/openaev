@@ -3,6 +3,8 @@ package io.openaev.api.graph;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.LogExecutionTime;
+import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.api.graph.dto.GraphEdgeType;
 import io.openaev.api.graph.dto.GraphNodeType;
 import io.openaev.api.graph.dto.GraphOutput;
@@ -13,9 +15,12 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.utils.TxCtxScopeUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Exploration graph endpoints (#9388): lazy slices of the asset / asset group / finding / inject /
+ * Exploration graph endpoints: lazy slices of the asset / asset group / finding / inject /
  * simulation / scenario graph. No endpoint returns the whole graph: a slice is one entity's ring, a
  * path between two entities, or the risk-first landing view, each capped.
  *
@@ -40,59 +45,68 @@ import org.springframework.web.server.ResponseStatusException;
  *
  * <p>Access: the endpoint capability is ASSET READ (the graph is an exploration of the exposure
  * surface); every simulation, scenario and inject node is then kept only when the caller can read
- * it, evaluated in the tenant scope of the request. Tenant isolation is an explicit predicate in
- * every read of {@link GraphExplorationService} plus the {@link TxCtx} scope.
+ * it, and every finding node only when the caller reads findings, evaluated in the tenant scope of
+ * the request. The routes exist under the tenant prefix only. Tenant isolation is an explicit
+ * predicate in every read of {@link GraphExplorationService} plus the {@link TxCtx} scope.
  */
 @RestController
+@RequirePreviewFeature(PreviewFeature.EXPLORATION_GRAPH)
 @RequiredArgsConstructor
-@RequestMapping({GraphExplorationApi.GRAPH_URI, TENANT_PREFIX + "/graph"})
+@RequestMapping(GraphExplorationApi.GRAPH_URI)
+@Tag(name = "Exploration graph", description = "Lazy slices of the exposure graph of a tenant")
 public class GraphExplorationApi extends RestBehavior {
 
-  public static final String GRAPH_URI = "/api/graph";
+  public static final String GRAPH_URI = TENANT_PREFIX + "/graph";
 
   private final GraphExplorationService graphService;
   private final GraphLandingService landingService;
   private final UserService userService;
   private final PermissionService permissionService;
-  private final GraphFeature graphFeature;
+  private final GraphRelationCounter relationCounter;
 
   /**
-   * The top exposure story of the landing (#9447): one connected subgraph of about 30 nodes, the
-   * worst attack path, else the most exposed asset. Empty when nothing failed.
+   * The top exposure story of the landing: one connected subgraph of about 30 nodes, the worst
+   * attack path, else the most exposed asset. Empty when nothing failed.
    */
+  @LogExecutionTime
   @GetMapping("/story")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @Operation(summary = "The top exposure story of the graph landing")
   public GraphOutput story(TxCtx ctx) {
-    graphFeature.require();
-    return landingService.story(scope(ctx), visibility(ctx));
+    GraphVisibility visibility = visibility(ctx);
+    return counted(landingService.story(scope(ctx), visibility), ctx, visibility);
   }
 
-  /** The aggregated estate overview of the landing (#9447): asset-group bubbles, not nodes. */
+  /** The aggregated estate overview of the landing: asset-group bubbles, not nodes. */
+  @LogExecutionTime
   @GetMapping("/overview")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @Operation(summary = "The aggregated estate overview of the graph landing")
   public GraphOverviewOutput overview(TxCtx ctx) {
-    graphFeature.require();
     return landingService.overview(scope(ctx), visibility(ctx));
   }
 
-  /** The starting-points rail of the landing (#9447). */
+  /** The starting-points rail of the landing. */
+  @LogExecutionTime
   @GetMapping("/starting-points")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @Operation(summary = "The starting points of the graph landing")
   public GraphStartingPointsOutput startingPoints(TxCtx ctx) {
-    graphFeature.require();
     return landingService.startingPoints(scope(ctx), visibility(ctx));
   }
 
-  /** The risk-first landing view of #9388: exposure hot paths (kept for compatibility). */
+  /** The risk-first landing view: exposure hot paths (kept for compatibility). */
+  @LogExecutionTime
   @GetMapping("/hot-paths")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @Operation(summary = "The exposure hot paths of the tenant")
   public GraphOutput hotPaths(TxCtx ctx, @RequestParam(defaultValue = "15") int limit) {
-    graphFeature.require();
-    return graphService.hotPaths(scope(ctx), limit, visibility(ctx));
+    GraphVisibility visibility = visibility(ctx);
+    return counted(graphService.hotPaths(scope(ctx), limit, visibility), ctx, visibility);
   }
 
   /**
@@ -100,36 +114,50 @@ public class GraphExplorationApi extends RestBehavior {
    * {@link GraphEdgeType}); empty means all. {@code limit} caps each relation (at most {@value
    * GraphExplorationService#MAX_LIMIT}); {@code graph_truncated} says when more exists.
    */
+  @LogExecutionTime
   @GetMapping("/{entityType}/{entityId}/neighbourhood")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @Operation(summary = "One entity of the graph and its first ring")
   public GraphOutput neighbourhood(
       TxCtx ctx,
       @PathVariable String entityType,
       @PathVariable String entityId,
       @RequestParam(required = false) List<String> edges,
       @RequestParam(defaultValue = "50") int limit) {
-    graphFeature.require();
-    return graphService.neighbourhood(
-        scope(ctx), type(entityType), entityId, edgeTypes(edges), limit, visibility(ctx));
+    GraphVisibility visibility = visibility(ctx);
+    return counted(
+        graphService.neighbourhood(
+            scope(ctx), type(entityType), entityId, edgeTypes(edges), limit, visibility),
+        ctx,
+        visibility);
   }
 
   /** A shortest path between two entities, bounded; an empty path when none is found. */
+  @LogExecutionTime
   @GetMapping("/path")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @Operation(summary = "A shortest path between two entities of the graph")
   public GraphOutput path(
       TxCtx ctx,
       @RequestParam String fromType,
       @RequestParam String fromId,
       @RequestParam String toType,
       @RequestParam String toId) {
-    graphFeature.require();
-    return graphService.path(
-        scope(ctx), type(fromType), fromId, type(toType), toId, visibility(ctx));
+    GraphVisibility visibility = visibility(ctx);
+    return counted(
+        graphService.path(scope(ctx), type(fromType), fromId, type(toType), toId, visibility),
+        ctx,
+        visibility);
   }
 
   // -- helpers --
+
+  /** The slice with the relation counts of its nodes, read in the request's scope. */
+  private GraphOutput counted(GraphOutput out, TxCtx ctx, GraphVisibility visibility) {
+    return relationCounter.counted(out, scope(ctx), visibility);
+  }
 
   private static Set<String> scope(TxCtx ctx) {
     return TxCtxScopeUtils.requestReadScope(ctx);
@@ -190,10 +218,22 @@ public class GraphExplorationApi extends RestBehavior {
         };
       }
 
+      @Override
+      public boolean canReadFindings() {
+        return can(null, ResourceType.FINDING);
+      }
+
+      @Override
+      public boolean countsGrantManaged() {
+        return user.isAdminOrBypass();
+      }
+
       private boolean can(String id, ResourceType type) {
         return permissionService.holdsInScope(
             ctx,
-            () -> permissionService.hasPermission(user, Optional.empty(), id, type, Action.READ));
+            user,
+            caller ->
+                permissionService.hasPermission(caller, Optional.empty(), id, type, Action.READ));
       }
     };
   }

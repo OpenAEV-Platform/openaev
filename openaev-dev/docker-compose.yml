@@ -136,7 +136,7 @@ services:
   openaev-dev-opensearch:
     profiles: ["opensearch"]
     container_name: openaev-dev-opensearch
-    image: opensearchproject/opensearch:3.9.0
+    image: opensearchproject/opensearch:3.10.0
     volumes:
       - osdata:/usr/share/opensearch/data
       - ossnapshots:/usr/share/opensearch/snapshots

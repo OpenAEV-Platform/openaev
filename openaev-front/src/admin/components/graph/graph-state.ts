@@ -84,6 +84,8 @@ export const mergeSlice = (state: GraphState, slice: GraphOutput, expandedFrom?:
           node_failed_count: Math.max(previous.node_failed_count, n.node_failed_count),
           node_finding_count: Math.max(previous.node_finding_count, n.node_finding_count),
           node_result: worst(previous.node_result, n.node_result),
+          // The newest count wins (a count is the whole data, not a slice's part of it).
+          node_relation_counts: n.node_relation_counts ?? previous.node_relation_counts,
         }
       : n;
   });

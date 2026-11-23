@@ -31,6 +31,7 @@ import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.raw.RawSimulationIndexing;
 import io.openaev.database.repository.*;
+import io.openaev.database.repository.ExerciseRepository.ScenarioSimulationsRow;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
@@ -697,7 +698,8 @@ public class ExerciseService {
         .getObject()
         .listInEachTenant(
             ctx,
-            () -> canAccessEverySimulation(currentUser),
+            currentUser,
+            ExerciseService::canAccessEverySimulation,
             all,
             granted,
             RawExerciseSimple::getTenant_id,
@@ -718,7 +720,8 @@ public class ExerciseService {
         .getObject()
         .filterInEachTenant(
             ctx,
-            () -> canAccessEverySimulation(currentUser),
+            currentUser,
+            ExerciseService::canAccessEverySimulation,
             accessRight ->
                 SpecificationUtils.hasGrantAccess(
                     currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
@@ -880,9 +883,11 @@ public class ExerciseService {
                           .getObject()
                           .filterInEachTenant(
                               ctx,
-                              () ->
-                                  user.isAdminOrBypass()
-                                      || user.getCapabilities()
+                              user,
+                              caller ->
+                                  caller.isAdminOrBypass()
+                                      || caller
+                                          .getCapabilities()
                                           .contains(Capability.DELETE_ASSESSMENT),
                               deleteRight ->
                                   SpecificationUtils.hasGrantAccess(
@@ -1457,14 +1462,18 @@ public class ExerciseService {
     this.injectRepository.touchUpdatedAtByExerciseId(exerciseId);
 
     // Replace teams from exercise
-    List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));
+    List<Team> teams =
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(targetTeamIds, exercise.getTenant().getId()));
     exercise.setTeams(teams);
     this.exerciseRepository.save(exercise);
 
     List<String> teamIdsAdded =
         targetTeamIds.stream().filter(id -> !previousTeamIds.contains(id)).toList();
 
-    List<Team> teamsAdded = fromIterable(this.teamRepository.findAllById(teamIdsAdded));
+    List<Team> teamsAdded =
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(teamIdsAdded, exercise.getTenant().getId()));
 
     // Enable user
     teamsAdded.forEach(
@@ -1679,5 +1688,14 @@ public class ExerciseService {
             workflow -> healthChecks.addAll(healthCheckUtils.runScopeDefinitionChecks(workflow)));
 
     return healthChecks;
+  }
+
+  /**
+   * The number of simulations and the last start per scenario id, for the XTM counterpart lookup
+   * facts.
+   */
+  public List<ScenarioSimulationsRow> countSimulationsByScenarioIdIn(
+      Collection<String> scenarioIds) {
+    return exerciseRepository.countSimulationsByScenarioIdIn(scenarioIds);
   }
 }

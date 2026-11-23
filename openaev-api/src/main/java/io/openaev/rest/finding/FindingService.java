@@ -8,6 +8,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.FindingRepository;
+import io.openaev.database.repository.FindingRepository.FindingCountRow;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.finding.identity.DetectedFinding;
@@ -427,5 +428,19 @@ public class FindingService {
 
   private <T> List<T> fetchEntities(List<String> ids, Function<String, Optional<T>> finder) {
     return ids.stream().map(finder).filter(Optional::isPresent).map(Optional::get).toList();
+  }
+
+  /** The number of findings per asset id, for the XTM counterpart lookup facts. */
+  public List<FindingCountRow> countFindingsByAssetIdIn(Collection<String> assetIds) {
+    return findingRepository.countFindingsByAssetIdIn(assetIds);
+  }
+
+  /**
+   * The number of findings and affected assets per upper-cased value of the given type, for the XTM
+   * counterpart lookup facts.
+   */
+  public List<FindingCountRow> countFindingsByTypeAndValueIn(
+      ContractOutputType type, Collection<String> values) {
+    return findingRepository.countFindingsByTypeAndValueIn(type, values);
   }
 }

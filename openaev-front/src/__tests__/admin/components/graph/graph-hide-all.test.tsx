@@ -24,6 +24,7 @@ vi.mock('../../../../components/xtm/XtmPivot', () => ({
   default: () => null,
   ProductMark: () => null,
 }));
+vi.mock('../../../../components/xtm/XtmOnePivot', () => ({ default: () => null }));
 vi.mock('../../../../components/xtm/XtmOpenCrq', () => ({
   default: () => null,
   OpenCrqMark: () => null,

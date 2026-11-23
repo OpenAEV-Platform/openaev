@@ -73,14 +73,14 @@ public class InjectorContractSpecification {
     };
   }
 
-  /** Contracts without payload, local payloads, and the version shown of each catalogue one. */
+  /** Contracts without payload, and the version shown of each payload (none set: a local one). */
   public static Specification<InjectorContract> withLatestInstalledPayload() {
     return (root, query, cb) -> {
       Join<InjectorContract, Payload> payload = root.join("payload", JoinType.LEFT);
       Join<Payload, PayloadIdentity> identity = payload.join("identity", JoinType.LEFT);
       return cb.or(
           cb.isNull(payload.get("id")),
-          cb.isNull(identity.get("repository")),
+          cb.and(cb.isNull(identity.get("repository")), cb.isNull(identity.get("latestVersion"))),
           cb.equal(identity.get("latestVersion"), payload));
     };
   }

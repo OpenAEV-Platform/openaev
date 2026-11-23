@@ -1040,6 +1040,8 @@ public class InjectorContractService implements DependenciesManager {
             .when(cb.isNotNull(authorOrgJoin.get("id")), cb.literal("organization"))
             .otherwise(cb.nullLiteral(String.class));
     Expression<String> payloadIdentityId = ctx.payloadJoin().get("identity").<String>get("id");
+    // The foreign key itself: no join on payloads.
+    Expression<String> payloadBaseId = ctx.payloadJoin().get("base").<String>get("id");
 
     cq.multiselect(
         injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
@@ -1056,6 +1058,7 @@ public class InjectorContractService implements DependenciesManager {
         ctx.payloadJoin().get("version").alias("payload_version"),
         ctx.payloadIdentityJoin().get("repository").alias("payload_repository"),
         ctx.payloadJoin().get("revoked").alias("payload_revoked"),
+        payloadBaseId.alias("payload_base"),
         ctx.attackPatternIdsExpression().alias("injector_contract_attack_patterns"),
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
         authorId.alias("injector_contract_payload_author"),
@@ -1066,6 +1069,7 @@ public class InjectorContractService implements DependenciesManager {
 
     List<Expression<?>> groupBy = new ArrayList<>(getCommonGroupBy(injectorContractRoot, ctx));
     groupBy.add(payloadIdentityId);
+    groupBy.add(payloadBaseId);
     groupBy.add(ctx.payloadJoin().get("version"));
     groupBy.add(ctx.payloadIdentityJoin().get("repository"));
     groupBy.add(cAuthorUserJoin.get("id"));
@@ -1131,6 +1135,7 @@ public class InjectorContractService implements DependenciesManager {
         tuple.get("payload_version", String.class),
         payloadId != null ? tuple.get("payload_repository", String.class) != null : null,
         payloadId != null ? tuple.get("payload_revoked", Boolean.class) : null,
+        payloadId != null ? tuple.get("payload_base", String.class) != null : null,
         dedupePreservingOrder(tuple.get("injector_contract_attack_patterns", String[].class)),
         tuple.get("injector_contract_payload_author", String.class),
         tuple.get("injector_contract_payload_author_name", String.class),

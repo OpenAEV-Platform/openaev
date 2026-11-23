@@ -460,19 +460,20 @@ public class PayloadService {
     // A duplicate is a new manual payload, authored by the user duplicating it; without a user it
     // keeps the author copied from the origin.
     authorService.authorByCurrentUser(duplicatedPayload);
-    Payload duplicated = payloadRepository.save(duplicatedPayload);
-    InjectorContract injectorContract =
-        this.synchroniseInjectorContractBasedOnPayload(
-            duplicated,
-            originInjectorContract.isPresent()
-                ? originInjectorContract.get().getAttackPatterns()
-                : List.of(),
-            originInjectorContract.isPresent()
-                ? originInjectorContract.get().getDomains()
-                : Set.of(),
-            originInjectorContract.isPresent() ? originInjectorContract.get().getTags() : Set.of());
+    return saveWithContract(
+        duplicatedPayload,
+        originInjectorContract.isPresent()
+            ? originInjectorContract.get().getAttackPatterns()
+            : List.of(),
+        originInjectorContract.isPresent() ? originInjectorContract.get().getDomains() : Set.of(),
+        originInjectorContract.isPresent() ? originInjectorContract.get().getTags() : Set.of());
+  }
+
+  public PayloadCreationService.PayloadInjectorContractCreationResult saveWithContract(
+      Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
+    Payload saved = payloadRepository.save(payload);
     return new PayloadCreationService.PayloadInjectorContractCreationResult(
-        duplicated, injectorContract);
+        saved, synchroniseInjectorContractBasedOnPayload(saved, attackPatterns, domains, tags));
   }
 
   public Payload generateDuplicatedPayload(Payload originalPayload) {

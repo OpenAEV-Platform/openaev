@@ -33,11 +33,11 @@ import { type ArticlesHelper } from '../../../../actions/channels/article-helper
 import { type ChallengeHelper } from '../../../../actions/helper';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import {
-  createRunningExerciseFromScenario,
   dismissScenarioExpectationsDrift,
   fetchScenario,
   fetchScenarioExpectationsDrift,
   fetchScenarioTeams,
+  launchScenario,
   realignScenarioExpectations,
   searchScenarioHealthcheks,
   updateScenarioRecurrence,
@@ -56,7 +56,6 @@ import { useHelper } from '../../../../store';
 import {
   type Article,
   type Challenge,
-  type Exercise,
   type ExpectationsDriftOutput,
   type HealthCheck,
   type Inject,
@@ -1056,7 +1055,7 @@ const ScenarioHeader = ({
             type="button"
             onClick={async () => {
               setOpenInstantiateSimulationAndStart(false);
-              const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;
+              const { simulation_id } = await launchScenario(scenarioId);
               // A normal launch supersedes any settled AI outcome server-side (the by-scenario run
               // lookup now 404s), so forget the latched run: the overview reverts to the manual view
               // instead of keeping the stale AI plan outcome + status chip until a full page reload.
@@ -1066,9 +1065,9 @@ const ScenarioHeader = ({
               // scenario on the simulation overview. Only the AUTONOMOUS launch stays on the
               // scenario (its attack-path tab hosts the AI cockpit) - see handleAiLaunch.
               if (isScenarioChaining) {
-                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
+                navigate(`${SIMULATION_BASE_URL}/${simulation_id}/attack-path`);
               } else {
-                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
+                navigate(`${SIMULATION_BASE_URL}/${simulation_id}`);
               }
               MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
             }}

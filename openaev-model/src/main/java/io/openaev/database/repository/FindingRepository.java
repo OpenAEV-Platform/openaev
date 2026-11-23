@@ -24,6 +24,13 @@ public interface FindingRepository
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  /** The findings of a tenant among the given ids. */
+  List<Finding> findAllByIdInAndTenantId(@NotNull Collection<String> ids, @NotNull String tenantId);
+
+  /** The findings whose pending re-test is the given inject. */
+  List<Finding> findAllByRetestInjectIdAndTenantId(
+      @NotNull String retestInjectId, @NotNull String tenantId);
+
   // -- GROUP-WIDE SUMMARY (findings deduplicated by (type, displayed value) within a tenant) --
   //
   // Grouped on the displayed value like the distinct list, so the summary of a row counts the same

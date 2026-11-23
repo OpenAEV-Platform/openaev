@@ -28,6 +28,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.scenario.ScenarioIdentity;
+import io.openaev.database.raw.RawCatalogInstalledScenario;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.raw.RawScenario;
@@ -294,7 +295,8 @@ public class ScenarioService {
         .getObject()
         .listInEachTenant(
             ctx,
-            () -> canAccessEveryScenario(currentUser),
+            currentUser,
+            ScenarioService::canAccessEveryScenario,
             all,
             granted,
             RawScenarioSimpleIndexing::getTenant_id,
@@ -345,7 +347,8 @@ public class ScenarioService {
         .getObject()
         .filterInEachTenant(
             ctx,
-            () -> canAccessEveryScenario(currentUser),
+            currentUser,
+            ScenarioService::canAccessEveryScenario,
             accessRight ->
                 SpecificationUtils.hasGrantAccess(
                     currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
@@ -907,9 +910,10 @@ public class ScenarioService {
                           .getObject()
                           .filterInEachTenant(
                               ctx,
-                              () ->
-                                  currentUser.isAdminOrBypass()
-                                      || currentUser
+                              currentUser,
+                              caller ->
+                                  caller.isAdminOrBypass()
+                                      || caller
                                           .getCapabilities()
                                           .contains(Capability.DELETE_ASSESSMENT),
                               deleteRight ->
@@ -950,6 +954,13 @@ public class ScenarioService {
 
   public boolean isCatalogInstalled(ScenarioIdentity identity) {
     return scenarioRepository.existsByCatalogIdentityId(identity.getId());
+  }
+
+  /** The scenarios of the tenant installed from these catalogue items. */
+  @Transactional(readOnly = true)
+  public List<RawCatalogInstalledScenario> installedFromCatalog(
+      String tenantId, Collection<String> externalIds) {
+    return scenarioRepository.findInstalledFromCatalog(tenantId, externalIds);
   }
 
   // -- EXPORT --
@@ -1308,14 +1319,18 @@ public class ScenarioService {
     this.injectRepository.touchUpdatedAtByScenarioId(scenarioId);
 
     // Replace teams from a scenario
-    List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));
+    List<Team> teams =
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(targetTeamIds, scenario.getTenant().getId()));
     scenario.setTeams(teams);
     this.scenarioRepository.save(scenario);
 
     List<String> teamIdsAdded =
         targetTeamIds.stream().filter(id -> !previousTeamIds.contains(id)).toList();
 
-    List<Team> teamsAdded = fromIterable(this.teamRepository.findAllById(teamIdsAdded));
+    List<Team> teamsAdded =
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(teamIdsAdded, scenario.getTenant().getId()));
 
     // Enable user
     teamsAdded.forEach(
@@ -1840,5 +1855,13 @@ public class ScenarioService {
               .orElse(null));
     }
     return scenario;
+  }
+
+  /**
+   * The scenarios whose external reference is one of the given STIX ids, newest first, for the XTM
+   * counterpart lookup. Scenarios are grant-managed: the caller filters them by grant.
+   */
+  public List<Scenario> findAllByExternalReferenceIn(Collection<String> externalReferences) {
+    return scenarioRepository.findAllByExternalReferenceInOrderByUpdatedAtDesc(externalReferences);
   }
 }

@@ -87,6 +87,49 @@ class OpenCTICounterpartProviderTest {
     assertThat(found).containsOnlyKeys("CVE-2024-1");
     assertThat(found.get("CVE-2024-1").url()).isEqualTo("https://octi/dashboard/id/v1");
     assertThat(found.get("CVE-2024-1").entityType()).isEqualTo("Vulnerability");
+    assertThat(found.get("CVE-2024-1").facts()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("a match carries the reports, confidence, last change and markings OpenCTI answered")
+  void matchFacts() throws Exception {
+    JsonNode data =
+        mapper.readTree(
+            """
+            {"stixCoreObjects":{"edges":[
+              {"node":{"id":"a1","entity_type":"Attack-Pattern","x_mitre_id":"T1059",
+                       "representative":{"main":"Command and Scripting Interpreter"},
+                       "confidence":75,"modified":"2026-11-20T10:00:00.000Z",
+                       "reports":{"pageInfo":{"globalCount":12}},
+                       "objectMarking":[{"definition":"TLP:GREEN"},{"definition":"PAP:CLEAR"}]}}
+            ]}}
+            """);
+
+    Counterpart found =
+        provider(Map.of())
+            .match(CounterpartKind.ATTACK_PATTERN, List.of("T1059"), data, "https://octi/")
+            .get("T1059");
+
+    assertThat(found.facts())
+        .containsExactly(
+            new Counterpart.Fact("reports", "12"),
+            new Counterpart.Fact("confidence", "75"),
+            new Counterpart.Fact("last_modified", "2026-11-20T10:00:00.000Z"),
+            new Counterpart.Fact("markings", "TLP:GREEN, PAP:CLEAR"));
+  }
+
+  @Test
+  @DisplayName("an observable without confidence or markings gives only the facts it has")
+  void matchPartialFacts() throws Exception {
+    JsonNode node =
+        mapper.readTree(
+            """
+            {"id":"o1","entity_type":"Hostname","observable_value":"srv-01",
+             "reports":{"pageInfo":{"globalCount":0}},"objectMarking":[]}
+            """);
+
+    assertThat(OpenCTICounterpartProvider.facts(node))
+        .containsExactly(new Counterpart.Fact("reports", "0"));
   }
 
   @Test

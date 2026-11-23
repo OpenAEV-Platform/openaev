@@ -23,7 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The exploration graph preview feature ({@code EXPLORATION_GRAPH}) with its default, off: the
- * graph, asset link and XTM counterpart routes answer a 404 as if they did not exist. The flag-on
+ * graph and asset link routes answer a 404 as if they did not exist. The XTM counterpart routes
+ * (the cross-product pivots) are not behind the flag (Sam, 23 Nov 2026) and answer. The flag-on
  * side is {@link GraphFeatureOnTest}.
  */
 @Transactional
@@ -64,15 +65,14 @@ class GraphFeatureGateTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("given the flag off, the XTM connections and reverse lookups are not found")
-  void given_flagOff_should_refuseXtmCounterparts() throws Exception {
-    mvc.perform(get(CONNECTIONS, DEFAULT_TENANT_UUID).with(csrf()))
-        .andExpect(status().isNotFound());
+  @DisplayName("given the flag off, the XTM connections and reverse lookups still answer")
+  void given_flagOff_should_serveXtmCounterparts() throws Exception {
+    mvc.perform(get(CONNECTIONS, DEFAULT_TENANT_UUID).with(csrf())).andExpect(status().isOk());
     mvc.perform(
             post(LOCAL_ASSETS, DEFAULT_TENANT_UUID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"counterpart_keys\":[\"srv-01\"]}")
                 .with(csrf()))
-        .andExpect(status().isNotFound());
+        .andExpect(status().isOk());
   }
 }

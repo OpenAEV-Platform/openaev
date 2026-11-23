@@ -31,8 +31,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
- * The landing of the exploration graph (#9447), replacing the scatter of hot-path clusters of #9388
- * by one of two views chosen by the data, plus a rail of starting points:
+ * The landing of the exploration graph, replacing a scatter of hot-path clusters by one of two
+ * views chosen by the data, plus a rail of starting points:
  *
  * <ul>
  *   <li>{@link #story}: the top exposure story, ONE connected subgraph of about {@value
@@ -229,13 +229,7 @@ public class GraphLandingService {
     // Every group of the scope with its static member count: a group row is a few bytes, and the
     // dynamic groups need their filter resolved before the ranking, else a filter-defined group
     // such as "All endpoints" ranks and reads as empty.
-    List<AssetGroup> scopeGroups =
-        entityManager
-            .createQuery(
-                "SELECT g FROM AssetGroup g WHERE g.tenant.id IN :tenantIds ORDER BY g.name",
-                AssetGroup.class)
-            .setParameter("tenantIds", tenantIds)
-            .getResultList();
+    List<AssetGroup> scopeGroups = explorer.scopeGroups(tenantIds);
     Map<String, Long> staticCounts = new HashMap<>();
     for (Object[] r :
         entityManager
@@ -503,7 +497,9 @@ public class GraphLandingService {
             .limit(1)
             .toList();
     add(points, Kind.LATEST_SIMULATION, GraphNodeType.SIMULATION, latest, r -> true);
-    add(points, Kind.TOP_FINDING, GraphNodeType.FINDING, topFindings(tenantIds), r -> true);
+    if (visibility.canReadFindings()) {
+      add(points, Kind.TOP_FINDING, GraphNodeType.FINDING, topFindings(tenantIds), r -> true);
+    }
     add(
         points,
         Kind.ATTACK_PATH,
@@ -534,7 +530,7 @@ public class GraphLandingService {
 
   // -- Rankings (cached, ungated) --
 
-  /** Assets by failed expectations, the ranking the hot paths of #9388 used. */
+  /** Assets by failed expectations, the ranking of the exposure hot paths. */
   List<Ranked> exposedAssets(Collection<String> tenantIds) {
     return cache.get(
         "exposed-assets",

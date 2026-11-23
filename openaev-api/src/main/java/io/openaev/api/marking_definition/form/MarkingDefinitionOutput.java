@@ -12,4 +12,6 @@ public record MarkingDefinitionOutput(
     @JsonProperty("marking_definition_color") @NotBlank String color,
     @JsonProperty("marking_definition_order") @NotNull Integer order,
     @JsonProperty("marking_definition_protected") @NotNull Boolean protectedDefinition,
-    @JsonProperty("marking_definition_created_at") @NotNull Instant createdAt) {}
+    @JsonProperty("marking_definition_created_at") @NotNull Instant createdAt,
+    // The STIX standard_id OpenCTI gives this marking; null when another definition carries it.
+    @JsonProperty("marking_definition_stix_id") String stixId) {}

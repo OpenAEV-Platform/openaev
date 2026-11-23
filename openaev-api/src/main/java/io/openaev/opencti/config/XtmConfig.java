@@ -51,16 +51,27 @@ public class XtmConfig {
     return normalized;
   }
 
-  /** The OpenCRQ connections, by tenant: openaev.xtm.opencrq.{tenantId}.* only. */
+  /**
+   * The OpenCRQ connections, by tenant. Same two property styles as OpenCTI:
+   * openaev.xtm.opencrq.{tenantId}.* and, for a single-tenant deployment, openaev.xtm.opencrq.*
+   * (the default tenant). A tenant-scoped entry for the default tenant wins over the legacy keys.
+   */
   public Map<String, OpenCRQConfig> getOpencrq() {
     if (opencrq == null || opencrq.isEmpty()) {
       return Map.of();
     }
     Map<String, OpenCRQConfig> normalized = new HashMap<>();
+    Map<String, Object> legacyFields = new HashMap<>();
     for (Map.Entry<String, Object> entry : opencrq.entrySet()) {
       if (entry.getValue() instanceof Map<?, ?> tenantConfigMap) {
         normalized.put(entry.getKey(), mapper.convertValue(tenantConfigMap, OpenCRQConfig.class));
+      } else {
+        legacyFields.put(entry.getKey(), entry.getValue());
       }
+    }
+    if (!legacyFields.isEmpty()) {
+      normalized.putIfAbsent(
+          Tenant.DEFAULT_TENANT_UUID, mapper.convertValue(legacyFields, OpenCRQConfig.class));
     }
     return normalized;
   }

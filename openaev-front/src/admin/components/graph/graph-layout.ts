@@ -18,7 +18,7 @@ const TIER: Record<GraphNodeType, number> = {
   ASSET_GROUP: 3,
   ASSET: 4,
   FINDING: 5,
-  // People of #9447 hang below the assets their identities are: person, then team, then organization.
+  // People hang below the assets their identities are: person, then team, then organization.
   PERSON: 5,
   TEAM: 6,
   ORGANIZATION: 7,
@@ -111,7 +111,7 @@ const radial = (nodes: GraphNodeOutput[], edges: GraphEdgeOutput[], focus?: stri
 export const MIN_NODE_DX = 150;
 export const MIN_NODE_DY = 90;
 
-/** Margin kept between the mini graph card's border and its nodes (#9448, UX round 2 B3). */
+/** Margin kept between the mini graph card's border and its nodes. */
 export const MINI_CARD_PADDING = 24;
 /** The mini graph card never goes under this height. */
 export const MINI_CARD_MIN_HEIGHT = 240;
@@ -229,7 +229,7 @@ export const isPortrait = (positions: Map<string, Point>): boolean => {
 /**
  * Turns a placement a quarter turn about a centre, in place: what was top to bottom reads left to
  * right. The page canvas is wider than tall, so a force placement that settled as a tall chain (the
- * landing story of #9447 is one attack path) is turned to fill the width instead of falling off the
+ * landing story is one attack path) is turned to fill the width instead of falling off the
  * top and the bottom of the canvas at the story's minimum zoom.
  */
 export const quarterTurn = (positions: Map<string, Point>, centre: Point) => {
@@ -378,7 +378,7 @@ export const entering = (from: Map<string, Point>, target: Map<string, Point>, e
 };
 
 /**
- * The layout of the compact mini graph card (#9447 elevation): the focus in the centre, its first
+ * The layout of the compact mini graph card: the focus in the centre, its first
  * ring split left and right in columns of three, and each second-hop node one column further out than
  * the neighbour it hangs on, so a two-hop view stays a small readable block instead of a strip.
  */
@@ -525,4 +525,63 @@ export const interpolate = (a: Map<string, Point>, b: Map<string, Point>, t: num
     });
   });
   return result;
+};
+
+/**
+ * The move toward a layout, planned from what is committed. A new layout run (a layout button,
+ * Re-run the layout, a new slice: its key differs from the run already laid out) or an empty screen
+ * plays the whole layout; anything else (an expand, a hide, a selection, a re-render) extends the
+ * placement already committed, so a re-render while a layout plays keeps that layout's target. Pure:
+ * it never writes what it reads, so React may call it twice for one render (StrictMode, a restarted
+ * transition) and get the same plan.
+ */
+export const planMove = ({ variant, runKey, laidOut, settled, layout, nodes, edges, focus }: {
+  variant: 'page' | 'embedded' | 'mini' | string;
+  runKey: string;
+  laidOut: string;
+  settled: Map<string, Point>;
+  layout: GraphLayout;
+  nodes: GraphNodeOutput[];
+  edges: GraphEdgeOutput[];
+  focus?: string | null;
+}): {
+  frames: Map<string, Point>[];
+  runKey: string;
+  fit: boolean;
+} => {
+  if (variant === 'mini') {
+    return {
+      frames: [miniCardLayout(nodes, edges, focus ?? '')],
+      runKey,
+      fit: true,
+    };
+  }
+  if (laidOut !== runKey || settled.size === 0) {
+    return {
+      frames: layoutFrames(layout, nodes, edges, focus),
+      runKey,
+      fit: true,
+    };
+  }
+  return {
+    frames: [extendLayout(settled, nodes, edges)],
+    runKey,
+    fit: nodes.some(n => !settled.has(n.node_id)),
+  };
+};
+
+/**
+ * The positions of a move at its share of time t: an ease-out over the legs, the first leg from the
+ * screen to the first frame, then the frames in order. t is clamped to [0, 1]: an animation frame's
+ * timestamp can precede the move's start by a few milliseconds, and a negative t once read a frame
+ * before the first ("Cannot read properties of undefined (reading 'forEach')").
+ */
+export const moveAt = (from: Map<string, Point>, steps: Map<string, Point>[], t: number): Map<string, Point> => {
+  const progress = Math.min(1, Math.max(0, Number.isFinite(t) ? t : 1));
+  const eased = 1 - (1 - progress) ** 3;
+  const legs = steps.length;
+  const at = eased * legs;
+  const leg = Math.min(legs - 1, Math.max(0, Math.floor(at)));
+  const legFrom = leg === 0 ? from : steps[leg - 1];
+  return interpolate(legFrom, steps[leg], Math.min(1, at - leg));
 };

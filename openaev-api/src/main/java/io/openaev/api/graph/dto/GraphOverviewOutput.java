@@ -5,8 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 /**
- * The aggregated estate overview (#9447): a few dozen bubbles whatever the estate size, counts and
- * not nodes, so it reads the same at ten assets and at a hundred thousand.
+ * The aggregated estate overview: a few dozen bubbles whatever the estate size, counts and not
+ * nodes, so it reads the same at ten assets and at a hundred thousand.
  *
  * @param assetCount every asset of the scope
  * @param truncated true when more groups exist than the overview draws

@@ -19,7 +19,7 @@ import {
 import { type ContractElement, type EnhancedContractElement, type InjectorContractConverted } from '../../../../../utils/api-types-custom';
 import { splitDuration } from '../../../../../utils/Time';
 import { PermissionsContext } from '../../Context';
-import { getValidatingRule, isInjectContentType, isRequiredField, isVisibleField } from '../utils';
+import { getValidatingRule, isInjectContentType, isRequiredField, isVisibleField, normalizeSingleSelectValue } from '../utils';
 import InjectContentForm from './InjectContentForm';
 import InjectFormSection from './InjectFormSection';
 import InjectInjectorSelector from './InjectInjectorSelector';
@@ -140,6 +140,9 @@ const InjectForm = ({
       injectorContractContent.fields
         .filter(f => !notDynamicFields.includes(f.key) && isInjectContentType(f.type))
         .forEach((field: ContractElement) => {
+          if (field.key in initialValues.inject_content) {
+            initialValues.inject_content[field.key] = normalizeSingleSelectValue(field, initialValues.inject_content[field.key]) as FieldValue;
+          }
           if (!initialValues.inject_content[field.key]) {
             initialValues.inject_content = {
               ...initialValues.inject_content,

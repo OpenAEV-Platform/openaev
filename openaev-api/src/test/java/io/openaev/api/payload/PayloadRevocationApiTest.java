@@ -15,6 +15,7 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.payload.PayloadRevocation;
+import io.openaev.database.model.payload.PayloadRevocationChanged;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.PayloadRevocationRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -25,11 +26,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
+@RecordApplicationEvents
 @TestPropertySource(properties = "openaev.enabled-dev-features=CATALOG")
 @DisplayName("Payload revocation by a tenant admin")
 class PayloadRevocationApiTest extends IntegrationTest {
@@ -41,6 +45,7 @@ class PayloadRevocationApiTest extends IntegrationTest {
   @Autowired private PayloadRepository payloadRepository;
   @Autowired private PayloadRevocationRepository payloadRevocationRepository;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private ApplicationEvents applicationEvents;
 
   private Payload payloadIn(String tenantId) {
     Payload payload = PayloadFixture.createDefaultCommand();
@@ -61,7 +66,8 @@ class PayloadRevocationApiTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("an admin with the revoke right revokes a payload version, then lifts it")
+  @DisplayName(
+      "an admin with the revoke right revokes a payload version, then lifts it, and both are told")
   @WithMockUser(
       withCapabilities = {Capability.REVOKE_THREAT_ARSENALS},
       autoJoinDefaultTenant = true)
@@ -84,6 +90,12 @@ class PayloadRevocationApiTest extends IntegrationTest {
             payloadRevocationRepository.existsByTenantIdAndPayloadId(
                 DEFAULT_TENANT_UUID, payloadId))
         .isFalse();
+    assertThat(applicationEvents.stream(PayloadRevocationChanged.class))
+        .containsExactly(
+            new PayloadRevocationChanged(
+                DEFAULT_TENANT_UUID, payloadId, true, "Deletes user files", false),
+            new PayloadRevocationChanged(
+                DEFAULT_TENANT_UUID, payloadId, false, "Deletes user files", false));
   }
 
   @Test

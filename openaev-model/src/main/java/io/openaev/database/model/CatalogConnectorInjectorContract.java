@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
+import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -49,16 +50,19 @@ public class CatalogConnectorInjectorContract implements Base {
   @Type(PostgreSQLHStoreType.class)
   @Column(name = "catalog_connector_injector_contract_labels")
   @JsonProperty("catalog_connector_injector_contract_labels")
+  @Queryable(searchable = true)
   private Map<String, String> labels = new HashMap<>();
 
   @Type(ListArrayType.class)
   @Column(name = "catalog_connector_injector_contract_domains")
   @JsonProperty("catalog_connector_injector_contract_domains")
+  @Queryable(filterable = true)
   private List<String> domains = new ArrayList<>();
 
   @Type(ListArrayType.class)
   @Column(name = "catalog_connector_injector_contract_platforms")
   @JsonProperty("catalog_connector_injector_contract_platforms")
+  @Queryable(filterable = true)
   private List<String> platforms = new ArrayList<>();
 
   // MITRE technique external ids, such as T1046.

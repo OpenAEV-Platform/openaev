@@ -11,7 +11,9 @@ import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.settings.TenantSettingsService;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -70,6 +72,26 @@ public class XtmOneService {
               "aev.phishing_landing_page_html_generator",
               "description",
               "Generate phishing landing page HTML/CSS for authorized awareness exercises"));
+
+  private static final Pattern COMMIT_SHA = Pattern.compile("^[0-9a-fA-F]{7,40}$");
+
+  /**
+   * The version this platform registers with XTM One: {@code <version>-dev.<sha7>} on a non-release
+   * build (a commit given), the version alone on a release image. XTM One and OpenCRQ version their
+   * non-release builds the same way, so XTM One's version-change event fires on a rolling upgrade.
+   * The platform version used everywhere else is unchanged.
+   */
+  static String buildVersion(String version, String buildCommit) {
+    String base = version != null ? version : "";
+    if (base.isEmpty() || buildCommit == null) {
+      return base;
+    }
+    String commit = buildCommit.trim();
+    if (!COMMIT_SHA.matcher(commit).matches()) {
+      return base;
+    }
+    return base + "-dev." + commit.substring(0, 7).toLowerCase(Locale.ROOT);
+  }
 
   /**
    * Register this platform with XTM One. Called on every connectivity tick (the /register endpoint
@@ -139,7 +161,7 @@ public class XtmOneService {
               "openaev",
               platformUrl,
               platformName,
-              version != null ? version : "",
+              buildVersion(version, config.getBuildCommit()),
               platformId,
               licensePem,
               licenseType,

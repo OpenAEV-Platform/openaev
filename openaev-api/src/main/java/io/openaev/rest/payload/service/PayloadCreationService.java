@@ -79,12 +79,14 @@ public class PayloadCreationService {
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = payloadType.getPayloadSupplier().get();
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, explicitTenant);
+    payload.setTenant(new Tenant(tenantId));
     payloadUtils.copyProperties(input, payload);
-    payload.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, explicitTenant)));
     if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
+      executable.setExecutableFile(
+          documentService.documentInTenant(input.getExecutableFile(), tenantId));
     } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
+      fileDrop.setFileDropFile(documentService.documentInTenant(input.getFileDropFile(), tenantId));
     }
     return payload;
   }
@@ -99,6 +101,7 @@ public class PayloadCreationService {
       TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
     Payload payload = toPayload(ctx, explicitTenant, input);
+    payloadUtils.validateDocumentArguments(payload, payload.getTenant().getId());
     authorService.authorByCurrentUser(payload);
 
     Payload payloadSaved = payloadRepository.save(payload);

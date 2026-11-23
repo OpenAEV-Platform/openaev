@@ -147,8 +147,6 @@ DocumentApi.upsertDocument -> Document.exercises | ATTENUATED | measured: initia
 DocumentApi.upsertDocument -> Document.scenarios | ATTENUATED | measured: initialised inside the transaction whenever written
 DocumentApi.upsertDocument -> Document.tags | ATTENUATED | measured: initialised inside the transaction whenever written
 EndpointApi.createEndpoint -> Asset.tags | ATTENUATED | measured: initialised inside the transaction whenever written
-EndpointApi.endpoints -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
-EndpointApi.findEndpoints -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 EndpointApi.upsertAgentLessEndpoint -> Asset.tags | ATTENUATED | measured: initialised inside the transaction whenever written
 EndpointApi.upsertEndpoint -> Asset.tags | NOT ESTABLISHED | written while lazy, no gated read recorded
 ExerciseApi.addExerciseTeamPlayers -> Exercise.documents | ATTENUATED | fixed by the response hydration of tags and documents
@@ -240,7 +238,6 @@ ExerciseApi.enableExerciseTeamPlayers -> Exercise.injects | NOT ESTABLISHED | no
 ExerciseApi.enableExerciseTeamPlayers -> Exercise.tags | ATTENUATED | fixed by the response hydration of tags and documents
 ExerciseApi.enableExerciseTeamPlayers -> Exercise.teams | NOT ESTABLISHED | not written by any measured test response
 ExerciseApi.enableExerciseTeamPlayers -> Exercise.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
-ExerciseApi.endpoints -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 ExerciseApi.exerciseCommunications -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 ExerciseApi.exerciseCommunications -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 ExerciseApi.injectResults -> AttackPattern.killChainPhases | NOT ESTABLISHED | not written by any measured test response
@@ -669,7 +666,6 @@ ScenarioApi.enableScenarioTeamPlayers -> Scenario.injects | NOT ESTABLISHED | no
 ScenarioApi.enableScenarioTeamPlayers -> Scenario.tags | ATTENUATED | fixed by the response hydration of tags and documents
 ScenarioApi.enableScenarioTeamPlayers -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.enableScenarioTeamPlayers -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
-ScenarioApi.endpoints -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.removeScenarioTeamPlayers -> Scenario.documents | ATTENUATED | fixed by the response hydration of tags and documents
 ScenarioApi.removeScenarioTeamPlayers -> Scenario.exercises | NOT ESTABLISHED | read after the commit, but no test row to lose
 ScenarioApi.removeScenarioTeamPlayers -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
@@ -1292,7 +1288,6 @@ TeamApi.upsertTeam -> Team.scenarios | ATTENUATED | measured: initialised inside
 TeamApi.upsertTeam -> Team.tags | ATTENUATED | measured: initialised inside the transaction whenever written
 TeamApi.upsertTeam -> Team.users | ATTENUATED | measured: initialised inside the transaction whenever written
 TenantSettingsApi.homeDashboard -> CustomDashboard.widgets | ATTENUATED | measured: initialised inside the transaction whenever written
-ThreatArsenalApi.threatArsenal -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 UserApi.changePasswordReset -> User.isPlayer() | ATTENUATED | measured: initialised inside the transaction whenever written
 UserApi.changePasswordReset -> User.tags | NOT ESTABLISHED | written while lazy, no gated read recorded
 UserApi.changePasswordReset -> User.teams | NOT ESTABLISHED | written while lazy, no gated read recorded

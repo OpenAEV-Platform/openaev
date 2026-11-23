@@ -23,7 +23,6 @@ import {
   TooltipTrigger,
 } from '@filigran/design-system';
 import { ArrowBackOutlined, ArrowForwardOutlined, DeleteOutlined } from '@mui/icons-material';
-import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type AxiosResponse } from 'axios';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
@@ -96,31 +95,29 @@ const AssetLinksDrawer: FunctionComponent<Props> = ({ open, onClose, assetId, as
 
   return (
     <Drawer open={open} handleClose={onClose} title={t('Manage links')} additionalTitle={assetName}>
-      <Box sx={{
+      <div style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 3,
-        pt: 1,
+        gap: 24,
+        paddingTop: 8,
       }}
       >
-        <Box
-          component="section"
+        <section
           aria-label={t('Add a link')}
-          sx={{
+          style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 2,
+            gap: 16,
           }}
         >
-          <Box data-testid="asset-link-type-field">
+          <div data-testid="asset-link-type-field">
             <Select value={linkType} onValueChange={next => setLinkType(next as AssetLinkType)}>
               <SelectLabel>
-                <Box
-                  component="span"
-                  sx={{
+                <span
+                  style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 0.5,
+                    gap: 4,
                   }}
                 >
                   {t('Link type')}
@@ -141,7 +138,7 @@ const AssetLinksDrawer: FunctionComponent<Props> = ({ open, onClose, assetId, as
                       {t('A link records how two assets relate. It becomes a Linked to edge in the graph, so attack paths can follow it. Example: a web server depends on a domain controller.')}
                     </TooltipContent>
                   </Tooltip>
-                </Box>
+                </span>
               </SelectLabel>
               <SelectTrigger className="w-full" aria-label={t('Link type')}>
                 <span>{t(assetLinkTypeLabel(linkType))}</span>
@@ -160,8 +157,8 @@ const AssetLinksDrawer: FunctionComponent<Props> = ({ open, onClose, assetId, as
               </SelectContent>
               <SelectHelperText>{t('How this asset relates to the asset you pick next.')}</SelectHelperText>
             </Select>
-          </Box>
-          <Box data-testid="asset-link-target-field">
+          </div>
+          <div data-testid="asset-link-target-field">
             <Combobox<AssetOptionOutput>
               options={candidates}
               value={selected}
@@ -185,8 +182,8 @@ const AssetLinksDrawer: FunctionComponent<Props> = ({ open, onClose, assetId, as
               <ComboboxContent emptyMessage={t('No available options')} />
               <ComboboxHelperText>{t('Any asset of the inventory, searched by name.')}</ComboboxHelperText>
             </Combobox>
-          </Box>
-          <Box sx={{
+          </div>
+          <div style={{
             display: 'flex',
             justifyContent: 'flex-end',
           }}
@@ -194,10 +191,10 @@ const AssetLinksDrawer: FunctionComponent<Props> = ({ open, onClose, assetId, as
             <Button type="button" onClick={handleAdd} disabled={!selected?.id || saving}>
               {t('Add link')}
             </Button>
-          </Box>
-        </Box>
+          </div>
+        </section>
 
-        <Box component="section" aria-label={t('Linked assets')}>
+        <section aria-label={t('Linked assets')}>
           <Text variant="content-base-bold" as="h3" style={{ margin: 0 }}>
             {`${t('Linked assets')} (${rows.length})`}
           </Text>
@@ -207,26 +204,25 @@ const AssetLinksDrawer: FunctionComponent<Props> = ({ open, onClose, assetId, as
             </Text>
           )}
           {rows.length > 0 && (
-            <Box
-              component="ul"
-              sx={{
+            <ul
+              style={{
                 listStyle: 'none',
-                m: 0,
-                mt: 1,
-                p: 0,
+                margin: 0,
+                marginTop: 8,
+                padding: 0,
               }}
             >
               {rows.map(row => (
-                <Box
-                  component="li"
+                <li
                   key={row.key}
                   data-testid="asset-link-drawer-row"
-                  sx={{
+                  style={{
                     display: 'grid',
                     gridTemplateColumns: 'auto auto minmax(0, 1fr) auto',
-                    gap: 1,
+                    gap: 8,
                     alignItems: 'center',
-                    py: 0.5,
+                    paddingTop: 4,
+                    paddingBottom: 4,
                     borderBottom: `1px solid ${theme.palette.divider}`,
                   }}
                 >
@@ -249,12 +245,12 @@ const AssetLinksDrawer: FunctionComponent<Props> = ({ open, onClose, assetId, as
                     </TooltipTrigger>
                     <TooltipContent>{t('Remove link')}</TooltipContent>
                   </Tooltip>
-                </Box>
+                </li>
               ))}
-            </Box>
+            </ul>
           )}
-        </Box>
-      </Box>
+        </section>
+      </div>
     </Drawer>
   );
 };

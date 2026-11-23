@@ -1,6 +1,6 @@
 import { Button, Chip, Text } from '@filigran/design-system';
 import { ArrowBackOutlined, ArrowForwardOutlined } from '@mui/icons-material';
-import { Box } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type AxiosResponse } from 'axios';
 import { type FunctionComponent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -26,6 +26,7 @@ interface Props {
 // the overview (Sam, 20 Nov 2026: "overview is overview, edition is edition").
 const AssetLinks: FunctionComponent<Props> = ({ assetId, assetName, canManage, onChange }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
 
   const [links, setLinks] = useState<AssetLinkOutput[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,15 +85,14 @@ const AssetLinks: FunctionComponent<Props> = ({ assetId, assetName, canManage, o
         </Text>
       )}
       {!loading && rows.length > 0 && (
-        <Box
-          component="dl"
+        <dl
           aria-label={`${t('Relationships')}: ${assetName}`}
-          sx={{
-            m: 0,
+          style={{
+            margin: 0,
             display: 'grid',
             gridTemplateColumns: 'minmax(140px, max-content) minmax(0, 1fr)',
-            columnGap: 2,
-            rowGap: 1,
+            columnGap: 16,
+            rowGap: 8,
             alignItems: 'center',
           }}
         >
@@ -100,28 +100,26 @@ const AssetLinks: FunctionComponent<Props> = ({ assetId, assetName, canManage, o
             const isExpanded = expanded.has(group.key);
             const { shown, hidden } = previewRows(group.rows, isExpanded);
             return (
-              <Box key={group.key} sx={{ display: 'contents' }} data-testid="asset-relationship-group">
-                <Box
-                  component="dt"
-                  sx={{
+              <div key={group.key} style={{ display: 'contents' }} data-testid="asset-relationship-group">
+                <dt
+                  style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 0.5,
-                    color: 'text.secondary',
+                    gap: 4,
+                    color: theme.palette.text.secondary,
                   }}
                 >
                   {group.outgoing
                     ? <ArrowForwardOutlined fontSize="small" aria-label={t('Outgoing')} />
                     : <ArrowBackOutlined fontSize="small" aria-label={t('Incoming')} />}
                   <Text variant="content-base">{`${t(assetLinkDirectionLabel(group.type, group.outgoing))} (${group.rows.length})`}</Text>
-                </Box>
-                <Box
-                  component="dd"
-                  sx={{
-                    m: 0,
+                </dt>
+                <dd
+                  style={{
+                    margin: 0,
                     display: 'flex',
                     flexWrap: 'wrap',
-                    gap: 0.75,
+                    gap: 6,
                     alignItems: 'center',
                     minWidth: 0,
                   }}
@@ -136,11 +134,11 @@ const AssetLinks: FunctionComponent<Props> = ({ assetId, assetName, canManage, o
                       {isExpanded ? t('Show less') : t('+{count} more', { count: hidden })}
                     </Button>
                   )}
-                </Box>
-              </Box>
+                </dd>
+              </div>
             );
           })}
-        </Box>
+        </dl>
       )}
       {canManage && (
         <AssetLinksDrawer

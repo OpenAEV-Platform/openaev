@@ -238,6 +238,7 @@ nav:
         - Inject result: usage/run-and-evaluate/injects/inject-result.md
       - Expectations: usage/run-and-evaluate/expectations/expectations.md
       - Findings: usage/run-and-evaluate/findings/findings.md
+      - Exploration graph: usage/run-and-evaluate/exploration-graph.md
       - Dashboards:
         - Custom Dashboards: usage/run-and-evaluate/dashboards/custom-dashboards.md
         - Widgets: usage/run-and-evaluate/dashboards/widgets.md

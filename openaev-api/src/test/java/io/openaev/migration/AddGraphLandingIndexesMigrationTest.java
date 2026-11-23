@@ -3,101 +3,110 @@ package io.openaev.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
-import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
+import javax.sql.DataSource;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.Context;
-import org.hibernate.Session;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
 
-@Transactional
-@WithMockUser(isAdmin = true)
+/**
+ * Not {@code @Transactional}: the index is built {@code CONCURRENTLY}, which PostgreSQL refuses
+ * inside a transaction, so each test runs on its own autocommit connection and {@code @AfterEach}
+ * runs the migration again to leave the shared schema complete.
+ */
 @DisplayName("Migration V6_20261119013000000: graph landing indexes")
 class AddGraphLandingIndexesMigrationTest extends IntegrationTest {
 
-  @Autowired private V6_20261119013000000__Add_graph_landing_indexes migration;
+  private static final String INDEX =
+      V6_20261119013000000__Add_graph_landing_indexes.FAILED_ASSET_INDEX;
+  private static final String GROUP_MEMBER_INDEX = "idx_asset_groups_assets_asset";
 
-  // Puts the schema back as it was before the migration, inside the test transaction.
+  @Autowired private V6_20261119013000000__Add_graph_landing_indexes migration;
+  @Autowired private DataSource dataSource;
+
+  private Connection connection;
+
   @BeforeEach
-  void dropIndexes() {
-    execute(
-        "DROP INDEX IF EXISTS "
-            + V6_20261119013000000__Add_graph_landing_indexes.FAILED_ASSET_INDEX);
-    execute(
-        "DROP INDEX IF EXISTS "
-            + V6_20261119013000000__Add_graph_landing_indexes.GROUP_MEMBER_INDEX);
+  void openConnectionAndDropTheIndex() throws SQLException {
+    connection = dataSource.getConnection();
+    connection.setAutoCommit(true);
+    execute("DROP INDEX CONCURRENTLY IF EXISTS " + INDEX);
+  }
+
+  @AfterEach
+  void restoreSchema() throws Exception {
+    try {
+      migration.migrate(contextOn(connection));
+    } finally {
+      connection.close();
+    }
   }
 
   @Test
-  @DisplayName("Creates both indexes once, and a rerun is a no-op")
-  void given_noIndex_should_createBothOnceAndRerunCleanly() {
+  @DisplayName("The migration does not ask Flyway for a wrapping transaction")
+  void given_migration_should_runOutsideATransaction() {
+    assertThat(migration.canExecuteInTransaction()).isFalse();
+  }
+
+  @Test
+  @DisplayName("Creates the partial index once, valid, and a rerun is a no-op")
+  void given_noIndex_should_createItOnceAndRerunCleanly() throws Exception {
     // Act
-    runMigration();
-    runMigration();
+    migration.migrate(contextOn(connection));
+    migration.migrate(contextOn(connection));
 
     // Assert
-    assertThat(
-            rows(
-                "SELECT indexname FROM pg_indexes WHERE indexname IN ('"
-                    + V6_20261119013000000__Add_graph_landing_indexes.FAILED_ASSET_INDEX
-                    + "', '"
-                    + V6_20261119013000000__Add_graph_landing_indexes.GROUP_MEMBER_INDEX
-                    + "') ORDER BY indexname"))
-        .containsExactly(
-            V6_20261119013000000__Add_graph_landing_indexes.GROUP_MEMBER_INDEX,
-            V6_20261119013000000__Add_graph_landing_indexes.FAILED_ASSET_INDEX);
-    assertThat(
-            rows(
-                "SELECT indexdef FROM pg_indexes WHERE indexname = '"
-                    + V6_20261119013000000__Add_graph_landing_indexes.FAILED_ASSET_INDEX
-                    + "'"))
+    assertThat(rows("SELECT indexname FROM pg_indexes WHERE indexname = '" + INDEX + "'"))
+        .containsExactly(INDEX);
+    assertThat(rows("SELECT indexdef FROM pg_indexes WHERE indexname = '" + INDEX + "'"))
         .singleElement()
         .asString()
         .contains("WHERE")
         .contains("inject_expectation_score");
+    assertThat(
+            rows(
+                "SELECT indisvalid::text FROM pg_index WHERE indexrelid = to_regclass('"
+                    + INDEX
+                    + "')"))
+        .containsExactly("true");
   }
 
-  private void runMigration() {
-    withConnection(connection -> migration.migrate(contextOn(connection)));
+  @Test
+  @DisplayName("Leaves the group membership index of V2_68 as it is")
+  void given_groupMemberIndex_should_keepIt() throws Exception {
+    // Act
+    migration.migrate(contextOn(connection));
+
+    // Assert
+    assertThat(
+            rows("SELECT indexname FROM pg_indexes WHERE indexname = '" + GROUP_MEMBER_INDEX + "'"))
+        .containsExactly(GROUP_MEMBER_INDEX);
   }
 
-  @SuppressWarnings("unchecked")
-  private List<String> rows(String sql) {
-    return entityManager.createNativeQuery(sql).getResultList();
+  private void execute(String sql) throws SQLException {
+    try (Statement statement = connection.createStatement()) {
+      statement.execute(sql);
+    }
   }
 
-  @FunctionalInterface
-  private interface ConnectionWork {
-    void run(Connection connection) throws Exception;
-  }
-
-  private void withConnection(ConnectionWork work) {
-    entityManager
-        .unwrap(Session.class)
-        .doWork(
-            connection -> {
-              try {
-                work.run(connection);
-              } catch (RuntimeException e) {
-                throw e;
-              } catch (Exception e) {
-                throw new IllegalStateException(e);
-              }
-            });
-  }
-
-  private void execute(String sql) {
-    withConnection(
-        connection -> {
-          try (var statement = connection.createStatement()) {
-            statement.execute(sql);
-          }
-        });
+  private List<String> rows(String sql) throws SQLException {
+    List<String> values = new ArrayList<>();
+    try (Statement statement = connection.createStatement();
+        ResultSet result = statement.executeQuery(sql)) {
+      while (result.next()) {
+        values.add(result.getString(1));
+      }
+    }
+    return values;
   }
 
   private static Context contextOn(Connection connection) {

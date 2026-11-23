@@ -4,8 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 
 /**
- * One entry of the starting-points rail of the graph landing (#9447): clicking it recentres the
- * graph on the entity.
+ * One entry of the starting-points rail of the graph landing: clicking it recentres the graph on
+ * the entity.
  *
  * @param score what ranked it: failed expectations, assets affected, failed steps; 0 for the latest
  *     simulation

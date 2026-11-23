@@ -1,6 +1,6 @@
 package io.openaev.api.catalog.scenario;
 
-import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
+import static io.openaev.api.catalog.CatalogRoutes.TENANT_CATALOG_URI;
 import static io.openaev.api.catalog.CatalogSettingsApi.CATALOG_SETTINGS_URI;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
@@ -65,6 +65,7 @@ import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -180,8 +181,12 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
             .content(mapper.writeValueAsString(targets)));
   }
 
+  private static TimeBasedScenarioInstallInput timeBased(List<String> assetIds) {
+    return new TimeBasedScenarioInstallInput(new ScenarioTargetsInput(assetIds, null, null, null));
+  }
+
   private ResultActions install() throws Exception {
-    return install(new TimeBasedScenarioInstallInput(null, null, null, null));
+    return install(timeBased(null));
   }
 
   private Scenario installedScenario(ResultActions result) throws Exception {
@@ -249,10 +254,7 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       // Act
       Scenario scenario =
           installedScenario(
-              install(
-                      new TimeBasedScenarioInstallInput(
-                          List.of(endpoint.getId()), null, null, null))
-                  .andExpect(status().isCreated()));
+              install(timeBased(List.of(endpoint.getId()))).andExpect(status().isCreated()));
 
       // Assert
       assertThat(injectsOf(scenario).getFirst().getAssets())
@@ -437,25 +439,30 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
   class Browsing {
 
     private ResultActions available() throws Exception {
-      return mvc.perform(get(TENANT_CATALOG_URI + "/scenarios", DEFAULT_TENANT_UUID));
+      return mvc.perform(
+          post(TENANT_CATALOG_URI + "/scenarios/search", DEFAULT_TENANT_UUID)
+              .with(csrf())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(mapper.writeValueAsString(new SearchPaginationInput())));
     }
 
     static Stream<Arguments> scenarioStates() {
       return Stream.of(
-          Arguments.of("never installed", false, false, 1),
-          Arguments.of("installed", true, false, 0),
-          Arguments.of("uninstalled", true, true, 1));
+          Arguments.of("never installed", false, false),
+          Arguments.of("installed", true, false),
+          Arguments.of("uninstalled", true, true));
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("scenarioStates")
-    @DisplayName("lists a scenario only while the tenant does not show it")
-    void given_scenarioState_should_listItOnlyWhenNotInstalled(
-        String description, boolean installed, boolean uninstalled, int listed) throws Exception {
+    @DisplayName("lists a scenario with the one the tenant installed from it, if any")
+    void given_scenarioState_should_listItWithTheScenarioInstalled(
+        String description, boolean installed, boolean uninstalled) throws Exception {
       // Arrange
       publish(Map.of());
+      Scenario scenario = null;
       if (installed) {
-        Scenario scenario = installedScenario(install().andExpect(status().isCreated()));
+        scenario = installedScenario(install().andExpect(status().isCreated()));
         if (uninstalled) {
           uninstall(scenario);
         }
@@ -465,7 +472,15 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       ResultActions result = available();
 
       // Assert
-      result.andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(listed));
+      result.andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(1));
+      if (installed && !uninstalled) {
+        result.andExpect(
+            jsonPath("$.content[0].catalog_scenario_installed_scenario_id")
+                .value(scenario.getId()));
+      } else {
+        result.andExpect(
+            jsonPath("$.content[0].catalog_scenario_installed_scenario_id").doesNotExist());
+      }
     }
 
     @Test
@@ -480,9 +495,9 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       // Assert
       result
           .andExpect(status().isOk())
-          .andExpect(jsonPath("$[0].catalog_scenario_external_id").value(SCENARIO_ID))
+          .andExpect(jsonPath("$.content[0].catalog_scenario_external_id").value(SCENARIO_ID))
           .andExpect(
-              jsonPath("$[0].catalog_scenario_missing_requirements[0]")
+              jsonPath("$.content[0].catalog_scenario_missing_requirements[0]")
                   .value("Injector openaev_unknown"));
     }
 
@@ -533,14 +548,14 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
           .readTree(
               committed(
                       post(
-                              TENANT_SCENARIO_URI + "/{scenarioId}/launch",
+                              TENANT_SCENARIO_URI + "/{scenarioId}/exercise/running",
                               DEFAULT_TENANT_UUID,
                               scenario.getId())
                           .contentType(MediaType.APPLICATION_JSON)
                           .content(
                               mapper.writeValueAsString(
                                   new ScenarioTargetsInput(List.of(assetIds), null, null, null))))
-                  .andExpect(status().isCreated())
+                  .andExpect(status().isOk())
                   .andReturn()
                   .getResponse()
                   .getContentAsString())
@@ -558,8 +573,7 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       Endpoint second = endpointRepository.save(EndpointFixture.createEndpoint());
       Scenario scenario =
           installedScenario(
-              install(new TimeBasedScenarioInstallInput(List.of(first.getId()), null, null, null))
-                  .andExpect(status().isCreated()));
+              install(timeBased(List.of(first.getId()))).andExpect(status().isCreated()));
 
       // Act
       String simulationId = launch(scenario, second.getId());

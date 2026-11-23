@@ -17,6 +17,7 @@ import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.EndpointService;
+import io.openaev.service.asset.AssetDiscoveryMarker;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,8 +28,9 @@ import org.mockito.ArgumentCaptor;
 class AssetOutputProcessorTest {
   private final EndpointService endpointService = mock(EndpointService.class);
   private final TagService tagService = mock(TagService.class);
+  private final AssetDiscoveryMarker assetDiscoveryMarker = mock(AssetDiscoveryMarker.class);
   private final AssetOutputProcessor processor =
-      new AssetOutputProcessor(endpointService, tagService);
+      new AssetOutputProcessor(endpointService, tagService, assetDiscoveryMarker);
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   private ExecutionProcessingContext executionContext;
@@ -160,6 +162,8 @@ class AssetOutputProcessorTest {
     processor.process(executionContext, contractOutputContext, node);
 
     verify(endpointService).createEndpoint(any(EndpointInput.class), anyString());
+    // A created endpoint is a discovery: the marker sees it before the write
+    verify(assetDiscoveryMarker).markDiscovered(any(EndpointInput.class), eq("tenant-id"));
   }
 
   @Test
@@ -178,6 +182,7 @@ class AssetOutputProcessorTest {
     processor.process(executionContext, contractOutputContext, node);
 
     verify(endpointService, never()).createEndpoint(any(EndpointInput.class), anyString());
+    verifyNoInteractions(assetDiscoveryMarker);
   }
 
   @Test
