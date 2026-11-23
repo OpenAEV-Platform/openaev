@@ -5,8 +5,8 @@ import io.openaev.collectors.expectations_expiration_manager.service.Expectation
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.impl.collectors.expiration_manager.scheduler.ExpectationsExpirationManagerServiceRunner;
 import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -20,6 +20,7 @@ public class ExpirationManagerIntegration extends Integration {
 
   private final ThreadPoolTaskScheduler taskScheduler;
   private final CollectorService collectorService;
+  private final TenantScopedJobRunner tenantScopedJobRunner;
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
   protected ExpirationManagerIntegration(
@@ -30,20 +31,26 @@ public class ExpirationManagerIntegration extends Integration {
       ExpectationsExpirationManagerConfig expectationsExpirationManagerConfig,
       ExpectationsExpirationManagerService expectationsExpirationManagerService,
       ThreadPoolTaskScheduler taskScheduler,
-      CollectorService collectorService) {
+      CollectorService collectorService,
+      TenantScopedJobRunner tenantScopedJobRunner) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
     this.expectationsExpirationManagerConfig = expectationsExpirationManagerConfig;
     this.expectationsExpirationManagerService = expectationsExpirationManagerService;
     this.taskScheduler = taskScheduler;
     this.collectorService = collectorService;
+    this.tenantScopedJobRunner = tenantScopedJobRunner;
   }
 
   @Override
   protected void innerStart() throws Exception {
     this.timers.add(
         taskScheduler.scheduleAtFixedRate(
-            ExpectationsExpirationManagerServiceRunner.runnerForTenant(
-                this.getTenantId(), expectationsExpirationManagerService),
+            () ->
+                tenantScopedJobRunner.runInTenant(
+                    this.getTenantId(),
+                    () ->
+                        expectationsExpirationManagerService.computeExpectations(
+                            this.getTenantId())),
             Duration.ofSeconds(this.expectationsExpirationManagerConfig.getInterval())));
     //        this.timers.add(taskScheduler.scheduleAtFixedRate(
     //                ExpectationsExpirationManagerServiceRunner.runnerForTenant(
@@ -58,6 +65,7 @@ public class ExpirationManagerIntegration extends Integration {
 
   @Override
   protected void innerStop() {
-    // it is not possible to stop this integration
+    this.timers.forEach(timer -> timer.cancel(true));
+    this.timers.clear();
   }
 }

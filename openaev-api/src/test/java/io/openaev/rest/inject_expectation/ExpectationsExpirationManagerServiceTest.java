@@ -32,6 +32,7 @@ import io.openaev.integration.impl.collectors.expiration_manager.ExpirationManag
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.LogService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -90,6 +91,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
   @Autowired private ExpectationsExpirationManagerConfig expectationsExpirationManagerConfig;
   @Autowired private CollectorRepository collectorRepository;
   @Autowired private CollectorTypeRepository collectorTypeRepository;
+  @Autowired private TenantScopedJobRunner tenantScopedJobRunner;
 
   @MockitoSpyBean private AuditLogger auditLogger;
   @MockitoSpyBean private LogService logService;
@@ -186,7 +188,8 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
         componentRequestEngine,
         collectorService,
         fakeDetectorService,
-        expectationsExpirationManagerConfig);
+        expectationsExpirationManagerConfig,
+        tenantScopedJobRunner);
   }
 
   @Nested

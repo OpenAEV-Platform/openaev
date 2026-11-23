@@ -28,6 +28,7 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.impl.collectors.expiration_manager.ExpirationManagerIntegrationFactory;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.chaining.QueueChainingService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -92,6 +93,7 @@ class WorkflowUpdateEventScopedCallersTest extends IntegrationTest {
   @Autowired private ExpectationsExpirationManagerService expectationsExpirationManagerService;
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private CatalogConnectorService catalogConnectorService;
+  @Autowired private TenantScopedJobRunner tenantScopedJobRunner;
   @Autowired private HttpClientFactory httpClientFactory;
   @Autowired private ThreadPoolTaskScheduler taskScheduler;
   @Autowired private ComponentRequestEngine componentRequestEngine;
@@ -148,7 +150,8 @@ class WorkflowUpdateEventScopedCallersTest extends IntegrationTest {
         componentRequestEngine,
         collectorService,
         fakeDetectorService,
-        expectationsExpirationManagerConfig);
+        expectationsExpirationManagerConfig,
+        tenantScopedJobRunner);
   }
 
   @Nested

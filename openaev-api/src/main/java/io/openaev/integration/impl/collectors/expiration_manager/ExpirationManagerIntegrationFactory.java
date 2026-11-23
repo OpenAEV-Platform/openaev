@@ -12,6 +12,7 @@ import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
@@ -30,6 +31,7 @@ public class ExpirationManagerIntegrationFactory extends BuiltinIntegrationFacto
   private final ExpectationsExpirationManagerService fakeDetectorService;
   private final ComponentRequestEngine componentRequestEngine;
   private final ExpectationsExpirationManagerConfig expectationsExpirationManagerConfig;
+  private final TenantScopedJobRunner tenantScopedJobRunner;
 
   public ExpirationManagerIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -39,13 +41,15 @@ public class ExpirationManagerIntegrationFactory extends BuiltinIntegrationFacto
       ComponentRequestEngine componentRequestEngine,
       CollectorService collectorService,
       ExpectationsExpirationManagerService fakeDetectorService,
-      ExpectationsExpirationManagerConfig expectationsExpirationManagerConfig) {
+      ExpectationsExpirationManagerConfig expectationsExpirationManagerConfig,
+      TenantScopedJobRunner tenantScopedJobRunner) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.taskScheduler = taskScheduler;
     this.fakeDetectorService = fakeDetectorService;
     this.collectorService = collectorService;
     this.componentRequestEngine = componentRequestEngine;
     this.expectationsExpirationManagerConfig = expectationsExpirationManagerConfig;
+    this.tenantScopedJobRunner = tenantScopedJobRunner;
   }
 
   @Override
@@ -100,6 +104,7 @@ public class ExpirationManagerIntegrationFactory extends BuiltinIntegrationFacto
         expectationsExpirationManagerConfig,
         fakeDetectorService,
         taskScheduler,
-        collectorService);
+        collectorService,
+        tenantScopedJobRunner);
   }
 }

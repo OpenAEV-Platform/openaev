@@ -22,6 +22,7 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.impl.collectors.expiration_manager.ExpirationManagerIntegrationFactory;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exercise.form.InjectExpectationUpdateFromUIInput;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -65,6 +66,7 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
   @Autowired private ComponentRequestEngine componentRequestEngine;
   @Autowired private CollectorService collectorService;
   @Autowired private ExpectationsExpirationManagerService fakeDetectorService;
+  @Autowired private TenantScopedJobRunner tenantScopedJobRunner;
 
   @Autowired private ArticleComposer articleComposer;
   @Autowired private ChannelComposer channelComposer;
@@ -95,7 +97,8 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
         componentRequestEngine,
         collectorService,
         fakeDetectorService,
-        expectationsExpirationManagerConfig);
+        expectationsExpirationManagerConfig,
+        tenantScopedJobRunner);
   }
 
   @Nested

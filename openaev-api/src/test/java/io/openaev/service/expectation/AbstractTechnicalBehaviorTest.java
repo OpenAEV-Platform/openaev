@@ -22,6 +22,7 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.impl.collectors.expiration_manager.ExpirationManagerIntegrationFactory;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -60,6 +61,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private CollectorService collectorService;
+  @Autowired private TenantScopedJobRunner tenantScopedJobRunner;
 
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private CatalogConnectorService catalogConnectorService;
@@ -92,7 +94,8 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
         componentRequestEngine,
         collectorService,
         fakeDetectorService,
-        expectationsExpirationManagerConfig);
+        expectationsExpirationManagerConfig,
+        tenantScopedJobRunner);
   }
 
   private Exercise persistDefaultExercise() {
