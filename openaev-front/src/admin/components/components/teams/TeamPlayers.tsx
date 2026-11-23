@@ -18,6 +18,7 @@ import { type Organization, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Option } from '../../../../utils/Option';
+import { ascendBy, descendBy } from '../../../../utils/Sorting';
 import { TeamContext } from '../../common/Context';
 import TagsFilter from '../../common/filters/TagsFilter';
 import { type UserStore } from '../../teams/players/Player';
@@ -173,9 +174,8 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
     || (user.user_lastname || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1
     || (user.user_phone || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1
     || (user.user_organization || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1;
-  const sort = R.sortWith(
-    orderAsc ? [R.ascend(R.prop(sortBy))] : [R.descend(R.prop(sortBy))],
-  );
+  const sortKey = sortBy as keyof UserStoreExtended;
+  const compareUsers = orderAsc ? ascendBy<UserStoreExtended>(sortKey) : descendBy<UserStoreExtended>(sortKey);
   const sortedUsers: UserStoreExtended[] = users
     .filter(u => !!u)
     .filter((user: UserStore) => tags.length === 0
@@ -192,7 +192,7 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
       }
       return user;
     })
-    .sort(sort);
+    .sort(compareUsers);
 
   const sortHeader = (field: string, label: string, isSortable: boolean) => {
     const sortComponent = orderAsc
