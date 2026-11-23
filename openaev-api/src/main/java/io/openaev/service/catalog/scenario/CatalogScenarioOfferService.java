@@ -13,6 +13,7 @@ import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.model.catalog.ContentType;
 import io.openaev.database.specification.CatalogItemSpecification;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.catalog.CatalogFacet;
 import io.openaev.service.catalog.CatalogFacetCounter;
 import io.openaev.service.catalog.CatalogListService;
@@ -63,6 +64,15 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
           "Missing to install this scenario: " + String.join(", ", missing));
     }
     return toInstallable(ctx, item);
+  }
+
+  /** A released version, offered or not, as the one a tenant installed. */
+  @Transactional(readOnly = true)
+  public ReleasedScenario released(String externalId, String version) {
+    return toReleased(
+        catalogListService
+            .version(CatalogScenario.class, externalId, version)
+            .orElseThrow(() -> new ElementNotFoundException("Catalogue version not found")));
   }
 
   /**
@@ -137,17 +147,22 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   }
 
   private InstallableScenarioVersion toInstallable(TxCtx ctx, CatalogScenario item) {
+    ReleasedScenario released = toReleased(item);
     return new InstallableScenarioVersion(
         item.getRelease().getRepository(),
         item.getExternalId(),
         item.getVersion(),
         CatalogScenarioType.of(item.getScenarioType()),
         item.getAuthor(),
-        item.getArchiveHash(),
-        payloadRefs(item).stream()
+        released.archiveHash(),
+        released.payloads().stream()
             .map(
                 ref -> catalogPayloadOfferService.installable(ctx, ref.externalId(), ref.version()))
             .toList());
+  }
+
+  private ReleasedScenario toReleased(CatalogScenario item) {
+    return new ReleasedScenario(item.getArchiveHash(), payloadRefs(item));
   }
 
   private List<PayloadRef> payloadRefs(CatalogScenario item) {

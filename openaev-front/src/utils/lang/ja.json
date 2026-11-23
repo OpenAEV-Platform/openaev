@@ -3621,6 +3621,7 @@
   "Rights to": "権限の対象",
   "Role": "ロール",
   "Roles": "ロール",
+  "Rolled back": "ロールバック済み",
   "Root": "ルート",
   "Root condition must not be null": "ルート条件は null であってはなりません",
   "Root logical operator": "ルート論理演算子",

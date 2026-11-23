@@ -3621,6 +3621,7 @@
   "Rights to": "权限对象",
   "Role": "角色",
   "Roles": "角色",
+  "Rolled back": "已回滚",
   "Root": "根目录",
   "Root condition must not be null": "根条件不能为空",
   "Root logical operator": "根逻辑运算符",
