@@ -1,5 +1,5 @@
-import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Box, Divider, Popover } from '@mui/material';
+import { Button, Chip, IconButton, Paper, Separator, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Popover } from '@mui/material';
 import { type FunctionComponent, type MouseEvent, useState } from 'react';
 
 import { type CounterpartKindPath } from '../../actions/xtm/counterpart-actions';
@@ -175,44 +175,46 @@ export const XtmCounterpartsEmblemView: FunctionComponent<{ sections: EmblemSect
         }}
         slotProps={{
           paper: {
-            'role': 'dialog',
-            'aria-label': t('Across the XTM Platform'),
-            'data-testid': 'xtm-surface',
-            'sx': { mt: 1 },
-          } as object,
+            sx: {
+              background: 'transparent',
+              boxShadow: 'none',
+              mt: 1,
+            },
+          },
         }}
       >
-        <Box sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          width: 320,
-          padding: 2,
-        }}
-        >
+        <Paper elevation={2} padding={16} data-testid="xtm-surface" role="dialog" aria-label={t('Across the XTM Platform')}>
           <Box sx={{
             display: 'flex',
-            alignItems: 'center',
-            gap: 1,
+            flexDirection: 'column',
+            gap: 2,
+            width: 320,
           }}
           >
-            <MaskedEmblem maskUrl={xtmOneMask} size={16} color={ink} />
-            <Box component="span" sx={{ fontWeight: 600 }}>{t('Across the XTM Platform')}</Box>
-          </Box>
-          {sections.map((section, index) => (
-            <Box
-              key={section.def.product}
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-              }}
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+            }}
             >
-              {index > 0 && <Divider data-testid="xtm-surface-separator" />}
-              <ProductSection {...section} />
+              <MaskedEmblem maskUrl={xtmOneMask} size={16} color={ink} />
+              <Box component="span" sx={{ fontWeight: 600 }}>{t('Across the XTM Platform')}</Box>
             </Box>
-          ))}
-        </Box>
+            {sections.map((section, index) => (
+              <Box
+                key={section.def.product}
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                }}
+              >
+                {index > 0 && <Separator variant="subtle" data-testid="xtm-surface-separator" />}
+                <ProductSection {...section} />
+              </Box>
+            ))}
+          </Box>
+        </Paper>
       </Popover>
     </>
   );
