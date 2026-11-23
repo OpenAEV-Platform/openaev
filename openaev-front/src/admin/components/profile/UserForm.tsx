@@ -87,7 +87,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
             >
               <span>{t('Pastel colours')}</span>
               <span style={{ color: theme.palette.text.secondary }}>
-                {t('Show severity, priority and marking chips in soft pastel fills instead of the standard colours.')}
+                {t('Show chips in soft pastel fills instead of the standard outlined colours.')}
               </span>
             </span>
           )}

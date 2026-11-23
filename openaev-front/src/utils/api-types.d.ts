@@ -2797,7 +2797,9 @@ export interface CatalogHistoryOutput {
     | "INSTALL"
     | "UNINSTALL"
     | "REVOKE"
-    | "LIFT_REVOCATION";
+    | "LIFT_REVOCATION"
+    | "UPDATE"
+    | "ROLLBACK";
   /** @format date-time */
   catalog_history_created_at: string;
   /** @minLength 1 */
@@ -9142,6 +9144,7 @@ export interface NotificationTriggerInput {
     | "NEW_PAYLOAD_VERSION"
     | "REVOKED"
     | "REVOCATION_LIFTED"
+    | "BASE_UPDATE_AVAILABLE"
     | "INSTALLED_AUTOMATICALLY"
     | "RELEASE_RECEIVED"
     | "SYNC_BLOCKED"
@@ -9263,6 +9266,7 @@ export interface NotificationTriggerOutput {
     | "NEW_PAYLOAD_VERSION"
     | "REVOKED"
     | "REVOCATION_LIFTED"
+    | "BASE_UPDATE_AVAILABLE"
     | "INSTALLED_AUTOMATICALLY"
     | "RELEASE_RECEIVED"
     | "SYNC_BLOCKED"
@@ -12308,6 +12312,42 @@ export interface ScenarioChallengesReader {
   scenario_information?: PublicScenario;
 }
 
+export interface ScenarioChangeOutput {
+  scenario_change_applied?: JsonNode;
+  scenario_change_base?: JsonNode;
+  scenario_change_editable: boolean;
+  scenario_change_element_kind: "SCENARIO" | "VARIABLES" | "INJECT";
+  scenario_change_field_key?: string;
+  scenario_change_field_kind?:
+    | "NAME"
+    | "DESCRIPTION"
+    | "SEVERITY"
+    | "CATEGORY"
+    | "TITLE"
+    | "CONTRACT"
+    | "DEPENDS_DURATION"
+    | "DEPENDS_ON"
+    | "ARGUMENT"
+    | "VARIABLE";
+  /** @minLength 1 */
+  scenario_change_id: string;
+  scenario_change_local?: JsonNode;
+  scenario_change_status:
+    | "TAKE_APPLIED"
+    | "KEEP_MINE"
+    | "CONFLICT"
+    | "ADDED"
+    | "REMOVED";
+  scenario_change_title?: string;
+}
+
+export interface ScenarioChangelogOutput {
+  /** @minLength 1 */
+  scenario_changelog: string;
+  /** @minLength 1 */
+  scenario_changelog_version: string;
+}
+
 export interface ScenarioIdsAndInjectorContractsInputs {
   injector_contract_search_pagination_input: InjectorContractSearchPaginationInput;
   /** @minLength 1 */
@@ -12442,6 +12482,12 @@ export interface ScenarioOutput {
   scenario_workflow_id?: string;
 }
 
+export interface ScenarioPayloadVersionOutput {
+  payload_name?: string;
+  /** @minLength 1 */
+  payload_version: string;
+}
+
 export interface ScenarioReachabilityAssertionInput {
   /** True to make the scenario a reachability assertion: only read-only injects may run on its schedule */
   scenario_reachability_assertion?: boolean;
@@ -12453,6 +12499,19 @@ export interface ScenarioRecurrenceInput {
   scenario_recurrence_end?: string;
   /** @format date-time */
   scenario_recurrence_start?: string;
+}
+
+export interface ScenarioRevisionOutput {
+  /** @minLength 1 */
+  scenario_revision_catalog_version: string;
+  /** @format date-time */
+  scenario_revision_created_at: string;
+  /** @minLength 1 */
+  scenario_revision_id: string;
+  /** @format int32 */
+  scenario_revision_number: number;
+  scenario_revision_reason: "INSTALL" | "UPDATE" | "ROLLBACK";
+  scenario_revision_user?: string;
 }
 
 export interface ScenarioSimple {
@@ -12492,6 +12551,22 @@ export interface ScenarioTeamUserOutput {
   user_id?: string;
 }
 
+export interface ScenarioUpdateInput {
+  scenario_update_choices?: Record<
+    string,
+    "KEEP_MINE" | "TAKE_APPLIED" | "EDIT"
+  >;
+  scenario_update_edits?: Record<string, string>;
+}
+
+export interface ScenarioUpdatePreviewOutput {
+  scenario_update_changelogs: ScenarioChangelogOutput[];
+  scenario_update_changes: ScenarioChangeOutput[];
+  scenario_update_lost_dependencies: string[];
+  scenario_update_payloads_to_install: ScenarioPayloadVersionOutput[];
+  scenario_update_revoked_payloads: ScenarioPayloadVersionOutput[];
+}
+
 export interface ScenarioUpdateTagsInput {
   apply_tag_rule?: boolean;
   scenario_tags?: string[];
@@ -12499,6 +12574,23 @@ export interface ScenarioUpdateTagsInput {
 
 export interface ScenarioUpdateTeamsInput {
   scenario_teams?: string[];
+}
+
+export interface ScenarioVersionOutput {
+  /** @minLength 1 */
+  scenario_version: string;
+  scenario_version_changelog?: string;
+  scenario_version_current: boolean;
+  scenario_version_latest: boolean;
+  /** @format date-time */
+  scenario_version_published_at?: string;
+  scenario_version_status: "VERIFIED" | "DEPRECATED" | "REVOKED";
+}
+
+export interface ScenarioVersionsOutput {
+  /** @format int64 */
+  scenario_simulations_count: number;
+  scenario_versions: ScenarioVersionOutput[];
 }
 
 /** An asset that is in scope (allowlisted and not denylisted) for a workflow. */

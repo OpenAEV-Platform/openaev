@@ -2,15 +2,23 @@ import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../i18n';
+import { STANDARD_CHIP_EDGE } from './standardChip';
 
 const useStyles = makeStyles()(theme => ({
   mode: {
-    borderRadius: 4,
-    fontFamily: 'Consolas, monaco, monospace',
-    backgroundColor: theme.palette.action?.selected,
-    padding: '0 8px',
-    display: 'flex',
-    alignItems: 'center',
+    'borderRadius': 4,
+    'fontFamily': 'Consolas, monaco, monospace',
+    // Standard colours ("Pastel colours" off): outlined, as the design-system Chip; the
+    // `pastel` root class (useFdsThemeScope) keeps today's filled pill.
+    'border': STANDARD_CHIP_EDGE,
+    'backgroundColor': 'transparent',
+    '.pastel &': {
+      borderColor: 'transparent',
+      backgroundColor: theme.palette.action?.selected,
+    },
+    'padding': '0 8px',
+    'display': 'flex',
+    'alignItems': 'center',
   },
   hasClickEvent: {
     'cursor': 'pointer',

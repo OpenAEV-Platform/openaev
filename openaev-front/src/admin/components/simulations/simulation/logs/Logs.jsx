@@ -64,9 +64,10 @@ const Logs = () => {
     }
   }, [openCreateLog]);
   const submitCreateLog = (data, action) => {
-    const inputValues = R.pipe(
-      R.assoc('log_tags', R.pluck('id', data.log_tags)),
-    )(data);
+    const inputValues = {
+      ...data,
+      log_tags: R.pluck('id', data.log_tags),
+    };
     return dispatch(addLog(exerciseId, inputValues)).then((result) => {
       if (result.result) {
         action.reset();

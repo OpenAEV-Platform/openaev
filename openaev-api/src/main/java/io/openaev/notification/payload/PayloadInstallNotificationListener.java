@@ -1,5 +1,6 @@
 package io.openaev.notification.payload;
 
+import static io.openaev.database.model.NotificationTriggerEventType.BASE_UPDATE_AVAILABLE;
 import static io.openaev.database.model.NotificationTriggerEventType.NEW_PAYLOAD_VERSION;
 import static io.openaev.notification.content.ContentNotification.count;
 import static io.openaev.notification.content.ContentNotification.named;
@@ -15,13 +16,15 @@ import io.openaev.service.catalog.event.CatalogContentChanged;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.catalog.SemanticVersion;
 import java.util.List;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * Tells the scenarios still running an older version of a payload once a newer one is the latest.
+ * Once a newer version of a payload is the latest, tells the scenarios still running an older one
+ * and the customized copies built on an older one.
  */
 @Component
 @RequiredArgsConstructor
@@ -76,6 +79,14 @@ public class PayloadInstallNotificationListener {
     if (!installed.isLatest() || older.isEmpty()) {
       return List.of();
     }
+    return Stream.concat(
+            scenarios(tenantId, installed, older).stream(),
+            copies(tenantId, installed, older).stream())
+        .toList();
+  }
+
+  private List<ContentNotification> scenarios(
+      String tenantId, Payload installed, List<Payload> older) {
     return ContentNotification.scenarios(
         payloadVersionService.scenarioUsages(tenantId, older),
         NEW_PAYLOAD_VERSION,
@@ -83,5 +94,17 @@ public class PayloadInstallNotificationListener {
             "%s is available, %s still %s an older version"
                 .formatted(
                     named(installed), count(injects, "inject"), injects == 1 ? "runs" : "run"));
+  }
+
+  private List<ContentNotification> copies(
+      String tenantId, Payload installed, List<Payload> older) {
+    return payloadService.latestCopiesOf(tenantId, older).stream()
+        .map(
+            copy ->
+                ContentNotification.payload(
+                    copy,
+                    BASE_UPDATE_AVAILABLE,
+                    ": Filigran v" + installed.getVersion() + " is available"))
+        .toList();
   }
 }
