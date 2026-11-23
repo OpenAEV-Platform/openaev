@@ -9,10 +9,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.autonomous.AutonomousRunApi;
 import io.openaev.architecture.CoversTenantIsolation;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.ee.EnterpriseEditionService;
@@ -31,8 +30,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -60,13 +57,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @CoversTenantIsolation("agents")
 @WithMockUser(isAdmin = true)
 @DisplayName("agents isolation on both routes, reads and writes")
-class AgentHttpIsolationTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class AgentHttpIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String CAPABILITIES_PATH = "/capabilities/resolve";
   private static final String PLAIN_CAPABILITIES =

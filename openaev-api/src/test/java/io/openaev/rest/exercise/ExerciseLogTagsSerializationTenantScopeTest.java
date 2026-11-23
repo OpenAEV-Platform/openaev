@@ -201,6 +201,58 @@ class ExerciseLogTagsSerializationTenantScopeTest extends IntegrationTest {
           });
     }
 
+    @Test
+    @DisplayName(
+        "given a log of another simulation when it is edited through this simulation then the"
+            + " edit is refused and the log's tags are unchanged")
+    void given_aLogOfAnotherSimulation_should_refuseTheEditAndKeepItsTags() throws Exception {
+      // -- Arrange --
+      Log log = seedLog(1);
+      List<String> originalTagIds = tagIds(log);
+      String otherTenant = tenantHelper.createTenantWithCurrentUser("simulation-log-tag-b").getId();
+      String otherExerciseId =
+          inTenantScope(
+              otherTenant,
+              () -> {
+                Exercise other = createDefaultExercise();
+                other.setTenant(new Tenant(otherTenant));
+                exerciseComposer.forExercise(other).persist();
+                return other.getId();
+              });
+
+      try {
+        // -- Act --
+        // The URL names another simulation, in another tenant, while logId stays the one seeded
+        // under `tenant`: findByIdAndExerciseId must refuse the mismatch before any tag is read.
+        mvc.perform(
+                put(
+                        TENANT_EXERCISE_URI + "/{exerciseId}/logs/{logId}",
+                        otherTenant,
+                        otherExerciseId,
+                        log.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(editInput(log, List.of())))
+                    .with(csrf()))
+            .andExpect(status().isNotFound());
+
+        // -- Assert --
+        inTenantScope(
+            () -> {
+              Log unchanged = logRepository.findById(log.getId()).orElseThrow();
+              assertThat(tagIds(unchanged)).containsExactlyInAnyOrderElementsOf(originalTagIds);
+              return null;
+            });
+      } finally {
+        inTenantScope(
+            otherTenant,
+            () -> {
+              exerciseRepository.deleteById(otherExerciseId);
+              return null;
+            });
+        tenantHelper.deleteCommittedTenants(otherTenant);
+      }
+    }
+
     private LogCreateInput editInput(Log log, List<String> tagIds) {
       LogCreateInput input = new LogCreateInput();
       input.setTitle(log.getTitle());
@@ -244,9 +296,13 @@ class ExerciseLogTagsSerializationTenantScopeTest extends IntegrationTest {
    * the v1 thread-local tenant to attribute some rows, so it is set too.
    */
   private <T> T inTenantScope(Supplier<T> work) {
-    TenantContext.setCurrentTenant(tenant);
+    return inTenantScope(tenant, work);
+  }
+
+  private <T> T inTenantScope(String tenantId, Supplier<T> work) {
+    TenantContext.setCurrentTenant(tenantId);
     try {
-      return tenantTx.execute(TxCtx.forTenant(tenant), work);
+      return tenantTx.execute(TxCtx.forTenant(tenantId), work);
     } finally {
       TenantContext.clearCurrentTenant();
     }

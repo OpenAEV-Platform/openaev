@@ -5,11 +5,15 @@ import io.openaev.api.threat_arsenal.dto.PayloadUsagesOutput;
 import io.openaev.api.threat_arsenal.dto.PayloadVersionOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.Step;
 import io.openaev.database.model.User;
+import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.model.payload.PayloadRevocation;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.PayloadIdentityRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -18,11 +22,14 @@ import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.utils.catalog.SemanticVersion;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,6 +47,7 @@ public class PayloadVersionService {
   private final PayloadService payloadService;
   private final PayloadRevocationService payloadRevocationService;
   private final InjectRepository injectRepository;
+  private final PayloadIdentityRepository payloadIdentityRepository;
   private final StepService stepService;
   private final PermissionService permissionService;
   private final UserService userService;
@@ -48,8 +56,7 @@ public class PayloadVersionService {
 
   /** Newest first. */
   public List<PayloadVersionOutput> versions(String tenantId, String actionId) {
-    List<Payload> versions =
-        payloadService.versionsOf(tenantId, payloadAction(tenantId, actionId).getPayload());
+    List<Payload> versions = payloadService.versionsOf(tenantId, payload(tenantId, actionId));
     Map<String, PayloadRevocation> revocations =
         payloadRevocationService.revocations(tenantId, versions);
     Map<String, InjectorContract> actions =
@@ -66,11 +73,7 @@ public class PayloadVersionService {
   /** Refused when the version is not another version of the payload, or is revoked. */
   public InjectorContract otherVersionAction(String tenantId, Payload payload, String versionId) {
     refuseUnlessOtherVersion(tenantId, payload, versionId);
-    return Optional.ofNullable(
-            injectorContractService
-                .injectorContractsOfPayloads(tenantId, List.of(versionId))
-                .get(versionId))
-        .orElseThrow(() -> new ElementNotFoundException(NO_PAYLOAD));
+    return versionAction(tenantId, versionId);
   }
 
   /** Same rule as {@link #otherVersionAction}, from the action of the version. */
@@ -79,6 +82,25 @@ public class PayloadVersionService {
     InjectorContract action = payloadAction(tenantId, actionId);
     refuseUnlessOtherVersion(tenantId, payload, action.getPayload().getId());
     return action;
+  }
+
+  /** The payload version the action runs. */
+  public Payload payload(String tenantId, String actionId) {
+    return payloadAction(tenantId, actionId).getPayload();
+  }
+
+  /** The action the Threat Arsenal lists for a payload version: the one of its latest version. */
+  public InjectorContract listedAction(String tenantId, String payloadId) {
+    return versionAction(
+        tenantId, payloadService.payload(tenantId, payloadId).listedVersion().getId());
+  }
+
+  public InjectorContract versionAction(String tenantId, String payloadId) {
+    return Optional.ofNullable(
+            injectorContractService
+                .injectorContractsOfPayloads(tenantId, List.of(payloadId))
+                .get(payloadId))
+        .orElseThrow(() -> new ElementNotFoundException(NO_PAYLOAD));
   }
 
   /** Only what the user can read is listed; the others are counted. */
@@ -103,17 +125,57 @@ public class PayloadVersionService {
     return new PayloadUsagesOutput(visible, usages.size() - visible.size());
   }
 
-  /** Scenario injects, atomic testings and chained scenario steps running this version. */
+  /** The scenario injects and steps running these versions, by scenario id. */
+  public Map<String, List<PayloadUsageOutput>> scenarioUsages(
+      String tenantId, Collection<Payload> versions) {
+    return injectorContractService
+        .injectorContractsOfPayloads(tenantId, versions.stream().map(Payload::getId).toList())
+        .values()
+        .stream()
+        .flatMap(action -> usages(tenantId, action).stream())
+        .filter(usage -> usage.scenarioId() != null)
+        .collect(
+            Collectors.groupingBy(
+                PayloadUsageOutput::scenarioId, LinkedHashMap::new, Collectors.toList()));
+  }
+
   private List<PayloadUsageOutput> usages(String tenantId, InjectorContract action) {
     Stream<PayloadUsageOutput> injects =
-        injectRepository
-            .findAllOutsideSimulationsByTenantIdAndPayloadId(tenantId, action.getPayload().getId())
-            .stream()
-            .map(PayloadUsageOutput::of);
+        injectsOn(tenantId, action).stream().map(PayloadUsageOutput::of);
     Stream<PayloadUsageOutput> steps =
-        stepService.findScenarioStepTemplatesByContract(tenantId, action.getId()).stream()
+        stepsOn(tenantId, action).stream()
             .map(step -> PayloadUsageOutput.of(step, stepService.injectTitle(step)));
     return Stream.concat(injects, steps).toList();
+  }
+
+  /** Scenario injects and atomic testings running this version: simulations keep theirs. */
+  public List<Inject> injectsOn(String tenantId, InjectorContract action) {
+    return injectRepository.findAllOutsideSimulationsByTenantIdAndInjectorContractId(
+        tenantId, action.getId());
+  }
+
+  /** Chained scenario steps running this version. */
+  public List<Step> stepsOn(String tenantId, InjectorContract action) {
+    return stepService.findScenarioStepTemplatesByContract(tenantId, action.getId());
+  }
+
+  /** Of these actions, the ones whose card says injects still run an older version. */
+  public List<String> actionsWithOlderVersionsInUse(String tenantId, List<String> actionIds) {
+    if (actionIds.isEmpty()) {
+      return List.of();
+    }
+    return payloadIdentityRepository.findAllActionIdsByTenantIdWithOlderVersionsInUse(
+        tenantId, actionIds);
+  }
+
+  // -- UPDATE --
+
+  /** Kept until a newer version arrives: the card shows no banner meanwhile. */
+  public void keepOlderVersions(String tenantId, String actionId, boolean kept) {
+    Payload version = payloadAction(tenantId, actionId).getPayload();
+    PayloadIdentity identity = version.getIdentity();
+    identity.setOlderVersionsKeptFor(kept ? version.getId() : null);
+    payloadIdentityRepository.save(identity);
   }
 
   private PayloadVersionOutput output(
@@ -123,6 +185,7 @@ public class PayloadVersionService {
         action.getId(),
         version.getVersion(),
         version.isLatest(),
+        version.getId().equals(version.getIdentity().getOlderVersionsKeptFor()),
         revocation != null,
         revocation != null && revocation.isByCatalogue(),
         revocation != null ? revocation.getReason() : null,
@@ -146,7 +209,7 @@ public class PayloadVersionService {
     }
   }
 
-  private InjectorContract payloadAction(String tenantId, String actionId) {
+  public InjectorContract payloadAction(String tenantId, String actionId) {
     InjectorContract action = injectorContractService.injectorContractInTenant(actionId, tenantId);
     if (action.getPayload() == null) {
       throw new ElementNotFoundException(NO_PAYLOAD);

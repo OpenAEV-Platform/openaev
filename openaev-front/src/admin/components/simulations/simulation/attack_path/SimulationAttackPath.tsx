@@ -23,7 +23,7 @@ import {
   fetchFindingsByCategory,
   fetchSimulationsMetaById,
 } from '../../../../../actions/attack-path/attack-path-actions';
-import { createRunningExerciseFromScenario } from '../../../../../actions/scenarios/scenario-actions';
+import { launchScenario } from '../../../../../actions/scenarios/scenario-actions';
 import EmptyPlaceholder from '../../../../../components/common/EmptyPlaceholder';
 import { criticalityColor } from '../../../../../components/criticalityColor';
 import { useFormatter } from '../../../../../components/i18n';
@@ -2667,10 +2667,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       return;
     }
     setLaunching(true);
-    createRunningExerciseFromScenario(scenarioId)
-      .then((res) => {
+    launchScenario(scenarioId)
+      .then(({ simulation_id }) => {
         MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
-        navigate(`${SIMULATION_BASE_URL}/${res.data.exercise_id}`);
+        navigate(`${SIMULATION_BASE_URL}/${simulation_id}`);
       })
       .catch(() => {
         MESSAGING$.notifyError(t('Error while launching the simulation'));
@@ -2732,6 +2732,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         onToggleFullscreen={() => setFullscreen(f => !f)}
         onExportPng={graphHasContent ? requestPngExport : undefined}
         exportingPng={exportingPng}
+        graphSimulationId={simulationId ?? undefined}
         searchOptions={searchOptions}
         searchInput={searchInput}
         onSearchInputChange={setSearchInput}

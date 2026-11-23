@@ -808,7 +808,11 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
   void givenId_shouldRetrievedConnectorInstance() throws Exception {
     CatalogConnector catalogConnector = getCatalogConnector();
     getConnectorInstance(catalogConnector, new HashSet<>());
-    ConnectorInstance instance2 = getConnectorInstance(catalogConnector, new HashSet<>());
+    ConnectorInstancePersisted instance2 = getConnectorInstance(catalogConnector, new HashSet<>());
+    instance2.setStartedAt(Instant.now().truncatedTo(ChronoUnit.SECONDS));
+    instance2.setRestartCount(3);
+    instance2.setInRebootLoop(true);
+    connectorInstanceRepository.save(instance2);
     String response =
         mvc.perform(
                 get(CONNECTOR_INSTANCE_URI + "/" + instance2.getId())
@@ -826,6 +830,11 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     assertThatJson(response)
         .inPath("$.connector_instance_requested_status")
         .isEqualTo(instance2.getRequestedStatus());
+    // The container state the composer reports, and the image it deploys, are part of the read
+    assertThatJson(response).inPath("$.connector_image").isEqualTo("openaev/new-collector:0.0.0");
+    assertThatJson(response).inPath("$.connector_instance_started_at").isPresent();
+    assertThatJson(response).inPath("$.connector_instance_restart_count").isEqualTo(3);
+    assertThatJson(response).inPath("$.connector_instance_is_in_reboot_loop").isEqualTo(true);
   }
 
   @Test

@@ -12,6 +12,7 @@ XTM One is the AI platform of the Filigran eXtended Threat Management (XTM) suit
 - **Phishing**: generate email templates with AI. See [Email templates](../../usage/build/components/phishing/email-templates.md).
 - **Autonomous attack**: the orchestrator of autonomous attack chaining runs in XTM One. See [Autonomous attack](../../usage/attack-chaining/autonomous/overview.md).
 - **MCP server**: use OpenAEV from MCP clients. See [MCP server](../mcp-server/mcp-server.md).
+- **Inventory pivot**: an Asset that XTM One's CTEM inventory also holds (matched on its hostname, FQDN, IP or MAC address) carries the XTM One emblem first in its header; **Open in XTM One** opens the asset in the inventory. The lookup runs as the signed-in user, so it shows only what that user may read in XTM One. It does not depend on the exploration graph preview feature.
 
 ## Connect OpenAEV to XTM One
 

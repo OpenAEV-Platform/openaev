@@ -13,6 +13,7 @@ import {
   ViewInArOutlined,
 } from '@mui/icons-material';
 import { type SvgIconProps } from '@mui/material';
+import { SourceBranch } from 'mdi-material-ui';
 import { type ComponentType } from 'react';
 
 // One taxonomy glyph per asset category (level-1). Kept in a plain module (no
@@ -30,6 +31,7 @@ const ASSET_CATEGORY_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   SAAS_APPLICATION: AppsOutlined,
   AI_TARGET: SmartToyOutlined,
   SECURITY_PLATFORM: SecurityOutlined,
+  SOURCE_CODE: SourceBranch,
   GENERIC_ASSET: CategoryOutlined,
 };
 

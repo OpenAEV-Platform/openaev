@@ -75,6 +75,9 @@ const TeamOrAssetLine: FunctionComponent<Props> = ({
       teamsMap: helper.getTeamsMap(),
     };
   });
+  // TODO: this page only lists human expectations (manual, article, challenge), which target teams
+  // and players, never assets. Remove the asset and asset group parts of this component and the two
+  // fetches below, then deprecate the simulation endpoints and asset-groups routes (#8407).
   useDataLoader(() => {
     dispatch(fetchExerciseTeams(exerciseId));
     dispatch(fetchExerciseArticles(exerciseId));

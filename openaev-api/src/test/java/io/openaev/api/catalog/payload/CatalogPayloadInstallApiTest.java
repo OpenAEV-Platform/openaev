@@ -1,6 +1,6 @@
 package io.openaev.api.catalog.payload;
 
-import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
+import static io.openaev.api.catalog.CatalogRoutes.TENANT_CATALOG_URI;
 import static io.openaev.api.catalog.CatalogSettingsApi.CATALOG_SETTINGS_URI;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
@@ -272,12 +272,15 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
         .toList();
   }
 
-  private List<CatalogHistory.Action> history() {
+  private List<CatalogHistory> historyRows() {
     entityManager.flush();
     return catalogHistoryRepository.findAll().stream()
         .filter(row -> PAYLOAD_ID.equals(row.getExternalId()))
-        .map(CatalogHistory::getAction)
         .toList();
+  }
+
+  private List<CatalogHistory.Action> history() {
+    return historyRows().stream().map(CatalogHistory::getAction).toList();
   }
 
   // -- INSTALL --
@@ -452,11 +455,20 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
   @DisplayName("Browsing the catalogue")
   class Browsing {
 
-    private static final String PAYLOAD_IDS = "$[?(@.action_kind == 'PAYLOAD')].action_id";
-    private static final String INTEGRATION_IDS = "$[?(@.action_kind == 'INTEGRATION')].action_id";
+    private static final String PAYLOAD_IDS = "$.content[?(@.action_kind == 'PAYLOAD')].action_id";
+    private static final String INTEGRATION_IDS =
+        "$.content[?(@.action_kind == 'INTEGRATION')].action_id";
 
     private ResultActions read(String uri, Object... variables) throws Exception {
       return mvc.perform(get(TENANT_CATALOG_URI + uri, variables));
+    }
+
+    private ResultActions available() throws Exception {
+      return mvc.perform(
+          post(TENANT_CATALOG_URI + "/actions/search", DEFAULT_TENANT_UUID)
+              .with(csrf())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(mapper.writeValueAsString(new SearchPaginationInput())));
     }
 
     @BeforeEach
@@ -483,7 +495,7 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
       injectorRepository.save(injector);
 
       // Act
-      ResultActions result = read("/actions", DEFAULT_TENANT_UUID);
+      ResultActions result = available();
 
       // Assert
       result
@@ -515,7 +527,7 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
       }
 
       // Act
-      ResultActions result = read("/actions", DEFAULT_TENANT_UUID);
+      ResultActions result = available();
 
       // Assert
       result
@@ -738,6 +750,49 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
 
       // Assert
       assertThat(revocation(payloadId).isPresent()).isEqualTo(stillRevoked);
+    }
+
+    @Test
+    @DisplayName(
+        "records a revocation by a tenant admin and its lift in the history, with the admin")
+    void given_revokedThenLiftedByAdmin_should_recordBothWithTheAdmin() throws Exception {
+      // Arrange
+      String payloadId = installed();
+      revokeByAdmin(payloadId);
+
+      // Act
+      lift(payloadId).andExpect(status().isNoContent());
+
+      // Assert
+      assertThat(historyRows())
+          .filteredOn(row -> row.getAction() != CatalogHistory.Action.INSTALL)
+          .extracting(
+              CatalogHistory::getAction, CatalogHistory::getMode, CatalogHistory::getVersion)
+          .containsExactly(
+              tuple(CatalogHistory.Action.REVOKE, CatalogHistory.Mode.MANUAL, "1.0.0"),
+              tuple(CatalogHistory.Action.LIFT_REVOCATION, CatalogHistory.Mode.MANUAL, "1.0.0"));
+      assertThat(historyRows()).extracting(CatalogHistory::getUser).doesNotContainNull();
+    }
+
+    @Test
+    @DisplayName("records its own revocation and lift in the history, by itself")
+    void given_releaseRevokesThenClears_should_recordBothAsAuto() throws Exception {
+      // Arrange
+      installed();
+      publish("1.261110.0", "REVOKED", RELEASED, "1.0.0");
+      applyCatalogueRevocations();
+      publish("1.261111.0", "VERIFIED", RELEASED, "1.0.0");
+
+      // Act
+      applyCatalogueRevocations();
+
+      // Assert
+      assertThat(historyRows())
+          .filteredOn(row -> row.getAction() != CatalogHistory.Action.INSTALL)
+          .extracting(CatalogHistory::getAction, CatalogHistory::getMode)
+          .containsExactly(
+              tuple(CatalogHistory.Action.REVOKE, CatalogHistory.Mode.AUTO),
+              tuple(CatalogHistory.Action.LIFT_REVOCATION, CatalogHistory.Mode.AUTO));
     }
 
     @ParameterizedTest(name = "revoked by a tenant admin: {0}")

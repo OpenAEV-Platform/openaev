@@ -56,6 +56,10 @@ public class ScenarioOutput {
   @Schema(description = "Type affinity of the scenario")
   private String typeAffinity;
 
+  @JsonProperty("scenario_version")
+  @Schema(description = "Catalogue version installed, empty for a scenario of the tenant")
+  private String catalogVersion;
+
   @JsonProperty("scenario_external_url")
   @Schema(description = "External URL of the scenario")
   private String externalUrl;

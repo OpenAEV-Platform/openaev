@@ -3,6 +3,7 @@ import { DevicesOtherOutlined } from '@mui/icons-material';
 import { Chip } from '@mui/material';
 
 import ClickableModeChip from '../../../../components/common/chips/ClickableModeChip';
+import { neutralChipSx } from '../../../../components/common/chips/standardChip';
 import FilterChipValues from '../../../../components/common/queryable/filter/FilterChipValues';
 import { type Translate } from '../../../../components/i18n';
 import { type AssetGroup, type AssetGroupOutput } from '../../../../utils/api-types';
@@ -11,10 +12,15 @@ import AssetGroupRulesCell from './AssetGroupRulesCell';
 // Every chip of the Rules column is the same height as the library's own.
 const RULES_CHIP_HEIGHT = 24;
 
-const CHIP_SX = {
-  borderRadius: 1,
-  height: RULES_CHIP_HEIGHT,
-};
+// Standard colours ("Pastel colours" off): outlined, as the design-system Chip and the
+// AND/OR mode chip beside them; the `pastel` root class keeps the filled tile.
+const CHIP_SX = [
+  {
+    borderRadius: 1,
+    height: RULES_CHIP_HEIGHT,
+  },
+  neutralChipSx,
+];
 
 // Shared rule rendering (dynamic filter chips + static managed assets count)
 // used by both the asset groups list and the asset group overview page.
@@ -47,7 +53,7 @@ const computeRuleValues = (
       >
         {idx !== 0 && <ClickableModeChip mode={assetGroup.asset_group_dynamic_filter?.mode} height={RULES_CHIP_HEIGHT} />}
         <Chip
-          variant="filled"
+          variant="outlined"
           size="small"
           sx={CHIP_SX}
           label={<FilterChipValues filter={filter} />}
@@ -67,7 +73,7 @@ const computeRuleValues = (
           >
             {hasDynamic && <span>{t('and')}</span>}
             <Chip
-              variant="filled"
+              variant="outlined"
               size="small"
               sx={CHIP_SX}
               icon={<DevicesOtherOutlined sx={{ fontSize: 14 }} />}

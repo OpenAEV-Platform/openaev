@@ -40,6 +40,8 @@ public interface GroupRepository
 
   List<Group> findAllByTenantIdAndAutoNewMarkingTrue(String tenantId);
 
+  List<Group> findAllByTenantIdAndMarkingsId(String tenantId, String markingId);
+
   List<Group> findByTenantIdAndName(String tenantId, String name);
 
   @Query(value = "SELECT user_id FROM users_groups WHERE group_id = :groupId", nativeQuery = true)

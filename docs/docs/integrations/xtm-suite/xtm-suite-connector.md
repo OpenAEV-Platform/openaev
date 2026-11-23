@@ -72,6 +72,39 @@ In OpenCTI, open **Data > Ingestion > Monitoring**: the **OpenAEV Coverage** con
 
 Once the connector appears in OpenCTI, you can trigger it to run security coverage enrichments. Refer to the [OpenCTI Security Coverage documentation](https://docs.opencti.io/latest/usage/security-coverage/) for how to trigger the enabled connector to get automated enriched security posture assessments with OpenAEV.
 
+## OpenCTI and OpenCRQ pivots
+
+Once a Tenant is connected to OpenCTI or OpenCRQ, OpenAEV shows which of its objects the connected product also holds.
+A matched Asset, Attack pattern or Vulnerability carries the product's mark, and the **Open in OpenCTI** or
+**Open in OpenCRQ** action opens it there, from the object's page and its lists. The product emblems come first in the
+header of a page, before its own actions, in the order XTM One (assets, see [XTM One](xtm-one.md)), OpenCTI, OpenCRQ. The pivots are available on every deployment: they do not depend on the
+exploration graph preview feature. Each lookup needs the right to search the kind of object it reads; the connection's token
+never leaves the OpenAEV backend.
+
+### Connect OpenCRQ
+
+Each OpenCRQ connection belongs to an OpenAEV Tenant, identified by its UUID (`{id}`), like the OpenCTI connection
+above. Use the token of an OpenCRQ service account: it binds the calls to one OpenCRQ tenant.
+
+```properties
+openaev.xtm.opencrq.{id}.url=https://opencrq.domain.example
+openaev.xtm.opencrq.{id}.token=<your-opencrq-service-account-token>
+```
+
+Or as environment variables:
+
+```properties
+OPENAEV_XTM_OPENCRQ_{id}_URL=https://opencrq.domain.example
+OPENAEV_XTM_OPENCRQ_{id}_TOKEN=<your-opencrq-service-account-token>
+```
+
+Set `openaev.xtm.opencrq.{id}.api-url` only if the OpenCRQ API is not served at `<url>/trpc`. Restart OpenAEV after
+changing the configuration. A connection with both a URL and a token is enabled by default (a Filigran bundle or a
+Helm deployment that provides them is connected with no admin step); set `openaev.xtm.opencrq.{id}.enable=false` to
+turn it off. On a single-tenant deployment the keys without `{id}` (`OPENAEV_XTM_OPENCRQ_URL`,
+`OPENAEV_XTM_OPENCRQ_TOKEN`) configure the default tenant. Once connected, the OpenCRQ entry of the product switcher
+(top left) opens the connected instance and reads **Platform connected**.
+
 ## Example workflow
 
 1. A threat analyst identifies a new intrusion set in **OpenCTI**.
@@ -85,4 +118,7 @@ Once the connector appears in OpenCTI, you can trigger it to run security covera
 - [XTM One](xtm-one.md) -- Connect OpenAEV to XTM One for its AI features
 - [Scenario generation from OpenCTI security coverage](../../usage/build/scenario/security-coverage.md) -- Create Scenarios from OpenCTI Security Coverage objects
 - [Configuration reference](../../reference/deployment/configuration.md#xtm-suite-opencti) -- All configuration parameters
+{%- if feature_visible("EXPLORATION_GRAPH") %}
+- [Exploration graph](../../usage/run-and-evaluate/exploration-graph.md) -- See which objects OpenCTI and OpenCRQ also hold
+{%- endif %}
 - [Scenarios and Simulations](../../usage/get-started/foundations/scenarios-and-simulations.md) -- How Scenarios and Simulations work

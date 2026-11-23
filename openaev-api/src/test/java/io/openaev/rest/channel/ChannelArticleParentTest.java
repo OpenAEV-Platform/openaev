@@ -1,7 +1,7 @@
 package io.openaev.rest.channel;
 
-import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
-import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.ArticleFixture.ARTICLE_NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -53,6 +53,17 @@ class ChannelArticleParentTest extends IntegrationTest {
         .withChannel(channelComposer.forChannel(ChannelFixture.getChannel()));
   }
 
+  /**
+   * The tenant-prefixed route, the one the web app calls: the fixtures stamp the ambient tenant.
+   */
+  private String simulationArticleUri(String simulationId, String articleId) {
+    return tenantUri(TENANT_EXERCISE_URI + "/" + simulationId + "/articles/" + articleId);
+  }
+
+  private String scenarioArticleUri(String scenarioId, String articleId) {
+    return tenantUri(TENANT_SCENARIO_URI + "/" + scenarioId + "/articles/" + articleId);
+  }
+
   private String updateInput(Article article) {
     ArticleUpdateInput input = new ArticleUpdateInput();
     input.setName("Updated article");
@@ -86,7 +97,7 @@ class ChannelArticleParentTest extends IntegrationTest {
 
       // Act
       mvc.perform(
-              put(EXERCISE_URI + "/" + otherSimulationId + "/articles/" + article.getId())
+              put(simulationArticleUri(otherSimulationId, article.getId()))
                   .content(updateInput(article))
                   .contentType(MediaType.APPLICATION_JSON)
                   .with(csrf()))
@@ -104,9 +115,7 @@ class ChannelArticleParentTest extends IntegrationTest {
       String otherSimulationId = otherSimulationId();
 
       // Act
-      mvc.perform(
-              delete(EXERCISE_URI + "/" + otherSimulationId + "/articles/" + article.getId())
-                  .with(csrf()))
+      mvc.perform(delete(simulationArticleUri(otherSimulationId, article.getId())).with(csrf()))
           // Assert
           .andExpect(status().isNotFound());
       assertTrue(articleRepository.findById(article.getId()).isPresent());
@@ -120,11 +129,7 @@ class ChannelArticleParentTest extends IntegrationTest {
 
       // Act
       mvc.perform(
-              put(EXERCISE_URI
-                      + "/"
-                      + article.getExercise().getId()
-                      + "/articles/"
-                      + article.getId())
+              put(simulationArticleUri(article.getExercise().getId(), article.getId()))
                   .content(updateInput(article))
                   .contentType(MediaType.APPLICATION_JSON)
                   .with(csrf()))
@@ -156,7 +161,7 @@ class ChannelArticleParentTest extends IntegrationTest {
 
       // Act
       mvc.perform(
-              put(SCENARIO_URI + "/" + otherScenarioId + "/articles/" + article.getId())
+              put(scenarioArticleUri(otherScenarioId, article.getId()))
                   .content(updateInput(article))
                   .contentType(MediaType.APPLICATION_JSON)
                   .with(csrf()))
@@ -174,9 +179,7 @@ class ChannelArticleParentTest extends IntegrationTest {
       String otherScenarioId = otherScenarioId();
 
       // Act
-      mvc.perform(
-              delete(SCENARIO_URI + "/" + otherScenarioId + "/articles/" + article.getId())
-                  .with(csrf()))
+      mvc.perform(delete(scenarioArticleUri(otherScenarioId, article.getId())).with(csrf()))
           // Assert
           .andExpect(status().isNotFound());
       assertTrue(articleRepository.findById(article.getId()).isPresent());

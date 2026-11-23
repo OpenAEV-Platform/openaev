@@ -7,14 +7,21 @@ import { makeStyles } from 'tss-react/mui';
 import { useFormatter } from '../../i18n';
 import convertOperatorToIcon from './ChipUtils';
 import ClickableChipPopover from './ClickableChipPopover';
+import { neutralChipSx, STANDARD_CHIP_EDGE } from './standardChip';
 
 const useStyles = makeStyles()(theme => ({
   mode: {
-    display: 'inline-block',
-    height: '100%',
-    backgroundColor: theme.palette.action?.selected,
-    margin: '0 4px',
-    padding: '0 4px',
+    'display': 'inline-block',
+    'height': '100%',
+    'border': STANDARD_CHIP_EDGE,
+    'borderRadius': 4,
+    'backgroundColor': 'transparent',
+    '.pastel &': {
+      borderColor: 'transparent',
+      backgroundColor: theme.palette.action?.selected,
+    },
+    'margin': '0 4px',
+    'padding': '0 4px',
   },
   modeTooltip: { margin: '0 4px' },
   container: {
@@ -172,17 +179,20 @@ const ClickableChip: FunctionComponent<Props> = ({
     );
   };
 
-  const chipVariant = 'filled';
-
   return (
     <>
       <Tooltip>
         <TooltipTrigger asChild>
           <Chip
-            variant={chipVariant}
+            variant="outlined"
             label={filterValues(false)}
             onDelete={onDelete ? handleRemoveFilter : undefined}
-            sx={{ borderRadius: 1 }}
+            // Standard colours ("Pastel colours" off): outlined, as the design-system Chip; the
+            // `pastel` root class (useFdsThemeScope) keeps today's filled chip.
+            sx={theme => ({
+              borderRadius: 1,
+              ...neutralChipSx(theme),
+            })}
             ref={chipRef}
           />
         </TooltipTrigger>

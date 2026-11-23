@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
@@ -96,10 +97,17 @@ public class CatalogReleaseFixture {
 
   /** A scenario export holding one implant inject that runs the given payload file. */
   public static byte[] scenarioPackage(byte[] payloadFile) {
+    return scenarioPackage(payloadFile, export -> {});
+  }
+
+  /** The same export, changed as a later version of it would be. */
+  public static byte[] scenarioPackage(byte[] payloadFile, Consumer<ObjectNode> change) {
     return zippedExport(
         "/importer-v1/import-scenario-with-attack-pattern.json",
-        export ->
-            (ObjectNode) export.get("scenario_injects").get(0).get("inject_injector_contract"),
+        export -> {
+          change.accept(export);
+          return (ObjectNode) export.get("scenario_injects").get(0).get("inject_injector_contract");
+        },
         payloadFile);
   }
 

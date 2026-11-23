@@ -34,6 +34,7 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.injectors.manual.ManualContract;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.stix.objects.constants.CommonProperties;
@@ -521,6 +522,35 @@ class StixApiTest extends IntegrationTest {
       // -- ASSERT Injects --
       Set<Inject> injects = injectRepository.findByScenarioId(scenarioId);
       assertThat(injects).hasSize(4);
+    }
+
+    @Test
+    @DisplayName(
+        "With coverage_scenario_read_only_first at its default, a coverage builds and schedules"
+            + " exactly as before")
+    void defaultSettingKeepsTheBuildAndScheduleOfMain() throws Exception {
+      Instant before = Instant.now();
+      String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+
+      // Same schedule as main: recurrence from the coverage, first run two minutes after ingestion.
+      assertThat(createdScenario.getRecurrence()).asString().isEqualTo("P1D");
+      assertThat(createdScenario.getRecurrenceStart())
+          .isBetween(
+              before.plus(2, ChronoUnit.MINUTES).truncatedTo(ChronoUnit.SECONDS),
+              Instant.now().plus(2, ChronoUnit.MINUTES));
+      assertThat(createdScenario.getScheduledBy()).isNull();
+
+      // Same injects as main: the setting disables none of them. Main builds a technical inject
+      // enabled and a manual placeholder (no matching contract) disabled.
+      Set<Inject> injects = injectRepository.findByScenarioId(scenarioId);
+      assertThat(injects).hasSize(4);
+      String manual = ManualContract.MANUAL_DEFAULT;
+      for (Inject inject : injects) {
+        boolean placeholder =
+            inject.getInjectorContract().map(c -> manual.equals(c.getId())).orElse(false);
+        assertThat(inject.isEnabled()).isEqualTo(!placeholder);
+      }
     }
 
     @Test

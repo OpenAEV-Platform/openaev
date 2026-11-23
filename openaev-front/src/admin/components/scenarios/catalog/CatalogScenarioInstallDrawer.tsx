@@ -6,12 +6,12 @@ import { type CatalogScenarioOutput } from '../../../../utils/api-types';
 import { SCENARIO_TYPE_CHAINED } from '../scenario/ScenarioType';
 import { type ScenarioTargets, toTargetsInput } from '../targets/scenarioTargets';
 import ScenarioTargetsDrawer from '../targets/ScenarioTargetsDrawer';
-import { catalogScenarioType } from './catalogScenarioFilters';
+import { catalogScenarioType } from './catalogScenarioType';
 
 interface Props {
   scenario: CatalogScenarioOutput;
   onClose: () => void;
-  onInstalled: (scenario: CatalogScenarioOutput) => void;
+  onInstalled: (scenario: CatalogScenarioOutput, scenarioId: string) => void;
 }
 
 const CatalogScenarioInstallDrawer: FunctionComponent<Props> = ({ scenario, onClose, onInstalled }) => {
@@ -23,7 +23,7 @@ const CatalogScenarioInstallDrawer: FunctionComponent<Props> = ({ scenario, onCl
     : {
         scenario_type: 'time-based',
         ...toTargetsInput(targets),
-      }).then(() => onInstalled(scenario));
+      }).then(({ installed_id }) => onInstalled(scenario, installed_id));
 
   return (
     <ScenarioTargetsDrawer

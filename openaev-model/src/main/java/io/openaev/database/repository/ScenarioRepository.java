@@ -1,6 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Scenario;
+import io.openaev.database.raw.RawCatalogInstalledScenario;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawScenario;
 import io.openaev.database.raw.RawScenarioSimpleIndexing;
@@ -426,7 +427,22 @@ public interface ScenarioRepository
 
   boolean existsByIdAndTenantIdIn(@NotNull String id, @NotNull Collection<String> tenantIds);
 
+  /**
+   * Scenarios generated from the given external references (the STIX id of the threat knowledge
+   * they came from), most recently updated first, scoped by the transaction alone. Used by the XTM
+   * counterpart lookup another product runs on its threat objects.
+   */
+  List<Scenario> findAllByExternalReferenceInOrderByUpdatedAtDesc(
+      @NotNull Collection<String> externalReferences);
+
   // -- CATALOGUE --
 
   boolean existsByCatalogIdentityId(String identityId);
+
+  @Query(
+      "SELECT i.repository AS repository, i.externalId AS externalId, s.id AS scenarioId"
+          + " FROM Scenario s JOIN s.catalogIdentity i"
+          + " WHERE s.tenant.id = :tenantId AND i.externalId IN :externalIds")
+  List<RawCatalogInstalledScenario> findInstalledFromCatalog(
+      @Param("tenantId") String tenantId, @Param("externalIds") Collection<String> externalIds);
 }
