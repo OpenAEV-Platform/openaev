@@ -1,24 +1,32 @@
+import { type Page } from '../../components/common/queryable/Page';
 import { simpleCall, simplePostCall } from '../../utils/Action';
 import {
+  type CatalogInstallAllOutput,
   type CatalogInstallOutput,
   type CatalogScenarioOutput,
   type CatalogScenarioVersionOutput,
   type ChainedScenarioInstallInput,
+  type SearchPaginationInput,
   type TimeBasedScenarioInstallInput,
 } from '../../utils/api-types';
+import { type CatalogFacetCounts } from './catalog-helper';
+import { CATALOG_URI, catalogItemUri, catalogVersionUri } from './catalog-uri';
 
-const CATALOG_URI = '/api/catalog';
+export const searchCatalogScenarios = (input: SearchPaginationInput): Promise<{ data: Page<CatalogScenarioOutput> }> => simplePostCall(`${CATALOG_URI}/scenarios/search`, input);
 
-export const fetchCatalogScenarios = (): Promise<CatalogScenarioOutput[]> => simpleCall(`${CATALOG_URI}/scenarios`)
-  .then(({ data }: { data: CatalogScenarioOutput[] }) => data);
+export const fetchCatalogScenarioFacetCounts = (input: SearchPaginationInput): Promise<CatalogFacetCounts> => simplePostCall(`${CATALOG_URI}/scenarios/facet-counts`, input)
+  .then(({ data }: { data: CatalogFacetCounts }) => data);
 
-export const fetchCatalogScenarioVersions = (externalId: string): Promise<CatalogScenarioVersionOutput[]> => simpleCall(`${CATALOG_URI}/scenarios/${encodeURIComponent(externalId)}/versions`)
+export const fetchCatalogScenarioVersions = (externalId: string): Promise<CatalogScenarioVersionOutput[]> => simpleCall(`${catalogItemUri('scenarios', externalId)}/versions`)
   .then(({ data }: { data: CatalogScenarioVersionOutput[] }) => data);
 
 export const installCatalogScenario = (
   scenario: CatalogScenarioOutput,
   input: TimeBasedScenarioInstallInput | ChainedScenarioInstallInput,
 ): Promise<CatalogInstallOutput> => simplePostCall(
-  `${CATALOG_URI}/scenarios/${encodeURIComponent(scenario.catalog_scenario_external_id)}/versions/${encodeURIComponent(scenario.catalog_scenario_version)}/install`,
+  `${catalogVersionUri('scenarios', scenario.catalog_scenario_external_id, scenario.catalog_scenario_version)}/install`,
   input,
 ).then(({ data }: { data: CatalogInstallOutput }) => data);
+
+export const installAllCatalogScenarios = (): Promise<CatalogInstallAllOutput> => simplePostCall(`${CATALOG_URI}/scenarios/install-all`)
+  .then(({ data }: { data: CatalogInstallAllOutput }) => data);

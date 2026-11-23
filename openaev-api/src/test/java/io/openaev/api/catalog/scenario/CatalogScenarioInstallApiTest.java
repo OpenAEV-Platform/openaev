@@ -65,6 +65,7 @@ import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -438,25 +439,30 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
   class Browsing {
 
     private ResultActions available() throws Exception {
-      return mvc.perform(get(TENANT_CATALOG_URI + "/scenarios", DEFAULT_TENANT_UUID));
+      return mvc.perform(
+          post(TENANT_CATALOG_URI + "/scenarios/search", DEFAULT_TENANT_UUID)
+              .with(csrf())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(mapper.writeValueAsString(new SearchPaginationInput())));
     }
 
     static Stream<Arguments> scenarioStates() {
       return Stream.of(
-          Arguments.of("never installed", false, false, 1),
-          Arguments.of("installed", true, false, 0),
-          Arguments.of("uninstalled", true, true, 1));
+          Arguments.of("never installed", false, false),
+          Arguments.of("installed", true, false),
+          Arguments.of("uninstalled", true, true));
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("scenarioStates")
-    @DisplayName("lists a scenario only while the tenant does not show it")
-    void given_scenarioState_should_listItOnlyWhenNotInstalled(
-        String description, boolean installed, boolean uninstalled, int listed) throws Exception {
+    @DisplayName("lists a scenario with the one the tenant installed from it, if any")
+    void given_scenarioState_should_listItWithTheScenarioInstalled(
+        String description, boolean installed, boolean uninstalled) throws Exception {
       // Arrange
       publish(Map.of());
+      Scenario scenario = null;
       if (installed) {
-        Scenario scenario = installedScenario(install().andExpect(status().isCreated()));
+        scenario = installedScenario(install().andExpect(status().isCreated()));
         if (uninstalled) {
           uninstall(scenario);
         }
@@ -466,7 +472,15 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       ResultActions result = available();
 
       // Assert
-      result.andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(listed));
+      result.andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(1));
+      if (installed && !uninstalled) {
+        result.andExpect(
+            jsonPath("$.content[0].catalog_scenario_installed_scenario_id")
+                .value(scenario.getId()));
+      } else {
+        result.andExpect(
+            jsonPath("$.content[0].catalog_scenario_installed_scenario_id").doesNotExist());
+      }
     }
 
     @Test
@@ -481,9 +495,9 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       // Assert
       result
           .andExpect(status().isOk())
-          .andExpect(jsonPath("$[0].catalog_scenario_external_id").value(SCENARIO_ID))
+          .andExpect(jsonPath("$.content[0].catalog_scenario_external_id").value(SCENARIO_ID))
           .andExpect(
-              jsonPath("$[0].catalog_scenario_missing_requirements[0]")
+              jsonPath("$.content[0].catalog_scenario_missing_requirements[0]")
                   .value("Injector openaev_unknown"));
     }
 

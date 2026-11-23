@@ -7,10 +7,10 @@ import {
   useAuthorFacetFilter,
 } from '../../../../components/common/facets/ContractFacets';
 import { type FacetRow, type FacetSection, FacetSidebar } from '../../../../components/common/facets/FacetFilters';
+import { FACET_PLATFORMS, platformFacetIcon } from '../../../../components/common/facets/facetPlatforms';
 import useFacetFilterToggle from '../../../../components/common/facets/useFacetFilterToggle';
 import { type FilterHelpers } from '../../../../components/common/queryable/filter/FilterHelpers';
 import { useFormatter } from '../../../../components/i18n';
-import PlatformIcon from '../../../../components/PlatformIcon';
 import { type SearchPaginationInput } from '../../../../utils/api-types';
 import { type IconBarElement } from '../../common/domains/IconBar-model';
 import { type ThreatArsenalFacetCounts } from '../useThreatArsenalFacetCounts';
@@ -18,7 +18,6 @@ import { type ThreatArsenalFacetCounts } from '../useThreatArsenalFacetCounts';
 const PLATFORM_FILTER_KEY = 'action_platforms';
 const STATUS_FILTER_KEY = 'action_payload_status';
 const AUTHOR_FILTER_KEY = 'action_author';
-const PLATFORMS = ['Windows', 'Linux', 'MacOS'];
 
 interface Props {
   domainElements: IconBarElement[];
@@ -58,11 +57,11 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
       onToggle: element.function,
     }));
 
-    const platformRows: FacetRow[] = PLATFORMS.map(platform => ({
+    const platformRows: FacetRow[] = FACET_PLATFORMS.map(platform => ({
       value: platform,
       label: t(platform),
       count: facetCounts ? facetCounts.platforms[platform] ?? 0 : undefined,
-      icon: () => <PlatformIcon platform={platform} width={16} />,
+      icon: () => platformFacetIcon(platform),
       checked: platformValues.includes(platform),
       onToggle: () => toggle(PLATFORM_FILTER_KEY, platform),
     }));

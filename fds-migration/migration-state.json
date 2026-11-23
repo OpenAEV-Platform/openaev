@@ -345,6 +345,7 @@
         "openaev-front/src/components/common/list/fragments/DateFragment.tsx",
         "openaev-front/src/components/common/list/fragments/EndpointActiveFragment.tsx",
         "openaev-front/src/components/common/list/fragments/EndpointAgentsPrivilegeFragment.tsx",
+        "openaev-front/src/components/common/marketplace/install/MarketplaceInstallActions.tsx",
         "openaev-front/src/components/common/overview/CodeBlock.tsx",
         "openaev-front/src/components/common/queryable/filter/FilterAutocomplete.tsx",
         "openaev-front/src/components/common/queryable/filter/FilterChip.tsx",
@@ -476,6 +477,7 @@
         "openaev-front/src/components/common/dialog/Dialog.tsx",
         "openaev-front/src/components/common/import/DragAndDropImportDialog.tsx",
         "openaev-front/src/components/common/loader/ListLoader.tsx",
+        "openaev-front/src/components/common/marketplace/install/MarketplaceInstallActions.tsx",
         "openaev-front/src/components/common/terminal/Terminal.tsx",
         "openaev-front/src/components/fields/TagFieldSingle.tsx",
         "openaev-front/src/private/components/nav/TopBar.tsx",
@@ -607,7 +609,8 @@
         "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
         "openaev-front/src/components/common/marketplace/card/MarketplaceCardMeta.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/PayloadNewVersionDialog.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/customization/BlockSide.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/customization/BlockSide.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/catalog/CatalogPayloadInstallAction.tsx"
       ]
     },
     {
@@ -852,6 +855,7 @@
         "openaev-front/src/components/common/export/ExportOptionsDialog.tsx",
         "openaev-front/src/components/common/import/DragAndDropImportDialog.tsx",
         "openaev-front/src/components/common/loader/LoaderDialog.tsx",
+        "openaev-front/src/components/common/marketplace/install/MarketplaceInstallActions.tsx",
         "openaev-front/src/components/common/overview/Section.tsx",
         "openaev-front/src/components/common/pagination/PaginationComponent.tsx",
         "openaev-front/src/components/common/queryable/pagination/PaginationComponentV2.tsx",
@@ -880,7 +884,9 @@
         "openaev-front/src/admin/components/threat_arsenal/customization/RevertToFiligran.tsx",
         "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalInformationDrawer.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/versions/VersionsTabNote.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/versions/VersionsTabNote.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/catalog/CatalogPayloadInstallAction.tsx",
+        "openaev-front/src/admin/components/scenarios/catalog/CatalogScenarioAction.tsx"
       ]
     },
     {

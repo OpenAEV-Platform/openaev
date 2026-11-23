@@ -2842,6 +2842,7 @@ export interface CatalogScenarioOutput {
   catalog_scenario_description?: string;
   /** @minLength 1 */
   catalog_scenario_external_id: string;
+  catalog_scenario_installed_scenario_id?: string;
   catalog_scenario_missing_requirements: string[];
   catalog_scenario_name?: string;
   catalog_scenario_platforms: string[];
@@ -9600,6 +9601,44 @@ export interface PageAssetOutput {
 
 export interface PageAttackPatternOutput {
   content?: AttackPatternOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageAvailableActionOutput {
+  content?: AvailableActionOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageCatalogScenarioOutput {
+  content?: CatalogScenarioOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;

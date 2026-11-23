@@ -6,6 +6,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.database.model.scenario.ScenarioIdentity;
+import io.openaev.database.raw.RawCatalogInstalledScenario;
 import io.openaev.database.repository.ScenarioIdentityRepository;
 import io.openaev.importer.ImportResult;
 import io.openaev.rest.exception.BadRequestException;
@@ -17,6 +18,7 @@ import io.openaev.service.catalog.payload.InstallablePayloadVersion;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.scenario.ScenarioService;
 import java.io.ByteArrayInputStream;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -78,20 +80,26 @@ public class CatalogScenarioService {
 
   // -- READ --
 
-  /** The key of every catalogue scenario the tenant installed and still has. */
+  /** The scenario of the tenant installed from each of these catalogue items, by item key. */
   @Transactional(readOnly = true)
-  public Set<String> installedKeys(String tenantId) {
-    return keys(scenarioIdentityRepository.findAllInstalledByTenantId(tenantId));
+  public Map<String, String> installedScenarioIds(String tenantId, Collection<String> externalIds) {
+    if (externalIds.isEmpty()) {
+      return Map.of();
+    }
+    return scenarioService.installedFromCatalog(tenantId, externalIds).stream()
+        .collect(
+            Collectors.toMap(
+                installed -> CatalogOffer.key(installed.getRepository(), installed.getExternalId()),
+                RawCatalogInstalledScenario::getScenarioId,
+                (first, other) -> first));
   }
 
   /** The key of every catalogue scenario the tenant ever installed: an identity is kept. */
   @Transactional(readOnly = true)
   public Set<String> knownKeys(String tenantId) {
-    return keys(scenarioIdentityRepository.findAllByTenantId(tenantId));
-  }
-
-  private static Set<String> keys(List<ScenarioIdentity> identities) {
-    return identities.stream().map(CatalogOffer::key).collect(Collectors.toSet());
+    return scenarioIdentityRepository.findAllByTenantId(tenantId).stream()
+        .map(CatalogOffer::key)
+        .collect(Collectors.toSet());
   }
 
   // -- STEPS --
