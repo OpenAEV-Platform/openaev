@@ -10,9 +10,9 @@ import java.util.function.Supplier;
 import org.springframework.stereotype.Component;
 
 /**
- * Short-lived cache of the graph landing aggregates (#9447): the exposure ranking, the estate
- * overview and the top findings are tenant-wide GROUP BY reads, so they are computed at most once
- * per {@link #TTL_MILLIS} per tenant scope instead of at every page load.
+ * Short-lived cache of the graph landing aggregates: the exposure ranking, the estate overview and
+ * the top findings are tenant-wide GROUP BY reads, so they are computed at most once per {@link
+ * #TTL_MILLIS} per tenant scope instead of at every page load.
  *
  * <p>Only tenant-scoped raw rows are cached, keyed by the sorted tenant ids of the request scope
  * AND the caller's marking clearance ({@code app.current_markings}, ADR-009): the rows are read

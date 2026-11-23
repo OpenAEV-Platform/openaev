@@ -4,7 +4,6 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.api.graph.GraphFeature;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -22,14 +21,19 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 /**
  * Cross-platform awareness: which connected XTM products this tenant reaches, and which of our
  * objects they also hold. Each lookup is guarded by the right to search the object kind it reads.
- * Part of the exploration graph preview feature: every route answers a 404 while {@code
- * EXPLORATION_GRAPH} is off (the default).
+ * Not behind a preview feature: the pivots and the deep integration are their own feature, apart
+ * from the exploration graph (which {@code EXPLORATION_GRAPH} keeps gated).
+ *
+ * <p>The counterpart lookups call the connected products over the network and read no table, so
+ * they run outside any database transaction: a slow remote product never holds a connection of the
+ * pool.
  */
 @RestController
 @RequiredArgsConstructor
@@ -43,7 +47,6 @@ public class CounterpartApi extends RestBehavior {
   private final LocalObjectService localObjectService;
   private final UserService userService;
   private final PermissionService permissionService;
-  private final GraphFeature graphFeature;
 
   @LogExecutionTime
   @GetMapping("/connections")
@@ -53,7 +56,6 @@ public class CounterpartApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "List the XTM products this tenant is connected to")
   public List<XtmConnectionOutput> connections(TxCtx ctx, @PathVariable String tenantId) {
-    graphFeature.require();
     return counterpartService.connections(tenantId).stream()
         .map(XtmConnectionOutput::from)
         .toList();
@@ -61,7 +63,8 @@ public class CounterpartApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/counterparts/assets")
-  @Transactional(readOnly = true)
+  // A remote call to the connected products: no database transaction is held while it waits.
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   @Operation(summary = "Find assets in the connected XTM products")
   public List<CounterpartOutput> assets(
@@ -71,7 +74,7 @@ public class CounterpartApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/counterparts/attack-patterns")
-  @Transactional(readOnly = true)
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
   @Operation(summary = "Find attack patterns in the connected XTM products")
   public List<CounterpartOutput> attackPatterns(
@@ -81,7 +84,7 @@ public class CounterpartApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/counterparts/vulnerabilities")
-  @Transactional(readOnly = true)
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.VULNERABILITY)
   @Operation(summary = "Find vulnerabilities in the connected XTM products")
   public List<CounterpartOutput> vulnerabilities(
@@ -91,7 +94,7 @@ public class CounterpartApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/counterparts/threats")
-  @Transactional(readOnly = true)
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   @Operation(summary = "Find scenario threat sources in the connected XTM products")
   public List<CounterpartOutput> threats(
@@ -101,7 +104,7 @@ public class CounterpartApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/counterparts/alerts")
-  @Transactional(readOnly = true)
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Operation(summary = "Find collected alerts in the connected XTM products, by alert link")
   public List<CounterpartOutput> alerts(
@@ -168,7 +171,6 @@ public class CounterpartApi extends RestBehavior {
 
   private List<LocalObjectOutput> local(
       TxCtx ctx, CounterpartKind kind, CounterpartLookupInput input) {
-    graphFeature.require();
     return localObjectService.find(kind, input.keys(), access(ctx)).stream()
         .map(LocalObjectOutput::from)
         .toList();
@@ -201,15 +203,17 @@ public class CounterpartApi extends RestBehavior {
       private boolean can(String id, ResourceType type) {
         return permissionService.holdsInScope(
             ctx,
-            () -> permissionService.hasPermission(user, Optional.empty(), id, type, Action.READ));
+            user,
+            caller ->
+                permissionService.hasPermission(caller, Optional.empty(), id, type, Action.READ));
       }
     };
   }
 
   private List<CounterpartOutput> lookup(
       String tenantId, CounterpartKind kind, CounterpartLookupInput input) {
-    graphFeature.require();
-    return counterpartService.resolve(tenantId, kind, input.keys()).stream()
+    String userId = userService.currentUser().getId();
+    return counterpartService.resolve(tenantId, userId, kind, input.keys()).stream()
         .map(CounterpartOutput::from)
         .toList();
   }

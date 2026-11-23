@@ -7,6 +7,7 @@ import { Link } from 'react-router';
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadVersionOutput } from '../../../../utils/api-types';
 import useCountLabel from '../../../../utils/hooks/useCountLabel';
+import { versionsTabLink } from '../hook/useOpenedAction';
 import PayloadVersionSelect from '../versions/PayloadVersionSelect';
 import { usageCount } from '../versions/usages/usageCounts';
 import useUsageImpact from '../versions/usages/useUsageImpact';
@@ -95,7 +96,7 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, lift, v
                 >
                   <Text variant="content-base">{impact}</Text>
                   <Link
-                    to={`/admin/threat-arsenal?action=${encodeURIComponent(actionId)}&tab=versions`}
+                    to={versionsTabLink(actionId)}
                     target="_blank"
                     rel="noopener"
                     style={{

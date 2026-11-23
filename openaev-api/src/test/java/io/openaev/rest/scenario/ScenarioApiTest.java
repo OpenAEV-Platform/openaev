@@ -30,6 +30,7 @@ import io.openaev.rest.scenario.form.CheckScenarioRulesInput;
 import io.openaev.rest.scenario.form.ScenarioAndInjectorContractsInputs;
 import io.openaev.rest.scenario.form.ScenarioIdsAndInjectorContractsInputs;
 import io.openaev.rest.scenario.form.ScenarioInput;
+import io.openaev.rest.scenario.form.ScenarioReachabilityAssertionInput;
 import io.openaev.rest.scenario.form.ScenarioRecurrenceInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
 import io.openaev.service.AssetGroupService;
@@ -288,7 +289,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Requesting non existing scenario by ID fails gracefully")
   @Test
-  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void failsafeNonExistScenarioId() throws Exception {
     // -- EXECUTE --
     this.mvc
@@ -608,6 +611,63 @@ public class ScenarioApiTest extends IntegrationTest {
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.scenario_recurrence").value("0 0 2 * * *"));
+  }
+
+  @Test
+  @DisplayName(
+      "A reachability assertion holding an inject that is not read-only is never scheduled")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void reachabilityAssertionRefusesSchedulingWithAnInjectThatIsNotReadOnly() throws Exception {
+    // Arrange: the default inject has no injector contract, so it is not read-only
+    Scenario scenario = getScenario(null, null);
+    String base = SCENARIO_URI + "/" + scenario.getId();
+    String refusalPrefix = "A reachability assertion runs read-only injects only";
+    ScenarioRecurrenceInput recurrence = new ScenarioRecurrenceInput();
+    recurrence.setRecurrence("0 0 2 * * *");
+    recurrence.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+
+    // -- An unscheduled scenario is declared an assertion --
+    putReachabilityAssertion(base, true).andExpect(status().is2xxSuccessful());
+    assertTrue(
+        scenarioRepository.findById(scenario.getId()).orElseThrow().isReachabilityAssertion());
+
+    // -- Scheduling the assertion is refused, nothing is stored --
+    mvc.perform(
+            put(base + "/recurrence")
+                .content(asJsonString(recurrence))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith(refusalPrefix)));
+    assertNull(scenarioRepository.findById(scenario.getId()).orElseThrow().getRecurrence());
+
+    // -- Cleared, the scenario is scheduled --
+    putReachabilityAssertion(base, false).andExpect(status().is2xxSuccessful());
+    mvc.perform(
+            put(base + "/recurrence")
+                .content(asJsonString(recurrence))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful());
+
+    // -- Declaring the scheduled scenario an assertion is refused --
+    putReachabilityAssertion(base, true)
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith(refusalPrefix)));
+  }
+
+  private org.springframework.test.web.servlet.ResultActions putReachabilityAssertion(
+      String scenarioUri, boolean assertion) throws Exception {
+    ScenarioReachabilityAssertionInput input = new ScenarioReachabilityAssertionInput();
+    input.setReachabilityAssertion(assertion);
+    return mvc.perform(
+        put(scenarioUri + "/reachability-assertion")
+            .content(asJsonString(input))
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON)
+            .with(csrf()));
   }
 
   @Nested

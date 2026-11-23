@@ -116,6 +116,12 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonProperty("inject_content")
   private ObjectNode content;
 
+  // The ID the inject has in its catalogue package, the same in every version of it.
+  @Getter
+  @Column(name = "inject_catalog_id")
+  @JsonIgnore
+  private String catalogId;
+
   @Getter
   @Column(name = "inject_created_at")
   @JsonProperty("inject_created_at")

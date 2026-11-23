@@ -38,15 +38,17 @@ public class SecretReferenceService {
   }
 
   /**
-   * Finds the secret references matching the given identifiers.
+   * Finds the secret references matching the given identifiers that belong to the given tenant.
    *
    * @param secretReferenceIds the identifiers of the references to retrieve
-   * @return the matching references; unknown identifiers are ignored
+   * @param tenantId the tenant the references must belong to
+   * @return the matching references; an id of another tenant is ignored, like an unknown id
    */
   @Transactional(readOnly = true)
-  public List<SecretReference> secretReferences(List<String> secretReferenceIds) {
-    return secretReferenceRepository.findAllById(
-        Objects.requireNonNull(secretReferenceIds, "secretReferenceIds must not be null"));
+  public List<SecretReference> secretReferences(List<String> secretReferenceIds, String tenantId) {
+    return secretReferenceRepository.findAllByIdInTenant(
+        Objects.requireNonNull(secretReferenceIds, "secretReferenceIds must not be null"),
+        Objects.requireNonNull(tenantId, "tenantId must not be null"));
   }
 
   /**

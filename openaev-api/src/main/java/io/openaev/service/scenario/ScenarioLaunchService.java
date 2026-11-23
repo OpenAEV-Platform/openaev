@@ -12,7 +12,9 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.FaithfulCopyTransaction;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.catalog.scenario.targeting.CatalogScenarioTargets;
@@ -37,11 +39,16 @@ public class ScenarioLaunchService {
   private final UserRepository userRepository;
   private final InjectService injectService;
   private final CatalogScenarioTargets catalogScenarioTargets;
+  private final PreviewFeatureService previewFeatureService;
 
   /** The id of the simulation started; the targets go to its injects, never to the scenario. */
   @Transactional
   public String launch(TxCtx ctx, String scenarioId, TargetChoice targets)
       throws ChainingException {
+    // Targets chosen at launch come with the catalogue.
+    if (!targets.isEmpty() && !previewFeatureService.isFeatureEnabled(PreviewFeature.CATALOG)) {
+      throw new ElementNotFoundException("The catalogue feature is disabled");
+    }
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     String launchedById = currentUser().getId();
     // The scenario's workflow is read, and its simulation's started, in the scenario's own tenant

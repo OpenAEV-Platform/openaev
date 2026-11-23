@@ -467,6 +467,9 @@ public class MapperService {
                   .map(tag -> new TagExportImport(tag.getName(), tag.getColor()))
                   .collect(Collectors.toSet())));
       endpointExport.setEol(endpoint.isEoL());
+      endpointExport.setCategory(endpoint.getCategory());
+      endpointExport.setSubcategory(endpoint.getSubcategory());
+      endpointExport.setUrl(endpoint.getUrl());
       exports.add(endpointExport);
     }
     return exports;
@@ -657,6 +660,15 @@ public class MapperService {
 
     List list = csv.parse();
 
+    // Every row's classification is checked before the first write, so an invalid subcategory on
+    // row N refuses the file instead of leaving rows 1 to N-1 imported.
+    for (Object object : list) {
+      EndpointExportImport row = (EndpointExportImport) object;
+      if (row.getCategory() != null || row.getSubcategory() != null) {
+        AssetCategorizationValidator.validate(row.getCategory(), row.getSubcategory());
+      }
+    }
+
     for (Object object : list) {
       EndpointExportImport endpointExportImport = (EndpointExportImport) object;
 
@@ -685,6 +697,13 @@ public class MapperService {
       }
       endpoint.setTags(iterableToSet(tagsForCreation));
       endpoint.setEoL(endpointExportImport.isEol());
+      if (endpointExportImport.getCategory() != null) {
+        endpoint.setCategory(endpointExportImport.getCategory());
+        endpoint.setSubcategory(endpointExportImport.getSubcategory());
+      }
+      if (StringUtils.isNotBlank(endpointExportImport.getUrl())) {
+        endpoint.setUrl(endpointExportImport.getUrl().trim());
+      }
       // CSV import writes into the tenant the request selected, never the thread-local.
       // main plumbs the TxCtx down to this method; lot B made the tenant a REQUIRED argument of
       // createEndpoint, so a forgotten attribution is a compile error rather than a silent write
@@ -709,7 +728,10 @@ public class MapperService {
           "arch",
           "macAddresses",
           "tags",
-          "isEol"
+          "isEol",
+          "category",
+          "subcategory",
+          "url"
         };
     strategy.setColumnMapping(columns);
     return strategy;

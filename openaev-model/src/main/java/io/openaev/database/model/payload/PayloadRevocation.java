@@ -23,6 +23,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Setter
 @Entity
 @Table(name = "payload_revocations")
+@EntityListeners(PayloadRevocationListener.class)
 public class PayloadRevocation implements TenantBase {
 
   public static final String REVOKED_BY_FILIGRAN = "Revoked by Filigran";

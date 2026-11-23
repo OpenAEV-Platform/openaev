@@ -2,8 +2,7 @@ package io.openaev.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
@@ -23,8 +22,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * The table is active, and the migration runs on a plain connection with no scope: a statement the
@@ -34,13 +31,7 @@ import org.springframework.test.context.DynamicPropertySource;
 @WithoutTenantScope
 @WithMockUser(isAdmin = true)
 @DisplayName("Migration V6_20261116180000000: reset of the XTM Hub connectivity email markers")
-class ResetXtmHubConnectivityEmailMarkersMigrationTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class ResetXtmHubConnectivityEmailMarkersMigrationTest extends ProductionTablesIntegrationTest {
 
   @Autowired private V6_20261116180000000__Reset_xtmhub_connectivity_email_markers migration;
   @Autowired private TenantXtmHubRegistrationRepository registrationRepository;

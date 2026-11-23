@@ -553,6 +553,112 @@ class MarkingDefinitionServiceTest {
     }
   }
 
+  @Nested
+  @DisplayName("stix id")
+  class StixId {
+
+    private void creatable(MarkingDefinitionInput input) {
+      when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
+              input.type(), input.definition(), TENANT_ID, null))
+          .thenReturn(false);
+      when(repository.save(any(MarkingDefinition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
+    @Test
+    @DisplayName("given_newDefinition_should_carryTheIdOpenCtiGivesIt")
+    void given_newDefinition_should_carryTheIdOpenCtiGivesIt() {
+      // Arrange
+      MarkingDefinitionInput input = new MarkingDefinitionInput("tlp", "tlp:amber", "#FFB300", 30);
+      creatable(new MarkingDefinitionInput("TLP", "TLP:AMBER", "#FFB300", 30));
+
+      // Act
+      MarkingDefinition created = service().create(input, TENANT_ID, User.ADMIN_UUID);
+
+      // Assert
+      assertEquals("marking-definition--f88d31f6-486f-44da-b317-01333bde0b82", created.getStixId());
+    }
+
+    @Test
+    @DisplayName("given_importedStixId_should_keepIt")
+    void given_importedStixId_should_keepIt() {
+      // Arrange
+      MarkingDefinitionInput input = new MarkingDefinitionInput("PAP", "PAP:RED", "#E53935", 40);
+      creatable(input);
+      String imported = "marking-definition--11111111-2222-4333-8444-555555555555";
+
+      // Act
+      MarkingDefinition created = service().create(input, TENANT_ID, User.ADMIN_UUID, imported);
+
+      // Assert
+      assertEquals(imported, created.getStixId());
+    }
+
+    @Test
+    @DisplayName("given_idCarriedByAnotherDefinition_should_createWithoutOne")
+    void given_idCarriedByAnotherDefinition_should_createWithoutOne() {
+      // Arrange - TLP:WHITE next to TLP:CLEAR: OpenCTI names both with one id.
+      MarkingDefinitionInput input = new MarkingDefinitionInput("TLP", "TLP:WHITE", "#FFFFFF", 5);
+      creatable(input);
+      MarkingDefinition clear = existingIn(TENANT_ID);
+      when(repository.findByStixIdAndTenantId(
+              "marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9", TENANT_ID))
+          .thenReturn(Optional.of(clear));
+
+      // Act
+      MarkingDefinition created = service().create(input, TENANT_ID, User.ADMIN_UUID);
+
+      // Assert
+      assertEquals(null, created.getStixId());
+    }
+
+    @Test
+    @DisplayName("given_renameOfDerivedId_should_followTheNewDefinition")
+    void given_renameOfDerivedId_should_followTheNewDefinition() {
+      // Arrange
+      MarkingDefinition existing = existingIn(TENANT_ID);
+      existing.setType("PAP");
+      existing.setDefinition("PAP:GREEN");
+      existing.setStixId("marking-definition--89484dde-e3d2-547f-a6c6-d14824429eb1");
+      when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+      firstAdminClearanceCovers(existing);
+      when(repository.save(any(MarkingDefinition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+      MarkingDefinitionInput input =
+          new MarkingDefinitionInput("PAP", "PAP:AMBER", existing.getColor(), existing.getOrder());
+
+      // Act
+      MarkingDefinition updated =
+          service().update(TxCtx.forTenant(TENANT_ID), existing.getId(), input, User.ADMIN_UUID);
+
+      // Assert
+      assertEquals("marking-definition--a6f20d4d-0360-59b6-ba22-3b48707828b1", updated.getStixId());
+    }
+
+    @Test
+    @DisplayName("given_renameOfImportedId_should_keepIt")
+    void given_renameOfImportedId_should_keepIt() {
+      // Arrange
+      MarkingDefinition existing = existingIn(TENANT_ID);
+      String imported = "marking-definition--11111111-2222-4333-8444-555555555555";
+      existing.setStixId(imported);
+      when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+      firstAdminClearanceCovers(existing);
+      when(repository.save(any(MarkingDefinition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+      MarkingDefinitionInput input =
+          new MarkingDefinitionInput(
+              existing.getType(), "RENAMED:1", existing.getColor(), existing.getOrder());
+
+      // Act
+      MarkingDefinition updated =
+          service().update(TxCtx.forTenant(TENANT_ID), existing.getId(), input, User.ADMIN_UUID);
+
+      // Assert
+      assertEquals(imported, updated.getStixId());
+    }
+  }
+
   // -- EXPORT AND IMPORT --
 
   @Captor private ArgumentCaptor<Iterable<MarkingDefinition>> savedCaptor;

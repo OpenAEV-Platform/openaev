@@ -6,16 +6,16 @@ import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Vulnerability;
-import io.openaev.database.repository.AssetRepository;
-import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ExerciseRepository.ScenarioSimulationsRow;
-import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.FindingRepository.FindingCountRow;
-import io.openaev.database.repository.InjectExpectationTraceRepository;
 import io.openaev.database.repository.InjectExpectationTraceRepository.AlertInjectRow;
-import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
+import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.finding.FindingService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.service.AssetService;
+import io.openaev.service.InjectExpectationTraceService;
+import io.openaev.service.scenario.ScenarioService;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -35,8 +35,9 @@ import org.springframework.stereotype.Service;
  *
  * <p>Reads go through the request's transaction, so the statement inspector restricts the rows to
  * the caller's tenant scope and markings: a product connected with a user token sees what that user
- * sees, nothing more. Attack patterns and vulnerabilities are tenant-active tables: they are read
- * through their reviewed services (TenantActiveTableAccessArchTest), never their repositories.
+ * sees, nothing more. Every read goes through the owning domain's service, never another domain's
+ * repository; attack patterns and vulnerabilities are tenant-active tables read through their
+ * reviewed services (TenantActiveTableAccessArchTest).
  *
  * <p>Scenarios, simulations and atomic testings are grant-managed: the statement inspector does not
  * filter them by grant, so every scenario and inject this lookup returns is kept only when {@link
@@ -108,13 +109,13 @@ public class LocalObjectService {
   static final String FACT_LAST_SIMULATION = "last_simulation";
 
   private final OpenAEVConfig openAEVConfig;
-  private final AssetRepository assetRepository;
+  private final AssetService assetService;
   private final AttackPatternService attackPatternService;
   private final VulnerabilityService vulnerabilityService;
-  private final ScenarioRepository scenarioRepository;
-  private final InjectExpectationTraceRepository injectExpectationTraceRepository;
-  private final FindingRepository findingRepository;
-  private final ExerciseRepository exerciseRepository;
+  private final ScenarioService scenarioService;
+  private final InjectExpectationTraceService injectExpectationTraceService;
+  private final FindingService findingService;
+  private final ExerciseService exerciseService;
 
   public List<LocalObject> find(CounterpartKind kind, Collection<String> keys, Access access) {
     Set<String> normalised = normalise(kind, keys);
@@ -147,7 +148,7 @@ public class LocalObjectService {
   private List<LocalObject> assets(Set<String> hostnames, Access access) {
     // Hostnames are stored lower-case (Asset#setHostname), the ASSET kind normalises the same way.
     Map<String, Asset> byKey = new LinkedHashMap<>();
-    for (Asset asset : assetRepository.findAllByHostnameIn(hostnames)) {
+    for (Asset asset : assetService.findAllByHostnameIn(hostnames)) {
       byKey.putIfAbsent(asset.getHostname(), asset);
     }
     if (byKey.isEmpty()) {
@@ -158,7 +159,7 @@ public class LocalObjectService {
     Map<String, Long> findings = new HashMap<>();
     if (showFindings) {
       for (FindingCountRow row :
-          findingRepository.countFindingsByAssetIdIn(
+          findingService.countFindingsByAssetIdIn(
               byKey.values().stream().map(Asset::getId).toList())) {
         findings.put(row.getObjectKey(), row.getFindings());
       }
@@ -210,7 +211,7 @@ public class LocalObjectService {
     Map<String, FindingCountRow> findings = new HashMap<>();
     if (showFindings) {
       for (FindingCountRow row :
-          findingRepository.countFindingsByTypeAndValueIn(ContractOutputType.CVE, byKey.keySet())) {
+          findingService.countFindingsByTypeAndValueIn(ContractOutputType.CVE, byKey.keySet())) {
         findings.put(row.getObjectKey(), row);
       }
     }
@@ -242,8 +243,7 @@ public class LocalObjectService {
     // reference; several scenarios may share it, the most recent one the caller can read is the
     // pivot. A scenario the caller has no grant on is never returned, not even its name.
     Map<String, Scenario> byKey = new LinkedHashMap<>();
-    for (Scenario s :
-        scenarioRepository.findAllByExternalReferenceInOrderByUpdatedAtDesc(stixIds)) {
+    for (Scenario s : scenarioService.findAllByExternalReferenceIn(stixIds)) {
       if (!byKey.containsKey(s.getExternalReference()) && access.canReadScenario(s.getId())) {
         byKey.put(s.getExternalReference(), s);
       }
@@ -254,7 +254,7 @@ public class LocalObjectService {
     // One grouped read: how many simulations each pivot scenario ran, and when the latest started.
     Map<String, ScenarioSimulationsRow> runs = new HashMap<>();
     for (ScenarioSimulationsRow row :
-        exerciseRepository.countSimulationsByScenarioIdIn(
+        exerciseService.countSimulationsByScenarioIdIn(
             byKey.values().stream().map(Scenario::getId).toList())) {
       runs.put(row.getScenarioId(), row);
     }
@@ -284,7 +284,7 @@ public class LocalObjectService {
     // link wins: an inject is read through its simulation, or as an atomic testing without one.
     Map<String, LocalObject> byKey = new LinkedHashMap<>();
     for (AlertInjectRow row :
-        injectExpectationTraceRepository.findAlertInjectsByAlertLinkIn(alertLinks)) {
+        injectExpectationTraceService.findAlertInjectsByAlertLinkIn(alertLinks)) {
       if (byKey.containsKey(row.getAlertLink()) || !canRead(row, access)) {
         continue;
       }

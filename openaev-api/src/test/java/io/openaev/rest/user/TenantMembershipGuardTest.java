@@ -15,9 +15,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.users.dto.UserInput;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.TenantInterceptor;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
@@ -43,8 +42,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,19 +73,14 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("Tenant membership guard")
-public class TenantMembershipGuardTest extends IntegrationTest {
+public class TenantMembershipGuardTest extends ProductionTablesIntegrationTest {
 
   /**
    * The test classpath declares no active tables, so without this the inspector rewrites nothing
    * and the boundary is pinned in a configuration production does not run.
    */
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
-
   @Autowired private MockMvc mvc;
+
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private UserComposer userComposer;
   @Autowired private TenantInterceptor tenantInterceptor;

@@ -43,6 +43,9 @@ class UserResponseViewTest {
       return Instant.ofEpochSecond(1_700_000_000L);
     } else if (type == boolean.class) {
       return true;
+    } else if (type == Boolean.class) {
+      // Distinct from the unset default (true), so a copy that drops the field is caught.
+      return Boolean.FALSE;
     } else if (type == List.class) {
       return new ArrayList<>();
     } else if (type == Set.class) {

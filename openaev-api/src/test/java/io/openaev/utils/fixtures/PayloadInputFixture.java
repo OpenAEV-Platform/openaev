@@ -154,6 +154,23 @@ public class PayloadInputFixture {
     return input;
   }
 
+  /**
+   * An upsert input shaped like a collector's own call to {@code PayloadUpsertService}: no domains
+   * (the service resolves them with no default-domain fallback on the update path, so leaving them
+   * out exercises neither branch), just enough to reach the executable file resolution.
+   */
+  public static PayloadUpsertInput getDefaultExecutablePayloadUpsertInput(String externalId) {
+    PayloadUpsertInput input = new PayloadUpsertInput();
+    input.setType(Executable.EXECUTABLE_TYPE);
+    input.setName("My Executable Payload");
+    input.setSource(COMMUNITY);
+    input.setStatus(UNVERIFIED);
+    input.setExternalId(externalId);
+    input.setPlatforms(new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux});
+    input.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.x86_64);
+    return input;
+  }
+
   public static Document createDefaultExecutableFile() {
     Document executableFile = new Document();
     executableFile.setName("Executable file");

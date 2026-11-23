@@ -96,6 +96,29 @@ public class User implements Base {
     return ofNullable(this.theme).orElse(THEME_DEFAULT);
   }
 
+  // Unset reads as true: pastel stays the OpenAEV default, so no existing user sees a change.
+  @Getter(NONE)
+  @Setter(NONE)
+  @Column(name = "user_pastel_colours")
+  @JsonProperty("user_pastel_colours")
+  @Schema(
+      description =
+          "Pastel colours preference of the user: soft pastel chips when true (default), the"
+              + " standard colours shared by every XTM Platform module when false")
+  private Boolean pastelColours;
+
+  public Boolean getPastelColours() {
+    return ofNullable(this.pastelColours).orElse(true);
+  }
+
+  // Profile updates copy every input property (BeanUtils), absent ones as null: a client that
+  // does not send the preference keeps the stored one.
+  public void setPastelColours(final Boolean pastelColours) {
+    if (pastelColours != null) {
+      this.pastelColours = pastelColours;
+    }
+  }
+
   @Column(name = "user_home_dashboard")
   @JsonProperty("user_home_dashboard")
   @Schema(

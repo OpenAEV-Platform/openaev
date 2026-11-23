@@ -2,7 +2,7 @@ import { capitalize } from '@mui/material';
 import { useCallback, useContext, useState } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router';
 
-import { fetchConnector, isXtmComposerIsReachable } from '../../../../actions/catalog/catalog-actions';
+import { fetchConnector } from '../../../../actions/catalog/catalog-actions';
 import type { CatalogConnectorsHelper } from '../../../../actions/catalog/catalog-helper';
 import { type CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import { fetchConnectorInstance } from '../../../../actions/connector_instances/connector-instance-actions';
@@ -23,6 +23,7 @@ import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { ConnectorContext, type ConnectorOutput } from './ConnectorContext';
+import useXtmComposerReachable from './useXtmComposerReachable';
 
 export type ConnectorContextLayoutType = {
   connector: ConnectorOutput;
@@ -42,7 +43,7 @@ const ConnectorLayout = () => {
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState<boolean>(true);
   const [relatedIds, setRelatedIds] = useState<ConnectorIds>();
-  const [isXtmComposerUp, setIsXtmComposerUp] = useState<boolean>(false);
+  const isXtmComposerUp = useXtmComposerReachable() === true;
 
   const getConnectorHelper = () => {
     switch (connectorType) {
@@ -65,8 +66,6 @@ const ConnectorLayout = () => {
   const { instance } = useHelper((helper: ConnectorInstanceHelper) => ({ instance: helper.getConnectorInstance(relatedIds?.connector_instance_id ?? '') }));
 
   const loadConnectorData = useCallback(() => {
-    isXtmComposerIsReachable().then(({ data }) => setIsXtmComposerUp(data));
-
     if (!connectorId) {
       setLoading(false);
       setRelatedIds(undefined);

@@ -73,6 +73,8 @@ public class EndpointMapper {
         .cloudNativeType(endpoint.getCloudNativeType())
         .cloudRegion(endpoint.getCloudRegion())
         .linkedPerson(endpoint.getLinkedPerson())
+        .status(endpoint.getActivityStatus())
+        .lastSeen(endpoint.getLastSeen())
         .build();
   }
 
@@ -101,6 +103,8 @@ public class EndpointMapper {
         .subcategory(asset.getSubcategory())
         .criticality(asset.getCriticality())
         .internetFacing(asset.getInternetFacing())
+        .status(asset.getActivityStatus())
+        .lastSeen(asset.getLastSeen())
         .build();
   }
 
@@ -119,6 +123,8 @@ public class EndpointMapper {
         .name(asset.getName())
         .description(asset.getDescription())
         .hostname(asset.getHostname())
+        .externalReference(asset.getExternalReference())
+        .lastSeenSource(asset.getLastSeenSource())
         .agents(emptySet())
         .tags(asset.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
         .markings(toMarkingIds(asset))
@@ -193,6 +199,8 @@ public class EndpointMapper {
         .name(endpoint.getName())
         .description(endpoint.getDescription())
         .hostname(endpoint.getHostname())
+        .externalReference(endpoint.getExternalReference())
+        .lastSeenSource(endpoint.getLastSeenSource())
         .url(endpoint.getUrl())
         .platform(endpoint.getPlatform())
         .arch(endpoint.getArch())

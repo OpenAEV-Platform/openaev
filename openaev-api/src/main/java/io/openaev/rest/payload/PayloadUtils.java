@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
@@ -22,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -32,6 +34,7 @@ public class PayloadUtils {
   private final LicenseCacheManager licenseCacheManager;
   private final OutputParserService outputParserService;
   private final DetectionRemediationUtils detectionRemediationUtils;
+  private final DocumentService documentService;
 
   public static PayloadCreateInput buildPayload(@NotNull final JsonNode payloadNode) {
     PayloadCreateInput payloadCreateInput = new PayloadCreateInput();
@@ -181,7 +184,8 @@ public class PayloadUtils {
         "externalId",
         "source",
         "collectorType",
-        "version");
+        "version",
+        "base");
     duplicate.setAuthor(origin.getAuthor() == null ? null : origin.getAuthor().copy());
     duplicate.setId(null);
     duplicate.setName(duplicateString(origin.getName()));
@@ -238,6 +242,51 @@ public class PayloadUtils {
     }
   }
 
+  /**
+   * Refuses a Document-type argument whose default value names a document outside {@code tenantId}:
+   * an id of another tenant is treated like an unknown id, the same as the payload's own executable
+   * or file-drop document.
+   */
+  public void validateDocumentArguments(Payload payload, String tenantId) {
+    validateDocumentArguments(payload.getArguments(), List.of(), tenantId);
+  }
+
+  /**
+   * Same check for an update or an upsert, on the request's own arguments: a default equal to the
+   * one stored under the same key is not checked again, since a document used as a default can be
+   * deleted later and an unrelated edit resends it. Call it BEFORE {@link #copyProperties}, which
+   * sets the arguments straight onto the managed entity, so a refusal afterward would still leave
+   * Hibernate holding the value to flush.
+   */
+  public void validateDocumentArguments(
+      List<PayloadArgument> requested, List<PayloadArgument> stored, String tenantId) {
+    if (requested == null) {
+      return;
+    }
+    // Both lists go through the first-key-wins rule of copyProperties before the type and the
+    // default are read: a shadowed argument is not the one stored or sent.
+    Map<String, String> storedDefaults = new HashMap<>();
+    effectiveArgumentsByKey(stored).stream()
+        .filter(argument -> PrimitiveType.Document == argument.getType())
+        .forEach(argument -> storedDefaults.put(argument.getKey(), argument.getDefaultValue()));
+    effectiveArgumentsByKey(requested).stream()
+        .filter(argument -> PrimitiveType.Document == argument.getType())
+        .filter(argument -> StringUtils.hasText(argument.getDefaultValue()))
+        .filter(
+            argument -> !argument.getDefaultValue().equals(storedDefaults.get(argument.getKey())))
+        .forEach(
+            argument -> documentService.documentInTenant(argument.getDefaultValue(), tenantId));
+  }
+
+  private static Collection<PayloadArgument> effectiveArgumentsByKey(
+      List<PayloadArgument> arguments) {
+    Map<String, PayloadArgument> byKey = new LinkedHashMap<>();
+    if (arguments != null) {
+      arguments.forEach(argument -> byKey.putIfAbsent(argument.getKey(), argument));
+    }
+    return byKey.values();
+  }
+
   public Payload copyProperties(PayloadCreateInput payloadInput, Payload target) {
     if (payloadInput == null) {
       throw new IllegalArgumentException("Input payload cannot be null");
@@ -274,6 +323,14 @@ public class PayloadUtils {
     dedupeArgumentsAndPrerequisites(target);
     outputParserService.copyOutputParsersFromInput((payloadInput).getOutputParsers(), target);
     detectionRemediationUtils.copy((payloadInput).getDetectionRemediations(), target, true);
+    String tenantId = target.getTenant().getId();
+    if (target instanceof Executable executable) {
+      executable.setExecutableFile(
+          documentService.documentInTenant(payloadInput.getExecutableFile(), tenantId));
+    } else if (target instanceof FileDrop fileDrop) {
+      fileDrop.setFileDropFile(
+          documentService.documentInTenant(payloadInput.getFileDropFile(), tenantId));
+    }
     return target;
   }
 

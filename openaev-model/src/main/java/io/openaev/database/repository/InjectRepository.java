@@ -679,10 +679,12 @@ public interface InjectRepository
 
   // -- PAYLOAD --
 
-  /** Scenario injects and atomic testings running this payload, simulation injects left out. */
+  /** Scenario injects and atomic testings: a simulation keeps the version it ran. */
+  String OUTSIDE_SIMULATIONS = "i.inject_exercise IS NULL";
+
   @Query(
       "SELECT i FROM Inject i WHERE i.tenant.id = :tenantId"
-          + " AND i.injectorContract.payload.id = :payloadId AND i.exercise IS NULL")
-  List<Inject> findAllOutsideSimulationsByTenantIdAndPayloadId(
-      @Param("tenantId") String tenantId, @Param("payloadId") String payloadId);
+          + " AND i.injectorContract.compositeId.id = :injectorContractId AND i.exercise IS NULL")
+  List<Inject> findAllOutsideSimulationsByTenantIdAndInjectorContractId(
+      @Param("tenantId") String tenantId, @Param("injectorContractId") String injectorContractId);
 }

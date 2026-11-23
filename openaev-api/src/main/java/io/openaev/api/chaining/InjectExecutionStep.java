@@ -749,7 +749,11 @@ public class InjectExecutionStep implements ActionStep {
 
     List<InjectDocument> injectDocuments =
         data.getDocuments().stream()
-            .map(i -> i.toDocument(documentService.document(i.getDocumentId()), inject))
+            .map(
+                i ->
+                    i.toDocument(
+                        documentService.documentInTenant(i.getDocumentId(), parentTenantId),
+                        inject))
             .toList();
     inject.setDocuments(injectDocuments);
     Set<Tag> tags = new HashSet<>();
@@ -1139,7 +1143,11 @@ public class InjectExecutionStep implements ActionStep {
     ObjectNode injectContent =
         inject.getContent() != null ? inject.getContent() : JsonNodeFactory.instance.objectNode();
     return executableInjectService.resolveArgumentsForDisplay(
-        resolvedCommand, args, injectorContractContentFields, injectContent);
+        resolvedCommand,
+        args,
+        injectorContractContentFields,
+        injectContent,
+        inject.getTenant().getId());
   }
 
   /**

@@ -301,6 +301,114 @@ DELETE /api/assets/{assetId}/links/{linkedAssetId}/{linkType}
 - **Errors**: `400` for a link to the Asset itself or to an Asset of another Tenant, `404` when either Asset (or, on `DELETE`, the link) is not found.
 - **Access**: `GET` needs the right to read the Asset, `POST` and `DELETE` the right to manage it. `GET` lists the links that start or end on the Asset; deleting an Asset deletes its links.
 
+## Asset bulk update
+
+Updates the classification of many Assets in one call, over the same selection as the bulk delete: explicit ids, or the Asset search input with exclusions. Security platforms are never selected. Available under `/api/assets/bulk` and under the Tenant prefix `/api/tenants/{tenantId}/assets/bulk`.
+
+```
+PUT /api/assets/bulk
+```
+
+- **Selection**: `asset_ids_to_process`, or `search_pagination_input` with `asset_ids_to_ignore`.
+- **Body**: `asset_category`, `asset_subcategory`, `asset_url`, `asset_criticality`, `asset_tags_to_add`. A field left out is unchanged; tags are added to the existing ones, never replaced. A category change with no subcategory clears a subcategory that no longer belongs to the new category.
+- **Errors**: `400` when nothing is to be updated, for a subcategory without a category, or for a subcategory outside its category; `404` when a tag id is unknown in the Tenant. Nothing is written on an error.
+- **Access**: the right to manage Assets.
+- **Example**, reclassify every Asset carrying a tag:
+
+```json
+{"search_pagination_input": {"filterGroup": {"mode": "and", "filters": [{"key": "asset_tags", "operator": "contains", "values": ["<tag id>"], "mode": "or"}]}},
+ "asset_category": "WEB_APPLICATION", "asset_subcategory": "WEBSITE"}
+```
+
+The subcategory is checked against its category on Asset creation and update too (`400`); an Agent, collector or injector registration drops a mismatched subcategory instead of failing.
+
+## Asset freshness
+
+Every Asset carries when it was last observed and by what, and turns stale once it is unseen for longer than the Tenant allows.
+
+```http
+GET /api/tenants/{tenantId}/tenant-settings/asset-freshness
+PUT /api/tenants/{tenantId}/tenant-settings/asset-freshness
+```
+
+- **Asset fields**: `asset_last_seen` (the latest observation) and `asset_last_seen_source` (what observed it, e.g. `agent:openaev_agent`), filterable and sortable in the Asset searches. Staleness is not a field of its own: `asset_status` reads `STALE` when the Asset was last seen longer ago than the Tenant allows, and its usual value (`ACTIVE`, `INACTIVE`, `AGENTLESS`) otherwise. An Asset never observed has no `asset_last_seen` and is never `STALE`.
+- **Observations**: an Agent that registers or sends a heartbeat stamps its Asset, at most once an hour per source so a heartbeat does not rewrite the Asset every minute. A `STALE` Asset that is observed again leaves `STALE` at once.
+- **Settings body**: `{"asset_stale_after_days": 30}`, from 0 to 3650. `0` by default: the check is off, no Asset turns stale and no event is emitted until a user sets a number of days. The last seen stamp is recorded either way.
+- **Discovery marker**: `{"asset_discovery_tag": true}` on the same endpoint tags with `discovered` every Endpoint a run creates (an autonomous run promoting a finding, an inject whose output brings a new asset), so a filter or a live trigger on Asset creation tells it from a declared one. `false` by default: no tag is created or added. Omitted on an update, the current value is kept.
+- **Job**: every hour (`openaev.cron.config.asset.freshness.interval`, in minutes), each Asset that turned `STALE` since the previous pass gets one Asset update event, so a live trigger on Asset updates receives each transition once. Nothing is written on the Asset.
+
+## Reachability assertions
+
+A Scenario can be declared a reachability assertion: a recurring check, from where its Injects run, that its targets still answer as expected (a port closed, an address answering 403, a protocol off). The expected answer is the Expectation of each Inject; the check runs on the Scenario's recurrence.
+
+```http
+PUT /api/scenarios/{scenarioId}/reachability-assertion
+PUT /api/tenants/{tenantId}/scenarios/{scenarioId}/reachability-assertion
+```
+
+- **Body**: `{"scenario_reachability_assertion": true}` declares it, `false` clears it. `scenario_reachability_assertion` is `false` on every Scenario by default and filterable in the Scenario searches; a Scenario that is not an assertion behaves exactly as before.
+- **Read-only only**: every enabled Inject of an assertion must be read-only (`injector_contract_read_only` on its Injector contract, or `payload_read_only` on its Payload). Declaring a scheduled Scenario, or scheduling an assertion with `PUT /api/scenarios/{scenarioId}/recurrence`, is refused with `400` naming the Injects that are not read-only, and the scheduler skips an assertion that holds one (an Inject made writable after scheduling never runs on its own).
+- **Access**: the launch right on the Scenario, as for its recurrence.
+- **Results**: a failed check is reported like any simulation: the Inject's output parser records its findings (an open port, an answer) on the target, and when a run scores lower than the previous one the existing `SCORE_DEGRADATION` notification event fires.
+
+## Coverage scenario read-only first
+
+Scenarios built from an OpenCTI Security Coverage can be built with only their read-only Injects enabled. See [Scenario generation from OpenCTI Security Coverage](../../usage/build/scenario/security-coverage.md#read-only-first-build-and-run-order).
+
+```http
+GET /api/tenants/{tenantId}/tenant-settings/coverage-scenarios
+PUT /api/tenants/{tenantId}/tenant-settings/coverage-scenarios
+```
+
+- **Settings body**: `{"coverage_scenario_read_only_first": false}`, `false` by default. With the default, a Security Coverage builds and schedules its Scenario exactly as before.
+- **Access**: `GET` needs the right to read Tenant settings, `PUT` the right to manage them.
+- **Read-only marker**: `injector_contract_read_only` on Injector contracts and `payload_read_only` on Payloads, both `false` by default.
+- **Starting a held Scenario**: the existing `PUT /api/scenarios/{scenarioId}/recurrence` (launch right on the Scenario, records `scenario_scheduled_by`) and `inject_enabled` on each held Inject. Run order: the existing `inject_depends_duration` of each Inject.
+
+## Finding re-test
+
+A Finding carries a lifecycle status, returned by `GET /api/findings/{id}`:
+
+- `finding_status`: `OPEN` (detected, not disproved by a later re-test), `NOT_REPRODUCED` (a re-test ran on the same targets and did not detect it again) or `RESOLVED`. Every new detection sets it back to `OPEN`.
+- `finding_last_tested`: when a re-test last ended on the Finding.
+- `finding_status_inject_id`: the Inject whose run set the status, a detection or a re-test.
+- `finding_retest_inject_id`: the re-test Inject queued and not finished yet, else empty.
+
+To re-test Findings, send their ids. The endpoint is also available under the Tenant prefix `/api/tenants/{tenantId}/findings/retest`.
+
+```http
+POST /api/findings/retest
+```
+
+```json
+{"finding_ids": ["<finding-uuid>", "<finding-uuid>"]}
+```
+
+- **What runs**: for each Inject that last produced the Findings, one copy with the same contract, content and targets; the original Inject and its history are kept. The copy runs under the same contract as the original, so a test limited to read-only contracts stays so. No approval is asked.
+- **Response**: one entry per Finding, `{"finding_id": "...", "retest_inject_id": "..."}`. Follow the Inject to know when the re-test ends.
+- **Result**: when the copy finishes, a Finding it detected again stays `OPEN`; a Finding it did not detect turns `NOT_REPRODUCED`, with the copy as `finding_status_inject_id`. A copy that ends in error leaves the status unchanged. Each change emits a Finding update event.
+- **Errors**: `400` when an Asset of a Finding is no longer a target of its Inject, directly or through an Asset group; `404` when a Finding is not in the Tenant or has no Inject left.
+- **Access**: the right to launch each Inject that is copied.
+
+## Marking definitions in OpenCTI format
+
+Every Marking definition carries `marking_definition_stix_id`, the STIX id OpenCTI gives the same marking: OpenCTI's fixed ids for TLP:CLEAR, TLP:GREEN, TLP:AMBER, TLP:AMBER+STRICT and TLP:RED, and for any other marking the id OpenCTI derives from its type and definition. A marking is then the same object in OpenAEV and in OpenCTI. The id is set when the Marking definition is created; it stays empty when another Marking definition of the Tenant already carries it (TLP:WHITE next to TLP:CLEAR).
+
+To export the Marking definitions you are cleared for as a STIX 2.1 bundle of `marking-definition` objects, with OpenCTI's order and color:
+
+```http
+GET /api/tenants/{tenantId}/marking_definitions/stix
+```
+
+To import Marking definitions from a STIX 2.1 bundle (or a list of objects), keeping the id OpenCTI gave them:
+
+```http
+POST /api/tenants/{tenantId}/marking_definitions/stix
+```
+
+- **Response**: one entry per `marking-definition` object, `{"stixId": "...", "type": "...", "definition": "...", "outcome": "..."}`, with `CREATED`, `EXISTING` (the Tenant already has this STIX id), `CONFLICT` (a Marking definition of the same type and definition exists under another id) or `INVALID`. Other object types are ignored and nothing is overwritten.
+- **Access**: the right to manage Marking definitions; a Marking definition above your own clearance on its type is refused, as when created by hand.
+
 ## What's next?
 
 - [Filters](filters.md) -- Filter format and operators

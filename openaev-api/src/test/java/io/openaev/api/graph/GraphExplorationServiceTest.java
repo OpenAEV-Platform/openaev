@@ -25,6 +25,7 @@ import io.openaev.api.graph.dto.GraphStartingPointOutput;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Exercise;
@@ -32,6 +33,7 @@ import io.openaev.database.model.Filters;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
+import io.openaev.service.AssetGroupService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
@@ -79,6 +81,7 @@ class GraphExplorationServiceTest extends IntegrationTest {
   @Autowired private GraphExplorationService service;
   @Autowired private GraphLandingService landing;
   @Autowired private GraphLandingCache landingCache;
+  @Autowired private GraphRelationCounter relationCounter;
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
@@ -89,6 +92,7 @@ class GraphExplorationServiceTest extends IntegrationTest {
   @Autowired private InjectExpectationComposer expectationComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private AssetGroupService assetGroupService;
 
   private String tenant;
   private List<String> scope;
@@ -534,6 +538,11 @@ class GraphExplorationServiceTest extends IntegrationTest {
       public boolean canReadPeople(GraphNodeType type) {
         return false;
       }
+
+      @Override
+      public boolean canReadFindings() {
+        return true;
+      }
     };
   }
 
@@ -680,6 +689,66 @@ class GraphExplorationServiceTest extends IntegrationTest {
     assertThat(atomic.edges()).isEmpty();
   }
 
+  // -- Relation counts (#9572) --
+
+  private static GraphNodeOutput nodeOf(GraphOutput out, String nodeId) {
+    return out.nodes().stream().filter(n -> n.nodeId().equals(nodeId)).findFirst().orElseThrow();
+  }
+
+  @Test
+  @DisplayName("every node carries its relations in the data per type, drawn or not")
+  void relationCountsOfASlice() {
+    scopeToAmbientTenant();
+    // Only the group is drawn around the asset: its findings and injects are counted all the same.
+    GraphOutput narrow =
+        service.neighbourhood(
+            scope,
+            GraphNodeType.ASSET,
+            e1.getId(),
+            Set.of(GraphEdgeType.MEMBER_OF),
+            50,
+            GraphVisibility.ALL);
+    GraphOutput out = relationCounter.counted(narrow, scope, GraphVisibility.ALL);
+
+    GraphNodeOutput asset = nodeOf(out, id(GraphNodeType.ASSET, e1.getId()));
+    assertThat(asset.relationCounts())
+        .containsEntry(GraphEdgeType.MEMBER_OF, 1L)
+        .containsEntry(GraphEdgeType.FOUND_ON, 2L)
+        .containsEntry(GraphEdgeType.TARGETS, 1L);
+    GraphNodeOutput group = nodeOf(out, id(GraphNodeType.ASSET_GROUP, g.getId()));
+    assertThat(group.relationCounts())
+        .containsEntry(GraphEdgeType.MEMBER_OF, 1L)
+        .containsEntry(GraphEdgeType.TARGETS, 1L);
+    assertThat(out.edges()).isEqualTo(narrow.edges());
+  }
+
+  @Test
+  @DisplayName("a relation to a grant-managed end is not counted for a caller without every grant")
+  void relationCountsLeaveGrantManagedEndsOut() {
+    scopeToAmbientTenant();
+    GraphVisibility restricted = visibility(true, true, true);
+    GraphOutput out =
+        relationCounter.counted(
+            service.neighbourhood(scope, GraphNodeType.ASSET, e1.getId(), Set.of(), 50, restricted),
+            scope,
+            restricted);
+
+    GraphNodeOutput asset = nodeOf(out, id(GraphNodeType.ASSET, e1.getId()));
+    assertThat(asset.relationCounts())
+        .containsEntry(GraphEdgeType.FOUND_ON, 2L)
+        .doesNotContainKey(GraphEdgeType.TARGETS);
+  }
+
+  @Test
+  @DisplayName("a relation count never crosses the caller's tenants")
+  void relationCountsStayInScope() {
+    scopeToAmbientTenant();
+    GraphOutput ring = ring(GraphNodeType.ASSET, e1.getId());
+    GraphOutput out = relationCounter.counted(ring, List.of("no-such-tenant"), GraphVisibility.ALL);
+
+    assertThat(out.nodes()).allSatisfy(n -> assertThat(n.relationCounts()).isEmpty());
+  }
+
   private static GraphVisibility visibility(
       boolean simulations, boolean scenarios, boolean atomicTestings) {
     return new GraphVisibility() {
@@ -700,6 +769,11 @@ class GraphExplorationServiceTest extends IntegrationTest {
 
       @Override
       public boolean canReadPeople(GraphNodeType type) {
+        return true;
+      }
+
+      @Override
+      public boolean canReadFindings() {
         return true;
       }
     };
@@ -808,6 +882,39 @@ class GraphExplorationServiceTest extends IntegrationTest {
               assertThat(group.assetCount()).isGreaterThanOrEqualTo(1);
             });
     assertThat(ungroupedCount(out)).isLessThan(ungroupedBefore);
+  }
+
+  @Test
+  @DisplayName(
+      "given a dynamic group, should read its members as ids, the set the full resolution finds")
+  void given_dynamicGroup_should_readMemberIdsLikeFullResolution() {
+    // Arrange
+    AssetGroup dyn = dynamicGroupOnPlatformOf(e2);
+    AssetGroup reloaded = entityManager.find(AssetGroup.class, dyn.getId());
+    List<String> resolved =
+        assetGroupService.computeDynamicAssets(reloaded).getDynamicAssets().stream()
+            .map(Asset::getId)
+            .toList();
+
+    // Act
+    List<String> ids = service.dynamicMemberIds(reloaded);
+
+    // Assert
+    assertThat(ids).contains(e2.getId());
+    assertThat(ids).containsExactlyInAnyOrderElementsOf(resolved);
+  }
+
+  @Test
+  @DisplayName("given the scope, should read its asset groups through the asset group service")
+  void given_scope_should_readAssetGroupsThroughOwningService() {
+    // Act
+    List<AssetGroup> groups = service.scopeGroups(scope);
+
+    // Assert
+    assertThat(groups).extracting(AssetGroup::getId).contains(g.getId());
+    assertThat(assetGroupService.assetGroupOfTenants(g.getId(), scope)).isPresent();
+    assertThat(assetGroupService.assetGroupOfTenants(g.getId(), List.of("no-such-tenant")))
+        .isEmpty();
   }
 
   private static long ungroupedCount(GraphOverviewOutput out) {

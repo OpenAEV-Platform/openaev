@@ -1,5 +1,7 @@
 package io.openaev.api.asset;
 
+import static io.openaev.api.asset.AssetOptionsApi.TENANT_ASSET_URI;
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -33,12 +35,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** {@code /api/assets/{id}/links} (#9447): typed links between two assets of one tenant. */
 @Transactional
-@WithMockUser(isAdmin = true)
+@WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
 @TestPropertySource(properties = "openaev.enabled-dev-features=MARKING,EXPLORATION_GRAPH")
 @DisplayName("Asset links API")
 class AssetLinkApiTest extends IntegrationTest {
 
-  private static final String LINKS_URI = "/api/assets/{assetId}/links";
+  /** The links routes under the default tenant, where the fixtures live, as the UI calls them. */
+  private static final String LINKS_URI =
+      TENANT_ASSET_URI.replace("{tenantId}", DEFAULT_TENANT_UUID) + "/{assetId}/links";
 
   @Autowired private MockMvc mvc;
   @Autowired private DataSource dataSource;

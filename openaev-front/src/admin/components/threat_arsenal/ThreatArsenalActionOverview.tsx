@@ -82,6 +82,9 @@ interface Props {
   // the whole store.
   documentsMap?: Record<string, ApiDocument>;
   loading: boolean;
+  // Shown on the trust line: usages on other versions, and the newer Filigran base of a customized copy.
+  toMove?: number;
+  newBase?: string;
 }
 
 const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
@@ -93,6 +96,8 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
   providing,
   documentsMap: documentsMapOverride,
   loading,
+  toMove,
+  newBase,
 }) => {
   const { t, tPick, nsdt } = useFormatter();
   const theme = useTheme();
@@ -311,7 +316,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
 
             {isFeatureEnabled('CATALOG') && (
               <div style={{ marginTop: theme.spacing(1.5) }}>
-                <PayloadTrustLine action={action} />
+                <PayloadTrustLine action={action} toMove={toMove} newBase={newBase} />
               </div>
             )}
 

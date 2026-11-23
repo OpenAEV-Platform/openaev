@@ -21,6 +21,9 @@ public enum AssetCategory {
   SAAS_APPLICATION("Cloud"),
   AI_TARGET("Artificial Intelligence"),
   SECURITY_PLATFORM("Endpoint"),
+  // Code repositories, CI/CD pipelines and packages the teams build and ship. No preset security
+  // domain targets them yet (code-scan injectors come later), so they stay "To classify".
+  SOURCE_CODE("To classify"),
   GENERIC_ASSET("To classify");
 
   /** Name of the preset security domain this category is aligned with. */

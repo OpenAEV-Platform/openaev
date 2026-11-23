@@ -1,6 +1,6 @@
 package io.openaev.rest.objective;
 
-import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -45,9 +45,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-@WithMockUser(isAdmin = true)
+@WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
 @DisplayName("Scenario objectives API")
 class ScenarioObjectiveApiTest extends IntegrationTest {
+
+  /**
+   * The scenario routes under the default tenant, where the fixtures live, as the UI calls them.
+   */
+  private static final String SCENARIOS_URI =
+      TENANT_SCENARIO_URI.replace("{tenantId}", Tenant.DEFAULT_TENANT_UUID);
 
   private static final String OBJECTIVE_BODY =
       "{\"objective_title\":\"changed\",\"objective_description\":\"d\",\"objective_priority\":1}";
@@ -100,7 +106,7 @@ class ScenarioObjectiveApiTest extends IntegrationTest {
   }
 
   private String objectiveUri(String id) {
-    return SCENARIO_URI + "/" + scenarioId + "/objectives/" + id;
+    return SCENARIOS_URI + "/" + scenarioId + "/objectives/" + id;
   }
 
   private String evaluationUri(String objective, String evaluation) {

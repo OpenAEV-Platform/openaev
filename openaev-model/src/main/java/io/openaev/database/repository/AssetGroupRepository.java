@@ -181,6 +181,14 @@ public interface AssetGroupRepository
   List<RawAssetGroupIndexing> findForIndexing(
       @Param("from") Instant from, @Param("limit") int limit);
 
+  /** The asset groups of the given tenants, by name. */
+  @NotNull
+  List<AssetGroup> findAllByTenantIdInOrderByNameAsc(@NotNull Collection<String> tenantIds);
+
+  /** One asset group, when it belongs to one of the given tenants. */
+  Optional<AssetGroup> findByIdAndTenantIdIn(
+      @NotNull String id, @NotNull Collection<String> tenantIds);
+
   /** The asset groups among the given ids that belong to the given tenant. */
   @NotNull
   List<AssetGroup> findAllByIdInAndTenantId(
