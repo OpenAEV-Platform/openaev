@@ -113,18 +113,15 @@ public class AiTargetSearchAdaptor extends SearchAdaptorBase {
   private InjectTarget convertFromAiTarget(Asset aiTarget, Inject inject) {
     return helperTargetSearchAdaptor.buildTargetWithExpectations(
         inject,
-        () -> {
-          AiTargetTarget target =
-              new AiTargetTarget(
-                  aiTarget.getId(),
-                  aiTarget.getName(),
-                  aiTarget.getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                  aiTarget.getAiTargetProvider() != null
-                      ? aiTarget.getAiTargetProvider().name()
-                      : null);
-          target.setMarkings(markingIds(aiTarget));
-          return target;
-        },
+        () ->
+            new AiTargetTarget(
+                aiTarget.getId(),
+                aiTarget.getName(),
+                aiTarget.getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
+                markingIds(aiTarget),
+                aiTarget.getAiTargetProvider() != null
+                    ? aiTarget.getAiTargetProvider().name()
+                    : null),
         true);
   }
 }

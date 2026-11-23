@@ -97,8 +97,8 @@ public class InjectTargetSearchTest extends ProductionTablesIntegrationTest {
             endpoint.getId(),
             endpoint.getName(),
             endpoint.getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
+            markingIds(endpoint),
             endpoint.getPlatform().name());
-    target.setMarkings(markingIds(endpoint));
     if (endpoint.getCategory() != null) {
       target.setTargetCategory(endpoint.getCategory().name());
     }
