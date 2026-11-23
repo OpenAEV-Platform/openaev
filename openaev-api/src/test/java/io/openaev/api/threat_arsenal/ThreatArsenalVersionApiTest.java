@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -36,6 +37,7 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.model.payload.PayloadRevocation;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -814,6 +816,164 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
           .andExpect(status().isOk())
           .andExpect(
               jsonPath("$.inject_injector_contract.injector_contract_id").value(current.getId()));
+    }
+  }
+
+  // -- OLDER VERSIONS IN USE --
+
+  @Nested
+  @DisplayName("Cards of actions with injects on an older version")
+  class OlderVersionsInUse {
+
+    private static final String OLDER_VERSIONS_IN_USE_URL =
+        TENANT_THREAT_ARSENAL_URL + "/older-versions-in-use";
+    private static final String OLDER_VERSIONS_KEPT_URL =
+        TENANT_THREAT_ARSENAL_URL + "/{actionId}/older-versions-kept";
+
+    private List<String> flagged(String tenantId, InjectorContract... actions) throws Exception {
+      List<String> actionIds = Arrays.stream(actions).map(InjectorContract::getId).toList();
+      JsonNode flagged =
+          body(
+              mvc.perform(
+                      post(OLDER_VERSIONS_IN_USE_URL, tenantId)
+                          .with(csrf())
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .content(mapper.writeValueAsString(Map.of("action_ids", actionIds))))
+                  .andExpect(status().isOk()));
+      List<String> ids = new ArrayList<>();
+      flagged.forEach(id -> ids.add(id.asText()));
+      return ids;
+    }
+
+    private ResultActions keep(String tenantId, InjectorContract action) throws Exception {
+      return mvc.perform(put(OLDER_VERSIONS_KEPT_URL, tenantId, action.getId()).with(csrf()));
+    }
+
+    /** A chained step of a scenario logic map, its contract written as a plain id. */
+    private void chainedStepOn(InjectorContract contract) {
+      Step step = StepFixture.getDefaultStepTemplate();
+      step.setData("{\"inject_injector_contract\": \"" + contract.getId() + "\"}");
+      workflowComposer
+          .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+          .withScenario(scenarioComposer.forScenario(ScenarioFixture.getScenario()))
+          .withStep(stepComposer.forStep(step))
+          .persist();
+      entityManager.flush();
+    }
+
+    private InjectorContract newerVersion(InjectorContract of, String version) {
+      InjectorContract newer = localAction();
+      newer.getPayload().setIdentity(of.getPayload().getIdentity());
+      newer.getPayload().setVersion(version);
+      payloadRepository.save(newer.getPayload());
+      entityManager.flush();
+      return newer;
+    }
+
+    @Test
+    @DisplayName("flags the latest version when an atomic testing still runs an older one")
+    void given_atomicTestingOnOlderVersion_should_flagTheLatestOnly() throws Exception {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      atomicTestingOn(versions.get(0));
+      entityManager.flush();
+
+      // Act & Assert
+      assertThat(flagged(DEFAULT_TENANT_UUID, versions.get(0), versions.get(1)))
+          .containsExactly(versions.get(1).getId());
+    }
+
+    @Test
+    @DisplayName("flags the latest version when a chained scenario step still runs an older one")
+    void given_chainedStepOnOlderVersion_should_flagTheLatest() throws Exception {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      chainedStepOn(versions.get(0));
+
+      // Act & Assert
+      assertThat(flagged(DEFAULT_TENANT_UUID, versions.get(1)))
+          .containsExactly(versions.get(1).getId());
+    }
+
+    @Test
+    @DisplayName("does not flag a version whose older ones only run in simulations")
+    void given_simulationInjectOnOlderVersion_should_notFlag() throws Exception {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      injectComposer
+          .forInject(InjectFixture.createInject(versions.get(0), "Simulation inject"))
+          .withExercise(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+          .persist();
+      entityManager.flush();
+
+      // Act & Assert
+      assertThat(flagged(DEFAULT_TENANT_UUID, versions.get(1))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("hides the flag once kept on their version, until a newer version arrives")
+    void given_keptOnTheirVersion_should_hideTheFlagUntilANewerVersion() throws Exception {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      InjectorContract latest = versions.get(1);
+      atomicTestingOn(versions.get(0));
+      entityManager.flush();
+
+      // Act
+      keep(DEFAULT_TENANT_UUID, latest).andExpect(status().isOk());
+      entityManager.flush();
+
+      // Assert
+      assertThat(flagged(DEFAULT_TENANT_UUID, latest)).isEmpty();
+      JsonNode shown =
+          body(
+              mvc.perform(
+                      get(
+                          TENANT_THREAT_ARSENAL_URL + "/{actionId}/versions",
+                          DEFAULT_TENANT_UUID,
+                          latest.getId()))
+                  .andExpect(status().isOk()));
+      assertThat(shown.findValuesAsText("payload_older_versions_kept"))
+          .containsExactly("true", "false");
+      InjectorContract newer = newerVersion(latest, "3.0.0");
+      assertThat(flagged(DEFAULT_TENANT_UUID, newer)).containsExactly(newer.getId());
+    }
+
+    @Test
+    @DisplayName("flags the version again once the banner is shown again")
+    void given_shownAgain_should_flagAgain() throws Exception {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      InjectorContract latest = versions.get(1);
+      atomicTestingOn(versions.get(0));
+      entityManager.flush();
+      keep(DEFAULT_TENANT_UUID, latest).andExpect(status().isOk());
+
+      // Act
+      mvc.perform(delete(OLDER_VERSIONS_KEPT_URL, DEFAULT_TENANT_UUID, latest.getId()).with(csrf()))
+          .andExpect(status().isNoContent());
+      entityManager.flush();
+
+      // Assert
+      assertThat(flagged(DEFAULT_TENANT_UUID, latest)).containsExactly(latest.getId());
+    }
+
+    @Test
+    @DisplayName("neither flags nor keeps the action of another tenant")
+    void given_otherTenantPath_should_neitherFlagNorKeep() throws Exception {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      InjectorContract latest = versions.get(1);
+      atomicTestingOn(versions.get(0));
+      entityManager.flush();
+      String otherTenant = tenantHelper.createTenantWithCurrentUser("older-versions-other").getId();
+
+      // Act & Assert
+      assertThat(flagged(otherTenant, latest)).isEmpty();
+      keep(otherTenant, latest).andExpect(status().is4xxClientError());
+      entityManager.clear();
+      PayloadIdentity identity = payload(latest.getPayload().getId()).getIdentity();
+      assertThat(identity.getOlderVersionsKeptFor()).isNull();
     }
   }
 }

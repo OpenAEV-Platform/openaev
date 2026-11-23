@@ -1135,11 +1135,8 @@ public class StepService {
   /** The scenario step templates creating an inject of this contract in the tenant. */
   @Transactional(readOnly = true)
   public List<Step> findScenarioStepTemplatesByContract(String tenantId, String contractId) {
-    return stepRepository
-        .findTemplateStepsByInjectorContractIds(List.of(contractId), tenantId)
-        .stream()
-        .filter(step -> step.getWorkflow().getScenario() != null)
-        .toList();
+    return stepRepository.findScenarioTemplatesByTenantIdAndInjectorContractId(
+        tenantId, contractId);
   }
 
   /** Points a step template at another injector contract, with a fresh copy of it in its data. */

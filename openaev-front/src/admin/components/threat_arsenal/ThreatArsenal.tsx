@@ -23,6 +23,7 @@ import CreateThreatArsenalAction from './CreateThreatArsenalAction';
 import useActiveActions, { ACTIVE_FILTER_NAMES } from './hook/useActiveActions';
 import useActiveFacets from './hook/useActiveFacets';
 import useActiveSelection from './hook/useActiveSelection';
+import useOlderVersionsInUse from './hook/useOlderVersionsInUse';
 import useOpenedAction from './hook/useOpenedAction';
 import ThreatArsenalList from './list/ThreatArsenalList';
 import { THREAT_ARSENAL_SORT_OPTIONS } from './list/threatArsenalListConfig';
@@ -50,6 +51,12 @@ const ThreatArsenal = () => {
     threatArsenalActions,
     queryableHelpers.textSearchHelpers.handleTextSearch,
   );
+  const olderVersions = useOlderVersionsInUse(threatArsenalActions);
+  // A move or a keep in the drawer changes the banner of its card.
+  const closeDrawer = () => {
+    if (openedAction) olderVersions.reload(openedAction);
+    closeAction();
+  };
 
   const sections = {
     sectionKey: (action: ThreatArsenalAction) => actionDomains(action, facets.domainOptions)[0]?.domain_name,
@@ -142,6 +149,7 @@ const ThreatArsenal = () => {
                   <ThreatArsenalCard
                     key={action.injector_contract_id}
                     action={action}
+                    olderVersionsInUse={olderVersions.isInUse(action.injector_contract_id)}
                     onSelect={() => openAction(action)}
                     onUpdate={active.replaceAction}
                     onDuplicate={active.addAction}
@@ -179,7 +187,7 @@ const ThreatArsenal = () => {
       {openedAction !== null && (
         <ThreatArsenalInformationDrawer
           open
-          onClose={closeAction}
+          onClose={closeDrawer}
           threatArsenalAction={openedAction}
           initialTab={openedTab}
           onRunTest={setRunTestAction}

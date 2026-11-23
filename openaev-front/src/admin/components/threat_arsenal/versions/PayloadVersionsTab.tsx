@@ -11,12 +11,14 @@ import useCountLabel from '../../../../utils/hooks/useCountLabel';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import AskAfterSavingChoice from './AskAfterSavingChoice';
+import OlderVersionsNote from './OlderVersionsNote';
 import PayloadUsageMoveBar from './usages/PayloadUsageMoveBar';
 import PayloadUsageMoveResult from './usages/PayloadUsageMoveResult';
 import PayloadUsagesTable from './usages/PayloadUsagesTable';
-import { usageCount } from './usages/usageCounts';
+import { olderVersionsInUse, totalUsageCount, usageCount } from './usages/usageCounts';
 import useUsageMove from './usages/useUsageMove';
 import useFocusMove from './useFocusMove';
+import useOlderVersionsKept from './useOlderVersionsKept';
 import { versionRows } from './versionRows';
 
 interface VersionProps {
@@ -117,6 +119,9 @@ interface Props {
 const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMoved, notInstalled, focusMove = false, installing, onInstall }) => {
   const theme = useTheme();
   const canMove = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
+  const latest = versions?.find(version => version.payload_is_latest);
+  const { kept, toggle } = useOlderVersionsKept(latest);
+  const olderUsages = versions && usages && latest ? totalUsageCount(olderVersionsInUse(versions, usages, latest.payload_action_id)) : 0;
 
   if (versions === null) {
     return <Skeleton className="h-24" />;
@@ -128,6 +133,9 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMove
       gap: theme.spacing(2),
     }}
     >
+      {olderUsages > 0 && (
+        <OlderVersionsNote usageCount={olderUsages} kept={kept} onToggle={canMove ? toggle : undefined} />
+      )}
       <div className={LIB_SURFACE_LAYER} style={fdsTableFrameStyle(theme)}>
         {versionRows(versions, notInstalled).map(({ version, installed }) => (installed
           ? (

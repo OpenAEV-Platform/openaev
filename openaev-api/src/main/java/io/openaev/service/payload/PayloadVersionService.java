@@ -10,8 +10,10 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.User;
+import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.model.payload.PayloadRevocation;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.PayloadIdentityRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -45,6 +47,7 @@ public class PayloadVersionService {
   private final PayloadService payloadService;
   private final PayloadRevocationService payloadRevocationService;
   private final InjectRepository injectRepository;
+  private final PayloadIdentityRepository payloadIdentityRepository;
   private final StepService stepService;
   private final PermissionService permissionService;
   private final UserService userService;
@@ -147,13 +150,32 @@ public class PayloadVersionService {
 
   /** Scenario injects and atomic testings running this version: simulations keep theirs. */
   public List<Inject> injectsOn(String tenantId, InjectorContract action) {
-    return injectRepository.findAllOutsideSimulationsByTenantIdAndPayloadId(
-        tenantId, action.getPayload().getId());
+    return injectRepository.findAllOutsideSimulationsByTenantIdAndInjectorContractId(
+        tenantId, action.getId());
   }
 
   /** Chained scenario steps running this version. */
   public List<Step> stepsOn(String tenantId, InjectorContract action) {
     return stepService.findScenarioStepTemplatesByContract(tenantId, action.getId());
+  }
+
+  /** Of these actions, the ones whose card says injects still run an older version. */
+  public List<String> actionsWithOlderVersionsInUse(String tenantId, List<String> actionIds) {
+    if (actionIds.isEmpty()) {
+      return List.of();
+    }
+    return payloadIdentityRepository.findAllActionIdsByTenantIdWithOlderVersionsInUse(
+        tenantId, actionIds);
+  }
+
+  // -- UPDATE --
+
+  /** Kept until a newer version arrives: the card shows no banner meanwhile. */
+  public void keepOlderVersions(String tenantId, String actionId, boolean kept) {
+    Payload version = payloadAction(tenantId, actionId).getPayload();
+    PayloadIdentity identity = version.getIdentity();
+    identity.setOlderVersionsKeptFor(kept ? version.getId() : null);
+    payloadIdentityRepository.save(identity);
   }
 
   private PayloadVersionOutput output(
@@ -163,6 +185,7 @@ public class PayloadVersionService {
         action.getId(),
         version.getVersion(),
         version.isLatest(),
+        version.getId().equals(version.getIdentity().getOlderVersionsKeptFor()),
         revocation != null,
         revocation != null && revocation.isByCatalogue(),
         revocation != null ? revocation.getReason() : null,

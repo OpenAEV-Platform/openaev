@@ -125,6 +125,12 @@ describe('useOpenedAction', () => {
       expect(result.current.openedTab).toBe('versions');
 
       // Act
+      act(() => result.current.showVersions(action, 'move'));
+
+      // Assert
+      expect(result.current.openedTab).toBe('move');
+
+      // Act
       act(() => result.current.closeAction());
 
       // Assert
