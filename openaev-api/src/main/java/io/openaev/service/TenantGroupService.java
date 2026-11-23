@@ -350,14 +350,6 @@ public class TenantGroupService {
     return saved;
   }
 
-  /** Gives a new marking to every group of its tenant that receives new markings. */
-  public void grantToAutoNewMarkingGroups(@NotNull final MarkingDefinition marking) {
-    String tenantId = marking.getTenant().getId();
-    groupRepository
-        .findAllByTenantIdAndAutoNewMarkingTrue(tenantId)
-        .forEach(group -> grantMissingMarkings(group, List.of(marking)));
-  }
-
   /**
    * Takes a marking out of every group of its tenant that holds it, before the marking is deleted.
    * The {@code ON DELETE CASCADE} of {@code groups_markings} would drop the rows, but a group still
@@ -371,8 +363,8 @@ public class TenantGroupService {
   }
 
   /**
-   * Same as {@link #grantToAutoNewMarkingGroups(MarkingDefinition)} for a batch of markings of one
-   * tenant: one query for the groups, one grant per group.
+   * Gives new markings of one tenant to every group of that tenant that receives new markings: one
+   * query for the groups, one grant per group.
    */
   public void grantToAutoNewMarkingGroups(@NotNull final Collection<MarkingDefinition> markings) {
     if (markings.isEmpty()) {

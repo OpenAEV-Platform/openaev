@@ -269,7 +269,7 @@ public class MarkingDefinitionService {
     MarkingDefinition saved =
         repository.save(
             buildEntity(tenantId, type, definition, input.color(), input.order(), freeStixId));
-    tenantGroupService.grantToAutoNewMarkingGroups(saved);
+    tenantGroupService.grantToAutoNewMarkingGroups(List.of(saved));
     markingClearanceCacheManager.evictAll();
     runAfterCommit(actionMetricCollector::addMarkingDefinitionCreatedCount);
     return saved;
