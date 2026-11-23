@@ -5,12 +5,8 @@ import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type CounterpartAnswer } from '../../../components/xtm/counterpartStore';
-import XtmCounterpartsEmblem, {
-  safeCounterpartUrl,
-  visibleSections,
-  XTM_PRODUCTS,
-  XtmCounterpartsEmblemView,
-} from '../../../components/xtm/XtmCounterpartsEmblem';
+import XtmCounterpartsEmblem, { XtmCounterpartsEmblemView } from '../../../components/xtm/XtmCounterpartsEmblem';
+import { safeCounterpartUrl, visibleSections, XTM_PRODUCTS } from '../../../components/xtm/xtmCounterpartsModel';
 
 const can = vi.fn();
 const useCounterpartMock = vi.fn();
