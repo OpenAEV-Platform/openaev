@@ -24,7 +24,7 @@ jobs:
   pipeline:
     uses: ./.github/workflows/_ci-pipeline.yml
     with:
-      # ── API Tests: 20 shards + catch-all ──
+      # ── API Tests: 15 shards + catch-all ──
       # Shard patterns live in .github/shards; the catch-all covers unassigned tests.
       # The engine client is detected from the server: elasticsearch8 starts an Elasticsearch 8.
       api-matrix: >
@@ -44,12 +44,7 @@ jobs:
           {"shard":"13","shard_name":"elk8-13","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
           {"shard":"14","shard_name":"elk8-14","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
           {"shard":"15","shard_name":"elk8-15","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"16","shard_name":"elk8-16","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"17","shard_name":"elk8-17","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"18","shard_name":"elk8-18","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"19","shard_name":"elk8-19","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"20","shard_name":"elk8-20","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"21","shard_name":"elk8-remaining","search_engine":"elasticsearch8","artifact_suffix":"","includes":"catchall","excludes":""}
+          {"shard":"16","shard_name":"elk8-remaining","search_engine":"elasticsearch8","artifact_suffix":"","includes":"catchall","excludes":""}
         ]
       # ── E2E Tests ──
       # PRs shard Chromium on AMD64; main and tags also cover supported browser/architecture combinations.

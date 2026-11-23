@@ -1,9 +1,1 @@
-io/openaev/aop/**/*Test.java
-io/openaev/api/url_access_token/**/*Test.java
-io/openaev/rest/AtomicTestingApiTest.java
-io/openaev/rest/TeamApiTest.java
-io/openaev/rest/attack_pattern/**/*Test.java
-io/openaev/rest/inject/InjectAssistantAssetGroupTenantTest.java
-io/openaev/rest/mapper/**/*Test.java
-io/openaev/rest/mitigation/**/*Test.java
-io/openaev/rest/team/**/*Test.java
+io/openaev/architecture/**/*Test.java
