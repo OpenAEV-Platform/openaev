@@ -13,9 +13,6 @@
     <description>OpenAEV api</description>
 
     <properties>
-        <!-- Override Spring Boot managed Spring Security version (fixes AIKIDO-2026-206193, AIKIDO-2026-53619) -->
-        <spring-security.version>7.1.3</spring-security.version>
-
         <commons-collections4.version>4.6.0</commons-collections4.version>
         <commons-email.version>1.5</commons-email.version>
         <!-- springdoc 3.x targets Spring Boot 4; 2.x (Boot 3) throws
