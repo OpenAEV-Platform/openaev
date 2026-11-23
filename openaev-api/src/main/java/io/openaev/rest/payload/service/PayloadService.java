@@ -411,6 +411,13 @@ public class PayloadService {
     return payloadRepository.findAllVersionsByTenantIdAndPayloadId(tenantId, payload.getId());
   }
 
+  /** The customized copies built on one of these versions, at their latest version. */
+  public List<Payload> latestCopiesOf(String tenantId, Collection<Payload> bases) {
+    return payloadRepository.findAllByTenantIdAndBaseIn(tenantId, bases).stream()
+        .filter(Payload::isLatest)
+        .toList();
+  }
+
   public PayloadWithRelatedEntities findPayloadWithRelatedEntities(String payloadId) {
     Payload payload =
         payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
