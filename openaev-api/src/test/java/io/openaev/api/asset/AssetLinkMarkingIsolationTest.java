@@ -59,7 +59,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestPropertySource(
     properties = {
       "openaev.marking.active-tables=assets",
-      "openaev.enabled-dev-features=MARKING,EXPLORATION_GRAPH"
+      "openaev.enabled-dev-features=MARKING,EXPLORATION_GRAPH,XTM_COUNTERPARTS"
     })
 @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.MANAGE_ASSETS})
 @DisplayName("asset links and counterpart lookups under markings")
