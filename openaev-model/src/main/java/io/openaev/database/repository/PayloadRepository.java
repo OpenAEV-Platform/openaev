@@ -129,6 +129,9 @@ public interface PayloadRepository
   List<Payload> findAllVersionsByTenantIdAndPayloadId(
       @Param("tenantId") @NotNull String tenantId, @Param("payloadId") @NotNull String payloadId);
 
+  List<Payload> findAllByTenantIdAndBaseIn(
+      @NotNull String tenantId, @NotNull Collection<Payload> bases);
+
   Optional<Payload> findByIdentityExternalIdAndIdentityRepositoryIsNull(@NotNull String externalId);
 
   List<Payload> findAllByIdentityId(String identityId);

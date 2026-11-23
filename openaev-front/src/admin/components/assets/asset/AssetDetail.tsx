@@ -38,7 +38,6 @@ import {
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
-import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -105,13 +104,7 @@ const AssetDetail = () => {
     loadAsset();
   }, [loadAsset]);
 
-  // Gates the Markings field (and its data fetch below) so the flag-off platform looks exactly as
-  // it does today - mirrors the Endpoints list convention.
   const markingEnabled = isFeatureEnabled('MARKING');
-  const markingDefinitions = useMarkingDefinitions({
-    skip: !markingEnabled,
-    assignableOnly: true,
-  });
 
   // Resolve the linked person (identity assets) to a readable name.
   const { usersMap } = useHelper((helper: UserHelper) => ({ usersMap: helper.getUsersMap() }));
@@ -345,7 +338,7 @@ const AssetDetail = () => {
               </Field>
               {markingEnabled && (
                 <Field label={t('Markings')}>
-                  <ItemMarkings variant="list" markingIds={asset.asset_markings} definitions={markingDefinitions} />
+                  <ItemMarkings markingIds={asset.asset_markings} />
                 </Field>
               )}
             </InformationGrid>

@@ -5,10 +5,10 @@ import { type NotificationOutput } from '../../../../../utils/api-types';
 
 describe('notificationUtils', () => {
   describe('eventUrl', () => {
-    it('opens the action of a payload event', () => {
+    it.each(['REVOKED', 'BASE_UPDATE_AVAILABLE'])('opens the action of a payload %s event', (operation) => {
       // Act
       const url = eventUrl({
-        operation: 'REVOKED',
+        operation,
         resource_type: 'PAYLOAD',
         resource_id: 'payload-1',
       });
@@ -67,6 +67,7 @@ describe('notificationUtils', () => {
   describe('operationLabel', () => {
     it.each([
       ['NEW_PAYLOAD_VERSION', 'New action version available'],
+      ['BASE_UPDATE_AVAILABLE', 'Filigran update available'],
       ['INSTALLED_AUTOMATICALLY', 'Installed automatically'],
       ['UNKNOWN_EVENT', 'Unknown'],
     ])('labels %s as %s', (operation, expected) => {
