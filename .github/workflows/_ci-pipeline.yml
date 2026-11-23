@@ -470,7 +470,7 @@ jobs:
         with:
           min-coverage: "80"
           max-drop: "0.1"
-          app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
+          client-id: ${{ vars.OPENAEV_PR_CHECKS_CLIENT_ID }}
           private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
 
   coverage-frontend:
@@ -672,7 +672,7 @@ jobs:
       - uses: ./.github/actions/aikido-image-scan
         with:
           api-key: ${{ secrets.AIKIDO_TOKEN }}
-          app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
+          client-id: ${{ vars.OPENAEV_PR_CHECKS_CLIENT_ID }}
           private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
 
   # ════════════════════════════════════════════════════════════════════

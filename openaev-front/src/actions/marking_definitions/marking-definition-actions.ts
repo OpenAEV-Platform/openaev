@@ -1,7 +1,7 @@
 import type { Dispatch } from 'redux';
 
 import { ImportFileError } from '../../components/common/import/import-report-types';
-import { delReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
+import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
 import {
   type ImportReport,
   type MarkingDefinitionInput,
@@ -24,6 +24,11 @@ export const searchMarkingDefinitions = (searchPaginationInput: SearchPagination
 // Unlike searchMarkingDefinitions, this returns a plain array, not a paginated {content: [...]}.
 export const fetchAssignableMarkingDefinitions = () => {
   return simpleCall(`${MARKING_DEFINITIONS_URI}/assignable`);
+};
+
+// Loaded once into the store, like tags: every marking a visible row carries is within this set.
+export const fetchMarkingDefinitions = () => (dispatch: Dispatch) => {
+  return getReferential(schema.arrayOfMarkingDefinitions, `${MARKING_DEFINITIONS_URI}/assignable`)(dispatch);
 };
 
 // Whether any entity currently carries this marking definition - checked before a delete, which
