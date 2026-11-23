@@ -4345,6 +4345,7 @@
   "This asset was not targeted because its marking clearance does not cover the markings of the inject.": "This asset was not targeted because its marking clearance does not cover the markings of the inject.",
   "This atomic testing and its previous results will be deleted": "This atomic testing and its previous results will be deleted",
   "This autonomous run has no scenario to convert": "This autonomous run has no scenario to convert",
+  "This communication check has already been answered or is closed.": "This communication check has already been answered or is closed.",
   "This connector has {count} deployed instance(s). Manage them from the Deployed tab.": "This connector has {count} deployed instance(s). Manage them from the Deployed tab.",
   "This connector has been successfully migrated. You can now stop your manually deployed connector before starting this instance.": "This connector has been successfully migrated. You can now stop your manually deployed connector before starting this instance.",
   "This custom section has no content yet.": "This custom section has no content yet.",

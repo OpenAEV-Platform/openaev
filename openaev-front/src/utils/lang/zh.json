@@ -4345,6 +4345,7 @@
   "This asset was not targeted because its marking clearance does not cover the markings of the inject.": "该资产未被定位，因为其标记许可不涵盖该注入的标记。",
   "This atomic testing and its previous results will be deleted": "此原子测试及其之前的结果将被删除",
   "This autonomous run has no scenario to convert": "此自主运行没有要转换的场景",
+  "This communication check has already been answered or is closed.": "此通信检查已被回复或已关闭。",
   "This connector has {count} deployed instance(s). Manage them from the Deployed tab.": "此连接器有 {count} 个已部署实例。可在\"已部署\"选项卡中管理。",
   "This connector has been successfully migrated. You can now stop your manually deployed connector before starting this instance.": "该连接器已成功迁移。现在，您可以在启动此实例前停止手动部署的连接器。",
   "This custom section has no content yet.": "此自定义部分尚无内容。",

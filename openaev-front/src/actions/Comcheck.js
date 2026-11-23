@@ -1,4 +1,4 @@
-import { delReferential, getReferential, postReferential } from '../utils/Action';
+import { delReferential, getReferential, postReferential, simpleCall } from '../utils/Action';
 import * as schema from './Schema';
 
 export const fetchComchecks = exerciseId => (dispatch) => {
@@ -26,7 +26,5 @@ export const fetchComcheckStatuses = (exerciseId, comcheckId) => (dispatch) => {
   return getReferential(schema.arrayOfComcheckStatuses, uri)(dispatch);
 };
 
-export const fetchComcheckStatus = statusId => (dispatch) => {
-  const uri = `/api/comcheck/${statusId}`;
-  return getReferential(schema.comcheckStatus, uri)(dispatch);
-};
+// The public page shows a refusal (409) itself: no error toast, and no store: the page keeps the answer.
+export const fetchComcheckStatus = statusId => simpleCall(`/api/comcheck/${statusId}`, undefined, false).then(response => response.data);
