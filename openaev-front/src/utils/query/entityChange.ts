@@ -4,7 +4,8 @@ export type EntityChangeAction = 'create' | 'update' | 'delete';
  * Entity type names the live layer matches on: the platform stream's `attribute_schema`, i.e. the
  * `@Entity(name)` or simple class name of the backend class declaring the `@Id` (a
  * `@MappedSuperclass` included), lowercased with no separator, plus 's' ('es' after an 's'). So
- * Endpoint is 'assets' (its id is declared by Asset) and AssetGroup is 'assetgroups'. Feature code
+ * AssetGroup is 'assetgroups'. Asset subtypes stream under their own schema ('endpoints',
+ * 'securityplatforms', 'aitargets'), which the stream adapter reduces to 'assets'. Feature code
  * only names types from here, so a typo does not compile: add a missing type before using it.
  */
 export const ENTITY_TYPES = {
