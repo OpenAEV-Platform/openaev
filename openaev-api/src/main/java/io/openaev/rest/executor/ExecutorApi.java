@@ -478,6 +478,14 @@ public class ExecutorApi extends RestBehavior {
         AgentUtils.normaliseSupportedAgentPlatform(platform).name().toLowerCase();
     String resolvedInstallationMode = AgentUtils.getSupportedInstallationMode(installationMode);
 
+    // Answered here with a plain status rather than through the generic IllegalArgumentException
+    // handler: this endpoint produces text/plain, which that JSON handler cannot write.
+    if (!AgentUtils.areSafeAgentScriptInputs(resolvedPlatform, installationDir, serviceName)) {
+      throw new ResponseStatusException(
+          org.springframework.http.HttpStatus.BAD_REQUEST,
+          "Invalid installation directory or service name");
+    }
+
     // FIND TOKEN BY TENANT
     String token =
         agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
