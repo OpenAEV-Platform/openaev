@@ -162,6 +162,8 @@ export interface AgentTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -417,6 +419,8 @@ export interface AiTargetTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -904,6 +908,8 @@ export interface AssetGroupTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -1018,6 +1024,11 @@ export interface AssetOutput {
    * @minLength 1
    */
   asset_id: string;
+  /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
   /**
    * Asset name
    * @minLength 1
@@ -2344,6 +2355,8 @@ interface BaseInjectTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_prevention_status?:
     | "FAILED"
     | "PENDING"
@@ -2841,18 +2854,33 @@ export interface CatalogScenarioInstallInput {
 export interface CatalogScenarioOutput {
   catalog_scenario_author?: string;
   catalog_scenario_category?: string;
+  catalog_scenario_changelog?: string;
   catalog_scenario_description?: string;
   /** @minLength 1 */
   catalog_scenario_external_id: string;
+  /** @format int32 */
+  catalog_scenario_injects_count?: number;
   catalog_scenario_installed_scenario_id?: string;
-  catalog_scenario_missing_requirements: string[];
+  catalog_scenario_main_focus?: string;
+  catalog_scenario_missing_requirements: CatalogScenarioRequirementOutput[];
   catalog_scenario_name?: string;
+  catalog_scenario_payloads: CatalogPayloadOutput[];
   catalog_scenario_platforms: string[];
   /** @format date-time */
   catalog_scenario_published_at?: string;
+  catalog_scenario_severity?: string;
   catalog_scenario_type: string;
   /** @minLength 1 */
   catalog_scenario_version: string;
+}
+
+export interface CatalogScenarioRequirementOutput {
+  requirement_integration_id?: string;
+  /** @minLength 1 */
+  requirement_label: string;
+  /** @minLength 1 */
+  requirement_name: string;
+  requirement_status?: "NOT_DEPLOYED" | "NOT_RUNNING";
 }
 
 export interface CatalogScenarioVersionOutput {
@@ -5450,6 +5478,8 @@ export interface EndpointTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -7941,6 +7971,15 @@ export type InjectTarget = BaseInjectTarget &
     | BaseInjectTargetTargetTypeMapping<"MANUAL", ManualTarget>
   );
 
+export interface InjectTargetsOutput {
+  /** @minLength 1 */
+  inject_id: string;
+  inject_target_kinds: ("ASSETS" | "ASSET_GROUPS" | "TEAMS" | "HOSTS")[];
+  inject_targeted?: boolean;
+  /** @minLength 1 */
+  inject_title: string;
+}
+
 export interface InjectTeamsInput {
   inject_teams?: string[];
 }
@@ -8823,6 +8862,8 @@ export interface ManualTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -9144,6 +9185,7 @@ export interface NotificationTriggerInput {
     | "NEW_PAYLOAD_VERSION"
     | "REVOKED"
     | "REVOCATION_LIFTED"
+    | "BASE_UPDATE_AVAILABLE"
     | "INSTALLED_AUTOMATICALLY"
     | "RELEASE_RECEIVED"
     | "SYNC_BLOCKED"
@@ -9265,6 +9307,7 @@ export interface NotificationTriggerOutput {
     | "NEW_PAYLOAD_VERSION"
     | "REVOKED"
     | "REVOCATION_LIFTED"
+    | "BASE_UPDATE_AVAILABLE"
     | "INSTALLED_AUTOMATICALLY"
     | "RELEASE_RECEIVED"
     | "SYNC_BLOCKED"
@@ -11337,6 +11380,8 @@ export interface PlayerTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -11965,6 +12010,15 @@ export interface ResultDistribution {
   value: number;
 }
 
+export interface RevokedInjectOutput {
+  /** @minLength 1 */
+  inject_action_id: string;
+  /** @minLength 1 */
+  inject_id: string;
+  /** @minLength 1 */
+  inject_title: string;
+}
+
 export interface RoleInput {
   /** @uniqueItems true */
   role_capabilities?: (
@@ -12378,6 +12432,12 @@ export interface ScenarioInput {
   scenario_severity?: "low" | "medium" | "high" | "critical";
   scenario_subtitle?: string;
   scenario_tags?: string[];
+}
+
+export interface ScenarioLaunchCheckOutput {
+  launch_check_injects: InjectTargetsOutput[];
+  launch_check_missing_requirements: CatalogScenarioRequirementOutput[];
+  launch_check_revoked_injects: RevokedInjectOutput[];
 }
 
 export interface ScenarioLaunchOutput {
@@ -13834,6 +13894,8 @@ export interface TeamTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"

@@ -5,7 +5,7 @@ import { createElement } from 'react';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import type { Header } from '../../../../../components/common/SortHeadersList';
 import ItemMarkings from '../../../../../components/ItemMarkings';
-import type { Group, MarkingDefinitionOutput, SortField } from '../../../../../utils/api-types';
+import type { Group, SortField } from '../../../../../utils/api-types';
 
 // Local Storage
 export const LOCAL_STORAGE_KEY_TENANT_GROUP = 'tenant_groups';
@@ -34,10 +34,7 @@ export const TENANT_GROUP_INLINE_STYLES: Record<string, CSSProperties> = {
 // column (and any marking data) must not leak into the list at all, not merely render empty.
 export const getTenantGroupHeaders: (
   t: (text: string) => string,
-  options?: {
-    markingEnabled?: boolean;
-    markingDefinitions?: Record<string, MarkingDefinitionOutput>;
-  },
+  options?: { markingEnabled?: boolean },
 ) => Header[] = (t, options) => {
   const headers: Header[] = [
     {
@@ -58,11 +55,7 @@ export const getTenantGroupHeaders: (
       field: FIELD_MARKINGS,
       label: t('Markings'),
       isSortable: false,
-      value: (group: Group) => createElement(ItemMarkings, {
-        markingIds: group.group_markings,
-        definitions: options.markingDefinitions ?? {},
-        variant: 'list',
-      }),
+      value: (group: Group) => createElement(ItemMarkings, { markingIds: group.group_markings }),
     });
   }
   headers.push({

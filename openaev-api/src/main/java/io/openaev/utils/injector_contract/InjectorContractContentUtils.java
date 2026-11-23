@@ -9,10 +9,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.helper.InjectModelHelper;
 import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -251,22 +253,90 @@ public class InjectorContractContentUtils {
    * @return true if field is found, false if not
    */
   public boolean hasField(InjectorContract injectorContract, String field) {
+    return fields(injectorContract).containsKey(field);
+  }
+
+  /**
+   * The keys of the fields an inject must fill, by group: any one field of a group fills it. A
+   * mandatory field is a group of its own; a field mandatory on a condition counts when the inject
+   * meets it.
+   */
+  public Set<Set<String>> mandatoryFieldGroups(Inject inject) {
+    return mandatoryFieldGroups(
+        fields(inject.getInjectorContract().orElse(null)),
+        field ->
+            InjectModelHelper.getFieldValue(
+                inject.getTeams().stream().map(Team::getId).toList(),
+                inject.getAssets().stream().map(Asset::getId).toList(),
+                inject.getAssetGroups().stream().map(AssetGroup::getId).toList(),
+                field,
+                inject.getContent()));
+  }
+
+  /** The same groups among these contract fields, reading the inject's values with valuesOf. */
+  public static Set<Set<String>> mandatoryFieldGroups(
+      Map<String, JsonNode> fields, Function<JsonNode, List<String>> valuesOf) {
+    Set<Set<String>> groups = new LinkedHashSet<>();
+    fields.forEach(
+        (key, field) -> {
+          if (field.path(CONTRACT_ELEMENT_CONTENT_MANDATORY).asBoolean()
+              || isMandatoryOnCondition(field, fields, valuesOf)) {
+            groups.add(Set.of(key));
+          }
+          Set<String> group = new LinkedHashSet<>();
+          field
+              .path(CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS)
+              .forEach(member -> group.add(member.asText()));
+          if (!group.isEmpty()) {
+            groups.add(group);
+          }
+        });
+    return groups;
+  }
+
+  private static boolean isMandatoryOnCondition(
+      JsonNode field, Map<String, JsonNode> fields, Function<JsonNode, List<String>> valuesOf) {
+    JsonNode values = field.path(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES);
+    return StreamSupport.stream(
+            field.path(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_FIELDS).spliterator(), false)
+        .map(JsonNode::asText)
+        .filter(fields::containsKey)
+        .anyMatch(
+            key ->
+                !values.has(key)
+                    || isConditionMet(values.get(key), valuesOf.apply(fields.get(key))));
+  }
+
+  private static boolean isConditionMet(JsonNode expected, List<String> actualValues) {
+    List<String> expectedValues = new ArrayList<>();
+    if (expected.isArray()) {
+      expected.forEach(value -> expectedValues.add(value.asText()));
+    } else {
+      expectedValues.add(expected.asText());
+    }
+    return actualValues.stream().anyMatch(expectedValues::contains);
+  }
+
+  /** The contract's fields by key, empty when its content cannot be read. */
+  public Map<String, JsonNode> fields(InjectorContract injectorContract) {
+    Map<String, JsonNode> fields = new LinkedHashMap<>();
     if (injectorContract == null || injectorContract.getContent() == null) {
-      return false;
+      return fields;
     }
-
     try {
-      ObjectNode objectNode = (ObjectNode) mapper.readTree(injectorContract.getContent());
-
-      return objectNode.get("fields") != null
-          && objectNode.get("fields").isArray()
-          && StreamSupport.stream(
-                  Spliterators.spliteratorUnknownSize(objectNode.get("fields").iterator(), 0),
-                  false)
-              .anyMatch(node -> node.has("key") && field.equals(node.get("key").asText()));
+      mapper
+          .readTree(injectorContract.getContent())
+          .path(FIELDS)
+          .forEach(
+              field -> {
+                if (field.has(CONTRACT_ELEMENT_CONTENT_KEY)) {
+                  fields.put(field.get(CONTRACT_ELEMENT_CONTENT_KEY).asText(), field);
+                }
+              });
     } catch (JsonProcessingException e) {
-      return false;
+      return new LinkedHashMap<>();
     }
+    return fields;
   }
 
   /**

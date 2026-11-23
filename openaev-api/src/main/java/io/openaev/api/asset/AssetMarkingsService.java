@@ -2,6 +2,7 @@ package io.openaev.api.asset;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.marking.MarkingEscalationValidator.assertCanAssignMarkings;
+import static io.openaev.utils.MarkingUtils.markingIds;
 
 import io.openaev.api.asset.dto.AssetBulkReplaceMarkingsInput;
 import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
@@ -24,7 +25,6 @@ import io.openaev.telemetry.metric_collectors.MarkingMetricCollector;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -143,8 +143,7 @@ public class AssetMarkingsService {
    * drift apart.
    */
   private Set<String> applyAssetMarkings(Asset asset, Set<String> requested) {
-    Set<String> previous =
-        asset.getMarkingIds() == null ? Set.of() : Set.copyOf(Arrays.asList(asset.getMarkingIds()));
+    Set<String> previous = markingIds(asset);
     Set<String> added = new HashSet<>(requested);
     added.removeAll(previous);
     Set<String> removed = new HashSet<>(previous);

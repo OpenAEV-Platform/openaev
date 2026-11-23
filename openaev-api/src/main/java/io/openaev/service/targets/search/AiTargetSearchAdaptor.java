@@ -1,5 +1,7 @@
 package io.openaev.service.targets.search;
 
+import static io.openaev.utils.MarkingUtils.markingIds;
+
 import io.openaev.database.model.AiTargetTarget;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetCategory;
@@ -116,6 +118,7 @@ public class AiTargetSearchAdaptor extends SearchAdaptorBase {
                 aiTarget.getId(),
                 aiTarget.getName(),
                 aiTarget.getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
+                markingIds(aiTarget),
                 aiTarget.getAiTargetProvider() != null
                     ? aiTarget.getAiTargetProvider().name()
                     : null),

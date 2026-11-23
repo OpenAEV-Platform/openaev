@@ -44,6 +44,8 @@ import useRemainingViewportHeight from '../../../../../utils/hooks/useRemainingV
 import { download } from '../../../../../utils/utils';
 import ChainingUpdatedBanner from '../../../chaining/ChainingUpdatedBanner';
 import useSnapshotUpdated from '../../../chaining/useSnapshotUpdated';
+import useOpenLaunchedSimulation from '../../../scenarios/launch/useOpenLaunchedSimulation';
+import { SCENARIO_TYPE_CHAINED } from '../../../scenarios/scenario/ScenarioType';
 import attackPathStatusColor from './attack-path-colors';
 import { AP_ALL_ENDPOINTS, AP_CHILD_WALK_PASSES, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, buildLocalActionExecIndex, displayFindingValue, ENDPOINT_BATCH_SIZE, expandPathSet, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, LOCAL_ACTION_ID_PREFIX, orderSimulationPickerOptions, type PathFinding, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from './attack-path-flow-helpers';
 import { AP_GLOBAL_STYLES, AP_PANEL_DEFAULT_WIDTH, AP_PANEL_MAX_WIDTH, AP_PANEL_MIN_WIDTH, AP_VIEW_HEIGHT, AP_VISUALLY_HIDDEN } from './attack-path-styles';
@@ -220,6 +222,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   const theme = useTheme();
   const { t, fldt, cnsdt } = useFormatter();
   const navigate = useNavigate();
+  const openLaunchedSimulation = useOpenLaunchedSimulation();
 
   // The view sizes itself to the exact space left under the page chrome (no page scrollbar).
   const [rootRef, viewHeight] = useRemainingViewportHeight();
@@ -2669,14 +2672,13 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     setLaunching(true);
     launchScenario(scenarioId)
       .then(({ simulation_id }) => {
-        MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
-        navigate(`${SIMULATION_BASE_URL}/${simulation_id}`);
+        openLaunchedSimulation(simulation_id, SCENARIO_TYPE_CHAINED);
       })
       .catch(() => {
         MESSAGING$.notifyError(t('Error while launching the simulation'));
         setLaunching(false);
       });
-  }, [scenarioId, navigate, t]);
+  }, [scenarioId, openLaunchedSimulation, t]);
 
   return (
     <Box

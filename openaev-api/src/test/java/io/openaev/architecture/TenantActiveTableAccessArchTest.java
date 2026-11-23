@@ -405,6 +405,35 @@ class TenantActiveTableAccessArchTest {
     io.openaev.processor.datapack.V20261001_Default_tenant_roles_and_groups.class
   };
 
+  /**
+   * The accessors of {@code GroupRepository}, each with the scope it runs under, following the
+   * pattern {@link #ROLES_REPOSITORY_ACCESSORS} set for roles.
+   */
+  private static final Class<?>[] GROUPS_REPOSITORY_ACCESSORS = {
+    // Tenant groups, by the tenant each method names; every caller passes a TxCtx holding it:
+    io.openaev.service.TenantGroupService.class,
+    // Platform groups, readable under any scope, written under @PlatformWrite:
+    io.openaev.service.platform.groups.PlatformGroupService.class,
+    // SSO group mapping and the user-side group reads: reads by name/id, the platform-group create
+    // wrapped in executeNewAsPlatformWrite, the tenant-group create through TenantGroupService:
+    io.openaev.service.UserService.class,
+    // Adds or removes one users_groups row from the group side, by (user, group) id: the group is
+    // looked up by id and the row write is bounded to that one group's own rows:
+    io.openaev.service.UserGroupMembershipService.class,
+    // Resolves a notification trigger's recipient group ids inside the TxCtx-scoped
+    // NotificationTriggerApi transaction; the inspector scopes the lookup:
+    NotificationTriggerMapper.class,
+    // Deletes the legacy pre-multi-tenant connector group of the default tenant, a tenant row:
+    io.openaev.opencti.connectors.service.LegacyOpenCTIConnectorMigration.class,
+    // Datapacks, run by MigrationProcessor in the scope of the tenant they process:
+    V20260330_Default_tenant_data.class,
+    V20261002_Default_group_markings.class,
+    // A role's delete clears it from the groups that link it (findAllByRoles), under the scope or
+    // platform-write marker of the role delete itself:
+    io.openaev.service.TenantRoleService.class,
+    io.openaev.service.platform.roles.PlatformRoleService.class
+  };
+
   /** Tables guarded by this test. Must cover every entry of the production allowlist. */
   private static final Set<String> GUARDED_TABLES =
       Set.of(
@@ -486,7 +515,8 @@ class TenantActiveTableAccessArchTest {
           "injects",
           "execution_traces",
           "roles",
-          "scenario_revisions");
+          "scenario_revisions",
+          "groups");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -2763,6 +2793,47 @@ class TenantActiveTableAccessArchTest {
               "roles is tenant-active: an accessor without a tenant scope silently reads no tenant"
                   + " role, and a capability check built on it refuses what the role grants. New"
                   + " accessors must carry a scope and be allowlisted here");
+
+  /**
+   * {@code groups} is dual-scope like {@code roles} (see {@link PlatformRowWriters#GROUPS}): a
+   * write of a platform group outside a platform-write transaction is refused by the database.
+   * Every writer this rule can see is marked or listed as a tenant-row-only writer.
+   */
+  @ArchTest
+  static final ArchRule groups_platform_row_writers_run_under_platform_write =
+      methods()
+          .that(
+              PlatformRowWriters.writeARow(
+                  PlatformRowWriters.GROUPS, PlatformRowWriters.GROUPS.tenantRowWriters()))
+          .should(PlatformRowWriters.beReachedOnlyUnderPlatformWrite(PlatformRowWriters.GROUPS))
+          .because(
+              "groups is dual-scope: a write of a platform row outside a platform-write transaction"
+                  + " will be refused once groups is active. Every writer the rule can see must sit"
+                  + " under @PlatformWrite or executeAsPlatformWrite/executeNewAsPlatformWrite, or"
+                  + " be a listed writer of tenant groups only");
+
+  /** Each tenant-row-only exemption of {@code groups} is live and touches tenant groups only. */
+  @ArchTest
+  static void groups_tenant_row_writer_exemptions_are_live(JavaClasses classes) {
+    assertTenantRowWriterExemptionsAreLive(classes, PlatformRowWriters.GROUPS);
+  }
+
+  /**
+   * Follows the pattern {@link #roles_repository_access_is_reviewed} set for roles: the platform
+   * groups are read by {@code PlatformGroupService} under any scope, the tenant groups by {@code
+   * TenantGroupService} under the tenant each method names.
+   */
+  @ArchTest
+  static final ArchRule groups_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(GROUPS_REPOSITORY_ACCESSORS)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.GroupRepository.class)
+          .because(
+              "groups is tenant-active: an accessor without a tenant scope silently reads no tenant"
+                  + " group. New accessors must carry a scope and be allowlisted here");
 
   /**
    * A tenant row of {@code parameters} read with no tenant scope comes back empty, silently: the

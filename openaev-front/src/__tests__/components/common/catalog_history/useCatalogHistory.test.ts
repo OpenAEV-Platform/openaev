@@ -19,6 +19,20 @@ describe('useCatalogHistory', () => {
     expect(fetchHistory).toHaveBeenCalledWith('action-1');
   });
 
+  it('given_aNewReloadValue_should_readTheHistoryAgain', async () => {
+    // Arrange
+    const fetchHistory = vi.fn((id: string) => Promise.resolve({ data: history(id) }));
+    const { result, rerender } = renderHook(({ reload }) => useCatalogHistory(fetchHistory, 'scenario-1', reload), { initialProps: { reload: 0 } });
+    await waitFor(() => expect(result.current).toEqual(history('scenario-1')));
+
+    // Act
+    rerender({ reload: 1 });
+
+    // Assert
+    await waitFor(() => expect(fetchHistory).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current).toEqual(history('scenario-1')));
+  });
+
   it('given_anotherIdBeforeTheFirstAnswer_should_keepOnlyTheLastHistory', async () => {
     // Arrange
     const first: { answer?: (value: { data: unknown }) => void } = {};

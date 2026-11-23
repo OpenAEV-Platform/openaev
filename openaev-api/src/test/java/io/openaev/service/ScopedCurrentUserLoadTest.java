@@ -524,29 +524,43 @@ class ScopedCurrentUserLoadTest extends ProductionTablesIntegrationTest {
     @Test
     @DisplayName("given_pendingEditsOnAGroupOfTheSession_should_loadWithoutOverwritingThem")
     void given_pendingEditsOnAGroupOfTheSession_should_loadWithoutOverwritingThem() {
-      // Arrange: the session holds the user's group read under the scope of A, with a rename and a
-      // member that are not written yet
+      // Arrange: a user of a platform group, visible whatever the scope, and a tenant-B group
+      // holding the guard capability; the session holds it read under the scope of A alone, where
+      // only the platform group is visible, with a rename and a member on it that are not written
+      // yet
+      User user = newUser("pending-edits");
+      tenantTx.executeAsPlatformWrite(
+          TxCtx.forTenants(List.of(tenantA, tenantB)),
+          () -> {
+            user.getUnscopedGroups().add(platformGroup(Set.of()));
+            user.getUnscopedGroups().add(tenantGroup(tenantB, Set.of(GUARD_CAPABILITY)));
+            userRepository.save(user);
+          });
+      member(user, tenantA);
+      member(user, tenantB);
+      String platformGroupId = user.getUnscopedGroups().get(0).getId();
       String pendingName = "pending-" + UUID.randomUUID();
-      String groupId = memberOfAAndB.getUnscopedGroups().get(0).getId();
       EntityManager session = emf.createEntityManager();
       TransactionSynchronizationManager.bindResource(emf, new EntityManagerHolder(session));
       try {
         User preloaded =
             tenantTx.executeReadOnly(
-                TxCtx.forTenant(tenantA), () -> session.find(User.class, memberOfAAndB.getId()));
+                TxCtx.forTenant(tenantA), () -> session.find(User.class, user.getId()));
         Group group = preloaded.getUnscopedGroups().get(0);
-        assertThat(group.getId()).isEqualTo(groupId);
+        assertThat(group.getId()).isEqualTo(platformGroupId);
         group.setName(pendingName);
         group.getUsers().add(session.find(User.class, memberOfB.getId()));
 
         // Act
-        Set<Capability> capabilities = asUser(memberOfAAndB, tenantB, userService::currentUser);
+        Set<Capability> capabilities = asUser(user, tenantB, userService::currentUser);
 
-        // Assert: the load reads the tenant role, and the group keeps the pending edits
+        // Assert: the load reads the tenant role of B, and the platform group retains its pending
+        // edits
         assertThat(capabilities).contains(GUARD_CAPABILITY);
         assertThat(group.getName()).isEqualTo(pendingName);
         assertThat(group.getUsers()).extracting(User::getId).contains(memberOfB.getId());
-        tenantTx.execute(TxCtx.forTenants(List.of(tenantA, tenantB)), session::flush);
+        tenantTx.executeAsPlatformWrite(
+            TxCtx.forTenants(List.of(tenantA, tenantB)), session::flush);
         assertThat(
                 jdbc.queryForObject(
                     "SELECT group_name FROM groups WHERE group_id = ?",
@@ -564,7 +578,7 @@ class ScopedCurrentUserLoadTest extends ProductionTablesIntegrationTest {
         jdbc.update(
             "DELETE FROM users_groups WHERE user_id = ? AND group_id = ?",
             memberOfB.getId(),
-            groupId);
+            platformGroupId);
         TransactionSynchronizationManager.unbindResource(emf);
         session.close();
       }

@@ -6,8 +6,10 @@ import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
 
 import { useFormatter } from '../../../../../components/i18n';
+import ItemMarkings from '../../../../../components/ItemMarkings';
 import { type InjectTarget } from '../../../../../utils/api-types';
 import { getTargetOverviewLabel, getTargetOverviewUrl } from '../../../../../utils/target/TargetUtils';
+import { isFeatureEnabled } from '../../../../../utils/utils';
 import NewAtomicTestingResult from '../NewAtomicTestingResult';
 import TargetIcon from '../TargetIcon';
 
@@ -39,6 +41,7 @@ const TargetResultsHeader: FunctionComponent<Props> = ({ target, position, total
   const overviewUrl = getTargetOverviewUrl(target);
   const overviewLabel = t(getTargetOverviewLabel(target));
   const typeLabel = t(TYPE_LABELS[target.target_type] ?? target.target_type);
+  const markingIds = isFeatureEnabled('MARKING') ? target.target_markings ?? [] : [];
 
   const canSwitch = !!(total && total > 1 && position);
   const canPrevious = canSwitch && position! > 1;
@@ -96,6 +99,7 @@ const TargetResultsHeader: FunctionComponent<Props> = ({ target, position, total
           >
             {typeLabel}
           </Box>
+          {markingIds.length > 0 && <ItemMarkings markingIds={markingIds} />}
           <NewAtomicTestingResult target={target} />
         </Box>
       </div>
