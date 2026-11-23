@@ -99,7 +99,9 @@ public class XtmOneCounterpartProvider implements CounterpartProvider {
               request,
               response -> {
                 read[0] =
-                    response.getEntity() == null ? null : EntityUtils.toString(response.getEntity());
+                    response.getEntity() == null
+                        ? null
+                        : EntityUtils.toString(response.getEntity());
                 return response.getCode();
               });
       body = read[0];

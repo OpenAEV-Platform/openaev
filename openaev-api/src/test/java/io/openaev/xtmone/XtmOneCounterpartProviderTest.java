@@ -113,7 +113,8 @@ class XtmOneCounterpartProviderTest {
         .isEqualTo("http://xtm-one:4000/api/v1/organization-context/assets/lookup");
     assertThat(sent.getFirstHeader(HttpHeaders.AUTHORIZATION).getValue())
         .isEqualTo("Bearer user-jwt");
-    assertThat(EntityUtils.toString(sent.getEntity())).isEqualTo("{\"keys\":[\"web-02\",\"db-01\"]}");
+    assertThat(EntityUtils.toString(sent.getEntity()))
+        .isEqualTo("{\"keys\":[\"web-02\",\"db-01\"]}");
 
     assertThat(found).containsOnlyKeys("web-02");
     Counterpart asset = found.get("web-02");
@@ -123,7 +124,8 @@ class XtmOneCounterpartProviderTest {
     assertThat(asset.url()).isEqualTo("https://xtm-one.example/ctem/inventory/assets/7f1c");
     assertThat(asset.facts())
         .containsExactly(
-            new Counterpart.Fact("criticality", "high"), new Counterpart.Fact("category", "server"));
+            new Counterpart.Fact("criticality", "high"),
+            new Counterpart.Fact("category", "server"));
   }
 
   @Test
