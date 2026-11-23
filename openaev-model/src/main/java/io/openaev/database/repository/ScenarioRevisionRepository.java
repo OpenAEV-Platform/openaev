@@ -25,6 +25,9 @@ public interface ScenarioRevisionRepository extends JpaRepository<ScenarioRevisi
   Optional<ScenarioRevision> findByTenantIdAndScenarioIdAndId(
       String tenantId, String scenarioId, String id);
 
+  boolean existsByTenantIdAndScenarioIdAndReason(
+      String tenantId, String scenarioId, ScenarioRevision.Reason reason);
+
   interface RevisionRow {
     String getId();
 

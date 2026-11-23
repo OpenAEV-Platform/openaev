@@ -57,6 +57,11 @@ public class ScenarioRevisionService {
         .orElseThrow(() -> new ElementNotFoundException("Revision not found"));
   }
 
+  public boolean hasInstallRevision(Scenario scenario) {
+    return scenarioRevisionRepository.existsByTenantIdAndScenarioIdAndReason(
+        scenario.getTenant().getId(), scenario.getId(), ScenarioRevision.Reason.INSTALL);
+  }
+
   /** The content of a scenario as a revision keeps it and a merge compares it. */
   public ObjectNode content(Scenario scenario, Collection<Inject> injects) {
     return reader.fromEntities(

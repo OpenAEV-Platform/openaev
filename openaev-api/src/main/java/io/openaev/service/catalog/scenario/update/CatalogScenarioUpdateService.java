@@ -32,6 +32,9 @@ public class CatalogScenarioUpdateService {
 
   public static final String CHANGED_MEANWHILE = "The scenario changed meanwhile: try again";
   public static final String CONFLICT_LEFT = "Choose a side for each conflict";
+  public static final String INSTALLED_BEFORE_UPDATES =
+      "This scenario was installed before updates were supported: it cannot be updated or rolled"
+          + " back";
 
   private final ScenarioService scenarioService;
   private final CatalogListService catalogListService;
@@ -52,8 +55,7 @@ public class CatalogScenarioUpdateService {
         ScenarioMerge.merge(
             update.base(),
             update.applied(),
-            scenarioRevisionService.content(
-                scenario, injectService.findByScenarioId(scenario.getId())),
+            scenarioRevisionService.content(scenario, trackedInjects(scenario)),
             Map.of());
     return new ScenarioPreview(
         merge,
@@ -88,7 +90,7 @@ public class CatalogScenarioUpdateService {
             catalogPayloadService.installIfMissing(
                 ctx, update.installed().tenantId(), released, file, CatalogHistory.Mode.MANUAL));
     Scenario scenario = unchanged(ctx, update);
-    Collection<Inject> injects = injectService.findByScenarioId(scenario.getId());
+    Collection<Inject> injects = trackedInjects(scenario);
     ObjectNode local = scenarioRevisionService.content(scenario, injects);
     ScenarioMerge.Result merge =
         ScenarioMerge.merge(update.base(), update.applied(), local, choices, edits);
@@ -110,5 +112,16 @@ public class CatalogScenarioUpdateService {
       throw new BadRequestException(CHANGED_MEANWHILE);
     }
     return scenario;
+  }
+
+  // Installed before the injects kept their package ID: the base cannot be matched to them.
+  private Collection<Inject> trackedInjects(Scenario scenario) {
+    Collection<Inject> injects = injectService.findByScenarioId(scenario.getId());
+    boolean untracked =
+        !injects.isEmpty() && injects.stream().allMatch(inject -> inject.getCatalogId() == null);
+    if (untracked || !scenarioRevisionService.hasInstallRevision(scenario)) {
+      throw new BadRequestException(INSTALLED_BEFORE_UPDATES);
+    }
+    return injects;
   }
 }
