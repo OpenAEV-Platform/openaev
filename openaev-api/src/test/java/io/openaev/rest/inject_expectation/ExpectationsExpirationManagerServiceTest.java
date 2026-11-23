@@ -260,6 +260,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
               .getFirst()
               .getId();
 
+      seedExecutedTraces();
       expireExpectationsInDbByInjectId(savedInject.getId());
       reset(auditLogTransportDispatcherUtils);
 
@@ -797,6 +798,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       assertEquals(null, injectExpectations.getFirst().getScore());
 
       // -- EXECUTE --
+      seedExecutedTraces();
       expireExpectationsInDbByInjectId(savedInject.getId());
       expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
 
@@ -853,6 +855,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       injectExpectationRepository.save(assetExpectation);
 
       // -- EXECUTE --
+      seedExecutedTraces();
       expireExpectationsInDbByInjectId(savedInject.getId());
       expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
 
@@ -927,6 +930,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       injectExpectationRepository.saveAll(List.of(assetExpectation, assetGroupExpectation));
 
       // -- EXECUTE --
+      seedExecutedTraces();
       expireExpectationsInDbByInjectId(savedInject.getId());
       expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
 
@@ -1010,6 +1014,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       injectExpectationRepository.saveAll(List.of(assetExpectation, assetGroupExpectation));
 
       // -- EXECUTE --
+      seedExecutedTraces();
       expireExpectationsInDbByInjectId(savedInject.getId());
       expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
 
@@ -1146,6 +1151,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
           true,
           nuclei);
       em.flush();
+      seedExecutedTraces();
       // Only the agents of asset A are expired
       em.createNativeQuery(
               "UPDATE injects_expectations SET inject_expectation_created_at = :past WHERE inject_id = :injectId AND agent_id IN (:agentIds)")
@@ -1279,6 +1285,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       em.clear();
 
       // -- EXECUTE --
+      seedExecutedTraces();
       expireExpectationsInDbByInjectId(savedInject.getId());
       expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
 
@@ -1290,6 +1297,53 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       assertEquals(
           BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
           assetExpectations.getFirst().getResponse());
+    }
+
+    @Test
+    @DisplayName("A vulnerability inject that never executed expires to unknown, not Not vulnerable")
+    void vulnerabilityExpectationWithoutExecutionExpiresToUnknown() {
+      // Distributed to the agents but nothing executed (no trace back): silence proves nothing, so
+      // no leaf and no parent may read "Not vulnerable" with the expected score.
+      ExecutableInject executableInject = newExecutableInjectWithTargets();
+      Expectation expectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY, "Vulnerability Expectation");
+      expectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(expectation), "implantType");
+      em.flush();
+      em.clear();
+
+      // -- EXECUTE --
+      expireExpectationsInDbByInjectId(savedInject.getId());
+      expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
+      // A second pass must not pick the closed leaves up again
+      expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
+      em.flush();
+      em.clear();
+
+      // -- ASSERT --
+      for (Agent agent : List.of(savedAgent1, savedAgent2)) {
+        BaseInjectExpectation leaf =
+            injectExpectationRepository
+                .findAllByInjectAndAgent(savedInject.getId(), agent.getId())
+                .getFirst();
+        assertNull(leaf.getScore());
+        assertEquals(BaseInjectExpectation.EXPECTATION_STATUS.UNKNOWN, leaf.getResponse());
+        assertThat(leaf.getResults())
+            .extracting(InjectExpectationResult::getResult)
+            .contains(BaseInjectExpectation.NOT_EXECUTED_RESULT)
+            .doesNotContain("Not vulnerable");
+      }
+      List<BaseInjectExpectation> parents =
+          injectExpectationRepository.findAllByInjectId(savedInject.getId()).stream()
+              .filter(e -> e instanceof TechnicalInjectExpectation t && t.getAgent() == null)
+              .toList();
+      assertThat(parents).isNotEmpty();
+      for (BaseInjectExpectation parent : parents) {
+        assertNull(parent.getScore());
+        assertEquals(BaseInjectExpectation.EXPECTATION_STATUS.UNKNOWN, parent.getResponse());
+      }
     }
   }
 
@@ -1323,6 +1377,29 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       return null;
     }
     return String.valueOf(contextData.get(key));
+  }
+
+  /**
+   * Gives the inject a successful execution trace on each agent and an agentless one: the scan ran,
+   * so a vulnerability leaf that no scanner answered may expire to "Not vulnerable".
+   */
+  private void seedExecutedTraces() {
+    em.flush();
+    Inject inject = injectRepository.findById(savedInject.getId()).orElseThrow();
+    InjectStatus status = inject.getStatus().orElseGet(InjectStatusFixture::createSuccessStatus);
+    status.setInject(inject);
+    for (Agent agent : List.of(savedAgent1, savedAgent2)) {
+      status.addTrace(
+          ExecutionTraceStatus.EXECUTED,
+          "executed",
+          ExecutionTraceAction.COMPLETE,
+          agentRepository.findById(agent.getId()).orElseThrow());
+    }
+    status.addTrace(ExecutionTraceStatus.EXECUTED, "executed", ExecutionTraceAction.COMPLETE, null);
+    inject.setStatus(status);
+    injectRepository.save(inject);
+    em.flush();
+    em.clear();
   }
 
   /** Backdates all expectations for the given inject so the SQL expiration filter picks them up. */
