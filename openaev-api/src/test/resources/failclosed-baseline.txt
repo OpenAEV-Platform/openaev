@@ -95,6 +95,20 @@ io.openaev.service.InjectorService.createNewBuiltinInjector
 io.openaev.service.UserService.findByToken tables=roles,groups
 io.openaev.service.UserService.createAdminSession tables=roles,groups
 
+# BENIGN - roles and marking_definitions activation. The user load of the access check
+# (UserService.findWithRoles, from currentUser, currentUserOrNull and userWithRoles) reads the roles
+# and the markings of the caller's groups with the request's scope, which is empty for a caller who
+# belongs to no tenant (a platform operator, a user a test builds with no membership); a member has
+# its tenants in scope. Such a caller holds platform groups only, and a platform group links platform
+# roles only (the database refuses a tenant role on it), so the roles it needs are read whatever the
+# scope: its capability check passes (ScopedCurrentUserLoadTest, NoMembership and OutsideATransaction,
+# the two branches of the load). The markings of its groups are tenant rows and come back empty, but
+# nothing reads them from this load: the clearance of a request is read by JDBC from the link table
+# (MarkingClearanceCacheManager.findClearance) and neither branch of the load writes the link table
+# (CurrentUserLoadUnscopedMarkingsTest). Waived for these two tables only.
+io.openaev.service.UserService.findWithRoles tables=roles
+io.openaev.service.UserService.findWithRoles tables=marking_definitions
+
 # BENIGN - roles activation (#9147). The platform role and platform group endpoints run in the scope
 # of their caller, empty for a platform operator who belongs to no tenant. They read platform roles
 # only: the platform role service reads the rows with no tenant, and the eager roles of a platform
