@@ -20,6 +20,12 @@ export const OPENCTI_FACT_LABELS: Record<string, string> = {
 };
 export const DATE_FACTS = new Set(['last_modified']);
 
+// The fact keys XTM One answers for an inventory asset (XtmOneCounterpartProvider), in display order.
+export const XTM_ONE_FACT_LABELS: Record<string, string> = {
+  criticality: 'Criticality',
+  category: 'Category',
+};
+
 /** The facts answered for the given labels, known keys with a value only, in display order. */
 export const orderedFacts = (facts: FactOutput[] | undefined, labels: Record<string, string> = FACT_LABELS): FactOutput[] => Object.keys(labels)
   .map(key => (facts ?? []).find(f => f.fact_key === key && f.fact_value != null && f.fact_value !== ''))

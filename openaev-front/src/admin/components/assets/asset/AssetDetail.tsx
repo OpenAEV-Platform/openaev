@@ -26,6 +26,7 @@ import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PlatformIcon from '../../../../components/PlatformIcon';
+import XtmOnePivot from '../../../../components/xtm/XtmOnePivot';
 import OpenCrqPivot from '../../../../components/xtm/XtmOpenCrq';
 import OpenCtiPivot from '../../../../components/xtm/XtmPivot';
 import { useHelper } from '../../../../store';
@@ -166,8 +167,8 @@ const AssetDetail = () => {
   }
 
   const isAiTarget = asset.asset_category === 'AI_TARGET';
-  // The OpenCTI counterpart is matched on a real identifier: the hostname (an OpenCTI System or
-  // Hostname), else the first IP or MAC address (an observable).
+  // The XTM One and OpenCTI counterparts are matched on a real identifier: the hostname (an OpenCTI
+  // System or Hostname, an XTM One inventory hostname or FQDN), else the first IP or MAC address.
   const counterpartKey = asset.asset_hostname
     || asset.asset_ips?.[0]
     || asset.asset_mac_addresses?.[0]
@@ -225,6 +226,7 @@ const AssetDetail = () => {
                 OpenCTI, OpenAEV, OpenCRQ (the page's own product skipped). An asset imported from
                 one of them is found from its source link first (rule 5); OpenCRQ keys its
                 supporting assets by hostname only. */}
+            {!isAiTarget && <XtmOnePivot kind="assets" objectKey={counterpartKey} sourceUrl={asset.asset_external_reference} />}
             {!isAiTarget && <OpenCtiPivot kind="assets" objectKey={counterpartKey} sourceUrl={asset.asset_external_reference} />}
             {!isAiTarget && <OpenCrqPivot kind="assets" objectKey={asset.asset_hostname} sourceUrl={asset.asset_external_reference} />}
             <ExploreInGraphButton type="ASSET" entityId={id} />

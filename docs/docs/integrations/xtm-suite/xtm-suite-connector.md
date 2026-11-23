@@ -77,7 +77,7 @@ Once the connector appears in OpenCTI, you can trigger it to run security covera
 Once a Tenant is connected to OpenCTI or OpenCRQ, OpenAEV shows which of its objects the connected product also holds.
 A matched Asset, Attack pattern or Vulnerability carries the product's mark, and the **Open in OpenCTI** or
 **Open in OpenCRQ** action opens it there, from the object's page and its lists. The product emblems come first in the
-header of a page, before its own actions. The pivots are available on every deployment: they do not depend on the
+header of a page, before its own actions, in the order XTM One (assets, see [XTM One](xtm-one.md)), OpenCTI, OpenCRQ. The pivots are available on every deployment: they do not depend on the
 exploration graph preview feature. Each lookup needs the right to search the kind of object it reads; the connection's token
 never leaves the OpenAEV backend.
 
