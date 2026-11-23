@@ -2,6 +2,8 @@ package io.openaev.rest.user;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -10,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -23,10 +26,13 @@ import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.user.form.login.LoginUserInput;
+import io.openaev.service.MailingService;
 import io.openaev.service.UserService;
+import io.openaev.service.tenants.TenantUserService;
 import io.openaev.service.user_events.UserEventService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.MarkingDefinitionFixture;
+import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.TokenFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utilstest.WithoutTenantScope;
@@ -34,12 +40,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -68,11 +78,14 @@ import org.springframework.test.web.servlet.MockMvc;
 class UserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTest {
 
   @MockitoBean private UserEventService userEventService;
+  @MockitoBean private MailingService mailingService;
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private UserService userService;
+  @Autowired private TenantUserService tenantUserService;
+  @Autowired private CacheManager cacheManager;
   @Autowired private UserRepository userRepository;
   @Autowired private GroupRepository groupRepository;
   @Autowired private TokenRepository tokenRepository;
@@ -82,6 +95,7 @@ class UserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTest {
   @Autowired private JdbcTemplate jdbc;
 
   private String tenantA;
+  private String tenantB;
   private String markingId;
   private String groupId;
   private String tokenValue;
@@ -92,6 +106,7 @@ class UserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTest {
     userService.createAdminSession();
     try {
       tenantA = tenantHelper.createTenant("user-load-markings").getId();
+      tenantB = tenantHelper.createTenant("user-load-markings-other").getId();
     } finally {
       SecurityContextHolder.clearContext();
       TenantContext.clearCurrentTenant();
@@ -118,7 +133,10 @@ class UserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTest {
     // A platform group (no tenant) is listed in the user_groups of every tenant, so a response that
     // leaked the markings of the groups would show them here
     group.setTenant(null);
-    groupId = groupRepository.save(group).getId();
+    // groups is active: a platform group is written under the platform-write marker
+    groupId =
+        tenantTx.executeAsPlatformWrite(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), () -> groupRepository.save(group).getId());
     // The link table is written by JDBC: a group's markings are written by the group service in a
     // scope, which is not what this class is about
     jdbc.update(
@@ -142,7 +160,7 @@ class UserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTest {
     jdbc.update("DELETE FROM groups WHERE group_id = ?", groupId);
     jdbc.update("DELETE FROM users_tenants WHERE user_id = ?", member.getId());
     jdbc.update("DELETE FROM users WHERE user_id = ?", member.getId());
-    tenantHelper.deleteCommittedTenants(tenantA);
+    tenantHelper.deleteCommittedTenants(tenantA, tenantB);
     TenantContext.clearCurrentTenant();
   }
 
@@ -286,6 +304,193 @@ class UserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTest {
 
       // Assert
       assertThat(allowed).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("the setup email, sent from a load with no scope")
+  class SetupEmail {
+
+    @Test
+    @DisplayName("given_resetRequestForTheUser_should_mailTheNameTheAddressAndTheStoredCode")
+    void given_resetRequestForTheUser_should_mailTheNameTheAddressAndTheStoredCode()
+        throws Exception {
+      // Arrange: the password setup request is the public endpoint, it publishes the event that
+      // the asynchronous handler turns into the email
+      String body = "{\"login\":\"" + member.getEmail() + "\",\"lang\":\"en\"}";
+
+      // Act
+      mvc.perform(
+              post("/api/reset").contentType(MediaType.APPLICATION_JSON).content(body).with(csrf()))
+          .andExpect(status().isOk());
+
+      // Assert: the mailing boundary got one message for the user, named from the unscoped load
+      ArgumentCaptor<String> subject = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<String> text = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<List<User>> recipients = ArgumentCaptor.captor();
+      verify(mailingService, timeout(10_000))
+          .sendEmail(subject.capture(), text.capture(), recipients.capture());
+      assertThat(recipients.getValue())
+          .extracting(User::getEmail)
+          .containsExactly(member.getEmail());
+      assertThat(text.getValue()).startsWith("Hi " + member.getName() + ",");
+      // The email carries the recovery code, and it is the one the reset accepts afterwards
+      String code = subject.getValue().substring(subject.getValue().lastIndexOf(' ') + 1);
+      assertThat(code).hasSize(64);
+      assertThat(text.getValue()).endsWith(code);
+      Object service = AopTestUtils.getUltimateTargetObject(userService);
+      @SuppressWarnings("unchecked")
+      Map<String, String> resetTokens =
+          (Map<String, String>) ReflectionTestUtils.getField(service, "resetTokenMap");
+      assertThat(resetTokens).containsEntry(member.getId(), code);
+      // The load did not touch the links of the groups of the user
+      assertThat(storedMarkingLinks()).isEqualTo(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("the revocation of the groups of a tenant the user leaves")
+  class TenantGroupRevocation {
+
+    private User leaver;
+    private User stayer;
+    private String groupOfA;
+    private String groupOfB;
+    private String markingOfGroupOfA;
+
+    @BeforeEach
+    void seedRevocation() {
+      leaver =
+          userRepository.save(
+              UserFixture.getUser(
+                  "leaver", "leaver", "leaver-" + UUID.randomUUID() + "@unittests.invalid", false));
+      stayer =
+          userRepository.save(
+              UserFixture.getUser(
+                  "stayer", "stayer", "stayer-" + UUID.randomUUID() + "@unittests.invalid", false));
+      // A PAP marking: the TLP marking of the platform group cannot widen into it
+      markingOfGroupOfA =
+          tenantTx.execute(
+              TxCtx.forTenant(tenantA),
+              () -> {
+                MarkingDefinition marking =
+                    MarkingDefinitionFixture.createMarkingDefinition(
+                        MarkingDefinition.TYPE_PAP,
+                        MarkingDefinitionFixture.uniqueDefinition(),
+                        MarkingDefinitionFixture.DEFAULT_ORDER,
+                        MarkingDefinitionFixture.DEFAULT_COLOR);
+                marking.setTenant(new Tenant(tenantA));
+                return markingRepository.save(marking).getId();
+              });
+      groupOfA = saveTenantGroup(tenantA);
+      groupOfB = saveTenantGroup(tenantB);
+      jdbc.update(
+          "INSERT INTO groups_markings (group_id, marking_id) VALUES (?, ?)",
+          groupOfA,
+          markingOfGroupOfA);
+      for (String group : List.of(groupId, groupOfA, groupOfB)) {
+        jdbc.update(
+            "INSERT INTO users_groups (user_id, group_id) VALUES (?, ?)", leaver.getId(), group);
+      }
+      jdbc.update(
+          "INSERT INTO users_groups (user_id, group_id) VALUES (?, ?)", stayer.getId(), groupOfA);
+      for (String tenant : List.of(tenantA, tenantB)) {
+        tenantTx.execute(
+            TxCtx.forTenant(tenant),
+            () -> tenantRepository.addUserToTenant(leaver.getId(), tenant));
+        membershipCache.evict(leaver.getId(), tenant);
+      }
+      TenantContext.clearCurrentTenant();
+    }
+
+    private String saveTenantGroup(String tenantId) {
+      return tenantTx.execute(
+          TxCtx.forTenant(tenantId),
+          () -> {
+            Group group = TenantGroupFixture.getGroup("group-" + UUID.randomUUID());
+            group.setTenant(new Tenant(tenantId));
+            return groupRepository.save(group).getId();
+          });
+    }
+
+    @AfterEach
+    void cleanupRevocation() {
+      List<String> users = List.of(leaver.getId(), stayer.getId());
+      List<String> groups = List.of(groupOfA, groupOfB);
+      users.forEach(
+          user -> {
+            jdbc.update("DELETE FROM users_groups WHERE user_id = ?", user);
+            jdbc.update("DELETE FROM users_tenants WHERE user_id = ?", user);
+            jdbc.update("DELETE FROM users WHERE user_id = ?", user);
+          });
+      groups.forEach(
+          group -> {
+            jdbc.update("DELETE FROM groups_markings WHERE group_id = ?", group);
+            jdbc.update("DELETE FROM groups WHERE group_id = ?", group);
+          });
+      jdbc.update(
+          "DELETE FROM marking_definitions WHERE marking_definition_id = ?", markingOfGroupOfA);
+      clearanceCache.evict(leaver.getId(), tenantA);
+      TenantContext.clearCurrentTenant();
+    }
+
+    private List<String> groupsOf(String userId) {
+      return jdbc.queryForList(
+          "SELECT group_id FROM users_groups WHERE user_id = ?", String.class, userId);
+    }
+
+    private boolean clearanceCached(String userId) {
+      return cacheManager.getCache("markingClearance").get(userId + ":" + tenantA) != null;
+    }
+
+    @Test
+    @DisplayName("given_cachedClearance_when_userDetachedFromTenant_should_dropTheGrantOfItsGroups")
+    void given_cachedClearance_when_userDetachedFromTenant_should_dropTheGrantOfItsGroups() {
+      // Arrange: the clearance is read first, so it is cached and holds both grants
+      assertThat(
+              clearanceCache
+                  .findClearance(leaver.getId(), tenantA)
+                  .allows(List.of(markingId, markingOfGroupOfA)))
+          .isTrue();
+      assertThat(clearanceCached(leaver.getId())).isTrue();
+
+      // Act: the detach of the tenant screen, in the scope of the tenant like the endpoint
+      TxCtx ctx = TxCtx.forTenant(tenantA);
+      tenantTx.execute(ctx, () -> tenantUserService.detach(ctx, leaver.getId()));
+
+      // Assert: the cached entry went with the membership, nothing evicted it by hand
+      assertThat(clearanceCached(leaver.getId())).isFalse();
+      MarkingCtx clearance = clearanceCache.findClearance(leaver.getId(), tenantA);
+      assertThat(clearance.allows(List.of(markingOfGroupOfA))).isFalse();
+      assertThat(clearance.allows(List.of(markingId))).isTrue();
+    }
+
+    @Test
+    @DisplayName("given_userInGroupsOfTwoTenants_when_detachedFromOne_should_removeOnlyItsGroups")
+    void given_userInGroupsOfTwoTenants_when_detachedFromOne_should_removeOnlyItsGroups() {
+      // Act
+      TxCtx ctx = TxCtx.forTenant(tenantA);
+      tenantTx.execute(ctx, () -> tenantUserService.detach(ctx, leaver.getId()));
+
+      // Assert: the group of the tenant is gone from the user, the platform group and the group of
+      // the other tenant stay, and so does the membership of another user in the group of A
+      assertThat(groupsOf(leaver.getId())).containsExactlyInAnyOrder(groupId, groupOfB);
+      assertThat(groupsOf(stayer.getId())).containsExactly(groupOfA);
+      // The membership row of A is gone, the one of B stays
+      assertThat(
+              jdbc.queryForList(
+                  "SELECT tenant_id FROM users_tenants WHERE user_id = ?",
+                  String.class,
+                  leaver.getId()))
+          .containsExactly(tenantB);
+      // The links of the groups are not rewritten by the revocation
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT count(*) FROM groups_markings WHERE group_id = ?",
+                  Integer.class,
+                  groupOfA))
+          .isEqualTo(1);
+      assertThat(storedMarkingLinks()).isEqualTo(1);
     }
   }
 }
