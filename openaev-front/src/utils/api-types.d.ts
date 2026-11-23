@@ -14554,6 +14554,8 @@ export interface User {
   user_lastname?: string;
   /** Organization ID of the user */
   user_organization?: string;
+  /** Pastel colours preference of the user: soft pastel chips when true (default), the standard colours shared by every XTM Platform module when false */
+  user_pastel_colours?: boolean;
   /** PGP key of the user */
   user_pgp_key?: string;
   /** Phone number of the user */
@@ -14566,8 +14568,6 @@ export interface User {
   /** @uniqueItems true */
   user_tags?: string[];
   user_teams?: string[];
-  /** Pastel colours preference of the user: soft pastel chips when true (default), the standard colours shared by every XTM Platform module when false */
-  user_pastel_colours?: boolean;
   /** Theme of the user */
   user_theme?: string;
   /**
