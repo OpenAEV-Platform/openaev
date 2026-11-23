@@ -71,7 +71,8 @@
         "openaev-front/src/admin/components/lessons/simulations/LessonsCategories.tsx",
         "openaev-front/src/admin/components/lessons/simulations/Lessons.tsx",
         "openaev-front/src/admin/components/lessons/scenarios/LessonsCategories.tsx",
-        "openaev-front/src/admin/components/lessons/scenarios/Lessons.tsx"
+        "openaev-front/src/admin/components/lessons/scenarios/Lessons.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersions.tsx"
       ]
     },
     {
@@ -105,7 +106,8 @@
       "reason": "Form-field wave: the multiline branch of the same wrapper. `resize` is pinned to none on every site, as arbitrated; `rows` and autosize (`minRows`/`maxRows`) replay the previous heights.",
       "files": [
         "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
-        "openaev-front/src/components/fields/TextFieldFds.tsx"
+        "openaev-front/src/components/fields/TextFieldFds.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioConflicts.tsx"
       ]
     },
     {
@@ -615,7 +617,10 @@
         "openaev-front/src/admin/components/threat_arsenal/customization/BlockSide.tsx",
         "openaev-front/src/admin/components/threat_arsenal/catalog/CatalogPayloadInstallAction.tsx",
         "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogCard.tsx",
-        "openaev-front/src/admin/components/scenarios/targets/InjectTargetsList.tsx"
+        "openaev-front/src/admin/components/scenarios/targets/InjectTargetsList.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersionsTable.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateSummary.tsx"
       ]
     },
     {
@@ -896,7 +901,11 @@
         "openaev-front/src/admin/components/threat_arsenal/versions/VersionsTabNote.tsx",
         "openaev-front/src/admin/components/threat_arsenal/catalog/CatalogPayloadInstallAction.tsx",
         "openaev-front/src/admin/components/scenarios/catalog/CatalogScenarioAction.tsx",
-        "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogDrawer.tsx"
+        "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogDrawer.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioRevisionsTable.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersionsTable.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioConflicts.tsx"
       ]
     },
     {
@@ -1073,6 +1082,28 @@
         "openaev-front/src/admin/components/scenarios/catalog/MissingRequirementAlert.tsx",
         "openaev-front/src/admin/components/scenarios/launch/ScenarioLaunchCheckDrawer.tsx",
         "openaev-front/src/admin/components/scenarios/targets/InjectTargetsList.tsx"
+      ]
+    },
+    {
+      "component": "Dialog",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The update and rollback dialog of a catalogue scenario.",
+      "files": [
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Inline notice of the scenario update dialog.",
+      "files": [
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx"
       ]
     }
   ],

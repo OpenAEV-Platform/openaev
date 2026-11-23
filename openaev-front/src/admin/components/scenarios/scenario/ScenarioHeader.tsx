@@ -170,8 +170,8 @@ const ScenarioHeader = ({
   }, [openScenarioAssistantQueryParam, scenarioId]);
   // Fetching data
   const { scenario, challenges, injects, teams, articles }: {
-    // The store entry is filled by the entity (ids) and by the ScenarioOutput DTO (resolved user).
-    scenario: Scenario & Pick<ScenarioOutput, 'scenario_scheduled_by_user'>;
+    // The store entry is filled by the entity (ids) and by the ScenarioOutput DTO (resolved user, catalogue version).
+    scenario: Scenario & Pick<ScenarioOutput, 'scenario_scheduled_by_user' | 'scenario_version'>;
     challenges: Challenge[];
     injects: Inject[];
     teams: Team[];
@@ -753,6 +753,7 @@ const ScenarioHeader = ({
             <>
               <ItemCategory category={scenario.scenario_category ?? 'Unknown'} label={t(scenario.scenario_category ?? 'Unknown')} />
               <ItemSeverity severity={scenario.scenario_severity} label={t(scenario.scenario_severity ?? 'Unknown')} />
+              {isFeatureEnabled('CATALOG') && scenario.scenario_version && <Chip label={`v${scenario.scenario_version}`} />}
               {/* While a run owns the scenario, surface its status right next to severity/category -
                   the same chip a simulation shows - so the AI lifecycle reads at a glance. */}
               {autonomousRun && (
