@@ -57,8 +57,10 @@ class GraphFeatureOnTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("given the flag on, the XTM connections stay behind their own flag, XTM_COUNTERPARTS")
+  @DisplayName(
+      "given the flag on, the XTM connections stay behind their own flag, XTM_COUNTERPARTS")
   void given_flagOn_should_notServeXtmConnectionsWithoutTheirOwnFlag() throws Exception {
-    mvc.perform(get(CONNECTIONS, DEFAULT_TENANT_UUID).with(csrf())).andExpect(status().isNotFound());
+    mvc.perform(get(CONNECTIONS, DEFAULT_TENANT_UUID).with(csrf()))
+        .andExpect(status().isNotFound());
   }
 }
