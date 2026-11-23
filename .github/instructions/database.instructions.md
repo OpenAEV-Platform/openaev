@@ -33,7 +33,7 @@ description: "Database conventions: schema naming, Flyway migrations, PostgreSQL
 - Find next number: inspect latest files in `openaev-api/src/main/java/io/openaev/migration/` and continue the sequence using the rule above
 - Extends `BaseJavaMigration`, annotated `@Component`
 - Use `context.getConnection().createStatement()` for raw SQL
-- Batch: `statement.addBatch(...)` then `statement.executeBatch()`
+- Batch: `statement.addBatch(...)` then `statement.executeBatch()`. On a large table, follow ADR-023 (`migration.instructions.md` rule 5), not a plain primary-key-order batch loop
 - Default tenant UUID: `2cffad3a-0001-4078-b0e2-ef74274022c3`
 - For a search index rebuild: re-feed in place or reset with the sentinel, never `DELETE FROM indexing_status` (see rule 6 of `migration.instructions.md`)
 

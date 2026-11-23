@@ -417,7 +417,8 @@ public class InjectSearchService {
         .getObject()
         .filterInEachTenant(
             ctx,
-            () -> canAccessEveryInject(currentUser),
+            currentUser,
+            InjectSearchService::canAccessEveryInject,
             accessRight ->
                 SpecificationUtils.hasGrantAccess(
                     currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));

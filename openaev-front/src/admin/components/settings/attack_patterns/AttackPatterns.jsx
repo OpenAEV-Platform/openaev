@@ -10,6 +10,7 @@ import SortHeadersComponent from '../../../../components/common/pagination/SortH
 import { initSorting } from '../../../../components/common/queryable/Page';
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useFormatter } from '../../../../components/i18n';
+import { OpenCtiRowMark } from '../../../../components/xtm/XtmPivot';
 import { useHelper } from '../../../../store';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -176,7 +177,15 @@ const AttackPatterns = () => {
                       ...inlineStyles.attack_pattern_external_id,
                     }}
                     >
-                      {attackPattern.attack_pattern_external_id}
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                      >
+                        {attackPattern.attack_pattern_external_id}
+                        <OpenCtiRowMark kind="attack-patterns" objectKey={attackPattern.attack_pattern_external_id} />
+                      </span>
                     </div>
                     <div style={{
                       ...bodyItemsStyles.bodyItem,

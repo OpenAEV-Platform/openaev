@@ -1,6 +1,6 @@
 package io.openaev.api.catalog.payload;
 
-import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
+import static io.openaev.api.catalog.CatalogRoutes.TENANT_CATALOG_URI;
 import static io.openaev.api.catalog.CatalogSettingsApi.CATALOG_SETTINGS_URI;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
@@ -8,6 +8,7 @@ import static io.openaev.database.model.payload.PayloadRevocation.REVOKED_BY_FIL
 import static io.openaev.rest.payload.PayloadApi.TENANT_PAYLOAD_URI;
 import static io.openaev.service.catalog.payload.CatalogPayloadService.OTHER_TYPE_REFUSED;
 import static io.openaev.service.payload.PayloadRevocationService.LIFT_REFUSED;
+import static io.openaev.utils.fixtures.CatalogConnectorFixture.createCatalogInjectorWithContract;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.PAYLOAD_ID;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.manifest;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadFileName;
@@ -17,9 +18,14 @@ import static io.openaev.utils.fixtures.CatalogReleaseFixture.syncRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -33,7 +39,10 @@ import io.openaev.api.catalog.CatalogItemMapper;
 import io.openaev.api.catalog.dto.CatalogSettingsInput;
 import io.openaev.api.payload.dto.PayloadRevocationInput;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.DetectionRemediation;
+import io.openaev.database.model.Inject;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.SecurityPlatform;
@@ -44,6 +53,7 @@ import io.openaev.database.repository.CatalogHistoryRepository;
 import io.openaev.database.repository.DetectionRemediationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.PayloadRevocationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
@@ -56,6 +66,7 @@ import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
+import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.Arrays;
@@ -98,6 +109,8 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private CatalogHistoryRepository catalogHistoryRepository;
   @Autowired private InjectorFixture injectorFixture;
+  @Autowired private InjectorRepository injectorRepository;
+  @Autowired private CatalogConnectorComposer catalogConnectorComposer;
   @Autowired private CatalogPayloadInstaller catalogPayloadInstaller;
   @Autowired private SecurityPlatformRepository securityPlatformRepository;
   @Autowired private DetectionRemediationRepository detectionRemediationRepository;
@@ -243,9 +256,11 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
   }
 
   private void runByInject(String payloadId) {
-    injectRepository.save(
+    Inject inject =
         InjectFixture.createInject(
-            injectorContractRepository.findById(contractOf(payloadId)).orElseThrow(), "Inject"));
+            injectorContractRepository.findById(contractOf(payloadId)).orElseThrow(), "Inject");
+    inject.setTenant(new Tenant(DEFAULT_TENANT_UUID));
+    injectRepository.save(inject);
     entityManager.flush();
   }
 
@@ -257,12 +272,15 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
         .toList();
   }
 
-  private List<CatalogHistory.Action> history() {
+  private List<CatalogHistory> historyRows() {
     entityManager.flush();
     return catalogHistoryRepository.findAll().stream()
         .filter(row -> PAYLOAD_ID.equals(row.getExternalId()))
-        .map(CatalogHistory::getAction)
         .toList();
+  }
+
+  private List<CatalogHistory.Action> history() {
+    return historyRows().stream().map(CatalogHistory::getAction).toList();
   }
 
   // -- INSTALL --
@@ -431,6 +449,162 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
     }
   }
 
+  // -- BROWSE --
+
+  @Nested
+  @DisplayName("Browsing the catalogue")
+  class Browsing {
+
+    private static final String PAYLOAD_IDS = "$.content[?(@.action_kind == 'PAYLOAD')].action_id";
+    private static final String INTEGRATION_IDS =
+        "$.content[?(@.action_kind == 'INTEGRATION')].action_id";
+
+    private ResultActions read(String uri, Object... variables) throws Exception {
+      return mvc.perform(get(TENANT_CATALOG_URI + uri, variables));
+    }
+
+    private ResultActions available() throws Exception {
+      return mvc.perform(
+          post(TENANT_CATALOG_URI + "/actions/search", DEFAULT_TENANT_UUID)
+              .with(csrf())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(mapper.writeValueAsString(new SearchPaginationInput())));
+    }
+
+    @BeforeEach
+    void resetComposers() {
+      catalogConnectorComposer.reset();
+    }
+
+    @Test
+    @DisplayName("lists the contracts of the catalogue injectors the tenant does not run")
+    void given_catalogInjectors_should_listContractsOfUnregisteredOnesOnly() throws Exception {
+      // Arrange
+      CatalogConnector registered =
+          catalogConnectorComposer
+              .forCatalogConnector(
+                  createCatalogInjectorWithContract("Registered catalog injector", "registered"))
+              .persist()
+              .get();
+      catalogConnectorComposer
+          .forCatalogConnector(
+              createCatalogInjectorWithContract("Unregistered catalog injector", "unregistered"))
+          .persist();
+      Injector injector = InjectorFixture.createDefaultInjector(registered.getTitle());
+      injector.setTenantId(DEFAULT_TENANT_UUID);
+      injectorRepository.save(injector);
+
+      // Act
+      ResultActions result = available();
+
+      // Assert
+      result
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(INTEGRATION_IDS, contains("unregistered")));
+    }
+
+    static Stream<Arguments> payloadStates() {
+      return Stream.of(
+          Arguments.of("never installed", false, false, 1),
+          Arguments.of("installed", true, false, 0),
+          Arguments.of("uninstalled", true, true, 1));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("payloadStates")
+    @DisplayName("lists a payload only while the tenant does not show it")
+    void given_payloadState_should_listItOnlyWhenNotInstalled(
+        String description, boolean installed, boolean uninstalled, int listed) throws Exception {
+      // Arrange
+      publish("1.261109.0", "VERIFIED", RELEASED, "1.0.0");
+      if (installed) {
+        String payloadId =
+            installedIds(install(DEFAULT_TENANT_UUID, "1.0.0").andExpect(status().isCreated()))
+                .getFirst();
+        if (uninstalled) {
+          uninstall(DEFAULT_TENANT_UUID, payloadId).andExpect(status().isNoContent());
+        }
+      }
+
+      // Act
+      ResultActions result = available();
+
+      // Assert
+      result
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(PAYLOAD_IDS, hasSize(listed)))
+          .andExpect(jsonPath(PAYLOAD_IDS, everyItem(is(PAYLOAD_ID))));
+    }
+
+    @Test
+    @DisplayName("lists the offered versions of a payload, newest first")
+    void given_releasedVersions_should_listOfferedOnesNewestFirst() throws Exception {
+      // Arrange
+      publish(
+          "1.261109.0",
+          new Released("1.0.0", "VERIFIED", RELEASED),
+          new Released("1.2.0", "VERIFIED", RELEASED),
+          new Released("1.1.0", "VERIFIED", RELEASED),
+          new Released("1.3.0", "DEPRECATED", RELEASED),
+          new Released("1.4.0", "REVOKED", RELEASED));
+
+      // Act
+      ResultActions result =
+          read("/payloads/{externalId}/versions", DEFAULT_TENANT_UUID, PAYLOAD_ID);
+
+      // Assert
+      result
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$[*].catalog_payload_version", contains("1.2.0", "1.1.0", "1.0.0")));
+    }
+
+    @Test
+    @DisplayName("reads the released content of a version without installing it")
+    void given_offeredVersion_should_returnItsReleasedContent() throws Exception {
+      // Arrange
+      publish("1.261109.0", "VERIFIED", RELEASED, "1.0.0");
+      JsonNode file = mapper.readTree(RELEASED.file());
+
+      // Act
+      ResultActions result =
+          read(
+              "/payloads/{externalId}/versions/{version}/content",
+              DEFAULT_TENANT_UUID,
+              PAYLOAD_ID,
+              "1.0.0");
+
+      // Assert
+      result
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.payload_name").value(file.path("payload_name").asText()))
+          .andExpect(jsonPath("$.payload_type").value(file.path("payload_type").asText()));
+      assertThat(threatArsenalContracts()).isEmpty();
+    }
+
+    static Stream<Arguments> contentRefusals() {
+      return Stream.of(
+          Arguments.of("a deprecated version", "DEPRECATED", "1.0.0", 400),
+          Arguments.of("a version not released", "VERIFIED", "9.9.9", 404));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("contentRefusals")
+    @DisplayName("refuses the content of")
+    void given_versionNotOffered_should_refuseItsContent(
+        String description, String status, String version, int expected) throws Exception {
+      // Arrange
+      publish("1.261109.0", status, RELEASED, "1.0.0");
+
+      // Act & Assert
+      read(
+              "/payloads/{externalId}/versions/{version}/content",
+              DEFAULT_TENANT_UUID,
+              PAYLOAD_ID,
+              version)
+          .andExpect(status().is(expected));
+    }
+  }
+
   // -- AUTO-INSTALL --
 
   @Nested
@@ -576,6 +750,49 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
 
       // Assert
       assertThat(revocation(payloadId).isPresent()).isEqualTo(stillRevoked);
+    }
+
+    @Test
+    @DisplayName(
+        "records a revocation by a tenant admin and its lift in the history, with the admin")
+    void given_revokedThenLiftedByAdmin_should_recordBothWithTheAdmin() throws Exception {
+      // Arrange
+      String payloadId = installed();
+      revokeByAdmin(payloadId);
+
+      // Act
+      lift(payloadId).andExpect(status().isNoContent());
+
+      // Assert
+      assertThat(historyRows())
+          .filteredOn(row -> row.getAction() != CatalogHistory.Action.INSTALL)
+          .extracting(
+              CatalogHistory::getAction, CatalogHistory::getMode, CatalogHistory::getVersion)
+          .containsExactly(
+              tuple(CatalogHistory.Action.REVOKE, CatalogHistory.Mode.MANUAL, "1.0.0"),
+              tuple(CatalogHistory.Action.LIFT_REVOCATION, CatalogHistory.Mode.MANUAL, "1.0.0"));
+      assertThat(historyRows()).extracting(CatalogHistory::getUser).doesNotContainNull();
+    }
+
+    @Test
+    @DisplayName("records its own revocation and lift in the history, by itself")
+    void given_releaseRevokesThenClears_should_recordBothAsAuto() throws Exception {
+      // Arrange
+      installed();
+      publish("1.261110.0", "REVOKED", RELEASED, "1.0.0");
+      applyCatalogueRevocations();
+      publish("1.261111.0", "VERIFIED", RELEASED, "1.0.0");
+
+      // Act
+      applyCatalogueRevocations();
+
+      // Assert
+      assertThat(historyRows())
+          .filteredOn(row -> row.getAction() != CatalogHistory.Action.INSTALL)
+          .extracting(CatalogHistory::getAction, CatalogHistory::getMode)
+          .containsExactly(
+              tuple(CatalogHistory.Action.REVOKE, CatalogHistory.Mode.AUTO),
+              tuple(CatalogHistory.Action.LIFT_REVOCATION, CatalogHistory.Mode.AUTO));
     }
 
     @ParameterizedTest(name = "revoked by a tenant admin: {0}")

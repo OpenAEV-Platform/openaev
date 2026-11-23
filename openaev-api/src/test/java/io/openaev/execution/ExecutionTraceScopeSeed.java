@@ -24,7 +24,8 @@ public class ExecutionTraceScopeSeed {
       String assetId,
       String agentId,
       String teamId,
-      String playerId) {}
+      String playerId,
+      String simulationId) {}
 
   private final JdbcTemplate jdbc;
   private final List<Tenant> tenants = new ArrayList<>();
@@ -94,7 +95,8 @@ public class ExecutionTraceScopeSeed {
         tenantId);
     String playerId = jdbc.queryForObject("SELECT user_id FROM users LIMIT 1", String.class);
     jdbc.update("INSERT INTO users_teams (team_id, user_id) VALUES (?, ?)", teamId, playerId);
-    Tenant tenant = new Tenant(tenantId, injectId, statusId, assetId, agentId, teamId, playerId);
+    Tenant tenant =
+        new Tenant(tenantId, injectId, statusId, assetId, agentId, teamId, playerId, exerciseId);
     tenants.add(tenant);
     return tenant;
   }

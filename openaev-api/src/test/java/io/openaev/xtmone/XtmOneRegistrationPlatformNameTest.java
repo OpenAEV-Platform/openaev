@@ -8,8 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
@@ -22,8 +21,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
@@ -33,13 +30,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
  */
 @WithoutTenantScope
 @DisplayName("XTM One registration sends the name the default tenant gave the platform")
-class XtmOneRegistrationPlatformNameTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class XtmOneRegistrationPlatformNameTest extends ProductionTablesIntegrationTest {
 
   @Autowired private XtmOneService xtmOneService;
   @Autowired private SettingRepository settingRepository;
@@ -70,7 +61,7 @@ class XtmOneRegistrationPlatformNameTest extends IntegrationTest {
           settingRepository.save(rename);
         });
     when(config.isConfigured()).thenReturn(true);
-    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
         .thenReturn(Map.of());
 
     // Act: the scheduled tick, with no scope
@@ -88,6 +79,7 @@ class XtmOneRegistrationPlatformNameTest extends IntegrationTest {
             any(),
             any(),
             eq("aev"),
+            any(),
             any());
     assertThat(name.getValue()).isEqualTo("Renamed by the default tenant");
   }

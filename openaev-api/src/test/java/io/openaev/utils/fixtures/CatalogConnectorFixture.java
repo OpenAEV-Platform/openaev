@@ -4,9 +4,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
+import io.openaev.database.model.CatalogConnectorInjectorContract;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import jakarta.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class CatalogConnectorFixture {
@@ -36,6 +41,19 @@ public class CatalogConnectorFixture {
     CatalogConnector catalogConnector =
         createDefaultCatalogConnectorManagedByXtmComposer(connectorName);
     catalogConnector.setContainerType(connectorType);
+    return catalogConnector;
+  }
+
+  public static CatalogConnector createCatalogInjectorWithContract(
+      String connectorName, String contractId) {
+    CatalogConnector catalogConnector =
+        createDefaultCatalogConnectorManagedByXtmComposer(connectorName, ConnectorType.INJECTOR);
+    CatalogConnectorInjectorContract contract = new CatalogConnectorInjectorContract();
+    contract.setCatalogConnector(catalogConnector);
+    contract.setExternalId(contractId);
+    contract.setLabels(new HashMap<>(Map.of("en", connectorName)));
+    contract.setDomains(new ArrayList<>(List.of("Network")));
+    catalogConnector.getInjectorContracts().add(contract);
     return catalogConnector;
   }
 

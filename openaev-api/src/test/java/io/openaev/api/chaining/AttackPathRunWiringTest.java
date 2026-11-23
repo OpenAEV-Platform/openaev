@@ -8,9 +8,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.chaining.dto.StepsCreateInput;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -65,8 +64,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
@@ -98,13 +95,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 // class drives InjectExecutionStep and StepEventService directly and needs no scheduled job.
 @io.openaev.utils.mockUser.WithMockUser(isAdmin = true)
 @DisplayName("attack path: a chaining run drives the ingestion (run-level wiring)")
-class AttackPathRunWiringTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class AttackPathRunWiringTest extends ProductionTablesIntegrationTest {
 
   // Spy, not mock: tenant provisioning (createTenantWithCurrentUser) uses the real injectorContract
   // resolution; a full mock returns null and NPEs on getPayload() during provisioning.

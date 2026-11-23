@@ -3,6 +3,7 @@ package io.openaev.utils.mapper;
 import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutputs;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.users.dto.UserSimple;
 import io.openaev.database.model.*;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -65,6 +66,7 @@ public class InjectMapper {
         primaryExpectations.isEmpty()
             ? new ArrayList<>(inject.getExpectations())
             : primaryExpectations;
+    List<HealthCheck> contentChecks = healthCheckUtils.runContentChecks(inject);
 
     return InjectResultOverviewOutput.builder()
         .id(inject.getId())
@@ -84,11 +86,25 @@ public class InjectMapper {
                 inject.getContent(),
                 expectationsForScoring,
                 InjectExpectationResultUtils::getScores))
-        .isReady(healthCheckUtils.runContentChecks(inject).isEmpty())
+        .isReady(contentChecks.isEmpty())
+        .missingMandatoryFields(HealthCheckUtils.missingMandatoryFields(contentChecks))
         .updatedAt(inject.getUpdatedAt())
         .recurrence(inject.getRecurrence())
         .recurrenceStart(inject.getRecurrenceStart())
         .recurrenceEnd(inject.getRecurrenceEnd())
+        .launchedBy(toUserSimple(inject.getLaunchedBy()))
+        .scheduledBy(toUserSimple(inject.getScheduledBy()))
+        .build();
+  }
+
+  private UserSimple toUserSimple(User user) {
+    if (user == null) {
+      return null;
+    }
+    return UserSimple.builder()
+        .id(user.getId())
+        .name(user.getNameOrEmail())
+        .email(user.getEmail())
         .build();
   }
 

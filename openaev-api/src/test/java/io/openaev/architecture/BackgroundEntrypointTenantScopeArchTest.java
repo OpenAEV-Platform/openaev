@@ -8,8 +8,6 @@ import com.tngtech.archunit.core.domain.JavaConstructorCall;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.domain.JavaModifier;
-import com.tngtech.archunit.core.importer.ClassFileImporter;
-import com.tngtech.archunit.core.importer.ImportOption;
 import io.openaev.config.TenantTables;
 import io.openaev.database.model.DualScopeBase;
 import io.openaev.database.model.TenantBase;
@@ -152,16 +150,11 @@ public class BackgroundEntrypointTenantScopeArchTest {
   private static final String MISSED_TABLES_RESOURCE =
       "/tenant-strict-tables-missed-by-entity-scan.txt";
 
-  private static final JavaClasses PRODUCTION_CLASSES =
-      new ClassFileImporter()
-          .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
-          .importPackages("io.openaev");
-
   @Test
   @DisplayName("every background entry point is on the primitive or classified in the baseline")
   void every_background_entrypoint_is_scoped_or_classified() {
     Map<String, List<String>> unclassified =
-        unclassifiedEntrypoints(PRODUCTION_CLASSES, loadBaseline());
+        unclassifiedEntrypoints(ProductionClassImport.get(), loadBaseline());
 
     if (!unclassified.isEmpty()) {
       StringBuilder message =
@@ -262,7 +255,7 @@ public class BackgroundEntrypointTenantScopeArchTest {
   @DisplayName("no baseline entry is stale (shrink-only)")
   void no_baseline_entry_is_stale() {
     Map<String, JavaClass> byName = new LinkedHashMap<>();
-    for (JavaClass clazz : PRODUCTION_CLASSES) {
+    for (JavaClass clazz : ProductionClassImport.get()) {
       byName.put(clazz.getFullName(), clazz);
     }
 
@@ -597,7 +590,7 @@ public class BackgroundEntrypointTenantScopeArchTest {
   static TenantTables productionTenantTables() {
     List<Class<?>> markedEntities = new ArrayList<>();
     Set<String> tenantIdStrict = new TreeSet<>();
-    for (JavaClass clazz : PRODUCTION_CLASSES) {
+    for (JavaClass clazz : ProductionClassImport.get()) {
       if (clazz.isInterface() || clazz.getModifiers().contains(JavaModifier.ABSTRACT)) {
         continue;
       }

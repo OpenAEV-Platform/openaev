@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.BooleanSupplier;
+import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
@@ -130,24 +130,26 @@ public class AccessControlAspect {
     // So the caller must be authorized in the ambient tenant and in each other tenant of the
     // scope. In each tenant, the check reads the capabilities, the tenant bypass and the grants the
     // caller holds there: a grant counts in the tenant of the group that holds it, and a platform
-    // group's grant in every tenant. The resource's parent is resolved once, in the ambient tenant,
-    // and never again per tenant.
+    // group's grant in every tenant. The rights of the ambient tenant are read in that tenant even
+    // when the scope does not hold it (PermissionService#callerInAmbientTenant). The resource's
+    // parent is resolved once, in the ambient tenant, and never again per tenant.
     final User user = principal;
     String ambientTenant = TenantContext.getCurrentTenant();
+    TxCtx requestCtx = requestTxCtx(args);
     PermissionService.CheckedResource resource =
         permissionService.checkedResource(
-            requestTxCtx(args),
+            requestCtx,
             ambientTenant,
             resourceId,
             accessControl.resourceType(),
             accessControl.actionPerformed());
-    BooleanSupplier permitted =
-        () ->
+    Predicate<User> permitted =
+        caller ->
             accessControl.requireAdmin()
-                ? permissionService.hasUserAdminPrivileges(user)
-                : permissionService.hasPermission(user, httpMappingInfo, resource);
+                ? permissionService.hasUserAdminPrivileges(caller)
+                : permissionService.hasPermission(caller, httpMappingInfo, resource);
 
-    if (!permitted.getAsBoolean()) {
+    if (!permitted.test(permissionService.callerInAmbientTenant(user, requestCtx))) {
       logDenied(principal, resourceId, accessControl);
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN, "Access denied for user: " + principal.getEmail()) {};
@@ -155,7 +157,7 @@ public class AccessControlAspect {
     boolean permittedInEveryScopeTenant =
         otherScopeTenants(args, ambientTenant).stream()
             .allMatch(
-                tenantId -> ambientTenantBridge.callInTenant(tenantId, permitted::getAsBoolean));
+                tenantId -> ambientTenantBridge.callInTenant(tenantId, () -> permitted.test(user)));
     if (!permittedInEveryScopeTenant) {
       logDenied(principal, resourceId, accessControl);
       throw new TenantScopeForbiddenException();

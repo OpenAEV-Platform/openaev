@@ -122,6 +122,29 @@ public class HealthCheckUtilsTest {
     }
 
     @Test
+    void given_a_mandatory_field_left_empty_should_name_it_in_the_missing_fields()
+        throws JsonProcessingException {
+      // -- PREPARE --
+      InjectorContract injectorContract = prepareInjectorContract();
+      addField(injectorContract, mapper, buildAssetField(true));
+
+      // -- EXECUTE --
+      List<HealthCheck> checks =
+          healthCheckUtils.runContentChecks(
+              injectorContract,
+              injectorContract.getConvertedContent(),
+              false,
+              new ArrayList<>(),
+              new ArrayList<>(),
+              new ArrayList<>(),
+              new ArrayList<>());
+
+      // -- ASSERT --
+      assertEquals(List.of("assets"), HealthCheckUtils.missingMandatoryFields(checks));
+      assertTrue(checks.stream().anyMatch(check -> "assets".equals(check.getField())));
+    }
+
+    @Test
     void given_an_injector_contract_with_asset_optional_and_an_asset_should_be_ready()
         throws JsonProcessingException {
       // -- PREPARE --

@@ -1330,6 +1330,164 @@ public class InjectorContractApiTest extends ProductionTablesIntegrationTest {
       assertThat(returnedIds).contains(emailContract.getId());
       assertThat(returnedIds).doesNotContain(noiseContract.getId());
     }
+
+    @Nested
+    @DisplayName("Providing filter (injector_contract_providing)")
+    class ProvidingFilter {
+
+      private static final String TOKEN = "providingfilterprobe";
+
+      private InjectorContract nativePortContract;
+      private InjectorContract payloadPortContract;
+      private InjectorContract nativeReportContract;
+
+      @BeforeEach
+      void seed() throws Exception {
+        // A contract without payload declaring its outputs in its content, as a native injector
+        // (a network scanner) registers it.
+        nativePortContract =
+            InjectorContractFixture.createInjectorContract(
+                Map.of("en", TOKEN + " native scan"),
+                "{\"fields\": [], \"outputs\": [{\"type\": \"portscan\", \"field\": \"scan_results\","
+                    + " \"isMultiple\": true}, {\"type\": \"port\", \"field\": \"ports\","
+                    + " \"isMultiple\": true}]}");
+        injectorContractComposer
+            .forInjectorContract(nativePortContract)
+            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+            .persist();
+
+        // A payload-based contract whose output parser produces ports.
+        Payload command = PayloadFixture.createDefaultCommand();
+        command.setOutputParsers(
+            Set.of(
+                OutputParserFixture.getOutputParser(
+                    Set.of(
+                        OutputParserFixture.getContractOutputElement(
+                            ContractOutputType.Port,
+                            "(\\d+)",
+                            Set.of(OutputParserFixture.getDefaultRegexGroup()),
+                            false)))));
+        payloadPortContract =
+            InjectorContractFixture.createInjectorContract(
+                Map.of("en", TOKEN + " payload scan"), "{\"fields\": []}");
+        injectorContractComposer
+            .forInjectorContract(payloadPortContract)
+            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+            .withPayload(payloadComposer.forPayload(command))
+            .persist();
+
+        // A contract without payload whose content mentions ports, but declares no output.
+        nativeReportContract =
+            InjectorContractFixture.createInjectorContract(
+                Map.of("en", TOKEN + " native report"),
+                "{\"fields\": [], \"description\": \"export an open port report, import"
+                    + " port lists\"}");
+        injectorContractComposer
+            .forInjectorContract(nativeReportContract)
+            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+            .persist();
+        em.flush();
+        em.clear();
+      }
+
+      private SearchPaginationInput providingSearch(
+          Filters.FilterOperator operator, List<String> values) {
+        Filters.Filter filter = new Filters.Filter();
+        filter.setKey("injector_contract_providing");
+        filter.setMode(Filters.FilterMode.or);
+        filter.setOperator(operator);
+        filter.setValues(new ArrayList<>(values));
+        Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+        filterGroup.setMode(Filters.FilterMode.and);
+        filterGroup.setFilters(new ArrayList<>(List.of(filter)));
+        return PaginationFixture.getDefault()
+            .size(100)
+            .textSearch(TOKEN)
+            .filterGroup(filterGroup)
+            .build();
+      }
+
+      private List<String> searchIds(SearchPaginationInput input) throws Exception {
+        String response =
+            mvc.perform(
+                    post(INJECTOR_CONTRACT_URL + "/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        List<String> ids = new ArrayList<>();
+        mapper
+            .readTree(response)
+            .get("content")
+            .forEach(node -> ids.add(node.get("injector_contract_id").asText()));
+        return ids;
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      @DisplayName("eq matches native contracts by their declared outputs and payload contracts")
+      void eq_should_matchNativeAndPayloadContracts() throws Exception {
+        List<String> ids =
+            searchIds(providingSearch(Filters.FilterOperator.eq, List.of("port", "portscan")));
+
+        assertThat(ids).contains(nativePortContract.getId(), payloadPortContract.getId());
+        assertThat(ids).doesNotContain(nativeReportContract.getId());
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      @DisplayName("eq port does not match a native contract that only mentions the word port")
+      void eqPort_should_notMatchContentMentioningPort() throws Exception {
+        List<String> ids = searchIds(providingSearch(Filters.FilterOperator.eq, List.of("port")));
+
+        assertThat(ids).contains(nativePortContract.getId(), payloadPortContract.getId());
+        assertThat(ids).doesNotContain(nativeReportContract.getId());
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      @DisplayName("not_eq port excludes every contract providing ports")
+      void notEq_should_excludeProvidingContracts() throws Exception {
+        List<String> ids =
+            searchIds(providingSearch(Filters.FilterOperator.not_eq, List.of("port")));
+
+        assertThat(ids).contains(nativeReportContract.getId());
+        assertThat(ids).doesNotContain(nativePortContract.getId(), payloadPortContract.getId());
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      @DisplayName("not_empty and empty split contracts on whether they provide any output")
+      void emptyAndNotEmpty_should_splitOnAnyOutput() throws Exception {
+        List<String> provides =
+            searchIds(providingSearch(Filters.FilterOperator.not_empty, List.of()));
+        List<String> providesNothing =
+            searchIds(providingSearch(Filters.FilterOperator.empty, List.of()));
+
+        assertThat(provides).contains(nativePortContract.getId(), payloadPortContract.getId());
+        assertThat(provides).doesNotContain(nativeReportContract.getId());
+        assertThat(providesNothing).contains(nativeReportContract.getId());
+        assertThat(providesNothing)
+            .doesNotContain(nativePortContract.getId(), payloadPortContract.getId());
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      @DisplayName("facet counts accept the providing filter")
+      void facetCounts_should_acceptProvidingFilter() throws Exception {
+        mvc.perform(
+                post(INJECTOR_CONTRACT_URL + "/facet-counts")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        mapper.writeValueAsString(
+                            providingSearch(Filters.FilterOperator.eq, List.of("port"))))
+                    .with(csrf()))
+            .andExpect(status().isOk());
+      }
+    }
   }
 
   @Nested

@@ -112,6 +112,30 @@ public class MinioService implements DependenciesManager {
   }
 
   /**
+   * Uploads a stream under an explicitly named tenant path rather than the ambient {@link
+   * TenantContext}. Use this when the write tenant is resolved from the request or job scope, so
+   * the object lands under the same tenant the owning row is attributed to.
+   *
+   * @param tenantId the tenant whose path the object is written under
+   * @param fileName the target file path/name in the bucket
+   * @param name the original filename stored as metadata
+   * @param data the input stream containing the file data
+   * @return the tenant-prefixed path of the uploaded file
+   */
+  public String uploadStreamForTenant(
+      String tenantId, String fileName, String name, InputStream data) throws Exception {
+    String objectKey = getPathForTenant(tenantId, fileName);
+    minioClient.putObject(
+        PutObjectArgs.builder()
+            .bucket(bucket())
+            .object(objectKey)
+            .userMetadata(Map.of("filename", name))
+            .stream(data, -1, 10 * 1024 * 1024)
+            .build());
+    return objectKey;
+  }
+
+  /**
    * Uploads a stream to the platform-level path (no tenant prefix). Use for assets that are shared
    * across all tenants, such as catalog connector logos.
    *
@@ -206,6 +230,29 @@ public class MinioService implements DependenciesManager {
     }
   }
 
+  /**
+   * Reads a file container under an explicitly named tenant path rather than the ambient {@link
+   * TenantContext}. Use this when the owning row's tenant is known, so the object is read from the
+   * same path it was written to, whatever scope the caller runs under.
+   *
+   * @param tenantId the tenant whose path the object is read from
+   * @param fileTarget the target file path
+   * @return the file container, or empty if the object does not exist under that tenant's path
+   */
+  public Optional<FileContainer> getFileContainerForTenant(String tenantId, String fileTarget) {
+    try {
+      StatObjectResponse response = objectExists(getPathForTenant(tenantId, fileTarget));
+      String filename = response.userMetadata().get("filename");
+      Optional<InputStream> inputStream = getFilePathForTenant(tenantId, fileTarget);
+      FileContainer fileContainer =
+          new FileContainer(filename, response.contentType(), inputStream.orElseThrow());
+      return Optional.of(fileContainer);
+    } catch (Exception e) {
+      log.error("Error during file container access", e);
+      return Optional.empty();
+    }
+  }
+
   // -- DELETE --
 
   public void deleteFileInTenantPath(String name) throws Exception {
@@ -236,6 +283,22 @@ public class MinioService implements DependenciesManager {
       deleteObjectsByPrefix(getTenantPath(directory), false);
     } catch (Exception e) {
       log.error("Error deleting directory {} for tenant", directory, e);
+    }
+  }
+
+  /**
+   * Deletes a directory under an explicitly named tenant path rather than the ambient {@link
+   * TenantContext}. Use this when the owning row's tenant is known, so the objects are removed from
+   * the same path they were written to, whatever scope the caller runs under.
+   *
+   * @param tenantId the tenant whose path the directory is removed from
+   * @param directory the directory prefix to delete
+   */
+  public void deleteDirectoryForTenant(String tenantId, String directory) {
+    try {
+      deleteObjectsByPrefix(getPathForTenant(tenantId, directory), false);
+    } catch (Exception e) {
+      log.error("Error deleting directory {} for tenant {}", directory, tenantId, e);
     }
   }
 

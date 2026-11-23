@@ -57,6 +57,11 @@ public interface HasPayloadIdentity extends JsonApiExtraAttributes {
     getIdentity().setCollectorType(collectorType);
   }
 
+  @JsonIgnore
+  default boolean isFromCollector() {
+    return getCollectorType() != null;
+  }
+
   @Override
   default Map<String, Object> extraAttributes() {
     Map<String, Object> attributes = new LinkedHashMap<>();

@@ -61,6 +61,9 @@ public class CatalogConnectorApiTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
   @Test
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_TENANT_SETTINGS},
+      autoJoinDefaultTenant = true)
   @DisplayName(
       "Given catalog connector id should retrieve all catalog connector configurations associated")
   void givenCatalogConnectorId_should_retrieveAllConfiguration() throws Exception {
@@ -121,6 +124,9 @@ public class CatalogConnectorApiTest extends IntegrationTest {
   }
 
   @Test
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_TENANT_SETTINGS},
+      autoJoinDefaultTenant = true)
   @DisplayName("Should retrieve all catalog connector")
   void should_retrieveAllCatalogConnector() throws Exception {
     // Arrange

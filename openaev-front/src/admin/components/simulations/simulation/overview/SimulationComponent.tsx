@@ -10,7 +10,7 @@ import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
 import { SectionBlock } from '../../../../../components/common/detail/EntityDetailCommon';
 import PostureGauges from '../../../../../components/common/detail/PostureGauges';
-import SAMPLE_POSTURE from '../../../../../components/common/detail/samplePosture';
+import samplePosture from '../../../../../components/common/detail/samplePosture';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
@@ -18,6 +18,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { useHelper } from '../../../../../store';
 import { type Exercise, type ExpectationResultsByType, type Inject, type InjectExpectationResultsByAttackPattern } from '../../../../../utils/api-types';
+import { isFeatureEnabled } from '../../../../../utils/utils';
 import InjectResultList from '../../../atomic_testings/InjectResultList';
 import MitreCoverageMatrix from '../../../common/matrix/MitreCoverageMatrix';
 import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../../../workspaces/custom_dashboards/results/contextualWidgets';
@@ -68,6 +69,7 @@ const SimulationComponent = () => {
   // Standard hooks
   const theme = useTheme();
   const { t } = useFormatter();
+  const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
   const [scrolledToAnchor, setScrolledToAnchor] = useState<boolean>(false);
 
   // Fetching data
@@ -167,7 +169,7 @@ const SimulationComponent = () => {
               if (results.length === 0) {
                 return (
                   <SamplePreview active variant="subtle" atPanelEdge>
-                    <PostureGauges expectationResultsByTypes={SAMPLE_POSTURE} />
+                    <PostureGauges expectationResultsByTypes={samplePosture(isLoggingEnabled)} />
                   </SamplePreview>
                 );
               }

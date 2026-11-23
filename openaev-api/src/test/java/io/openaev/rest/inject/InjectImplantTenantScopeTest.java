@@ -735,9 +735,9 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
 
   /**
    * An administrator with no membership: the capability check lets it through and its scope is
-   * empty, so on the non-prefixed route the tenant gate falls back to the ambient tenant, the
-   * default one. The agent checks behind the gate read the agent and its asset under the same empty
-   * scope, which reads nothing.
+   * empty. The tenant gate reads the inject's tenant from {@code injects}, an active table, under
+   * that empty scope, which reads nothing, so an inject of the default tenant is refused at the
+   * gate like an inject of any other tenant.
    */
   @Nested
   @Transactional
@@ -761,8 +761,8 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
     @ParameterizedTest(name = "{0}")
     @EnumSource(Endpoint.class)
     @DisplayName(
-        "passes the tenant gate for an inject of the default tenant, the agent checks refuse")
-    void given_injectOfTheDefaultTenant_should_passTheGateAndStopAtTheAgentChecks(Endpoint endpoint)
+        "is refused by the tenant gate, and writes nothing, for an inject of the default tenant")
+    void given_injectOfTheDefaultTenant_should_refuseAtTheGateAndWriteNothing(Endpoint endpoint)
         throws Exception {
       // Arrange
       Seeded seeded = seed();
@@ -775,7 +775,7 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
 
       // Assert
       assertAgentAccessDenied(result);
-      assertThat(gateLog.refusals()).isEmpty();
+      assertThat(gateLog.refusals()).hasSize(1);
       assertThat(executionTraceCount(seeded.injectId())).isZero();
     }
   }

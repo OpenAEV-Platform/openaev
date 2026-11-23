@@ -14,7 +14,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/** Adds the targets chosen at install to the injects of a catalogue scenario. */
+/** Adds chosen targets to injects: of a scenario at install, of a simulation at launch. */
 @Component
 @RequiredArgsConstructor
 public class CatalogScenarioTargets {
@@ -26,10 +26,11 @@ public class CatalogScenarioTargets {
 
   /**
    * Each inject gets the chosen targets of every kind its contract takes; an inject with a target
-   * selector takes one kind, the one it selects when it was chosen, else the first one chosen.
+   * selector takes one kind, the one it selects when it was chosen, else the first one chosen. The
+   * chosen ids resolve in the tenant of the injects: an id of another tenant is unknown.
    */
-  public void addTo(Collection<Inject> injects, TargetChoice choice) {
-    ChosenTargets chosen = resolve(choice);
+  public void addTo(String tenantId, Collection<Inject> injects, TargetChoice choice) {
+    ChosenTargets chosen = resolve(tenantId, choice);
     for (Inject inject : injects) {
       InjectorContract contract = inject.getInjectorContract().orElse(null);
       if (contractContent.hasField(contract, TARGET_SELECTOR_CONTENT_KEY)) {
@@ -47,13 +48,21 @@ public class CatalogScenarioTargets {
     }
   }
 
-  private ChosenTargets resolve(TargetChoice choice) {
+  /**
+   * The chosen ids the current reader resolves in the tenant: one they are not cleared for is
+   * dropped, like an unknown one.
+   */
+  public TargetChoice visible(String tenantId, TargetChoice choice) {
+    return resolve(tenantId, choice).choice();
+  }
+
+  private ChosenTargets resolve(String tenantId, TargetChoice choice) {
     return new ChosenTargets(
-        choice.assetIds().isEmpty() ? List.of() : assetService.assets(choice.assetIds()),
+        choice.assetIds().isEmpty() ? List.of() : assetService.assets(choice.assetIds(), tenantId),
         choice.assetGroupIds().isEmpty()
             ? List.of()
-            : assetGroupService.assetGroups(choice.assetGroupIds()),
-        choice.teamIds().isEmpty() ? List.of() : teamService.getTeamsByIds(choice.teamIds()),
+            : assetGroupService.assetGroups(choice.assetGroupIds(), tenantId),
+        choice.teamIds().isEmpty() ? List.of() : teamService.teams(tenantId, choice.teamIds()),
         choice.hosts().stream().map(String::trim).filter(host -> !host.isEmpty()).toList());
   }
 

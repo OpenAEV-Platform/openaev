@@ -43,4 +43,11 @@ const ScenarioType: FunctionComponent<Props> = ({ type }) => {
   );
 };
 
+// Cards and rows are links over their whole surface: a tooltip would never show, so the type is the icon's title.
+export const ScenarioTypeIcon: FunctionComponent<{ type: ScenarioTypeValue }> = ({ type }) => {
+  const { t } = useFormatter();
+  const { Icon } = TYPE_STYLES[type];
+  return <Icon color="primary" titleAccess={t(type)} />;
+};
+
 export default ScenarioType;

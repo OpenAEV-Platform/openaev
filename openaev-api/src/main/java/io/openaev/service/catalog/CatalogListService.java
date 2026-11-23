@@ -1,18 +1,24 @@
 package io.openaev.service.catalog;
 
-import io.openaev.api.catalog.CatalogItemMapper;
-import io.openaev.api.catalog.dto.payload.CatalogPayloadOutput;
-import io.openaev.api.catalog.dto.scenario.CatalogScenarioOutput;
+import static io.openaev.utils.pagination.PaginationUtils.buildPageable;
+
 import io.openaev.database.model.catalog.CatalogItem;
 import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.catalog.SemanticVersion;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,27 +27,44 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CatalogListService {
 
+  private static final String ID = "id";
+
   private final CatalogItemRepository catalogItemRepository;
-  private final CatalogItemMapper catalogItemMapper;
 
+  // -- LIST --
+
+  /** Every version of every catalogue item of a type, offered or not. */
   @Transactional(readOnly = true)
-  public List<CatalogScenarioOutput> scenarios() {
-    return latestVersions(catalogItemRepository.findAllScenarios()).stream()
-        .map(catalogItemMapper::toOutput)
+  public <T extends CatalogItem> List<T> all(Class<T> type) {
+    return catalogItemRepository.findAllOfType(type);
+  }
+
+  /** Every offered version of every catalogue item of a type. */
+  @Transactional(readOnly = true)
+  public <T extends CatalogItem> List<T> allOffered(Class<T> type) {
+    return catalogItemRepository.findAllOfType(type).stream()
+        .filter(CatalogListService::isOffered)
         .toList();
   }
 
+  /**
+   * The latest offered version of every catalogue item of a type, sorted by name, but the items of
+   * these keys: the ones the tenant installed, or ever knew.
+   */
   @Transactional(readOnly = true)
-  public List<CatalogPayloadOutput> payloads() {
-    return latestVersions(catalogItemRepository.findAllPayloads()).stream()
-        .map(catalogItemMapper::toOutput)
+  public <T extends CatalogItem> List<T> latestOfferedExcept(Class<T> type, Set<String> keys) {
+    return catalogItemRepository.findAllLatestOffered(type).stream()
+        .filter(item -> !keys.contains(CatalogOffer.key(item)))
         .toList();
   }
 
-  /** The latest offered version of every catalogue item of a type. */
+  /** Every offered version of one catalogue item, newest first. */
   @Transactional(readOnly = true)
-  public <T extends CatalogItem> List<T> latestOffered(Class<T> type) {
-    return latestVersions(catalogItemRepository.findAllOfType(type));
+  public <T extends CatalogItem> List<T> offeredVersions(Class<T> type, String externalId) {
+    return catalogItemRepository.findAllVersions(type, externalId).stream()
+        .filter(CatalogListService::isOffered)
+        .sorted(Comparator.comparing(CatalogItem::getVersion, SemanticVersion.ORDER).reversed())
+        .toList();
   }
 
   /** A version the catalogue still offers; refused when it is unknown, deprecated or revoked. */
@@ -56,6 +79,27 @@ public class CatalogListService {
     }
     return item;
   }
+
+  // -- SEARCH --
+
+  /** A page of the items an Available tab lists, under the filters and search of the input. */
+  @Transactional(readOnly = true)
+  public <T extends CatalogItem> Page<T> search(
+      Class<T> type,
+      Specification<CatalogItem> listed,
+      SearchPaginationInput input,
+      List<CatalogFacet> facets) {
+    Pageable pageable = buildPageable(input, CatalogItem.class);
+    // Items of one release share their publication date: the ID keeps the pages apart.
+    Pageable stable =
+        PageRequest.of(
+            pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort().and(Sort.by(ID)));
+    return catalogItemRepository
+        .findAll(listed.and(CatalogFacet.matching(input, facets)), stable)
+        .map(type::cast);
+  }
+
+  // -- STEPS --
 
   /** A deprecated or revoked version stays out of the catalogue; installed ones are untouched. */
   static boolean isOffered(CatalogItem item) {

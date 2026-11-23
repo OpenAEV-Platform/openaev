@@ -38,14 +38,14 @@ environment variables (containers). All defaults live in the
 | openaev.cookie-duration                               | OPENAEV_COOKIE-DURATION                               | P1D                   | Cookie validity sliding window (default 1 day). Each request re-issues the cookie with this Max-Age, so active users are never logged out by cookie expiration                             |
 | openaev.admin.email                                   | OPENAEV_ADMIN_EMAIL                                   | *required*            | Login email of the admin user (for example `admin@openaev.io`)                                                                                                                             |
 | openaev.admin.password                                | OPENAEV_ADMIN_PASSWORD                                | *required*            | Password of the admin user                                                                                                                                                                 |
-| openaev.admin.token                                   | OPENAEV_ADMIN_TOKEN                                   | *required*            | API token of the admin user (must be a valid UUIDv4)                                                                                                                                       |
+| openaev.admin.token                                   | OPENAEV_ADMIN_TOKEN                                   | *required*            | API token of the admin user (must be a valid UUIDv4). Also the only bearer `POST /api/xtm/peer-tokens` and `POST /api/xtm/peer-tokens/revoke` accept: a deployment manager provisions there the service accounts the sibling XTM products read this platform with |
 | openaev.admin.encryption_key                          | OPENAEV_ADMIN_ENCRYPTION_KEY                          | *required*            | Key used with the salt to derive the 256-bit key that encrypts sensitive data in the database                                                                                             |
 | openaev.admin.encryption_salt                         | OPENAEV_ADMIN_ENCRYPTION_SALT                         | *required*            | Salt used with the encryption key. Must be at least 8 bytes long                                                                                                                          |
 | openaev.healthcheck.key                               | OPENAEV_HEALTHCHECK_KEY                               | ChangeMe              | Key passed as `health_access_key` to the health check endpoint (`/api/health`). Change it in production                                                                                   |
 | openaev.healthcheck.connectivity-probe-interval       | OPENAEV_HEALTHCHECK_CONNECTIVITY_PROBE_INTERVAL       | PT10S                 | Interval between two background connectivity probes of the dependencies (ISO-8601 duration). `/api/health` serves the result of the last probe and never contacts a dependency itself; it answers 503 once a required dependency (database, RabbitMQ, file storage) is down or has not been probed for 3 intervals |
 | openaev.healthcheck.storage-probe-interval            | OPENAEV_HEALTHCHECK_STORAGE_PROBE_INTERVAL            | PT4H                  | Interval between two background computations of the storage sizes returned by `/api/health?details=true` and exported as `openaev_storage_used_bytes` (ISO-8601 duration). Computing them walks the whole object storage listing and queries the engine cluster, so low values are costly |
 | openaev.metrics.key                                   | OPENAEV_METRICS_KEY                                   | *empty*               | Scrape key for `/actuator/prometheus`, sent by the scraper as `Authorization: Bearer <key>`. While empty (the default), every `/actuator/**` request is rejected with a 401                |
-| inject.execution.threshold.minutes                    | INJECT_EXECUTION_THRESHOLD_MINUTES                    | 10                    | Time in minutes OpenAEV waits for Agents to report back after an inject is sent. Agents that did not report get a `TIMEOUT` trace and the inject is set to `ERROR` or `PARTIAL`. Late starts are handled by `openaev.scheduling.inject-staleness-threshold`. |
+| inject.execution.threshold.minutes                    | INJECT_EXECUTION_THRESHOLD_MINUTES                    | 10                    | Inject execution threshold, in minutes. A runtime setting: the environment variable locks it, else **Settings > Parameters > Execution and agents** wins. See [Runtime settings](#runtime-settings). |
 | openaev.cron.config.agent.inactivity.monitor.interval | OPENAEV_CRON_CONFIG_AGENT_INACTIVITY_MONITOR_INTERVAL | 5                     | Polling interval in minutes for the agent inactivity monitor job.                                                                                               |
 | openaev.run-mode                                      | OPENAEV_RUN-MODE                                      | normal                | Startup run mode (`normal` or `safe`). In `safe`, Quartz background processing is disabled. See [Run modes](../../deployment/platform/run-modes.md).                                                       |
 | openaev.starterpack.enabled                           | OPENAEV_STARTERPACK_ENABLED                           | true                  | StarterPack feature, providing default endpoint, asset group, scenarios and dashboards                                                                                                     |
@@ -140,6 +140,41 @@ The inject execution engine runs the actions described in the Injector contracts
 | Parameter                                     | Environment variable                          | Default value | Description                                                                                                                                                                                       |
 |:----------------------------------------------|:----------------------------------------------|:--------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | openaev.scheduling.inject-staleness-threshold | OPENAEV_SCHEDULING_INJECT-STALENESS-THRESHOLD | 4             | Grace period in minutes after the start time of a time-based Inject, during which it can still run. Past this period, the Inject is set in error. Values below `1` are treated as `1`. |
+| inject.execution.threshold.minutes            | INJECT_EXECUTION_THRESHOLD_MINUTES            | 10            | Inject execution threshold in minutes. A runtime setting: see [Runtime settings](#runtime-settings). |
+
+##### Inject execution threshold
+
+The inject execution threshold is platform-wide (it applies to every inject of every tenant). It is the time OpenAEV waits, once an inject was sent, for its Agents (or for an agentless injector such as a network scanner) to report a terminal result:
+
+- Agents that did not report within it get a `TIMEOUT` trace naming the threshold, and the inject is set to `ERROR` or `PARTIAL`.
+- An agentless inject that did not report within it gets one `TIMEOUT` trace naming the threshold and is set to `ERROR`. A result the injector sends later is still stored.
+- The built-in OpenAEV implant is given the same time (threshold x 60 seconds) before it stops.
+
+It is a [runtime setting](#runtime-settings) (key `inject_execution_threshold_minutes`, 1 to 1440 minutes): `INJECT_EXECUTION_THRESHOLD_MINUTES` wins and locks it when set, else the value a platform administrator sets in **Settings > Parameters > Execution and agents**, else `inject.execution.threshold.minutes`.
+
+- A change applies to the timeout of pending injects at the next run of the finalization job, without a restart. The built-in implant reads it when the OpenAEV injector is registered, at startup.
+- Raising it lets long agentless scans (for example a SYN scan of a large asset group) finish with their own status, at the cost of waiting longer for every agent-based inject whose Agents never report.
+- It does not replace `openaev.scheduling.inject-staleness-threshold`: the two are independent checks. The staleness threshold (default 4, minimum 1) bounds how late a time-based inject may *start*; the execution threshold bounds how long a *sent* inject may stay pending.
+- A per-inject override is tracked in a follow-up issue.
+
+##### Runtime settings
+
+A few settings can be changed by a platform administrator at runtime, in **Settings > Parameters > Execution and agents**, or with `PUT /api/settings/runtime` and a body such as `{"settings": {"inject_execution_threshold_minutes": 60, "agent_queue_threshold": 50}}`. A change applies at the next use, without a restart.
+
+The value in force is resolved in this order:
+
+1. **Environment variable.** When the environment variable of a setting is set, its value is in force, the field is read-only in the UI with an `env` tile naming the variable, and `PUT /api/settings/runtime` refuses the setting (`400`). Both the underscore form (`EXECUTOR_OPENAEV_AGENT_MAX_SIMULTANEOUS_JOBS`) and the dashed form (`EXECUTOR_OPENAEV_AGENT_MAX-SIMULTANEOUS-JOBS`) are read. A value that is not valid for the setting is ignored with a warning in the logs.
+2. **Value set in the UI** (stored in the database, platform-wide).
+3. **Configured default**: the property of `application.properties` (or any other non-environment configuration source), else the built-in default.
+
+`GET /api/settings` returns each of them in `runtime_settings`: `key`, `value`, `source` (`env`, `ui` or `default`), `env_var`, `locked`, `type`, `min` and `max`.
+
+| Key                                | Property                                     | Environment variable                         | Default | Range       | What it controls |
+|:-----------------------------------|:---------------------------------------------|:---------------------------------------------|:--------|:------------|:-----------------|
+| inject_execution_threshold_minutes | inject.execution.threshold.minutes           | INJECT_EXECUTION_THRESHOLD_MINUTES           | 10      | 1 to 1440   | Time a sent inject waits for its result before it ends in error (see above). |
+| agent_max_simultaneous_jobs        | executor.openaev.agent.max-simultaneous-jobs | EXECUTOR_OPENAEV_AGENT_MAX_SIMULTANEOUS_JOBS | 5       | 1 to 100    | Maximum number of jobs an OpenAEV agent receives at each poll. |
+| agent_queue_threshold              | openaev.agent.queue-threshold                | OPENAEV_AGENT_QUEUE_THRESHOLD                | 0       | 0 to 10000  | Pending jobs after which an agent is overloaded and skipped by new injects. `0` disables the check. |
+| agent_auto_update_enabled          | executor.openaev.agent.auto-update-enabled   | EXECUTOR_OPENAEV_AGENT_AUTO_UPDATE_ENABLED   | true    | true, false | When `false`, agents are not upgraded when a new platform version is deployed. Enterprise Edition only. |
 
 {% if feature_visible("CREDENTIAL_ASSET") %}
 #### Credential status validation
@@ -182,6 +217,17 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 | openaev.xtm.opencti.{id}.url                 | OPENAEV_XTM_OPENCTI_{id}_URL                 |               | OpenCTI instance URL                                                                                                                           |
 | openaev.xtm.opencti.{id}.api_url             | OPENAEV_XTM_OPENCTI_{id}_API_URL             |               | OpenCTI API URL — completely overrides the base URL. Defaults to `openaev.xtm.opencti.{id}.url` + `/graphql`                                   |
 | openaev.xtm.opencti.{id}.token               | OPENAEV_XTM_OPENCTI_{id}_TOKEN               |               | OpenCTI API token                                                                                                                              |
+
+#### XTM Suite: OpenCRQ
+
+Each OpenCRQ connection is scoped to an OpenAEV tenant, identified by its UUID (`{id}`). It serves the OpenCRQ pivots (see [OpenCTI and OpenCRQ pivots](../../integrations/xtm-suite/xtm-suite-connector.md#opencti-and-opencrq-pivots)) and the OpenCRQ entry of the product switcher. A connection with a URL and a token is enabled by default; set `enable` to `false` to turn it off. On a single-tenant deployment, the keys without `{id}` (`openaev.xtm.opencrq.url`, `OPENAEV_XTM_OPENCRQ_URL`, ...) configure the default tenant (`2cffad3a-0001-4078-b0e2-ef74274022c3`).
+
+| Parameter                          | Environment variable               | Default value | Description                                                                                  |
+|:-----------------------------------|:-----------------------------------|:--------------|:---------------------------------------------------------------------------------------------|
+| openaev.xtm.opencrq.{id}.enable    | OPENAEV_XTM_OPENCRQ_{id}_ENABLE    | true          | Set to `false` to turn off a configured OpenCRQ connection                                  |
+| openaev.xtm.opencrq.{id}.url       | OPENAEV_XTM_OPENCRQ_{id}_URL       |               | OpenCRQ instance URL                                                                         |
+| openaev.xtm.opencrq.{id}.api-url   | OPENAEV_XTM_OPENCRQ_{id}_API-URL   |               | OpenCRQ API URL, overrides the base URL. Defaults to `openaev.xtm.opencrq.{id}.url` + `/trpc` |
+| openaev.xtm.opencrq.{id}.token     | OPENAEV_XTM_OPENCRQ_{id}_TOKEN     |               | OpenCRQ service-account token                                                                |
 
 #### XTM Suite: XTM Hub
 
@@ -324,9 +370,9 @@ the implants run the Threat Arsenal actions.
 
 | Parameter                                    | Environment variable                         | Default value | Description                                                                              |
 |:------------------------------------------------|:------------------------------------------------|:------------------|:-------------------------------------------------------------------------------------------|
-| executor.openaev.agent.max-simultaneous-jobs | EXECUTOR_OPENAEV_AGENT_MAX-SIMULTANEOUS-JOBS | 5             | Maximum number of simultaneous jobs per agent, to avoid overloading the endpoint         |
-| executor.openaev.agent.auto-update-enabled   | EXECUTOR_OPENAEV_AGENT_AUTO-UPDATE-ENABLED   | true          | When `false`, the platform does not queue agent upgrade jobs. Only applies with an active Enterprise Edition license |
-| openaev.agent.queue-threshold              | OPENAEV_AGENT_QUEUE-THRESHOLD               | 0            | Max number of pending jobs per agent before marking it overloaded. 0 disables the check. |
+| executor.openaev.agent.max-simultaneous-jobs | EXECUTOR_OPENAEV_AGENT_MAX-SIMULTANEOUS-JOBS | 5             | Maximum number of simultaneous jobs per agent, to avoid overloading the endpoint. Runtime setting: see [Runtime settings](#runtime-settings).         |
+| executor.openaev.agent.auto-update-enabled   | EXECUTOR_OPENAEV_AGENT_AUTO-UPDATE-ENABLED   | true          | When `false`, the platform does not queue agent upgrade jobs. Only applies with an active Enterprise Edition license. Runtime setting: see [Runtime settings](#runtime-settings). |
+| openaev.agent.queue-threshold              | OPENAEV_AGENT_QUEUE-THRESHOLD               | 0            | Max number of pending jobs per agent before marking it overloaded. 0 disables the check. Runtime setting: see [Runtime settings](#runtime-settings). |
 
 ##### OpenAEV Agent
 

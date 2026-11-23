@@ -153,11 +153,20 @@ public class WithMockUserTestExecutionListener extends AbstractTestExecutionList
    * default tenant in the scope of the transaction, and the group that references it must be
    * persisted in the same transaction, or Hibernate's check that the role exists runs unscoped and
    * finds nothing. A test transaction carries the default scope already (see {@code
-   * DefaultTenantScopeTestListener}); a test class with no transaction gets one of its own here.
+   * DefaultTenantScopeTestListener}), unless the class opted out with {@code @WithoutTenantScope},
+   * in which case only the fixture write is scoped; a test class with no transaction gets one of
+   * its own here.
    */
   private static User persistInScope(ApplicationContext ctx, UserComposer.Composer composer) {
     if (TransactionSynchronizationManager.isActualTransactionActive()) {
-      return composer.persist().get();
+      if (!hasNoScope(ctx.getBean(EntityManager.class))) {
+        return composer.persist().get();
+      }
+      // A class opted out of the default scope (WithoutTenantScope): scope the fixture write only,
+      // and leave the transaction unscoped for the test, which is its premise.
+      return ctx.getBean(TenantScopedTransaction.class)
+          .executeOnCurrentTransaction(
+              TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), () -> composer.persist().get());
     }
     TenantScopedTransaction tenantScopedTransaction = ctx.getBean(TenantScopedTransaction.class);
     return new TransactionTemplate(ctx.getBean(PlatformTransactionManager.class))
@@ -167,6 +176,14 @@ public class WithMockUserTestExecutionListener extends AbstractTestExecutionList
                   TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID));
               return composer.persist().get();
             });
+  }
+
+  private static boolean hasNoScope(EntityManager entityManager) {
+    Object scope =
+        entityManager
+            .createNativeQuery("SELECT current_setting('app.current_tenants', true)")
+            .getSingleResult();
+    return scope == null || scope.toString().isEmpty();
   }
 
   @Override

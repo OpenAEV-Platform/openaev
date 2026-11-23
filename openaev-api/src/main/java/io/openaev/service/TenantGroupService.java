@@ -4,6 +4,7 @@ import static io.openaev.database.model.Role.capabilitiesOf;
 import static io.openaev.database.specification.GroupSpecification.tenantScope;
 import static io.openaev.service.account.PrivilegeEscalationValidator.assertCanAssignCapabilities;
 import static io.openaev.service.account.PrivilegeEscalationValidator.assertCanAssignGrant;
+import static io.openaev.service.account.PrivilegeEscalationValidator.capabilitiesOfAllRoles;
 import static io.openaev.service.marking.MarkingEscalationValidator.assertCanAssignMarkings;
 
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
@@ -31,6 +32,7 @@ import io.openaev.rest.group.form.GroupUpdateRolesInput;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.service.notification.GroupAccessRevokedEvent;
 import io.openaev.telemetry.metric_collectors.MarkingMetricCollector;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
@@ -42,6 +44,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
@@ -61,6 +64,7 @@ public class TenantGroupService {
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final MarkingMetricCollector markingMetricCollector;
   private final PreviewFeatureService previewFeatureService;
+  private final ApplicationEventPublisher eventPublisher;
   @PersistenceContext private EntityManager entityManager;
 
   private PermissionService permissionService;
@@ -210,7 +214,7 @@ public class TenantGroupService {
       TenantGroupCreateInput input) {
     Group group = this.findByIdAndTenantForWrite(groupId, tenantId);
     if (input.isDefaultUserAssignation() && !group.isDefaultUserAssignation()) {
-      assertCanAssignInTenant(tenantId, capabilitiesOf(group.getRoles()));
+      assertCanAssignInTenant(tenantId, capabilitiesOfRolesOf(group));
       assertHoldsGroupMarkings(tenantId, group);
     }
     group.setUpdateAttributes(input);
@@ -247,7 +251,7 @@ public class TenantGroupService {
       @NotBlank final String groupId,
       GroupUpdateUsersInput input) {
     Group group = this.findByIdAndTenantForWrite(groupId, tenantId);
-    assertCanAssignInTenant(tenantId, capabilitiesOf(group.getRoles()));
+    assertCanAssignInTenant(tenantId, capabilitiesOfRolesOf(group));
     Set<String> uniqueUserIds = new LinkedHashSet<>(input.getUserIds());
     Set<String> currentIds = group.getUsers().stream().map(User::getId).collect(Collectors.toSet());
     if (!currentIds.containsAll(uniqueUserIds)) {
@@ -260,6 +264,9 @@ public class TenantGroupService {
     }
     Set<String> affected = new LinkedHashSet<>(group.getUsers().stream().map(User::getId).toList());
     affected.addAll(uniqueUserIds);
+    Set<String> leaving = new LinkedHashSet<>(currentIds);
+    leaving.removeAll(uniqueUserIds);
+    publishAccessRevoked(tenantId, group.getGrants(), leaving);
 
     group.setUsers(users);
     Group saved = groupRepository.save(group);
@@ -351,9 +358,34 @@ public class TenantGroupService {
         .forEach(group -> grantMissingMarkings(group, List.of(marking)));
   }
 
+  /**
+   * Takes a marking out of every group of its tenant that holds it, before the marking is deleted.
+   * The {@code ON DELETE CASCADE} of {@code groups_markings} would drop the rows, but a group still
+   * loaded in the session (the caller's own groups load with the user) would keep referencing the
+   * deleted marking and fail the flush with a {@code TransientPropertyValueException}.
+   */
+  public void revokeFromEveryGroup(@NotNull final MarkingDefinition marking) {
+    groupRepository
+        .findAllByTenantIdAndMarkingsId(marking.getTenant().getId(), marking.getId())
+        .forEach(group -> group.getMarkings().remove(marking));
+  }
+
   /** Makes the group receive every marking of its tenant, existing and future. */
   public void receiveEveryMarking(@NotBlank final String tenantId, @NotNull final Group group) {
     receiveEveryMarking(group, markingDefinitionRepository.findAllByTenantId(tenantId));
+  }
+
+  /**
+   * Stops the group from receiving the new markings of its tenant; the markings it holds are kept,
+   * the tenant administrator trims them. For an internal group whose policy no longer grants every
+   * marking.
+   */
+  public void stopReceivingNewMarkings(@NotNull final Group group) {
+    if (!group.isAutoNewMarking()) {
+      return;
+    }
+    group.setAutoNewMarking(false);
+    groupRepository.save(group);
   }
 
   /** Turning it on needs ASSIGN_MARKING and every marking; turning it off keeps them. */
@@ -387,6 +419,10 @@ public class TenantGroupService {
       markingClearanceCacheManager.evictForUsers(
           group.getUsers().stream().map(User::getId).toList());
     }
+  }
+
+  private Set<Capability> capabilitiesOfRolesOf(Group group) {
+    return capabilitiesOfAllRoles(group, groupRepository.findRoleIdsByGroupId(group.getId()));
   }
 
   /** Reads the caller's rights in the group's tenant, not in the tenant of the route. */
@@ -424,6 +460,7 @@ public class TenantGroupService {
   public void delete(@NotBlank final String tenantId, @NotBlank final String groupId) {
     Group group = this.findByIdAndTenantForWrite(groupId, tenantId);
     List<String> members = group.getUsers().stream().map(User::getId).toList();
+    publishAccessRevoked(tenantId, group.getGrants(), new LinkedHashSet<>(members));
     group.getUsers().forEach(user -> user.getUnscopedGroups().remove(group));
     groupRepository.delete(group);
     // Deleting the group revokes whatever markings it granted, for every member at once.
@@ -463,7 +500,23 @@ public class TenantGroupService {
           return null;
         });
 
+    publishAccessRevoked(
+        tenantId,
+        List.of(grant),
+        group.getUsers().stream().map(User::getId).collect(Collectors.toSet()));
     group.getGrants().remove(grant);
     return groupRepository.save(group);
+  }
+
+  /**
+   * Tells the notification engine, before the grants go, which users may lose which granted
+   * objects: it captures who reads them now and sends a "no longer visible" event after commit to
+   * those who lost them. Nothing is published when no user or no grant is concerned.
+   */
+  private void publishAccessRevoked(String tenantId, List<Grant> grants, Set<String> userIds) {
+    if (grants == null || grants.isEmpty() || userIds.isEmpty()) {
+      return;
+    }
+    eventPublisher.publishEvent(GroupAccessRevokedEvent.of(tenantId, grants, userIds));
   }
 }

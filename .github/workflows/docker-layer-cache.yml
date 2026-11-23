@@ -1,0 +1,44 @@
+name: "🐳 Docker Layer Cache"
+
+# Refreshes the buildx layer cache that Core CI PR builds of the standard amd64
+# image restore. Exporting it from every push to main added minutes to each
+# build, so it is saved here on a schedule and pushes to main build without it.
+# The build runs on main with every layer built from scratch, so the cached
+# `apt-get upgrade` layer is never older than the last refresh.
+
+on:
+  schedule:
+    # Weekdays, four times across the working day in Europe, so the front and yarn layers
+    # stay close to main.
+    - cron: "17 5,9,13,17 * * 1-5"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: docker-layer-cache
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    name: "🐳 Refresh layer cache (standard amd64)"
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/docker-build
+        with:
+          dockerfile: ./Dockerfile
+          artifact-name: openaev-image
+          platform: linux/amd64
+          jar-path: /openaev-api.jar
+          cache-scope: docker-standard
+          cache-write: "true"
+          tags: openaev:layer-cache-${{ github.run_id }}
+          allow-registry: "false"
+          upload-artifact: "false"

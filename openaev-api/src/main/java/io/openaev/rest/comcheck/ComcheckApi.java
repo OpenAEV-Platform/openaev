@@ -10,6 +10,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.ComcheckStatusRepository;
 import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.specification.ComcheckSpecification;
 import io.openaev.rest.comcheck.form.ComcheckInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.service.ExerciseService;
@@ -17,11 +18,15 @@ import io.openaev.rest.helper.RestBehavior;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 public class ComcheckApi extends RestBehavior {
+
+  /** The public route a comcheck mail links to. It carries no tenant: the status id names it. */
+  public static final String COMCHECK_URI = "/api/comcheck";
 
   private ComcheckRepository comcheckRepository;
   private TeamRepository teamRepository;
@@ -48,7 +53,7 @@ public class ComcheckApi extends RestBehavior {
     this.exerciseService = exerciseService;
   }
 
-  @GetMapping("/api/comcheck/{comcheckStatusId}")
+  @GetMapping(COMCHECK_URI + "/{comcheckStatusId}")
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackFor = Exception.class)
   public ComcheckStatus checkValidation(TxCtx ctx, @PathVariable String comcheckStatusId) {
@@ -83,7 +88,10 @@ public class ComcheckApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public void deleteComcheck(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String comcheckId) {
-    comcheckRepository.deleteById(comcheckId);
+    Specification<Comcheck> ofExercise =
+        ComcheckSpecification.fromExercise(exerciseId).and(ComcheckSpecification.id(comcheckId));
+    comcheckRepository.delete(
+        comcheckRepository.findOne(ofExercise).orElseThrow(ElementNotFoundException::new));
   }
 
   @PostMapping({

@@ -1,5 +1,7 @@
 package io.openaev.xtmhub;
 
+import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
+import static io.openaev.database.audit.ModelBaseListener.DATA_UPDATE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.ArgumentMatchers.any;
@@ -9,6 +11,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.OpenAEVConfig;
+import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.NewsFeedItem;
 import io.openaev.database.model.NewsFeedType;
@@ -21,7 +25,6 @@ import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.NewsFeedItemService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -45,7 +48,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 
 /**
  * Integration test for {@link XtmHubService#syncNewsFeed}. It cannot be {@code @Transactional}: the
@@ -54,6 +61,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 @WithMockUser(isAdmin = true)
 @ExtendWith(DefaultTenantExtension.class)
+@RecordApplicationEvents
 @DisplayName("XtmHubService news feed sync integration tests")
 class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
 
@@ -67,25 +75,30 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
   @Autowired private GroupRepository groupRepository;
   @Autowired private TenantXtmHubRegistrationRepository registrationRepository;
   @Autowired private TenantComposer tenantComposer;
+  @Autowired private ApplicationEvents applicationEvents;
+  @Autowired private OpenAEVConfig openAEVConfig;
+  @Autowired private CacheManager cacheManager;
 
   @MockitoBean private XtmHubClient xtmHubClient;
-  @MockitoBean private PreviewFeatureService previewFeatureService;
 
   private final List<User> createdUsers = new ArrayList<>();
   private final List<Group> createdGroups = new ArrayList<>();
   private final List<String> createdTenantIds = new ArrayList<>();
   private Tenant firstTenant;
   private Tenant secondTenant;
+  private String originalDevFeatures;
 
   @BeforeEach
   void setUp() {
-    when(previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED)).thenReturn(true);
+    originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
+    setDevFeatures(originalDevFeatures + "," + PreviewFeature.XTM_HUB_NEWS_FEED.name());
     firstTenant = createTenant("News-Feed-A");
     secondTenant = createTenant("News-Feed-B");
   }
 
   @AfterEach
   void cleanup() {
+    setDevFeatures(originalDevFeatures);
     newsFeedItemRepository.deleteAll();
     // By id, members first: the detached entities still reference each other and would be
     // re-persisted.
@@ -276,6 +289,216 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
 
       // Assert
       assertThat(itemsOf(unsubscribed)).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Deleted and changed items")
+  class DeletedAndChangedItems {
+
+    private ProvisionedNewsFeedItem renamed(String hubItemId) {
+      return new ProvisionedNewsFeedItem(
+          hubItemId,
+          "Renamed " + hubItemId,
+          "RESOURCE_SCENARIO",
+          List.of("ransomware"),
+          "/scenarios/renamed-" + hubItemId,
+          CREATION_DATE.plusSeconds(3600),
+          false);
+    }
+
+    private ProvisionedNewsFeedItem deleted(String hubItemId) {
+      return new ProvisionedNewsFeedItem(
+          hubItemId,
+          "Scenario " + hubItemId,
+          "RESOURCE_SCENARIO",
+          List.of(),
+          null,
+          CREATION_DATE,
+          true);
+    }
+
+    private void markRead(User user, String hubItemId) {
+      NewsFeedItem item =
+          itemsOf(user).stream()
+              .filter(candidate -> hubItemId.equals(candidate.getHubItemId()))
+              .findFirst()
+              .orElseThrow();
+      item.setRead(true);
+      newsFeedItemRepository.save(item);
+    }
+
+    @Test
+    @DisplayName("Given a deleted item, should delete it for every user, read or not")
+    void given_deletedItem_should_deleteItForEveryUser() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User first = createUser(firstTenant);
+      User second = createUser(firstTenant);
+      givenHubReturns(FIRST_TOKEN, scenario("hub-1"), scenario("hub-2"));
+      xtmHubService.syncNewsFeed();
+      markRead(first, "hub-1");
+      // Unsubscribing keeps the rows already received: the deletion reaches them too
+      second.setUnsubscribedNewsFeedTypes(new String[] {NewsFeedUtils.ALL_TYPES});
+      userRepository.save(second);
+      givenHubReturns(FIRST_TOKEN, deleted("hub-1"));
+      applicationEvents.clear();
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      for (User user : List.of(first, second)) {
+        assertThat(itemsOf(user)).extracting(NewsFeedItem::getHubItemId).containsExactly("hub-2");
+      }
+      assertThat(newsFeedEvents())
+          .extracting(BaseEvent::getType)
+          .containsExactly(DATA_DELETE, DATA_DELETE);
+    }
+
+    @Test
+    @DisplayName("Given a changed item, should update it and keep the read state and no toast")
+    void given_changedItem_should_updateItAndKeepReadState() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User read = createUser(firstTenant);
+      User unread = createUser(firstTenant);
+      givenHubReturns(FIRST_TOKEN, scenario("hub-1"), scenario("hub-2"));
+      xtmHubService.syncNewsFeed();
+      markRead(read, "hub-1");
+      givenHubReturns(FIRST_TOKEN, renamed("hub-1"));
+      applicationEvents.clear();
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      for (User user : List.of(read, unread)) {
+        assertThat(itemsOf(user))
+            .filteredOn(item -> "hub-1".equals(item.getHubItemId()))
+            .singleElement()
+            .satisfies(
+                item -> {
+                  assertThat(item.getTitle()).isEqualTo("Renamed hub-1");
+                  assertThat(item.getTags()).containsExactly("ransomware");
+                  assertThat(item.getUrlPath()).isEqualTo("/scenarios/renamed-hub-1");
+                  assertThat(item.getCreationDate()).isEqualTo(CREATION_DATE);
+                });
+        assertThat(itemsOf(user))
+            .filteredOn(item -> "hub-2".equals(item.getHubItemId()))
+            .extracting(NewsFeedItem::getTitle)
+            .containsExactly("Scenario hub-2");
+      }
+      assertThat(itemsOf(read))
+          .filteredOn(item -> "hub-1".equals(item.getHubItemId()))
+          .allMatch(NewsFeedItem::isRead);
+      assertThat(itemsOf(unread))
+          .filteredOn(item -> "hub-1".equals(item.getHubItemId()))
+          .noneMatch(NewsFeedItem::isRead);
+      // Updates only: an item persisted again would toast on the user's screen
+      assertThat(newsFeedEvents())
+          .extracting(BaseEvent::getType)
+          .containsExactly(DATA_UPDATE, DATA_UPDATE);
+    }
+
+    @Test
+    @DisplayName("Given an item sent again unchanged, should not write nor publish anything")
+    void given_unchangedItem_should_notWriteNorPublish() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      createUser(firstTenant);
+      givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
+      xtmHubService.syncNewsFeed();
+      applicationEvents.clear();
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      assertThat(newsFeedEvents()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Given a changed item, should create it for a subscribed user who has no row")
+    void given_changedItem_should_createItForSubscribedUserWithoutRow() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User existing = createUser(firstTenant);
+      givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
+      xtmHubService.syncNewsFeed();
+      User newcomer = createUser(firstTenant);
+      User unsubscribed = createUser(firstTenant);
+      unsubscribed.setUnsubscribedNewsFeedTypes(new String[] {"RESOURCE_SCENARIO"});
+      userRepository.save(unsubscribed);
+      givenHubReturns(FIRST_TOKEN, renamed("hub-1"));
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      assertThat(itemsOf(existing))
+          .extracting(NewsFeedItem::getTitle)
+          .containsExactly("Renamed hub-1");
+      assertThat(itemsOf(newcomer))
+          .extracting(NewsFeedItem::getTitle)
+          .containsExactly("Renamed hub-1");
+      assertThat(itemsOf(unsubscribed)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Given more users than a chunk, should update then delete the item for all")
+    void given_moreUsersThanAChunk_should_updateThenDeleteItForAll() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      List<User> users = createUsers(NewsFeedItemService.USER_CHUNK_SIZE + 1, firstTenant);
+      Set<String> userIds = users.stream().map(User::getId).collect(Collectors.toSet());
+      givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
+      xtmHubService.syncNewsFeed();
+      givenHubReturns(FIRST_TOKEN, renamed("hub-1"));
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert: renamed for everyone
+      assertThat(newsFeedItemRepository.findAll())
+          .filteredOn(item -> userIds.contains(item.getOwnerUserId()))
+          .hasSize(users.size())
+          .extracting(NewsFeedItem::getTitle)
+          .containsOnly("Renamed hub-1");
+
+      // Arrange
+      givenHubReturns(FIRST_TOKEN, deleted("hub-1"));
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert: deleted for everyone
+      assertThat(newsFeedItemRepository.findAll())
+          .filteredOn(item -> userIds.contains(item.getOwnerUserId()))
+          .isEmpty();
+    }
+
+    @Test
+    @DisplayName("Given the feature flag is off, should neither delete nor update the items")
+    void given_featureFlagOff_should_neitherDeleteNorUpdate() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User user = createUser(firstTenant);
+      givenHubReturns(FIRST_TOKEN, scenario("hub-1"), scenario("hub-2"));
+      xtmHubService.syncNewsFeed();
+      givenHubReturns(FIRST_TOKEN, deleted("hub-1"), renamed("hub-2"));
+      setDevFeatures(originalDevFeatures);
+      applicationEvents.clear();
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      assertThat(itemsOf(user))
+          .extracting(NewsFeedItem::getHubItemId, NewsFeedItem::getTitle)
+          .containsExactlyInAnyOrder(
+              tuple("hub-1", "Scenario hub-1"), tuple("hub-2", "Scenario hub-2"));
+      assertThat(newsFeedEvents()).isEmpty();
     }
   }
 
@@ -492,8 +715,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
     @DisplayName("Given the feature flag is off, should not call the Hub")
     void given_featureFlagOff_should_notCallHub() {
       // Arrange
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED))
-          .thenReturn(false);
+      setDevFeatures(originalDevFeatures);
       saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
       User user = createUser(firstTenant);
 
@@ -597,6 +819,15 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
 
   // -- Helpers --
 
+  // A mocked flag service would also answer the stream threads, which can steal its stubbing.
+  private void setDevFeatures(String value) {
+    openAEVConfig.setEnabledDevFeatures(value);
+    Cache cache = cacheManager.getCache("global");
+    if (cache != null) {
+      cache.clear();
+    }
+  }
+
   private Tenant createTenant(String name) {
     Tenant tenant = TenantFixture.getTenant(name);
     tenantComposer.forTenant(tenant).persist();
@@ -687,6 +918,12 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
         .thenReturn(
             new NewsFeedFetchResult.Fetched(
                 new ProvisionedNewsFeedItems(List.of(items), List.of("RESOURCE_SCENARIO"))));
+  }
+
+  private List<BaseEvent> newsFeedEvents() {
+    return applicationEvents.stream(BaseEvent.class)
+        .filter(event -> event.getInstance() instanceof NewsFeedItem)
+        .toList();
   }
 
   private List<NewsFeedItem> itemsOf(User user) {

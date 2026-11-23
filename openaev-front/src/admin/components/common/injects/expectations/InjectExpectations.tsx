@@ -107,7 +107,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
 
   // -- UTILS --
 
-  const typeLabel = (type: string) => {
+  const typeLabel = (type: ExpectationInput['expectation_type']) => {
     if (isAutomatic(type)) {
       return t('Automatic');
     }

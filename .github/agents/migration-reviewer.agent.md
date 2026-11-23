@@ -38,9 +38,9 @@ Additional migration-specific levels:
 
 | Severity | Migration-specific criteria |
 |---|---|
-| 🔴 **CRITICAL** | `DROP TABLE` / `DROP COLUMN` without deprecation migration, `NOT NULL` without `DEFAULT` on populated table, modified existing migration (Flyway checksum break), missing `tenant_id` on new tenant-scoped table |
-| 🟠 **HIGH** | Missing `IF NOT EXISTS` / `IF EXISTS` guards, unique constraint without `tenant_id` on tenant-scoped table, missing FK `ON DELETE CASCADE` on tenant FK, missing index on `tenant_id`, `DELETE FROM indexing_status` used to rebuild a search index (lost on a rolling deploy) |
-| 🟡 **MEDIUM** | Large data migration not batched (>1000 rows), missing search index rebuild (re-feed or reset) after a change to an indexed model's data, invalid migration naming format |
+| 🔴 **CRITICAL** | `DROP TABLE` / `DROP COLUMN` without deprecation migration, `NOT NULL` without `DEFAULT` on populated table, modified existing migration that is not the ADR-023 in-place-fix exception (Flyway checksum break), missing `tenant_id` on new tenant-scoped table, a large-table rewrite in one uncommitted transaction with no pacing |
+| 🟠 **HIGH** | Missing `IF NOT EXISTS` / `IF EXISTS` guards, unique constraint without `tenant_id` on tenant-scoped table, missing FK `ON DELETE CASCADE` on tenant FK, missing index on `tenant_id`, `DELETE FROM indexing_status` used to rebuild a search index (lost on a rolling deploy), batching a large-table rewrite in primary key order on a random (UUID) primary key, `VACUUM` called inside a migration, a non-concurrent `CREATE INDEX` or an inline-validated constraint added on a large table after a backfill, a lock request on a large table with no `lock_timeout` and retry |
+| 🟡 **MEDIUM** | Large data migration not batched (>1000 rows) on a small or catalog-sized table, missing search index rebuild (re-feed or reset) after a change to an indexed model's data, invalid migration naming format |
 | 🟢 **LOW** | Non-descriptive migration name, minor style inconsistency |
 
 ## What NOT to Flag
@@ -62,7 +62,7 @@ The SKILL covers:
 2. **Class structure** — extends `BaseJavaMigration`, `@Component`, `migrate(Context context)`, `try (Statement statement = ...)` pattern
 3. **Idempotency** — `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `DROP TABLE IF EXISTS`, `CREATE INDEX IF NOT EXISTS`
 4. **Tenant isolation** — `tenant_id NOT NULL`, FK with `ON DELETE CASCADE`, index on `tenant_id`, composite unique constraints
-5. **Data safety** — `NOT NULL` with `DEFAULT`, large migrations batched in chunks of 1000, no `DROP` without prior deprecation migration
+5. **Data safety**: `NOT NULL` with `DEFAULT`, no `DROP` without prior deprecation migration, large-table rewrites follow ADR-023 (no primary-key-order batching on random ids, no `VACUUM`, paced, `CONCURRENTLY`/`NOT VALID`+`VALIDATE`, lock retry, resumable)
 6. **Search index rebuild** — re-feed in place or reset with the sentinel when the modified data is indexed, matching the need, and never `DELETE FROM indexing_status`
 
 ## Output Format

@@ -39,6 +39,7 @@ import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -513,7 +514,7 @@ public class SimulationInjectApi extends RestBehavior {
   public List<Inject> bulkDeleteInjectsForSimulation(
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
-      @RequestBody @Valid final InjectBulkProcessingInput input) {
+      @RequestBody @Valid final InjectBulkDeleteInput input) {
     input.setSimulationOrScenarioId(exerciseId);
     return bulkInjectService.bulkDeleteWithMonitoring(ctx, input);
   }
@@ -530,8 +531,16 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public void deleteInject(
-      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
-    this.simulationInjectService.deleteInject(ctx, exerciseId, injectId);
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @PathVariable String injectId,
+      @Parameter(
+              description =
+                  "True keeps the findings produced by the inject, detached from it. False (the"
+                      + " default) deletes them with the inject.")
+          @RequestParam(name = "keep_findings", required = false, defaultValue = "false")
+          boolean keepFindings) {
+    this.simulationInjectService.deleteInject(ctx, exerciseId, injectId, keepFindings);
   }
 
   /**

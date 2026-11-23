@@ -2,16 +2,19 @@ package io.openaev.utils.mapper;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
+import io.openaev.rest.asset_group.form.AssetGroupSimple;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.rest.finding.form.FindingOutput;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
+import io.openaev.service.AssetGroupService;
 import io.openaev.utils.TargetType;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +30,19 @@ public class FindingMapper {
   private final ExerciseMapper exerciseMapper;
   private final ScenarioMapper scenarioMapper;
   private final InjectMapper injectMapper;
+  private final AssetGroupService assetGroupService;
+
+  /**
+   * The asset groups of a finding: the groups that contain at least one of its assets, statically
+   * or through their dynamic filter. Never the groups its inject targeted. The search index reads
+   * the same resolver, so the detail page and the "by asset group" widgets agree.
+   */
+  private Set<AssetGroupSimple> assetGroupsOf(Finding finding) {
+    List<String> assetIds = finding.getAssets().stream().map(Asset::getId).toList();
+    return assetGroupService.assetGroupsOfAssets(assetIds).stream()
+        .map(assetGroupMapper::toAssetGroupSimple)
+        .collect(Collectors.toSet());
+  }
 
   /**
    * Group-wide impact counts of a finding, resolved by the service and handed over as one value so
@@ -81,6 +97,10 @@ public class FindingMapper {
         .injectId(inject.map(Inject::getId).orElse(null))
         .creationDate(finding.getCreationDate())
         .updateDate(finding.getUpdateDate())
+        .status(finding.getStatus())
+        .lastTested(finding.getLastTested())
+        .statusInjectId(finding.getStatusInjectId())
+        .retestInjectId(finding.getRetestInjectId())
         .assets(finding.getAssets().stream().map(Asset::getId).toList())
         .teams(finding.getTeams().stream().map(Team::getId).toList())
         .users(finding.getUsers().stream().map(User::getId).toList())
@@ -90,10 +110,7 @@ public class FindingMapper {
                 .map(Exercise::getScenario)
                 .map(scenarioMapper::toScenarioSimple)
                 .orElse(null))
-        .assetGroups(
-            finding.getAssetGroups().stream()
-                .map(assetGroupMapper::toAssetGroupSimple)
-                .collect(Collectors.toSet()))
+        .assetGroups(assetGroupsOf(finding))
         .build();
   }
 
@@ -139,10 +156,7 @@ public class FindingMapper {
             finding.getAssets().stream()
                 .map(asset -> endpointMapper.toEndpointSimple(asset))
                 .collect(Collectors.toSet()))
-        .assetGroups(
-            finding.getAssetGroups().stream()
-                .map(assetGroup -> assetGroupMapper.toAssetGroupSimple(assetGroup))
-                .collect(Collectors.toSet()))
+        .assetGroups(assetGroupsOf(finding))
         .inject(inject.map(injectMapper::toInjectSimple).orElse(null))
         .simulation(simulation.map(exerciseMapper::toExerciseSimple).orElse(null))
         .scenario(

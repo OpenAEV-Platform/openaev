@@ -45,6 +45,20 @@ public final class SearchPaginationInputMapper {
     return translated;
   }
 
+  /** The same search without the filters on a key, as a facet counts its own values. */
+  public static SearchPaginationInput withoutFilter(
+      @NotNull final SearchPaginationInput input, @NotNull final String key) {
+    SearchPaginationInput copy = translateFields(input, Map.of());
+    if (copy.getFilterGroup() != null) {
+      copy.getFilterGroup()
+          .setFilters(
+              copy.getFilterGroup().getFilters().stream()
+                  .filter(filter -> !key.equals(filter.getKey()))
+                  .toList());
+    }
+    return copy;
+  }
+
   private static Filters.FilterGroup translateFilterGroup(
       Filters.FilterGroup filterGroup, Map<String, String> fieldMapping) {
     if (filterGroup == null) {

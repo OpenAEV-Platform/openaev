@@ -15,7 +15,7 @@ In **Settings > Filigran Experience**, click **Disconnect XTM Hub**. This remove
 
 ## Connectivity check
 
-OpenAEV regularly checks the connection to the XTM Hub. Each check also sends the platform edition (Community or Enterprise), so XTM Hub shows the right edition after you activate or remove a license, without registering again. If the check fails, the status shows **Connectivity lost** and OpenAEV administrators are informed.
+OpenAEV regularly checks the connection to the XTM Hub. Each check also sends the platform edition (Community or Enterprise), so XTM Hub shows the right edition after you activate or remove a license, without registering again. If the check fails, the status shows **Connectivity lost** and the platform and Tenant administrators receive an email.
 
 ## What's next?
 
