@@ -5196,6 +5196,7 @@
   "{count} edits of yours": "你的 {count} 处修改",
   "After: add targets to 1 new inject.": "之后：为 1 个新注入添加目标。",
   "After: add targets to {count} new injects.": "之后：为 {count} 个新注入添加目标。",
+  "What's new in Filigran v{version}": "Filigran v{version} 的新内容",
   "Revoke a version": "撤销版本",
   "Lift a revocation": "解除撤销",
   "v{version} runs again in this tenant.": "v{version} 将在此租户中重新运行。",

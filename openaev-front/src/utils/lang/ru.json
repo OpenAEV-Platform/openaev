@@ -5196,6 +5196,7 @@
   "{count} edits of yours": "Ваших изменений: {count}",
   "After: add targets to 1 new inject.": "Затем: добавьте цели к 1 новому инжекту.",
   "After: add targets to {count} new injects.": "Затем: добавьте цели к новым инжектам ({count}).",
+  "What's new in Filigran v{version}": "Что нового в Filigran v{version}",
   "Revoke a version": "Отозвать версию",
   "Lift a revocation": "Снять отзыв",
   "v{version} runs again in this tenant.": "v{version} снова выполняется в этом тенанте.",

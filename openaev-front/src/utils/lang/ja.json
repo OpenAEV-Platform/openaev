@@ -5196,6 +5196,7 @@
   "{count} edits of yours": "あなたの変更 {count} 件",
   "After: add targets to 1 new inject.": "適用後: 新しいインジェクト 1 件にターゲットを追加してください。",
   "After: add targets to {count} new injects.": "適用後: 新しいインジェクト {count} 件にターゲットを追加してください。",
+  "What's new in Filigran v{version}": "Filigran v{version} の新機能",
   "Revoke a version": "バージョンを取り消す",
   "Lift a revocation": "取り消しを解除",
   "v{version} runs again in this tenant.": "v{version} はこのテナントで再び実行されます。",

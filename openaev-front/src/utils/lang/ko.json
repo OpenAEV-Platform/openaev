@@ -5196,6 +5196,7 @@
   "{count} edits of yours": "내 수정 {count}개",
   "After: add targets to 1 new inject.": "적용 후: 새 인젝트 1개에 대상을 추가하세요.",
   "After: add targets to {count} new injects.": "적용 후: 새 인젝트 {count}개에 대상을 추가하세요.",
+  "What's new in Filigran v{version}": "Filigran v{version}의 새로운 기능",
   "Revoke a version": "버전 취소",
   "Lift a revocation": "취소 해제",
   "v{version} runs again in this tenant.": "v{version}이(가) 이 테넌트에서 다시 실행됩니다.",

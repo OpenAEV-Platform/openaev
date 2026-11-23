@@ -5196,6 +5196,7 @@
   "{count} edits of yours": "{count} tue modifiche",
   "After: add targets to 1 new inject.": "Poi: aggiungi obiettivi a 1 nuovo inject.",
   "After: add targets to {count} new injects.": "Poi: aggiungi obiettivi a {count} nuovi inject.",
+  "What's new in Filigran v{version}": "Novità di Filigran v{version}",
   "Revoke a version": "Revoca una versione",
   "Lift a revocation": "Revocare una revoca",
   "v{version} runs again in this tenant.": "v{version} torna a essere eseguita in questo tenant.",
