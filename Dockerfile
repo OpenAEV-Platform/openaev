@@ -118,6 +118,12 @@ RUN set -eu; \
 # Set by CI to the built commit, exposed in the platform settings
 ARG OPENAEV_COMMIT
 ENV OPENAEV_COMMIT=${OPENAEV_COMMIT}
+# Set by CI to the built commit on every build but a release tag: the version sent to XTM One
+# becomes <version>-dev.<sha7>, so a rolling upgrade is a version change there
+ARG OPENAEV_BUILD_COMMIT
+ENV OPENAEV_BUILD_COMMIT=${OPENAEV_BUILD_COMMIT}
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["java", "-jar", "openaev-api.jar"]
+# -XX:-UseBASE64Intrinsics mitigates CVE-2026-114938 until the base image ships a fixed JDK
+# (21.0.13.1 or later); remove it with that bump. Not -XX:UseAVX=2: the JVM fails on arm64 with it.
+CMD ["java", "-XX:-UseBASE64Intrinsics", "-jar", "openaev-api.jar"]

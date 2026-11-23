@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Finding;
@@ -74,6 +76,7 @@ import org.springframework.transaction.annotation.Transactional;
 class CursorPagedSearchTest extends IntegrationTest {
 
   @Autowired private EngineService engineService;
+  @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private EngineContext engineContext;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private FindingComposer findingComposer;
@@ -228,6 +231,8 @@ class CursorPagedSearchTest extends IntegrationTest {
     // watermark, so a rewound timestamp older than that watermark would silently never be
     // re-picked-up; clearing the watermark forces a full re-fetch every time instead.
     indexingStatusRepository.deleteAll();
+    // Production runs the sweep under the all-tenants scope (EngineSyncExecutionJob).
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.allTenants());
     engineService.bulkProcessing(engineContext.getModels().stream());
   }
 

@@ -174,8 +174,15 @@ class InjectorContractUniqueKeysTenantScopeTest extends IntegrationTest {
   }
 
   private void persistContract(String tenantId, String externalId, String payloadId) {
+    // A contract that points at the payload of tenant A is written for its own tenant, but saving
+    // it loads that payload: the scope holds the payload's owner as well, the row carries the
+    // contract's own tenant.
+    TxCtx scope =
+        payloadId == null
+            ? TxCtx.forTenant(tenantId)
+            : TxCtx.forTenants(List.of(tenantAId, tenantId));
     tenantTx.execute(
-        TxCtx.forTenant(tenantId),
+        scope,
         () -> {
           Injector injector = InjectorFixture.createDefaultPayloadInjector();
           injector.setTenantId(tenantId);

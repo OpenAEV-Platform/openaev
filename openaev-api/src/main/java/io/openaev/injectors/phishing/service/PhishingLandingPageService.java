@@ -199,8 +199,8 @@ public class PhishingLandingPageService {
   /**
    * Resolves and sets the dark/light logo documents of a landing page, keeping document resolution
    * in the service layer so the controller depends on services only. A {@code null} id clears the
-   * corresponding logo; a non-null id that does not resolve is rejected by {@code
-   * DocumentService.document}.
+   * corresponding logo; a non-null id that does not resolve within the landing page's own tenant is
+   * rejected by {@code DocumentService.documentInTenant}, the same as a wholly unknown id.
    */
   public PhishingLandingPage updateLogos(
       final TxCtx ctx,
@@ -208,8 +208,11 @@ public class PhishingLandingPageService {
       final String logoDarkId,
       final String logoLightId) {
     PhishingLandingPage landingPage = landingPage(id);
-    landingPage.setLogoDark(logoDarkId != null ? documentService.document(logoDarkId) : null);
-    landingPage.setLogoLight(logoLightId != null ? documentService.document(logoLightId) : null);
+    String tenantId = landingPage.getTenant().getId();
+    landingPage.setLogoDark(
+        logoDarkId != null ? documentService.documentInTenant(logoDarkId, tenantId) : null);
+    landingPage.setLogoLight(
+        logoLightId != null ? documentService.documentInTenant(logoLightId, tenantId) : null);
     return upsert(ctx, landingPage);
   }
 
@@ -572,13 +575,14 @@ public class PhishingLandingPageService {
         prevention,
         buildPhishingStep(
             PhishingTrackingService.STEP_OPENED,
-            "Red once the recipient opens the lure email (tracking pixel loaded); green while the"
-                + " email is never opened.",
+            "Red once the recipient interacts with the phishing landing page, which proves they"
+                + " opened the lure email; the tracking image alone is not counted, as mail"
+                + " scanners load it too.",
             1),
         buildPhishingStep(
             PhishingTrackingService.STEP_CLICKED,
-            "Red once the recipient opens the phishing landing page; green while the link is never"
-                + " followed.",
+            "Red once the recipient interacts with the phishing landing page (mouse, touch,"
+                + " keyboard or scroll); green while the link is never followed.",
             2),
         buildPhishingStep(
             PhishingTrackingService.STEP_SUBMITTED,

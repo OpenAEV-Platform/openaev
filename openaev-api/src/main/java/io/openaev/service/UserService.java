@@ -17,6 +17,7 @@ import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.repository.*;
@@ -30,6 +31,7 @@ import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.user_events.UserPasswordSetupRequestedEvent;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.ReferenceResolver;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.users.UserQueryHelper;
 import jakarta.annotation.Resource;
@@ -45,6 +47,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
 import org.hibernate.Hibernate;
+import org.hibernate.Session;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -67,6 +70,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.util.HtmlUtils;
@@ -164,6 +168,22 @@ public class UserService {
    */
   @Transactional(rollbackFor = Exception.class)
   public User createUser(UserInput input, UserCreationScope scope) {
+    return applyCreate(input, scope);
+  }
+
+  /**
+   * Creates a platform user from a request whose scope is {@code ctx}. The roles of the groups
+   * auto-assigned from the input's tenants are read in that scope, so the event of the creation is
+   * attributed to a tenant of it, the ambient one when it is of the scope: a consumer of a tenant
+   * outside the scope is not sent fields derived from roles that were not read for it.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public User createUser(TxCtx ctx, UserInput input, UserCreationScope scope) {
+    BaseEvent.attributeRequestEventsToOneOf(TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx), User.class);
+    return applyCreate(input, scope);
+  }
+
+  private User applyCreate(UserInput input, UserCreationScope scope) {
     ReservedKeyValidator.validateUserEmailPattern(input.email());
     if (userRepository.findByEmailIgnoreCase(input.email()).isPresent()) {
       throw new DataIntegrityViolationException(
@@ -237,6 +257,10 @@ public class UserService {
    *
    * <p>No {@code @Transactional} here: {@code userRepository.findById(...)} already runs under its
    * own Spring Data JPA transaction.
+   *
+   * <p>The roles of the user's groups are not read under the user's tenant memberships: a caller
+   * that evaluates the user's capabilities loads it through {@link #userWithRoles(String)}, as
+   * {@link #currentUser()} does.
    */
   public User user(@NotBlank final String userId) {
     return userRepository
@@ -277,6 +301,22 @@ public class UserService {
 
   @Transactional(rollbackFor = Exception.class)
   public User updateUser(String userId, UserInput input) {
+    return applyUpdate(userId, input);
+  }
+
+  /**
+   * Updates a user from a request whose scope is {@code ctx}. The roles of the user's groups are
+   * read in that scope, so the event of the update is attributed to a tenant of it, the ambient one
+   * when it is of the scope: a consumer of a tenant outside the scope is not sent fields derived
+   * from roles that were not read for it.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public User updateUser(TxCtx ctx, String userId, UserInput input) {
+    BaseEvent.attributeRequestEventsToOneOf(TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx), User.class);
+    return applyUpdate(userId, input);
+  }
+
+  private User applyUpdate(String userId, UserInput input) {
     // Check if new email is reserved
     ReservedKeyValidator.validateUserEmailPattern(input.email());
     User existing = user(userId);
@@ -913,7 +953,7 @@ public class UserService {
     if (principal instanceof OpenAEVAnonymous) {
       return null;
     }
-    return this.userRepository.findById(principal.getId()).orElse(null);
+    return findWithRoles(principal.getId()).orElse(null);
   }
 
   public User currentUser() {
@@ -929,8 +969,7 @@ public class UserService {
       // If not, we get it
       if (user == null) {
         user =
-            this.userRepository
-                .findById(SessionHelper.currentUser().getId())
+            findWithRoles(SessionHelper.currentUser().getId())
                 .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
 
         // If the user is admin, we put him in cache
@@ -941,11 +980,75 @@ public class UserService {
     } else {
       // If for some reason, the cache is unavailable, we just get the user and return it
       user =
-          this.userRepository
-              .findById(SessionHelper.currentUser().getId())
+          findWithRoles(SessionHelper.currentUser().getId())
               .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
     }
     return user;
+  }
+
+  /**
+   * Returns a user whose capabilities the caller evaluates, with the roles of its groups.
+   *
+   * <p>For a caller off the request thread, such as the stream, that has no user of its own to load
+   * through {@link #currentUser()}.
+   */
+  public User userWithRoles(@NotBlank final String userId) {
+    return findWithRoles(userId)
+        .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
+  }
+
+  /**
+   * Loads the user so that the roles of its groups, an eager association read with the user, are
+   * read in scope: a tenant role is a row of an active table and a load with no scope reads none.
+   *
+   * <p>With no transaction open, the load runs in a read-only one scoped to the tenants the user
+   * belongs to: read-only, as the repository's own {@code findById} is, so that a managed entity
+   * the request's session holds pending is not written by it. A user with no membership is loaded
+   * as is: the rows of a platform role are readable whatever the scope. In a transaction already
+   * open the load takes the scope and the read-only state of that transaction, the request's or the
+   * job's.
+   */
+  private Optional<User> findWithRoles(String userId) {
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      return userRepository.findById(userId);
+    }
+    List<String> tenantIds = tenantMembershipCacheManager.findTenantIdsByUserId(userId);
+    if (tenantIds.isEmpty()) {
+      return userRepository.findById(userId);
+    }
+    TxCtx scope = TxCtx.forTenants(tenantIds);
+    return tenantTx.executeReadOnly(
+        scope,
+        () -> {
+          Optional<User> user = userRepository.findById(userId);
+          if (user.isEmpty()) {
+            return user;
+          }
+          List<Group> differing =
+              GroupRolesInScope.withDifferingRoles(entityManager, user.get().getUnscopedGroups());
+          return differing.isEmpty()
+              ? user
+              : loadRolesFromTheDatabase(user.get(), differing, scope);
+        });
+  }
+
+  /**
+   * Reads the roles of the groups of {@code user} the load has to hand out. A load by id of a user
+   * or a group the session already holds, read with no scope or in another tenant's scope, hands
+   * out that instance with the roles of its first read: the eager associations are not read again.
+   *
+   * <p>When the session holds no pending change, the {@code differing} groups, the ones whose roles
+   * are not the roles of the scope, are refreshed and the others are left as they are. When it
+   * holds one, a refresh would replace the pending state of a group, so the user is loaded in a
+   * persistence context of its own, which the caller's entities never join: the result is detached
+   * and the caller's session keeps what it holds.
+   */
+  private Optional<User> loadRolesFromTheDatabase(User held, List<Group> differing, TxCtx scope) {
+    if (entityManager.unwrap(Session.class).isDirty()) {
+      return tenantTx.executeNew(scope, () -> userRepository.findById(held.getId()));
+    }
+    differing.forEach(entityManager::refresh);
+    return Optional.of(held);
   }
 
   /**

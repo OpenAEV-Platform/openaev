@@ -6,6 +6,7 @@ import io.openaev.api.catalog.dto.CatalogInstallAllOutput;
 import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.api.catalog.dto.payload.CatalogPayloadOutput;
 import io.openaev.api.catalog.dto.scenario.CatalogScenarioOutput;
+import io.openaev.api.catalog.dto.scenario.CatalogScenarioVersionOutput;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.catalog.CatalogItemStatus;
 import io.openaev.database.model.catalog.CatalogPayload;
@@ -13,6 +14,8 @@ import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.service.catalog.InstallableVersion;
 import io.openaev.service.catalog.Installed;
+import io.openaev.service.catalog.scenario.CatalogScenarioType;
+import io.openaev.service.catalog.scenario.OfferedScenario;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -43,14 +46,19 @@ public class CatalogItemMapper {
     target.setPlatforms(platforms.toArray(new String[0]));
     target.setDomain(primaryDomain(file));
     target.setContentHash(version.sha256().toLowerCase(Locale.ROOT));
+    target.setChangelog(version.changelog());
     target.setPublishedAt(manifest.issuedAt());
     target.setArchiveName(version.file().name());
   }
 
-  // Same rule as the Threat Arsenal sections: the first domain by name.
   private static String primaryDomain(JsonNode file) {
     List<String> names = new ArrayList<>();
     file.path("payload_domains").forEach(domain -> names.add(domain.path("domain_name").asText()));
+    return primaryDomain(names);
+  }
+
+  // Same rule as the Threat Arsenal sections: the first domain by name.
+  public static String primaryDomain(List<String> names) {
     return names.stream()
         .filter(name -> !name.isBlank() && !DomainService.TO_CLASSIFY.equals(name))
         .sorted()
@@ -66,7 +74,7 @@ public class CatalogItemMapper {
     target.setSeverity(item.severity());
     target.setCategory(item.category());
     target.setMainFocus(item.mainFocus());
-    target.setScenarioType(item.scenarioTypeOrType());
+    target.setScenarioType(CatalogScenarioType.of(item.scenarioTypeOrType()).name());
     target.setPlatforms(
         item.platforms() == null ? new String[0] : item.platforms().toArray(new String[0]));
     target.setInjectsCount(item.injectsCount());
@@ -104,11 +112,40 @@ public class CatalogItemMapper {
         result.failed().stream().map(InstallableVersion::externalId).toList());
   }
 
-  public CatalogScenarioOutput toOutput(CatalogScenario latest) {
-    return new CatalogScenarioOutput(latest.getExternalId(), latest.getVersion(), latest.getName());
+  public CatalogScenarioOutput toOutput(OfferedScenario offered) {
+    CatalogScenario version = offered.version();
+    return new CatalogScenarioOutput(
+        version.getExternalId(),
+        version.getVersion(),
+        version.getName(),
+        version.getDescription(),
+        version.getAuthor(),
+        CatalogScenarioType.of(version.getScenarioType()).name(),
+        version.getCategory(),
+        version.getPlatforms(),
+        version.getPublishedAt(),
+        offered.missingRequirements(),
+        offered.installedScenarioId());
   }
 
-  public CatalogPayloadOutput toOutput(CatalogPayload latest) {
-    return new CatalogPayloadOutput(latest.getExternalId(), latest.getVersion(), latest.getName());
+  public CatalogScenarioVersionOutput toVersionOutput(CatalogScenario version) {
+    return new CatalogScenarioVersionOutput(
+        version.getVersion(),
+        version.getPublishedAt(),
+        version.getChangelog(),
+        version.getMainFocus(),
+        version.getSeverity(),
+        version.getInjectsCount());
+  }
+
+  public CatalogPayloadOutput toOutput(CatalogPayload version) {
+    return new CatalogPayloadOutput(
+        version.getExternalId(),
+        version.getVersion(),
+        version.getName(),
+        version.getDescription(),
+        version.getDomain(),
+        version.getPlatforms(),
+        version.getPublishedAt());
   }
 }

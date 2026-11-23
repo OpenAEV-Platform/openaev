@@ -193,6 +193,20 @@ public class PlatformSettings extends PublicPlatformSettings {
   @Schema(description = "XTM Hub should send connectivity email")
   private String xtmHubShouldSendConnectivityEmail;
 
+  // XTM Composer: what it reported at its last registration or connectivity refresh, null when
+  // no XTM Composer is registered
+  @JsonProperty("xtm_composer_version")
+  @Schema(description = "Version XTM Composer reported, 'unknown' when it reported none")
+  private String xtmComposerVersion;
+
+  @JsonProperty("xtm_composer_image")
+  @Schema(description = "Container image XTM Composer reported, empty when it reported none")
+  private String xtmComposerImage;
+
+  @JsonProperty("xtm_composer_last_connectivity_check")
+  @Schema(description = "Last connectivity check of XTM Composer")
+  private String xtmComposerLastConnectivityCheck;
+
   @JsonProperty("smtp_service_available")
   @Schema(description = "SMTP Service availability")
   private String smtpServiceAvailable;
@@ -223,4 +237,12 @@ public class PlatformSettings extends PublicPlatformSettings {
   @JsonProperty("platform_session_max_concurrent")
   @Schema(description = "Maximum number of concurrent sessions per user (0 = unlimited)")
   private Integer platformSessionMaxConcurrent;
+
+  // RUNTIME SETTINGS
+  @JsonProperty("runtime_settings")
+  @Schema(
+      description =
+          "Settings an administrator may change at runtime, each with its value in force and its"
+              + " source: env (environment variable, read-only), ui or default")
+  private java.util.List<RuntimeSettingOutput> runtimeSettings;
 }

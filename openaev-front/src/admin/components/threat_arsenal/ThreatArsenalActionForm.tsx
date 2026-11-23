@@ -12,36 +12,40 @@ import { useFormatter } from '../../../components/i18n';
 import { type DetectionRemediationInput } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
+import { isFeatureEnabled } from '../../../utils/utils';
 import EEChip from '../common/entreprise_edition/EEChip';
+import { defaultPayloadExpectations } from '../common/injects/expectations/Expectation';
 import { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../findings/ContractOutputElementType';
 import { hasSpecificDirtyFieldAI, trackedFields } from '../payloads/utils/payloadFormToPayloadInput';
+import FiligranValuesContext from './customization/FiligranValuesContext';
+import LockedFields from './customization/LockedFields';
 import CommandsFormTab from './form/CommandsFormTab';
 import GeneralFormTab from './form/GeneralFormTab';
 import OutputFormTab from './form/OutputFormTab';
 import RemediationFormTabs from './form/RemediationFormTabs';
+import { type ActionFormValues } from './utils/actionFormValues';
 import { useSnapshotRemediation } from './utils/useSnapshotRemediation';
 
 interface Props {
   onSubmit: SubmitHandler<ThreatArsenalActionCreateCustomInput>;
   handleClose: () => void;
   editing: boolean;
-  initialValues?: Partial<ThreatArsenalActionCreateCustomInput> & {
-    action_id?: string;
-    payload_id?: string;
-  };
+  initialValues?: ActionFormValues;
+  // A customized copy: only what it may change stays editable.
+  filigranValues?: ActionFormValues;
 }
 
 const ThreatArsenalActionForm = ({
   onSubmit,
   handleClose,
   editing,
+  filigranValues,
   initialValues = {
     action_id: '',
     // @ts-expect-error set payload type to null to get a controlled component from the start
     action_type: '',
     action_name: '',
     action_platforms: [],
-    action_expectations: ['PREVENTION', 'DETECTION'],
     action_expected_security_platforms: {},
     action_description: '',
     command_executor: '',
@@ -69,6 +73,7 @@ const ThreatArsenalActionForm = ({
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
   const { snapshot } = useSnapshotRemediation();
+  const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
   type ThreatArsenalActionCreateInput = z.infer<typeof schema>;
 
   const regexGroupObject = z.object({
@@ -122,7 +127,7 @@ const ThreatArsenalActionForm = ({
     action_tags: z.string().array().optional(),
     // action_domains: z.array(domainZodObject).refine(arr => arr.length > 0, t('Should not be empty')).describe('General-tab'),
     action_domains: z.string().array().refine(arr => arr.length > 0, t('Should not be empty')).describe('General-tab'),
-    action_expectations: z.enum(['PREVENTION', 'DETECTION', 'VULNERABILITY', 'MANUAL', 'TEXT', 'CHALLENGE', 'DOCUMENT', 'ARTICLE']).array(),
+    action_expectations: z.enum(['PREVENTION', 'DETECTION', 'LOGGING', 'VULNERABILITY', 'MANUAL', 'TEXT', 'CHALLENGE', 'DOCUMENT', 'ARTICLE']).array(),
     // Bound per-expectation by ExpectationSecurityPlatformsField, whose Controllers
     // may leave freshly mounted entries as `undefined` before the user touches them.
     // Normalise (drop undefined/empty scopes) so an untouched form still validates.
@@ -189,7 +194,11 @@ const ThreatArsenalActionForm = ({
   const methods = useForm<ThreatArsenalActionCreateCustomInput>({
     mode: 'onTouched',
     resolver: zodResolver(schema) as Resolver<ThreatArsenalActionCreateCustomInput>,
-    defaultValues: initialValues,
+    // A new payload gets its default expectations here, where the preview feature can be read.
+    defaultValues: {
+      ...initialValues,
+      action_expectations: initialValues.action_expectations ?? defaultPayloadExpectations(isLoggingEnabled),
+    },
   });
   const {
     handleSubmit,
@@ -301,58 +310,60 @@ const ThreatArsenalActionForm = ({
 
   return (
     <>
-      <FormProvider {...methods}>
-        <form
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: theme.spacing(2),
-          }}
-          id="actionForm"
-          noValidate // disabled tooltip
-          onSubmit={handleSubmitWithoutDefault}
-        >
-          <Tabs
-            entries={tabEntries}
-            currentTab={currentTab}
-            onChange={newValue => handleChangeTab(newValue)}
-          />
-
-          {currentTab === 'General' && (
-            <GeneralFormTab />
-          )}
-
-          {currentTab === 'Commands' && (
-            <CommandsFormTab disabledActionType={editing} />
-          )}
-
-          {currentTab === 'Output' && (
-            <OutputFormTab />
-          )}
-
-          {currentTab === 'Remediation' && (
-            <RemediationFormTabs actionId={initialValues?.action_id} />
-          )}
-
-          {/* In-flow action buttons right after the form content, like every
-              other drawer form in the app (no bottom-pinned footer). */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: theme.spacing(1),
-            marginTop: theme.spacing(1),
-            marginBottom: theme.spacing(2),
-          }}
+      <FiligranValuesContext.Provider value={filigranValues ?? null}>
+        <FormProvider {...methods}>
+          <form
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: theme.spacing(2),
+            }}
+            id="actionForm"
+            noValidate // disabled tooltip
+            onSubmit={handleSubmitWithoutDefault}
           >
-            <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
-              {t('Cancel')}
-            </Button>
-            <Button type="submit" disabled={isSubmitting || !isDirty}>
-              {editing ? t('Update') : t('Create')}
-            </Button>
-          </div>
-        </form>
-      </FormProvider>
+            <Tabs
+              entries={tabEntries}
+              currentTab={currentTab}
+              onChange={newValue => handleChangeTab(newValue)}
+            />
+
+            {currentTab === 'General' && (
+              <GeneralFormTab />
+            )}
+
+            {currentTab === 'Commands' && (
+              <CommandsFormTab disabledActionType={editing} />
+            )}
+
+            {currentTab === 'Output' && (
+              <LockedFields><OutputFormTab /></LockedFields>
+            )}
+
+            {currentTab === 'Remediation' && (
+              <LockedFields><RemediationFormTabs actionId={initialValues?.action_id} /></LockedFields>
+            )}
+
+            {/* In-flow action buttons right after the form content, like every
+                other drawer form in the app (no bottom-pinned footer). */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: theme.spacing(1),
+              marginTop: theme.spacing(1),
+              marginBottom: theme.spacing(2),
+            }}
+            >
+              <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
+                {t('Cancel')}
+              </Button>
+              <Button type="submit" disabled={isSubmitting || !isDirty}>
+                {editing ? t('Update') : t('Create')}
+              </Button>
+            </div>
+          </form>
+        </FormProvider>
+      </FiligranValuesContext.Provider>
     </>
   );
 };

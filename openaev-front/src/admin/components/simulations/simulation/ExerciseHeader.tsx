@@ -29,6 +29,7 @@ import { fetchExerciseArticles } from '../../../../actions/channels/article-acti
 import { type ArticlesHelper } from '../../../../actions/channels/article-helper';
 import {
   dismissExerciseExpectationsDrift,
+  fetchExercise,
   fetchExerciseExpectationsDrift,
   fetchExerciseTeams,
   realignExerciseExpectations,
@@ -72,6 +73,7 @@ import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator
 import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
+import ExploreInGraphButton from '../../graph/ExploreInGraphButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import {
   CONTEXTUAL_ENTITY_WIDGET_IDS,
@@ -256,7 +258,8 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
     articles,
   } = useHelper((helper: ExercisesHelper & ChallengeHelper & InjectHelper & TeamsHelper & ArticlesHelper) => {
     return {
-      exercise: helper.getExercise(exerciseId) as SimulationDetails,
+      // The store entry is filled by the DTO (resolved user) and by the entity (bare user id).
+      exercise: helper.getExercise(exerciseId) as SimulationDetails & Pick<Exercise, 'exercise_launched_by'>,
       challenges: helper.getExerciseChallenges(exerciseId) as Challenge[],
       injects: helper.getExerciseInjects(exerciseId) as Inject[],
       teams: helper.getExerciseTeams(exerciseId) as Team[],
@@ -413,6 +416,18 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   // reload (it only appeared to work right after a create when the redux entity
   // was transiently patched). The injects list is what already feeds the asset
   // counters below, so this keeps every hero counter on the same source.
+  const launchedBy = exercise.exercise_launched_by_user;
+  const launchedByName = launchedBy?.user_name ?? launchedBy?.user_email;
+  // The resolved user only comes with GET /exercises/{id}, while the bare id is kept fresh by the
+  // entity the status / start-date endpoints return and the SSE stream pushes: refetch when they
+  // disagree, so the chip follows a start made here or from another browser.
+  const launchedById = exercise.exercise_launched_by;
+  useEffect(() => {
+    if (launchedById && launchedById !== exercise.exercise_launched_by_user?.user_id) {
+      dispatch(fetchExercise(exerciseId));
+    }
+  }, [dispatch, exerciseId, launchedById, exercise.exercise_launched_by_user?.user_id]);
+
   const injectsCount = injects?.length ?? 0;
   // Teams and articles are counted from their dedicated list fetches for the
   // same reason as injects: the SimulationDetails DTO carries no
@@ -467,6 +482,14 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 severity="info"
               />
               <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
+              {/* Same stamped-user field reads as "Scheduled by" while still SCHEDULED, "Launched by" once it has actually run. */}
+              {launchedByName && (
+                <Chip
+                  startIcon={<PersonOutlined sx={{ fontSize: 14 }} />}
+                  label={`${exercise.exercise_status === 'SCHEDULED' ? t('Scheduled by') : t('Launched by')} ${launchedByName}`}
+                  severity="low"
+                />
+              )}
             </>
           )}
           // The alert-toned controls sit in the body row, right-aligned, where the
@@ -561,6 +584,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   where the full control surface
                   (pause / resume / stop / steer) lives; once stopped, relaunch happens from the
                   scenario's Normal / Autonomous launch buttons - there is no restart. */}
+              <ExploreInGraphButton type="SIMULATION" entityId={exercise.exercise_id} />
               {/* Entity-scoped reports - self-hides without the reporting access capability. Kept
                   right next to the overflow menu so the two "meta" actions sit together. */}
               <EntityReportsPanel

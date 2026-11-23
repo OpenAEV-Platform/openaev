@@ -4,9 +4,7 @@ import static io.openaev.utils.fixtures.CatalogReleaseFixture.archive;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.openaev.database.model.catalog.CatalogItem;
 import io.openaev.database.model.catalog.CatalogItemStatus;
-import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.utils.catalog.SemanticVersion;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
@@ -130,19 +128,13 @@ class CatalogSyncGuardsTest {
   @DisplayName("Catalogue listing")
   class Listing {
 
-    private CatalogItem item(CatalogItemStatus status) {
-      CatalogItem item = new CatalogScenario();
-      item.setStatus(status);
-      return item;
-    }
-
     @Test
     @DisplayName("Deprecated and revoked versions are not offered, any other is")
     void given_status_should_tellWhetherOffered() {
       // Act & Assert
-      assertThat(CatalogListService.isOffered(item(CatalogItemStatus.VERIFIED))).isTrue();
-      assertThat(CatalogListService.isOffered(item(CatalogItemStatus.DEPRECATED))).isFalse();
-      assertThat(CatalogListService.isOffered(item(CatalogItemStatus.REVOKED))).isFalse();
+      assertThat(CatalogItemStatus.VERIFIED.isOffered()).isTrue();
+      assertThat(CatalogItemStatus.DEPRECATED.isOffered()).isFalse();
+      assertThat(CatalogItemStatus.REVOKED.isOffered()).isFalse();
     }
 
     @Test

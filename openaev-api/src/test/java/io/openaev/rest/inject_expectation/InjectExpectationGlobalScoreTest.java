@@ -12,11 +12,13 @@ import io.openaev.expectation.ExpectationType;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Covers the global-score aggregation queries used by inject lists, simulation cards and scenario
@@ -27,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  * the configured validation mode ("all assets" vs "at least one asset"), so counting them again
  * dilutes a failed group into a PARTIAL global score.
  */
+@Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class InjectExpectationGlobalScoreTest extends IntegrationTest {
 
@@ -42,6 +45,7 @@ class InjectExpectationGlobalScoreTest extends IntegrationTest {
   @Autowired private AssetGroupRepository assetGroupRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private ResultUtils resultUtils;
+  @Autowired private RowTenantScope rowTenantScope;
 
   private InjectorContract savedInjectorContract;
   private Asset asset1;
@@ -49,18 +53,27 @@ class InjectExpectationGlobalScoreTest extends IntegrationTest {
   private Asset asset3;
 
   @BeforeAll
-  void beforeAll() throws JsonProcessingException {
-    InjectorContract injectorContract =
-        InjectorContractFixture.createInjectorContract(Map.of("en", INJECTION_NAME));
-    Injector savedInjector = injectorFixture.getWellKnownOaevImplantInjector();
-    injectorContract.addInjector(savedInjector);
-    savedInjectorContract = injectorContractRepository.save(injectorContract);
-    savedInjector.linkContract(savedInjectorContract);
-    injectorRepository.save(savedInjector);
+  void beforeAll() {
+    // The fixtures are committed in the default tenant's scope, the way a request would write them.
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          try {
+            InjectorContract injectorContract =
+                InjectorContractFixture.createInjectorContract(Map.of("en", INJECTION_NAME));
+            Injector savedInjector = injectorFixture.getWellKnownOaevImplantInjector();
+            injectorContract.addInjector(savedInjector);
+            savedInjectorContract = injectorContractRepository.save(injectorContract);
+            savedInjector.linkContract(savedInjectorContract);
+            injectorRepository.save(savedInjector);
+          } catch (JsonProcessingException e) {
+            throw new IllegalStateException(e);
+          }
 
-    asset1 = assetRepository.save(AssetFixture.createDefaultAsset("global-score-asset-1"));
-    asset2 = assetRepository.save(AssetFixture.createDefaultAsset("global-score-asset-2"));
-    asset3 = assetRepository.save(AssetFixture.createDefaultAsset("global-score-asset-3"));
+          asset1 = assetRepository.save(AssetFixture.createDefaultAsset("global-score-asset-1"));
+          asset2 = assetRepository.save(AssetFixture.createDefaultAsset("global-score-asset-2"));
+          asset3 = assetRepository.save(AssetFixture.createDefaultAsset("global-score-asset-3"));
+        });
   }
 
   @AfterEach
@@ -72,7 +85,7 @@ class InjectExpectationGlobalScoreTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    assetRepository.deleteAll();
+    rowTenantScope.write(Tenant.DEFAULT_TENANT_UUID, () -> assetRepository.deleteAll());
   }
 
   private Inject saveInjectWithAssetGroup(AssetGroup assetGroup) {

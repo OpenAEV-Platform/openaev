@@ -2,6 +2,7 @@ package io.openaev.service.catalog;
 
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.catalog.CatalogIdentity;
+import io.openaev.database.model.catalog.CatalogItem;
 import java.util.List;
 
 /** The released versions of one kind of catalogue content a tenant can install. */
@@ -20,5 +21,9 @@ public interface CatalogOffer<V extends InstallableVersion> {
 
   static String key(CatalogIdentity identity) {
     return key(identity.getRepository(), identity.getExternalId());
+  }
+
+  static String key(CatalogItem item) {
+    return key(item.getRelease().getRepository(), item.getExternalId());
   }
 }

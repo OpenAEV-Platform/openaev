@@ -44,6 +44,14 @@ const InjectIcon: FunctionComponent<Props> = ({
       cursor: onClick ? 'pointer' : 'default',
       filter: `${done ? 'filter:hue-rotate(100deg)' : `brightness(${disabled ? '30%' : '100%'})`}`,
     };
+    // In a card's 48px thumbnail, a logo fills the frame while a glyph keeps its 24px.
+    const logoStyle = variant === 'thumbnail'
+      ? {
+          ...style,
+          width: 48,
+          height: 48,
+        }
+      : style;
     if (!type) {
       return (
         <HelpOutlineOutlined onClick={onClick} style={style} />
@@ -51,7 +59,7 @@ const InjectIcon: FunctionComponent<Props> = ({
     }
     if (isPayload) {
       if (type.startsWith('openaev_')) {
-        return (<CollectorIcon type={type} style={style} onClick={onClick} />);
+        return (<CollectorIcon type={type} style={logoStyle} onClick={onClick} />);
       }
       switch (type) {
         case 'Command':
@@ -68,7 +76,7 @@ const InjectIcon: FunctionComponent<Props> = ({
           return <HelpOutlineOutlined color="primary" onClick={onClick} style={style} />;
       }
     }
-    return (<InjectorIcon type={type} style={style} onClick={onClick} />);
+    return (<InjectorIcon type={type} style={logoStyle} onClick={onClick} />);
   };
 
   return (

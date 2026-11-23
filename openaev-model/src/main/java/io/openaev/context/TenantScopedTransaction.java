@@ -77,7 +77,7 @@ public class TenantScopedTransaction {
               + " primitive call is an explicit scope boundary. Use executeNew() for deliberate"
               + " nesting.");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, false, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, false, false, work);
   }
 
   /** Same as {@link #execute(TxCtx, Supplier)} for work that returns nothing. */
@@ -88,6 +88,22 @@ public class TenantScopedTransaction {
           work.run();
           return null;
         });
+  }
+
+  /**
+   * Same as {@link #execute(TxCtx, Supplier)}, in a read-only transaction: the session's flush mode
+   * is MANUAL for its duration, so a managed entity of a session that outlives the transaction (the
+   * request's, under open-in-view) is never written by it. For a load that must not write what the
+   * caller left pending, as a repository's own {@code findById} does not.
+   */
+  public <T> T executeReadOnly(TxCtx ctx, Supplier<T> work) {
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.executeReadOnly() refuses to open inside an active"
+              + " transaction: a primitive call is an explicit scope boundary. Use executeNew() for"
+              + " deliberate nesting.");
+    }
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, false, true, work);
   }
 
   /**
@@ -102,7 +118,7 @@ public class TenantScopedTransaction {
           "TenantScopedTransaction.executeNew() is for deliberate nesting inside an active"
               + " transaction. At the top level, open through execute().");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, false, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, false, false, work);
   }
 
   /** Same as {@link #executeNew(TxCtx, Supplier)} for work that returns nothing. */
@@ -134,7 +150,7 @@ public class TenantScopedTransaction {
               + " transaction: a primitive call is an explicit scope boundary. Use"
               + " executeNewAsPlatformWrite() for deliberate nesting.");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, true, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, true, false, work);
   }
 
   /** Same as {@link #executeAsPlatformWrite(TxCtx, Supplier)} for work that returns nothing. */
@@ -159,7 +175,7 @@ public class TenantScopedTransaction {
           "TenantScopedTransaction.executeNewAsPlatformWrite() is for deliberate nesting inside an"
               + " active transaction. At the top level, open through executeAsPlatformWrite().");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, true, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, true, false, work);
   }
 
   /** Same as {@link #executeNewAsPlatformWrite(TxCtx, Supplier)} for work that returns nothing. */
@@ -231,9 +247,12 @@ public class TenantScopedTransaction {
    * transaction was opened with.
    *
    * <p>That tenant may lie outside the scope of the request that opened the transaction: this
-   * method does not check that the caller may see it. The caller must have checked its access to
-   * the row first, and pass that row's own tenant, never one taken from the request. The only
-   * caller is {@code WorkflowOwnerScope}, and an architecture test limits who may call it.
+   * method does not check that the caller may see it. So the work either runs in the tenant of a
+   * row whose access the caller checked first, that row's own tenant ({@code WorkflowOwnerScope}),
+   * or loads a user with its eager associations in that user's ambient tenant, for a permission
+   * decision ({@code CallerRightsInTenant}). Architecture tests limit the callers of this method to
+   * these two classes, and the callers of each of them to an allowlist; they do not check which row
+   * or which user those callers pass.
    *
    * <p>One transaction throughout, unlike {@link #executeNew}: the work sees the uncommitted writes
    * made before it, its writes share the transaction's fate, and it never waits on a lock the
@@ -490,10 +509,12 @@ public class TenantScopedTransaction {
     }
   }
 
-  private <T> T run(TxCtx ctx, int propagation, boolean platformWrite, Supplier<T> work) {
+  private <T> T run(
+      TxCtx ctx, int propagation, boolean platformWrite, boolean readOnly, Supplier<T> work) {
     requireScope(ctx);
     TransactionTemplate transaction = new TransactionTemplate(transactionManager);
     transaction.setPropagationBehavior(propagation);
+    transaction.setReadOnly(readOnly);
     return transaction.execute(
         status -> {
           // Resolved inside the transaction: an intention is re-resolved at every short

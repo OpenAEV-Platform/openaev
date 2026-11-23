@@ -79,12 +79,14 @@ public class PayloadCreationService {
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = payloadType.getPayloadSupplier().get();
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, explicitTenant);
+    payload.setTenant(new Tenant(tenantId));
     payloadUtils.copyProperties(input, payload);
-    payload.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, explicitTenant)));
     if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
+      executable.setExecutableFile(
+          documentService.documentInTenant(input.getExecutableFile(), tenantId));
     } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
+      fileDrop.setFileDropFile(documentService.documentInTenant(input.getFileDropFile(), tenantId));
     }
     return payload;
   }
@@ -99,6 +101,7 @@ public class PayloadCreationService {
       TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
     Payload payload = toPayload(ctx, explicitTenant, input);
+    payloadUtils.validateDocumentArguments(payload, payload.getTenant().getId());
     authorService.authorByCurrentUser(payload);
 
     Payload payloadSaved = payloadRepository.save(payload);
@@ -107,15 +110,21 @@ public class PayloadCreationService {
     // those defaults with null. Spring Data's findAllById throws IllegalArgumentException
     // ("Ids must not be null") on a null argument, surfacing as a confusing 400. Treat an
     // absent collection as "no associations" instead.
+    // The ids named in the body resolve in the tenant of the payload written: an id of another
+    // tenant is treated like an unknown id.
+    String payloadTenantId = payloadSaved.getTenant().getId();
     InjectorContract injectorContract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
             payloadSaved,
             fromIterable(
-                attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds()))),
-            iterableToSet(domainService.findAllById(emptyIfNull(input.getDomainIds()))),
+                attackPatternRepository.findAllByIdInTenant(
+                    emptyIfNull(input.getAttackPatternsIds()), payloadTenantId)),
+            iterableToSet(
+                domainService.findAllByIdInTenant(
+                    emptyIfNull(input.getDomainIds()), payloadTenantId)),
             iterableToSet(
                 tagRepository.findAllByIdInTenant(
-                    emptyIfNull(input.getTagIds()), payloadSaved.getTenant().getId())));
+                    emptyIfNull(input.getTagIds()), payloadTenantId)));
     // Telemetry: one payload created, by type - recorded only once the payload and
     // its injector contract are persisted (a rollback would otherwise inflate the counter).
     resultsMetricCollector.recordPayloadCreated(payloadType.key);

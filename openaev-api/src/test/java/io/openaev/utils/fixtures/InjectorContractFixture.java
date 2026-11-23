@@ -55,10 +55,13 @@ public class InjectorContractFixture {
   @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
 
   public InjectorContract getWellKnownSingleEmailContract() {
+    return getWellKnownSingleEmailContract(TenantContext.getCurrentTenant());
+  }
+
+  public InjectorContract getWellKnownSingleEmailContract(String tenantId) {
     // injectors_contracts is tenant-active and the built-in id repeats across tenants (#8485): a
     // bare findById sees every tenant's copy at once and throws once more than one tenant has
-    // registered it in the current scope. Resolve and create in the current tenant specifically.
-    String tenantId = TenantContext.getCurrentTenant();
+    // registered it in the given tenant. Resolve and create in that tenant specifically.
     Optional<InjectorContract> injectorContract =
         injectorContractRepository.findByContractIdAndTenant(EMAIL_DEFAULT, tenantId);
     if (injectorContract.isPresent()) {

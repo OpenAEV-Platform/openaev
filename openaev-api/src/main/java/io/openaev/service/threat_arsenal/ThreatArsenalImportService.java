@@ -115,9 +115,14 @@ public class ThreatArsenalImportService {
               // @JsonIgnore), so an imported contract would otherwise have no injector and
               // show up as an unregistered/orphaned action (update, duplicate and export
               // disabled). Re-link payload-based contracts to the payload-supporting
-              // injectors, as synchroniseInjectorContractBasedOnPayload does on creation.
+              // injectors of the contract's tenant, as synchroniseInjectorContractBasedOnPayload
+              // does on creation. The lookup spans every tenant of the transaction scope and
+              // built-in injector ids repeat across tenants, so it is narrowed to the write tenant.
               if (contract.getPayload() != null) {
-                contract.addInjectors(injectorRepository.findAllByPayloads(true));
+                contract.addInjectors(
+                    injectorRepository.findAllByPayloads(true).stream()
+                        .filter(injector -> tenantId.equals(injector.getTenantId()))
+                        .toList());
               }
               InjectorContractMigrationUtils.migratePredefinedExpectations(contract);
               return contract;

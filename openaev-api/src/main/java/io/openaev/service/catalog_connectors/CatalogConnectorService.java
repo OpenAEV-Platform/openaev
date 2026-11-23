@@ -88,6 +88,10 @@ public class CatalogConnectorService {
     return catalogConnectorRepository.findBySlugWithConfigurations(slug);
   }
 
+  public Optional<CatalogConnector> findBySlugWithConfigurationsAndInjectorContracts(String slug) {
+    return catalogConnectorRepository.findBySlugWithConfigurationsAndInjectorContracts(slug);
+  }
+
   /**
    * Finds a catalog connector by its ID.
    *

@@ -1,5 +1,6 @@
 package io.openaev.rest.inject_test_status;
 
+import static io.openaev.database.specification.InjectSpecification.fromScenario;
 import static io.openaev.database.specification.InjectSpecification.testable;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
@@ -80,7 +81,7 @@ public class ScenarioInjectTestApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank String injectId)
       throws Exception {
-    return injectTestStatusService.testInject(injectId);
+    return injectTestStatusService.testInjectOfScenario(scenarioId, injectId);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -94,7 +95,7 @@ public class ScenarioInjectTestApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public void deleteInjectTest(
       TxCtx ctx, @PathVariable @NotBlank final String scenarioId, @PathVariable String testId) {
-    injectTestStatusService.deleteInjectTest(testId);
+    injectTestStatusService.deleteInjectTestOfScenario(scenarioId, testId);
   }
 
   @Operation(
@@ -131,6 +132,7 @@ public class ScenarioInjectTestApi extends RestBehavior {
     Specification<Inject> filterSpecifications =
         this.injectService
             .getInjectSpecification(ctx, input, Grant.GRANT_TYPE.PLANNER)
+            .and(fromScenario(scenarioId))
             .and(testable());
 
     // Services calls

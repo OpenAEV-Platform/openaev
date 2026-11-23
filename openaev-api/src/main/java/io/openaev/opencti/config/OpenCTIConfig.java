@@ -20,6 +20,13 @@ public class OpenCTIConfig {
   @JsonProperty("token")
   private String token;
 
+  /**
+   * The identity OpenCTI signs its per-user tokens with (its public base URL), when OpenAEV reaches
+   * it on another URL (an internal Docker or Kubernetes address). Empty: the configured url.
+   */
+  @JsonProperty("issuer")
+  private String issuer;
+
   public boolean isValid() {
     if (!Boolean.TRUE.equals(enable)) {
       return true;

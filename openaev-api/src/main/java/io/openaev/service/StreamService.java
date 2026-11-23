@@ -29,6 +29,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -209,13 +210,14 @@ public class StreamService {
 
   /**
    * Whether a denied event must still reach the consumer, as an id-only tombstone: only the
-   * deletion of a grant-managed root (scenario, simulation, atomic testing). Its grants are deleted
-   * with it, so the check, run after commit, denies everyone who read it through a grant, and the
-   * tombstone is what removes it from their client. Any other denial is a real one: capability
-   * checks still hold once the row is gone, and a child is checked against its parent, which still
-   * exists.
+   * deletion of a grant-managed root (scenario, simulation, atomic testing). Also read by the
+   * notification engine, which captures the readers of such a root before the delete. Its grants
+   * are deleted with it, so the check, run after commit, denies everyone who read it through a
+   * grant, and the tombstone is what removes it from their client. Any other denial is a real one:
+   * capability checks still hold once the row is gone, and a child is checked against its parent,
+   * which still exists.
    */
-  private static boolean isGrantManagedRootDeletion(BaseEvent event) {
+  public static boolean isGrantManagedRootDeletion(BaseEvent event) {
     return DATA_DELETE.equals(event.getType())
         && Objects.equals(event.getInstance().getId(), event.getPermissionResourceId())
         && PermissionService.isManagedByGrants(event.getPermissionResourceType());
@@ -263,7 +265,7 @@ public class StreamService {
     }
     // Not cached / stale: a handful of concurrent stream threads may refresh the same
     // principal at TTL expiry, which is bounded and far cheaper than one query per event.
-    User user = userService.user(principalId);
+    User user = userService.userWithRoles(principalId);
     userCache.put(principalId, new CachedUser(user, Instant.now()));
     return user;
   }
@@ -322,6 +324,18 @@ public class StreamService {
   private static final String USER_IS_PLAYER_FIELD = "user_is_player";
   private static final String USER_GRANTS_FIELD = "user_grants";
   private static final String USER_HOME_DASHBOARD_FIELD = "user_home_dashboard";
+  // Derived from the user's groups and the roles loaded with them, in the scope of the write.
+  private static final List<String> USER_GROUP_DERIVED_FIELDS =
+      List.of(
+          "user_groups",
+          "user_capabilities",
+          "user_is_planner",
+          "user_is_observer",
+          "user_is_manager",
+          USER_IS_PLAYER_FIELD,
+          "user_is_external",
+          "user_is_only_player",
+          "user_is_admin_or_bypass");
 
   /**
    * The user as the stream serializes it: the fields that read a lazy collection are not
@@ -476,19 +490,23 @@ public class StreamService {
    *       the entities already loaded, nothing is initialized. The field is left out, so the
    *       consumer keeps what it holds, when a collection or one of its links was not loaded, or
    *       when nothing of its tenant was loaded and the write was made in another tenant.
-   *   <li>{@code user_is_player} is true for an admin, a planner or an observer, as serialized for
-   *       the consumer's tenant, and otherwise follows the {@code user_teams} sent: true when it
-   *       holds an id, false when it is sent empty, left out when {@code user_teams} is.
+   *   <li>{@code user_is_player}, for a write made in the consumer's tenant, is true for an admin,
+   *       a planner or an observer, as serialized for the consumer's tenant, and otherwise follows
+   *       the {@code user_teams} sent: true when it holds an id, false when it is sent empty, left
+   *       out when {@code user_teams} is.
    *   <li>{@code user_organization} is left out when the write was made in another tenant, as the
    *       user is only loaded with the organizations of the write.
+   *   <li>{@code user_groups}, {@code user_capabilities} and every {@code user_is_*} flag are left
+   *       out when the write was made in another tenant: the roles of the groups are loaded in the
+   *       scope of the write, which does not read the roles of the consumer's tenant.
    *   <li>{@code user_communications}, {@code team_exercises_users} and {@code unscopedGroups} are
    *       never sent.
    *   <li>{@code user_grants} and {@code user_home_dashboard} hold ids of the tenant that set them,
    *       and only the user reads them: they go to the consumer of that user.
    * </ul>
    *
-   * The groups, capabilities and the other flags are derived from the tenant context of the
-   * consumer, set by the caller, and need no trim.
+   * When the write was made in the consumer's tenant, the groups, capabilities and flags are
+   * derived from the tenant context of the consumer, set by the caller, and need no trim.
    *
    * <p>When the consumer's tenant is null, the write is never in the consumer's tenant: no id is of
    * its tenant, and {@code user_teams} and {@code user_tags} are left out, not sent empty.
@@ -508,6 +526,7 @@ public class StreamService {
     putIsPlayer(data);
     if (!writtenInConsumerTenant) {
       data.remove(USER_ORGANIZATION_FIELD);
+      data.remove(USER_GROUP_DERIVED_FIELDS);
     }
     if (!consumer.principal().getId().equals(user.getId())) {
       data.remove(USER_GRANTS_FIELD);

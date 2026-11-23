@@ -7,6 +7,7 @@ import static io.openaev.utils.InjectContentUtils.MANUAL_TARGETS_CONTENT_KEY;
 import static io.openaev.utils.InjectContentUtils.TARGET_SELECTOR_CONTENT_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +38,7 @@ class CatalogScenarioTargetsTest {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
   private static final List<String> ALL = List.of("chosen");
+  private static final String TENANT = "tenant";
 
   @Mock private AssetService assetService;
   @Mock private AssetGroupService assetGroupService;
@@ -58,9 +60,11 @@ class CatalogScenarioTargetsTest {
     assetGroup.setId("asset-group");
     team = new Team();
     team.setId("team");
-    lenient().when(assetService.assets(anyList())).thenReturn(List.of(asset));
-    lenient().when(assetGroupService.assetGroups(anyList())).thenReturn(List.of(assetGroup));
-    lenient().when(teamService.getTeamsByIds(anyList())).thenReturn(List.of(team));
+    lenient().when(assetService.assets(anyList(), eq(TENANT))).thenReturn(List.of(asset));
+    lenient()
+        .when(assetGroupService.assetGroups(anyList(), eq(TENANT)))
+        .thenReturn(List.of(assetGroup));
+    lenient().when(teamService.teams(eq(TENANT), anyList())).thenReturn(List.of(team));
   }
 
   private static Inject injectWithFields(String... fields) {
@@ -98,7 +102,7 @@ class CatalogScenarioTargetsTest {
       mail.setAllTeams(true);
 
       // Act
-      targets.addTo(List.of(implant, mail), new TargetChoice(ALL, ALL, ALL, List.of()));
+      targets.addTo(TENANT, List.of(implant, mail), new TargetChoice(ALL, ALL, ALL, List.of()));
 
       // Assert
       assertThat(implant.getAssets()).containsExactly(asset);
@@ -120,7 +124,7 @@ class CatalogScenarioTargetsTest {
       Inject scan = selectorInject("manual", "");
 
       // Act
-      targets.addTo(List.of(scan), new TargetChoice(ALL, List.of(), List.of(), List.of()));
+      targets.addTo(TENANT, List.of(scan), new TargetChoice(ALL, List.of(), List.of(), List.of()));
 
       // Assert
       assertThat(scan.getContent().path(TARGET_SELECTOR_CONTENT_KEY).asText()).isEqualTo("assets");
@@ -135,6 +139,7 @@ class CatalogScenarioTargetsTest {
 
       // Act
       targets.addTo(
+          TENANT,
           List.of(scan),
           new TargetChoice(ALL, List.of(), List.of(), List.of(" 10.0.0.2 ", "10.0.0.1")));
 

@@ -18,10 +18,9 @@ import org.springframework.test.context.DynamicPropertySource;
  * not a member of is refused, and a row outside the selector is not found. The expectation drift
  * realignment, which opens no transaction of its own, resolves its row in the request scope too.
  *
- * <p>The simulation and scenario entities still carry the v1 tenant filter, keyed on the ambient
- * tenant, which the non-prefixed route leaves on the default one. So a member tenant's row named by
- * the selector is not found by id there yet; that row turns readable, updatable and deletable once
- * the filter comes off the two entities.
+ * <p>The two entities carry no v1 tenant filter any more, so the ambient tenant the non-prefixed
+ * route leaves on the default one no longer narrows the load: a member tenant's row named by the
+ * selector is updated and deleted by id there, like on the tenant route.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Simulation and scenario by-id reads in the request scope, both tables isolated")
@@ -105,10 +104,9 @@ class ByIdRequestScopeArmedTest extends ByIdRequestScopeTestBase {
 
     @Test
     @DisplayName(
-        "given a member tenant simulation and scenario named by the selector, neither is found by"
-            + " id while the two entities keep the v1 filter")
-    void given_memberTenantRowsNamedBySelector_should_notBeFoundUntilFilterRemoved()
-        throws Exception {
+        "given a member tenant simulation and scenario named by the selector, both are updated and"
+            + " deleted by id")
+    void given_memberTenantRowsNamedBySelector_should_beUpdatedAndDeleted() throws Exception {
       // Arrange
       String simulationId = seedSimulation(memberTenant);
       String scenarioId = seedScenario(memberTenant);
@@ -122,9 +120,9 @@ class ByIdRequestScopeArmedTest extends ByIdRequestScopeTestBase {
 
       // Assert
       assertThat(new int[] {simulationUpdate, simulationDelete, scenarioUpdate, scenarioDelete})
-          .containsExactly(404, 404, 404, 404);
-      assertThat(simulationExists(simulationId)).isTrue();
-      assertThat(scenarioExists(scenarioId)).isTrue();
+          .containsExactly(200, 200, 200, 200);
+      assertThat(simulationExists(simulationId)).isFalse();
+      assertThat(scenarioExists(scenarioId)).isFalse();
     }
 
     @Test

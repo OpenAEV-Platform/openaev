@@ -5,14 +5,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -53,8 +53,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
@@ -70,13 +68,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 @WithoutTenantScope
 @WithMockUser(isAdmin = true)
 @DisplayName("XTM Hub lost-connectivity email recipients")
-class XtmHubEmailRecipientsTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class XtmHubEmailRecipientsTest extends ProductionTablesIntegrationTest {
 
   private static final String FLAG = SettingKeys.XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key();
 
@@ -90,7 +82,7 @@ class XtmHubEmailRecipientsTest extends IntegrationTest {
   @Autowired private SettingRepository settingRepository;
   @Autowired private PlatformSettingsService platformSettingsService;
   @Autowired private TenantXtmHubRegistrationRepository registrationRepository;
-  @Autowired private TenantScopedTransaction tenantScopedTransaction;
+  @MockitoSpyBean private TenantScopedTransaction tenantScopedTransaction;
 
   @MockitoSpyBean private MailingService mailingService;
   @MockitoBean private XtmHubClient xtmHubClient;
@@ -127,7 +119,11 @@ class XtmHubEmailRecipientsTest extends IntegrationTest {
     groupIds.forEach(id -> jdbcTemplate.update("delete from users_groups where group_id = ?", id));
     groupIds.forEach(id -> jdbcTemplate.update("delete from groups_roles where group_id = ?", id));
     groupIds.forEach(id -> jdbcTemplate.update("delete from groups where group_id = ?", id));
-    roleIds.forEach(id -> jdbcTemplate.update("delete from roles where role_id = ?", id));
+    // roles is an active table, and a platform role is deleted only by a platform-write transaction
+    tenantScopedTransaction.executeAsPlatformWrite(
+        TxCtx.allTenants(),
+        () ->
+            roleIds.forEach(id -> jdbcTemplate.update("delete from roles where role_id = ?", id)));
     userIds.forEach(id -> jdbcTemplate.update("delete from users where user_id = ?", id));
     tenantHelper.deleteCommittedTenants(tenantB, tenantC);
     if (flagBeforeTest.isPresent()) {
@@ -287,6 +283,47 @@ class XtmHubEmailRecipientsTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Scope of the administrator lookups")
+  class LookupScope {
+
+    @Test
+    @DisplayName(
+        "given a tenant email, should look its administrators up in a read-only transaction scoped"
+            + " to that tenant alone")
+    void given_tenantEmail_should_lookUpAdministratorsUnderThatTenantScope() {
+      // Arrange
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      xtmHubEmailService.sendTenantLostConnectivityEmail(tenantB, "http://localhost/" + tenantB);
+
+      // Assert
+      assertThat(readOnlyScopes()).contains(TxCtx.forTenant(tenantB));
+    }
+
+    @Test
+    @DisplayName(
+        "given the platform email, should look its administrators up in a read-only transaction"
+            + " scoped to the platform default tenant")
+    void given_platformEmail_should_lookUpAdministratorsUnderThePlatformScope() {
+      // Arrange
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      xtmHubEmailService.sendLostConnectivityEmail();
+
+      // Assert
+      assertThat(readOnlyScopes()).contains(TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID));
+    }
+
+    private List<TxCtx> readOnlyScopes() {
+      ArgumentCaptor<TxCtx> scopes = ArgumentCaptor.forClass(TxCtx.class);
+      verify(tenantScopedTransaction, atLeastOnce()).executeReadOnly(scopes.capture(), any());
+      return scopes.getAllValues();
+    }
+  }
+
+  @Nested
   @DisplayName("Once per loss")
   class OncePerLoss {
 
@@ -341,13 +378,26 @@ class XtmHubEmailRecipientsTest extends IntegrationTest {
             ? PlatformRoleFixture.getPlatformRole("xtmhub-role-" + UUID.randomUUID(), capabilities)
             : TenantRoleFixture.getRole("xtmhub-role-" + UUID.randomUUID(), capabilities);
     role.setTenant(tenant);
-    role = roleRepository.save(role);
+    Role toSave = role;
+    // roles is an active table: the row is written under the scope of its own tenant, a platform
+    // row under a platform-write transaction
+    role =
+        tenantId == null
+            ? tenantScopedTransaction.executeAsPlatformWrite(
+                TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), () -> roleRepository.save(toSave))
+            : tenantScopedTransaction.execute(
+                TxCtx.forTenant(tenantId), () -> roleRepository.save(toSave));
     roleIds.add(role.getId());
     Group group = TenantGroupFixture.getGroup("xtmhub-group-" + UUID.randomUUID());
     group.setTenant(tenant);
     group.setRoles(new ArrayList<>(List.of(role)));
     group.setUsers(new ArrayList<>(List.of(userRepository.findById(userId).orElseThrow())));
-    groupIds.add(groupRepository.save(group).getId());
+    // Saving the group checks that the role exists, a read of the active roles table
+    String scopeTenant = tenantId == null ? Tenant.DEFAULT_TENANT_UUID : tenantId;
+    groupIds.add(
+        tenantScopedTransaction
+            .execute(TxCtx.forTenant(scopeTenant), () -> groupRepository.save(group))
+            .getId());
   }
 
   private void registerLost(String tenantId) {

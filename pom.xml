@@ -10,7 +10,7 @@
 
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>3.261116.1</version>
+    <version>3.261118.0</version>
     <packaging>pom</packaging>
 
     <name>OpenAEV platform</name>
@@ -37,10 +37,10 @@
         <commons-lang3.version>3.22.0</commons-lang3.version>
         <tomcat.version>11.0.29</tomcat.version>
         <!-- Override Spring Boot BOM: httpcore5-h2 HTTP/2 HPACK DoS CVE-2026-54428 -->
-        <httpcore5.version>5.4.4</httpcore5.version>
+        <httpcore5.version>5.5</httpcore5.version>
         <velocity-engine-core.version>2.4.1</velocity-engine-core.version>
         <opensaml.version>5.2.3</opensaml.version>
-        <logback.version>1.6.6</logback.version>
+        <logback.version>1.6.7</logback.version>
         <log4j2.version>2.26.1</log4j2.version>
         <httpclient5.version>5.6.5</httpclient5.version>
         <parsson.version>1.1.9</parsson.version>

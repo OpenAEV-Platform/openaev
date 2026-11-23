@@ -12,7 +12,6 @@ import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
-import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
 import java.util.List;
@@ -42,7 +41,7 @@ class AttackPathCollapsedTest extends IntegrationTest {
 
   @BeforeEach
   void seedSmallGraph() {
-    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("collapsed-tenant"));
+    Tenant tenant = new Tenant(Tenant.DEFAULT_TENANT_UUID);
     // dc-01: one prevented, one detected-but-not-prevented -> ORANGE (worst-case); dc-02: two
     // prevented -> GREEN. nmap sprays both, hydra only hits dc-01.
     String nmapDc01 = execution(tenant, "nmap", "dc-01", "Prevented", "Not Detected");

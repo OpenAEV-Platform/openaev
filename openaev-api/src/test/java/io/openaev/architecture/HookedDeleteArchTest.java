@@ -20,8 +20,11 @@ class HookedDeleteArchTest {
   /** Tables whose delete runs a hook, and what the hook does. */
   private static final Map<String, String> HOOKS =
       Map.of(
-          "payloads", "PayloadDeleteGuard refuses deleting a payload that injects run",
-          "scenarios", "CatalogScenarioUninstallListener records the uninstall of a catalogue one");
+          "payloads",
+          "PayloadDeleteGuard refuses deleting a payload that injects run, and"
+              + " PayloadLatestVersionListener shows the highest version left",
+          "scenarios",
+          "CatalogScenarioUninstallListener records the uninstall of a catalogue one");
 
   @ArchTest
   static final ArchRule no_query_deletes_a_hooked_table =

@@ -35,7 +35,6 @@ import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -62,13 +61,12 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>Each request also pins the scope its decisions are taken on: {@code assertDecidedIn} reads the
  * tenants {@link PermissionService} received for every row decision of the request, the two of the
- * header route and the single one of B's tenant route. What a member reads is the weaker of the two
- * contrasts until {@code exercises} and {@code scenarios} are activated: their v1 tenant filter and
- * the native predicates on the ambient tenant keep B's rows out of a read made in the default
- * tenant, and the rows that stay visible are those of the ambient tenant, which the per-tenant
- * decision and a decision taken in the ambient tenant alone answer the same way. The decision
- * itself is pinned by {@code PermissionServiceTenantDecisionTest}, on rows of both tenants, and the
- * list sites by the simulation and scenario service tests, on stubbed rows of both tenants.
+ * header route and the single one of B's tenant route. Now that {@code exercises} and {@code
+ * scenarios} are isolated, a list read spans every tenant of the request scope, so the rows a
+ * member reads are the rows the per-tenant decision keeps and nothing narrows them beforehand. The
+ * decision itself is pinned by {@code PermissionServiceTenantDecisionTest}, on rows of both
+ * tenants, and the list sites by the simulation and scenario service tests, on stubbed rows of both
+ * tenants.
  */
 @TestInstance(PER_CLASS)
 @Transactional
@@ -80,15 +78,7 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
   @DynamicPropertySource
   static void activeTables(DynamicPropertyRegistry registry) {
     registry.add(
-        "openaev.tenant.active-tables",
-        () ->
-            String.join(
-                ",",
-                Stream.concat(
-                        ProductionActiveTables.names().stream(),
-                        Stream.of("exercises", "scenarios"))
-                    .distinct()
-                    .toList()));
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
   }
 
   @Autowired private MockMvc mvc;

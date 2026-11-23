@@ -16,6 +16,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.user.form.login.LoginUserInput;
 import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
+import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
 import io.openaev.utils.log.LogUtils;
@@ -55,6 +56,7 @@ public class UserApi extends RestBehavior {
   @Resource private SessionManager sessionManager;
   private final UserRepository userRepository;
   private final UserService userService;
+  private final PermissionService permissionService;
   private final UserEventService userEventService;
   private final Optional<AuditLogger> auditLogger;
 
@@ -83,6 +85,7 @@ public class UserApi extends RestBehavior {
         if (httpRequest.getSession(false) != null) {
           httpRequest.changeSessionId();
         }
+        permissionService.withRolesInAmbientTenant(user);
         userService.createUserSession(user);
         // Capture auth context in session for reliable expiry audit metadata.
         SessionManager.markAuthenticatedSession(httpRequest, user.getId());
@@ -154,7 +157,10 @@ public class UserApi extends RestBehavior {
       @PathVariable @Schema(description = "Token generated during reset") String token,
       @Valid @RequestBody ChangePasswordInput input)
       throws InputValidationException {
-    return userService.resetPassword(token, input);
+    User user = userService.resetPassword(token, input);
+    // The load above reads no role of a tenant: the response describes the user in the ambient
+    // tenant, as the login response does
+    return permissionService.withRolesInAmbientTenant(user);
   }
 
   @Operation(

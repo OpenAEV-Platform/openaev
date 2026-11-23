@@ -45,11 +45,24 @@ The platform checks for due recurring Atomic Tests every minute and launches the
 
     Scheduling requires the permission to launch the Atomic Test. The recurrence can be updated or removed at any time from the same dialog.
 
+## Stop a running Atomic Test
+
+While an Atomic Test is queuing, executing or pending, its header shows **Stop execution**.
+
+1. Click **Stop execution**.
+2. Confirm in the dialog.
+
+The agents no longer receive the jobs they have not picked up yet, and the Atomic Test ends in **Error** with an execution trace naming who stopped it. Commands an agent already started are not interrupted on the endpoint. The same action is available on the API: `POST /api/atomic-testings/{atomicTestingId}/stop`.
+
+!!! note
+
+    Stopping requires the permission to launch the Atomic Test. An Atomic Test that is not running cannot be stopped.
+
 ## Atomic Test detail
 
 The detail page has three parts:
 
-- **Header**: title, status tooltip (tags, description), pie charts summarizing results, and actions (launch, update, delete, export)
+- **Header**: title, status tooltip (tags, description), pie charts summarizing results, and actions (launch, stop, update, delete, export)
 - **Overview**: quick summary of test results across all targets with posture gauges
 - **Execution details**: Inject Expectations and detailed execution traces
 

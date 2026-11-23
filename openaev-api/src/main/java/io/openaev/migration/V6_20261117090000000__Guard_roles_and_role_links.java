@@ -1,0 +1,242 @@
+package io.openaev.migration;
+
+import java.sql.Statement;
+import org.flywaydb.core.api.migration.BaseJavaMigration;
+import org.flywaydb.core.api.migration.Context;
+import org.springframework.stereotype.Component;
+
+/**
+ * Adds row triggers on {@code roles}, {@code roles_capabilities} and {@code groups_roles} that
+ * apply the platform-write rule and the tenant rule of a role link to every client of the
+ * connection, whether {@code roles} is in {@code openaev.tenant.active-tables} or not. The
+ * statement inspector applies the platform-write rule to what Hibernate sends once {@code roles} is
+ * active; the triggers apply it, and the link rule, to every statement, a {@code JdbcTemplate} or a
+ * JDBC statement included, whose SQL the inspector never sees. None of them is {@code SECURITY
+ * DEFINER}: no row-level security applies to these tables, so the lookups of the parent rows read
+ * what the caller reads.
+ *
+ * <ul>
+ *   <li>{@code roles}: an {@code INSERT}, {@code UPDATE} or {@code DELETE} of a platform role
+ *       ({@code tenant_id IS NULL}, before or after the statement) goes through {@code
+ *       require_tenant_write(NULL, true)}, which raises unless the transaction set {@code
+ *       app.platform_write}. A tenant role is written by the tenant API, tenant creation and the
+ *       {@code ON DELETE CASCADE} of {@code tenants}, none of which sets the marker.
+ *   <li>{@code roles_capabilities}: an {@code INSERT}, {@code UPDATE} or {@code DELETE} of a row
+ *       whose role is a platform role goes through the same check, so a platform role cannot gain
+ *       or lose a capability from an unmarked transaction. The table has no tenant column, so the
+ *       trigger reads {@code roles.tenant_id} of the parent. An {@code INSERT} or {@code UPDATE}
+ *       whose role is not visible is refused with the foreign key error (SQLSTATE 23503): a role
+ *       that another transaction is inserting is invisible to the statement and can commit before
+ *       the foreign key is checked, so the trigger cannot skip it. A {@code DELETE} reads the old
+ *       role only; that role is already gone in the cascade that deletes the row, and the {@code
+ *       DELETE} proceeds.
+ *   <li>{@code groups_roles}: an {@code INSERT} of a link, or an {@code UPDATE} that changes its
+ *       role or its group, requires the role and the group to be of the same tenant ({@code
+ *       role.tenant_id IS NOT DISTINCT FROM group.tenant_id}): a platform role is linked to a
+ *       platform group, a tenant role to a group of its tenant. Any other link raises. A role or a
+ *       group that is not visible is refused with the foreign key error (SQLSTATE 23503), for the
+ *       reason given for {@code roles_capabilities}. A link is not a write of the platform role, so
+ *       it does not need the marker.
+ *   <li>{@code roles} and {@code groups}: an {@code UPDATE} that changes {@code tenant_id} of a
+ *       role or a group that has a link requires every linked group or role to be of the new
+ *       tenant. A linked row moved to another tenant or to the platform raises, so a link does not
+ *       cross tenants after it is written either. A row with no link moves freely.
+ * </ul>
+ *
+ * <p>The triggers that read the tenant of a parent row, a role for {@code roles_capabilities} and a
+ * role and then a group for {@code groups_roles}, read it {@code FOR SHARE}, always the role before
+ * the group. A concurrent change of that row's {@code tenant_id} takes a lock that conflicts with
+ * it (the foreign key's key-share lock does not), so under READ COMMITTED the statement that comes
+ * second waits for the first to end and then sees what it committed: a link is written against the
+ * tenant the parents have when it commits, and a tenant change is checked against the links that
+ * exist when it commits.
+ *
+ * <p>A Flyway migration that writes a platform role or one of its capabilities after this one runs
+ * {@code SELECT set_config('app.platform_write', 'true', true)} first, in the same transaction. A
+ * writer that has to commit a row these rules refuse, such as a database restore or a test that
+ * seeds a cross-tenant link, runs {@code SET LOCAL session_replication_role = replica} in its
+ * transaction, which skips plain triggers.
+ */
+@Component
+public class V6_20261117090000000__Guard_roles_and_role_links extends BaseJavaMigration {
+
+  @Override
+  public void migrate(Context context) throws Exception {
+    try (Statement statement = context.getConnection().createStatement()) {
+      guardPlatformRoles(statement);
+      guardPlatformRoleCapabilities(statement);
+      guardRoleLinks(statement);
+      guardTenantOfLinkedParents(statement);
+    }
+  }
+
+  private static void guardPlatformRoles(Statement statement) throws Exception {
+    statement.execute(
+        """
+        CREATE OR REPLACE FUNCTION roles_guard_platform_row()
+        RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        BEGIN
+          IF (TG_OP <> 'INSERT' AND OLD.tenant_id IS NULL)
+             OR (TG_OP <> 'DELETE' AND NEW.tenant_id IS NULL) THEN
+            PERFORM require_tenant_write(NULL, true);
+          END IF;
+          IF TG_OP = 'DELETE' THEN
+            RETURN OLD;
+          END IF;
+          RETURN NEW;
+        END
+        $$;
+        """);
+    statement.execute("DROP TRIGGER IF EXISTS roles_guard_platform_row ON roles;");
+    statement.execute(
+        """
+        CREATE TRIGGER roles_guard_platform_row
+        BEFORE INSERT OR UPDATE OR DELETE ON roles
+        FOR EACH ROW EXECUTE FUNCTION roles_guard_platform_row();
+        """);
+  }
+
+  private static void guardPlatformRoleCapabilities(Statement statement) throws Exception {
+    statement.execute(
+        """
+        CREATE OR REPLACE FUNCTION roles_capabilities_guard_platform_role()
+        RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        DECLARE
+          role_tenant text;
+        BEGIN
+          IF TG_OP <> 'INSERT' THEN
+            SELECT tenant_id INTO role_tenant FROM roles WHERE role_id = OLD.role_id FOR SHARE;
+            IF FOUND AND role_tenant IS NULL THEN
+              PERFORM require_tenant_write(NULL, true);
+            END IF;
+          END IF;
+          IF TG_OP <> 'DELETE' THEN
+            SELECT tenant_id INTO role_tenant FROM roles WHERE role_id = NEW.role_id FOR SHARE;
+            IF NOT FOUND THEN
+              RAISE EXCEPTION 'insert or update on table "roles_capabilities" violates foreign key constraint: role % is not visible',
+                NEW.role_id USING ERRCODE = '23503';
+            END IF;
+            IF role_tenant IS NULL THEN
+              PERFORM require_tenant_write(NULL, true);
+            END IF;
+          END IF;
+          IF TG_OP = 'DELETE' THEN
+            RETURN OLD;
+          END IF;
+          RETURN NEW;
+        END
+        $$;
+        """);
+    statement.execute(
+        "DROP TRIGGER IF EXISTS roles_capabilities_guard_platform_role ON roles_capabilities;");
+    statement.execute(
+        """
+        CREATE TRIGGER roles_capabilities_guard_platform_role
+        BEFORE INSERT OR UPDATE OR DELETE ON roles_capabilities
+        FOR EACH ROW EXECUTE FUNCTION roles_capabilities_guard_platform_role();
+        """);
+  }
+
+  private static void guardRoleLinks(Statement statement) throws Exception {
+    statement.execute(
+        """
+        CREATE OR REPLACE FUNCTION groups_roles_guard_same_tenant()
+        RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        DECLARE
+          role_tenant text;
+          group_tenant text;
+        BEGIN
+          IF TG_OP = 'UPDATE'
+             AND NEW.role_id IS NOT DISTINCT FROM OLD.role_id
+             AND NEW.group_id IS NOT DISTINCT FROM OLD.group_id THEN
+            RETURN NEW;
+          END IF;
+          SELECT tenant_id INTO role_tenant FROM roles WHERE role_id = NEW.role_id FOR SHARE;
+          IF NOT FOUND THEN
+            RAISE EXCEPTION 'insert or update on table "groups_roles" violates foreign key constraint: role % is not visible',
+              NEW.role_id USING ERRCODE = '23503';
+          END IF;
+          SELECT tenant_id INTO group_tenant FROM groups WHERE group_id = NEW.group_id FOR SHARE;
+          IF NOT FOUND THEN
+            RAISE EXCEPTION 'insert or update on table "groups_roles" violates foreign key constraint: group % is not visible',
+              NEW.group_id USING ERRCODE = '23503';
+          END IF;
+          IF role_tenant IS DISTINCT FROM group_tenant THEN
+            RAISE EXCEPTION 'link of role % to group % refused: the role and the group are not of the same tenant',
+              NEW.role_id, NEW.group_id USING ERRCODE = '23514';
+          END IF;
+          RETURN NEW;
+        END
+        $$;
+        """);
+    statement.execute("DROP TRIGGER IF EXISTS groups_roles_guard_same_tenant ON groups_roles;");
+    statement.execute(
+        """
+        CREATE TRIGGER groups_roles_guard_same_tenant
+        BEFORE INSERT OR UPDATE ON groups_roles
+        FOR EACH ROW EXECUTE FUNCTION groups_roles_guard_same_tenant();
+        """);
+  }
+
+  private static void guardTenantOfLinkedParents(Statement statement) throws Exception {
+    statement.execute(
+        """
+        CREATE OR REPLACE FUNCTION roles_guard_linked_groups_tenant()
+        RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        DECLARE
+          linked_group text;
+        BEGIN
+          SELECT g.group_id INTO linked_group
+            FROM groups_roles gr JOIN groups g ON g.group_id = gr.group_id
+           WHERE gr.role_id = NEW.role_id AND g.tenant_id IS DISTINCT FROM NEW.tenant_id
+           LIMIT 1;
+          IF FOUND THEN
+            RAISE EXCEPTION 'link of role % to group % refused: the role and the group are not of the same tenant',
+              NEW.role_id, linked_group USING ERRCODE = '23514';
+          END IF;
+          RETURN NEW;
+        END
+        $$;
+        """);
+    statement.execute("DROP TRIGGER IF EXISTS roles_guard_linked_groups_tenant ON roles;");
+    statement.execute(
+        """
+        CREATE TRIGGER roles_guard_linked_groups_tenant
+        BEFORE UPDATE OF tenant_id ON roles
+        FOR EACH ROW WHEN (OLD.tenant_id IS DISTINCT FROM NEW.tenant_id)
+        EXECUTE FUNCTION roles_guard_linked_groups_tenant();
+        """);
+    statement.execute(
+        """
+        CREATE OR REPLACE FUNCTION groups_guard_linked_roles_tenant()
+        RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        DECLARE
+          linked_role text;
+        BEGIN
+          SELECT r.role_id INTO linked_role
+            FROM groups_roles gr JOIN roles r ON r.role_id = gr.role_id
+           WHERE gr.group_id = NEW.group_id AND r.tenant_id IS DISTINCT FROM NEW.tenant_id
+           LIMIT 1;
+          IF FOUND THEN
+            RAISE EXCEPTION 'link of role % to group % refused: the role and the group are not of the same tenant',
+              linked_role, NEW.group_id USING ERRCODE = '23514';
+          END IF;
+          RETURN NEW;
+        END
+        $$;
+        """);
+    statement.execute("DROP TRIGGER IF EXISTS groups_guard_linked_roles_tenant ON groups;");
+    statement.execute(
+        """
+        CREATE TRIGGER groups_guard_linked_roles_tenant
+        BEFORE UPDATE OF tenant_id ON groups
+        FOR EACH ROW WHEN (OLD.tenant_id IS DISTINCT FROM NEW.tenant_id)
+        EXECUTE FUNCTION groups_guard_linked_roles_tenant();
+        """);
+  }
+}

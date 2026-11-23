@@ -43,6 +43,7 @@ import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -60,6 +61,7 @@ import io.openaev.service.payload.PayloadContentHashService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -79,6 +81,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Slf4j
 public class PayloadService {
+
+  public static final String PAYLOAD_NAME_TAKEN = "A payload with this name already exists";
 
   public static final String DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY = "dynamic_hostname_key";
   public static final String DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE =
@@ -397,6 +401,16 @@ public class PayloadService {
     return payloadRepository.findAllByTenantIdAndIdentityExternalId(tenantId, externalId);
   }
 
+  /** Every version of these catalogue payloads in the tenant. */
+  public List<Payload> versions(String tenantId, Collection<String> externalIds) {
+    return payloadRepository.findAllByTenantIdAndIdentityExternalIdIn(tenantId, externalIds);
+  }
+
+  /** Every version of this payload in the tenant, itself included. */
+  public List<Payload> versionsOf(String tenantId, Payload payload) {
+    return payloadRepository.findAllVersionsByTenantIdAndPayloadId(tenantId, payload.getId());
+  }
+
   public PayloadWithRelatedEntities findPayloadWithRelatedEntities(String payloadId) {
     Payload payload =
         payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
@@ -409,6 +423,28 @@ public class PayloadService {
     List<String> tagIds = relatedIds != null ? relatedIds.getTag_ids() : List.of();
 
     return new PayloadWithRelatedEntities(payload, attackPatternIds, domainIds, tagIds);
+  }
+
+  // -- NAME --
+
+  /** No other payload of the tenant may use this name; the versions of a payload share it. */
+  public void assertNameAvailable(String tenantId, String name, @Nullable String payloadId) {
+    if (name != null
+        && !name.isBlank()
+        && payloadRepository.existsByTenantIdAndNameOutsideVersionsOf(tenantId, name, payloadId)) {
+      throw new BadRequestException(PAYLOAD_NAME_TAKEN);
+    }
+  }
+
+  /** Keeping its name never fails: a tenant may already hold duplicates, e.g. from a catalogue. */
+  public void assertRenameAvailable(Payload payload, String name) {
+    if (!sameName(payload.getName(), name)) {
+      assertNameAvailable(payload.getTenant().getId(), name, payload.getId());
+    }
+  }
+
+  private static boolean sameName(String current, String name) {
+    return current != null && name != null && current.trim().equalsIgnoreCase(name.trim());
   }
 
   // -- DUPLICATE --
@@ -429,19 +465,20 @@ public class PayloadService {
     // A duplicate is a new manual payload, authored by the user duplicating it; without a user it
     // keeps the author copied from the origin.
     authorService.authorByCurrentUser(duplicatedPayload);
-    Payload duplicated = payloadRepository.save(duplicatedPayload);
-    InjectorContract injectorContract =
-        this.synchroniseInjectorContractBasedOnPayload(
-            duplicated,
-            originInjectorContract.isPresent()
-                ? originInjectorContract.get().getAttackPatterns()
-                : List.of(),
-            originInjectorContract.isPresent()
-                ? originInjectorContract.get().getDomains()
-                : Set.of(),
-            originInjectorContract.isPresent() ? originInjectorContract.get().getTags() : Set.of());
+    return saveWithContract(
+        duplicatedPayload,
+        originInjectorContract.isPresent()
+            ? originInjectorContract.get().getAttackPatterns()
+            : List.of(),
+        originInjectorContract.isPresent() ? originInjectorContract.get().getDomains() : Set.of(),
+        originInjectorContract.isPresent() ? originInjectorContract.get().getTags() : Set.of());
+  }
+
+  public PayloadCreationService.PayloadInjectorContractCreationResult saveWithContract(
+      Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
+    Payload saved = payloadRepository.save(payload);
     return new PayloadCreationService.PayloadInjectorContractCreationResult(
-        duplicated, injectorContract);
+        saved, synchroniseInjectorContractBasedOnPayload(saved, attackPatterns, domains, tags));
   }
 
   public Payload generateDuplicatedPayload(Payload originalPayload) {

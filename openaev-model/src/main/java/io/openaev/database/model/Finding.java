@@ -42,9 +42,9 @@ public class Finding implements TenantBase {
   // so keeping it costs no isolation.
   //
   // It is redundant rather than load-bearing: both production create paths resolve the tenant
-  // explicitly from the inject that produced the finding (FindingService.createFinding and
-  // createFindings), and FindingWriter receives it as a required argument and now refuses a blank
-  // one. What #7844 still has to prepare is the test ground: twenty-two test sites persist a
+  // explicitly from the inject that produced the finding. FindingService.createFindings stamps it,
+  // and FindingWriter receives it as a required argument and now refuses a blank one. What #7844
+  // still has to prepare is the test ground: twenty-two test sites persist a
   // Finding straight through a repository, and neither FindingFixture nor FindingComposer stamps a
   // tenant, so they all lean on this listener today.
 
@@ -57,9 +57,9 @@ public class Finding implements TenantBase {
   private String id;
 
   // Write path only, like inject: readers use the field of the occurrence.
-  @Column(name = "finding_field", nullable = false)
+  // NULL on the findings of the new writer: the field lives on their occurrences
+  @Column(name = "finding_field")
   @JsonIgnore
-  @NotBlank
   private String field;
 
   @Queryable(filterable = true, sortable = true, label = "finding type")
@@ -98,6 +98,7 @@ public class Finding implements TenantBase {
 
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
+  @Fetch(FetchMode.SUBSELECT)
   @JoinTable(
       name = "findings_tags",
       joinColumns = @JoinColumn(name = "finding_id"),
@@ -113,6 +114,50 @@ public class Finding implements TenantBase {
   // The tenant here must be set automatically with the inject tenant when the finding is created by
   // the inject
   private Tenant tenant;
+
+  // -- IDENTITY --
+
+  @Column(name = "finding_value_hash", updatable = false)
+  @JsonIgnore
+  private String valueHash;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "finding_location_id", updatable = false)
+  @JsonIgnore
+  private FindingLocation location;
+
+  @Column(name = "finding_first_seen")
+  @JsonIgnore
+  private Instant firstSeen;
+
+  @Column(name = "finding_last_seen")
+  @JsonIgnore
+  private Instant lastSeen;
+
+  // -- LIFECYCLE --
+
+  /** Whether the finding is still reproduced: moved by detections and re-tests. */
+  @Queryable(filterable = true, sortable = true, label = "status")
+  @Enumerated(EnumType.STRING)
+  @Column(name = "finding_status", nullable = false)
+  @JsonProperty("finding_status")
+  @NotNull
+  private FindingStatus status = FindingStatus.OPEN;
+
+  /** When a re-test last ended on this finding, reproduced or not. */
+  @Column(name = "finding_last_tested")
+  @JsonIgnore
+  private Instant lastTested;
+
+  /** The inject whose run set the current status (a detection or a re-test). */
+  @Column(name = "finding_status_inject_id")
+  @JsonIgnore
+  private String statusInjectId;
+
+  /** The re-test inject queued for this finding and not finished yet, null when none. */
+  @Column(name = "finding_retest_inject_id")
+  @JsonIgnore
+  private String retestInjectId;
 
   // -- RELATION --
 
@@ -262,11 +307,16 @@ public class Finding implements TenantBase {
     return getSimulations().stream().map(Exercise::getScenario).filter(Objects::nonNull).toList();
   }
 
+  /**
+   * The asset groups that statically contain one of the finding's assets. Never the groups its
+   * injects targeted: those include groups the hit asset is not in. The API and the search index
+   * also add the dynamic groups, through {@link AssetGroupMembershipResolver}.
+   */
   @JsonProperty("finding_asset_groups")
-  @Queryable(filterable = true, dynamicValues = true, path = "occurrences.inject.assetGroups.id")
+  @Queryable(filterable = true, dynamicValues = true, path = "assets.assetGroups.id")
   public Set<AssetGroup> getAssetGroups() {
-    return getInjects().stream()
-        .flatMap(inject -> inject.getAssetGroups().stream())
+    return getAssets().stream()
+        .flatMap(asset -> asset.getAssetGroups().stream())
         .collect(Collectors.toSet());
   }
 }

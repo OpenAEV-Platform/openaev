@@ -47,30 +47,36 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() {
-    InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
-    EMAIL_INJECTOR_CONTRACT_ID = injectorContract.getFirstInjector().getId();
-
     // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, so this
-    // class-wide fixture names the default tenant explicitly rather than relying on it.
-    Scenario scenario = createDefaultCrisisScenario();
-    scenario.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
-    Scenario scenarioSaved = this.scenarioRepository.save(scenario);
-    SCENARIO_ID = scenarioSaved.getId();
+    // class-wide fixture runs in the default tenant's scope: the contract lookup reads
+    // injectors_contracts, which returns nothing outside a scope.
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          InjectorContract injectorContract =
+              injectorContractFixture.getWellKnownSingleEmailContract();
+          EMAIL_INJECTOR_CONTRACT_ID = injectorContract.getFirstInjector().getId();
 
-    Inject injectDefaultEmail = getInjectForEmailContract(injectorContract);
-    injectDefaultEmail.setScenario(scenarioSaved);
-    injectDefaultEmail.setTitle("Inject default email");
-    injectDefaultEmail.setDependsDuration(1L);
-    injectDefaultEmail.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
-    Inject injectDefaultEmailSaved = this.injectRepository.save(injectDefaultEmail);
-    INJECT_IDS.add(injectDefaultEmailSaved.getId());
+          Scenario scenario = createDefaultCrisisScenario();
+          scenario.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+          Scenario scenarioSaved = this.scenarioRepository.save(scenario);
+          SCENARIO_ID = scenarioSaved.getId();
 
-    Inject injectDefaultGlobal = getInjectForEmailContract(injectorContract);
-    injectDefaultGlobal.setScenario(scenarioSaved);
-    injectDefaultGlobal.setTitle("Inject global email");
-    injectDefaultGlobal.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
-    Inject injectDefaultGlobalSaved = this.injectRepository.save(injectDefaultGlobal);
-    INJECT_IDS.add(injectDefaultGlobalSaved.getId());
+          Inject injectDefaultEmail = getInjectForEmailContract(injectorContract);
+          injectDefaultEmail.setScenario(scenarioSaved);
+          injectDefaultEmail.setTitle("Inject default email");
+          injectDefaultEmail.setDependsDuration(1L);
+          injectDefaultEmail.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+          Inject injectDefaultEmailSaved = this.injectRepository.save(injectDefaultEmail);
+          INJECT_IDS.add(injectDefaultEmailSaved.getId());
+
+          Inject injectDefaultGlobal = getInjectForEmailContract(injectorContract);
+          injectDefaultGlobal.setScenario(scenarioSaved);
+          injectDefaultGlobal.setTitle("Inject global email");
+          injectDefaultGlobal.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+          Inject injectDefaultGlobalSaved = this.injectRepository.save(injectDefaultGlobal);
+          INJECT_IDS.add(injectDefaultGlobalSaved.getId());
+        });
   }
 
   @AfterAll
@@ -95,6 +101,7 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
     class SearchingPageOfInjects {
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Retrieving first page of injects by textsearch")
       void given_working_search_input_should_return_a_page_of_injects() throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -110,6 +117,7 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Not retrieving first page of injects by textsearch")
       void given_not_working_search_input_should_return_a_page_of_injects() throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -130,6 +138,7 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
     class SortingPageOfInjects {
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Sorting page of injects by name")
       void given_sorting_input_by_name_should_return_a_page_of_injects_sort_by_name()
           throws Exception {
@@ -149,6 +158,7 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Sorting page of injects by updated at")
       void given_sorting_input_by_updated_at_should_return_a_page_of_injects_sort_by_updated_at()
           throws Exception {
@@ -178,6 +188,7 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
     class FilteringPageOfInjects {
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Filtering page of injects by name")
       void given_filter_input_by_name_should_return_a_page_of_injects_filter_by_name()
           throws Exception {
@@ -194,6 +205,7 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Filtering page of injects by injector contract")
       void
           given_filter_input_by_injector_contract_should_return_a_page_of_injects_filter_by_injector_contract()

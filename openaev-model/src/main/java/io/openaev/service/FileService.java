@@ -119,6 +119,25 @@ public class FileService {
   }
 
   /**
+   * Uploads a stream under an explicitly named tenant path rather than the ambient {@link
+   * io.openaev.context.TenantContext}. Use this when the write tenant is resolved from the request
+   * or job scope, so the object lands under the same tenant the owning row is attributed to.
+   *
+   * @param tenantId the tenant whose path the object is written under
+   * @param path the directory path within the bucket
+   * @param name the filename
+   * @param data the input stream containing the file data
+   * @return the full path of the uploaded file, relative to the tenant's own prefix
+   * @throws Exception if the upload fails
+   */
+  public String uploadStream(String tenantId, String path, String name, InputStream data)
+      throws Exception {
+    String file = path.endsWith("/") ? path + name : path + "/" + name;
+    minioService.uploadStreamForTenant(tenantId, file, name, data);
+    return file;
+  }
+
+  /**
    * Uploads a catalog asset (e.g. connector logo) to the platform-level MinIO path, shared across
    * all tenants. Use this instead of {@link #uploadStream} for catalog logos written by {@code
    * insertCatalogEntry()} or the catalog ingestion service.
@@ -174,6 +193,19 @@ public class FileService {
    */
   public void deleteDirectory(String directory) {
     minioService.deleteDirectoryInTenantPath(directory);
+  }
+
+  /**
+   * Deletes all files in a directory recursively, under an explicitly named tenant path rather than
+   * the ambient {@link io.openaev.context.TenantContext}. Use this when the owning row's tenant is
+   * known, so the objects are removed from the same path they were written to, whatever scope the
+   * caller runs under.
+   *
+   * @param tenantId the tenant whose path the directory is removed from
+   * @param directory the directory prefix to delete
+   */
+  public void deleteDirectory(String tenantId, String directory) {
+    minioService.deleteDirectoryForTenant(tenantId, directory);
   }
 
   /**
@@ -327,6 +359,20 @@ public class FileService {
    */
   public Optional<FileContainer> getFileContainer(String fileTarget) {
     return minioService.getFileContainerInTenant(fileTarget);
+  }
+
+  /**
+   * Retrieves a file with its metadata as a FileContainer, under an explicitly named tenant path
+   * rather than the ambient {@link io.openaev.context.TenantContext}. Use this when the owning
+   * row's tenant is known, so the object is read from the same path it was written to, whatever
+   * scope the caller runs under.
+   *
+   * @param tenantId the tenant whose path the object is read from
+   * @param fileTarget the target file path
+   * @return an Optional containing the FileContainer with filename, content type, and stream
+   */
+  public Optional<FileContainer> getFileContainer(String tenantId, String fileTarget) {
+    return minioService.getFileContainerForTenant(tenantId, fileTarget);
   }
 
   // -- PLATFORM FILES: shared by every tenant --

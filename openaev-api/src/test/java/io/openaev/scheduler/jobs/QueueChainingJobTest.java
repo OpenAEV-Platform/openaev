@@ -37,9 +37,12 @@ import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
@@ -47,6 +50,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
@@ -75,6 +79,11 @@ class QueueChainingJobTest extends IntegrationTest {
   @Autowired private TenantRepository tenantRepository;
   @Autowired private CweRepository cweRepository;
   @Autowired private TenantScopedTransaction tenantTx;
+
+  @Value("${openaev.tenant.active-tables:}")
+  private List<String> activeTables;
+
+  @Autowired private EntityManager entityManager;
   @MockitoSpyBean private StepService stepService;
   @MockitoSpyBean private WorkflowService workflowService;
 
@@ -258,13 +267,20 @@ class QueueChainingJobTest extends IntegrationTest {
 
       // Act
       assertThatThrownBy(() -> job.execute(null)).isInstanceOf(IllegalStateException.class);
-      Cwe nextWrite = persistCweWithoutTenant();
 
-      // Assert
-      assertThat(nextWrite.getTenant().getId())
-          .isNotEqualTo(otherTenant.getId())
-          .isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      // Assert: the thread carries no tenant, so the next unattributed write is handled as
+      // production handles it for that table: refused when the table is active, stamped with the
+      // default tenant when it is not. It is never stamped with the tenant of the failed pass.
       assertThat(TenantContext.hasCurrentTenant()).isFalse();
+      if (isCweTableActive()) {
+        assertThatThrownBy(this::persistCweWithoutTenant)
+            .hasStackTraceContaining("unattributed tenant write: Cwe");
+      } else {
+        Cwe nextWrite = persistCweWithoutTenant();
+        assertThat(nextWrite.getTenant().getId())
+            .isNotEqualTo(otherTenant.getId())
+            .isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      }
     }
 
     @Test
@@ -286,6 +302,50 @@ class QueueChainingJobTest extends IntegrationTest {
       assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
     }
 
+    @Test
+    @DisplayName("Entries of two tenants in one pass each run in the tenant of their own owner")
+    void given_entriesOfTwoTenantsInOnePass_should_runEachInItsOwnersTenant() throws Exception {
+      // Arrange: both runs are scenario-backed, one in the default tenant and one in another. The
+      // entries share the pass's transaction, so the second one's owner is read after the first
+      // one narrowed the scope to its own tenant.
+      Tenant otherTenant = persistTenant();
+      String otherRunId = persistDueEntryOf(otherTenant).getWorkflowRun().getId();
+      String defaultRunId =
+          persistDueDelayQueueEntry(WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN))
+              .getWorkflowRun()
+              .getId();
+      Map<String, String> tenantOfRun = new HashMap<>();
+      Map<String, String> scopeOfRun = new HashMap<>();
+      doAnswer(
+              invocation -> {
+                Workflow run = invocation.getArgument(1);
+                tenantOfRun.put(run.getId(), TenantContext.getCurrentTenant());
+                scopeOfRun.put(
+                    run.getId(),
+                    (String)
+                        entityManager
+                            .createNativeQuery(
+                                "SELECT coalesce(current_setting('app.current_tenants', true), '')")
+                            .getSingleResult());
+                return List.of(new Step());
+              })
+          .when(stepService)
+          .createReadySteps(any(), any(), any());
+      doNothing().when(stepService).enqueueReadySteps(any(), any());
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      job.execute(null);
+
+      // Assert
+      assertThat(tenantOfRun)
+          .containsEntry(otherRunId, otherTenant.getId())
+          .containsEntry(defaultRunId, Tenant.DEFAULT_TENANT_UUID);
+      assertThat(scopeOfRun)
+          .containsEntry(otherRunId, otherTenant.getId())
+          .containsEntry(defaultRunId, Tenant.DEFAULT_TENANT_UUID);
+    }
+
     private Tenant persistTenant() {
       Tenant tenant =
           tenantRepository.save(
@@ -295,11 +355,17 @@ class QueueChainingJobTest extends IntegrationTest {
       return tenant;
     }
 
-    private void persistDueEntryOf(Tenant tenant) {
+    private StepDelayQueue persistDueEntryOf(Tenant tenant) {
       Scenario scenario = ScenarioFixture.getScenario();
       scenario.setTenant(tenant);
-      persistDueDelayQueueEntry(
+      return persistDueDelayQueueEntry(
           WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN), scenario);
+    }
+
+    private boolean isCweTableActive() {
+      return activeTables.stream()
+          .map(String::trim)
+          .anyMatch(t -> t.equalsIgnoreCase("cwes") || t.equals("*"));
     }
 
     private Cwe persistCweWithoutTenant() {
