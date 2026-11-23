@@ -237,7 +237,10 @@ const AssetLinksDrawer: FunctionComponent<Props> = ({ open, onClose, assetId, as
                     ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="inline-flex" tabIndex={0}>
+                            <span
+                              tabIndex={0}
+                              className="inline-flex rounded-sm focus-visible:outline-none focus-visible:ring-2 ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-focus"
+                            >
                               <Chip label={t(relationSourceLabel(row.origin) as string)} />
                             </span>
                           </TooltipTrigger>
