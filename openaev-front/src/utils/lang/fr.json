@@ -4345,6 +4345,7 @@
   "This asset was not targeted because its marking clearance does not cover the markings of the inject.": "Cet actif n'a pas été ciblé car son autorisation de marquage ne couvre pas les marquages de l'inject.",
   "This atomic testing and its previous results will be deleted": "Ce test atomique et ses résultats précédents seront supprimés",
   "This autonomous run has no scenario to convert": "Cette exécution autonome n’a pas de scénario à convertir",
+  "This communication check has already been answered or is closed.": "Cette vérification de communication a déjà reçu une réponse ou est clôturée.",
   "This connector has {count} deployed instance(s). Manage them from the Deployed tab.": "Ce connecteur a {count} instance(s) déployée(s). Gérez-les depuis l'onglet Déployés.",
   "This connector has been successfully migrated. You can now stop your manually deployed connector before starting this instance.": "Ce connecteur a été migré avec succès. Vous pouvez maintenant arrêter votre connecteur déployé manuellement avant de démarrer cette instance.",
   "This custom section has no content yet.": "Cette section personnalisée n’a pas encore de contenu.",

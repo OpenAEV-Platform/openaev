@@ -4345,6 +4345,7 @@
   "This asset was not targeted because its marking clearance does not cover the markings of the inject.": "このアセットのマーキングのクリアランスがインジェクトのマーキングを満たしていないため、対象になりませんでした。",
   "This atomic testing and its previous results will be deleted": "このアトミックテストと以前の結果は削除される",
   "This autonomous run has no scenario to convert": "この自律実行には、変換対象となるシナリオがありません",
+  "This communication check has already been answered or is closed.": "この通信チェックはすでに回答済みか、終了しています。",
   "This connector has {count} deployed instance(s). Manage them from the Deployed tab.": "このコネクターには {count} 個のデプロイ済みインスタンスがあります。「デプロイ済み」タブで管理できます。",
   "This connector has been successfully migrated. You can now stop your manually deployed connector before starting this instance.": "このコネクターは正常に移行されました。このインスタンスを起動する前に、手動でデプロイしたコネクターを停止できます。",
   "This custom section has no content yet.": "このカスタムセクションにはまだコンテンツがありません。",

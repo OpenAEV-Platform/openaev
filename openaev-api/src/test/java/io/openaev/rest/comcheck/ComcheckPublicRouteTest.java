@@ -1,6 +1,8 @@
 package io.openaev.rest.comcheck;
 
 import static io.openaev.config.TenantUriUtils.TENANT_BASE_PATH;
+import static io.openaev.rest.comcheck.ComcheckApi.ALREADY_ANSWERED;
+import static io.openaev.rest.comcheck.ComcheckApi.CLOSED;
 import static io.openaev.rest.comcheck.ComcheckApi.COMCHECK_URI;
 import static io.openaev.utils.TagLinkJdbc.column;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,6 +27,7 @@ import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utilstest.RowTenantScope;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,38 +69,54 @@ class ComcheckPublicRouteTest extends IntegrationTest {
   @Autowired private ComcheckRepository comcheckRepository;
   @Autowired private RowTenantScope rowTenantScope;
 
+  private String tenantB;
   private String comcheckId;
   private String statusId;
 
   @BeforeEach
   void seedComcheckInSecondTenant() {
-    String tenantB =
+    tenantB =
         tenantRepository
             .save(TenantFixture.getTenant("comcheck-public-" + UUID.randomUUID()))
             .getId();
-    rowTenantScope.write(tenantB, () -> seedComcheck(tenantB));
+    Seeded seeded = seedInSecondTenant(1, Comcheck.COMCHECK_STATUS.RUNNING);
+    comcheckId = seeded.comcheckId();
+    statusId = seeded.statusIds().getFirst();
+  }
+
+  private record Seeded(String comcheckId, List<String> statusIds) {}
+
+  /** A comcheck of the second tenant in the given state, waiting for the answer of each player. */
+  private Seeded seedInSecondTenant(int players, Comcheck.COMCHECK_STATUS state) {
+    Seeded[] seeded = new Seeded[1];
+    rowTenantScope.write(tenantB, () -> seeded[0] = seedComcheck(tenantB, players, state));
     entityManager.flush();
     entityManager.clear();
     // The mail link is opened by a browser with no session, on a thread that carries no tenant.
     TenantContext.clearCurrentTenant();
+    return seeded[0];
   }
 
-  /** A simulation of the tenant, and a comcheck of it waiting for the answer of one player. */
-  private void seedComcheck(String tenantId) {
+  /** A simulation of the tenant, and a comcheck of it with one status per player. */
+  private Seeded seedComcheck(String tenantId, int players, Comcheck.COMCHECK_STATUS state) {
     Exercise simulation = ExerciseFixture.createDefaultExercise();
     simulation.setTenant(new Tenant(tenantId));
     simulation = exerciseRepository.save(simulation);
-    User player =
-        userRepository.save(
-            UserFixture.getUser(
-                "first", "last", "comcheck-" + UUID.randomUUID() + "@unittests.invalid", false));
     Comcheck comcheck = ComcheckFixture.createComcheck(simulation);
-    ComcheckStatus status = new ComcheckStatus(player);
-    status.setComcheck(comcheck);
-    comcheck.getComcheckStatus().add(status);
+    comcheck.setState(state);
+    for (int i = 0; i < players; i++) {
+      User player =
+          userRepository.save(
+              UserFixture.getUser(
+                  "first", "last", "comcheck-" + UUID.randomUUID() + "@unittests.invalid", false));
+      ComcheckStatus status = new ComcheckStatus(player);
+      status.setComcheck(comcheck);
+      comcheck.getComcheckStatus().add(status);
+    }
     comcheck = comcheckRepository.save(comcheck);
-    comcheckId = comcheck.getId();
-    statusId = comcheck.getComcheckStatus().getFirst().getId();
+    return new Seeded(
+        comcheck.getId(),
+        comcheck.getComcheckStatus().stream().map(ComcheckStatus::getId).toList());
   }
 
   @AfterEach
@@ -121,6 +140,57 @@ class ComcheckPublicRouteTest extends IntegrationTest {
           .andExpect(jsonPath("$.comcheckstatus_state").value("SUCCESS"));
       assertThat(column(entityManager, RECEIVE_DATE, statusId)).hasSize(1).doesNotContainNull();
       assertThat(column(entityManager, COMCHECK_STATE, comcheckId)).containsExactly("FINISHED");
+    }
+
+    @Test
+    @DisplayName("Given the only answer already recorded, should answer 409 and keep the first one")
+    void given_onlyAnswerAlreadyRecorded_should_answer409AndKeepTheFirstOne() throws Exception {
+      // Arrange
+      mvc.perform(get(COMCHECK_URI + "/" + statusId)).andExpect(status().isOk());
+      List<String> firstAnswer = column(entityManager, RECEIVE_DATE, statusId);
+      // Act
+      mvc.perform(get(COMCHECK_URI + "/" + statusId))
+          // Assert
+          .andExpect(status().isConflict())
+          .andExpect(jsonPath("$.message").value(ALREADY_ANSWERED));
+      assertThat(column(entityManager, RECEIVE_DATE, statusId)).isEqualTo(firstAnswer);
+      assertThat(column(entityManager, COMCHECK_STATE, comcheckId)).containsExactly("FINISHED");
+    }
+
+    @Test
+    @DisplayName(
+        "Given an answer already recorded in a comcheck still waiting for others, should answer 409 and keep the first one")
+    void given_answerRecordedInRunningComcheck_should_answer409AndKeepTheFirstOne()
+        throws Exception {
+      // Arrange
+      Seeded seeded = seedInSecondTenant(2, Comcheck.COMCHECK_STATUS.RUNNING);
+      String answered = seeded.statusIds().get(0);
+      mvc.perform(get(COMCHECK_URI + "/" + answered)).andExpect(status().isOk());
+      List<String> firstAnswer = column(entityManager, RECEIVE_DATE, answered);
+      // Act
+      mvc.perform(get(COMCHECK_URI + "/" + answered))
+          // Assert
+          .andExpect(status().isConflict())
+          .andExpect(jsonPath("$.message").value(ALREADY_ANSWERED));
+      assertThat(column(entityManager, RECEIVE_DATE, answered)).isEqualTo(firstAnswer);
+      assertThat(column(entityManager, COMCHECK_STATE, seeded.comcheckId()))
+          .containsExactly("RUNNING");
+    }
+
+    @Test
+    @DisplayName("Given an expired comcheck, should answer 409 and record nothing")
+    void given_expiredComcheck_should_answer409AndRecordNothing() throws Exception {
+      // Arrange
+      Seeded seeded = seedInSecondTenant(1, Comcheck.COMCHECK_STATUS.EXPIRED);
+      String expiredStatusId = seeded.statusIds().getFirst();
+      // Act
+      mvc.perform(get(COMCHECK_URI + "/" + expiredStatusId))
+          // Assert
+          .andExpect(status().isConflict())
+          .andExpect(jsonPath("$.message").value(CLOSED));
+      assertThat(column(entityManager, RECEIVE_DATE, expiredStatusId)).containsOnlyNulls();
+      assertThat(column(entityManager, COMCHECK_STATE, seeded.comcheckId()))
+          .containsExactly("EXPIRED");
     }
 
     @Test

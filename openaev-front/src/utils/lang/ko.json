@@ -4345,6 +4345,7 @@
   "This asset was not targeted because its marking clearance does not cover the markings of the inject.": "이 자산의 표식 승인이 인젝션의 표식을 포함하지 않으므로 대상으로 지정되지 않았습니다.",
   "This atomic testing and its previous results will be deleted": "이 원자 테스트와 이전 결과가 삭제됩니다",
   "This autonomous run has no scenario to convert": "이 자율 실행에는 변환할 시나리오가 없습니다.",
+  "This communication check has already been answered or is closed.": "이 통신 점검은 이미 응답되었거나 종료되었습니다.",
   "This connector has {count} deployed instance(s). Manage them from the Deployed tab.": "이 커넥터에는 배포된 인스턴스가 {count}개 있습니다. 배포됨 탭에서 관리하세요.",
   "This connector has been successfully migrated. You can now stop your manually deployed connector before starting this instance.": "이 커넥터가 성공적으로 마이그레이션되었습니다. 이제 이 인스턴스를 시작하기 전에 수동으로 배포된 커넥터를 중지할 수 있습니다.",
   "This custom section has no content yet.": "이 사용자 정의 섹션에는 아직 내용이 없습니다.",

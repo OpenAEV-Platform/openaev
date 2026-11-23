@@ -4345,6 +4345,7 @@
   "This asset was not targeted because its marking clearance does not cover the markings of the inject.": "Этот актив не был выбран целью, так как его разрешение маркировки не охватывает маркировки инъекции.",
   "This atomic testing and its previous results will be deleted": "Это атомное тестирование и его предыдущие результаты будут удалены",
   "This autonomous run has no scenario to convert": "Для этого автономного запуска нет сценария, который можно было бы преобразовать",
+  "This communication check has already been answered or is closed.": "На эту проверку связи уже ответили, либо она закрыта.",
   "This connector has {count} deployed instance(s). Manage them from the Deployed tab.": "У этого коннектора {count} развёрнутых экземпляр(ов). Управляйте ими на вкладке «Развёрнутые».",
   "This connector has been successfully migrated. You can now stop your manually deployed connector before starting this instance.": "Этот коннектор был успешно перенесен. Теперь вы можете остановить развернутый вручную коннектор перед запуском этого экземпляра.",
   "This custom section has no content yet.": "В этом настраиваемом разделе пока нет содержимого.",
