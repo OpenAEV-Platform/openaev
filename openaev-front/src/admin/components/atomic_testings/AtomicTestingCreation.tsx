@@ -45,21 +45,7 @@ const AtomicTestingCreation = () => {
   };
 
   const onCreateAtomicTesting = async (data: AtomicTestingInput) => {
-    const toCreate = {
-      ...data,
-      inject_tags: data.inject_tags,
-      inject_title: data.inject_title,
-      inject_all_teams: data.inject_all_teams,
-      inject_asset_groups: data.inject_asset_groups,
-      inject_assets: data.inject_assets,
-      inject_content: data.inject_content,
-      inject_injector_contract: data.inject_injector_contract,
-      inject_injector: data.inject_injector,
-      inject_description: data.inject_description,
-      inject_documents: data.inject_documents,
-      inject_teams: data.inject_teams,
-    };
-    await createAtomicTesting(toCreate).then((result: { data: InjectResultOverviewOutput }) => {
+    await createAtomicTesting(data).then((result: { data: InjectResultOverviewOutput }) => {
       navigate(`${listUrl}/${result.data.inject_id}`);
     });
   };

@@ -36,7 +36,6 @@ const AtomicTestingUpdate: FunctionComponent<Props> = ({
       'inject_asset_groups',
       'inject_secret_references',
       'inject_teams',
-      'inject_tags',
     ]) as unknown as AtomicTestingInput;
     updateAtomicTesting(atomic.inject_id, toUpdate).then((result: { data: InjectResultOverviewOutput }) => {
       updateInjectResultOverviewOutput(result.data);
