@@ -703,6 +703,7 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
           "user_lastname",
           "user_lang",
           "user_theme",
+          "user_pastel_colours",
           "user_home_dashboard",
           "user_email",
           "user_phone",
