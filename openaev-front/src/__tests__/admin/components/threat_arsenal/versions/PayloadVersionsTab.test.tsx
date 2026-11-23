@@ -124,12 +124,13 @@ describe('PayloadVersionsTab', () => {
       can.mockReturnValue(true);
       showAgain.mockResolvedValue({});
       renderInApp(
-        <PayloadVersionsTab versions={[{
-          ...latest,
-          payload_older_versions_kept: true,
-        }, older]}
-        usages={usages}
-        onMoved={vi.fn()}
+        <PayloadVersionsTab
+          versions={[{
+            ...latest,
+            payload_older_versions_kept: true,
+          }, older]}
+          usages={usages}
+          onMoved={vi.fn()}
         />,
       );
       await screen.findByText(KEPT);
@@ -153,14 +154,16 @@ describe('PayloadVersionsTab', () => {
 
     it('given no inject on an older version should say nothing', async () => {
       // Act
-      renderInApp(<PayloadVersionsTab
-        versions={[latest, older]}
-        usages={{
-          'payload-v2': someUsages([aUsage()]),
-          'payload-v1': someUsages([]),
-        }}
-        onMoved={vi.fn()}
-      />);
+      renderInApp(
+        <PayloadVersionsTab
+          versions={[latest, older]}
+          usages={{
+            'payload-v2': someUsages([aUsage()]),
+            'payload-v1': someUsages([]),
+          }}
+          onMoved={vi.fn()}
+        />,
+      );
 
       // Assert
       expect(await screen.findByText('(0 injects)')).toBeTruthy();
@@ -179,6 +182,8 @@ describe('PayloadVersionsTab', () => {
             ...latest,
             payload_revoked: false,
           }, older]}
+          usages={usages}
+          onMoved={vi.fn()}
           focusMove
         />,
       );
