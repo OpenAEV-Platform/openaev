@@ -14,6 +14,7 @@ import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -258,22 +259,34 @@ public class InjectorContractContentUtils {
   /**
    * The keys of the fields an inject must fill, by group: any one field of a group fills it. A
    * mandatory field is a group of its own; a field mandatory on a condition counts when the inject
-   * meets it, as in the mandatory field health check.
+   * meets it.
    */
   public Set<Set<String>> mandatoryFieldGroups(Inject inject) {
-    Map<String, JsonNode> fields = fields(inject.getInjectorContract().orElse(null));
+    return mandatoryFieldGroups(
+        fields(inject.getInjectorContract().orElse(null)),
+        field ->
+            InjectModelHelper.getFieldValue(
+                inject.getTeams().stream().map(Team::getId).toList(),
+                inject.getAssets().stream().map(Asset::getId).toList(),
+                inject.getAssetGroups().stream().map(AssetGroup::getId).toList(),
+                field,
+                inject.getContent()));
+  }
+
+  /** The same groups among these contract fields, reading the inject's values with valuesOf. */
+  public static Set<Set<String>> mandatoryFieldGroups(
+      Map<String, JsonNode> fields, Function<JsonNode, List<String>> valuesOf) {
     Set<Set<String>> groups = new LinkedHashSet<>();
     fields.forEach(
         (key, field) -> {
           if (field.path(CONTRACT_ELEMENT_CONTENT_MANDATORY).asBoolean()
-              || isMandatoryOnCondition(field, fields, inject)) {
+              || isMandatoryOnCondition(field, fields, valuesOf)) {
             groups.add(Set.of(key));
           }
           Set<String> group = new LinkedHashSet<>();
           field
               .path(CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS)
               .forEach(member -> group.add(member.asText()));
-          group.retainAll(fields.keySet());
           if (!group.isEmpty()) {
             groups.add(group);
           }
@@ -282,34 +295,30 @@ public class InjectorContractContentUtils {
   }
 
   private static boolean isMandatoryOnCondition(
-      JsonNode field, Map<String, JsonNode> fields, Inject inject) {
+      JsonNode field, Map<String, JsonNode> fields, Function<JsonNode, List<String>> valuesOf) {
     JsonNode values = field.path(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES);
     return StreamSupport.stream(
             field.path(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_FIELDS).spliterator(), false)
         .map(JsonNode::asText)
         .filter(fields::containsKey)
         .anyMatch(
-            key -> !values.has(key) || isConditionMet(values.get(key), fields.get(key), inject));
+            key ->
+                !values.has(key)
+                    || isConditionMet(values.get(key), valuesOf.apply(fields.get(key))));
   }
 
-  private static boolean isConditionMet(JsonNode expected, JsonNode conditionField, Inject inject) {
+  private static boolean isConditionMet(JsonNode expected, List<String> actualValues) {
     List<String> expectedValues = new ArrayList<>();
     if (expected.isArray()) {
       expected.forEach(value -> expectedValues.add(value.asText()));
     } else {
       expectedValues.add(expected.asText());
     }
-    return InjectModelHelper.getFieldValue(
-            inject.getTeams().stream().map(Team::getId).toList(),
-            inject.getAssets().stream().map(Asset::getId).toList(),
-            inject.getAssetGroups().stream().map(AssetGroup::getId).toList(),
-            conditionField,
-            inject.getContent())
-        .stream()
-        .anyMatch(expectedValues::contains);
+    return actualValues.stream().anyMatch(expectedValues::contains);
   }
 
-  private Map<String, JsonNode> fields(InjectorContract injectorContract) {
+  /** The contract's fields by key, empty when its content cannot be read. */
+  public Map<String, JsonNode> fields(InjectorContract injectorContract) {
     Map<String, JsonNode> fields = new LinkedHashMap<>();
     if (injectorContract == null || injectorContract.getContent() == null) {
       return fields;
@@ -325,7 +334,7 @@ public class InjectorContractContentUtils {
                 }
               });
     } catch (JsonProcessingException e) {
-      return Map.of();
+      return new LinkedHashMap<>();
     }
     return fields;
   }
