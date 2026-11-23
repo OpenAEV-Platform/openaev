@@ -35,6 +35,7 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Step;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.database.model.payload.PayloadRevocation;
 import io.openaev.database.repository.InjectRepository;
@@ -69,6 +70,7 @@ import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -100,6 +102,7 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
   @Autowired private PayloadRepository payloadRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private RowTenantScope rowTenantScope;
   @Autowired private PayloadRevocationRepository payloadRevocationRepository;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private InjectComposer injectComposer;
@@ -162,8 +165,11 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
         .orElseThrow();
   }
 
+  /** An atomic testing has no parent to take a tenant from: it carries its own, as on creation. */
   private void atomicTestingOn(InjectorContract contract) {
-    injectRepository.save(InjectFixture.createInject(contract, "Atomic testing"));
+    Inject atomicTesting = InjectFixture.createInject(contract, "Atomic testing");
+    atomicTesting.setTenant(new Tenant(DEFAULT_TENANT_UUID));
+    rowTenantScope.write(DEFAULT_TENANT_UUID, () -> injectRepository.save(atomicTesting));
   }
 
   /** A scenario with an inject on the contract, and a chained step on it in its logic map. */
