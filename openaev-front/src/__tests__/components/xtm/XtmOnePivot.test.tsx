@@ -114,11 +114,39 @@ describe('XtmOnePivotView (contract v3: icon-only emblem, canonical XTM One purp
 describe('XtmOneMatchPreview', () => {
   afterEach(cleanup);
 
-  it('given a match should show the asset name and the facts XTM One answered', () => {
+  it('given a match should show the asset name and the facts XTM One answered, with OpenAEV labels', () => {
     renderView(<XtmOneMatchPreview answer={MATCH} />);
     expect(screen.getByText('web-02')).toBeTruthy();
-    expect(screen.getByText('high')).toBeTruthy();
-    expect(screen.getByText('server')).toBeTruthy();
+    expect(screen.getByText('High')).toBeTruthy();
+    expect(screen.getByText('Server')).toBeTruthy();
+    expect(screen.getByText('Asset')).toBeTruthy();
+  });
+
+  it('given XTM One lower-case enums should never render the raw values', () => {
+    renderView(
+      <XtmOneMatchPreview answer={{
+        ...MATCH,
+        counterpart: {
+          ...MATCH.counterpart,
+          counterpart_facts: [
+            {
+              fact_key: 'criticality',
+              fact_value: 'very_high',
+            },
+            {
+              fact_key: 'category',
+              fact_value: 'generic_asset',
+            },
+          ],
+        },
+      }}
+      />,
+    );
+    expect(screen.getByText('Very high')).toBeTruthy();
+    expect(screen.getByText('Generic asset')).toBeTruthy();
+    expect(screen.queryByText('very_high')).toBeNull();
+    expect(screen.queryByText('generic_asset')).toBeNull();
+    expect(screen.queryByText('asset')).toBeNull();
   });
 });
 

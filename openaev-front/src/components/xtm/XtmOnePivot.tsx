@@ -1,6 +1,7 @@
 import { type FunctionComponent } from 'react';
 
 import { type CounterpartKindPath } from '../../actions/xtm/counterpart-actions';
+import { humanizeEnum } from '../../admin/components/assets/asset-categories';
 // The XTM One mark alone (the highlight group of the design system's product-switcher XtmoneLogo,
 // viewBox 0 0 35 34), painted through a CSS mask in every state.
 import xtmOneMask from '../../static/images/xtm/xtm-mark-xtmone.svg';
@@ -47,11 +48,13 @@ const XtmOneTeaser: FunctionComponent<{ canConfigure: boolean }> = ({ canConfigu
 /** The preview of an XTM One match: the inventory asset the click opens. */
 export const XtmOneMatchPreview: FunctionComponent<{ answer: CounterpartAnswer }> = ({ answer }) => {
   const { t } = useFormatter();
+  // XTM One names the type as a lower-case enum (asset): shown with OpenAEV's label, translated.
+  const entityType = answer.counterpart?.counterpart_entity_type;
   return (
     <PivotPreview
       mark={<XtmOneMark size={16} />}
       productName="XTM One"
-      entityType={answer.counterpart?.counterpart_entity_type}
+      entityType={entityType ? t(humanizeEnum(entityType.toUpperCase())) : undefined}
       name={answer.counterpart?.counterpart_name}
       facts={answer.counterpart?.counterpart_facts}
       labels={XTM_ONE_FACT_LABELS}
