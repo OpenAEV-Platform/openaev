@@ -1,5 +1,7 @@
 package io.openaev.integration.impl.collectors.expiration_manager;
 
+import static io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig.COLLECTOR_ID;
+
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService;
 import io.openaev.database.model.ConnectorInstance;
@@ -52,10 +54,13 @@ public class ExpirationManagerIntegration extends Integration {
                         expectationsExpirationManagerService.computeExpectations(
                             this.getTenantId())),
             Duration.ofSeconds(this.expectationsExpirationManagerConfig.getInterval())));
-    //        this.timers.add(taskScheduler.scheduleAtFixedRate(
-    //                ExpectationsExpirationManagerServiceRunner.runnerForTenant(
-    //                        getTenantId(), expectationsExpirationManagerService),
-    //                Duration.ofSeconds(this.expectationsExpirationManagerConfig.getInterval())));
+    this.timers.add(
+        taskScheduler.scheduleAtFixedRate(
+            () ->
+                tenantScopedJobRunner.runInTenant(
+                    this.getTenantId(),
+                    () -> collectorService.updateLastExecution(COLLECTOR_ID, this.getTenantId())),
+            Duration.ofSeconds(this.expectationsExpirationManagerConfig.getInterval())));
   }
 
   @Override

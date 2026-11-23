@@ -36,7 +36,7 @@ public abstract class Integration {
     this.tenantId = tenantId;
   }
 
-  /** Returns the tenant ID from the underlying persisted connector instance. */
+  /** Returns the tenant ID from the underlying connector instance. */
   protected String getTenantId() {
     return this.tenantId;
   }
