@@ -4983,7 +4983,7 @@
   "Select": "選択",
   "Show hidden nodes": "非表示のノードを表示",
   "Show or hide the legend": "凡例の表示・非表示",
-  "Show severity, priority and marking chips in soft pastel fills instead of the standard colours.": "重大度、優先度、マーキングのチップを標準色ではなく柔らかいパステルカラーで表示します。",
+  "Show chips in soft pastel fills instead of the standard outlined colours.": "チップを標準の枠線付きの色ではなく柔らかいパステルカラーで表示します。",
   "Show this list": "この一覧を表示",
   "Show this type": "このタイプを表示",
   "Ungroup": "グループ解除",

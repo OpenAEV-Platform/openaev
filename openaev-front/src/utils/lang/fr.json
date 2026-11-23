@@ -4983,7 +4983,7 @@
   "Select": "Sélectionner",
   "Show hidden nodes": "Afficher les nœuds masqués",
   "Show or hide the legend": "Afficher ou masquer la légende",
-  "Show severity, priority and marking chips in soft pastel fills instead of the standard colours.": "Afficher les puces de sévérité, de priorité et de marquage en teintes pastel douces au lieu des couleurs standard.",
+  "Show chips in soft pastel fills instead of the standard outlined colours.": "Afficher les puces en teintes pastel douces au lieu des couleurs standard avec contour.",
   "Show this list": "Afficher cette liste",
   "Show this type": "Afficher ce type",
   "Ungroup": "Dégrouper",
