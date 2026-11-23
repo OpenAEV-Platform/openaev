@@ -22,6 +22,7 @@ import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ScenarioCard from './card/ScenarioCard';
+import useScenarioUpdatesAvailable from './card/useScenarioUpdatesAvailable';
 import ScenariosList from './list/ScenariosList';
 import ScenariosHeaderActions from './page/ScenariosHeaderActions';
 import ScenariosHero from './page/ScenariosHero';
@@ -54,6 +55,8 @@ const SORT_OPTIONS = [
 ];
 
 const Scenarios = () => {
+  // The installed Filigran scenarios with a newer version: their card offers the update.
+  const updates = useScenarioUpdatesAvailable();
   const { t } = useFormatter();
   const theme = useTheme();
   const canManage = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
@@ -149,7 +152,7 @@ const Scenarios = () => {
               loading={loadingFirstPage}
               emptyState={emptyState}
               renderItem={scenario => (
-                <ScenarioCard key={scenario.scenario_id} scenario={scenario} onDelete={id => removeScenarios([id])} />
+                <ScenarioCard key={scenario.scenario_id} scenario={scenario} newerVersion={updates.get(scenario.scenario_id)} onDelete={id => removeScenarios([id])} />
               )}
             />
           )

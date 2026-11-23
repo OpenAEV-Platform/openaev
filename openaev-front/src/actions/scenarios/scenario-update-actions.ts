@@ -23,11 +23,12 @@ const versionUri = (scenarioId: string, version: string) => `${scenarioUri(scena
 export const previewScenarioUpdate = (scenarioId: string, version: string): Promise<ScenarioUpdatePreviewOutput> => simpleCall(`${versionUri(scenarioId, version)}/preview`)
   .then(({ data }: { data: ScenarioUpdatePreviewOutput }) => data);
 
-export const updateScenario = (scenarioId: string, version: string, input: ScenarioUpdateInput) => simplePostCall(`${versionUri(scenarioId, version)}/updates`, input);
+// No error toast: the dialog says why it failed, and what to do.
+export const updateScenario = (scenarioId: string, version: string, input: ScenarioUpdateInput) => simplePostCall(`${versionUri(scenarioId, version)}/updates`, input, undefined, false);
 
 const revisionUri = (scenarioId: string, revisionId: string) => `${scenarioUri(scenarioId)}/revisions/${revisionId}`;
 
 export const previewScenarioRollback = (scenarioId: string, revisionId: string): Promise<ScenarioUpdatePreviewOutput> => simpleCall(`${revisionUri(scenarioId, revisionId)}/preview`)
   .then(({ data }: { data: ScenarioUpdatePreviewOutput }) => data);
 
-export const rollbackScenario = (scenarioId: string, revisionId: string, input: ScenarioUpdateInput) => simplePostCall(`${revisionUri(scenarioId, revisionId)}/rollbacks`, input);
+export const rollbackScenario = (scenarioId: string, revisionId: string, input: ScenarioUpdateInput) => simplePostCall(`${revisionUri(scenarioId, revisionId)}/rollbacks`, input, undefined, false);

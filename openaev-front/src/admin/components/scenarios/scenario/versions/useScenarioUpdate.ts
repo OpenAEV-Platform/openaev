@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { type ScenarioChangeOutput, type ScenarioUpdateInput, type ScenarioUpdatePreviewOutput } from '../../../../../utils/api-types';
-import { MESSAGING$ } from '../../../../../utils/Environment';
 import { valueText, withStatus } from './scenarioChanges';
 import { type ScenarioUpdateTarget } from './scenarioUpdateTargets';
 
@@ -15,9 +14,14 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
   const [choices, setChoices] = useState<Record<string, ScenarioUpdateChoice>>({});
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [applying, setApplying] = useState(false);
+  // Why applying failed: the scenario changed since the preview (409), or anything else.
+  const [applyError, setApplyError] = useState<'changed' | 'failed' | null>(null);
+  // Read again when the scenario changed since the preview.
+  const [previewKey, setPreviewKey] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setPreview(null);
     target.preview()
       .then((previewed) => {
         if (active) setPreview(previewed);
@@ -28,7 +32,7 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
     return () => {
       active = false;
     };
-  }, [target]);
+  }, [target, previewKey]);
 
   const changes = useMemo(() => {
     const all = preview?.scenario_update_changes ?? [];
@@ -62,16 +66,17 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
 
   const apply = () => {
     setApplying(true);
+    setApplyError(null);
     target.apply({
       scenario_update_choices: choices,
       scenario_update_edits: Object.fromEntries(Object.entries(edits).filter(([changeId]) => choices[changeId] === 'EDIT')),
     })
-      .then(() => {
-        MESSAGING$.notifySuccess(target.appliedMessage);
-        onApplied();
-      })
-      // The call already shows why it was refused; the dialog stays open to try again.
-      .catch(() => undefined)
+      .then(() => onApplied())
+      // The dialog then shows only that it failed, and what to do.
+      .catch((error: {
+        status?: number;
+        response?: { status?: number };
+      }) => setApplyError((error.response?.status ?? error.status) === 409 ? 'changed' : 'failed'))
       .finally(() => setApplying(false));
   };
 
@@ -88,6 +93,14 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
     ready,
     applying,
     apply,
+    applyError,
+    // The scenario changed: its latest preview replaces the error.
+    showLatestPreview: () => {
+      setApplyError(null);
+      setChoices({});
+      setEdits({});
+      setPreviewKey(key => key + 1);
+    },
   };
 };
 
