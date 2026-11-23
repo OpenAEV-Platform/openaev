@@ -72,7 +72,7 @@ export const TRIGGER_RESOURCE_TYPES: TriggerResourceTypeOption[] = [
     entityPrefix: 'payload',
     label: 'Payload',
     eventTypes: LIFECYCLE_EVENT_TYPES,
-    catalogEventTypes: ['REVOKED', 'REVOCATION_LIFTED'],
+    catalogEventTypes: ['REVOKED', 'REVOCATION_LIFTED', 'BASE_UPDATE_AVAILABLE'],
   },
   {
     value: 'VULNERABILITY',
@@ -139,6 +139,7 @@ export const eventTypeSeverity = (eventType: string): ChipSeverity => {
       return 'critical';
     case 'SCORE_DEGRADATION':
     case 'NEW_PAYLOAD_VERSION':
+    case 'BASE_UPDATE_AVAILABLE':
       return 'medium';
     case 'PAYLOAD_REVOKED':
     case 'REVOKED':
