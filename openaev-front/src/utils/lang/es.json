@@ -5200,5 +5200,22 @@
   "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.": "Conecte XTM One para ver este activo en el inventario CTEM: su criticidad, su categoría y cada fuente que lo informa.",
   "Open the connection guide to connect XTM One.": "Abra la guía de conexión para conectar XTM One.",
   "Ask an administrator to connect XTM One to see this asset there.": "Pida a un administrador que conecte XTM One para ver este activo allí.",
-  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "Vea este activo en el inventario CTEM de XTM One, con cada fuente que lo informa."
+  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "Vea este activo en el inventario CTEM de XTM One, con cada fuente que lo informa.",
+  "Owners": "Propietarios",
+  "Manage owners": "Gestionar propietarios",
+  "No owner": "Sin propietario",
+  "Business owner": "Propietario de negocio",
+  "Technical owner": "Responsable técnico",
+  "Accountable for the asset and decides on its risk": "Responde del activo y decide sobre su riesgo",
+  "Operates and patches the asset": "Opera y parchea el activo",
+  "Add an owner": "Añadir un propietario",
+  "Ownership": "Rol",
+  "An asset can have several owners of each kind.": "Un activo puede tener varios propietarios de cada tipo.",
+  "Owner type": "Tipo de propietario",
+  "Searched by name.": "Búsqueda por nombre.",
+  "Add owner": "Añadir propietario",
+  "Remove owner": "Quitar propietario",
+  "Sync": "Sincronización",
+  "Created automatically.": "Creado automáticamente.",
+  "Created automatically, last seen {date}": "Creado automáticamente, visto por última vez el {date}"
 }

@@ -5200,5 +5200,22 @@
   "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.": "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.",
   "Open the connection guide to connect XTM One.": "Open the connection guide to connect XTM One.",
   "Ask an administrator to connect XTM One to see this asset there.": "Ask an administrator to connect XTM One to see this asset there.",
-  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "See this asset in the XTM One CTEM inventory, with every source that reports it."
+  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "See this asset in the XTM One CTEM inventory, with every source that reports it.",
+  "Owners": "Owners",
+  "Manage owners": "Manage owners",
+  "No owner": "No owner",
+  "Business owner": "Business owner",
+  "Technical owner": "Technical owner",
+  "Accountable for the asset and decides on its risk": "Accountable for the asset and decides on its risk",
+  "Operates and patches the asset": "Operates and patches the asset",
+  "Add an owner": "Add an owner",
+  "Ownership": "Ownership",
+  "An asset can have several owners of each kind.": "An asset can have several owners of each kind.",
+  "Owner type": "Owner type",
+  "Searched by name.": "Searched by name.",
+  "Add owner": "Add owner",
+  "Remove owner": "Remove owner",
+  "Sync": "Sync",
+  "Created automatically.": "Created automatically.",
+  "Created automatically, last seen {date}": "Created automatically, last seen {date}"
 }

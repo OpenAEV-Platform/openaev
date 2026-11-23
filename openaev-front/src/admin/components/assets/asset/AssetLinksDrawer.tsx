@@ -33,6 +33,7 @@ import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type AssetOptionOutput } from '../../../../utils/api-types';
 import { ASSET_LINK_TYPES, assetLinkDirectionLabel, type AssetLinkRow, type AssetLinkType, assetLinkTypeLabel, isLinkCandidate } from './asset-links';
+import { relationSourceLabel } from './asset-owners';
 
 interface Props {
   open: boolean;
@@ -48,7 +49,7 @@ interface Props {
 // overview keeps a read-only summary (Sam, 20 Nov 2026: "edition clearly separated, like in a drawer").
 const AssetLinksDrawer: FunctionComponent<Props> = ({ open, onClose, assetId, assetName, rows, onChange }) => {
   const theme = useTheme();
-  const { t } = useFormatter();
+  const { t, fldt } = useFormatter();
 
   const [linkType, setLinkType] = useState<AssetLinkType>('CONNECTS_TO');
   const [selected, setSelected] = useState<AssetOptionOutput | null>(null);
@@ -218,7 +219,7 @@ const AssetLinksDrawer: FunctionComponent<Props> = ({ open, onClose, assetId, as
                   data-testid="asset-link-drawer-row"
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'auto auto minmax(0, 1fr) auto',
+                    gridTemplateColumns: 'auto auto minmax(0, 1fr) auto auto',
                     gap: 8,
                     alignItems: 'center',
                     paddingTop: 4,
@@ -231,6 +232,23 @@ const AssetLinksDrawer: FunctionComponent<Props> = ({ open, onClose, assetId, as
                     : <ArrowBackOutlined fontSize="small" aria-label={t('Incoming')} />}
                   <Chip label={t(assetLinkDirectionLabel(row.type, row.outgoing))} />
                   <Text variant="content-base" className="truncate">{row.otherName}</Text>
+                  {/* An automatic link names its origin; a manual one shows nothing. */}
+                  {relationSourceLabel(row.origin)
+                    ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex" tabIndex={0}>
+                              <Chip label={t(relationSourceLabel(row.origin) as string)} />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            {row.lastSeenAt
+                              ? t('Created automatically, last seen {date}', { date: fldt(row.lastSeenAt) })
+                              : t('Created automatically.')}
+                          </TooltipContent>
+                        </Tooltip>
+                      )
+                    : <span />}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span className="inline-flex">

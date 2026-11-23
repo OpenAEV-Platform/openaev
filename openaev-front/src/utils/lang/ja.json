@@ -5200,5 +5200,22 @@
   "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.": "XTM One を接続すると、CTEM インベントリでこのアセットの重要度、カテゴリ、報告元のすべてのソースを確認できます。",
   "Open the connection guide to connect XTM One.": "接続ガイドを開いて XTM One を接続します。",
   "Ask an administrator to connect XTM One to see this asset there.": "このアセットを XTM One で表示するには、管理者に XTM One の接続を依頼してください。",
-  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "XTM One の CTEM インベントリで、このアセットとその報告元のすべてのソースを確認します。"
+  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "XTM One の CTEM インベントリで、このアセットとその報告元のすべてのソースを確認します。",
+  "Owners": "オーナー",
+  "Manage owners": "オーナーを管理",
+  "No owner": "オーナーなし",
+  "Business owner": "ビジネスオーナー",
+  "Technical owner": "技術オーナー",
+  "Accountable for the asset and decides on its risk": "資産に責任を持ち、そのリスクを判断します",
+  "Operates and patches the asset": "資産を運用し、パッチを適用します",
+  "Add an owner": "オーナーを追加",
+  "Ownership": "役割",
+  "An asset can have several owners of each kind.": "資産には種類ごとに複数のオーナーを設定できます。",
+  "Owner type": "オーナーの種類",
+  "Searched by name.": "名前で検索します。",
+  "Add owner": "オーナーを追加",
+  "Remove owner": "オーナーを削除",
+  "Sync": "同期",
+  "Created automatically.": "自動で作成されました。",
+  "Created automatically, last seen {date}": "自動で作成、最終確認 {date}"
 }

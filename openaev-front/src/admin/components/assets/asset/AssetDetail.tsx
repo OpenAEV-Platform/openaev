@@ -59,6 +59,7 @@ import InjectsPlayedOverTimeChart from '../statistics/InjectsPlayedOverTimeChart
 import PostureScoreOverTimeChart from '../statistics/PostureScoreOverTimeChart';
 import useExpectationPosture from '../useExpectationPosture';
 import AssetLinks from './AssetLinks';
+import AssetOwners from './AssetOwners';
 
 // The backend's EndpointOverviewOutput now also carries the AI target connection metadata and the
 // asset's markings; until the API types are regenerated (needs a backend restart) they are
@@ -448,6 +449,15 @@ const AssetDetail = () => {
                   )}
             </SectionBlock>
           </DetailSections>
+
+          {/* Owners (business and technical, persons or teams) belong to the same preview feature. */}
+          {graphEnabled && (
+            <AssetOwners
+              assetId={id}
+              assetName={asset.asset_name}
+              canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS)}
+            />
+          )}
 
           {/* Asset-to-asset links (hosts, uses, logged on...), both directions, read-only and
               compact; edited in the Manage links drawer only. The graph lives in the Graph tab. */}

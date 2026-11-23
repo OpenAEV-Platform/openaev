@@ -5200,5 +5200,22 @@
   "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.": "Verbinden Sie XTM One, um dieses Asset im CTEM-Inventar zu sehen: seine Kritikalität, Kategorie und jede Quelle, die es meldet.",
   "Open the connection guide to connect XTM One.": "Öffnen Sie die Verbindungsanleitung, um XTM One zu verbinden.",
   "Ask an administrator to connect XTM One to see this asset there.": "Bitten Sie einen Administrator, XTM One zu verbinden, um dieses Asset dort zu sehen.",
-  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "Sehen Sie dieses Asset im CTEM-Inventar von XTM One, mit jeder Quelle, die es meldet."
+  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "Sehen Sie dieses Asset im CTEM-Inventar von XTM One, mit jeder Quelle, die es meldet.",
+  "Owners": "Verantwortliche",
+  "Manage owners": "Verantwortliche verwalten",
+  "No owner": "Keine Verantwortlichen",
+  "Business owner": "Fachlich verantwortlich",
+  "Technical owner": "Technisch verantwortlich",
+  "Accountable for the asset and decides on its risk": "Verantwortet das Asset und entscheidet über sein Risiko",
+  "Operates and patches the asset": "Betreibt und patcht das Asset",
+  "Add an owner": "Verantwortliche hinzufügen",
+  "Ownership": "Rolle",
+  "An asset can have several owners of each kind.": "Ein Asset kann mehrere Verantwortliche jeder Art haben.",
+  "Owner type": "Art",
+  "Searched by name.": "Suche nach Name.",
+  "Add owner": "Hinzufügen",
+  "Remove owner": "Verantwortliche entfernen",
+  "Sync": "Synchronisierung",
+  "Created automatically.": "Automatisch erstellt.",
+  "Created automatically, last seen {date}": "Automatisch erstellt, zuletzt gesehen am {date}"
 }

@@ -5200,5 +5200,22 @@
   "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.": "XTM One을 연결하면 CTEM 인벤토리에서 이 자산의 중요도, 범주, 이를 보고하는 모든 소스를 볼 수 있습니다.",
   "Open the connection guide to connect XTM One.": "연결 가이드를 열어 XTM One을 연결하세요.",
   "Ask an administrator to connect XTM One to see this asset there.": "이 자산을 XTM One에서 보려면 관리자에게 XTM One 연결을 요청하세요.",
-  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "XTM One CTEM 인벤토리에서 이 자산과 이를 보고하는 모든 소스를 확인하세요."
+  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "XTM One CTEM 인벤토리에서 이 자산과 이를 보고하는 모든 소스를 확인하세요.",
+  "Owners": "소유자",
+  "Manage owners": "소유자 관리",
+  "No owner": "소유자 없음",
+  "Business owner": "비즈니스 소유자",
+  "Technical owner": "기술 담당자",
+  "Accountable for the asset and decides on its risk": "자산을 책임지고 위험을 결정합니다",
+  "Operates and patches the asset": "자산을 운영하고 패치합니다",
+  "Add an owner": "소유자 추가",
+  "Ownership": "역할",
+  "An asset can have several owners of each kind.": "자산에는 유형별로 여러 소유자를 둘 수 있습니다.",
+  "Owner type": "소유자 유형",
+  "Searched by name.": "이름으로 검색합니다.",
+  "Add owner": "소유자 추가",
+  "Remove owner": "소유자 제거",
+  "Sync": "동기화",
+  "Created automatically.": "자동으로 생성되었습니다.",
+  "Created automatically, last seen {date}": "자동 생성, 마지막 확인 {date}"
 }
