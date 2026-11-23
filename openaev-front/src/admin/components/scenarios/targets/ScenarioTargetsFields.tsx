@@ -1,21 +1,11 @@
-import {
-  Combobox,
-  ComboboxChips,
-  ComboboxClear,
-  ComboboxContent,
-  ComboboxControls,
-  ComboboxField,
-  ComboboxInput,
-  ComboboxLabel,
-  ComboboxTrigger,
-  Input,
-  Text,
-} from '@filigran/design-system';
-import { type FunctionComponent, useEffect, useState } from 'react';
+import { Input, Text } from '@filigran/design-system';
+import { useTheme } from '@mui/material/styles';
+import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 
 import { searchAssetGroups } from '../../../../actions/asset_groups/assetgroup-action';
 import { searchEndpoints } from '../../../../actions/assets/endpoint-actions';
 import { searchTeams } from '../../../../actions/teams/team-actions';
+import SearchAutocompleteField from '../../../../components/fields/SearchAutocompleteField';
 import { useFormatter } from '../../../../components/i18n';
 import {
   type AssetGroupOutput,
@@ -24,7 +14,9 @@ import {
   type TeamOutput,
 } from '../../../../utils/api-types';
 import { type Option } from '../../../../utils/Option';
-import { type ScenarioTargets } from './scenarioTargets';
+import { type ScenarioTargets, type TargetKind } from './scenarioTargets';
+import TargetKindIcon from './TargetKindIcon';
+import TargetsGroup from './TargetsGroup';
 
 // Every target of the tenant, not only those already used: the first page of the search by name.
 const searchAsOptions = <T, >(
@@ -36,18 +28,35 @@ const searchAsOptions = <T, >(
   textSearch: text,
 }).then(({ data }) => data.content.map(toOption));
 
+// Assets and asset groups share one field: their ids carry their kind.
+const ASSET = 'asset:';
+const ASSET_GROUP = 'asset-group:';
+
 const searchAssetOptions = searchAsOptions<EndpointOutput>(searchEndpoints, endpoint => ({
-  id: endpoint.asset_id,
+  id: ASSET + endpoint.asset_id,
   label: endpoint.asset_name,
 }));
 const searchAssetGroupOptions = searchAsOptions<AssetGroupOutput>(searchAssetGroups, group => ({
-  id: group.asset_group_id,
+  id: ASSET_GROUP + group.asset_group_id,
   label: group.asset_group_name,
 }));
+const searchAssetAndGroupOptions = (text: string) => Promise.all([searchAssetGroupOptions(text), searchAssetOptions(text)])
+  .then(([groups, assets]) => [...groups, ...assets]);
 const searchTeamOptions = searchAsOptions<TeamOutput>(searchTeams, team => ({
   id: team.team_id,
   label: team.team_name,
 }));
+
+const tagged = (kind: string, options: Option[]) => options.map(option => ({
+  ...option,
+  id: kind + option.id,
+}));
+const ofKind = (kind: string, options: Option[]) => options
+  .filter(option => option.id.startsWith(kind))
+  .map(option => ({
+    ...option,
+    id: option.id.substring(kind.length),
+  }));
 
 interface TargetFieldProps {
   label: string;
@@ -58,50 +67,71 @@ interface TargetFieldProps {
 
 const TargetField: FunctionComponent<TargetFieldProps> = ({ label, value, onChange, search }) => {
   const { t } = useFormatter();
-  const [options, setOptions] = useState<Option[]>([]);
-  const [inputValue, setInputValue] = useState('');
+  const [found, setFound] = useState<Option[]>([]);
+  const [text, setText] = useState('');
 
   useEffect(() => {
-    search(inputValue).then(setOptions).catch(() => setOptions([]));
-  }, [inputValue]);
+    search(text).then(setFound).catch(() => setFound([]));
+  }, [text]);
 
+  // The chosen targets stay among the options, so their chips keep their names whatever the search finds.
+  const options = [...value, ...found.filter(option => !value.some(chosen => chosen.id === option.id))];
   return (
-    <Combobox<Option>
+    <SearchAutocompleteField
       multiple
+      label={label}
+      labelPosition="none"
+      placeholder={t('Search')}
       options={options}
-      value={value}
-      getOptionLabel={option => option.label}
-      isOptionEqualToValue={(option, other) => option.id === other.id}
-      inputValue={inputValue}
-      onInputChange={(text, meta) => {
-        if (meta.cause === 'type') {
-          setInputValue(text);
-        }
-      }}
-      onValueChange={next => onChange(next as Option[])}
+      value={value.map(option => option.id)}
+      onChange={(ids: string[]) => onChange(ids.flatMap(id => options.filter(option => option.id === id)))}
+      onInputChange={setText}
+    />
+  );
+};
+
+interface TargetRowProps {
+  kind: TargetKind;
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+}
+
+// Label and field on the same grid in every row, so the fields line up.
+const TargetRow: FunctionComponent<TargetRowProps> = ({ kind, title, subtitle, children }) => {
+  const theme = useTheme();
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: `${theme.spacing(2.5)} minmax(0, 1fr) minmax(0, 1.4fr)`,
+      alignItems: 'center',
+      gap: theme.spacing(1.5),
+    }}
     >
-      <ComboboxLabel>{label}</ComboboxLabel>
-      <ComboboxField>
-        <ComboboxChips />
-        <ComboboxInput placeholder={t('Search')} />
-        <ComboboxControls>
-          <ComboboxClear />
-          <ComboboxTrigger />
-        </ComboboxControls>
-      </ComboboxField>
-      <ComboboxContent emptyMessage={t('No available options')} />
-    </Combobox>
+      <TargetKindIcon kind={kind} />
+      <div>
+        <Text variant="content-base-bold">{title}</Text>
+        <Text variant="content-caption" className="text-default-secondary">{subtitle}</Text>
+      </div>
+      {children}
+    </div>
   );
 };
 
 interface Props {
+  // How the chosen targets are applied, above the fields.
+  intro: string;
   value: ScenarioTargets;
   onChange: (value: ScenarioTargets) => void;
+  // The kinds the injects take; every kind when they are not known yet.
+  kinds?: TargetKind[];
 }
 
 // Each target goes to every inject that takes its kind; the targets already on the injects stay.
-const ScenarioTargetsFields: FunctionComponent<Props> = ({ value, onChange }) => {
+const ScenarioTargetsFields: FunctionComponent<Props> = ({ intro, value, onChange, kinds }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
+  const takes = (...wanted: TargetKind[]) => !kinds || wanted.some(kind => kinds.includes(kind));
   const change = (field: Partial<ScenarioTargets>) => onChange({
     ...value,
     ...field,
@@ -110,27 +140,45 @@ const ScenarioTargetsFields: FunctionComponent<Props> = ({ value, onChange }) =>
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      gap: 16,
+      gap: theme.spacing(1),
     }}
     >
-      <Text variant="content-caption">{t('Each target is added to every inject that takes its kind; the targets already set stay.')}</Text>
-      <TargetField label={t('Assets')} value={value.assets} onChange={assets => change({ assets })} search={searchAssetOptions} />
-      <TargetField label={t('Asset groups')} value={value.assetGroups} onChange={assetGroups => change({ assetGroups })} search={searchAssetGroupOptions} />
-      <TargetField label={t('Teams')} value={value.teams} onChange={teams => change({ teams })} search={searchTeamOptions} />
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 4,
-      }}
-      >
-        <Text variant="content-compact">{t('Manual targets')}</Text>
-        <Input
-          aria-label={t('Manual targets')}
-          placeholder="10.0.0.12, 10.20.0.0/24, app.example.com"
-          value={value.manual}
-          onChange={event => change({ manual: event.target.value })}
-        />
-      </div>
+      <Text variant="content-caption" className="text-default-secondary">{intro}</Text>
+      <TargetsGroup>
+        {takes('ASSETS', 'ASSET_GROUPS') && (
+          <TargetRow key="assets" kind="ASSETS" title={t('Assets and asset groups')} subtitle={t('Endpoint injects')}>
+            <TargetField
+              label={t('Assets and asset groups')}
+              value={[...tagged(ASSET_GROUP, value.assetGroups), ...tagged(ASSET, value.assets)]}
+              onChange={chosen => change({
+                assets: ofKind(ASSET, chosen),
+                assetGroups: ofKind(ASSET_GROUP, chosen),
+              })}
+              search={searchAssetAndGroupOptions}
+            />
+          </TargetRow>
+        )}
+        {takes('HOSTS') && (
+          <TargetRow key="manual" kind="HOSTS" title={t('Manual targets')} subtitle={t('Injects in manual targeting')}>
+            <Input
+              aria-label={t('Manual targets')}
+              placeholder="10.0.0.12, 10.20.0.0/24, app.example.com"
+              value={value.manual}
+              onChange={event => change({ manual: event.target.value })}
+            />
+          </TargetRow>
+        )}
+        {takes('TEAMS') && (
+          <TargetRow key="teams" kind="TEAMS" title={t('Teams and players')} subtitle={t('Human injects: mail, SMS, challenges')}>
+            <TargetField
+              label={t('Teams and players')}
+              value={value.teams}
+              onChange={teams => change({ teams })}
+              search={searchTeamOptions}
+            />
+          </TargetRow>
+        )}
+      </TargetsGroup>
     </div>
   );
 };

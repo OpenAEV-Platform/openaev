@@ -125,7 +125,8 @@ class CatalogAvailableSearchApiTest extends IntegrationTest {
       SCENARIO_TYPE_KEY + ", CHAINED, ransomware",
       PLATFORMS_KEY + ", Windows, ransomware",
       CATEGORY_KEY + ", attack-scenario, phishing",
-      AUTHOR_KEY + ", Filigran, phishing"
+      AUTHOR_KEY + ", Filigran, phishing",
+      "catalog_item_external_id, ransomware, ransomware"
     })
     @DisplayName("lists only the scenarios a filter matches")
     void given_filter_should_listMatchingScenarios(String key, String value, String expected)

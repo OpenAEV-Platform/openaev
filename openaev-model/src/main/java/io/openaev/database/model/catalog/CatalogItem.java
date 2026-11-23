@@ -48,6 +48,7 @@ public abstract class CatalogItem implements TenantBase, Auditable {
   /** Stable id of the content in its repository, the same across versions. */
   @Column(name = "catalog_item_external_id", updatable = false)
   @JsonProperty("catalog_item_external_id")
+  @Queryable(filterable = true)
   @NotBlank
   private String externalId;
 

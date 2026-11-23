@@ -36,17 +36,25 @@ public class CatalogConnectorService {
    * @return a list of catalog connector outputs with associated instance counts
    */
   public List<CatalogConnectorOutput> getCatalogConnectors() {
-    List<ConnectorInstancePersisted> instances = connectorInstanceService.connectorInstances();
-    return fromIterable(catalogConnectorRepository.findAll()).stream()
+    Map<String, Long> deployed = deployedInstanceCounts();
+    return findAll().stream()
         .map(
             c ->
                 catalogConnectorMapper.toCatalogConnectorOutput(
-                    c,
-                    Math.toIntExact(
-                        instances.stream()
-                            .filter(i -> i.getCatalogConnector().getId().equals(c.getId()))
-                            .count())))
+                    c, Math.toIntExact(deployed.getOrDefault(c.getId(), 0L))))
         .toList();
+  }
+
+  public List<CatalogConnector> findAll() {
+    return fromIterable(catalogConnectorRepository.findAll());
+  }
+
+  /** How many instances of each catalog connector the caller's tenants deploy, by its ID. */
+  public Map<String, Long> deployedInstanceCounts() {
+    return connectorInstanceService.connectorInstances().stream()
+        .collect(
+            Collectors.groupingBy(
+                instance -> instance.getCatalogConnector().getId(), Collectors.counting()));
   }
 
   /**

@@ -690,6 +690,8 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.catalog.scenario.CatalogScenarioApi#scenarioVersions",
           // exercises, injects: a scenario launched with targets for its simulation only.
           "io.openaev.api.scenario.ScenarioLaunchApi#launch",
+          // injects, payload_revocations, catalog_items: what a scenario launch meets.
+          "io.openaev.api.scenario.ScenarioLaunchCheckApi#launchCheck",
           // payload_revocations: a tenant admin revokes a payload version.
           "io.openaev.api.payload.PayloadRevocationApi#revoke",
           "io.openaev.api.payload.PayloadRevocationApi#lift",
