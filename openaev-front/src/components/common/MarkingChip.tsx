@@ -1,10 +1,11 @@
+import { Chip as FdsChip } from '@filigran/design-system';
 import { LensOutlined } from '@mui/icons-material';
 import { Chip, type ChipProps } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { type MarkingDefinitionOutput } from '../../utils/api-types';
 import { hexToRGB } from '../../utils/Colors';
-import { markingLabel } from '../../utils/markings';
+import { markingLabel, markingTone } from '../../utils/markings';
 import { truncate } from '../../utils/String';
 
 interface Props extends Omit<ChipProps, 'variant' | 'label' | 'icon' | 'sx'> {
@@ -20,6 +21,30 @@ interface Props extends Omit<ChipProps, 'variant' | 'label' | 'icon' | 'sx'> {
 // hands out) is passed through untouched.
 const MarkingChip: FunctionComponent<Props> = ({ marking, variant, maxLabelLength, ...chipProps }) => {
   const label = markingLabel(marking);
+  const shownLabel = (maxLabelLength ? truncate(label, maxLabelLength) : label) ?? label;
+  const tone = markingTone(marking);
+
+  // A predefined marking (TLP, PAP) is drawn in the tone every XTM Platform module uses for it,
+  // so a TLP:RED reads the same red in OpenAEV, OpenCTI, OpenCRQ and XTM One; the design system
+  // draws it pastel while the user's "Pastel colours" preference is on (the OpenAEV default).
+  if (tone) {
+    const { onDelete, tabIndex, className, disabled, onClick: _onClick, size: _size, color: _color, ...spanProps } = chipProps;
+    return (
+      <FdsChip
+        {...(spanProps as Record<string, unknown>)}
+        className={className}
+        disabled={disabled}
+        label={shownLabel}
+        severity={tone}
+        // Markings stay fully uppercase (`TLP:GREEN`), never the chip's capitalised label.
+        style={{ textTransform: 'none' }}
+        // The library's handler takes no event; the Autocomplete's reads none it needs.
+        onDelete={onDelete ? () => onDelete({} as never) : undefined}
+        deleteTabIndex={tabIndex}
+      />
+    );
+  }
+
   return (
     <Chip
       {...chipProps}
@@ -50,7 +75,7 @@ const MarkingChip: FunctionComponent<Props> = ({ marking, variant, maxLabelLengt
         'borderColor': marking.marking_definition_color,
         'backgroundColor': marking.marking_definition_color ? hexToRGB(marking.marking_definition_color) : undefined,
       }}
-      label={maxLabelLength ? truncate(label, maxLabelLength) : label}
+      label={shownLabel}
     />
   );
 };

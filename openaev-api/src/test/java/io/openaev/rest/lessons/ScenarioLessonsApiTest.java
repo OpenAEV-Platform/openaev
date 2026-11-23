@@ -1,6 +1,6 @@
 package io.openaev.rest.lessons;
 
-import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -106,8 +106,14 @@ class ScenarioLessonsApiTest extends IntegrationTest {
         .get();
   }
 
+  /**
+   * The tenant-prefixed route, the one the web app calls. A request narrows the scope of the
+   * transaction it joins, here the test's own, so the rows read after it are read in the scenario's
+   * tenant only when the route names it.
+   */
   private String categoryUri(String lessonsCategoryId) {
-    return SCENARIO_URI + "/" + scenarioId + "/lessons_categories/" + lessonsCategoryId;
+    return tenantUri(
+        TENANT_SCENARIO_URI + "/" + scenarioId + "/lessons_categories/" + lessonsCategoryId);
   }
 
   private String questionUri(String lessonsCategoryId, String lessonsQuestionId) {

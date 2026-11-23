@@ -5,8 +5,7 @@ import static io.openaev.database.audit.ModelBaseListener.DATA_UPDATE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
@@ -48,8 +47,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.concurrent.DelegatingSecurityContextExecutorService;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 
@@ -60,13 +57,7 @@ import org.springframework.test.context.event.RecordApplicationEvents;
 @WithMockUser(isAdmin = true)
 @RecordApplicationEvents
 @DisplayName("FindingRecordingService.recordFindingsByInject")
-class FindingRecordingServiceTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class FindingRecordingServiceTest extends ProductionTablesIntegrationTest {
 
   private static final Instant MONDAY = Instant.parse("2026-11-02T09:00:00Z");
   private static final Instant TUESDAY = Instant.parse("2026-11-03T09:00:00Z");

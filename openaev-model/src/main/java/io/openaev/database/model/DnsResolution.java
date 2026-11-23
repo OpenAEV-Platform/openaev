@@ -25,7 +25,7 @@ public class DnsResolution extends Payload {
   @JsonProperty("payload_type")
   private String type = DNS_RESOLUTION_TYPE;
 
-  @Hashed
+  @Hashed(change = Hashed.Change.MINOR)
   @Queryable(filterable = true, sortable = true)
   @Column(name = "dns_resolution_hostname")
   @JsonProperty("dns_resolution_hostname")

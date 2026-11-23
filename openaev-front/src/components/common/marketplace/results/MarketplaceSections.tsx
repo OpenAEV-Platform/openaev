@@ -1,5 +1,5 @@
 import { Card, CardFooter, CardHeader, CardTitle, SkeletonGroup, Thumbnail } from '@filigran/design-system';
-import { Box } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type ReactNode } from 'react';
 
 import { useFormatter } from '../../../i18n';
@@ -7,11 +7,16 @@ import groupSections from './groupSections';
 import MarketplaceGrid from './MarketplaceGrid';
 import MarketplaceSectionHeader from './MarketplaceSectionHeader';
 
-interface Props<T> {
-  items: T[];
+export interface Sections<T> {
   sectionKey: (item: T) => string | undefined;
   sectionLabel: (key: string | undefined) => string;
   sectionIcon: (key: string | undefined) => ReactNode;
+}
+
+interface Props<T> {
+  items: T[];
+  // Without sections, the items fill one grid.
+  sections?: Sections<T>;
   renderItem: (item: T) => ReactNode;
   emptyState: ReactNode;
   loading?: boolean;
@@ -19,14 +24,13 @@ interface Props<T> {
 
 const MarketplaceSections = <T, >({
   items,
-  sectionKey,
-  sectionLabel,
-  sectionIcon,
+  sections,
   renderItem,
   emptyState,
   loading = false,
 }: Props<T>) => {
   const { t } = useFormatter();
+  const theme = useTheme();
   if (loading) {
     return (
       <SkeletonGroup loading label={t('Loading')}>
@@ -46,28 +50,30 @@ const MarketplaceSections = <T, >({
   if (items.length === 0) {
     return <>{emptyState}</>;
   }
+  if (!sections) {
+    return <MarketplaceGrid>{items.map(renderItem)}</MarketplaceGrid>;
+  }
   return (
-    <Box sx={{
+    <div style={{
       display: 'flex',
       flexDirection: 'column',
-      gap: 2,
+      gap: theme.spacing(2),
     }}
     >
-      {groupSections(items, sectionKey).map(section => (
-        <Box
-          component="section"
+      {groupSections(items, sections.sectionKey).map(section => (
+        <section
           key={section.key ?? 'other'}
-          sx={{
+          style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 1.5,
+            gap: theme.spacing(1.5),
           }}
         >
-          <MarketplaceSectionHeader icon={sectionIcon(section.key)} label={sectionLabel(section.key)} count={section.items.length} />
+          <MarketplaceSectionHeader icon={sections.sectionIcon(section.key)} label={sections.sectionLabel(section.key)} count={section.items.length} />
           <MarketplaceGrid>{section.items.map(renderItem)}</MarketplaceGrid>
-        </Box>
+        </section>
       ))}
-    </Box>
+    </div>
   );
 };
 

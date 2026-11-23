@@ -1,8 +1,10 @@
 package io.openaev.service;
 
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ResourceType;
 import io.openaev.notification.handler.NotificationEventHandler;
 import io.openaev.notification.handler.ScenarioNotificationEventHandler;
+import io.openaev.notification.handler.SimulationNotificationEventHandler;
 import io.openaev.notification.model.NotificationEvent;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -12,6 +14,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
@@ -28,13 +31,22 @@ public class NotificationEventService {
   @Autowired
   public NotificationEventService(
       ApplicationEventPublisher appPublisher,
-      ScenarioNotificationEventHandler scenarioNotificationEventHandler,
+      // Lazy: both handlers read exercises through ExerciseService, which reaches
+      // WorkflowEndService, which sends the completed event through this service; a lazy proxy
+      // breaks that bean cycle (the handlers only run when an event is handled).
+      @Lazy ScenarioNotificationEventHandler scenarioNotificationEventHandler,
+      @Lazy SimulationNotificationEventHandler simulationNotificationEventHandler,
       ThreadPoolTaskScheduler taskScheduler) {
 
     this.appPublisher = appPublisher;
     this.scenarioNotificationEventHandler = scenarioNotificationEventHandler;
     this.taskScheduler = taskScheduler;
-    this.handlers = Map.of(ResourceType.SCENARIO, scenarioNotificationEventHandler);
+    this.handlers =
+        Map.of(
+            ResourceType.SCENARIO,
+            scenarioNotificationEventHandler,
+            ResourceType.SIMULATION,
+            simulationNotificationEventHandler);
   }
 
   public void sendNotificationEvent(@NotNull final NotificationEvent notificationEvent) {
@@ -52,6 +64,19 @@ public class NotificationEventService {
     taskScheduler.schedule(
         () -> sendNotificationEvent(notificationEvent),
         Instant.now().plus(delay, ChronoUnit.SECONDS));
+  }
+
+  /**
+   * Sends {@code SIMULATION_COMPLETED} on the simulation itself, a few seconds later so the
+   * transaction that finished it has committed. Its handler reads nothing unless a trigger of the
+   * tenant listens to an event it fires.
+   *
+   * @param simulation the finished simulation
+   */
+  public void sendSimulationCompleted(@NotNull final Exercise simulation) {
+    sendNotificationEventWithDelay(
+        SimulationNotificationEventHandler.completedEvent(simulation),
+        SimulationNotificationEventHandler.COMMIT_DELAY_SECONDS);
   }
 
   @EventListener

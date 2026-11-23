@@ -4,8 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
@@ -20,8 +19,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -35,16 +32,10 @@ import org.springframework.transaction.annotation.Transactional;
 @WithoutTenantScope
 @Import(PlatformWriteMarkerScopeTest.Fixture.class)
 @DisplayName("the platform-write marker is scoped to the method that sets it")
-class PlatformWriteMarkerScopeTest extends IntegrationTest {
+class PlatformWriteMarkerScopeTest extends ProductionTablesIntegrationTest {
 
   private static final String NESTED_KEY = "marker-scope-test-written-by-the-nested-method";
   private static final String OUTER_KEY = "marker-scope-test-written-by-the-outer-method";
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private Outer outer;
   @Autowired private SettingRepository settingRepository;

@@ -24,6 +24,8 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
+import io.openaev.service.settings.RuntimeSetting;
+import io.openaev.service.settings.RuntimeSettingsService;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetAgentJobFixture;
 import io.openaev.utils.mapper.EndpointMapper;
@@ -43,7 +45,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class EndpointServiceTest {
@@ -60,12 +61,18 @@ class EndpointServiceTest {
   @Mock private EndpointMapper endpointMapper;
   @Mock private AgentServiceAccountPrivilegeService privilegeService;
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private RuntimeSettingsService runtimeSettingsService;
 
   @InjectMocks private EndpointService endpointService;
 
   @BeforeEach
   void setUp() {
-    ReflectionTestUtils.setField(endpointService, "maxSimultaneousJobs", MAX_SIMULTANEOUS_JOBS);
+    org.mockito.Mockito.lenient()
+        .when(runtimeSettingsService.intValue(RuntimeSetting.AGENT_MAX_SIMULTANEOUS_JOBS))
+        .thenReturn(MAX_SIMULTANEOUS_JOBS);
+    org.mockito.Mockito.lenient()
+        .when(runtimeSettingsService.booleanValue(RuntimeSetting.AGENT_AUTO_UPDATE_ENABLED))
+        .thenReturn(true);
   }
 
   @Nested

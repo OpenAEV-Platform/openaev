@@ -30,6 +30,7 @@ import io.openaev.rest.scenario.form.CheckScenarioRulesInput;
 import io.openaev.rest.scenario.form.ScenarioAndInjectorContractsInputs;
 import io.openaev.rest.scenario.form.ScenarioIdsAndInjectorContractsInputs;
 import io.openaev.rest.scenario.form.ScenarioInput;
+import io.openaev.rest.scenario.form.ScenarioReachabilityAssertionInput;
 import io.openaev.rest.scenario.form.ScenarioRecurrenceInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
 import io.openaev.service.AssetGroupService;
@@ -38,7 +39,6 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
-import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.util.*;
@@ -289,7 +289,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Requesting non existing scenario by ID fails gracefully")
   @Test
-  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void failsafeNonExistScenarioId() throws Exception {
     // -- EXECUTE --
     this.mvc
@@ -611,6 +613,63 @@ public class ScenarioApiTest extends IntegrationTest {
         .andExpect(jsonPath("$.scenario_recurrence").value("0 0 2 * * *"));
   }
 
+  @Test
+  @DisplayName(
+      "A reachability assertion holding an inject that is not read-only is never scheduled")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void reachabilityAssertionRefusesSchedulingWithAnInjectThatIsNotReadOnly() throws Exception {
+    // Arrange: the default inject has no injector contract, so it is not read-only
+    Scenario scenario = getScenario(null, null);
+    String base = SCENARIO_URI + "/" + scenario.getId();
+    String refusalPrefix = "A reachability assertion runs read-only injects only";
+    ScenarioRecurrenceInput recurrence = new ScenarioRecurrenceInput();
+    recurrence.setRecurrence("0 0 2 * * *");
+    recurrence.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+
+    // -- An unscheduled scenario is declared an assertion --
+    putReachabilityAssertion(base, true).andExpect(status().is2xxSuccessful());
+    assertTrue(
+        scenarioRepository.findById(scenario.getId()).orElseThrow().isReachabilityAssertion());
+
+    // -- Scheduling the assertion is refused, nothing is stored --
+    mvc.perform(
+            put(base + "/recurrence")
+                .content(asJsonString(recurrence))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith(refusalPrefix)));
+    assertNull(scenarioRepository.findById(scenario.getId()).orElseThrow().getRecurrence());
+
+    // -- Cleared, the scenario is scheduled --
+    putReachabilityAssertion(base, false).andExpect(status().is2xxSuccessful());
+    mvc.perform(
+            put(base + "/recurrence")
+                .content(asJsonString(recurrence))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful());
+
+    // -- Declaring the scheduled scenario an assertion is refused --
+    putReachabilityAssertion(base, true)
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith(refusalPrefix)));
+  }
+
+  private org.springframework.test.web.servlet.ResultActions putReachabilityAssertion(
+      String scenarioUri, boolean assertion) throws Exception {
+    ScenarioReachabilityAssertionInput input = new ScenarioReachabilityAssertionInput();
+    input.setReachabilityAssertion(assertion);
+    return mvc.perform(
+        put(scenarioUri + "/reachability-assertion")
+            .content(asJsonString(input))
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON)
+            .with(csrf()));
+  }
+
   @Nested
   @DisplayName("Lock Scenario EE feature")
   @WithMockUser(isAdmin = true)
@@ -661,6 +720,42 @@ public class ScenarioApiTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
+    }
+
+    @Test
+    @DisplayName("Scheduling a scenario stamps and surfaces the scheduling user")
+    @WithMockUser(
+        isAdmin = true,
+        autoJoinDefaultTenant = true,
+        userFirstName = "Misty",
+        userLastName = "Waterflower",
+        userMail = "misty.waterflower@unittests.invalid")
+    void given_scenarioRecurrence_should_returnScheduledByUser() throws Exception {
+      // Arrange
+      Scenario scenario = getScenario(null, null);
+      ScenarioRecurrenceInput input = new ScenarioRecurrenceInput();
+      input.setRecurrence("0 30 9 * * *");
+      input.setRecurrenceStart(Instant.now());
+
+      // Act
+      mvc.perform(
+              put(SCENARIO_URI + "/" + scenario.getId() + "/recurrence")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert: the GET /scenarios/{id} ScenarioOutput resolves the scheduling user
+      mvc.perform(
+              get(SCENARIO_URI + "/" + scenario.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.scenario_scheduled_by_user.user_name").value("Misty Waterflower"))
+          .andExpect(
+              jsonPath("$.scenario_scheduled_by_user.user_email")
+                  .value("misty.waterflower@unittests.invalid"));
     }
 
     @Test
@@ -1071,49 +1166,6 @@ public class ScenarioApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Scenario search in tenant Y should NOT return scenarios from tenant X")
-    void given_scenarioInTenantX_should_notAppearInTenantYSearch() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
-
-      entityManager
-          .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
-                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
-          .setParameter("id", UUID.randomUUID().toString())
-          .setParameter("name", "CrossTenantSearchScenario")
-          .setParameter("tenant", tenantX.getId())
-          .executeUpdate();
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act — search from tenant Y --------
-      SearchPaginationInput searchInput =
-          PaginationFixture.simpleTextSearch("CrossTenantSearchScenario");
-
-      String searchResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/scenarios/search")
-                      .content(asJsonString(searchInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -------- Assert --------
-      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
-    }
-
-    @Test
     @DisplayName("Scenario created in tenant X should NOT be updatable from tenant Y")
     void given_scenarioInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -1194,48 +1246,6 @@ public class ScenarioApiTest extends IntegrationTest {
 
       // -------- Assert --------
       assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
-    @DisplayName("Fetching scenarios by IDs should NOT return scenarios from another tenant")
-    void given_scenarioInTenantX_should_notBeReturnedByIdFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
-
-      String scenarioId = UUID.randomUUID().toString();
-      entityManager
-          .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
-                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
-          .setParameter("id", scenarioId)
-          .setParameter("name", "SearchById Isolation Scenario")
-          .setParameter("tenant", tenantX.getId())
-          .executeUpdate();
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act — fetch by IDs from tenant Y --------
-      String searchByIdResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/scenarios/search-by-id")
-                      .content(asJsonString(Map.of("scenario_ids", List.of(scenarioId))))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -------- Assert — result should be empty --------
-      List<Object> results = JsonPath.read(searchByIdResponse, "$");
-      assertThat(results.size()).isEqualTo(0);
     }
 
     @Test

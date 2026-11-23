@@ -49,6 +49,7 @@ const contracts: CredentialContractOutput[] = [
     fields: [
       resetField('azure_client_secret'),
       endpointField('azure_authority_host_uri'),
+      endpointField('azure_scope'),
       optionalField('azure_requests_certificate', 'file', undefined, CERTIFICATE_FORMATS),
     ],
   },
@@ -202,16 +203,20 @@ describe('CredentialForm', () => {
       credential_auth_method: 'AZURE_SERVICE_PRINCIPAL',
       azure_client_secret: DOTS,
       azure_authority_host_uri: 'https://login.stored.local/',
+      azure_scope: 'https://management.stored.local/.default',
     } as const;
 
-    it('empties the untouched client secret when the authority host changes', async () => {
+    it.each([
+      [/Authority host URI/, 'https://login.mock.local/'],
+      [/Scope/, 'https://management.mock.local/.default'],
+    ])('empties the untouched client secret when %s changes', async (label, newValue) => {
       // Arrange
       renderForm(azureValues, true);
       const secretInput = await screen.findByLabelText(/Client secret/) as HTMLInputElement;
       expect(secretInput.value).toBe(DOTS);
 
       // Act
-      fireEvent.change(screen.getByLabelText(/Authority host URI/), { target: { value: 'https://login.mock.local/' } });
+      fireEvent.change(screen.getByLabelText(label), { target: { value: newValue } });
 
       // Assert
       await waitFor(() => expect(secretInput.value).toBe(''));

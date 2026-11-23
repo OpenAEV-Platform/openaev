@@ -26,6 +26,7 @@ import ChatbotProvider from './components/ariane/ChatbotProvider';
 import { useChatbotContentMargin, useChatbotContentTransition } from './components/ariane/useChatbotHooks';
 import { GETTING_STARTED_LOCAL_STORAGE_KEY } from './components/getting_started/GettingStartedPage';
 import GettingStartedRoutes, { GETTING_STARTED_URI } from './components/getting_started/GettingStartedRoutes';
+import { ASSESSMENT_ACCESS_CHECKS } from './components/nav/config/assessment.config';
 import { SETTINGS_ACCESS_CHECKS } from './components/nav/config/settings.config';
 import LeftBar from './components/nav/LeftBar';
 import NewsFeedToastManager from './components/nav/NewsFeedToastManager';
@@ -42,6 +43,7 @@ const ProfileNewsFeed = lazy(() => import('./components/profile/news_feed/NewsFe
 const FullTextSearch = lazy(() => import('./components/search/FullTextSearch'));
 const Findings = lazy(() => import('./components/findings/Findings'));
 const FindingOverview = lazy(() => import('./components/findings/FindingOverview'));
+const Graph = lazy(() => import('./components/graph/Graph'));
 const Exercises = lazy(() => import('./components/simulations/Simulations'));
 const IndexExercise = lazy(() => import('./components/simulations/simulation/Index'));
 const SimulationInjectCreation = lazy(() => import('./components/simulations/simulation/injects/SimulationInjectCreationRoute'));
@@ -50,6 +52,7 @@ const AtomicTestingCreation = lazy(() => import('./components/atomic_testings/At
 const IndexAtomicTesting = lazy(() => import('./components/atomic_testings/atomic_testing/Index'));
 const Scenarios = lazy(() => import('./components/scenarios/Scenarios'));
 const IndexScenario = lazy(() => import('./components/scenarios/scenario/Index'));
+const ScenariosAvailable = lazy(() => import('./components/scenarios/catalog/ScenariosAvailable'));
 const AutonomousRun = lazy(() => import('./components/autonomous/AutonomousRun'));
 const Endpoints = lazy(() => import('./components/assets/endpoints/Endpoints'));
 const AssetDetail = lazy(() => import('./components/assets/asset/AssetDetail'));
@@ -70,6 +73,7 @@ const IndexCustomDashboard = lazy(() => import('./components/workspaces/custom_d
 const IndexReporting = lazy(() => import('./components/reporting/Index'));
 const IndexSettings = lazy(() => import('./components/settings/Index'));
 const ThreatArsenal = lazy(() => import('./components/threat_arsenal/ThreatArsenal'));
+const ThreatArsenalAvailable = lazy(() => import('./components/threat_arsenal/catalog/ThreatArsenalAvailable'));
 const Credentials = lazy(() => import('./components/assets/credentials/Credentials'));
 const CredentialDetail = lazy(() => import('./components/assets/credentials/CredentialDetailPage'));
 
@@ -116,6 +120,8 @@ const Index = () => {
   const chatbotMargin = useChatbotContentMargin();
   const chatbotTransition = useChatbotContentTransition(theme);
   const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+  const isCatalogEnabled = isFeatureEnabled('CATALOG');
+  const isExplorationGraphEnabled = isFeatureEnabled('EXPLORATION_GRAPH');
 
   const { currentUserTenant } = useAuth();
 
@@ -181,9 +187,25 @@ const Index = () => {
             <Route path="profile/news-feed" element={errorWrapper(ProfileNewsFeed)({ tab: 'items' })} />
             <Route path="profile/news-feed/settings" element={errorWrapper(ProfileNewsFeed)({ tab: 'settings' })} />
             <Route path="profile/*" element={errorWrapper(IndexProfile)()} />
+            {/* Home guards itself: the capability depends on which home dashboard it resolves */}
             <Route path="" element={errorWrapper(Home)()} />
             <Route path="results" element={errorWrapper(DashboardResults)()} />
             <Route path="fulltextsearch" element={errorWrapper(FullTextSearch)()} />
+            {/* The Graph page exists only with the exploration graph preview feature on. */}
+            {isExplorationGraphEnabled && (
+              <Route
+                path="graph"
+                element={(
+                  <ProtectedRoute
+                    checks={[{
+                      action: ACTIONS.ACCESS,
+                      subject: SUBJECTS.ASSETS,
+                    }]}
+                    Component={errorWrapper(Graph)()}
+                  />
+                )}
+              />
+            )}
             <Route
               path="findings"
               element={(
@@ -208,7 +230,15 @@ const Index = () => {
                 />
               )}
             />
-            <Route path="simulations" element={errorWrapper(Exercises)()} />
+            <Route
+              path="simulations"
+              element={(
+                <ProtectedRoute
+                  checks={ASSESSMENT_ACCESS_CHECKS}
+                  Component={errorWrapper(Exercises)()}
+                />
+              )}
+            />
             {/* Inject creation is a full-page flow and MUST be declared before the
                 inject-detail route below: `injects/:injectId/*` would otherwise
                 capture `injects/create` (injectId="create") and mount the detail
@@ -278,7 +308,15 @@ const Index = () => {
                 />
               )}
             />
-            <Route path="atomic_testings" element={errorWrapper(AtomicTestings)()} />
+            <Route
+              path="atomic_testings"
+              element={(
+                <ProtectedRoute
+                  checks={ASSESSMENT_ACCESS_CHECKS}
+                  Component={errorWrapper(AtomicTestings)()}
+                />
+              )}
+            />
             {/* Creation requires the same Manage Assessment capability as the create button. */}
             <Route
               path="atomic_testings/create"
@@ -320,7 +358,26 @@ const Index = () => {
                 />
               )}
             />
-            <Route path="scenarios" element={errorWrapper(Scenarios)()} />
+            <Route
+              path="scenarios"
+              element={(
+                <ProtectedRoute
+                  checks={ASSESSMENT_ACCESS_CHECKS}
+                  Component={errorWrapper(Scenarios)()}
+                />
+              )}
+            />
+            {isCatalogEnabled && (
+              <Route
+                path="scenarios/available"
+                element={(
+                  <ProtectedRoute
+                    checks={ASSESSMENT_ACCESS_CHECKS}
+                    Component={errorWrapper(ScenariosAvailable)()}
+                  />
+                )}
+              />
+            )}
             <Route
               path="autonomous/:runId"
               element={(
@@ -467,13 +524,13 @@ const Index = () => {
                 "teams" parent segment). Static back-compat aliases below rank
                 above the dynamic ":teamId" route in React Router. */}
             <Route path="persons" element={errorWrapper(Persons)()} />
-            <Route path="persons/:userId" element={errorWrapper(PersonDetail)()} />
+            <Route path="persons/:userId/*" element={errorWrapper(PersonDetail)()} />
             <Route path="teams" element={errorWrapper(TeamsList)()} />
             <Route path="teams/persons" element={<Navigate to="/admin/persons" replace={true} />} />
             <Route path="teams/players" element={<Navigate to="/admin/persons" replace={true} />} />
             <Route path="teams/teams" element={<Navigate to="/admin/teams" replace={true} />} />
             <Route path="teams/organizations" element={<Navigate to="/admin/organizations" replace={true} />} />
-            <Route path="teams/:teamId" element={errorWrapper(TeamDetail)()} />
+            <Route path="teams/:teamId/*" element={errorWrapper(TeamDetail)()} />
             <Route
               path="organizations"
               element={(
@@ -487,7 +544,7 @@ const Index = () => {
               )}
             />
             <Route
-              path="organizations/:organizationId"
+              path="organizations/:organizationId/*"
               element={(
                 <ProtectedRoute
                   checks={[{
@@ -527,6 +584,12 @@ const Index = () => {
               path="threat-arsenal"
               element={errorWrapper(ThreatArsenal)()}
             />
+            {isCatalogEnabled && (
+              <Route
+                path="threat-arsenal/available"
+                element={errorWrapper(ThreatArsenalAvailable)()}
+              />
+            )}
             <Route
               path="integrations/*"
               element={(

@@ -43,6 +43,7 @@ import lombok.Builder;
  * @param gcpCustomIamUri optional IAM endpoint override for GCP_OAUTH2
  * @param gcpCustomOauthAccessToken optional OAuth access token for GCP_OAUTH2
  * @param azureAuthorityHostUri optional authority host override, for both Azure auth methods
+ * @param azureScope optional scope a token is requested for, for both Azure auth methods
  * @param azureRequestsCertificate raw content of the uploaded certificate file, for both Azure auth
  *     methods; null means "left untouched by the client"
  */
@@ -85,4 +86,5 @@ public record SecretStoreRequest(
     String gcpCustomIamUri,
     String gcpCustomOauthAccessToken,
     String azureAuthorityHostUri,
+    String azureScope,
     byte[] azureRequestsCertificate) {}

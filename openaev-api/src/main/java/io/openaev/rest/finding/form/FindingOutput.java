@@ -5,6 +5,7 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ContractOutputType;
+import io.openaev.database.model.FindingStatus;
 import io.openaev.rest.asset_group.form.AssetGroupSimple;
 import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.rest.scenario.form.ScenarioSimple;
@@ -74,6 +75,22 @@ public class FindingOutput {
   @JsonProperty("finding_updated_at")
   @NotNull
   private Instant updateDate;
+
+  @Schema(description = "Lifecycle status: OPEN, NOT_REPRODUCED or RESOLVED")
+  @JsonProperty("finding_status")
+  private FindingStatus status;
+
+  @Schema(description = "When a re-test last ended on the finding")
+  @JsonProperty("finding_last_tested")
+  private Instant lastTested;
+
+  @Schema(description = "Inject whose run set the current status (a detection or a re-test)")
+  @JsonProperty("finding_status_inject_id")
+  private String statusInjectId;
+
+  @Schema(description = "Re-test inject queued and not finished yet")
+  @JsonProperty("finding_retest_inject_id")
+  private String retestInjectId;
 
   @Schema(description = "Asset ids linked to the finding")
   @JsonProperty("finding_assets")

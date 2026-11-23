@@ -20,7 +20,9 @@ import {
   type LessonsQuestionUpdateInput, type Pagination,
   type Scenario, type ScenarioAndInjectorContractsInputs, type ScenarioBulkProcessingInput, type ScenarioIdsAndInjectorContractsInputs,
   type ScenarioInput,
+  type ScenarioLaunchOutput,
   type ScenarioRecurrenceInput,
+  type ScenarioTargetsInput,
   type ScenarioTeamPlayersEnableInput,
   type SearchPaginationInput,
   type Team,
@@ -61,6 +63,8 @@ export const searchScenarios = (paginationInput: SearchPaginationInput) => {
   const uri = '/api/scenarios/search';
   return simplePostCall(uri, data);
 };
+
+export const fetchScenarioAuthorOptions = () => simpleCall('/api/scenarios/authors/options');
 
 export const fetchScenario = (scenarioId: string) => (dispatch: Dispatch) => {
   const uri = `${SCENARIO_URI}/${scenarioId}`;
@@ -119,10 +123,8 @@ export const duplicateScenario = (scenarioId: string) => (dispatch: Dispatch) =>
 
 // -- SCENARIO TO EXERCISE
 
-export const createRunningExerciseFromScenario = (scenarioId: string) => {
-  const uri = `${SCENARIO_URI}/${scenarioId}/exercise/running`;
-  return simplePostCall(uri);
-};
+export const launchScenario = (scenarioId: string, targets?: ScenarioTargetsInput): Promise<ScenarioLaunchOutput> => simplePostCall(`${SCENARIO_URI}/${scenarioId}/exercise/running`, targets)
+  .then(({ data }: { data: ScenarioLaunchOutput }) => data);
 
 // -- TEAMS --
 

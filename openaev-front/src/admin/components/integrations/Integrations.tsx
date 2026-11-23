@@ -1,9 +1,10 @@
-import { Alert } from '@mui/material';
+import { Alert, Button } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Navigate, useParams } from 'react-router';
+import { useLocalStorage } from 'usehooks-ts';
 
-import { fetchCatalogConnectors, isXtmComposerIsReachable } from '../../../actions/catalog/catalog-actions';
+import { fetchCatalogConnectors } from '../../../actions/catalog/catalog-actions';
 import { type CatalogConnectorsHelper } from '../../../actions/catalog/catalog-helper';
 import MarketplaceHero from '../../../components/common/marketplace/page/MarketplaceHero';
 import MarketplaceTabs from '../../../components/common/marketplace/page/MarketplaceTabs';
@@ -14,6 +15,7 @@ import { type CatalogConnectorOutput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
+import useXtmComposerReachable from './common/useXtmComposerReachable';
 
 const Catalog = lazy(() => import('./catalog_connectors/Catalog'));
 const DeployedConnectors = lazy(() => import('./deployed/DeployedConnectors'));
@@ -35,19 +37,9 @@ const Integrations = () => {
   const { tab } = useParams() as { tab?: string };
 
   const [loading, setLoading] = useState<boolean>(true);
-  // null = reachability probe still in flight; the warning must not flash while unknown.
-  const [isXtmComposerUp, setIsXtmComposerUp] = useState<boolean | null>(null);
+  const isXtmComposerUp = useXtmComposerReachable();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
-
-  // The Integration Manager warning is dismissible; the choice is persisted so
-  // it stays hidden across navigations and reloads.
-  const [warningDismissed, setWarningDismissed] = useState<boolean>(
-    () => localStorage.getItem(INTEGRATION_MANAGER_WARNING_DISMISSED) === 'true',
-  );
-  const dismissWarning = () => {
-    localStorage.setItem(INTEGRATION_MANAGER_WARNING_DISMISSED, 'true');
-    setWarningDismissed(true);
-  };
+  const [warningDismissed, setWarningDismissed] = useLocalStorage<boolean>(INTEGRATION_MANAGER_WARNING_DISMISSED, false);
 
   const { catalogConnectors }: { catalogConnectors: CatalogConnectorOutput[] } = useHelper(
     (helper: CatalogConnectorsHelper) => ({ catalogConnectors: helper.getCatalogConnectors() }),
@@ -56,11 +48,6 @@ const Integrations = () => {
   useDataLoader(() => {
     dispatch(fetchCatalogConnectors()).finally(() => setLoading(false));
   });
-  useEffect(() => {
-    isXtmComposerIsReachable()
-      .then(({ data }) => setIsXtmComposerUp(data))
-      .catch(() => setIsXtmComposerUp(false));
-  }, []);
 
   if (!tab || !TABS.includes(tab as IntegrationsTab)) {
     return <Navigate to="../deployed" replace />;
@@ -76,17 +63,23 @@ const Integrations = () => {
     >
       {isEnterpriseEdition && isXtmComposerUp === false && !warningDismissed
         && (
-          <Alert severity="warning" onClose={dismissWarning}>
-            {t('Some deployment requires the installation of our')}
-            &nbsp;
-            <a
-              href="https://docs.openaev.io/latest/deployment/ecosystem/integration-manager/overview/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              {t('Integration Manager')}
-            </a>
-          </Alert>
+          <Alert
+            severity="warning"
+            title={(
+              <>
+                {t('Some deployment requires the installation of our')}
+                &nbsp;
+                <a
+                  href="https://docs.openaev.io/latest/deployment/ecosystem/integration-manager/overview/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {t('Integration Manager')}
+                </a>
+              </>
+            )}
+            action={<Button type="button" priority="secondary" size="sm" onClick={() => setWarningDismissed(true)}>{t('Dismiss')}</Button>}
+          />
         )}
       <MarketplaceHero
         title={t('Integrations')}

@@ -1,10 +1,10 @@
 package io.openaev.api.catalog.scenario;
 
-import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
+import static io.openaev.api.catalog.CatalogRoutes.TENANT_CATALOG_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.api.catalog.CatalogFeature;
+import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.api.catalog.CatalogItemMapper;
 import io.openaev.api.catalog.dto.CatalogInstallAllOutput;
 import io.openaev.api.catalog.dto.CatalogInstallOutput;
@@ -13,6 +13,7 @@ import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.catalog.scenario.CatalogScenarioInstaller;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -28,12 +29,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Adds catalogue scenarios to the tenant; deleting one uninstalls it. */
 @RestController
+@RequirePreviewFeature(PreviewFeature.CATALOG)
 @RequiredArgsConstructor
 public class CatalogScenarioInstallApi {
 
   private final CatalogScenarioInstaller catalogScenarioInstaller;
   private final TenantWriteScopeResolver writeScopeResolver;
-  private final CatalogFeature catalogFeature;
   private final CatalogItemMapper catalogItemMapper;
 
   // -- CREATE --
@@ -53,7 +54,6 @@ public class CatalogScenarioInstallApi {
       @PathVariable String version,
       @Valid @RequestBody(required = false) CatalogScenarioInstallInput input)
       throws Exception {
-    catalogFeature.require();
     return new CatalogInstallOutput(
         catalogScenarioInstaller
             .install(
@@ -61,7 +61,8 @@ public class CatalogScenarioInstallApi {
                 writeScopeResolver.tenantForWrite(ctx, null),
                 externalId,
                 version,
-                CatalogScenarioInstallMapper.toChoice(input))
+                // No body: the service applies the empty choice of the scenario's own type.
+                input == null ? null : input.toChoice())
             .getId());
   }
 
@@ -74,7 +75,6 @@ public class CatalogScenarioInstallApi {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   @Transactional(propagation = Propagation.SUPPORTS)
   public CatalogInstallAllOutput installAllScenarios(TxCtx ctx) {
-    catalogFeature.require();
     return catalogItemMapper.toOutput(
         catalogScenarioInstaller.installAll(ctx, writeScopeResolver.tenantForWrite(ctx, null)));
   }

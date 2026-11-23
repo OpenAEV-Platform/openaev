@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import io.openaev.database.audit.ModelBaseListener;
@@ -12,6 +13,8 @@ import java.util.HashSet;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
@@ -23,6 +26,8 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "catalog_connectors")
 @EntityListeners(ModelBaseListener.class)
 public class CatalogConnector implements Base {
+
+  // -- IDENTITY --
 
   @Id
   @NotNull
@@ -44,6 +49,8 @@ public class CatalogConnector implements Base {
   @Schema(description = "Connector slug")
   private String slug;
 
+  // -- DESCRIPTION --
+
   @Column(name = "catalog_connector_description")
   @JsonProperty("catalog_connector_description")
   @Schema(description = "Connector description")
@@ -64,6 +71,8 @@ public class CatalogConnector implements Base {
   @JsonProperty("catalog_connector_use_cases")
   @Schema(description = "Connector use cases")
   private Set<String> useCases = new HashSet<>();
+
+  // -- SUPPORT --
 
   // Fixes a bug due to a new version of jackson and lombok
   // cf: https://github.com/projectlombok/lombok/issues/3978
@@ -114,6 +123,8 @@ public class CatalogConnector implements Base {
   @Schema(description = "Connector manager supported")
   private boolean isManagerSupported;
 
+  // -- CONTAINER --
+
   @Column(name = "catalog_connector_container_version")
   @JsonProperty("catalog_connector_container_version")
   @Schema(description = "Connector container version")
@@ -136,6 +147,8 @@ public class CatalogConnector implements Base {
   @Schema(description = "Connector class name")
   private String className;
 
+  // -- LIFECYCLE --
+
   @Column(name = "catalog_connector_deleted_at")
   @JsonProperty("catalog_connector_deleted_at")
   @Schema(description = "Connector deleted at")
@@ -151,6 +164,19 @@ public class CatalogConnector implements Base {
   @Schema(description = "Whether the legacy properties configuration has already been migrated")
   private boolean propertiesMigrated;
 
+  // -- INJECTOR CONTRACTS --
+
+  @OneToMany(
+      mappedBy = "catalogConnector",
+      fetch = FetchType.LAZY,
+      cascade = CascadeType.ALL,
+      orphanRemoval = true)
+  @Fetch(FetchMode.SUBSELECT)
+  @JsonIgnore
+  private Set<CatalogConnectorInjectorContract> injectorContracts = new HashSet<>();
+
+  // -- CONFIGURATION --
+
   @OneToMany(
       mappedBy = "catalogConnector",
       fetch = FetchType.LAZY,
@@ -159,6 +185,8 @@ public class CatalogConnector implements Base {
   @JsonProperty("catalog_connector_configuration")
   @NotNull
   private Set<CatalogConnectorConfiguration> catalogConnectorConfigurations = new HashSet<>();
+
+  // -- INSTANCES --
 
   @OneToMany(mappedBy = "catalogConnector", fetch = FetchType.LAZY, orphanRemoval = true)
   @JsonProperty("catalog_connector_instances")

@@ -13,10 +13,13 @@ import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Base;
+import io.openaev.database.model.Document;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.exercise.exports.ExportOptions;
@@ -24,6 +27,7 @@ import io.openaev.rest.inject.service.InjectExportService;
 import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.constants.Constants;
+import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
@@ -81,6 +85,7 @@ class V1_DataImporterContractTenantTest extends ProductionTablesIntegrationTest 
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private InjectExportService injectExportService;
   @Autowired private ExerciseRepository exerciseRepository;
+  @Autowired private DocumentRepository documentRepository;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
@@ -259,6 +264,69 @@ class V1_DataImporterContractTenantTest extends ProductionTablesIntegrationTest 
   }
 
   @Nested
+  @DisplayName("Embedded payload with a Document-type argument")
+  class DocumentArgument {
+
+    @Test
+    @DisplayName("given_argumentDocumentAbsentFromTheTarget_should_importAndDropTheDefault")
+    void given_argumentDocumentAbsentFromTheTarget_should_importAndDropTheDefault()
+        throws Exception {
+      // Arrange: the argument names a document of the default tenant, the export ships none, and
+      // the simulation is B's, which does not hold it.
+      tenantHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
+      String tenantB = tenantHelper.createTenantWithCurrentUser("importer-argument-b").getId();
+      TenantContext.clearCurrentTenant();
+      Document document = DocumentFixture.getDocumentJpeg();
+      document.setName("importer-argument-" + UUID.randomUUID());
+      document.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+      String documentId = documentRepository.save(document).getId();
+      String externalId = "external-" + UUID.randomUUID();
+      Inject source = composeSourceInject(externalId, documentId);
+      byte[] zip = exportedZip(source);
+      String exerciseId = saveExercise(tenantB);
+
+      // Act
+      mvc.perform(
+              multipart(EXERCISE_URI + "/{simulationId}/injects/import", exerciseId)
+                  .file(new MockMultipartFile("file", zip))
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      // Assert: the payload is created in B, without the default
+      List<String> arguments = importedArguments(source, tenantB);
+      assertThat(arguments).hasSize(1);
+      assertThat(arguments.getFirst()).contains("document").doesNotContain(documentId);
+    }
+
+    @Test
+    @DisplayName("given_argumentDocumentOfTheWriteTenant_should_keepTheDefault")
+    void given_argumentDocumentOfTheWriteTenant_should_keepTheDefault() throws Exception {
+      // Arrange: the same platform round trip, the document already lives in B
+      tenantHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
+      String tenantB = tenantHelper.createTenantWithCurrentUser("importer-argument-kept-b").getId();
+      TenantContext.clearCurrentTenant();
+      Document document = DocumentFixture.getDocumentJpeg();
+      document.setName("importer-argument-" + UUID.randomUUID());
+      document.setTenant(new Tenant(tenantB));
+      String documentId = documentRepository.save(document).getId();
+      String externalId = "external-" + UUID.randomUUID();
+      Inject source = composeSourceInject(externalId, documentId);
+      byte[] zip = exportedZip(source);
+      String exerciseId = saveExercise(tenantB);
+
+      // Act
+      mvc.perform(
+              multipart(EXERCISE_URI + "/{simulationId}/injects/import", exerciseId)
+                  .file(new MockMultipartFile("file", zip))
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      // Assert
+      assertThat(importedArguments(source, tenantB).getFirst()).contains(documentId);
+    }
+  }
+
+  @Nested
   @DisplayName("Chaining step resolvability")
   class ChainingStepResolvability {
 
@@ -358,7 +426,19 @@ class V1_DataImporterContractTenantTest extends ProductionTablesIntegrationTest 
 
   /** One inject with its contract, injector and payload, composed in the ambient tenant. */
   private Inject composeSourceInject(String payloadExternalId) throws Exception {
-    Payload payload = PayloadFixture.createDefaultCommand();
+    return composeSourceInject(payloadExternalId, null);
+  }
+
+  /** Same, the payload carrying a Document-type argument named by {@code argumentDocumentId}. */
+  private Inject composeSourceInject(String payloadExternalId, String argumentDocumentId)
+      throws Exception {
+    Payload payload =
+        argumentDocumentId == null
+            ? PayloadFixture.createDefaultCommand()
+            : PayloadFixture.createDefaultCommandWithArguments(
+                List.of(
+                    PayloadFixture.createPayloadArgument(
+                        "file", PrimitiveType.Document, argumentDocumentId, null)));
     payload.setExternalId(payloadExternalId);
     Inject inject = InjectFixture.getDefaultInject();
     inject.setTitle("importer-contract-" + UUID.randomUUID());
@@ -393,6 +473,18 @@ class V1_DataImporterContractTenantTest extends ProductionTablesIntegrationTest 
             .getId();
     entityManager.flush();
     return id;
+  }
+
+  /** The arguments of the payload behind the inject the import created in the tenant. */
+  private List<String> importedArguments(Inject source, String tenantId) {
+    return column(
+        "SELECT p.payload_arguments FROM injects i JOIN injectors_contracts ic ON"
+            + " ic.injector_contract_id = i.inject_injector_contract AND ic.tenant_id ="
+            + " i.tenant_id JOIN payloads p ON p.payload_id = ic.injector_contract_payload WHERE"
+            + " i.inject_title = ? AND i.inject_id <> ? AND i.tenant_id = ?",
+        source.getTitle(),
+        source.getId(),
+        tenantId);
   }
 
   private byte[] exportedZip(Inject source) throws Exception {

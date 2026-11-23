@@ -31,6 +31,7 @@ import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.raw.RawSimulationIndexing;
 import io.openaev.database.repository.*;
+import io.openaev.database.repository.ExerciseRepository.ScenarioSimulationsRow;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
@@ -252,11 +253,10 @@ public class ExerciseService {
 
   /**
    * Loads an exercise by primary key and keeps it only when its tenant lies in the request's tenant
-   * scope. Unlike {@link #findInScope}, the load is not narrowed to the v1 ambient tenant, which is
-   * the default one on the non-prefixed route: a member reaches its own exercise in any tenant of
-   * its scope on both routes. For the callers that already loaded by primary key, so that scoping
-   * them refuses only what lies outside the scope. Transactional with the {@link TxCtx}, so the
-   * lookup carries the request scope even from a caller that opens no transaction of its own.
+   * scope. For the callers that already loaded by primary key, so that scoping them refuses only
+   * what lies outside the scope. Transactional with the {@link TxCtx}, so the lookup carries the
+   * request scope even from a caller that opens no transaction of its own: without a transaction
+   * the statement inspector has no scope to read and the load fails closed.
    */
   @Transactional(readOnly = true)
   public Optional<Exercise> findByIdInScope(
@@ -294,10 +294,9 @@ public class ExerciseService {
   }
 
   /**
-   * Reads the details of a simulation found inside the request's tenant scope. The native read
-   * itself keys on the v1 ambient tenant, the default one on the non-prefixed route, so the scope
-   * is checked first. The detail also names the simulation's workflow, read in the simulation's own
-   * tenant once access is granted (WorkflowOwnerScope).
+   * Reads the details of a simulation found inside the request's tenant scope. The whole native
+   * read runs inside {@code workflowOwnerScope.call}, so it runs in the simulation's own tenant,
+   * which is also the tenant of the workflow the detail names.
    */
   public RawSimulationIndexing rawSimulation(
       @NotNull final TxCtx ctx, @NotBlank final String simulationId) {
@@ -699,7 +698,8 @@ public class ExerciseService {
         .getObject()
         .listInEachTenant(
             ctx,
-            () -> canAccessEverySimulation(currentUser),
+            currentUser,
+            ExerciseService::canAccessEverySimulation,
             all,
             granted,
             RawExerciseSimple::getTenant_id,
@@ -720,7 +720,8 @@ public class ExerciseService {
         .getObject()
         .filterInEachTenant(
             ctx,
-            () -> canAccessEverySimulation(currentUser),
+            currentUser,
+            ExerciseService::canAccessEverySimulation,
             accessRight ->
                 SpecificationUtils.hasGrantAccess(
                     currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
@@ -759,16 +760,6 @@ public class ExerciseService {
   @Deprecated(forRemoval = true)
   public Exercise findById(String simulationId) {
     return exercise(simulationId);
-  }
-
-  /**
-   * Find all simulations matching a list of IDs
-   *
-   * @param simulationIds list of simulation IDs to search
-   * @return the list of simulations found
-   */
-  public List<Exercise> findAllById(List<String> simulationIds) {
-    return exerciseRepository.findAllById(simulationIds);
   }
 
   /**
@@ -892,9 +883,11 @@ public class ExerciseService {
                           .getObject()
                           .filterInEachTenant(
                               ctx,
-                              () ->
-                                  user.isAdminOrBypass()
-                                      || user.getCapabilities()
+                              user,
+                              caller ->
+                                  caller.isAdminOrBypass()
+                                      || caller
+                                          .getCapabilities()
                                           .contains(Capability.DELETE_ASSESSMENT),
                               deleteRight ->
                                   SpecificationUtils.hasGrantAccess(
@@ -1469,14 +1462,18 @@ public class ExerciseService {
     this.injectRepository.touchUpdatedAtByExerciseId(exerciseId);
 
     // Replace teams from exercise
-    List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));
+    List<Team> teams =
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(targetTeamIds, exercise.getTenant().getId()));
     exercise.setTeams(teams);
     this.exerciseRepository.save(exercise);
 
     List<String> teamIdsAdded =
         targetTeamIds.stream().filter(id -> !previousTeamIds.contains(id)).toList();
 
-    List<Team> teamsAdded = fromIterable(this.teamRepository.findAllById(teamIdsAdded));
+    List<Team> teamsAdded =
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(teamIdsAdded, exercise.getTenant().getId()));
 
     // Enable user
     teamsAdded.forEach(
@@ -1691,5 +1688,14 @@ public class ExerciseService {
             workflow -> healthChecks.addAll(healthCheckUtils.runScopeDefinitionChecks(workflow)));
 
     return healthChecks;
+  }
+
+  /**
+   * The number of simulations and the last start per scenario id, for the XTM counterpart lookup
+   * facts.
+   */
+  public List<ScenarioSimulationsRow> countSimulationsByScenarioIdIn(
+      Collection<String> scenarioIds) {
+    return exerciseRepository.countSimulationsByScenarioIdIn(scenarioIds);
   }
 }

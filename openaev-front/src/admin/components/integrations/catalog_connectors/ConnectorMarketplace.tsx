@@ -3,6 +3,8 @@ import { type ReactNode, useMemo, useState } from 'react';
 
 import MarketplaceBrowser from '../../../../components/common/marketplace/page/MarketplaceBrowser';
 import MarketplaceSections from '../../../../components/common/marketplace/results/MarketplaceSections';
+import MarketplaceToolbar from '../../../../components/common/marketplace/toolbar/MarketplaceToolbar';
+import MarketplaceViewToggle from '../../../../components/common/marketplace/toolbar/MarketplaceViewToggle';
 import useMarketplaceView from '../../../../components/common/marketplace/toolbar/useMarketplaceView';
 import { useFormatter } from '../../../../components/i18n';
 import {
@@ -17,7 +19,6 @@ import CatalogActiveFilters from './CatalogActiveFilters';
 import CatalogConnectorCard from './CatalogConnectorCard';
 import CatalogEmptyState from './CatalogEmptyState';
 import CatalogSidebar from './CatalogSidebar';
-import CatalogToolbar from './CatalogToolbar';
 import ConnectorList from './ConnectorList';
 import useCatalogFilters from './useCatalogFilters';
 
@@ -29,6 +30,16 @@ interface Props {
 }
 
 const VIEW_STORAGE_KEY = 'integrations_marketplace_view';
+const SORT_OPTIONS = [
+  {
+    field: 'name',
+    label: 'Name',
+  },
+  {
+    field: 'deployed',
+    label: 'Deployments',
+  },
+];
 
 /**
  * The shared faceted marketplace browser: sticky filter sidebar, toolbar
@@ -41,7 +52,7 @@ const ConnectorMarketplace = ({ items, renderAction, searchPlaceholder }: Props)
   const { t } = useFormatter();
 
   const { filters, keyword, setKeyword, sort, sortHelpers, onToggleFacet, onClearFacets } = useCatalogFilters();
-  // SearchFilter is uncontrolled; bumping this key remounts it to clear its value.
+  // The search field is uncontrolled: bumping this key remounts the toolbar to clear it.
   const [searchResetKey, setSearchResetKey] = useState(0);
 
   const { viewMode, handleViewModeChange } = useMarketplaceView(VIEW_STORAGE_KEY);
@@ -95,15 +106,16 @@ const ConnectorMarketplace = ({ items, renderAction, searchPlaceholder }: Props)
         />
       )}
       toolbar={(
-        <CatalogToolbar
+        <MarketplaceToolbar
+          key={searchResetKey}
           keyword={keyword}
           onSearch={value => setKeyword(value ?? '')}
-          searchResetKey={searchResetKey}
           sortHelpers={sortHelpers}
-          resultCount={filteredItems.length}
-          searchPlaceholder={searchPlaceholder}
-          view={viewMode}
-          onViewChange={handleViewModeChange}
+          count={filteredItems.length}
+          sortOptions={viewMode === 'grid' ? SORT_OPTIONS : undefined}
+          descendingFields={['deployed']}
+          placeholder={searchPlaceholder ?? `${t('Search the catalog')}...`}
+          actions={<MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />}
         />
       )}
     >
@@ -126,9 +138,11 @@ const ConnectorMarketplace = ({ items, renderAction, searchPlaceholder }: Props)
         : (
             <MarketplaceSections
               items={filteredItems}
-              sectionKey={item => item.type}
-              sectionLabel={type => typeMeta[type as ConnectorItemType].label}
-              sectionIcon={type => typeMeta[type as ConnectorItemType].icon}
+              sections={{
+                sectionKey: item => item.type,
+                sectionLabel: type => typeMeta[type as ConnectorItemType].label,
+                sectionIcon: type => typeMeta[type as ConnectorItemType].icon,
+              }}
               renderItem={item => (
                 <CatalogConnectorCard
                   key={item.id}

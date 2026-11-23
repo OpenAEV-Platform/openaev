@@ -30,6 +30,8 @@ import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
+import io.openaev.service.settings.RuntimeSetting;
+import io.openaev.service.settings.RuntimeSettingsService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.EndpointMapper;
@@ -107,12 +109,6 @@ public class EndpointService implements AuditLoggedService {
       "${executor.openaev-agent.binaries.version:${executor.openaev.binaries.version:${info.app.version:unknown}}}")
   private String agentBinaryVersion;
 
-  @Value("${executor.openaev.agent.max-simultaneous-jobs:5}")
-  private int maxSimultaneousJobs;
-
-  @Value("${executor.openaev.agent.auto-update-enabled:true}")
-  private boolean agentAutoUpdateEnabled;
-
   private final EndpointRepository endpointRepository;
   private final ExecutorRepository executorRepository;
   private final AssetGroupRepository assetGroupRepository;
@@ -124,6 +120,8 @@ public class EndpointService implements AuditLoggedService {
   private final LicenseCacheManager licenseCacheManager;
   private final TenantRepository tenantRepository;
   private final ApplicationEventPublisher eventPublisher;
+  // Max simultaneous jobs and agent auto-update: env var > Settings > Parameters > property.
+  private final RuntimeSettingsService runtimeSettingsService;
 
   // -- CRUD --
   /**
@@ -152,6 +150,7 @@ public class EndpointService implements AuditLoggedService {
     validateLinkedPersonInTenant(input.getLinkedPerson(), tenantId);
     Endpoint endpoint = new Endpoint();
     endpoint.setUpdateAttributes(input);
+    AssetCategorizationValidator.validate(endpoint.getCategory(), endpoint.getSubcategory());
     String[] ips = EndpointMapper.setIps(input.getIps());
     endpoint.setIps(ips);
     ensureSeenIp(endpoint);
@@ -319,6 +318,7 @@ public class EndpointService implements AuditLoggedService {
     validateLinkedPersonInTenant(input.getLinkedPerson(), tenantId);
     Endpoint toUpdate = this.endpoint(endpointId, tenantId);
     toUpdate.setUpdateAttributes(input);
+    AssetCategorizationValidator.validate(toUpdate.getCategory(), toUpdate.getSubcategory());
     ensureSeenIp(toUpdate);
     toUpdate.setEoL(input.isEol());
     toUpdate.setTags(
@@ -369,6 +369,7 @@ public class EndpointService implements AuditLoggedService {
         agentToUpdate.setAsset(endpointToSave);
         agentToUpdate.setLastSeen(inputToSave.getLastSeen());
         agentToUpdate.setStatus(AgentStatus.ACTIVE);
+        endpointToSave.markSeen(inputToSave.getLastSeen(), agentSeenSource(inputToSave));
         endpointsToSave.add(endpointToSave);
         agentsToSave.add(agentToUpdate);
         inputs.removeIf(
@@ -505,7 +506,7 @@ public class EndpointService implements AuditLoggedService {
     Endpoint endpoint = (Endpoint) agent.getAsset();
     if (agent.getParent() == null && !agent.getVersion().equals(version)) {
       if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())
-          && !agentAutoUpdateEnabled) {
+          && !runtimeSettingsService.booleanValue(RuntimeSetting.AGENT_AUTO_UPDATE_ENABLED)) {
         log.warn(
             String.format(
                 "A new version for the agent %s is available, his current version is %s and the new version is %s",
@@ -558,7 +559,10 @@ public class EndpointService implements AuditLoggedService {
                     : Agent.DEPLOYMENT_MODE.session.name(),
                 input.isElevated() ? Agent.PRIVILEGE.admin.name() : Agent.PRIVILEGE.standard.name(),
                 input.getExecutedByUser()),
-            PageRequest.of(0, maxSimultaneousJobs, Sort.by(Sort.Direction.ASC, "createdAt")))
+            PageRequest.of(
+                0,
+                runtimeSettingsService.intValue(RuntimeSetting.AGENT_MAX_SIMULTANEOUS_JOBS),
+                Sort.by(Sort.Direction.ASC, "createdAt")))
         .getContent();
   }
 
@@ -762,6 +766,8 @@ public class EndpointService implements AuditLoggedService {
     agent.setAsset(endpoint);
     agent.setLastSeen(input.getLastSeen());
     agent.setStatus(AgentStatus.ACTIVE);
+    // An agent that registers or beats is an observation of its asset (throttled on the asset)
+    endpoint.markSeen(input.getLastSeen(), agentSeenSource(input));
     agent.setExternalReference(input.getExternalReference());
     // For OpenAEV agent
     agent.setVersion(input.getAgentVersion());
@@ -781,6 +787,15 @@ public class EndpointService implements AuditLoggedService {
     createEndpoint(endpoint, input.getExecutor().getTenantId());
     addSourceTagToEndpoint(endpoint, input);
     return agent;
+  }
+
+  /** The source an agent observation is stamped with: agent, then the executor type. */
+  static String agentSeenSource(AgentRegisterInput input) {
+    String type =
+        input.getExecutor() != null && input.getExecutor().getType() != null
+            ? input.getExecutor().getType()
+            : "unknown";
+    return "agent:" + type;
   }
 
   private void setNewAgentAttributes(AgentRegisterInput input, Agent agent) {
@@ -1049,8 +1064,16 @@ public class EndpointService implements AuditLoggedService {
     Optional<Endpoint> endpoint = findExistingEndpoint(input, tenantId);
     if (endpoint.isPresent()) {
       Endpoint endpointToUpdate = endpoint.get();
+      // An endpoint matched by hostname + IP/MAC whose external reference is not the caller's is
+      // owned by another source (an inventory collector, a user): the caller enriches it (tags,
+      // addresses merged, empty fields filled) and never rewrites its identity (name, hostname,
+      // category, subcategory, platform, arch, linked person) nor drops its addresses. A match on
+      // the caller's own external reference keeps the full update.
+      boolean ownedByAnotherSource = isOwnedByAnotherSource(endpointToUpdate, input);
       // Mandatory fields
-      endpointToUpdate.setName(input.getName());
+      if (!ownedByAnotherSource) {
+        endpointToUpdate.setName(input.getName());
+      }
       List<String> tags =
           Stream.concat(
                   endpointToUpdate.getTags().stream().map(Tag::getId).toList().stream(),
@@ -1060,58 +1083,125 @@ public class EndpointService implements AuditLoggedService {
       endpointToUpdate.setTags(iterableToSet(tagRepository.findAllByIdInTenant(tags, tenantId)));
       // Optional fields: only override when provided so category inputs that omit
       // platform/arch (web app, cloud, ...) do not reset existing values to Unknown.
-      if (input.getArch() != null) {
+      if (input.getArch() != null && !ownedByAnotherSource) {
         endpointToUpdate.setArch(input.getArch());
       }
-      if (input.getPlatform() != null) {
+      if (input.getPlatform() != null && !ownedByAnotherSource) {
         endpointToUpdate.setPlatform(input.getPlatform());
       }
       if (input.getIps() != null) {
         String[] ips = EndpointMapper.setIps(input.getIps());
-        endpointToUpdate.setIps(ips);
+        endpointToUpdate.setIps(
+            ownedByAnotherSource ? mergeValues(endpointToUpdate.getIps(), ips) : ips);
         ensureSeenIp(endpointToUpdate);
       }
-      if (input.getHostname() != null) {
+      if (input.getHostname() != null
+          && (!ownedByAnotherSource || StringUtils.isBlank(endpointToUpdate.getHostname()))) {
         endpointToUpdate.setHostname(input.getHostname());
       }
       if (input.getMacAddresses() != null) {
-        endpointToUpdate.setMacAddresses(input.getMacAddresses());
+        endpointToUpdate.setMacAddresses(
+            ownedByAnotherSource
+                ? mergeValues(endpointToUpdate.getMacAddresses(), input.getMacAddresses())
+                : input.getMacAddresses());
+      }
+      // Another source's classification is kept whole: no category or subcategory write.
+      if (ownedByAnotherSource) {
+        mergeOptionalFields(endpointToUpdate, input, true);
+        return updateEndpoint(endpointToUpdate);
       }
       // Categorization: only override when provided so an existing classification is preserved.
       if (input.getCategory() != null) {
         endpointToUpdate.setCategory(input.getCategory());
       }
-      if (input.getSubcategory() != null) {
+      // Machine path (agents, collectors, injectors): an inconsistent pair is dropped with a
+      // warning rather than failing the registration; user-facing writes refuse it with a 400.
+      if (input.getSubcategory() != null
+          && AssetSubCategory.belongsTo(input.getSubcategory(), endpointToUpdate.getCategory())) {
         endpointToUpdate.setSubcategory(input.getSubcategory());
+      } else if (input.getSubcategory() != null) {
+        log.warn(
+            "Ignoring subcategory {} outside category {} on endpoint upsert {}",
+            input.getSubcategory(),
+            endpointToUpdate.getCategory(),
+            endpointToUpdate.getId());
+      } else if (endpointToUpdate.getSubcategory() != null
+          && endpointToUpdate.getCategory() != null
+          && !AssetSubCategory.belongsTo(
+              endpointToUpdate.getSubcategory(), endpointToUpdate.getCategory())) {
+        // A source that moves the category without naming a subcategory leaves no stale child.
+        endpointToUpdate.setSubcategory(null);
       }
-      if (input.getCriticality() != null) {
-        endpointToUpdate.setCriticality(input.getCriticality());
-      }
-      if (input.getInternetFacing() != null) {
-        endpointToUpdate.setInternetFacing(input.getInternetFacing());
-      }
-      if (input.getCloudProvider() != null) {
-        endpointToUpdate.setCloudProvider(input.getCloudProvider());
-      }
-      if (input.getCloudNativeType() != null) {
-        endpointToUpdate.setCloudNativeType(input.getCloudNativeType());
-      }
-      if (input.getCloudRegion() != null) {
-        endpointToUpdate.setCloudRegion(input.getCloudRegion());
-      }
-      if (input.getUrl() != null) {
-        endpointToUpdate.setUrl(input.getUrl());
-      }
-      if (input.getMetadata() != null && !input.getMetadata().isEmpty()) {
-        endpointToUpdate.setMetadata(input.getMetadata());
-      }
-      // A blank value unlinks (the setter normalizes it to null); null preserves the existing link.
-      if (input.getLinkedPerson() != null) {
-        endpointToUpdate.setLinkedPerson(input.getLinkedPerson());
-      }
+      mergeOptionalFields(endpointToUpdate, input, false);
       return updateEndpoint(endpointToUpdate);
     }
     return createEndpoint(input, tenantId);
+  }
+
+  /**
+   * Whether the endpoint found for an upsert belongs to another source: its external reference
+   * (blank read as none) differs from the caller's. A match on the caller's own external reference
+   * is never foreign; a match by hostname + IP or MAC on another source's asset is.
+   */
+  static boolean isOwnedByAnotherSource(Endpoint existing, EndpointInput input) {
+    return !Objects.equals(
+        StringUtils.trimToNull(existing.getExternalReference()),
+        StringUtils.trimToNull(input.getExternalReference()));
+  }
+
+  /** The union of the stored values and the input values, stored order first, no duplicate. */
+  private static String[] mergeValues(String[] stored, String[] input) {
+    LinkedHashSet<String> merged = new LinkedHashSet<>();
+    if (stored != null) {
+      merged.addAll(Arrays.asList(stored));
+    }
+    if (input != null) {
+      merged.addAll(Arrays.asList(input));
+    }
+    return merged.toArray(String[]::new);
+  }
+
+  /**
+   * The optional fields an upsert overrides only when provided. On another source's endpoint
+   * ({@code fillOnly}) a provided value only fills a field that is still empty, so the owner's
+   * values are never replaced and the person link is left to the owner.
+   */
+  private void mergeOptionalFields(
+      Endpoint endpointToUpdate, EndpointInput input, boolean fillOnly) {
+    if (input.getCriticality() != null
+        && (!fillOnly || endpointToUpdate.getCriticality() == null)) {
+      endpointToUpdate.setCriticality(input.getCriticality());
+    }
+    if (input.getInternetFacing() != null
+        && (!fillOnly || endpointToUpdate.getInternetFacing() == null)) {
+      endpointToUpdate.setInternetFacing(input.getInternetFacing());
+    }
+    if (input.getCloudProvider() != null
+        && (!fillOnly || endpointToUpdate.getCloudProvider() == null)) {
+      endpointToUpdate.setCloudProvider(input.getCloudProvider());
+    }
+    if (input.getCloudNativeType() != null
+        && (!fillOnly || endpointToUpdate.getCloudNativeType() == null)) {
+      endpointToUpdate.setCloudNativeType(input.getCloudNativeType());
+    }
+    if (input.getCloudRegion() != null
+        && (!fillOnly || endpointToUpdate.getCloudRegion() == null)) {
+      endpointToUpdate.setCloudRegion(input.getCloudRegion());
+    }
+    if (input.getUrl() != null && (!fillOnly || endpointToUpdate.getUrl() == null)) {
+      endpointToUpdate.setUrl(input.getUrl());
+    }
+    if (input.getMetadata() != null
+        && !input.getMetadata().isEmpty()
+        && (!fillOnly
+            || endpointToUpdate.getMetadata() == null
+            || endpointToUpdate.getMetadata().isEmpty())) {
+      endpointToUpdate.setMetadata(input.getMetadata());
+    }
+    // A blank value unlinks (the setter normalizes it to null); null preserves the existing link.
+    if (input.getLinkedPerson() != null && !fillOnly) {
+      endpointToUpdate.setLinkedPerson(input.getLinkedPerson());
+    }
   }
 
   /**

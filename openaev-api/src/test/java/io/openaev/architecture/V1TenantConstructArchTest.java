@@ -37,7 +37,7 @@ import org.junit.jupiter.api.TestFactory;
 class V1TenantConstructArchTest {
 
   /** How many lines the baseline holds. Lower it with the line you remove, never raise it. */
-  static final int BASELINE_SIZE = 233;
+  static final int BASELINE_SIZE = 209;
 
   @TestFactory
   @DisplayName("given the production classes, should pass every check of the guard")

@@ -127,6 +127,31 @@ public class Finding implements TenantBase {
   @JsonIgnore
   private Instant lastSeen;
 
+  // -- LIFECYCLE --
+
+  /** Whether the finding is still reproduced: moved by detections and re-tests. */
+  @Queryable(filterable = true, sortable = true, label = "status")
+  @Enumerated(EnumType.STRING)
+  @Column(name = "finding_status", nullable = false)
+  @JsonProperty("finding_status")
+  @NotNull
+  private FindingStatus status = FindingStatus.OPEN;
+
+  /** When a re-test last ended on this finding, reproduced or not. */
+  @Column(name = "finding_last_tested")
+  @JsonIgnore
+  private Instant lastTested;
+
+  /** The inject whose run set the current status (a detection or a re-test). */
+  @Column(name = "finding_status_inject_id")
+  @JsonIgnore
+  private String statusInjectId;
+
+  /** The re-test inject queued for this finding and not finished yet, null when none. */
+  @Column(name = "finding_retest_inject_id")
+  @JsonIgnore
+  private String retestInjectId;
+
   // -- RELATION --
 
   // Write path only, until every source writes occurrences (chunk 4). Readers go through
@@ -274,11 +299,16 @@ public class Finding implements TenantBase {
     return getSimulations().stream().map(Exercise::getScenario).filter(Objects::nonNull).toList();
   }
 
+  /**
+   * The asset groups that statically contain one of the finding's assets. Never the groups its
+   * injects targeted: those include groups the hit asset is not in. The API and the search index
+   * also add the dynamic groups, through {@link AssetGroupMembershipResolver}.
+   */
   @JsonProperty("finding_asset_groups")
-  @Queryable(filterable = true, dynamicValues = true, path = "occurrences.inject.assetGroups.id")
+  @Queryable(filterable = true, dynamicValues = true, path = "assets.assetGroups.id")
   public Set<AssetGroup> getAssetGroups() {
-    return getInjects().stream()
-        .flatMap(inject -> inject.getAssetGroups().stream())
+    return getAssets().stream()
+        .flatMap(asset -> asset.getAssetGroups().stream())
         .collect(Collectors.toSet());
   }
 }

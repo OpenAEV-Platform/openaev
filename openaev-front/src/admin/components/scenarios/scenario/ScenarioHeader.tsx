@@ -33,11 +33,11 @@ import { type ArticlesHelper } from '../../../../actions/channels/article-helper
 import { type ChallengeHelper } from '../../../../actions/helper';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import {
-  createRunningExerciseFromScenario,
   dismissScenarioExpectationsDrift,
   fetchScenario,
   fetchScenarioExpectationsDrift,
   fetchScenarioTeams,
+  launchScenario,
   realignScenarioExpectations,
   searchScenarioHealthcheks,
   updateScenarioRecurrence,
@@ -56,11 +56,11 @@ import { useHelper } from '../../../../store';
 import {
   type Article,
   type Challenge,
-  type Exercise,
   type ExpectationsDriftOutput,
   type HealthCheck,
   type Inject,
   type Scenario,
+  type ScenarioOutput,
   type Team,
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
@@ -85,6 +85,7 @@ import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
+import ExploreInGraphButton from '../../graph/ExploreInGraphButton';
 import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
@@ -165,7 +166,8 @@ const ScenarioHeader = ({
   }, [openScenarioAssistantQueryParam, scenarioId]);
   // Fetching data
   const { scenario, challenges, injects, teams, articles }: {
-    scenario: Scenario;
+    // The store entry is filled by the entity (ids) and by the ScenarioOutput DTO (resolved user).
+    scenario: Scenario & Pick<ScenarioOutput, 'scenario_scheduled_by_user'>;
     challenges: Challenge[];
     injects: Inject[];
     teams: Team[];
@@ -193,6 +195,17 @@ const ScenarioHeader = ({
   const hasChallenges = challenges.length > 0;
 
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
+  const scheduledBy = scenario.scenario_scheduled_by_user;
+  const scheduledByName = scheduledBy?.user_name ?? scheduledBy?.user_email;
+  // The resolved user only comes with GET /scenarios/{id}, while the bare id is kept fresh by the
+  // entity the recurrence endpoint returns and the SSE stream pushes: refetch when they disagree,
+  // so the chip follows a reschedule made here or from another browser.
+  const scheduledById = scenario.scenario_scheduled_by;
+  useEffect(() => {
+    if (scheduledById && scheduledById !== scenario.scenario_scheduled_by_user?.user_id) {
+      dispatch(fetchScenario(scenarioId));
+    }
+  }, [dispatch, scenarioId, scheduledById, scenario.scenario_scheduled_by_user?.user_id]);
   const isScenarioChaining = !!scenarioWorkflowId;
   const canOpenConfiguration = canManage && !isScenarioChaining;
 
@@ -738,6 +751,13 @@ const ScenarioHeader = ({
                 </TooltipTrigger>
                 {(scheduleLabel ?? '') && <TooltipContent>{scheduleLabel ?? ''}</TooltipContent>}
               </Tooltip>
+              {scheduledByName && (
+                <Chip
+                  startIcon={<PersonOutlined sx={{ fontSize: 14 }} />}
+                  label={`${t('Scheduled by')} ${scheduledByName}`}
+                  severity="low"
+                />
+              )}
             </>
           )}
           // The alert-toned controls sit in the body row, right-aligned, where the
@@ -787,6 +807,7 @@ const ScenarioHeader = ({
                   <TooltipContent>{t('Preview challenges page')}</TooltipContent>
                 </Tooltip>
               )}
+              <ExploreInGraphButton type="SCENARIO" entityId={scenarioId} />
               {/* Entity-scoped reports - self-hides without the reporting
                   access capability. */}
               <EntityReportsPanel
@@ -1034,7 +1055,7 @@ const ScenarioHeader = ({
             type="button"
             onClick={async () => {
               setOpenInstantiateSimulationAndStart(false);
-              const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;
+              const { simulation_id } = await launchScenario(scenarioId);
               // A normal launch supersedes any settled AI outcome server-side (the by-scenario run
               // lookup now 404s), so forget the latched run: the overview reverts to the manual view
               // instead of keeping the stale AI plan outcome + status chip until a full page reload.
@@ -1044,9 +1065,9 @@ const ScenarioHeader = ({
               // scenario on the simulation overview. Only the AUTONOMOUS launch stays on the
               // scenario (its attack-path tab hosts the AI cockpit) - see handleAiLaunch.
               if (isScenarioChaining) {
-                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
+                navigate(`${SIMULATION_BASE_URL}/${simulation_id}/attack-path`);
               } else {
-                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
+                navigate(`${SIMULATION_BASE_URL}/${simulation_id}`);
               }
               MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
             }}

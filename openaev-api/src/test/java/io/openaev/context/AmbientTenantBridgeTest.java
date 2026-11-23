@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import io.openaev.IntegrationTest;
-import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.hibernate.Session;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -25,20 +23,20 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * The bridge aligns the ambient tenant and the v1 {@code tenantFilter} on the write tenant for the
  * duration of a call, then puts back exactly what it found: the filter armed on the same tenant, or
- * no filter at all when the surrounding transaction had none. The probe is a v1-filtered entity
- * ({@code Inject}) read through JPQL: which rows come back is what the filter state means for the
- * rest of the transaction. It must still carry {@code @Filter("tenantFilter")}: once its table is
- * activated on v2 the filter is gone and the probe sees every row, so move it to another v1 entity
- * (it was {@code Organization}, then {@code Team}, then {@code Scenario}, until each went v2).
- * {@code injects} is planned as the last table to leave v1.
+ * no filter at all when the surrounding transaction had none.
+ *
+ * <p>Every entity that once carried {@code @Filter("tenantFilter")} is now v2-active ({@code
+ * injects}, the last one, then {@code injector_contracts}): {@code git grep '@Filter(name =
+ * "tenantFilter"'} over {@code openaev-model/src/main/java/io/openaev/database/model/} finds none
+ * left. A JPQL read through a real entity can therefore no longer tell whether the filter is armed
+ * - Hibernate only applies a filter to entities that declare it, so the probe would see every row
+ * whatever the filter state is. This asserts the {@link Session}'s own filter state directly
+ * ({@code session.getEnabledFilter(TENANT_FILTER)}), the same thing {@link AmbientTenantBridge}
+ * itself reads and restores, instead of inferring it from row visibility.
  *
  * <p>Not {@code @Transactional}: one case runs inside the background primitive, which refuses an
- * active transaction. Rows are seeded and removed in auto-committed JDBC. The active-tables list is
- * pinned so the statement inspector never scopes {@code injects} here, whatever a shadow run arms:
- * the filter must be the only thing deciding what the probe sees.
+ * active transaction.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers")
-@DisplayName("AmbientTenantBridge restores the filter state it found")
 class AmbientTenantBridgeTest extends IntegrationTest {
 
   private static final String TENANT_FILTER = "tenantFilter";
@@ -51,23 +49,18 @@ class AmbientTenantBridgeTest extends IntegrationTest {
   private JdbcTemplate jdbc;
   private String tenantA;
   private String tenantB;
-  private String injectA;
-  private String injectB;
 
   @BeforeEach
-  void seedOneInjectPerTenant() {
+  void seedTenants() {
     jdbc = new JdbcTemplate(dataSource);
     tenantA = seedTenant("bridge-a-" + UUID.randomUUID());
     tenantB = seedTenant("bridge-b-" + UUID.randomUUID());
-    injectA = seedInject("bridge-a-" + UUID.randomUUID(), tenantA);
-    injectB = seedInject("bridge-b-" + UUID.randomUUID(), tenantB);
     TenantContext.clearCurrentTenant();
   }
 
   @AfterEach
   void cleanup() {
     TenantContext.clearCurrentTenant();
-    jdbc.update("DELETE FROM injects WHERE inject_id IN (?, ?)", injectA, injectB);
     jdbc.update("DELETE FROM tenants WHERE tenant_id IN (?, ?)", tenantA, tenantB);
   }
 
@@ -87,21 +80,17 @@ class AmbientTenantBridgeTest extends IntegrationTest {
             assertFalse(TenantContext.hasCurrentTenant(), "precondition: no ambient tenant");
 
             // Act
-            List<String> seenDuring =
-                bridge.callInTenant(tenantB, AmbientTenantBridgeTest.this::visibleInjects);
+            String filterTenantDuringCall =
+                bridge.callInTenant(tenantB, () -> enabledFilterTenant(session));
 
             // Assert
             assertEquals(
-                List.of(injectB),
-                seenDuring,
+                tenantB,
+                filterTenantDuringCall,
                 "inside the call the v1 filter follows the write tenant");
             assertNull(
                 session.getEnabledFilter(TENANT_FILTER),
                 "the state found at entry, no filter, is restored");
-            assertEquals(
-                List.of(injectA, injectB),
-                visibleInjects(),
-                "the rest of the transaction is not narrowed to one tenant");
             assertFalse(TenantContext.hasCurrentTenant(), "the ambient tenant is cleared again");
             return null;
           });
@@ -124,20 +113,16 @@ class AmbientTenantBridgeTest extends IntegrationTest {
                 session.enableFilter(TENANT_FILTER).setParameter("tenantId", tenantA);
 
                 // Act
-                List<String> seenDuring =
-                    bridge.callInTenant(tenantB, AmbientTenantBridgeTest.this::visibleInjects);
+                String filterTenantDuringCall =
+                    bridge.callInTenant(tenantB, () -> enabledFilterTenant(session));
 
                 // Assert
                 assertEquals(
-                    List.of(injectB),
-                    seenDuring,
+                    tenantB,
+                    filterTenantDuringCall,
                     "inside the call the v1 filter follows the write tenant");
                 assertEquals(tenantA, TenantContext.getCurrentTenant(), "ambient tenant restored");
                 assertEquals(tenantA, enabledFilterTenant(session), "the filter is back on A");
-                assertEquals(
-                    List.of(injectA),
-                    visibleInjects(),
-                    "the rest of the transaction reads A again");
                 return null;
               });
     }
@@ -164,10 +149,6 @@ class AmbientTenantBridgeTest extends IntegrationTest {
                     tenantA,
                     enabledFilterTenant(session),
                     "the filter goes back to the tenant it was armed on, not to the ambient one");
-                assertEquals(
-                    List.of(injectA),
-                    visibleInjects(),
-                    "the rest of the transaction reads A again");
                 assertFalse(
                     TenantContext.hasCurrentTenant(), "the ambient tenant is cleared again");
                 return null;
@@ -192,13 +173,13 @@ class AmbientTenantBridgeTest extends IntegrationTest {
             TenantContext.setCurrentTenant(tenantB);
 
             // Act
-            List<String> seenDuring =
-                bridge.callInTenant(tenantB, AmbientTenantBridgeTest.this::visibleInjects);
+            String filterTenantDuringCall =
+                bridge.callInTenant(tenantB, () -> enabledFilterTenant(session));
 
             // Assert
             assertEquals(
-                List.of(injectB),
-                seenDuring,
+                tenantB,
+                filterTenantDuringCall,
                 "inside the call the v1 reads are confined to the write tenant, not unfiltered");
             assertNull(
                 session.getEnabledFilter(TENANT_FILTER),
@@ -222,13 +203,13 @@ class AmbientTenantBridgeTest extends IntegrationTest {
                 TenantContext.setCurrentTenant(tenantB);
 
                 // Act
-                List<String> seenDuring =
-                    bridge.callInTenant(tenantB, AmbientTenantBridgeTest.this::visibleInjects);
+                String filterTenantDuringCall =
+                    bridge.callInTenant(tenantB, () -> enabledFilterTenant(session));
 
                 // Assert
                 assertEquals(
-                    List.of(injectB),
-                    seenDuring,
+                    tenantB,
+                    filterTenantDuringCall,
                     "inside the call the v1 reads follow the write tenant, not the filter armed at"
                         + " entry");
                 assertEquals(
@@ -261,14 +242,6 @@ class AmbientTenantBridgeTest extends IntegrationTest {
     }
   }
 
-  /** The v1-filtered rows a JPQL read sees right now: the meaning of the current filter state. */
-  private List<String> visibleInjects() {
-    return entityManager
-        .createQuery("select i.id from Inject i where i.id in :ids order by i.id", String.class)
-        .setParameter("ids", List.of(injectA, injectB))
-        .getResultList();
-  }
-
   private static String enabledFilterTenant(Session session) {
     return (String) ((FilterImpl) session.getEnabledFilter(TENANT_FILTER)).getParameter("tenantId");
   }
@@ -284,16 +257,6 @@ class AmbientTenantBridgeTest extends IntegrationTest {
             + " VALUES (?, ?, now(), now())",
         id,
         name);
-    return id;
-  }
-
-  private String seedInject(String id, String tenantId) {
-    jdbc.update(
-        "INSERT INTO injects (inject_id, inject_title, inject_all_teams, inject_enabled,"
-            + " inject_depends_duration, tenant_id) VALUES (?, ?, false, true, 0, ?)",
-        id,
-        id,
-        tenantId);
     return id;
   }
 }

@@ -2,8 +2,7 @@ package io.openaev.service.finding;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Finding;
@@ -20,8 +19,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * finding_occurrences has no tenant of its own, it is scoped through its finding (#7848): under one
@@ -33,13 +30,7 @@ import org.springframework.test.context.DynamicPropertySource;
  * auto-committed JDBC, so the statement inspector applies to the service calls only.
  */
 @DisplayName("Finding occurrence tenant isolation")
-class FindingOccurrenceTenantIsolationTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class FindingOccurrenceTenantIsolationTest extends ProductionTablesIntegrationTest {
 
   @Autowired private DataSource dataSource;
   @Autowired private TenantScopedTransaction tenantTx;

@@ -1135,11 +1135,17 @@ public class StepService {
   /** The scenario step templates creating an inject of this contract in the tenant. */
   @Transactional(readOnly = true)
   public List<Step> findScenarioStepTemplatesByContract(String tenantId, String contractId) {
-    return stepRepository
-        .findTemplateStepsByInjectorContractIds(List.of(contractId), tenantId)
-        .stream()
-        .filter(step -> step.getWorkflow().getScenario() != null)
-        .toList();
+    return stepRepository.findScenarioTemplatesByTenantIdAndInjectorContractId(
+        tenantId, contractId);
+  }
+
+  /** Points a step template at another injector contract, with a fresh copy of it in its data. */
+  @Transactional(rollbackFor = Exception.class)
+  public Step updateStepTemplateInjectorContract(Step stepTemplate, InjectorContract contract) {
+    WorkflowEditability.assertLogicMapEditable(stepTemplate.getWorkflow());
+    stepTemplate.setData(
+        injectExecutionStep.withInjectorContract(stepTemplate.getData(), contract));
+    return saveStep(stepTemplate);
   }
 
   /** The title of the inject this step creates. */

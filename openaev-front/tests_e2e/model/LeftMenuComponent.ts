@@ -8,27 +8,37 @@ class LeftMenuComponent {
   constructor(private page: Page) {
   }
 
-  private navLink(name: string) {
+  private navLinkByName(name: string) {
     return this.page.getByRole('link', {
       name,
       exact: true,
     });
   }
 
+  private getMainNavigation() {
+    return this.page.getByLabel('Main navigation', { exact: true });
+  }
+
+  // The header logo is also a link named "Home", but it shows only an image:
+  // keeping the links with text leaves the navigation rows
+  getAllNavLinks() {
+    return this.getMainNavigation().getByRole('link').filter({ hasText: /\S/ });
+  }
+
   goToAssets() {
-    return this.navLink('Assets').click();
+    return this.navLinkByName('Assets').click();
   }
 
   goToContracts() {
-    return this.navLink('Integrations').click();
+    return this.navLinkByName('Integrations').click();
   }
 
   goToThreatArsenal() {
-    return this.navLink('Threat Arsenal').click();
+    return this.navLinkByName('Threat Arsenal').click();
   };
 
-  async goToTeams() {
-    return this.navLink('Persons').click();
+  goToTeams() {
+    return this.navLinkByName('Persons').click();
   }
 }
 

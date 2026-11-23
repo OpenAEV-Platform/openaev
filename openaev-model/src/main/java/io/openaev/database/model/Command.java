@@ -32,7 +32,7 @@ public class Command extends Payload {
   @NotNull
   private String executor;
 
-  @Hashed
+  @Hashed(change = Hashed.Change.MINOR)
   @Queryable(filterable = true, sortable = true)
   @Column(name = "command_content")
   @JsonProperty("command_content")

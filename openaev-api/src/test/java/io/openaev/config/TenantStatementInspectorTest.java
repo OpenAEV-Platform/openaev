@@ -1284,6 +1284,66 @@ class TenantStatementInspectorTest {
     }
   }
 
+  @Nested
+  @DisplayName("the findings indexing query survives findings being active")
+  class FindingIndexingQuery {
+    private String indexingSql() throws Exception {
+      return io.openaev.database.repository.FindingRepository.class
+          .getMethod("findForIndexing", java.time.Instant.class, String.class, int.class)
+          .getAnnotation(org.springframework.data.jpa.repository.Query.class)
+          .value()
+          .replaceFirst(";\\s*$", "");
+    }
+
+    private long countOf(String haystack, String needle) {
+      return haystack.split(java.util.regex.Pattern.quote(needle), -1).length - 1;
+    }
+
+    @Test
+    @DisplayName("the outer query neither groups nor joins anything but the finding's own inject")
+    void outerQueryNeitherGroupsNorFansOut() throws Exception {
+      var select =
+          (net.sf.jsqlparser.statement.select.PlainSelect) CCJSqlParserUtil.parse(indexingSql());
+
+      assertNull(
+          select.getGroupBy(),
+          "a GROUP BY on findings breaks once the inspector turns it into a derived table");
+      assertEquals(
+          java.util.List.of("injects"),
+          select.getJoins() == null
+              ? java.util.List.of()
+              : select.getJoins().stream()
+                  .map(
+                      join ->
+                          ((net.sf.jsqlparser.schema.Table) join.getFromItem())
+                              .getName()
+                              .toLowerCase())
+                  .toList(),
+          "only the inject the finding is deleted with, joined on its primary key, may be joined"
+              + " on the outer query: a collection joined there multiplies the rows of each"
+              + " finding before the LIMIT, aggregate it in a correlated sub-query instead");
+    }
+
+    @Test
+    @DisplayName("the outer findings is filtered and every sub-query keeps its correlation")
+    void findingsIsFilteredAndSubQueriesStayCorrelated() throws Exception {
+      String sql = indexingSql();
+      long correlations = countOf(sql, "= f.finding_id");
+      assertTrue(correlations > 0, "the sub-queries must be correlated to the outer finding");
+
+      TenantStatementInspector findingsActive =
+          new TenantStatementInspector(new TenantTables(Set.of("findings"), Set.of()));
+      String out = findingsActive.inspect(sql).replaceAll("\\s+", " ").trim();
+
+      assertDoesNotThrow(() -> CCJSqlParserUtil.parse(out), out);
+      assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+      assertEquals(
+          correlations,
+          countOf(out, "= f.finding_id"),
+          "a sub-query that lost its correlation aggregates every finding's rows: " + out);
+    }
+  }
+
   // The two asset-group option queries JOIN findings inside an IN (SELECT ...). They pass today
   // with only asset_groups active, because the inspector rewrites the outer table and leaves the
   // subquery's findings alone. Activating findings pulls that join into rewriting too, so the

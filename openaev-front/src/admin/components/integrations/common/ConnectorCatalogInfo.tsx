@@ -1,13 +1,17 @@
 import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { InfoOutlined, LibraryBooksOutlined, OpenInNewOutlined, VerifiedOutlined } from '@mui/icons-material';
+import { CommitOutlined, InfoOutlined, LibraryBooksOutlined, OpenInNewOutlined, VerifiedOutlined } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ComponentType, type ReactNode } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
+import ItemCopy from '../../../../components/ItemCopy';
 import { type CatalogConnectorOutput } from '../../../../utils/api-types';
 
-interface Props { catalogConnector: CatalogConnectorOutput }
+interface Props {
+  catalogConnector: CatalogConnectorOutput;
+  runningCommit?: string;
+}
 
 const SECTION_LABEL_SX = {
   fontFamily: '"Geologica", sans-serif',
@@ -121,7 +125,7 @@ const ResourceRow = ({ icon: Icon, title, caption, href, endAdornment }: {
  * The two-column content of a connector detail page: the full description on
  * the left, the resource links and verification metadata on the right.
  */
-const ConnectorCatalogInfo = ({ catalogConnector }: Props) => {
+const ConnectorCatalogInfo = ({ catalogConnector, runningCommit }: Props) => {
   const theme = useTheme();
   const { t, nsdt } = useFormatter();
 
@@ -189,6 +193,13 @@ const ConnectorCatalogInfo = ({ catalogConnector }: Props) => {
                   <TooltipContent>{t('Version referenced in the integration catalog. The running instance may use a different version if it was manually overridden.')}</TooltipContent>
                 </Tooltip>
               )}
+            />
+          )}
+          {runningCommit && (
+            <ResourceRow
+              icon={CommitOutlined}
+              title={t('Commit hash')}
+              caption={<ItemCopy content={runningCommit} variant="inLine" />}
             />
           )}
           {catalogConnector.catalog_connector_source_code && (

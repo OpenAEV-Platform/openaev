@@ -26,7 +26,7 @@ public class Executable extends Payload {
   @JsonProperty("payload_type")
   private String type = EXECUTABLE_TYPE;
 
-  @Hashed
+  @Hashed(change = Hashed.Change.MINOR)
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "executable_file")
   @JsonSerialize(using = MonoIdSerializer.class)

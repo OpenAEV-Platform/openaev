@@ -7,8 +7,6 @@ import static io.openaev.healthcheck.utils.HealthCheckUtils.READINESS_CHECK_TIME
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.scenario.ScenarioResponseHydrator.hydrateForResponse;
-import static java.time.Instant.now;
-import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
@@ -36,6 +34,7 @@ import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.ExerciseResponseHydrator;
@@ -48,13 +47,16 @@ import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.autonomous.AutonomousRunService;
+import io.openaev.service.catalog.scenario.targeting.TargetChoice;
 import io.openaev.service.chaining.StepService;
-import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.period.RecurrenceService;
+import io.openaev.service.scenario.ReachabilityAssertions;
+import io.openaev.service.scenario.ScenarioLaunchService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -91,18 +93,17 @@ public class ScenarioApi extends RestBehavior {
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
   private final ScenarioRepository scenarioRepository;
-  private final ScenarioToExerciseService scenarioToExerciseService;
   private final ImportService importService;
   private final ScenarioService scenarioService;
   private final RecurrenceService recurrenceService;
   private final TeamService teamService;
   private final AssetGroupService assetGroupService;
   private final EndpointService endpointService;
+  private final EndpointMapper endpointMapper;
   private final ChannelService channelService;
   private final DocumentService documentService;
   private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
-  private final WorkflowOwnerScope workflowOwnerScope;
   private final StepService stepService;
   private final ExpectationsDriftService expectationsDriftService;
   private final AutonomousRunService autonomousRunService;
@@ -112,6 +113,7 @@ public class ScenarioApi extends RestBehavior {
   private final LicenseCacheManager licenseCacheManager;
   private final FaithfulCopyTransaction faithfulCopy;
   private final ExerciseService exerciseService;
+  private final ScenarioLaunchService scenarioLaunchService;
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @Transactional
@@ -165,9 +167,9 @@ public class ScenarioApi extends RestBehavior {
   public ScenarioSimple createScenarioWithInjectorContracts(
       TxCtx ctx, @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    // The contract search and the injects are not tenant-active yet and follow the ambient tenant:
-    // align it on the write tenant so the scenario and its injects stay in one tenant on both
-    // routes.
+    // The injects take their scenario's tenant and the contract search runs in the request scope.
+    // The ambient tenant is aligned on the write tenant for any row of this path that
+    // TenantBaseListener stamps from it; removing the alignment belongs to the v1 exit.
     return ambientTenantBridge.callInTenant(
         tenantId,
         () ->
@@ -192,13 +194,23 @@ public class ScenarioApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
   public List<ScenarioSimple> updateScenariosWithInjectorContracts(
       TxCtx ctx, @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
-    return BulkOperationContext.runSuppressed(
+    // The injects are written in one tenant, the write tenant of the request: a scope naming
+    // several tenants cannot designate it and is refused, as on the create endpoint above.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    // The injects take their scenario's tenant and the contract search runs in the request scope.
+    // The ambient tenant is aligned on the write tenant for any row of this path that
+    // TenantBaseListener stamps from it; removing the alignment belongs to the v1 exit.
+    return ambientTenantBridge.callInTenant(
+        tenantId,
         () ->
-            this.scenarioService.updateScenariosWithInjectorContracts(
-                ctx,
-                inputs.getScenarioIds(),
-                inputs.getInjectorContractSearchPaginationInput(),
-                inputs.getLocale()));
+            BulkOperationContext.runSuppressed(
+                () ->
+                    this.scenarioService.updateScenariosWithInjectorContracts(
+                        ctx,
+                        tenantId,
+                        inputs.getScenarioIds(),
+                        inputs.getInjectorContractSearchPaginationInput(),
+                        inputs.getLocale())));
   }
 
   @PostMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
@@ -218,7 +230,7 @@ public class ScenarioApi extends RestBehavior {
     // resolved in the request scope by id inside it.
     String duplicateId =
         faithfulCopy.execute(ctx, () -> scenarioService.duplicateScenario(ctx, scenarioId).getId());
-    return hydrateForResponse(scenarioService.scenario(duplicateId));
+    return hydrateForResponse(scenarioService.scenario(ctx, duplicateId));
   }
 
   @GetMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
@@ -358,7 +370,10 @@ public class ScenarioApi extends RestBehavior {
     if (input.getReplyTos() == null) {
       scenario.setReplyTos(currentReplyTos);
     }
-    scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    scenario.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), scenario.getTenant().getId())));
     if (hasText(input.getCustomDashboard())) {
       scenario.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
@@ -388,7 +403,7 @@ public class ScenarioApi extends RestBehavior {
     // the scenario. Finished simulations are NOT deleted - they detach and remain as history, like
     // any chained simulation. No-op for manual scenarios.
     this.scenarioService.existsInScope(ctx, scenarioId);
-    this.autonomousRunService.deleteForScenario(scenarioId);
+    this.autonomousRunService.deleteForScenario(ctx, scenarioId);
     this.scenarioService.deleteScenario(ctx, scenarioId, keepFindings);
   }
 
@@ -428,7 +443,10 @@ public class ScenarioApi extends RestBehavior {
       @Valid @RequestBody final ScenarioUpdateTagsInput input) {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     Set<Tag> currentTagList = scenario.getTags();
-    scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    scenario.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), scenario.getTenant().getId())));
     return hydrateForResponse(
         this.scenarioService.updateScenario(scenario, currentTagList, input.isApplyTagRule()));
   }
@@ -638,6 +656,10 @@ public class ScenarioApi extends RestBehavior {
             || (input.getRecurrence() != null && !input.getRecurrence().isBlank());
     if (schedules) {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
+      String refusal = ReachabilityAssertions.refusal(scenario);
+      if (refusal != null) {
+        throw new BadRequestException(refusal);
+      }
       scenario.setScheduledBy(
           this.userRepository
               .findById(currentUser().getId())
@@ -645,6 +667,40 @@ public class ScenarioApi extends RestBehavior {
     }
     scenario.setUpdateAttributes(input);
     return hydrateForResponse(this.scenarioService.updateScenario(scenario));
+  }
+
+  // -- REACHABILITY ASSERTION --
+
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/reachability-assertion",
+    TENANT_SCENARIO_URI + "/{scenarioId}/reachability-assertion"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.LAUNCH,
+      resourceType = ResourceType.SCENARIO)
+  @Operation(
+      summary = "Declare or clear a reachability assertion",
+      description =
+          "A reachability assertion runs only read-only injects on its schedule. Declaring a"
+              + " scheduled scenario that holds an enabled inject which is not read-only is"
+              + " refused.")
+  public ScenarioOutput updateScenarioReachabilityAssertion(
+      TxCtx ctx,
+      @PathVariable @NotBlank final String scenarioId,
+      @Valid @RequestBody final ScenarioReachabilityAssertionInput input) {
+    Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
+    scenario.setReachabilityAssertion(input.isReachabilityAssertion());
+    boolean scheduled = hasText(scenario.getRecurrence()) || scenario.getRecurrenceStart() != null;
+    String refusal = ReachabilityAssertions.refusal(scenario);
+    if (scheduled && refusal != null) {
+      throw new BadRequestException(refusal);
+    }
+    this.scenarioService.updateScenario(scenario);
+    // A DTO read inside the transaction: the entity would serialise its lazy associations after
+    // the commit (LazyAssociationAfterCommitArchTest).
+    return this.scenarioService.getScenarioById(ctx, scenarioId);
   }
 
   // -- OPTION --
@@ -707,10 +763,8 @@ public class ScenarioApi extends RestBehavior {
     return hydrateForResponse(scenarioRepository.save(scenario));
   }
 
-  @PostMapping({
-    SCENARIO_URI + "/{scenarioId}/exercise/running",
-    TENANT_SCENARIO_URI + "/{scenarioId}/exercise/running"
-  })
+  // Legacy route for existing clients; the tenant route is ScenarioLaunchApi#launch.
+  @PostMapping(SCENARIO_URI + "/{scenarioId}/exercise/running")
   @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
@@ -718,54 +772,8 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public Exercise createRunningExerciseFromScenario(
       TxCtx ctx, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
-    Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
-    String launchedById = currentUser().getId();
-    // The scenario's workflow is read, and its simulation's started, in the scenario's own tenant
-    // whatever the caller's scope: access to the scenario was granted, its workflow follows it.
-    boolean chaining =
-        workflowOwnerScope.call(scenario, () -> workflowService.isScenarioChaining(scenarioId));
-
-    if (chaining) {
-      // A normal (operator-driven) launch makes any prior autonomous AI outcome on this scenario
-      // stale: clear a settled run so the scenario reverts to its normal overview / hero (the AI
-      // plan or run outcome is no longer the latest activity). No-op when the scenario carries no
-      // run or the feature is off, and never tears down a still-active run. Read and written in
-      // the scenario's own tenant, like its workflow: the run follows its scenario, whatever the
-      // caller's scope.
-      workflowOwnerScope.run(
-          scenario, () -> autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId));
-    } else {
-      this.scenarioService.throwIfScenarioNotLaunchable(scenario);
-    }
-
-    // The simulation is a faithful copy of the scenario: it keeps the targets the user is not
-    // cleared for, which the dispatch will not execute. The copy starts from a cleared persistence
-    // context, so the scenario and the launcher are reloaded inside it; the simulation is then read
-    // back under the user's clearance for the response.
-    String simulationId =
-        faithfulCopy.execute(
-            ctx,
-            () -> {
-              User launchedBy =
-                  this.userRepository
-                      .findById(launchedById)
-                      .orElseThrow(ElementNotFoundException::new);
-              Exercise simulation =
-                  scenarioToExerciseService.toExercise(
-                      this.scenarioService.scenario(ctx, scenarioId),
-                      now().truncatedTo(MINUTES).plus(1, MINUTES),
-                      true,
-                      launchedBy);
-              if (chaining) {
-                workflowOwnerScope.run(
-                    scenario,
-                    () ->
-                        workflowService.startWorkflowByScenarioIdAndSimulation(
-                            scenarioId, simulation));
-              }
-              return simulation.getId();
-            });
-    return ExerciseResponseHydrator.hydrateForResponse(exerciseService.exercise(simulationId));
+    String simulationId = scenarioLaunchService.launch(ctx, scenarioId, TargetChoice.NONE);
+    return ExerciseResponseHydrator.hydrateForResponse(exerciseService.exercise(ctx, simulationId));
   }
 
   @PostMapping({
@@ -801,10 +809,14 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
+  // Deprecated: the UI stopped calling it when the inject form moved to the asset-groups/find
+  // route, which loads only the selected ids. Kept for API clients until its removal.
+  @Deprecated(since = "3.261118.0", forRemoval = true)
   @Operation(
       summary =
           "Get asset groups. Can only be called if the user has access to the given scenario.",
-      description = "Get all asset groups used by injects for a given scenario")
+      description = "Get all asset groups used by injects for a given scenario",
+      deprecated = true)
   @Transactional
   public List<AssetGroup> assetGroups(TxCtx ctx, @PathVariable String scenarioId) {
     return this.assetGroupService.assetGroupsForScenario(scenarioId);
@@ -856,12 +868,18 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Operation(
       summary = "Get endpoints. Can only be called if the user has access to the given scenario.",
-      description = "Get all endpoints used by injects for a given scenario")
+      description = "Get all endpoints used by injects for a given scenario",
+      deprecated = true)
   @Transactional
   // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
   // executors table (each endpoint's agents eager-load their executor).
-  public List<Endpoint> endpoints(TxCtx ctx, @PathVariable String scenarioId) {
-    return this.endpointService.endpointsForScenario(scenarioId);
+  // Deprecated: the UI stopped calling it when the inject form moved to the endpoints/find
+  // route, which loads only the selected ids. Kept for API clients until its removal.
+  @Deprecated(since = "3.261118.0", forRemoval = true)
+  public List<EndpointOutput> endpoints(TxCtx ctx, @PathVariable String scenarioId) {
+    return this.endpointService.endpointsForScenario(scenarioId).stream()
+        .map(endpointMapper::toEndpointOutput)
+        .toList();
   }
 
   @PostMapping({
