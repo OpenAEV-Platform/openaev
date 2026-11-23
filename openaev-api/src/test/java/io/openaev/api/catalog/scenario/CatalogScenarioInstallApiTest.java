@@ -70,10 +70,15 @@ import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CatalogReleaseFixture.ReleasedPayload;
 import io.openaev.utils.fixtures.EndpointFixture;
+import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
+import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
+import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
@@ -115,6 +120,9 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
   @Autowired private ObjectMapper mapper;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private InjectorFixture injectorFixture;
+  @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private InjectComposer injectComposer;
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private ScenarioIdentityRepository scenarioIdentityRepository;
   @Autowired private InjectRepository injectRepository;
@@ -136,6 +144,8 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
     markingDefinitionComposer.reset();
     connectorInstanceComposer.reset();
     catalogConnectorComposer.reset();
+    scenarioComposer.reset();
+    injectComposer.reset();
     tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT_UUID);
     injectorFixture.getWellKnownOaevImplantInjector();
   }
@@ -793,6 +803,29 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       result
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.launch_check_injects[0].inject_targeted").value(true));
+    }
+
+    @Test
+    @DisplayName(
+        "leaves out an email sent to recipients only: its contract makes no team mandatory")
+    void given_emailToRecipientsOnly_should_notListItAsUntargeted() throws Exception {
+      // Arrange
+      Inject email =
+          InjectFixture.createInject(
+              injectorContractFixture.getWellKnownSingleEmailContract(), "Email to recipients");
+      email.getContent().put("recipients", "someone@example.com");
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .withInject(injectComposer.forInject(email))
+              .persist()
+              .get();
+
+      // Act
+      ResultActions result = launchCheck(scenario);
+
+      // Assert
+      result.andExpect(status().isOk()).andExpect(jsonPath("$.launch_check_injects").isEmpty());
     }
 
     @Test
