@@ -415,7 +415,6 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                     control={control}
                     name="onlyWeekday"
                     render={({ field }) => (
-                      // Same 36px row as the time field it sits next to.
                       <div style={{
                         display: 'flex',
                         alignItems: 'center',
