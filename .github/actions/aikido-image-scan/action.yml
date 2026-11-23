@@ -6,7 +6,8 @@ description: >
   of the image. Each scan is kept in Aikido under a fixed image name, and issues ignored in Aikido
   do not count. The issues at or above the threshold are listed in the job summary and uploaded
   with the JSON results and the scanner output as the aikido-image-scan artifact. The action
-  stays green on issues and posts no check on the pull request. A scanner error fails it. Without
+  stays green on issues and posts no check on the pull request. A scanner error, or a report that
+  cannot be produced, fails it, and the Pipeline Gate with it. Without
   the scanner token (pull requests from forks) the scan is skipped with a notice, except on main,
   where it fails, so a missing secret cannot pass for a clean scan. Requires a checkout, and the
   job to set GH_TOKEN for the image handoff.
@@ -150,7 +151,7 @@ runs:
             failed=1
             continue
           fi
-          cat "$out/$label.md" >> "$GITHUB_STEP_SUMMARY"
+          cat "$out/$label.md" >> "$GITHUB_STEP_SUMMARY" || failed=1
         done
         exit "$failed"
 

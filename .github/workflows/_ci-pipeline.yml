@@ -655,9 +655,10 @@ jobs:
 
   # Aikido scan of both amd64 images, on main and on every pull request, with Aikido's PR gate on
   # pull requests and its release gate on pushes. Issues are listed in the job summary and leave the
-  # job green; the gate treats the job as advisory for now. Details in the aikido-image-scan
-  # action. Skipped in the merge queue: each queue ref is unique, so a scan there would create two
-  # new Aikido containers per queued PR, and the PR and main scans already cover the same images.
+  # job green. A scan or a report that cannot be produced fails the job, and the gate with it, so a
+  # run either has its report or fails. Details in the aikido-image-scan action. Skipped in the
+  # merge queue: each queue ref is unique, so a scan there would create two new Aikido containers
+  # per queued PR, and the PR and main scans already cover the same images.
   aikido-image-scan:
     name: "🔍 Aikido Image Scan"
     if: ${{ !cancelled() && github.event_name != 'merge_group' }}
@@ -732,7 +733,7 @@ jobs:
             case "$job" in
               # A new check lands here first so a false positive cannot block a merge. Take the job
               # out of this list to make it blocking.
-              bom-override-guard|coverage-backend-gate|aikido-image-scan)
+              bom-override-guard|coverage-backend-gate)
                 advisory=1
                 ;;
             esac

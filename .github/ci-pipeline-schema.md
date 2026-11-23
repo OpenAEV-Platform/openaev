@@ -143,7 +143,7 @@ It `needs:` these 20 jobs:
 `fds-mui-regression`, `api-tests`, `coverage-backend-gate`, `e2e-tests`, `api-types-check`, `backend-package`,
 `backend-package-musl`, `docker-build`, `docker-merge`, `aikido-image-scan`
 
-**Advisory jobs.** `bom-override-guard`, `coverage-backend-gate` and `aikido-image-scan` show ⚠️ in the gate when they fail,
+**Advisory jobs.** `bom-override-guard` and `coverage-backend-gate` show ⚠️ in the gate when they fail,
 and never fail it. A new check starts there so a false positive cannot block a merge; taking it out of
 the advisory list in the gate makes it blocking.
 
@@ -172,15 +172,18 @@ The job does not turn red on issues: it lists them in its job summary, each CVE 
 public osv.dev page, and uploads the JSON results and the scanner output as the
 `aikido-image-scan` artifact. On a pull request the summary gives the installed and fixed versions
 and the file; on `main` it groups the issues by package, with a link to each in Aikido. No check is
-posted on the pull request. For now the gate treats the job as advisory, like any new check. Taking
-`aikido-image-scan` out of the gate's advisory list makes it blocking.
+posted on the pull request.
+
+The job is blocking in the gate: if a scan or its report cannot be produced for any reason, the
+job fails and so does the gate, so a run either has its report or fails, from the pull request
+to the release. The downside is that an Aikido outage blocks merges until it ends.
 
 | Case | Job | Gate |
 |------|-----|------|
 | High/critical issue counted by Aikido | ✅, listed in the job summary and artifact | ✅ |
 | Issue already on the base branch (pull requests), or ignored in Aikido | ✅ | ✅ |
-| Scanner error | ❌ fails | ⚠️ advisory |
-| No `AIKIDO_TOKEN` secret on `main` | ❌ fails | ⚠️ advisory |
+| Scanner error, or the report cannot be produced or written to the job summary | ❌ fails | ❌ blocks |
+| No `AIKIDO_TOKEN` secret on `main` | ❌ fails | ❌ blocks |
 | No `AIKIDO_TOKEN` secret elsewhere (pull requests from forks) | ✅, scan skipped with a notice | ✅ |
 
 ---
