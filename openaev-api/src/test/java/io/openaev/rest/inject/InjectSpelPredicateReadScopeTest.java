@@ -69,20 +69,19 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The 8 native/JPQL queries that keep a v1 {@code i.tenant_id = :#{#tenantContext.currentTenant}}
- * SpEL predicate alongside {@code injects}, {@code exercises} (and the already-active {@code
- * assets}/{@code asset_groups}/{@code findings}) tables, read through the non-prefixed route.
+ * The 8 native/JPQL queries that read {@code injects}, {@code exercises} (and the already-active
+ * {@code assets}/{@code asset_groups}/{@code findings}) tables through the non-prefixed route. None
+ * restricts rows to the ambient tenant: the inspector's {@code can_access_tenant} rewrite, scoped
+ * by the request, is the only tenant restriction.
  *
  * <p>The caller is a member of tenant B only, naming B alone in {@code X-Tenant-Ids}: the ambient
- * tenant (v1) stays the default one, exactly as production leaves it on this route. Before the
- * predicate is dropped, it ANDs an extra {@code tenant_id = <ambient>} restriction onto the
- * inspector's own, correct {@code can_access_tenant} rewrite, so B's own rows are filtered out by
- * the leftover default-tenant check and the read comes back empty. Dropping the predicate lets the
- * inspector's request-scoped rewrite alone decide, and B's rows come back.
+ * {@code TenantContext} is the default tenant, exactly as production leaves it on this route. A
+ * query that also restricted rows to the ambient tenant would filter out B's own rows and answer
+ * empty, so each read must return B's rows.
  */
 @TestInstance(PER_CLASS)
 @Transactional
-@DisplayName("The 8 v1 SpEL tenant predicates read correctly once injects is active")
+@DisplayName("The 8 inject reads follow the request scope, not the ambient tenant")
 class InjectSpelPredicateReadScopeTest extends IntegrationTest {
 
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
