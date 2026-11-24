@@ -41,14 +41,14 @@ import {
 import { withoutNullValues } from './asset-stream-values';
 import useAssetMarkingsPicker from './useAssetMarkingsPicker';
 
-type AssetFormValues = EndpointInput & { asset_markings?: string[] | null };
+type AssetFormValues = MarkedEndpointInput;
 
 interface Props {
   category: AssetCategory;
   onSubmit: SubmitHandler<MarkedEndpointInput>;
   handleClose: () => void;
   editing?: boolean;
-  initialValues?: Partial<EndpointInput> & { asset_markings?: string[] | null };
+  initialValues?: Partial<MarkedEndpointInput>;
   /** For HOST endpoints, agent-managed fields (platform/arch/hostname) are only editable when agentless. */
   agentless?: boolean;
 }
@@ -97,7 +97,7 @@ const buildSchema = (def: AssetCategoryDef, t: (s: string) => string) => {
     // .nullable() matters here, unlike asset_tags: the backend's markingIds field (Asset.java) has
     // no default initializer, so an endpoint with no markings assigned comes back as literal
     // `null` rather than `[]` - .optional() alone rejects that and silently blocked every submit.
-    asset_markings: z.string().array().optional().nullable(),
+    asset_markings: z.string().array().optional(),
   }).superRefine((values, ctx) => {
     // Same rule as the API (issue #9653): a subcategory always belongs to the asset's category.
     const subcategory = values.asset_subcategory as AssetSubCategory | null | undefined;

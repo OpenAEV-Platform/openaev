@@ -6,7 +6,7 @@ import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { useHelper } from '../../../../store';
-import type { Endpoint, EndpointInput, MarkedEndpointInput } from '../../../../utils/api-types';
+import type { Endpoint, MarkedEndpointInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type AssetCategory } from '../asset-categories';
@@ -71,7 +71,7 @@ const EndpointUpdate: FunctionComponent<Props> = ({
         : (
             <AssetForm
               category={category}
-              initialValues={endpoint as unknown as Partial<EndpointInput> & { asset_markings?: string[] | null }}
+              initialValues={endpoint as unknown as Partial<MarkedEndpointInput>}
               editing
               onSubmit={onSubmit}
               agentless={agentless}
