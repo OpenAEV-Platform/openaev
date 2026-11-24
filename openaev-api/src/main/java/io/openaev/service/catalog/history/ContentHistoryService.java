@@ -2,8 +2,8 @@ package io.openaev.service.catalog.history;
 
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.catalog.CatalogContent;
-import io.openaev.database.model.catalog.CatalogHistory;
-import io.openaev.database.repository.CatalogHistoryRepository;
+import io.openaev.database.model.catalog.ContentChange;
+import io.openaev.database.repository.ContentChangeRepository;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.scenario.ScenarioService;
 import java.util.List;
@@ -17,31 +17,31 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @RequiredArgsConstructor
-public class CatalogHistoryService {
+public class ContentHistoryService {
 
-  private final CatalogHistoryRepository catalogHistoryRepository;
+  private final ContentChangeRepository contentChangeRepository;
   private final PayloadVersionService payloadVersionService;
   private final ScenarioService scenarioService;
 
   // -- LIST --
 
   @Transactional(readOnly = true)
-  public List<CatalogHistory> payloadHistory(String tenantId, String actionId) {
+  public List<ContentChange> payloadHistory(String tenantId, String actionId) {
     return history(payloadVersionService.payload(tenantId, actionId));
   }
 
   @Transactional(readOnly = true)
-  public List<CatalogHistory> scenarioHistory(TxCtx ctx, String scenarioId) {
+  public List<ContentChange> scenarioHistory(TxCtx ctx, String scenarioId) {
     return history(scenarioService.scenario(ctx, scenarioId));
   }
 
   /** Newest first; local content, which has no catalogue key, is found by its content id. */
-  private List<CatalogHistory> history(CatalogContent content) {
+  private List<ContentChange> history(CatalogContent content) {
     if (content.getCatalogRepository() == null) {
-      return catalogHistoryRepository.findAllByTenantIdAndTypeAndContentIdOrderByCreatedAtDesc(
+      return contentChangeRepository.findAllByTenantIdAndTypeAndContentIdOrderByCreatedAtDesc(
           content.getTenant().getId(), content.getCatalogType(), content.getCatalogContentId());
     }
-    return catalogHistoryRepository
+    return contentChangeRepository
         .findAllByTenantIdAndTypeAndRepositoryAndExternalIdOrderByCreatedAtDesc(
             content.getTenant().getId(),
             content.getCatalogType(),

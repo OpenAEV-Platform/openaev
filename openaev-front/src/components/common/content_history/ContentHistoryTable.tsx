@@ -5,12 +5,12 @@ import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material'
 import { useTheme } from '@mui/material/styles';
 import { Fragment, type FunctionComponent, type ReactNode, useState } from 'react';
 
-import { type CatalogHistoryOutput } from '../../../utils/api-types';
+import { type ContentChangeOutput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
 import { FDS_TABLE_SX, fdsTableFrameStyle, fdsTableSectionStyle } from '../fdsTableSpec';
 import { LIB_SURFACE_LAYER } from '../libSurfaceBorder';
 
-const ACTION_LABELS: Record<CatalogHistoryOutput['catalog_history_action'], string> = {
+const ACTION_LABELS: Record<ContentChangeOutput['content_change_action'], string> = {
   INSTALL: 'Installed',
   UNINSTALL: 'Uninstalled',
   REVOKE: 'Revoked',
@@ -21,7 +21,7 @@ const ACTION_LABELS: Record<CatalogHistoryOutput['catalog_history_action'], stri
 };
 
 /** What an entry changed, when the content says it: the version it came from, the fields, the before / after. */
-export interface CatalogHistoryChanges {
+export interface ContentHistoryChanges {
   fromVersion: string;
   // The fields changed, in one line.
   summary: ReactNode;
@@ -30,14 +30,14 @@ export interface CatalogHistoryChanges {
 }
 
 interface Props {
-  history: CatalogHistoryOutput[] | null;
+  history: ContentChangeOutput[] | null;
   // With it, a Changes column and rows that open on their before / after; null for an entry with none.
-  changesOf?: (entry: CatalogHistoryOutput) => CatalogHistoryChanges | null;
+  changesOf?: (entry: ContentChangeOutput) => ContentHistoryChanges | null;
 }
 
 // What happened to a catalogue content, newest first. A row reads its version first (what the reader scans
 // for), then what happened; the date, then its time.
-const CatalogHistoryTable: FunctionComponent<Props> = ({ history, changesOf }) => {
+const ContentHistoryTable: FunctionComponent<Props> = ({ history, changesOf }) => {
   const { t, fsd, ft } = useFormatter();
   const theme = useTheme();
   const [opened, setOpened] = useState<string | null>(null);
@@ -45,9 +45,9 @@ const CatalogHistoryTable: FunctionComponent<Props> = ({ history, changesOf }) =
   if (history === null) {
     return <Skeleton className="h-24" />;
   }
-  const author = (entry: CatalogHistoryOutput) => (entry.catalog_history_mode === 'AUTO'
+  const author = (entry: ContentChangeOutput) => (entry.content_change_mode === 'AUTO'
     ? t('Automatic')
-    : entry.catalog_history_user ?? '-');
+    : entry.content_change_user ?? '-');
   const twoLines = (first: ReactNode, second: ReactNode, bold = false) => (
     <div style={{
       display: 'flex',
@@ -82,22 +82,22 @@ const CatalogHistoryTable: FunctionComponent<Props> = ({ history, changesOf }) =
               <TableBody>
                 {history.map((entry) => {
                   const changes = changesOf?.(entry) ?? null;
-                  const open = opened === entry.catalog_history_id;
+                  const open = opened === entry.content_change_id;
                   const version = changes
-                    ? `v${changes.fromVersion} → v${entry.catalog_history_version}`
-                    : `v${entry.catalog_history_version}`;
+                    ? `v${changes.fromVersion} → v${entry.content_change_version}`
+                    : `v${entry.content_change_version}`;
                   return (
-                    <Fragment key={entry.catalog_history_id}>
+                    <Fragment key={entry.content_change_id}>
                       {/* Every cell starts on the same line; the open arrow stays centred. */}
                       <TableRow sx={{
                         '& > td': { verticalAlign: 'top' },
                         '& > td:last-of-type': { verticalAlign: 'middle' },
                       }}
                       >
-                        <TableCell>{twoLines(version, t(ACTION_LABELS[entry.catalog_history_action]), true)}</TableCell>
+                        <TableCell>{twoLines(version, t(ACTION_LABELS[entry.content_change_action]), true)}</TableCell>
                         {changesOf && <TableCell>{changes ? changes.summary : '-'}</TableCell>}
                         <TableCell>{author(entry)}</TableCell>
-                        <TableCell>{twoLines(fsd(entry.catalog_history_created_at), ft(entry.catalog_history_created_at))}</TableCell>
+                        <TableCell>{twoLines(fsd(entry.content_change_created_at), ft(entry.content_change_created_at))}</TableCell>
                         {changesOf && (
                           <TableCell align="right" sx={{ width: theme.spacing(6) }}>
                             {changes && (
@@ -110,7 +110,7 @@ const CatalogHistoryTable: FunctionComponent<Props> = ({ history, changesOf }) =
                                   : <ExpandMore fontSize="small" style={{ color: 'var(--text-default-primary)' }} />}
                                 aria-label={open ? t('Hide the changes') : t('Show the changes')}
                                 aria-expanded={open}
-                                onClick={() => setOpened(open ? null : entry.catalog_history_id)}
+                                onClick={() => setOpened(open ? null : entry.content_change_id)}
                               />
                             )}
                           </TableCell>
@@ -132,4 +132,4 @@ const CatalogHistoryTable: FunctionComponent<Props> = ({ history, changesOf }) =
   );
 };
 
-export default CatalogHistoryTable;
+export default ContentHistoryTable;

@@ -5,12 +5,12 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.RequirePreviewFeature;
-import io.openaev.api.catalog.dto.CatalogHistoryOutput;
+import io.openaev.api.catalog.dto.ContentChangeOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.catalog.history.CatalogHistoryService;
+import io.openaev.service.catalog.history.ContentHistoryService;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
@@ -26,9 +26,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequirePreviewFeature(PreviewFeature.CATALOG)
 @RequiredArgsConstructor
-public class CatalogHistoryApi {
+public class ContentHistoryApi {
 
-  private final CatalogHistoryService catalogHistoryService;
+  private final ContentHistoryService contentHistoryService;
 
   // -- READ --
 
@@ -39,11 +39,11 @@ public class CatalogHistoryApi {
       resourceId = "#actionId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.THREAT_ARSENAL)
-  public List<CatalogHistoryOutput> payloadHistory(TxCtx ctx, @PathVariable String actionId) {
-    return catalogHistoryService
+  public List<ContentChangeOutput> payloadHistory(TxCtx ctx, @PathVariable String actionId) {
+    return contentHistoryService
         .payloadHistory(TxCtxScopeUtils.requireOneTenantOfScope(ctx), actionId)
         .stream()
-        .map(CatalogHistoryMapper::toOutput)
+        .map(ContentChangeMapper::toOutput)
         .toList();
   }
 
@@ -54,9 +54,9 @@ public class CatalogHistoryApi {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public List<CatalogHistoryOutput> scenarioHistory(TxCtx ctx, @PathVariable String scenarioId) {
-    return catalogHistoryService.scenarioHistory(ctx, scenarioId).stream()
-        .map(CatalogHistoryMapper::toOutput)
+  public List<ContentChangeOutput> scenarioHistory(TxCtx ctx, @PathVariable String scenarioId) {
+    return contentHistoryService.scenarioHistory(ctx, scenarioId).stream()
+        .map(ContentChangeMapper::toOutput)
         .toList();
   }
 }

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SCENARIO_URI } from '../../../../../../actions/scenarios/scenario-actions';
 import ScenarioVersions from '../../../../../../admin/components/scenarios/scenario/versions/ScenarioVersions';
-import { type CatalogHistoryOutput, type ScenarioChangeOutput, type ScenarioRevisionOutput, type ScenarioUpdatePreviewOutput, type ScenarioVersionsOutput } from '../../../../../../utils/api-types';
+import { type ContentChangeOutput, type ScenarioChangeOutput, type ScenarioRevisionOutput, type ScenarioUpdatePreviewOutput, type ScenarioVersionsOutput } from '../../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../../utils/Environment';
 import { setNotifyErrorHandler } from '../../../../../../utils/error/errorHandlerUtil';
 
@@ -177,13 +177,13 @@ const updatePreview: ScenarioUpdatePreviewOutput = {
   }],
 };
 
-const history: CatalogHistoryOutput[] = [{
-  catalog_history_id: 'history-1',
-  catalog_history_action: 'UPDATE',
-  catalog_history_mode: 'MANUAL',
-  catalog_history_version: '1.1.0',
-  catalog_history_user: 'Alice',
-  catalog_history_created_at: '2026-11-04',
+const history: ContentChangeOutput[] = [{
+  content_change_id: 'history-1',
+  content_change_action: 'UPDATE',
+  content_change_mode: 'MANUAL',
+  content_change_version: '1.1.0',
+  content_change_user: 'Alice',
+  content_change_created_at: '2026-11-04',
 }];
 
 const serve = (responses: Record<string, unknown>) => mocks.simpleCall.mockImplementation((uri: string) => Promise.resolve({ data: responses[uri] ?? [] }));

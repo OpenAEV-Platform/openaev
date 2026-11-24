@@ -1,16 +1,16 @@
 package io.openaev.api.catalog;
 
-import io.openaev.api.catalog.dto.CatalogHistoryOutput;
+import io.openaev.api.catalog.dto.ContentChangeOutput;
 import io.openaev.database.model.User;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import java.util.Optional;
 
-public class CatalogHistoryMapper {
+public class ContentChangeMapper {
 
-  private CatalogHistoryMapper() {}
+  private ContentChangeMapper() {}
 
-  public static CatalogHistoryOutput toOutput(CatalogHistory history) {
-    return new CatalogHistoryOutput(
+  public static ContentChangeOutput toOutput(ContentChange history) {
+    return new ContentChangeOutput(
         history.getId(),
         history.getAction(),
         history.getMode(),

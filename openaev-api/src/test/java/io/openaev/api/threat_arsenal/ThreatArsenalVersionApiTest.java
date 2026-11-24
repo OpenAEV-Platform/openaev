@@ -39,7 +39,7 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.model.payload.PayloadRevocation;
 import io.openaev.database.repository.InjectRepository;
@@ -564,13 +564,13 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
                 .andExpect(status().isOk()));
 
     // Assert
-    assertThat(history.findValuesAsText("catalog_history_version"))
+    assertThat(history.findValuesAsText("content_change_version"))
         .containsExactly("1.1.0", "1.0.0");
-    assertThat(history.findValuesAsText("catalog_history_action"))
-        .containsOnly(CatalogHistory.Action.INSTALL.name());
-    assertThat(history.findValuesAsText("catalog_history_mode"))
-        .containsOnly(CatalogHistory.Mode.MANUAL.name());
-    assertThat(history.findValuesAsText("catalog_history_user")).doesNotContain("", "null");
+    assertThat(history.findValuesAsText("content_change_action"))
+        .containsOnly(ContentChange.Action.INSTALL.name());
+    assertThat(history.findValuesAsText("content_change_mode"))
+        .containsOnly(ContentChange.Mode.MANUAL.name());
+    assertThat(history.findValuesAsText("content_change_user")).doesNotContain("", "null");
   }
 
   @Test
@@ -617,11 +617,11 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
                 .andExpect(status().isOk()));
 
     // Assert
-    assertThat(history.findValuesAsText("catalog_history_action"))
-        .containsExactly(CatalogHistory.Action.SAVE.name());
-    assertThat(history.findValuesAsText("catalog_history_mode"))
-        .containsExactly(CatalogHistory.Mode.MANUAL.name());
-    assertThat(history.findValuesAsText("catalog_history_version"))
+    assertThat(history.findValuesAsText("content_change_action"))
+        .containsExactly(ContentChange.Action.SAVE.name());
+    assertThat(history.findValuesAsText("content_change_mode"))
+        .containsExactly(ContentChange.Mode.MANUAL.name());
+    assertThat(history.findValuesAsText("content_change_version"))
         .doesNotContain(Payload.FIRST_VERSION);
   }
 

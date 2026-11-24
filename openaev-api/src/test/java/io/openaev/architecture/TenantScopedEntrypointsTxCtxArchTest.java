@@ -704,7 +704,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.user.PlayerApi#bulkDeletePlayers",
           "io.openaev.rest.user.TenantUserApi#create",
           "io.openaev.rest.user.TenantUserApi#delete",
-          // payloads, payload_identities, catalog_items, catalog_history: catalogue installs.
+          // payloads, payload_identities, catalog_items, content_changes: catalogue installs.
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installPayload",
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installAllPayloads",
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#uninstallPayload",
@@ -726,9 +726,9 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.payload.PayloadRevocationApi#lift",
           // injects, steps: moving the usages of a payload version to another version.
           "io.openaev.api.threat_arsenal.move.PayloadUsageMoveApi#moveUsages",
-          // catalog_history: the History tabs of an action and of a scenario.
-          "io.openaev.api.catalog.CatalogHistoryApi#payloadHistory",
-          "io.openaev.api.catalog.CatalogHistoryApi#scenarioHistory",
+          // content_changes: the History tabs of an action and of a scenario.
+          "io.openaev.api.catalog.ContentHistoryApi#payloadHistory",
+          "io.openaev.api.catalog.ContentHistoryApi#scenarioHistory",
           // payloads, payload_identities: customized copies of Filigran payloads.
           "io.openaev.api.threat_arsenal.customization.ThreatArsenalCustomizationApi#customize",
           "io.openaev.api.threat_arsenal.customization.ThreatArsenalCustomizationApi#update",

@@ -12,7 +12,7 @@ import io.openaev.api.threat_arsenal.dto.PayloadUsageOutput;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Payload;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.catalog.ContentType;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.notification.catalog.CatalogEvents.InstalledAutomatically;
@@ -20,7 +20,7 @@ import io.openaev.notification.content.ContentNotifier;
 import io.openaev.notification.engine.NotificationEngineService;
 import io.openaev.notification.engine.NotificationResourceCatalog;
 import io.openaev.rest.payload.service.PayloadService;
-import io.openaev.service.catalog.event.CatalogContentChanged;
+import io.openaev.service.catalog.event.ContentChanged;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.fixtures.PayloadFixture;
 import java.util.List;
@@ -76,9 +76,9 @@ class PayloadInstallNotificationListenerTest {
     return payload;
   }
 
-  private static CatalogContentChanged changed(
-      ContentType type, CatalogHistory.Action action, CatalogHistory.Mode mode) {
-    return new CatalogContentChanged(
+  private static ContentChanged changed(
+      ContentType type, ContentChange.Action action, ContentChange.Mode mode) {
+    return new ContentChanged(
         TENANT, type, REPOSITORY, EXTERNAL_ID, null, "1.1.0", action, mode, null);
   }
 
@@ -116,7 +116,7 @@ class PayloadInstallNotificationListenerTest {
 
     // Act
     listener.onContentChanged(
-        changed(ContentType.PAYLOAD, CatalogHistory.Action.INSTALL, CatalogHistory.Mode.MANUAL));
+        changed(ContentType.PAYLOAD, ContentChange.Action.INSTALL, ContentChange.Mode.MANUAL));
 
     // Assert
     verifyScenarioTold();
@@ -145,7 +145,7 @@ class PayloadInstallNotificationListenerTest {
 
     // Act
     listener.onContentChanged(
-        changed(ContentType.PAYLOAD, CatalogHistory.Action.INSTALL, CatalogHistory.Mode.MANUAL));
+        changed(ContentType.PAYLOAD, ContentChange.Action.INSTALL, ContentChange.Mode.MANUAL));
 
     // Assert
     verifyNoMoreInteractions(engine);
@@ -157,11 +157,11 @@ class PayloadInstallNotificationListenerTest {
   void given_otherChange_should_readNothing() {
     // Act
     listener.onContentChanged(
-        changed(ContentType.SCENARIO, CatalogHistory.Action.INSTALL, CatalogHistory.Mode.AUTO));
+        changed(ContentType.SCENARIO, ContentChange.Action.INSTALL, ContentChange.Mode.AUTO));
     listener.onContentChanged(
-        changed(ContentType.PAYLOAD, CatalogHistory.Action.UNINSTALL, CatalogHistory.Mode.MANUAL));
+        changed(ContentType.PAYLOAD, ContentChange.Action.UNINSTALL, ContentChange.Mode.MANUAL));
     listener.onContentChanged(
-        changed(ContentType.PAYLOAD, CatalogHistory.Action.INSTALL, CatalogHistory.Mode.AUTO));
+        changed(ContentType.PAYLOAD, ContentChange.Action.INSTALL, ContentChange.Mode.AUTO));
 
     // Assert
     verifyNoInteractions(engine, payloadVersionService);

@@ -2803,26 +2803,6 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
-export interface CatalogHistoryOutput {
-  catalog_history_action:
-    | "INSTALL"
-    | "UNINSTALL"
-    | "REVOKE"
-    | "LIFT_REVOCATION"
-    | "UPDATE"
-    | "ROLLBACK"
-    | "SAVE";
-  /** @format date-time */
-  catalog_history_created_at: string;
-  /** @minLength 1 */
-  catalog_history_id: string;
-  catalog_history_mode: "MANUAL" | "AUTO";
-  /** Who made the change; empty when the platform made it alone */
-  catalog_history_user?: string;
-  /** @minLength 1 */
-  catalog_history_version: string;
-}
-
 export interface CatalogInstallAllOutput {
   failed_external_ids?: string[];
   installed_ids?: string[];
@@ -3553,6 +3533,26 @@ export interface ConsumedFindingKeyDTO {
   matchedFindingIds?: string[];
   operator?: string;
   value?: string;
+}
+
+export interface ContentChangeOutput {
+  content_change_action:
+    | "INSTALL"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION"
+    | "UPDATE"
+    | "ROLLBACK"
+    | "SAVE";
+  /** @format date-time */
+  content_change_created_at: string;
+  /** @minLength 1 */
+  content_change_id: string;
+  content_change_mode: "MANUAL" | "AUTO";
+  /** Who made the change; empty when the platform made it alone */
+  content_change_user?: string;
+  /** @minLength 1 */
+  content_change_version: string;
 }
 
 export interface ContractOutputElement {

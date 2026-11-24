@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
 
-import { type CatalogHistoryOutput } from '../../../utils/api-types';
+import { type ContentChangeOutput } from '../../../utils/api-types';
 
 /** The history of one catalogue content, newest first; null while it loads. A new `reload` value reads it again. */
-const useCatalogHistory = (fetchHistory: (id: string) => Promise<{ data: unknown }>, id: string, reload = 0) => {
-  const [history, setHistory] = useState<CatalogHistoryOutput[] | null>(null);
+const useContentHistory = (fetchHistory: (id: string) => Promise<{ data: unknown }>, id: string, reload = 0) => {
+  const [history, setHistory] = useState<ContentChangeOutput[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setHistory(null);
     fetchHistory(id).then((response) => {
       if (!cancelled) {
-        setHistory(response.data as CatalogHistoryOutput[]);
+        setHistory(response.data as ContentChangeOutput[]);
       }
     });
     return () => {
@@ -22,4 +22,4 @@ const useCatalogHistory = (fetchHistory: (id: string) => Promise<{ data: unknown
   return history;
 };
 
-export default useCatalogHistory;
+export default useContentHistory;

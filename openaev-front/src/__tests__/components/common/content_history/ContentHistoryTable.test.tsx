@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import CatalogHistoryTable from '../../../../components/common/catalog_history/CatalogHistoryTable';
-import { type CatalogHistoryOutput } from '../../../../utils/api-types';
+import ContentHistoryTable from '../../../../components/common/content_history/ContentHistoryTable';
+import { type ContentChangeOutput } from '../../../../utils/api-types';
 
 vi.mock('../../../../components/i18n', () => ({
   useFormatter: () => ({
@@ -12,22 +12,22 @@ vi.mock('../../../../components/i18n', () => ({
   }),
 }));
 
-const entry = (overrides: Partial<CatalogHistoryOutput>): CatalogHistoryOutput => ({
-  catalog_history_id: 'history-1',
-  catalog_history_action: 'INSTALL',
-  catalog_history_mode: 'MANUAL',
-  catalog_history_version: '1.0.0',
-  catalog_history_user: 'Jane',
-  catalog_history_created_at: '2026-11-20T10:00:00Z',
+const entry = (overrides: Partial<ContentChangeOutput>): ContentChangeOutput => ({
+  content_change_id: 'history-1',
+  content_change_action: 'INSTALL',
+  content_change_mode: 'MANUAL',
+  content_change_version: '1.0.0',
+  content_change_user: 'Jane',
+  content_change_created_at: '2026-11-20T10:00:00Z',
   ...overrides,
 });
 
-describe('CatalogHistoryTable', () => {
+describe('ContentHistoryTable', () => {
   afterEach(cleanup);
 
   it('given_loadingHistory_should_showNoTable', () => {
     // Arrange & Act
-    render(<CatalogHistoryTable history={null} />);
+    render(<ContentHistoryTable history={null} />);
 
     // Assert
     expect(screen.queryByRole('table')).toBeNull();
@@ -36,7 +36,7 @@ describe('CatalogHistoryTable', () => {
 
   it('given_noHistory_should_sayItIsEmpty', () => {
     // Arrange & Act
-    render(<CatalogHistoryTable history={[]} />);
+    render(<ContentHistoryTable history={[]} />);
 
     // Assert
     expect(screen.getByText('No history yet')).toBeTruthy();
@@ -47,40 +47,40 @@ describe('CatalogHistoryTable', () => {
     // Arrange
     const history = [
       entry({
-        catalog_history_id: 'history-6',
-        catalog_history_action: 'ROLLBACK',
-        catalog_history_version: '1.0.0',
+        content_change_id: 'history-6',
+        content_change_action: 'ROLLBACK',
+        content_change_version: '1.0.0',
       }),
       entry({
-        catalog_history_id: 'history-5',
-        catalog_history_action: 'UPDATE',
-        catalog_history_version: '1.1.0',
+        content_change_id: 'history-5',
+        content_change_action: 'UPDATE',
+        content_change_version: '1.1.0',
       }),
       entry({
-        catalog_history_id: 'history-4',
-        catalog_history_action: 'LIFT_REVOCATION',
-        catalog_history_version: '1.1.0',
+        content_change_id: 'history-4',
+        content_change_action: 'LIFT_REVOCATION',
+        content_change_version: '1.1.0',
       }),
       entry({
-        catalog_history_id: 'history-3',
-        catalog_history_action: 'REVOKE',
-        catalog_history_mode: 'AUTO',
-        catalog_history_user: undefined,
-        catalog_history_version: '1.1.0',
+        content_change_id: 'history-3',
+        content_change_action: 'REVOKE',
+        content_change_mode: 'AUTO',
+        content_change_user: undefined,
+        content_change_version: '1.1.0',
       }),
       entry({
-        catalog_history_id: 'history-2',
-        catalog_history_action: 'UNINSTALL',
-        catalog_history_version: '1.1.0',
+        content_change_id: 'history-2',
+        content_change_action: 'UNINSTALL',
+        content_change_version: '1.1.0',
       }),
       entry({
-        catalog_history_mode: 'AUTO',
-        catalog_history_user: undefined,
+        content_change_mode: 'AUTO',
+        content_change_user: undefined,
       }),
     ];
 
     // Act
-    render(<CatalogHistoryTable history={history} />);
+    render(<ContentHistoryTable history={history} />);
 
     // Assert
     const rows = within(screen.getByRole('table', { name: 'History' })).getAllByRole('row').slice(1);
@@ -98,10 +98,10 @@ describe('CatalogHistoryTable', () => {
   it('given_changes_should_readFromVersionToVersionWithTheFieldsAndOpenOnThem', () => {
     // Arrange
     render(
-      <CatalogHistoryTable
+      <ContentHistoryTable
         history={[entry({
-          catalog_history_action: 'UPDATE',
-          catalog_history_version: '1.1.0',
+          content_change_action: 'UPDATE',
+          content_change_version: '1.1.0',
         })]}
         changesOf={() => ({
           fromVersion: '1.0.0',

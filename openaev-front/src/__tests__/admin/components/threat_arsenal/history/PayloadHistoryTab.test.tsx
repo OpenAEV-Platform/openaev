@@ -23,12 +23,12 @@ vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
 }));
 
 const entry = (action: 'INSTALL' | 'UPDATE', version: string) => ({
-  catalog_history_id: `${action}-${version}`,
-  catalog_history_action: action,
-  catalog_history_version: version,
-  catalog_history_mode: 'MANUAL',
-  catalog_history_user: 'admin',
-  catalog_history_created_at: '2026-11-20T10:00:00Z',
+  content_change_id: `${action}-${version}`,
+  content_change_action: action,
+  content_change_version: version,
+  content_change_mode: 'MANUAL',
+  content_change_user: 'admin',
+  content_change_created_at: '2026-11-20T10:00:00Z',
 });
 
 describe('PayloadHistoryTab', () => {

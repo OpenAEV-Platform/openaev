@@ -3,9 +3,9 @@ package io.openaev.service.catalog.event;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.payload.PayloadRevocationChanged;
-import io.openaev.database.repository.CatalogHistoryRepository;
+import io.openaev.database.repository.ContentChangeRepository;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.UserService;
 import jakarta.persistence.EntityManager;
@@ -16,16 +16,16 @@ import org.springframework.stereotype.Component;
 /** Records every catalogue change in the history, in the transaction that makes it. */
 @Component
 @RequiredArgsConstructor
-public class CatalogHistoryListener {
+public class ContentChangeListener {
 
-  private final CatalogHistoryRepository catalogHistoryRepository;
+  private final ContentChangeRepository contentChangeRepository;
   private final EntityManager entityManager;
   private final PayloadService payloadService;
   private final UserService userService;
 
   @EventListener
-  public void onContentChanged(CatalogContentChanged event) {
-    CatalogHistory history = new CatalogHistory();
+  public void onContentChanged(ContentChanged event) {
+    ContentChange history = new ContentChange();
     history.setTenant(entityManager.getReference(Tenant.class, event.tenantId()));
     history.setType(event.type());
     history.setRepository(event.repository());
@@ -37,7 +37,7 @@ public class CatalogHistoryListener {
     if (event.userId() != null) {
       history.setUser(entityManager.getReference(User.class, event.userId()));
     }
-    catalogHistoryRepository.save(history);
+    contentChangeRepository.save(history);
   }
 
   @EventListener
@@ -47,10 +47,10 @@ public class CatalogHistoryListener {
       return;
     }
     onContentChanged(
-        CatalogContentChanged.of(
+        ContentChanged.of(
             payload,
-            event.revoked() ? CatalogHistory.Action.REVOKE : CatalogHistory.Action.LIFT_REVOCATION,
-            event.byCatalogue() ? CatalogHistory.Mode.AUTO : CatalogHistory.Mode.MANUAL,
+            event.revoked() ? ContentChange.Action.REVOKE : ContentChange.Action.LIFT_REVOCATION,
+            event.byCatalogue() ? ContentChange.Mode.AUTO : ContentChange.Mode.MANUAL,
             userService.currentUserOrNull()));
   }
 }
