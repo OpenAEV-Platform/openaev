@@ -7,6 +7,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.gson.JsonParser;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.InjectExecutionStep;
+import io.openaev.api.chaining.WorkflowConfigurationMapper;
+import io.openaev.api.chaining.dto.AssetSnapshotOutput;
+import io.openaev.api.chaining.dto.StepOutput;
+import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
+import io.openaev.api.chaining.dto.WorkflowConfigurationOutput;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleOutput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -22,6 +29,7 @@ import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSnapshot;
 import io.openaev.database.model.ScopeRuleSource;
 import io.openaev.database.model.ScopeRuleValueType;
+import io.openaev.database.model.Step;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.model.Workflow;
@@ -29,9 +37,11 @@ import io.openaev.database.model.WorkflowScopeRule;
 import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.AssetToExecute;
@@ -41,6 +51,7 @@ import io.openaev.service.FaithfulCopyTransaction;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.UserService;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -51,6 +62,7 @@ import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
+import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
@@ -129,6 +141,12 @@ class ChainedRunDispatchParityTest extends IntegrationTest {
   @Autowired private WorkflowRepository workflowRepository;
   @Autowired private WorkflowScopeRuleRepository workflowScopeRuleRepository;
   @Autowired private ScopeSnapshotService scopeSnapshotService;
+  @Autowired private WorkflowConfigurationMapper workflowConfigurationMapper;
+  @Autowired private WorkflowService workflowService;
+  @Autowired private StepService stepService;
+  @Autowired private ScopeService scopeService;
+  @Autowired private StepRepository stepRepository;
+  @Autowired private AssetGroupComposer assetGroupComposer;
   @Autowired private MarkingClearanceCacheManager clearanceCache;
   @Autowired private DataSource dataSource;
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
@@ -592,6 +610,215 @@ class ChainedRunDispatchParityTest extends IntegrationTest {
                   .filter(rule -> asset.getId().equals(rule.getRuleValue()))
                   .findFirst()
                   .orElseThrow());
+    }
+  }
+
+  /**
+   * The scope screen of a chained simulation reads and rewrites what the run stores: the rules and
+   * the photos of the allow / deny lists, and the asset perimeter baked into the step templates.
+   * Those are stored copies, outside the reach of the marking filter, so a GREEN user must neither
+   * read a RED asset through them (block B) nor destroy it by saving what it was shown (block C).
+   */
+  @Nested
+  @DisplayName("the scope configuration naming a RED asset, for a GREEN user")
+  class ScopeConfiguration {
+
+    private String templateWorkflowId;
+    private String groupId;
+    private String stepTemplateId;
+
+    @BeforeEach
+    void seedATemplateScopedOnBothAssetsAndAGroupPhotoHoldingThem() {
+      inTenant(
+          () -> {
+            Workflow template =
+                workflowComposer
+                    .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+                    .withSimulation(
+                        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+                    .persist()
+                    .get();
+            rule(template, ScopeRuleSelectedMode.ALLOWLIST, green);
+            rule(template, ScopeRuleSelectedMode.ALLOWLIST, red);
+            groupId =
+                assetGroupComposer
+                    .forAssetGroup(
+                        AssetGroupFixture.createDefaultAssetGroup("scope-" + UUID.randomUUID()))
+                    .persist()
+                    .get()
+                    .getId();
+            workflowScopeRuleRepository.save(
+                WorkflowScopeRule.builder()
+                    .tenant(new Tenant(tenantId))
+                    .workflow(template)
+                    .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                    .ruleSource(ScopeRuleSource.ASSET_GROUP)
+                    .valueType(ScopeRuleValueType.ASSET_GROUP_ID)
+                    .ruleValue(groupId)
+                    .snapshotStart(
+                        ScopeRuleSnapshot.builder()
+                            .label("group")
+                            .assets(
+                                List.of(
+                                    ScopeRuleSnapshot.AssetSnapshot.builder()
+                                        .id(green.getId())
+                                        .name("green")
+                                        .build(),
+                                    ScopeRuleSnapshot.AssetSnapshot.builder()
+                                        .id(red.getId())
+                                        .name("red")
+                                        .build()))
+                            .build())
+                    .build());
+            Step stepTemplate = StepFixture.getDefaultStepTemplate();
+            stepTemplate.setTenant(new Tenant(tenantId));
+            stepTemplate.setWorkflow(template);
+            stepTemplate.setData(
+                "{\"inject_assets\":[\"" + green.getId() + "\",\"" + red.getId() + "\"]}");
+            stepTemplateId = stepRepository.save(stepTemplate).getId();
+            templateWorkflowId = template.getId();
+            return null;
+          });
+    }
+
+    @Test
+    @DisplayName("given a GREEN reader, should not return the RED rule nor the RED group member")
+    void given_greenReader_should_notReturnTheRedAsset() {
+      // -- ACT --
+      WorkflowConfigurationOutput output = configurationReadBy(greenLauncher);
+
+      // -- ASSERT --
+      assertThat(output.getWorkflowScopeRules())
+          .extracting(WorkflowScopeRuleOutput::getRuleValue)
+          .containsExactlyInAnyOrder(green.getId(), groupId);
+      assertThat(photoAssetIds(output))
+          .as("the group photo is returned without the member the reader cannot see")
+          .containsExactly(green.getId());
+    }
+
+    @Test
+    @DisplayName("given a RED reader (control), should return every rule and the whole group photo")
+    void given_redReader_should_returnEverything() {
+      // -- ACT --
+      WorkflowConfigurationOutput output = configurationReadBy(redLauncher);
+
+      // -- ASSERT --
+      assertThat(output.getWorkflowScopeRules())
+          .extracting(WorkflowScopeRuleOutput::getRuleValue)
+          .containsExactlyInAnyOrder(green.getId(), red.getId(), groupId);
+      assertThat(photoAssetIds(output)).containsExactlyInAnyOrder(green.getId(), red.getId());
+    }
+
+    @Test
+    @DisplayName("given a GREEN reader, should resolve the RED asset in no scope read")
+    void given_greenReader_should_resolveTheRedAssetInNoScopeRead() {
+      // -- ACT --
+      List<Set<String>> read =
+          inRequestOf(
+              greenLauncher,
+              () ->
+                  List.of(
+                      scopeService.getValidAssets(templateWorkflowId).stream()
+                          .map(Asset::getId)
+                          .collect(Collectors.toSet()),
+                      scopeService.getScopeEndpoints(templateWorkflowId).stream()
+                          .map(EndpointOutput::getId)
+                          .collect(Collectors.toSet())));
+
+      // -- ASSERT --
+      assertThat(read.get(0)).as("valid-assets").containsExactly(green.getId());
+      assertThat(read.get(1)).as("scope/endpoints").containsExactly(green.getId());
+    }
+
+    @Test
+    @DisplayName("given a GREEN reader, should return the step template without the RED asset")
+    void given_greenReader_should_returnTheStepTemplateWithoutTheRedAsset() {
+      // -- ACT --
+      StepOutput output =
+          inRequestOf(
+              greenLauncher,
+              () -> stepService.toReaderOutput(stepService.findStepTemplateById(stepTemplateId)));
+
+      // -- ASSERT --
+      assertThat(output.getData().get("inject_assets"))
+          .as("the id of the RED asset is cut from the template data")
+          .extracting(node -> node.asText())
+          .containsExactly(green.getId());
+    }
+
+    @Test
+    @DisplayName("given a GREEN editor saving what it was shown, should keep the RED rule")
+    void given_greenEditor_should_keepTheRedRuleAndTheRedTemplateAsset() {
+      // -- ARRANGE -- the editor drops the group rule it can see: the scope changes
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setWorkflowScopeRules(
+          List.of(
+              WorkflowScopeRuleInput.builder()
+                  .id(ruleIdOf(green.getId()))
+                  .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                  .ruleSource(ScopeRuleSource.ASSET)
+                  .ruleValue(green.getId())
+                  .build()));
+
+      // -- ACT --
+      inRequestOf(
+          greenLauncher,
+          () -> {
+            workflowService.updateWorkflowConfiguration(templateWorkflowId, input);
+            return null;
+          });
+
+      // -- ASSERT --
+      assertThat(ruleValues())
+          .as("the RED rule survives, the group rule the editor removed is gone")
+          .containsExactlyInAnyOrder(green.getId(), red.getId());
+      assertThat(templateAssetIds())
+          .as("the realigned template keeps the RED asset it carried")
+          .containsExactlyInAnyOrder(green.getId(), red.getId());
+    }
+
+    private WorkflowConfigurationOutput configurationReadBy(User user) {
+      return inRequestOf(
+          user,
+          () ->
+              workflowConfigurationMapper.toOutput(
+                  workflowService.getWorkflowConfiguration(templateWorkflowId)));
+    }
+
+    private Set<String> photoAssetIds(WorkflowConfigurationOutput output) {
+      return output.getWorkflowScopeRules().stream()
+          .filter(rule -> groupId.equals(rule.getRuleValue()))
+          .flatMap(rule -> rule.getSnapshotStartAssets().stream())
+          .map(AssetSnapshotOutput::getId)
+          .collect(Collectors.toSet());
+    }
+
+    private String ruleIdOf(String assetId) {
+      return inTenant(
+          () ->
+              workflowScopeRuleRepository.findAll().stream()
+                  .filter(rule -> assetId.equals(rule.getRuleValue()))
+                  .filter(rule -> templateWorkflowId.equals(rule.getWorkflow().getId()))
+                  .findFirst()
+                  .orElseThrow()
+                  .getId());
+    }
+
+    private Set<String> ruleValues() {
+      return inTenant(
+          () ->
+              workflowRepository
+                  .findById(templateWorkflowId)
+                  .orElseThrow()
+                  .getWorkflowScopeRules()
+                  .stream()
+                  .map(WorkflowScopeRule::getRuleValue)
+                  .collect(Collectors.toSet()));
+    }
+
+    /** The perimeter baked into the template, read at the system clearance. */
+    private Set<String> templateAssetIds() {
+      return inTenant(() -> new HashSet<>(stepService.assetIdsOnStepTemplates(templateWorkflowId)));
     }
   }
 

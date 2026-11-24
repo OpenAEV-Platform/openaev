@@ -18,13 +18,13 @@ make chained scenarios behave like time-based ones.
 | Block | Content | State |
 |---|---|---|
 | A | Snapshots of the allow / deny rules frozen at system clearance | **Done** (launch, end, cancel, reset: integration-tested as a GREEN user) |
-| B | Read path: rules and group photos of hidden assets cut, step template ids cut | **Done** (unit tests). Integration level: **TODO** |
-| C | Write path: a restricted writer never removes or rewrites what it cannot see | **Done** (unit tests). Integration level: **TODO** |
+| B | Read path: rules and group photos of hidden assets cut, step template ids cut | **Done** (unit + integration as a GREEN reader) |
+| C | Write path: a restricted writer never removes or rewrites what it cannot see | **Done** (unit + integration as a GREEN editor) |
 | D | Autonomous entry points copy the scenario through the faithful copy, launcher = live operator | **Done** (unit tests + one integration test) |
 | E | Launcher read from the loaded inject when the database does not know it yet (empty Attack Path tab) | **Done** (one integration test) |
 | F | Dispatch parity test (chained) | **Done** |
 | G | Attack paths (S1) | **Removed from this PR**, to be redone differently (section 7) |
-| H | Flag-off tests, reviewer guide, Vertical 1 confirmation | **TODO** (section 8) |
+| H | Flag-off tests, reviewer guide, Vertical 1 confirmation | Flag-off tests **Done**. Reviewer guide and Vertical 1 manual confirmation: **TODO** (manual, no code) |
 
 ## 3. Decisions
 
@@ -36,7 +36,7 @@ make chained scenarios behave like time-based ones.
 | D8 | **A rule on a hidden asset is not returned** (no placeholder, no `RESTRICTED` status, no chip, no API type, no i18n key), as a hidden asset is absent from a classic simulation. The write path protects it (block C) | ✅ |
 | D9 | **No new feature flag.** The `MARKING` preview feature (`openaev.enabled-dev-features`) already empties `MarkedTables`; the read-path filter works from "visible ids under the reader's scope", so it is inert when the flag is off | ✅ (flag-off tests: `ChainedRunMarkingFlagOffTest`) |
 | D10 | **No admin / bypass case in this PR**: handled by another PR (say so in the PR description; the issue DoD says "admin sees everything") | ✅ |
-| D11 | **Conditional steps on a hidden finding**: do nothing special. The downstream step shows its normal state, derived from the `Asset not targeted` trace. The test asserts that no RED finding value, name or output leaks | ✅ (test: TODO) |
+| D11 | **Conditional steps on a hidden finding**: do nothing special. The downstream step shows its normal state, derived from the `Asset not targeted` trace. The test asserts that no RED finding value, name or output leaks | ✅ (no chaining-specific test: findings and agents follow `assets` through `MarkingDerivedTables`, covered on real rows by `MarkingLinkedTablesRowsTest`; **TODO**: a full conditional-step run asserting no RED value, name or output leaks) |
 
 ## 4. What must be filtered (chaining read surfaces)
 
@@ -47,7 +47,7 @@ the *reader's* clearance, unless its data already comes from a derived table.
 | # | Surface | Finding | Status |
 |---|---|---|---|
 | S1 | **Attack paths** | Out of this PR (section 7) | Out of PR |
-| S2 | **Execution page** | Not chaining-specific: `simulation/Index.tsx` routes `execution/*` to the same `ExecutionOverview` for chained and time-based simulations. Data comes from `injects_assets`, `injects_expectations`, `agents`, `execution_traces`, all already derived from `assets` | Already covered (static read). Confirm in the RED / GREEN test: **TODO** |
+| S2 | **Execution page** | Not chaining-specific: `simulation/Index.tsx` routes `execution/*` to the same `ExecutionOverview` for chained and time-based simulations. Data comes from `injects_assets`, `injects_expectations`, `agents`, `execution_traces`, all already derived from `assets` | Already covered: the derived tables follow `assets` (`MarkingLinkedTablesRowsTest`, real rows). No chaining-specific page test, the route is shared with time-based simulations |
 | S3 | **Findings page** | Same shared route, `FindingDistinctSearchService`; `findings` / `findings_assets` already derived from `assets`. Matches the first manual test (finding hidden for GREEN) | Already covered (static read) |
 | S4 | **Statistics** (dashboard chaining stats) | Not traced. Aggregates can leak counts built from unmarked tables | **Sub-issue** (dashboards POC), not in #8555 |
 | S5 | **Allow / deny lists** (`workflow_scope_rules`) and **step templates** | Stored label, ids and JSON snapshots bypass the inspector; `computeStatus` read a hidden asset as "deleted" | **Done**, see blocks A to C |
@@ -106,10 +106,14 @@ the names of RED members.
   one lookup for every template, `StepMapper.toOutput(step, hidden)` cuts the hidden ids from `inject_assets`
   (ids only, no names, but the inspector does not see JSON). `StepMapper.assetIdsOf` lists the ids of a template.
 - Tests: `WorkflowConfigurationMapperTest`, `StepMapperTest`, `StepServiceTest` (Mockito / plain unit tests).
-- **TODO**: integration tests as a GREEN reader (`/configuration` does not return the RED rule, group photo without
-  RED members). **TODO**: `valid-assets`, `scope/endpoints`, `scope/asset-groups` (+ `/find`) are read-only
-  JPA reads of the marked `assets` table under the reader's `TxCtx`: filtered by the inspector, but only a static
-  read, no test.
+- **Done**: integration tests as a GREEN reader (`ChainedRunDispatchParityTest.ScopeConfiguration`, real DB):
+  `/configuration` does not return the RED rule, the group photo has no RED member, the step template data has
+  no RED id, a RED reader (control) gets everything. `valid-assets` and `scope/endpoints` (`ScopeService`, JPA
+  reads of the marked `assets` table under the reader's `TxCtx`) return only the GREEN asset.
+- **Not tested**: `scope/asset-groups` (+ `/find`) returns the group itself, which is not marked (`asset_groups`
+  has no `marking_ids`); its members are the live ones, already filtered by the inspector.
+- The tests call the mapper and the services in the request transaction of the user, not MockMvc (same choice as
+  the rest of the class): the endpoints add only `TxCtx` and `@AccessControl` on top.
 
 ### Block C - Write path protection (`WorkflowService`)
 
@@ -124,7 +128,9 @@ RED rules, and realigning templates under the writer's clearance would strip the
   that exists but is hidden from the caller is kept.
 - Tests: `WorkflowServiceTest` (4 cases + reset), `ChainedRunDispatchParityTest` reset section (GREEN keeps the RED
   rule, RED control, deleted asset still drops its ghost rule).
-- **TODO**: integration tests as a GREEN editor (unchanged save keeps the RED rule, template save keeps hidden ids).
+- **Done**: integration test as a GREEN editor (`ScopeConfiguration`): the editor drops the group rule it can see,
+  the RED rule survives, the removed group rule is gone, and the realigned step template keeps the RED asset it
+  carried. The unchanged-save case (no scope change, so no realignment) is the unit test only.
 
 ### Block D - Autonomous entry points (`AutonomousRunService`)
 
@@ -136,8 +142,12 @@ RED rules, and realigning templates under the writer's clearance would strip the
 - Tests: `AutonomousRunServiceTest` (Mockito) for the three entry points: stamping + `faithfulCopy.execute`.
   `ChainedRunDispatchParityTest` (autonomous section, real DB): copy then dispatch, GREEN operator keeps the RED
   target and drops it at the gate, RED control executes both.
-- **TODO**: an integration test through each of the three real entry points (today the integration test runs
-  copy-then-dispatch once, and the three entry points are only checked with mocks).
+- Integration through the real entry points: `AutonomousRunScenarioRequestScopeTest` (MockMvc, real DB) now runs
+  restart, promote and convert-to-manual end to end, which caught the read-back of the new simulation in the
+  ambient tenant (fixed: `exerciseService.exercise(ctx, ...)`). **Still open**: a RED target kept per entry
+  point. That test runs as an admin (the admin / bypass case is another PR, D10), so it cannot show a GREEN
+  operator's copy keeping a RED target; the copy-then-dispatch parity test covers that behaviour once, with a
+  real GREEN user, and the mocks cover the stamping on each entry point.
 
 ### Block E - Launcher of an uncommitted inject (`InjectService.launcherIdOf`)
 
@@ -188,7 +198,7 @@ None is in `MarkingDerivedTables` (only the tables derived from `assets`: `injec
 | `steps` TEMPLATE | `step_data` JSON incl. `inject_assets` | `StepApi` | Block B |
 | `steps` READY / RUN, `step_delay_queue` | Per-asset target in `step_data`, delayed steps | No controller | Engine only |
 | `workflow_state`, `workflow_state_entries` | Global pool: IPs, finding values, outputs | No controller | Engine only; reaches readers through derived views (findings) |
-| `conditions`, `condition_steps` | Key, operator, comparison value | `ConditionApi` -> `ConditionOutput.value` raw | **TODO** (low): author-typed text; there is an `Asset` key type, **what an `Asset` condition value holds (an asset id?) was not traced** |
+| `conditions`, `condition_steps` | Key, operator, comparison value | `ConditionApi` -> `ConditionOutput.value` raw | Closed (low). `ConditionKeyType` no longer exists: the asset key types are `PrimitiveType.AssetId` / `AssetGroupId` / `TargetedAsset`. `ConditionMapper` returns `value` as the author typed it, never read from an asset: at most an opaque id the author put there, no name, no snapshot. Not filtered, nothing leaks that the author did not write |
 
 ### Audit log and export
 
@@ -197,14 +207,18 @@ None is in `MarkingDerivedTables` (only the tables derived from `assets`: `injec
   `filterAssetScopeRules` drops every ASSET / ASSET_GROUP rule and `normalizeStepDataFieldsForExport` removes
   `inject_assets` / `inject_asset_groups`. `WorkflowScopeRuleExport` (`Mixins.java`) whitelists the value label but
   no snapshot, and the asset rules are dropped before output: no asset name or id leaves. Closed.
-- **TODO**: `inject_content` (`targets_assets`, `targets`) is not stripped on export: check whether the
-  Configure-action drawer ever stores asset ids there.
+- Closed: `inject_content` (`targets_assets`, `targets`) is not stripped on export, and does not need to be. The
+  Configure-action drawer stores the targeted assets in `inject_assets` / `inject_asset_groups` (stripped), never
+  in `inject_content`. `targets` holds the raw IP / subnet / host of a manual selector (author-typed, not an
+  asset). `targets_assets` is only written by a MAPPER condition at runtime, on READY steps; the export reads
+  the TEMPLATE workflow.
 
 ## 6. Tests on the branch
 
 | Test | Kind | Covers |
 |---|---|---|
-| `ChainedRunDispatchParityTest` | Integration | Blocks A (expansion, frozen photos), D (copy then dispatch), F, reset of block C |
+| `ChainedRunDispatchParityTest` | Integration | Blocks A (expansion, frozen photos), B and C as a GREEN user (`ScopeConfiguration`), D (copy then dispatch), F, reset of block C |
+| `AutonomousRunScenarioRequestScopeTest` | Integration (MockMvc) | Block D: restart, promote, convert-to-manual in the request scope |
 | `ChainedRunMarkingFlagOffTest` | Integration | D9: flag off, nothing hidden, system clearance a no-op |
 | `InjectLaunchClearanceOutsideSessionTest` | Integration | Block E |
 | `ScopeSnapshotServiceTest` | Mockito | Block A, hidden set, status |
