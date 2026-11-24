@@ -1136,6 +1136,11 @@ public class StepService {
         tenantId, contractId);
   }
 
+  /** The step templates, in scenarios and simulations, creating an inject of this contract. */
+  public List<Step> findTemplateStepsByContract(String tenantId, String contractId) {
+    return stepRepository.findTemplateStepsByInjectorContractIds(List.of(contractId), tenantId);
+  }
+
   /** Points a step template at another injector contract, with a fresh copy of it in its data. */
   @Transactional(rollbackFor = Exception.class)
   public Step updateStepTemplateInjectorContract(Step stepTemplate, InjectorContract contract) {

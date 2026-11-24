@@ -7,6 +7,7 @@ import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.V
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -20,19 +21,29 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.SecurityPlatform.SECURITY_PLATFORM_TYPE;
+import io.openaev.database.model.Step;
+import io.openaev.database.model.StepActionClass;
+import io.openaev.database.model.StepStatus;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.PayloadRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.processor.MigrationProcessingResult;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.DataPackService;
+import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
+import io.openaev.utils.fixtures.WorkflowFixture;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
+import io.openaev.utils.fixtures.composers.StepComposer;
+import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
@@ -67,6 +78,10 @@ class V20261119_Add_logging_expectation_to_manual_payloadsTest extends Integrati
   @Autowired private PayloadService payloadService;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private StepRepository stepRepository;
+  @Autowired private WorkflowComposer workflowComposer;
+  @Autowired private StepComposer stepComposer;
+  @Autowired private ExerciseComposer simulationComposer;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorContractContentUtils injectorContractContentUtils;
   @Autowired private ExpectationsDriftService expectationsDriftService;
@@ -157,6 +172,14 @@ class V20261119_Add_logging_expectation_to_manual_payloadsTest extends Integrati
   private Inject reloadInject(Inject inject) {
     clearSession();
     return injectRepository.findById(inject.getId()).orElseThrow();
+  }
+
+  private JsonNode readTree(String json) {
+    try {
+      return mapper.readTree(json);
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   private static Set<String> types(JsonNode expectations) {
@@ -296,6 +319,49 @@ class V20261119_Add_logging_expectation_to_manual_payloadsTest extends Integrati
       assertFalse(
           expectationsDriftService.hasDrift(migrated),
           "The inject must stay aligned with its contract");
+    }
+
+    @Test
+    @DisplayName("Should add the contract's Logging to a simulation step storing its expectations")
+    void given_simulationStepStoringDetectionAndPrevention_should_addLogging() {
+      // Arrange
+      InjectorContract contract =
+          persistPayloadWithContract(
+              Payload.PAYLOAD_SOURCE.MANUAL,
+              new EXPECTATION_TYPE[] {PREVENTION, DETECTION},
+              Map.of(DETECTION, List.of(SECURITY_PLATFORM_TYPE.SIEM)));
+      ArrayNode expectations = mapper.createArrayNode();
+      injectorContractContentUtils
+          .getPredefinedExpectationNodes(contract)
+          .forEach(node -> expectations.add(node.deepCopy()));
+      ObjectNode data = mapper.createObjectNode();
+      data.putObject("inject_injector_contract").put("injector_contract_id", contract.getId());
+      data.putObject("inject_content").set(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS, expectations);
+      Workflow workflow =
+          workflowComposer
+              .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+              .withSimulation(
+                  simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+              .withStep(
+                  stepComposer.forStep(
+                      Step.builder()
+                          .stepAction(StepActionClass.INJECT_EXECUTION)
+                          .status(StepStatus.TEMPLATE)
+                          .data(data.toString())
+                          .build()))
+              .persist()
+              .get();
+      String stepId = workflow.getSteps().getFirst().getId();
+
+      // Act
+      migration.process(tenant());
+
+      // Assert
+      clearSession();
+      JsonNode migrated = readTree(stepRepository.findById(stepId).orElseThrow().getData());
+      assertEquals(
+          Set.of("PREVENTION", "DETECTION", "LOGGING"),
+          types(migrated.path("inject_content").get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS)));
     }
 
     @Test
