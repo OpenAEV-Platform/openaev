@@ -44,8 +44,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @CoversTenantIsolation("security_coverages")
 @WithMockUser(isAdmin = true)
@@ -239,12 +237,9 @@ class SecurityCoverageTenantScopeTest extends IntegrationTest {
     // ExpectationApi#deleteInjectExpectationResult, ChallengeApi#tryChallenge,
     // SimulationChallengeApi#validateChallenge and InjectApi#injectExecutionCallback all cascade
     // into InjectExpectationService's updateLeavesThenRecomputeParents, which calls this exact
-    // service method. Proving the gate
-    // is scope-dependent here demonstrates why those four entrypoints needed TxCtx: without a
-    // scope, exercise.getSecurityCoverage() reads as if the coverage did not exist, and the send
-    // job is silently never created (fail-closed, not an error).
+    // service method. Each of those entrypoints carries a TxCtx: without a scope the simulation
+    // itself is not read, so the service is never reached.
     @Autowired private SecurityCoverageSendJobService securityCoverageSendJobService;
-    @Autowired private PlatformTransactionManager transactionManager;
 
     @Test
     @DisplayName("given own tenant scope should see the linked coverage and create the send job")
@@ -273,36 +268,6 @@ class SecurityCoverageTenantScopeTest extends IntegrationTest {
               Long.class,
               exercise.getId());
       assertThat(jobCount).isEqualTo(1L);
-    }
-
-    @Test
-    @DisplayName("given no scope should not see the linked coverage and silently skip the send job")
-    void given_noScope_should_notSeeLinkedCoverageAndSkipSendJob() throws Exception {
-      // Arrange
-      tenantA = tenantHelper.createTenantWithCurrentUser("sec-cov-gate-noscope-tenant").getId();
-      SecurityCoverage coverage =
-          createCoverageForTenant(tenantA, "security-coverage--" + UUID.randomUUID());
-      Exercise exercise = createFinishedExerciseForTenant(tenantA, coverage);
-
-      // Act: a raw TransactionTemplate opens a transaction with no TxCtx argument at all, so
-      // TenantScopeTransactionAspect stays inert and app.current_tenants is left empty - exactly
-      // the state a @Transactional entrypoint without a TxCtx parameter would leave the read in
-      // (the pre-fix state of ExpectationApi/ChallengeApi/SimulationChallengeApi/InjectApi).
-      new TransactionTemplate(transactionManager)
-          .executeWithoutResult(
-              status -> {
-                Exercise scoped = exerciseRepository.findById(exercise.getId()).orElseThrow();
-                securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
-                    List.of(scoped));
-              });
-
-      // Assert
-      Long jobCount =
-          jdbcTemplate.queryForObject(
-              "SELECT count(*) FROM security_coverage_send_job WHERE security_coverage_send_job_simulation = ?",
-              Long.class,
-              exercise.getId());
-      assertThat(jobCount).isEqualTo(0L);
     }
   }
 

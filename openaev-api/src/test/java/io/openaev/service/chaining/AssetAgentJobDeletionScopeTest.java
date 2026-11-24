@@ -95,31 +95,47 @@ class AssetAgentJobDeletionScopeTest extends IntegrationTest {
 
     TenantContext.setCurrentTenant(tenantId);
     try {
+      // Each fixture is committed in the scope of the tenant that owns it, so the next one reads
+      // it.
+      TxCtx scope = TxCtx.forTenant(tenantId);
       Exercise simulation =
-          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
+          tenantTx.execute(
+              scope,
+              () ->
+                  exerciseComposer
+                      .forExercise(ExerciseFixture.createDefaultExercise())
+                      .persist()
+                      .get());
       simulationId = simulation.getId();
       Inject inject =
-          injectComposer
-              .forInject(InjectFixture.getDefaultInject())
-              .withExercise(exerciseComposer.forExercise(simulation))
-              .persist()
-              .get();
+          tenantTx.execute(
+              scope,
+              () ->
+                  injectComposer
+                      .forInject(InjectFixture.getDefaultInject())
+                      .withExercise(exerciseComposer.forExercise(simulation))
+                      .persist()
+                      .get());
       Endpoint endpoint =
-          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get();
+          tenantTx.execute(
+              scope,
+              () -> endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get());
       agentExternalReference = "scope-test-" + UUID.randomUUID();
       Agent agent =
-          agentComposer
-              .forAgent(AgentFixture.createAgent(endpoint, agentExternalReference))
-              .persist()
-              .get();
-
+          tenantTx.execute(
+              scope,
+              () ->
+                  agentComposer
+                      .forAgent(AgentFixture.createAgent(endpoint, agentExternalReference))
+                      .persist()
+                      .get());
       AssetAgentJob job = new AssetAgentJob();
       job.setCommand("whoami");
       job.setAgent(agent);
       job.setInject(inject);
       job.setTenant(simulation.getTenant());
       job.setCreatedAt(Instant.now());
-      assetAgentJobId = assetAgentJobRepository.save(job).getId();
+      assetAgentJobId = tenantTx.execute(scope, () -> assetAgentJobRepository.save(job)).getId();
     } finally {
       TenantContext.clearCurrentTenant();
     }
