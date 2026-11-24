@@ -1,4 +1,4 @@
-import { Button, Chip, type ChipSeverity, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode, useMemo } from 'react';
@@ -18,6 +18,7 @@ import InjectIcon from '../common/injects/InjectIcon';
 import { isBuiltinConnector } from '../integrations/common/builtinConnectorDescriptions';
 import { approvalStatusLabel, approvalStatusSeverity, NEW_ACTION_HINT, NEW_VERSION_HINT } from './approval/approvalStatusUtils';
 import { useApprovedEarlierVersion } from './approval/approvedEarlierVersion';
+import HintChip from './HintChip';
 import { PAYLOAD_ORIGIN_LABELS, payloadOrigin } from './payloadOrigin';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { actionDomains } from './threatArsenalDomainSections';
@@ -45,29 +46,6 @@ interface Props {
   /** On the review pages the card shows what a decision needs: who submitted which version, and when; no migration banner. */
   review?: { submittedBy?: string };
 }
-
-// A tag stays short: past its width it truncates, and the hover always says it in full.
-const HintChip: FunctionComponent<{
-  label: string;
-  hint: string;
-  severity?: ChipSeverity;
-  maxWidth: number;
-}> = ({ label, hint, severity, maxWidth }) => (
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <span
-        className="inline-flex"
-        style={{
-          maxWidth,
-          minWidth: 0,
-        }}
-      >
-        <Chip label={label} severity={severity} style={{ maxWidth: '100%' }} />
-      </span>
-    </TooltipTrigger>
-    <TooltipContent>{hint}</TooltipContent>
-  </Tooltip>
-);
 
 const ThreatArsenalCard: FunctionComponent<Props> = ({
   action,

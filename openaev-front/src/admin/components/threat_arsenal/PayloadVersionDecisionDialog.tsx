@@ -107,6 +107,8 @@ const PayloadVersionDecisionDialog: FunctionComponent<Props> = ({ open, name, ac
       setReason('');
       setMove(true);
       setTarget('');
+    } catch {
+      // The refusal was already shown by the call that failed; nothing is moved.
     } finally {
       setSubmitting(false);
     }

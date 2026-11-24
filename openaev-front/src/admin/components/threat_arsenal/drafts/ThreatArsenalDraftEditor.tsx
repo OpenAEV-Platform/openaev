@@ -17,9 +17,11 @@ import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildInitialValues, type ThreatArsenalActionFormValues, toActionUpdateInput } from '../actionFormValues';
+import PayloadVersionComparison from '../approval/PayloadVersionComparison';
+import { type PayloadExecutableContent, toExecutableContentFromInput } from '../approval/payloadVersionDiff';
 import ThreatArsenalActionForm from '../ThreatArsenalActionForm';
 import SnapshotRemediationProvider from '../utils/SnapshotRemediationProvider';
-import { defaultSelection, editOptions, parseSelection } from './draftSelection';
+import { defaultSelection, draftOptionLabel, editOptions, parseSelection, rejectedOptionLabel } from './draftSelection';
 
 interface Props {
   /** The action on screen: its version is offered first when nothing else is being edited. */
@@ -53,6 +55,8 @@ const ThreatArsenalDraftEditor: FunctionComponent<Props> = ({ actionId, initialS
   const [failed, setFailed] = useState(false);
   // The form's current values, for "Save draft" in the switch dialog.
   const formValues = useRef<(() => ThreatArsenalActionCreateCustomInput) | null>(null);
+  // What the selected draft is compared with: the version it started from.
+  const [sourceContent, setSourceContent] = useState<PayloadExecutableContent | null>(null);
 
   useEffect(() => {
     Promise.all([fetchThreatArsenalVersions(actionId), fetchThreatArsenalDrafts(actionId)])
@@ -88,10 +92,22 @@ const ThreatArsenalDraftEditor: FunctionComponent<Props> = ({ actionId, initialS
     });
   }, [selection]);
 
+  // Both sides read the same way (editor values to an action update), so only real changes show.
+  const executableOf = (formValues: ThreatArsenalActionFormValues) => toExecutableContentFromInput(
+    toActionUpdateInput(formValues as unknown as ThreatArsenalActionCreateCustomInput),
+  );
+  const sourceActionId = currentDraft?.draft_source_action_id;
+  useEffect(() => {
+    setSourceContent(null);
+    if (!sourceActionId) return;
+    fetchThreatArsenalAction(sourceActionId).then((response: { data: ThreatArsenalActionFullOutput }) => {
+      setSourceContent(executableOf(buildInitialValues(response.data, tPick(response.data.action_labels))));
+    });
+  }, [sourceActionId]);
+
   const options = editOptions(versions ?? [], drafts);
-  const draftLabel = (draft: PayloadDraftOutput) => (draft.draft_rework
-    ? t('v{version} · Rejected, being fixed', { version: draft.draft_source_version ?? '' })
-    : t('Draft from v{version}', { version: draft.draft_source_version ?? '' }));
+  const draftLabel = (draft: PayloadDraftOutput) => draftOptionLabel(t, draft);
+  const rejectedLabel = (version: PayloadVersionOutput) => rejectedOptionLabel(t, version);
 
   const select = (next: string) => {
     if (next === selection) return;
@@ -156,16 +172,6 @@ const ThreatArsenalDraftEditor: FunctionComponent<Props> = ({ actionId, initialS
     return <Spinner size="md" />;
   }
 
-  const rework = current.kind === 'rejected' || !!currentDraft?.draft_rework;
-  let note = canApprove
-    ? t('Publishing makes a new version, usable at once. Saving a draft changes no version.')
-    : t('Sending for approval makes a new version that waits for an approver. Saving a draft changes no version.');
-  if (rework) {
-    note = canApprove
-      ? t('This version was rejected. Publishing it keeps its number and approves it.')
-      : t('This version was rejected. Sending it for approval keeps its number.');
-  }
-
   return (
     <div style={{
       display: 'flex',
@@ -179,6 +185,7 @@ const ThreatArsenalDraftEditor: FunctionComponent<Props> = ({ actionId, initialS
         gap: 4,
       }}
       >
+        <Text variant="content-compact" className="text-default-secondary">{t('Editing')}</Text>
         <Select value={selection} onValueChange={select} disabled={!values}>
           <SelectTrigger aria-label={t('Editing')}>
             <SelectValue />
@@ -197,7 +204,7 @@ const ThreatArsenalDraftEditor: FunctionComponent<Props> = ({ actionId, initialS
                 <SelectLabel>{t('Rejected versions')}</SelectLabel>
                 {options.rejected.map(version => (
                   <SelectItem key={version.payload_action_id} value={`rejected:${version.payload_action_id}`}>
-                    {t('v{version} · Rejected', { version: version.payload_version ?? '' })}
+                    {rejectedLabel(version)}
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -223,7 +230,16 @@ const ThreatArsenalDraftEditor: FunctionComponent<Props> = ({ actionId, initialS
           </Text>
         )}
       </div>
-      <Alert severity="info" title={note} />
+      {currentDraft && sourceContent && (
+        <PayloadVersionComparison
+          draft
+          title={t('What this draft changes')}
+          active={sourceContent}
+          activeNumber={currentDraft.draft_source_version}
+          pending={executableOf(currentDraft.draft_content as ThreatArsenalActionFormValues)}
+          pendingNumber={currentDraft.draft_source_version ?? ''}
+        />
+      )}
       {values
         ? (
             <SnapshotRemediationProvider key={formKey}>

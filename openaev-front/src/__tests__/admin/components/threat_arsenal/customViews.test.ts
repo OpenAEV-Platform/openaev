@@ -1,7 +1,10 @@
 import { act, renderHook } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { sameViewFilters, toViewFilters, useCustomViews } from '../../../../admin/components/threat_arsenal/customViews';
+
+const tenant = vi.hoisted(() => ({ id: 'tenant-a' }));
+vi.mock('../../../../utils/url-helper', () => ({ getCurrentTenantId: () => tenant.id }));
 
 const approvedOnWindows = {
   filterGroup: {
@@ -27,7 +30,10 @@ const approvedOnWindows = {
 };
 
 describe('customViews', () => {
-  afterEach(() => window.localStorage.clear());
+  afterEach(() => {
+    window.localStorage.clear();
+    tenant.id = 'tenant-a';
+  });
 
   describe('sameViewFilters', () => {
     it('given the same filters with other ids and orders should be the same', () => {
@@ -96,5 +102,23 @@ describe('customViews', () => {
 
     // Assert
     expect(result.current.views).toEqual([]);
+  });
+
+  it('given a view made in one tenant should not show it in another tenant', () => {
+    // Arrange
+    const { result } = renderHook(() => useCustomViews('tenant person'));
+    let id = '';
+    act(() => {
+      id = result.current.add('Approved on Windows', approvedOnWindows).id;
+    });
+
+    // Act
+    tenant.id = 'tenant-b';
+    const other = renderHook(() => useCustomViews('tenant person')).result.current;
+
+    // Assert
+    expect(other.views).toEqual([]);
+    tenant.id = 'tenant-a';
+    expect(renderHook(() => useCustomViews('tenant person')).result.current.byId(id)?.label).toBe('Approved on Windows');
   });
 });

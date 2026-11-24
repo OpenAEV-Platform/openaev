@@ -7,6 +7,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.api.threat_arsenal.dto.PayloadDraftInput;
 import io.openaev.api.threat_arsenal.dto.PayloadDraftOutput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
@@ -34,6 +35,9 @@ public class ThreatArsenalDraftApi {
 
   private static final String DRAFTS = "/{actionId}/drafts";
   private static final String DRAFT = DRAFTS + "/{draftId}";
+  private static final String NEW_ACTION_DRAFTS = "/new_action_drafts";
+  private static final String NEW_ACTION_DRAFT = NEW_ACTION_DRAFTS + "/{draftId}";
+  private static final String MY_DRAFTS = "/my_drafts";
 
   private final ThreatArsenalDraftService threatArsenalDraftService;
   private final TenantWriteScopeResolver writeScopeResolver;
@@ -139,5 +143,92 @@ public class ThreatArsenalDraftApi {
       @Valid @RequestBody ThreatArsenalActionUpdateInput input) {
     writeScopeResolver.tenantForWrite(ctx, null);
     return threatArsenalDraftService.publish(actionId, draftId, input);
+  }
+
+  // -- DRAFTS OF NEW ACTIONS: no action and no version until published --
+
+  @Operation(summary = "Drafts of new actions, last changed first")
+  @GetMapping({
+    THREAT_ARSENAL_URL + NEW_ACTION_DRAFTS,
+    TENANT_THREAT_ARSENAL_URL + NEW_ACTION_DRAFTS
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
+  public List<PayloadDraftOutput> newActionDrafts(TxCtx ctx) {
+    return threatArsenalDraftService.newActionDrafts();
+  }
+
+  @Operation(
+      summary = "Save the Create form as the draft of a new action",
+      description = "The action does not exist and has no version until the draft is published.")
+  @PostMapping({
+    THREAT_ARSENAL_URL + NEW_ACTION_DRAFTS,
+    TENANT_THREAT_ARSENAL_URL + NEW_ACTION_DRAFTS
+  })
+  @Transactional
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
+  public PayloadDraftOutput createNewActionDraft(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody PayloadDraftInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return threatArsenalDraftService.createNewActionDraft(tenantId, input.content());
+  }
+
+  @Operation(summary = "Save the draft of a new action: still no version")
+  @PutMapping({THREAT_ARSENAL_URL + NEW_ACTION_DRAFT, TENANT_THREAT_ARSENAL_URL + NEW_ACTION_DRAFT})
+  @Transactional
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
+  public PayloadDraftOutput saveNewActionDraft(
+      @RequireTenantSelector TxCtx ctx,
+      @NotBlank @PathVariable final String draftId,
+      @Valid @RequestBody PayloadDraftInput input) {
+    writeScopeResolver.tenantForWrite(ctx, null);
+    return threatArsenalDraftService.saveNewActionDraft(draftId, input.content());
+  }
+
+  @Operation(summary = "Discard the draft of a new action")
+  @DeleteMapping({
+    THREAT_ARSENAL_URL + NEW_ACTION_DRAFT,
+    TENANT_THREAT_ARSENAL_URL + NEW_ACTION_DRAFT
+  })
+  @Transactional
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
+  public void discardNewActionDraft(
+      @RequireTenantSelector TxCtx ctx, @NotBlank @PathVariable final String draftId) {
+    writeScopeResolver.tenantForWrite(ctx, null);
+    threatArsenalDraftService.discardNewActionDraft(draftId);
+  }
+
+  @Operation(
+      summary = "Publish the draft of a new action",
+      description =
+          "Creates the action and its first version: approved at once for a holder of Approve"
+              + " content, pending approval otherwise. The draft is gone after.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "The created action"),
+    @ApiResponse(responseCode = "400", description = "Missing fields or name already used")
+  })
+  @PostMapping({
+    THREAT_ARSENAL_URL + NEW_ACTION_DRAFT + "/publish",
+    TENANT_THREAT_ARSENAL_URL + NEW_ACTION_DRAFT + "/publish"
+  })
+  @Transactional
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
+  public ThreatArsenalAction publishNewActionDraft(
+      @RequireTenantSelector TxCtx ctx,
+      @NotBlank @PathVariable final String draftId,
+      @Valid @RequestBody ThreatArsenalActionCreateInput input) {
+    return threatArsenalDraftService.publishNewActionDraft(ctx, draftId, input);
+  }
+
+  // -- MY DRAFTS --
+
+  @Operation(
+      summary = "Drafts the current user started or saved last",
+      description = "Drafts of new actions and of existing actions, last changed first.")
+  @GetMapping({THREAT_ARSENAL_URL + MY_DRAFTS, TENANT_THREAT_ARSENAL_URL + MY_DRAFTS})
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  public List<PayloadDraftOutput> myDrafts(TxCtx ctx) {
+    return threatArsenalDraftService.userDrafts();
   }
 }

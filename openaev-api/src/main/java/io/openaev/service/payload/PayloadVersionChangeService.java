@@ -23,6 +23,7 @@ import io.openaev.service.UserService;
 import io.openaev.service.catalog.CatalogService;
 import io.openaev.service.content.ContentHistoryService;
 import io.openaev.service.content.PayloadFieldChanges;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.service.scenario.revision.ScenarioRevisionService;
 import io.openaev.utils.SemanticVersion;
 import java.util.*;
@@ -53,6 +54,7 @@ public class PayloadVersionChangeService {
   private final PermissionService permissionService;
   private final UserService userService;
   private final ContentHistoryService contentHistoryService;
+  private final PayloadApprovalService payloadApprovalService;
   private final ScenarioRevisionService scenarioRevisionService;
   private final ObjectMapper mapper;
 
@@ -107,7 +109,21 @@ public class PayloadVersionChangeService {
             ? 0
             : usagesOf(injectorContractService.injectorContract(contractId)).size(),
         payload == null ? null : payload.getCreatedAt(),
-        payload == null ? null : payload.getApprovalStatus());
+        payload == null ? null : payload.getApprovalStatus(),
+        rejectionReason(payload));
+  }
+
+  // The reason of the latest rejection of a rejected version (shown where it can be fixed).
+  private String rejectionReason(Payload payload) {
+    if (payload == null
+        || payload.getApprovalStatus() != Payload.PAYLOAD_APPROVAL_STATUS.REJECTED) {
+      return null;
+    }
+    return payloadApprovalService
+        .latest(payload.getId())
+        .filter(e -> e.getStatus() == Payload.PAYLOAD_APPROVAL_STATUS.REJECTED)
+        .map(PayloadApproval::getComment)
+        .orElse(null);
   }
 
   private static Payload.PAYLOAD_STATUS catalogStatus(CatalogItem item) {

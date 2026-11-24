@@ -26,7 +26,11 @@ import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationF
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.*;
+import org.hibernate.Session;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -411,6 +415,379 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
 
       // Act / Assert
       createDraftAs(author, actionId, "echo second fix").andExpect(status().isBadRequest());
+    }
+  }
+
+  @Nested
+  @DisplayName("Notifying the approvers of a fixed version")
+  class ReworkNotification {
+
+    // The pending notifications (outbox rows for the approvers) of the action's payload version,
+    // read in raw JDBC: the outbox is a tenant-v2 table and a raw read is never rewritten.
+    private List<String> pendingNotificationActors(String actionId) {
+      entityManager.flush();
+      return entityManager
+          .unwrap(Session.class)
+          .doReturningWork(
+              connection -> {
+                try (PreparedStatement statement =
+                    connection.prepareStatement(
+                        "SELECT payload_approval_notification_actor_name"
+                            + " FROM payload_approval_notifications WHERE payload_id ="
+                            + " (SELECT injector_contract_payload FROM injectors_contracts"
+                            + " WHERE injector_contract_id = ?)"
+                            + " AND payload_approval_notification_event IN"
+                            + " ('PAYLOAD_PENDING', 'VERSION_PENDING')"
+                            + " ORDER BY payload_approval_notification_created_at")) {
+                  statement.setString(1, actionId);
+                  List<String> actors = new ArrayList<>();
+                  try (ResultSet rows = statement.executeQuery()) {
+                    while (rows.next()) {
+                      actors.add(rows.getString(1));
+                    }
+                  }
+                  return actors;
+                }
+              });
+    }
+
+    @Test
+    @DisplayName(
+        "given an author without Approve content sending a fixed rejected version again, should"
+            + " notify the approvers that it waits for approval")
+    void given_authorResubmitsRejectedVersion_should_notifyApprovers() throws Exception {
+      // Arrange
+      String actionId = createAction(author);
+      reject(actionId);
+      List<String> before = pendingNotificationActors(actionId);
+      String draftId = createDraft(author, actionId, "echo fixed");
+
+      // Act
+      publish(author, actionId, draftId, update(actionId, "echo fixed"));
+
+      // Assert
+      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
+      List<String> after = pendingNotificationActors(actionId);
+      assertThat(after).hasSize(before.size() + 1);
+      assertThat(after.getLast()).isEqualTo("Author User");
+    }
+
+    @Test
+    @DisplayName(
+        "given an approver fixing a rejected version, should approve it at once and notify no"
+            + " approver")
+    void given_approverResubmitsRejectedVersion_should_notNotifyApprovers() throws Exception {
+      // Arrange
+      String actionId = createAction(author);
+      reject(actionId);
+      List<String> before = pendingNotificationActors(actionId);
+      String draftId = createDraft(approver, actionId, "echo fixed");
+
+      // Act
+      publish(approver, actionId, draftId, update(actionId, "echo fixed"));
+
+      // Assert
+      assertThat(approvalStatus(actionId)).isEqualTo("APPROVED");
+      assertThat(pendingNotificationActors(actionId)).isEqualTo(before);
+    }
+  }
+
+  // -- Drafts of new actions, my drafts, rejection reasons, the Draft filter --
+
+  private ThreatArsenalActionCreateInput newActionInput(String name) {
+    Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+    return ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(domain.getId()), name);
+  }
+
+  private PayloadDraftInput newActionContent(String name) {
+    return new PayloadDraftInput(mapper.createObjectNode().put("action_name", name));
+  }
+
+  private String createNewActionDraft(Authentication as, String name) throws Exception {
+    return JsonPath.read(
+        body(
+            mvc.perform(
+                    post(url("/new_action_drafts"))
+                        .with(authentication(as))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(newActionContent(name))))
+                .andExpect(status().isOk())),
+        "$.draft_id");
+  }
+
+  private String newActionDrafts(Authentication as) throws Exception {
+    return body(
+        mvc.perform(get(url("/new_action_drafts")).with(authentication(as)))
+            .andExpect(status().isOk()));
+  }
+
+  private String myDrafts(Authentication as) throws Exception {
+    return body(
+        mvc.perform(get(url("/my_drafts")).with(authentication(as))).andExpect(status().isOk()));
+  }
+
+  private String publishNewActionDraft(Authentication as, String draftId, String name)
+      throws Exception {
+    return JsonPath.read(
+        body(
+            mvc.perform(
+                    post(url("/new_action_drafts/" + draftId + "/publish"))
+                        .with(authentication(as))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(newActionInput(name))))
+                .andExpect(status().isOk())),
+        "$.injector_contract_id");
+  }
+
+  private SearchPaginationInput approvalFilter(String... values) {
+    Filters.Filter filter = new Filters.Filter();
+    filter.setKey("action_payload_approval_status");
+    filter.setOperator(Filters.FilterOperator.eq);
+    filter.setMode(Filters.FilterMode.or);
+    filter.setValues(List.of(values));
+    Filters.FilterGroup group = new Filters.FilterGroup();
+    group.setMode(Filters.FilterMode.and);
+    group.setFilters(new ArrayList<>(List.of(filter)));
+    return PaginationFixture.getDefault().size(1000).filterGroup(group).build();
+  }
+
+  private List<String> searchIds(SearchPaginationInput input) throws Exception {
+    return JsonPath.read(
+        body(
+            mvc.perform(
+                    post(url("/search"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(input)))
+                .andExpect(status().isOk())),
+        "$.content[*].injector_contract_id");
+  }
+
+  @Nested
+  @DisplayName("Saving a new action as a draft")
+  class NewAction {
+
+    @Test
+    @DisplayName(
+        "given an author saving the Create form as a draft, should keep it without any action or"
+            + " version, and save it again")
+    void given_newActionDraft_should_createNoAction() throws Exception {
+      // Arrange
+      String name = "New action draft " + UUID.randomUUID();
+      List<String> before = searchIds(PaginationFixture.getDefault().size(1000).build());
+
+      // Act
+      String draftId = createNewActionDraft(author, name);
+      String saved =
+          body(
+              mvc.perform(
+                      put(url("/new_action_drafts/" + draftId))
+                          .with(authentication(author))
+                          .with(csrf())
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .content(asJsonString(newActionContent(name + " v2"))))
+                  .andExpect(status().isOk()));
+
+      // Assert
+      assertThat((String) JsonPath.read(saved, "$.draft_content.action_name"))
+          .isEqualTo(name + " v2");
+      assertThat((Boolean) JsonPath.read(saved, "$.draft_new_action")).isTrue();
+      assertThat((String) JsonPath.read(saved, "$.draft_action_id")).isNull();
+      assertThat((List<String>) JsonPath.read(newActionDrafts(approver), "$[*].draft_id"))
+          .contains(draftId);
+      assertThat(searchIds(PaginationFixture.getDefault().size(1000).build()))
+          .containsExactlyInAnyOrderElementsOf(before);
+    }
+
+    @Test
+    @DisplayName(
+        "given an author publishing the draft of a new action, should create v1.0.0 pending and"
+            + " drop the draft")
+    void given_authorPublishesNewActionDraft_should_createPendingFirstVersion() throws Exception {
+      // Arrange
+      String name = "Published new action " + UUID.randomUUID();
+      String draftId = createNewActionDraft(author, name);
+
+      // Act
+      String actionId = publishNewActionDraft(author, draftId, name);
+
+      // Assert
+      assertThat(versions(actionId)).containsExactly("1.0.0");
+      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
+      assertThat((List<String>) JsonPath.read(newActionDrafts(author), "$[*].draft_id"))
+          .doesNotContain(draftId);
+    }
+
+    @Test
+    @DisplayName("given an approver publishing the draft of a new action, should approve v1.0.0")
+    void given_approverPublishesNewActionDraft_should_approveFirstVersion() throws Exception {
+      // Arrange
+      String name = "Approved new action " + UUID.randomUUID();
+      String draftId = createNewActionDraft(approver, name);
+
+      // Act
+      String actionId = publishNewActionDraft(approver, draftId, name);
+
+      // Assert
+      assertThat(versions(actionId)).containsExactly("1.0.0");
+      assertThat(approvalStatus(actionId)).isEqualTo("APPROVED");
+    }
+
+    @Test
+    @DisplayName("given a discarded new action draft, should be gone")
+    void given_discardedNewActionDraft_should_beGone() throws Exception {
+      // Arrange
+      String draftId = createNewActionDraft(author, "Discarded " + UUID.randomUUID());
+
+      // Act
+      mvc.perform(
+              delete(url("/new_action_drafts/" + draftId))
+                  .with(authentication(author))
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert
+      assertThat((List<String>) JsonPath.read(newActionDrafts(author), "$[*].draft_id"))
+          .doesNotContain(draftId);
+    }
+
+    @Test
+    @DisplayName("given a user who cannot create actions, should be forbidden")
+    void given_reader_should_beForbidden() throws Exception {
+      // Act / Assert
+      mvc.perform(
+              post(url("/new_action_drafts"))
+                  .with(authentication(reader))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(newActionContent("Forbidden"))))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName(
+        "given the draft of an action, should not be found among the drafts of new actions, and"
+            + " the other way round")
+    void given_draftOfOtherKind_should_beNotFound() throws Exception {
+      // Arrange
+      String actionId = createAction(approver);
+      String actionDraft = createDraft(author, actionId, "echo existing");
+      String newActionDraft = createNewActionDraft(author, "Other kind " + UUID.randomUUID());
+
+      // Act / Assert
+      mvc.perform(
+              put(url("/new_action_drafts/" + actionDraft))
+                  .with(authentication(author))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(newActionContent("hijack"))))
+          .andExpect(status().isNotFound());
+      mvc.perform(
+              put(url("/" + actionId + "/drafts/" + newActionDraft))
+                  .with(authentication(author))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(draftContent("echo hijack"))))
+          .andExpect(status().isNotFound());
+    }
+  }
+
+  @Nested
+  @DisplayName("Finding my drafts")
+  class MyDrafts {
+
+    @Test
+    @DisplayName(
+        "given drafts of a new action and of an existing action saved by an author, should list"
+            + " both for that author only, with the action to open")
+    void given_authorDrafts_should_listOwnDraftsOnly() throws Exception {
+      // Arrange
+      String actionId = createAction(approver);
+      String actionDraft = createDraft(author, actionId, "echo mine");
+      String newActionDraft = createNewActionDraft(author, "Mine " + UUID.randomUUID());
+      String othersDraft = createNewActionDraft(approver, "Not mine " + UUID.randomUUID());
+
+      // Act
+      String mine = myDrafts(author);
+
+      // Assert
+      assertThat((List<String>) JsonPath.read(mine, "$[*].draft_id"))
+          .contains(actionDraft, newActionDraft)
+          .doesNotContain(othersDraft);
+      assertThat(
+              (List<String>)
+                  JsonPath.read(mine, "$[?(@.draft_id == '" + actionDraft + "')].draft_action_id"))
+          .containsExactly(actionId);
+      assertThat(
+              (List<Boolean>)
+                  JsonPath.read(
+                      mine, "$[?(@.draft_id == '" + newActionDraft + "')].draft_new_action"))
+          .containsExactly(true);
+    }
+  }
+
+  @Nested
+  @DisplayName("Showing why a version was rejected")
+  class RejectionReason {
+
+    @Test
+    @DisplayName(
+        "given a rejected version, should carry the rejection reason on the version and on its"
+            + " fix draft")
+    void given_rejectedVersion_should_carryReason() throws Exception {
+      // Arrange
+      String actionId = createAction(author);
+      reject(actionId);
+
+      // Act
+      String draftId = createDraft(author, actionId, "echo fixed");
+
+      // Assert
+      String versionsBody =
+          body(mvc.perform(get(url("/" + actionId + "/versions"))).andExpect(status().isOk()));
+      assertThat((String) JsonPath.read(versionsBody, "$[0].payload_rejection_reason"))
+          .isEqualTo("Deletes system logs");
+      String list = drafts(actionId);
+      assertThat((String) JsonPath.read(list, "$[0].draft_id")).isEqualTo(draftId);
+      assertThat((String) JsonPath.read(list, "$[0].draft_rework_reason"))
+          .isEqualTo("Deletes system logs");
+    }
+  }
+
+  @Nested
+  @DisplayName("Filtering the actions with a draft")
+  class DraftFilter {
+
+    @Test
+    @DisplayName(
+        "given the Draft value of the Approval filter, should list only the actions with a draft,"
+            + " or with one of the other ticked statuses, and count them")
+    void given_draftFilter_should_listActionsWithDraft() throws Exception {
+      // Arrange
+      String withDraft = createAction(approver);
+      createDraft(author, withDraft, "echo draft");
+      String approvedOnly = createAction(approver);
+      String pending = createAction(author);
+
+      // Act
+      List<String> drafts = searchIds(approvalFilter("DRAFT"));
+      List<String> draftsOrPending = searchIds(approvalFilter("PENDING", "DRAFT"));
+
+      // Assert
+      assertThat(drafts).contains(withDraft).doesNotContain(approvedOnly, pending);
+      assertThat(draftsOrPending).contains(withDraft, pending).doesNotContain(approvedOnly);
+      String counts =
+          body(
+              mvc.perform(
+                      post(url("/facet-counts"))
+                          .with(csrf())
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .content(asJsonString(PaginationFixture.getDefault().build())))
+                  .andExpect(status().isOk()));
+      assertThat(((Number) JsonPath.read(counts, "$.approvals.DRAFT")).longValue())
+          .isGreaterThanOrEqualTo(1);
     }
   }
 }

@@ -14,6 +14,15 @@ public interface PayloadDraftRepository extends CrudRepository<PayloadDraft, Str
   /** The drafts of a payload, last changed first. */
   List<PayloadDraft> findByIdentityIdOrderByUpdatedAtDesc(String identityId);
 
+  /** The drafts of new actions (no version yet), last changed first. */
+  List<PayloadDraft> findByIdentityIsNullOrderByUpdatedAtDesc();
+
+  /** The drafts a user started or saved last, last changed first. */
+  @Query(
+      "SELECT d FROM PayloadDraft d WHERE d.createdBy.id = :userId OR d.updatedBy.id = :userId"
+          + " ORDER BY d.updatedAt DESC")
+  List<PayloadDraft> findByUser(@Param("userId") String userId);
+
   /** Whether a rejected version is already being reworked in a draft. */
   boolean existsByReworkId(String payloadId);
 

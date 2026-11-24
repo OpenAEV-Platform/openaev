@@ -8,12 +8,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ThreatArsenalActionPopover from '../../../../admin/components/threat_arsenal/ThreatArsenalActionPopover';
 import type * as NetworkModule from '../../../../network';
+import { MESSAGING$ } from '../../../../utils/Environment';
 import { setNotifyErrorHandler } from '../../../../utils/error/errorHandlerUtil';
 
 // The HTTP layer is real (Action.ts helpers and the network.ts interceptor, which rejects with
 // `{ status, ...body }`): only the transport is stubbed, so the test sees the error shape the app
 // really gets.
-const { requests, responses, submitErrors, permissions, versionList } = vi.hoisted(() => ({
+const { requests, responses, submitErrors, permissions, versionList, dispatch } = vi.hoisted(() => ({
+  dispatch: vi.fn(),
   permissions: { canApprove: true },
   versionList: [] as unknown[],
   requests: [] as InternalAxiosRequestConfig[],
@@ -84,6 +86,17 @@ vi.mock('../../../../components/i18n', async importOriginal => ({
   }),
 }));
 
+// A 403 on a decision reloads the capabilities through the store (useApprovalDecisionError).
+vi.mock('../../../../utils/hooks', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useAppDispatch: () => dispatch,
+}));
+
+vi.mock('../../../../actions/Application', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  fetchMe: () => 'FETCH_ME',
+}));
+
 vi.mock('../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: (action: string) => action !== 'APPROVE' || permissions.canApprove }) }));
 
 vi.mock('../../../../components/common/Drawer', () => ({
@@ -101,12 +114,14 @@ const SUBMIT_EDIT = 'Submit edit';
 // The form itself is not under test: a button submits a command edit like the real form does
 // (an exception from onSubmit is what the real form surfaced as an uncaught error).
 vi.mock('../../../../admin/components/threat_arsenal/ThreatArsenalActionForm', () => ({
-  default: ({ onSubmit, initialValues }: {
+  default: ({ onSubmit, initialValues, draft }: {
     onSubmit: (data: object) => Promise<void>;
     initialValues: { command_content?: string };
+    draft?: { publishLabel: string };
   }) => (
     <>
       <output data-testid="initial-command">{initialValues.command_content}</output>
+      <output data-testid="publish-label">{draft?.publishLabel}</output>
       <button
         type="button"
         onClick={() => {
@@ -181,9 +196,6 @@ const submitEdit = async () => {
   fireEvent.click(screen.getByRole('button', { name: SUBMIT_EDIT }));
 };
 
-const NOTE_FOR_AUTHOR = 'Sending for approval makes a new version that waits for an approver. Saving a draft changes no version.';
-const NOTE_FOR_APPROVER = 'Publishing makes a new version, usable at once. Saving a draft changes no version.';
-
 // The version on screen: the edit drawer starts a new draft from it.
 const onScreenVersion = {
   payload_id: 'payload-1',
@@ -232,7 +244,7 @@ describe('ThreatArsenalActionPopover: saving an action (payload versions and app
     expect(notifyError).not.toHaveBeenCalled();
   });
 
-  it('tells an author that a sent version waits for approval, and that a draft changes no version', async () => {
+  it('offers an author to send the version for approval, without an info message', async () => {
     // Arrange
     permissions.canApprove = false;
     responses.push(fetchedAction, fetchedAction);
@@ -243,10 +255,11 @@ describe('ThreatArsenalActionPopover: saving an action (payload versions and app
 
     // Assert
     expect(screen.getByTestId('initial-command').textContent).toBe('whoami');
-    expect(screen.getByText(NOTE_FOR_AUTHOR)).toBeTruthy();
+    expect(screen.getByTestId('publish-label').textContent).toBe('Send for approval');
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it('tells an approver that a published version is usable at once', async () => {
+  it('offers an approver to publish the version', async () => {
     // Arrange
     responses.push(fetchedAction, fetchedAction);
     renderPopover();
@@ -255,8 +268,7 @@ describe('ThreatArsenalActionPopover: saving an action (payload versions and app
     await openEdit();
 
     // Assert
-    expect(screen.queryByText(NOTE_FOR_AUTHOR)).toBeNull();
-    expect(screen.getByText(NOTE_FOR_APPROVER)).toBeTruthy();
+    expect(screen.getByTestId('publish-label').textContent).toBe('Publish version');
   });
 
   it('does not ask the author to move the injects of a version waiting for approval', async () => {
@@ -393,6 +405,32 @@ describe('ThreatArsenalActionPopover: taking an approval back', () => {
       inject_ids: ['inject-1'],
       step_ids: ['step-1'],
     });
+  });
+
+  it('explains a refused rejection when Approve content was removed, and moves no inject', async () => {
+    // Arrange
+    // Refused twice: the client retries a 403 once, in case only the CSRF cookie was dropped.
+    const refused = {
+      status: 403,
+      data: { message: 'Access denied' },
+    };
+    responses.push(refused, refused);
+    const removed = vi.spyOn(MESSAGING$, 'notifyError').mockImplementation(() => {});
+    renderPopover();
+    openMenu();
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Reject' }));
+    const submit = await screen.findByRole('button', { name: 'Reject' });
+    fireEvent.change(screen.getByPlaceholderText('Reason'), { target: { value: 'Approved by mistake' } });
+
+    // Act
+    fireEvent.click(submit);
+
+    // Assert
+    await waitFor(() => expect(removed).toHaveBeenCalledWith('You can no longer approve or reject payloads: Approve content was removed from your role.'));
+    expect(dispatch).toHaveBeenCalledWith('FETCH_ME');
+    expect(posts().some(request => request.url?.endsWith('/change-version'))).toBe(false);
+    expect(notifyError).not.toHaveBeenCalled();
+    removed.mockRestore();
   });
 
   it('moves a version back to pending with an optional note, without moving the injects when unticked', async () => {

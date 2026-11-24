@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
 import { type Filter, type FilterGroup } from '../../../utils/api-types';
+import { getCurrentTenantId } from '../../../utils/url-helper';
 
 /**
  * Custom views of the Threat Arsenal: a person's saved filters of the Active tab. Active, Available
@@ -9,7 +10,8 @@ import { type Filter, type FilterGroup } from '../../../utils/api-types';
  * click. Its filters can still be changed: the change is saved in the view, saved as a new view, or
  * discarded. A person shows up to three custom views as tabs next to the built-in ones (design system
  * Customize Panel), the others sit under "Custom views".
- * DESIGN DEMO: custom views live in this browser only; the product would store them per user.
+ * Custom views belong to the tenant they were made in: another tenant shows its own views.
+ * DESIGN DEMO: custom views live in this browser only; the product would store them on the server.
  */
 export interface CustomViewFilters {
   filterGroup?: FilterGroup;
@@ -65,8 +67,9 @@ interface Stored {
   layout: ViewLayoutItem[];
 }
 
-const viewsKey = (me?: string) => `threat-arsenal:custom-views:${me ?? 'anonymous'}`;
-const layoutKey = (me?: string) => `threat-arsenal:custom-views-layout:${me ?? 'anonymous'}`;
+// Per tenant (like the lists' filters, see useQueryableWithLocalStorage), then per person.
+const viewsKey = (me?: string) => `${getCurrentTenantId()}:threat-arsenal:custom-views:${me ?? 'anonymous'}`;
+const layoutKey = (me?: string) => `${getCurrentTenantId()}:threat-arsenal:custom-views-layout:${me ?? 'anonymous'}`;
 
 const read = (key: string): unknown => {
   try {

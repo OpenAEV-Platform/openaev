@@ -13,7 +13,7 @@ import { useFormatter } from '../../../components/i18n';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { type SearchPaginationInput } from '../../../utils/api-types';
 import { type IconBarElement } from '../common/domains/IconBar-model';
-import { APPROVAL_STATUSES, approvalStatusLabel } from './approval/approvalStatusUtils';
+import { APPROVAL_STATUSES, approvalStatusLabel, DRAFT_APPROVAL_VALUE } from './approval/approvalStatusUtils';
 import { type ThreatArsenalFacetCounts } from './useThreatArsenalFacetCounts';
 
 const PLATFORM_FILTER_KEY = 'action_platforms';
@@ -88,6 +88,14 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
       checked: approvalValues.includes(status),
       onToggle: () => toggleValue(APPROVAL_FILTER_KEY, status),
     }));
+    // Payload drafts: not a version status; finds the actions with a draft (a view can keep it).
+    approvalRows.push({
+      value: DRAFT_APPROVAL_VALUE,
+      label: t('Draft'),
+      count: facetCounts ? facetCounts.approvals?.[DRAFT_APPROVAL_VALUE] ?? 0 : undefined,
+      checked: approvalValues.includes(DRAFT_APPROVAL_VALUE),
+      onToggle: () => toggleValue(APPROVAL_FILTER_KEY, DRAFT_APPROVAL_VALUE),
+    });
 
     const authorRows = buildAuthorRows({
       authorOptions,
