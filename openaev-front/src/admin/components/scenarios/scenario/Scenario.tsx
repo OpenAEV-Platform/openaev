@@ -241,11 +241,11 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
     };
   }, [scenarioId, areAnyExercisesInScenario]);
 
-  const lastAttackPatternIds = R.uniq(
+  const lastAttackPatternIds = [...new Set(
     (lastInjectResults ?? [])
       .filter(injectResult => !!injectResult.inject_attack_pattern)
       .flatMap(injectResult => injectResult.inject_attack_pattern) as unknown as string[],
-  );
+  )];
   const hasMitreResults = !!lastInjectResults && lastAttackPatternIds.length > 0;
   const hasPosture = !!lastResults && lastResults.length > 0;
 

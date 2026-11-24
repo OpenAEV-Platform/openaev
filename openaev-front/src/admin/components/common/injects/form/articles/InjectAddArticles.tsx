@@ -89,8 +89,8 @@ const InjectAddArticles: FunctionComponent<Props> = ({
     article_fullchannel: item.article_channel ? channelsMap[item.article_channel] : {},
   }));
   const filteredArticles = R.pipe(
-    R.filter(filterByKeyword),
-    R.take(20),
+    (articlesList: FullArticleStore[]) => articlesList.filter(n => filterByKeyword(n)),
+    (articlesList: FullArticleStore[]) => articlesList.slice(0, 20),
   )(fullArticles);
 
   const elements: SelectListPickerElements<FullArticleStore> = useMemo(() => ({

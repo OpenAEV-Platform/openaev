@@ -95,7 +95,7 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
 
   const attackPatternsOptions = attackPatterns.map(
     (n: AttackPattern) => {
-      const killChainPhase = n.attack_pattern_kill_chain_phases[0];
+      const killChainPhase = n.attack_pattern_kill_chain_phases![0];
       const killChainName = killChainPhase ? killChainPhasesMap[killChainPhase]?.phase_kill_chain_name ?? null : null;
       return {
         id: n.attack_pattern_id,

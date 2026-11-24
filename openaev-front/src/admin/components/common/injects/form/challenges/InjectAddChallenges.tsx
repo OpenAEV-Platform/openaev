@@ -101,12 +101,12 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
         .toLowerCase()
         .indexOf(keyword.toLowerCase()) !== -1;
   const filteredChallenges = R.pipe(
-    R.filter(
+    (challengesList: Challenge[]) => challengesList.filter(
       (n: Challenge) => tags.length === 0
         || tags.map(item => item.id).some((filter: string) => R.includes(filter, n.challenge_tags)),
     ),
-    R.filter(filterByKeyword),
-    R.take(20),
+    (challengesList: Challenge[]) => challengesList.filter(n => filterByKeyword(n)),
+    (challengesList: Challenge[]) => challengesList.slice(0, 20),
   )(challenges);
 
   const elements: SelectListPickerElements<Challenge> = useMemo(() => ({

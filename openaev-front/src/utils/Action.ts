@@ -24,12 +24,12 @@ const buildError = (data: AxiosError) => {
   const errorsExtractor = R.pipe(
     R.pathOr({}, ['errors', 'children']),
     Object.entries,
-    R.map((elem: unknown) => {
+    (pairs: [string, unknown][]) => pairs.map((elem: [string, unknown]) => {
       const extractErrorsPipe = R.pipe(
-        R.tail(),
-        R.head(),
+        (pair: [string, unknown]) => pair.slice(1),
+        (list: unknown[]) => list[0],
         R.propOr([], 'errors'),
-        R.head(),
+        (errors: unknown[]) => errors[0],
       );
       return [elem[0], extractErrorsPipe(elem)];
     }),

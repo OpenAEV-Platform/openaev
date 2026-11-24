@@ -348,7 +348,7 @@ const Injects: FunctionComponent<Props> = ({
     }
     if (selectedElements && !R.isEmpty(selectedElements)) {
       // Find the indexes of the first and last selected entities
-      let firstIndex = injects.findIndex((n: Inject) => n.inject_id === Object.values(selectedElements)[0].inject_id);
+      let firstIndex = injects.findIndex((n: InjectOutputType) => n.inject_id === Object.values(selectedElements)[0].inject_id);
       if (currentIndex > firstIndex) {
         let entities: InjectOutputType[] = [];
         while (firstIndex <= currentIndex) {
@@ -399,7 +399,7 @@ const Injects: FunctionComponent<Props> = ({
       operationsToPerform.push({
         operation: action.type.toLowerCase(),
         field: action.field,
-        values: R.uniq(action.values.map(n => n.value)),
+        values: [...new Set(action.values.map(n => n.value))],
       } as InjectBulkUpdateOperation); // Cast is necessary because typeof enum don't work with operation and fields
     }
     await injectContext.onBulkUpdateInject({

@@ -19,10 +19,11 @@ const useSearchAndFilter = (
   const [keyword, setKeyword] = useState(options?.defaultKeyword ?? '');
   const [tags, setTags] = useState([]);
   const handleAddTag = (value) => {
-    setTags(R.uniq(R.append(value, tags)));
+    // deep equality, as Ramda's uniq did: tag options are rebuilt objects
+    setTags([...tags, value].filter((tag, index, all) => all.findIndex(other => R.equals(other, tag)) === index));
   };
   const handleRemoveTag = (value) => {
-    const remainingTags = R.filter(n => n.id !== value, tags);
+    const remainingTags = tags.filter(n => n.id !== value);
     setTags(remainingTags);
   };
   const handleSearch = value => setKeyword(value);
@@ -72,17 +73,16 @@ const useSearchAndFilter = (
     const sort = items => items.toSorted(compareElements);
     return defaultSortKey
       ? R.pipe(
-          R.filter(
+          list => list.filter(
             n => tags.length === 0
-              || R.any(
+              || tags.map(tag => tag.id).some(
                 filter => R.includes(filter, n[`${schema}_tags`] || []),
-                R.pluck('id', tags),
               ),
           ),
-          R.filter(filterByKeyword),
+          list => list.filter(n => filterByKeyword(n)),
           sort,
         )(elements)
-      : R.pipe(R.filter(filterByKeyword))(elements);
+      : R.pipe(list => list.filter(n => filterByKeyword(n)))(elements);
   };
   return {
     keyword,
