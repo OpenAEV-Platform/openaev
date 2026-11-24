@@ -7,7 +7,6 @@ import { useEffect, useRef } from 'react';
 import type { LoggedHelper } from '../../../../../actions/helper';
 import { fetchXtmHubRegistration, refreshConnectivity } from '../../../../../actions/xtmhub/xtmhub-actions';
 import { useFormatter } from '../../../../../components/i18n';
-import InfoChip from '../../../../../components/InfoChip';
 import { useHelper } from '../../../../../store';
 import { type PlatformSettings, type XtmHubRegistrationOutput } from '../../../../../utils/api-types';
 import { isDemoInstance, XTM_HUB_DEFAULT_URL } from '../../../../../utils/Environment';
@@ -57,12 +56,6 @@ const XtmHubSettings: React.FC = () => {
   const isDemoMode = isDemoInstance(settings);
   const hubUrl = settings?.xtm_hub_url ?? XTM_HUB_DEFAULT_URL;
 
-  const statusChip = (() => {
-    if (registrationStatus === 'REGISTERED') return <InfoChip label={t('Connected')} tone="green" />;
-    if (registrationStatus === 'LOST_CONNECTIVITY') return <InfoChip label={t('Connectivity lost')} tone="red" />;
-    return <InfoChip label={t('Not connected')} tone="accent" />;
-  })();
-
   const renderActionButton = (handleOpen?: () => void) => (isXTMHubRegistered
     ? (
         <Button type="button" variant="destructive" priority="secondary" onClick={handleOpen} disabled={!handleOpen}>
@@ -107,7 +100,6 @@ const XtmHubSettings: React.FC = () => {
       overline={t('Filigran Experience')}
       title={t('XTM Hub')}
       accent={theme.palette.xtmhub.main}
-      statusChip={statusChip}
       footer={footer}
       testId="experience-xtm-hub-card"
     >
