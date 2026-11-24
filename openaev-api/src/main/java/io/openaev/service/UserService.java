@@ -118,6 +118,7 @@ public class UserService {
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final TenantScopedTransaction tenantTx;
+  private final TenantScopeResolver tenantScopeResolver;
   private final ApplicationEventPublisher eventPublisher;
   private final ObjectProvider<AuditLogger> auditLoggerProvider;
   private final OpenAEVConfig openAEVConfig;
@@ -772,6 +773,50 @@ public class UserService {
   }
 
   /**
+   * Loads the lazy teams, tags and organizations a response serializes, in the scope an
+   * authenticated request without tenant selector reads under: the tenants {@code user} is a member
+   * of. For an endpoint that answers before a request scope exists (the login, the password reset):
+   * the lazy collections are otherwise read after the transaction, with no scope, and come back
+   * empty.
+   *
+   * <p>Needs the active transaction that loaded {@code user}: {@link
+   * TenantScopedTransaction#setScopeOnCurrentTransaction} throws an {@link IllegalStateException}
+   * without one. A member of no tenant does not reach it: that user reads nothing in a request
+   * either, and the associations are initialized with no scope change.
+   *
+   * <p>The scope moves with {@code setScopeOnCurrentTransaction}, the only primitive that takes
+   * several tenants, so the transaction also runs at the system clearance of those tenants while
+   * the associations load. Teams, tags and organizations carry no marking. Both scopes are put back
+   * before returning.
+   *
+   * @param user the user, as the transaction loaded it
+   * @return {@code user}, with the three associations initialized
+   */
+  public User hydrateInMembershipScope(User user) {
+    TxCtx membershipScope =
+        tenantScopeResolver.resolve(
+            Set.of(),
+            new LinkedHashSet<>(tenantMembershipCacheManager.findTenantIdsByUserId(user.getId())));
+    if (membershipScope instanceof TxCtx.Missing) {
+      // A member of no tenant reads nothing, in a request as here
+      initializeResponseAssociations(user);
+      return user;
+    }
+    try (TenantScopedTransaction.CapturedScope callerScope =
+        tenantTx.captureScopeOfCurrentTransaction()) {
+      tenantTx.setScopeOnCurrentTransaction(membershipScope);
+      initializeResponseAssociations(user);
+    }
+    return user;
+  }
+
+  private static void initializeResponseAssociations(User user) {
+    Hibernate.initialize(user.getTeams());
+    Hibernate.initialize(user.getTags());
+    user.loadOrganizations();
+  }
+
+  /**
    * Applies a change of password for the specified account and reset token
    *
    * @param token the reset token; must be valid and associated with the user account
@@ -800,7 +845,11 @@ public class UserService {
     if (!passwordValidation.equals(password)) {
       throw new InputValidationException("password_validation", "Bad password validation");
     }
-    User changeUser = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+    // Hydrated before the save: the save reads the user's collections with no scope, and an
+    // association read there stays empty for the response
+    User changeUser =
+        hydrateInMembershipScope(
+            userRepository.findById(userId).orElseThrow(ElementNotFoundException::new));
     changeUser.setPassword(encodeUserPassword(password));
     User savedUser = userRepository.save(changeUser);
     synchronized (resetTokenMap) {
