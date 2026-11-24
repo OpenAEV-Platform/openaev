@@ -25,7 +25,6 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,7 +43,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  * execute} must be provable against a test-managed transaction. Seeding and cleanup run in
  * auto-committed JDBC.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers")
 @Import(TenantScopedTransactionIntegrationTest.JoinedServiceFixture.class)
 @DisplayName("TenantScopedTransaction: the background transaction primitive")
 class TenantScopedTransactionIntegrationTest extends IntegrationTest {

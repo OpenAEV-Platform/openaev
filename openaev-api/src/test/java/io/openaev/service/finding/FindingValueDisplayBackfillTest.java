@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * Verifies the delayed pass of {@link FindingValueDisplayBackfill}: the findings a pod of the
@@ -28,7 +27,6 @@ import org.springframework.test.context.TestPropertySource;
  * pass only, never to the assertions. {@code findings} is activated on v2 as in production, so the
  * pass's queries go through the inspector.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=findings")
 @DisplayName("Finding value display backfill")
 class FindingValueDisplayBackfillTest extends IntegrationTest {
 

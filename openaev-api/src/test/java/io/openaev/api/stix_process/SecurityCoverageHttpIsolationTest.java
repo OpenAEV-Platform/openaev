@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -36,7 +35,6 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>Deliberately NOT {@code @Transactional}: each HTTP call must run in its own transaction with
  * its own tenant scope.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=security_coverages")
 @WithMockUser(isAdmin = true)
 @DisplayName("security_coverages isolation through STIX HTTP endpoint")
 class SecurityCoverageHttpIsolationTest extends IntegrationTest {

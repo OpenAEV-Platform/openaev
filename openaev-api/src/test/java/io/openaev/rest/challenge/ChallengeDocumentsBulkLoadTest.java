@@ -48,7 +48,6 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,7 +64,6 @@ import org.springframework.transaction.annotation.Transactional;
  * database and not served initialized from the persistence context of the test.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=challenges,documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("Challenge read endpoints load their documents in bulk")
 class ChallengeDocumentsBulkLoadTest extends IntegrationTest {

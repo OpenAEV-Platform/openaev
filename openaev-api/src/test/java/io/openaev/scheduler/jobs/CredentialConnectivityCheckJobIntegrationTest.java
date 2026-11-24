@@ -86,7 +86,6 @@ import reactor.core.publisher.Mono;
  */
 @TestPropertySource(
     properties = {
-      "openaev.tenant.active-tables=secret_references,secrets",
       "openaev.enabled-dev-features=CREDENTIAL_ASSET",
       // The mocked clouds of the sovereign endpoint tests listen on loopback.
       "openaev.credentials.endpoint-allow-internal-targets=true"

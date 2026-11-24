@@ -31,7 +31,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -54,7 +53,6 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * <p>On the non-prefixed route the parent simulation is looked up in the request's tenant scope, so
  * the header-route cases seed in the default tenant and select it through {@code X-Tenant-Ids}.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("Channel reader endpoints serialize their document links with documents v2-activated")
 class ChannelReaderDocumentsSerializationTenantScopeTest extends IntegrationTest {

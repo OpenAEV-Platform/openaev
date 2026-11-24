@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * {@link AttackPatternService#findOrCreate} is a read-before-write keyed on the MITRE external id,
@@ -34,7 +33,6 @@ import org.springframework.test.context.TestPropertySource;
  * transaction, the way the payload import reaches it. Cleanup goes through an auto-committing
  * {@link JdbcTemplate}.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=attack_patterns")
 @WithMockUser(isAdmin = true)
 @DisplayName("findOrCreate attributes the attack pattern from the request write scope")
 class AttackPatternFindOrCreateScopeTest extends IntegrationTest {

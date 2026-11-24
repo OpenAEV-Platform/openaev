@@ -15,7 +15,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * A LIVE notification trigger with a filter re-checks that filter against the watched entity before
@@ -36,7 +35,6 @@ import org.springframework.test.context.TestPropertySource;
  * <p>Not {@code @Transactional}: the scoped primitive refuses to open inside an active transaction,
  * and the production path has none. Seeding auto-commits through {@link JdbcTemplate} and is swept.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets")
 @WithMockUser(isAdmin = true)
 @DisplayName("a filtered LIVE trigger still fires once its watched table is tenant-active")
 class NotificationLiveTriggerTenantScopeTest extends IntegrationTest {

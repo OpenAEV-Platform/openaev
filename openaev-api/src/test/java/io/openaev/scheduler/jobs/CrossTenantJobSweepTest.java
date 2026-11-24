@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * The scheduler's cross-tenant sweeps over {@code exercises}, {@code injects} and {@code scenarios}
@@ -38,7 +37,6 @@ import org.springframework.test.context.TestPropertySource;
  * and the pending-inject read is called on a bare thread without the scope its caller, {@code
  * InjectsFinalizationJob.handlePendingInject}, gives it.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers,scenarios")
 @WithMockUser(isAdmin = true)
 @DisplayName("The scheduler's cross-tenant sweeps reach a second tenant's rows")
 class CrossTenantJobSweepTest extends IntegrationTest {

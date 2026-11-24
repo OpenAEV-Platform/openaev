@@ -22,7 +22,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +36,6 @@ import org.springframework.transaction.annotation.Transactional;
  * tests hold the create paths to that same standard.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets")
 @WithMockUser(isAdmin = true)
 @DisplayName("endpoint creation carries its tenant explicitly")
 class EndpointWriteAttributionTest extends IntegrationTest {

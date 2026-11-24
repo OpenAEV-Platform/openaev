@@ -39,13 +39,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @CoversTenantIsolation("custom_dashboards")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=custom_dashboards,widgets")
 @WithMockUser(isAdmin = true)
 @DisplayName("custom_dashboards stay isolated through the real HTTP endpoints once v2 is active")
 class CustomDashboardHttpIsolationTest extends IntegrationTest {

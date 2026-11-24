@@ -14,7 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  * HTTP-triggered imports), never a background job. With the table activated, the transaction scope
  * alone decides which tenant's mappers a query sees and which a write can touch.
  */
-@SpringBootTest(properties = "openaev.tenant.active-tables=import_mappers")
+@SpringBootTest
 @DisplayName("First table activation readiness: import_mappers")
 class ImportMapperTenantIsolationTest extends TenantIsolationIntegrationTest {
 

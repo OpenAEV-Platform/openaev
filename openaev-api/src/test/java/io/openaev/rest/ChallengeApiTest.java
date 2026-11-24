@@ -37,14 +37,12 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @TestInstance(PER_CLASS)
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=challenges")
 class ChallengeApiTest extends IntegrationTest {
 
   @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;

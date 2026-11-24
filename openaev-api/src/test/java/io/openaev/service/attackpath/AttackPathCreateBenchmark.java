@@ -29,7 +29,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -53,8 +52,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Tag("benchmark")
 @EnabledIfEnvironmentVariable(named = "ATTACKPATH_BENCHMARK", matches = "true")
 @WithMockUser(isAdmin = true)
-@TestPropertySource(
-    properties = {"openaev.tenant.active-tables=attackpath_execution,attackpath_finding"})
 @DisplayName("attack path Phase A create: write latency")
 class AttackPathCreateBenchmark extends IntegrationTest {
 

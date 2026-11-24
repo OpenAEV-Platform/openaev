@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -49,7 +48,6 @@ import org.springframework.test.web.servlet.MockMvc;
  * through auto-committed JDBC instead, the same pattern as {@code
  * TenantScopedTransactionIntegrationTest}.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=phishing_results")
 @DisplayName("Hosted public tracking endpoints, no authentication")
 class HostedPublicApiIsolationTest extends IntegrationTest {
 

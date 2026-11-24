@@ -10,7 +10,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -22,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
  * default in tests); the same allowlist feeds the detector's oracle.
  */
 @Import(FailClosedDetectorTestConfig.class)
-@TestPropertySource(properties = "openaev.tenant.active-tables=mitigations")
 class FailClosedDetectorTest extends IntegrationTest {
 
   @Autowired private MitigationRepository mitigationRepository;

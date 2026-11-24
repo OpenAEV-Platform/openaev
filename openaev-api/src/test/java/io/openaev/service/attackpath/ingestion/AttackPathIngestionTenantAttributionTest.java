@@ -35,7 +35,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -65,8 +64,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  * attack-path tables are not tenant-filtered here. A test whose premise depends on one of them
  * being isolated must not assume it.
  */
-@TestPropertySource(
-    properties = {"openaev.tenant.active-tables=attackpath_execution,attackpath_finding"})
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path Phase A: the create attributes rows to the inject's tenant")
 class AttackPathIngestionTenantAttributionTest extends IntegrationTest {

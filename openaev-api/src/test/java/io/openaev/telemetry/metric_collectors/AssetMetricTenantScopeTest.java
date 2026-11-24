@@ -17,7 +17,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
@@ -35,7 +34,6 @@ import org.springframework.test.util.ReflectionTestUtils;
  * transaction, so seeding goes through an auto-committing {@link JdbcTemplate}, which also bypasses
  * the inspector and therefore sees every row whatever the scope.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets")
 @DisplayName("the asset inventory gauge keeps counting across tenants once assets is v2-active")
 class AssetMetricTenantScopeTest extends IntegrationTest {
 

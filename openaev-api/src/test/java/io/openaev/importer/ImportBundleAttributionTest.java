@@ -93,7 +93,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -116,7 +115,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @TestInstance(PER_CLASS)
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents,domains,attack_patterns")
 @WithMockUser(isAdmin = true)
 @DisplayName("An import attributes the whole bundle to the request's write tenant")
 class ImportBundleAttributionTest extends IntegrationTest {

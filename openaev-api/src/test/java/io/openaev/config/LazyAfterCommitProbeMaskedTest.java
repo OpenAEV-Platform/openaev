@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
  * runs it with.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=challenges,tags")
 @Import({LazyAfterCommitProbeTestConfig.class, LazyAfterCommitProbeTest.ProbeEndpointConfig.class})
 @WithMockUser(isAdmin = true)
 @DisplayName("Lazy-after-commit probe under a test transaction")

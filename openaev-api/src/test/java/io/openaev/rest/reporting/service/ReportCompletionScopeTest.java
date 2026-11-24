@@ -25,7 +25,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -44,7 +43,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  * refuses to run inside an active one, and the completion opens its own transactions exactly as it
  * does on the render thread. Seeding is committed and cleaned up by tenant on teardown.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @DisplayName("The render completion attaches the stored document without a v2 scope on the thread")
 class ReportCompletionScopeTest extends IntegrationTest {
 

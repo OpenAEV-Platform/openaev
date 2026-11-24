@@ -32,7 +32,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.util.AopTestUtils;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -49,7 +48,6 @@ import org.springframework.test.util.ReflectionTestUtils;
  * <p>NOT {@code @Transactional}: the router opens its own transactions, and {@code
  * TenantScopedTransaction#execute} refuses an active one. Cleanup is auto-committed JDBC.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=injects")
 @WithMockUser(isAdmin = true)
 @DisplayName("IMAP reply routing with injects v2-active")
 class ImapServiceInjectsScopeTest extends IntegrationTest {

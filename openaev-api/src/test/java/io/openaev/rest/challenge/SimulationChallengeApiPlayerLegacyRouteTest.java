@@ -34,7 +34,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,7 +57,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=challenges")
 @DisplayName(
     "SimulationChallengeApi#playerChallenges on the legacy anonymous route, challenges v2-active")
 class SimulationChallengeApiPlayerLegacyRouteTest extends IntegrationTest {

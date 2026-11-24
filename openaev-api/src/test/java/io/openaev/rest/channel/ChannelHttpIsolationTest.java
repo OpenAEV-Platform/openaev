@@ -27,7 +27,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,7 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @CoversTenantIsolation("channels")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=channels")
 @WithMockUser(isAdmin = true)
 @DisplayName("channels read and write isolation through the real HTTP endpoint")
 class ChannelHttpIsolationTest extends IntegrationTest {

@@ -44,7 +44,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -101,11 +100,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @CoversTenantIsolation("autonomous_runs")
 @Transactional
-@TestPropertySource(
-    properties = {
-      "openaev.tenant.active-tables=autonomous_runs,autonomous_events,autonomous_directives,"
-          + "autonomous_objective_templates"
-    })
 @WithMockUser(isAdmin = true)
 @DisplayName("autonomous run isolation through the real HTTP endpoints")
 @WithoutTenantScope

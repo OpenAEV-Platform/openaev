@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest(properties = "openaev.tenant.active-tables=kill_chain_phases")
+@SpringBootTest
 @DisplayName("kill chain phase reads correlate the phase tenant with its parent's")
 class KillChainPhaseQueryCorrelationTest extends TenantIsolationIntegrationTest {
 

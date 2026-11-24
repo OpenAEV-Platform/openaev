@@ -13,7 +13,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -41,7 +40,6 @@ import org.springframework.test.web.servlet.MockMvc;
  * nothing in it changes here, yet {@code AssetGroup.assets} points at the table being activated
  * now, so this lot can break the previous lot's endpoint without touching a line of its code.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=asset_groups,assets")
 @WithMockUser(isAdmin = true)
 @DisplayName("lazy associations onto assets still resolve when the endpoint serializes them")
 class AssetAssociationSinkTest extends IntegrationTest {

@@ -19,7 +19,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * Executes {@code EndpointRepository.findByHostnameAndAtleastOneMacAddress} against a real database
@@ -38,7 +37,6 @@ import org.springframework.test.context.TestPropertySource;
  * so seeding and cleanup go through an auto-committing {@link JdbcTemplate}, and the test removes
  * only the rows it created.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets")
 @DisplayName("endpoint lookup by hostname and MAC under an active assets table")
 class EndpointMacLookupTenantScopeTest extends IntegrationTest {
 

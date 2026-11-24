@@ -67,7 +67,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
  */
 @TestPropertySource(
     properties = {
-      "openaev.tenant.active-tables=marking_definitions",
       "openaev.xtm.opencti."
           + OpenCTIConnectorPrivilegeScopeTest.CONNECTOR_TENANT_ID
           + ".enable=true",

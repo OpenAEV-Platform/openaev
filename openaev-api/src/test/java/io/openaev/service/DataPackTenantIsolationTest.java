@@ -19,7 +19,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -39,7 +38,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @CoversTenantIsolation("datapacks")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=datapacks")
 @WithMockUser(isAdmin = true)
 @WithoutTenantScope
 class DataPackTenantIsolationTest extends IntegrationTest {

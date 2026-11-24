@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * The Dynamic DNS Resolution and File Drop built-in payloads are lazily created the first time a
@@ -33,7 +32,6 @@ import org.springframework.test.context.TestPropertySource;
  * creation paths must attribute the row to the write tenant explicitly: relying on a shared global
  * primary key, or on the ambient {@code TenantContext} fallback, breaks under more than one tenant.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=payloads,documents,injectors")
 @WithMockUser(isAdmin = true)
 @DisplayName("payloads v2 attribution of the lazily-created built-in payloads")
 class PayloadServiceTenantAttributionTest extends IntegrationTest {

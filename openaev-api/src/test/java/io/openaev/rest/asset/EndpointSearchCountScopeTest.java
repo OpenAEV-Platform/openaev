@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,7 +38,6 @@ import org.springframework.transaction.annotation.Transactional;
  * cross-tenant tests stayed green while isolating nothing (#6438).
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets")
 @WithMockUser
 @DisplayName("a paginated endpoint search filters its count, not just its page")
 class EndpointSearchCountScopeTest extends IntegrationTest {

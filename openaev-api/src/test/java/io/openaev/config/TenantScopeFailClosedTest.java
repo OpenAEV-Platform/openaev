@@ -16,7 +16,6 @@ import org.hibernate.Session;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -28,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
  * data leak.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers")
 @WithMockUser(isAdmin = true)
 @DisplayName("A read with no tenant scope sees nothing (fail-closed)")
 @WithoutTenantScope

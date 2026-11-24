@@ -25,7 +25,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -35,7 +34,6 @@ import org.springframework.transaction.annotation.Transactional;
  * are filtered by.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=kill_chain_phases")
 @WithMockUser(isAdmin = true)
 @DisplayName("kill_chain_phases write attribution on the import path")
 class KillChainPhaseImportAttributionTest extends IntegrationTest {

@@ -27,7 +27,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 /**
@@ -42,7 +41,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
  * <p>Deliberately NOT {@code @Transactional}: the ingestion runs the cleanup through the background
  * transaction primitive, which refuses to open inside an active transaction.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=connector_instances")
 @DisplayName("Catalog connector startup cleanup: best effort across tenants")
 class CatalogConnectorIngestionBestEffortStartupTest extends IntegrationTest {
 

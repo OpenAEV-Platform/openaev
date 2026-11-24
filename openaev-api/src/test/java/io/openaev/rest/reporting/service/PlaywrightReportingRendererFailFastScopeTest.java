@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -51,7 +50,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p>Not {@code @Transactional} at the class level: the tests own their caller transaction, and the
  * primitive refuses to open inside an active one. Seeds and cleans up through plain JDBC.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=reporting_generations")
 @WithMockUser(isAdmin = true)
 @DisplayName("PlaywrightReportingRenderer.render fail-fast path under reporting_generations scope")
 class PlaywrightReportingRendererFailFastScopeTest extends IntegrationTest {

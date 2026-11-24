@@ -33,11 +33,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 @CoversTenantIsolation("challenges")
-@TestPropertySource(properties = "openaev.tenant.active-tables=security_coverages,challenges")
 @WithMockUser(isAdmin = true)
 @DisplayName("ChallengeApi tenant isolation when security_coverages is v2-active")
 class ChallengeApiSecurityCoverageIsolationTest extends IntegrationTest {

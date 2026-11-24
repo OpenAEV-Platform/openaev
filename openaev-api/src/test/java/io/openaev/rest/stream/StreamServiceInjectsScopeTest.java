@@ -52,7 +52,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.util.AopTestUtils;
 import org.springframework.test.util.ReflectionTestUtils;
 import reactor.core.publisher.FluxSink;
@@ -76,7 +75,6 @@ import reactor.core.publisher.FluxSink;
  * <p>NOT {@code @Transactional}: the stream listener fires after commit, and {@link
  * TenantScopedTransaction#execute} refuses an active transaction. Cleanup is auto-committed JDBC.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=injects")
 @WithMockUser(isAdmin = true)
 @DisplayName("Stream delivery of inject events with injects v2-active")
 class StreamServiceInjectsScopeTest extends IntegrationTest {

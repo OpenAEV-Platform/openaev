@@ -45,7 +45,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -60,7 +59,6 @@ import org.springframework.test.web.servlet.MockMvc;
  * test-managed transaction around the MockMvc call would keep the scope open through serialization
  * and hide the defect. Seed and clean through auto-committed, tenant-scoped transactions.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=collector_types")
 @WithMockUser(isAdmin = true)
 @DisplayName("Inject responses serialize the payload collector type outside the request scope")
 class InjectPayloadCollectorTypeScopeTest extends IntegrationTest {

@@ -18,7 +18,6 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -27,7 +26,6 @@ import org.springframework.test.web.servlet.MockMvc;
  * test pattern: seed with JDBC, verify with JDBC, clean up explicitly.
  */
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.tenant.active-tables=executors")
 public class EndpointCrossTenantRegistrationTest extends IntegrationTest {
 
   @Autowired private MockMvc mockMvc;

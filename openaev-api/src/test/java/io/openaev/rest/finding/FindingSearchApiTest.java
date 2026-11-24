@@ -36,7 +36,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,7 +45,6 @@ import org.springframework.transaction.annotation.Transactional;
 // @TestPropertySource REPLACES the property rather than adding to it: naming findings alone would
 // deactivate assets and asset_groups, which ARE active in production, and the suite would test less
 // than production while looking stricter.
-@TestPropertySource(properties = "openaev.tenant.active-tables=findings,assets,asset_groups")
 @DisplayName("Finding search tenant isolation tests")
 class FindingSearchApiTest extends IntegrationTest {
 

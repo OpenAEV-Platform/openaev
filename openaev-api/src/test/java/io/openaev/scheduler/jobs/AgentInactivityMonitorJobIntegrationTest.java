@@ -30,7 +30,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -58,7 +57,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  * does in production.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@TestPropertySource(properties = "openaev.tenant.active-tables=agents")
 @DisplayName("AgentInactivityMonitorJob with agents v2-active")
 class AgentInactivityMonitorJobIntegrationTest extends IntegrationTest {
 

@@ -15,7 +15,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * {@link ReportingScheduleLoader#loadEnabledSchedules} must see every tenant's enabled schedules,
@@ -29,7 +28,6 @@ import org.springframework.test.context.TestPropertySource;
  * {@link io.openaev.scheduler.TenantScopedJobRunner#supplyAcrossTenants}, opens its own transaction
  * and refuses to run inside one already active. Seeds and cleans up through plain JDBC.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=reporting_schedules,reportings")
 @WithMockUser(isAdmin = true)
 @DisplayName("ReportingScheduleLoader loads enabled schedules across every tenant")
 class ReportingScheduleLoaderTenantScopeTest extends IntegrationTest {

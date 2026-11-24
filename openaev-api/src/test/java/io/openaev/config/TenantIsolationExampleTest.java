@@ -18,7 +18,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  * rewrite, {@code can_access_tenant}, and real execution), so it proves correctness, not just that
  * a guard is present.
  */
-@SpringBootTest(properties = "openaev.tenant.active-tables=tags")
+@SpringBootTest
 @DisplayName("Tenant isolation — end-to-end example on the tags table")
 class TenantIsolationExampleTest extends TenantIsolationIntegrationTest {
 

@@ -20,13 +20,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Transactional
 @TestInstance(PER_CLASS)
-@TestPropertySource(properties = "openaev.tenant.active-tables=attack_patterns")
 @DisplayName("Attack pattern upsert")
 class AttackPatternUpsertServiceTest extends IntegrationTest {
 

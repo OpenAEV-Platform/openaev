@@ -23,7 +23,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -42,7 +41,6 @@ import org.springframework.test.web.servlet.MockMvc;
  * this pins. Seeding therefore goes through an auto-committing {@link JdbcTemplate} and is removed
  * on teardown.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("Challenge read endpoints serialize their documents with documents v2-activated")
 class ChallengeDocumentsSerializationTenantScopeTest extends IntegrationTest {

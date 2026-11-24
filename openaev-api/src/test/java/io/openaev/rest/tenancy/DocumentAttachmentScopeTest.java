@@ -57,7 +57,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -82,7 +81,6 @@ import org.springframework.transaction.annotation.Transactional;
  * HTTP cases stay transactional and clear the persistence context after seeding, so every read of
  * the request is a statement the inspector rewrites. The MinIO objects are removed on teardown.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("Document bytes are served only under the tenant that owns the parent")
 class DocumentAttachmentScopeTest extends IntegrationTest {

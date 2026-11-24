@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * {@code phishing_results} is tenant-active, so {@code createResult} attributes the row's tenant
@@ -39,7 +38,6 @@ import org.springframework.test.context.TestPropertySource;
  * writing, then reads the row back by SQL - the one case the ambient tenant cannot get right.
  */
 @SpringBootTest
-@TestPropertySource(properties = "openaev.tenant.active-tables=phishing_results")
 @WithMockUser(isAdmin = true)
 class PhishingTrackingServiceWriteAttributionTest extends IntegrationTest {
 

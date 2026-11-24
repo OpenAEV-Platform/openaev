@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,7 +54,6 @@ import org.springframework.transaction.annotation.Transactional;
  * part the scope decides, and it is the part that can regress.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=tenant_xtmhub_registrations")
 @WithMockUser(isAdmin = true)
 @DisplayName("tenant_xtmhub_registrations isolation through the real XTM Hub HTTP endpoints")
 class XtmHubApiHttpIsolationTest extends IntegrationTest {

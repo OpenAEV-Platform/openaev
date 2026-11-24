@@ -55,7 +55,6 @@ import org.quartz.JobDataMap;
 import org.quartz.JobExecutionContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * The upgrade path of index-time masking, end to end: documents written in cleartext by an instance
@@ -74,7 +73,6 @@ import org.springframework.test.context.TestPropertySource;
  * the {@link EngineService} facade.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@TestPropertySource(properties = "openaev.tenant.active-tables=findings,assets,asset_groups")
 @DisplayName("Finding re-feed after index-time masking, end to end")
 class FindingRefeedEndToEndTest extends IntegrationTest {
 

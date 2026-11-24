@@ -18,7 +18,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * The batched snapshot inserts are idempotent. A finding row is deduped on its primary key, which
@@ -29,8 +28,6 @@ import org.springframework.test.context.TestPropertySource;
  * re-discovered finding's new link reach a polling client. Read back through raw JDBC; not
  * {@code @Transactional} (the inserts are asserted after they commit).
  */
-@TestPropertySource(
-    properties = {"openaev.tenant.active-tables=attackpath_execution,attackpath_finding"})
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path: the batched snapshot inserts are idempotent")
 class AttackPathFindingWriterTest extends IntegrationTest {

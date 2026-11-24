@@ -32,7 +32,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -52,7 +51,6 @@ import org.springframework.test.web.servlet.MockMvc;
  * auto-committing {@link JdbcTemplate}, so every read of the request is a statement the inspector
  * rewrites, and they are removed on teardown.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents,reporting_generations")
 @WithMockUser(isAdmin = true)
 @DisplayName("Report output guard on a document, both routes")
 class DocumentReportOutputGuardScopeTest extends IntegrationTest {

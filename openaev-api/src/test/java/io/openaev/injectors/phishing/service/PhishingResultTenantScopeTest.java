@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * Read and write isolation for {@code phishing_results} under an explicit tenant scope.
@@ -48,7 +47,6 @@ import org.springframework.test.context.TestPropertySource;
  * one. Seeding and cleanup run through auto-committed JDBC.
  */
 @CoversTenantIsolation("phishing_results")
-@TestPropertySource(properties = "openaev.tenant.active-tables=phishing_results")
 @DisplayName("phishing_results isolation when the scope does not match the token's tenant")
 class PhishingResultTenantScopeTest extends IntegrationTest {
 

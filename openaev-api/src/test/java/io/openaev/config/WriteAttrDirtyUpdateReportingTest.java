@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -52,7 +51,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @Import(WriteAttrDetectorTestConfig.class)
-@TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers")
 @WithMockUser(isAdmin = true)
 @DisplayName("Write-attribution: a dirty-checked update is attributed to its loader, or reported")
 class WriteAttrDirtyUpdateReportingTest extends IntegrationTest {

@@ -24,13 +24,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=lessons_templates")
 @WithMockUser(isAdmin = true)
 @DisplayName("ExerciseLessonsApi scopes the template lookup to the caller's tenants")
 class ExerciseLessonsApiTenantIsolationTest extends IntegrationTest {

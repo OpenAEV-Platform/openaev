@@ -37,7 +37,6 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -56,7 +55,6 @@ import org.springframework.web.context.request.ServletRequestAttributes;
  * LazyAfterCommitProbeMaskedTest} covers the transactional case, which is what most of the suite
  * runs.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=challenges,tags")
 @Import({LazyAfterCommitProbeTestConfig.class, LazyAfterCommitProbeTest.ProbeEndpointConfig.class})
 @WithMockUser(isAdmin = true)
 @DisplayName("Lazy-after-commit probe on committed data")

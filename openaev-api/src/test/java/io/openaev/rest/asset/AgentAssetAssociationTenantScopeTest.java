@@ -16,7 +16,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -32,7 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
  * endpoint.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets")
 @WithMockUser(isAdmin = true)
 @DisplayName("the eager Agent.asset association follows the tenant scope")
 class AgentAssetAssociationTenantScopeTest extends IntegrationTest {

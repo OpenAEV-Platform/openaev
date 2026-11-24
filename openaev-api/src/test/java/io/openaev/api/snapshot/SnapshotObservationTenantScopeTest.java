@@ -44,11 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
  * before any scope is set and silently match nothing.
  */
 @Transactional
-@TestPropertySource(
-    properties = {
-      "openaev.enabled-dev-features=BULK_SNAPSHOT_EXPORT",
-      "openaev.tenant.active-tables=findings,assets"
-    })
+@TestPropertySource(properties = {"openaev.enabled-dev-features=BULK_SNAPSHOT_EXPORT"})
 @DisplayName("Snapshot observation API — probe under tenant-active findings and assets")
 class SnapshotObservationTenantScopeTest extends IntegrationTest {
 
