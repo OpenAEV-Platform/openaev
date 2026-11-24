@@ -316,7 +316,7 @@ public class EndpointService implements AuditLoggedService {
         Endpoint.class);
   }
 
-  public Endpoint updateEndpoint(
+  public Endpoint buildUpdatedEndpoint(
       @NotBlank final String endpointId,
       @NotNull final EndpointInput input,
       @NotNull final String tenantId) {
@@ -328,7 +328,7 @@ public class EndpointService implements AuditLoggedService {
     toUpdate.setEoL(input.isEol());
     toUpdate.setTags(
         iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
-    return updateEndpoint(toUpdate);
+    return toUpdate;
   }
 
   // -- INSTALLATION AGENT --

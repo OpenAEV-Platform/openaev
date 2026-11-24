@@ -53,7 +53,6 @@ public class AiTargetInput extends AssetInput {
   @Schema(types = {"string", "null"})
   private AssetCriticality criticality;
 
-  // Left out: a new asset gets none, an updated one keeps the markings it has.
   @JsonProperty("asset_markings")
   private Set<String> markingIds;
 }

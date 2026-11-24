@@ -276,9 +276,10 @@ public class EndpointApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String endpointId,
       @Valid @RequestBody final MarkedEndpointInput input) {
-    String tenantId = TenantContext.getCurrentTenant();
-    Endpoint endpoint = this.endpointService.updateEndpoint(endpointId, input, tenantId);
-    assetMarkingsService.markAsset(tenantId, endpoint, input.getMarkingIds());
+    Endpoint endpoint =
+        endpointService.buildUpdatedEndpoint(endpointId, input, TenantContext.getCurrentTenant());
+    assetMarkingsService.markAsset(endpoint.getTenant().getId(), endpoint, input.getMarkingIds());
+    endpoint = endpointService.updateEndpoint(endpoint);
     return withAssetGroups(endpointMapper.toEndpointOverviewOutput(endpoint), endpoint);
   }
 

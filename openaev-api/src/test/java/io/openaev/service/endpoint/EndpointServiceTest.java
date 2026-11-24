@@ -402,7 +402,7 @@ class EndpointServiceTest {
     }
 
     @Test
-    void shouldUpdateEndpointFromInput() {
+    void shouldBuildUpdatedEndpointFromInput() {
       // -------- Prepare --------
       Endpoint existing = new Endpoint();
       existing.setId("ep-1");
@@ -419,17 +419,14 @@ class EndpointServiceTest {
       input.setTagIds(List.of());
       when(tagRepository.findAllByIdInTenant(List.of(), "tenant1"))
           .thenReturn(Collections.emptyList());
-      when(endpointRepository.save(any(Endpoint.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
 
       // -------- Act --------
-      Endpoint result = endpointService.updateEndpoint("ep-1", input, "tenant1");
+      Endpoint result = endpointService.buildUpdatedEndpoint("ep-1", input, "tenant1");
 
       // -------- Assert --------
       assertNotNull(result);
       assertFalse(result.isEoL());
       assertThat(result.getSeenIp()).isEqualTo("10.0.0.1");
-      verify(endpointRepository).save(any(Endpoint.class));
     }
   }
 
