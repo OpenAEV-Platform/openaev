@@ -94,12 +94,7 @@ public class AssetMarkingsService {
     return assetRepository.save(asset);
   }
 
-  /**
-   * Puts the requested markings on an asset being created or updated, before it is saved, so a new
-   * asset never exists unmarked. Same guards as {@link #updateAssetMarkings}, but markings left
-   * {@code null} or unchanged need no check: a caller without {@code MANAGE_MARKING_ASSIGNMENT} can
-   * still create an unmarked asset or edit the rest of a marked one.
-   */
+  // Unchanged markings need no check: a caller without the capability can still edit the asset.
   public void markAsset(
       @NotBlank final String tenantId, @NotNull final Asset asset, final Set<String> markingIds) {
     if (markingIds == null || markingIds.equals(markingIds(asset))) {
@@ -136,8 +131,7 @@ public class AssetMarkingsService {
     return markings;
   }
 
-  // The cached clearance is enough when it holds every id: the markings are read only to explain a
-  // refusal, an unknown one as a 404 and one not held as a 403 naming it.
+  // The markings are read only to explain a refusal: 404 when unknown, 403 when not held.
   private void assertCanAssign(
       String tenantId,
       User currentUser,

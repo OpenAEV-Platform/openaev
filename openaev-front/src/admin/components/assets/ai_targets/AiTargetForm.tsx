@@ -109,7 +109,6 @@ const AiTargetForm: FunctionComponent<Props> = ({
         asset_markings: z.string().array().optional(),
       }),
     ),
-    // Values read from the API carry nulls: they fall back to these defaults.
     defaultValues: {
       ...DEFAULT_VALUES,
       ...withoutNullValues(initialValues),

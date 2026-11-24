@@ -54,7 +54,6 @@ public final class MarkingEscalationValidator {
     }
   }
 
-  /** The rule of {@link #assertCanAssignMarkings} on ids alone, without loading the markings. */
   public static boolean holdsAll(MarkingCtx clearance, Collection<String> markingIds) {
     return heldIds(clearance).containsAll(markingIds);
   }

@@ -90,7 +90,6 @@ const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
     }
   }, [edition, isAiTarget, endpoint.asset_id, aiTargetValues]);
 
-  // The drawer stays open on a failed save, so the user sees the error.
   const submitEditAiTarget = (data: AiTargetInput) => {
     return dispatch(updateAiTarget(endpoint.asset_id, data)).then(
       (result: {

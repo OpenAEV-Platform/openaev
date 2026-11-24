@@ -49,7 +49,6 @@ export const bulkDeleteAssets = (input: AssetBulkProcessingInput) => {
   return simpleDelCall('/api/assets', { data: input });
 };
 
-// Replaces the markings of many assets, same scope as bulkDeleteAssets; empty list clears all markings.
 export const bulkReplaceAssetMarkings = (input: AssetBulkReplaceMarkingsInput) => {
   return simplePutCall('/api/assets/markings/bulk', input);
 };
