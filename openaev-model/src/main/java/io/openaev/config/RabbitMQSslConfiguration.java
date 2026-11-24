@@ -4,6 +4,9 @@ import com.rabbitmq.client.ConnectionFactory;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.security.KeyStore;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -33,11 +36,67 @@ public class RabbitMQSslConfiguration {
    */
   public void configureSsl(ConnectionFactory factory, RabbitmqConfig rabbitmqConfig)
       throws Exception {
+    factory.useSslProtocol(sslContext(rabbitmqConfig));
+    log.debug("SSL configured for RabbitMQ connection");
+  }
+
+  /** SSL context of the AMQP connection: the RabbitMQ trust store, else the platform one. */
+  public SSLContext sslContext(RabbitmqConfig rabbitmqConfig) throws Exception {
     boolean customTrustStore = hasCustomTrustStore(rabbitmqConfig);
     SSLContext sslContext = SSLContext.getInstance(customTrustStore ? "TLSv1.3" : "TLS");
     sslContext.init(defaultKeyManagers(), trustManagers(rabbitmqConfig), null);
-    factory.useSslProtocol(sslContext);
-    log.debug("SSL configured for RabbitMQ connection");
+    return sslContext;
+  }
+
+  /** SSL context of the management API calls: the RabbitMQ trust store or the platform one. */
+  public SSLContext managementSslContext(RabbitmqConfig rabbitmqConfig) throws Exception {
+    if (!hasCustomTrustStore(rabbitmqConfig)) {
+      return sslContext(rabbitmqConfig);
+    }
+    X509TrustManager dedicated =
+        Arrays.stream(trustManagers(rabbitmqConfig))
+            .filter(X509TrustManager.class::isInstance)
+            .map(X509TrustManager.class::cast)
+            .findFirst()
+            .orElseThrow(() -> new IllegalStateException("No X509 trust manager in trust store"));
+    SSLContext sslContext = SSLContext.getInstance("TLSv1.3");
+    TrustManager[] trustManagers = {eitherOf(dedicated, platformTrustManager)};
+    sslContext.init(defaultKeyManagers(), trustManagers, null);
+    return sslContext;
+  }
+
+  /** A trust manager that accepts what the first or, failing that, the second one accepts. */
+  private static X509TrustManager eitherOf(X509TrustManager first, X509TrustManager second) {
+    return new X509TrustManager() {
+      @Override
+      public void checkServerTrusted(X509Certificate[] chain, String authType)
+          throws CertificateException {
+        try {
+          first.checkServerTrusted(chain, authType);
+        } catch (CertificateException e) {
+          second.checkServerTrusted(chain, authType);
+        }
+      }
+
+      @Override
+      public void checkClientTrusted(X509Certificate[] chain, String authType)
+          throws CertificateException {
+        try {
+          first.checkClientTrusted(chain, authType);
+        } catch (CertificateException e) {
+          second.checkClientTrusted(chain, authType);
+        }
+      }
+
+      @Override
+      public X509Certificate[] getAcceptedIssuers() {
+        X509Certificate[] a = first.getAcceptedIssuers();
+        X509Certificate[] b = second.getAcceptedIssuers();
+        X509Certificate[] all = Arrays.copyOf(a, a.length + b.length);
+        System.arraycopy(b, 0, all, a.length, b.length);
+        return all;
+      }
+    };
   }
 
   /**

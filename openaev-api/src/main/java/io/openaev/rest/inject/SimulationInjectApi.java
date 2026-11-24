@@ -29,6 +29,7 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.SimulationInjectService;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.service.BulkInjectService;
 import io.openaev.service.FaithfulCopyTransaction;
@@ -38,6 +39,7 @@ import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -68,7 +70,7 @@ public class SimulationInjectApi extends RestBehavior {
 
   private final InjectSearchService injectSearchService;
   private final Executor executor;
-  private final InjectorContractRepository injectorContractRepository;
+  private final InjectorContractService injectorContractService;
   private final ExerciseService exerciseService;
   private final UserRepository userRepository;
   private final InjectRepository injectRepository;
@@ -347,9 +349,12 @@ public class SimulationInjectApi extends RestBehavior {
 
   private InjectStatus executeInjectInTenant(
       Exercise exercise, DirectInjectInput input, Optional<MultipartFile> file) {
+    // Resolved in the simulation's own tenant, not the request's read scope: a built-in contract
+    // id repeats across tenants (#8485), and the read scope the simulation was found in can
+    // legitimately span several.
     InjectorContract injectorContract =
-        this.injectorContractRepository
-            .findById(input.getInjectorContract())
+        this.injectorContractService
+            .injectorContractByIdInTenant(input.getInjectorContract(), exercise.getTenant().getId())
             .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
     Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
     Inject inject = input.toInject(injectorContract, injector);
@@ -404,7 +409,7 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectUpdateActivationInput input) {
     simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         simulationInjectService.updateInjectActivationForSimulation(exerciseId, injectId, input));
   }
 
@@ -420,7 +425,7 @@ public class SimulationInjectApi extends RestBehavior {
   public Inject updateInjectTrigger(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
     simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         simulationInjectService.triggerInjectForSimulation(exerciseId, injectId));
   }
 
@@ -439,7 +444,7 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectUpdateStatusInput input) {
     simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         simulationInjectService.setInjectStatusForSimulation(exerciseId, injectId, input));
   }
 
@@ -458,7 +463,7 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectTeamsInput input) {
     simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
-    return hydrateKillChainPhases(
+    return hydrateForResponse(
         simulationInjectService.updateInjectTeamsForSimulation(exerciseId, injectId, input));
   }
 
@@ -509,7 +514,7 @@ public class SimulationInjectApi extends RestBehavior {
   public List<Inject> bulkDeleteInjectsForSimulation(
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
-      @RequestBody @Valid final InjectBulkProcessingInput input) {
+      @RequestBody @Valid final InjectBulkDeleteInput input) {
     input.setSimulationOrScenarioId(exerciseId);
     return bulkInjectService.bulkDeleteWithMonitoring(ctx, input);
   }
@@ -526,13 +531,25 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public void deleteInject(
-      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
-    this.simulationInjectService.deleteInject(ctx, exerciseId, injectId);
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @PathVariable String injectId,
+      @Parameter(
+              description =
+                  "True keeps the findings produced by the inject, detached from it. False (the"
+                      + " default) deletes them with the inject.")
+          @RequestParam(name = "keep_findings", required = false, defaultValue = "false")
+          boolean keepFindings) {
+    this.simulationInjectService.deleteInject(ctx, exerciseId, injectId, keepFindings);
   }
 
-  /** See {@link KillChainPhaseInitializer}: hydrate before open-in-view rendering. */
-  private static Inject hydrateKillChainPhases(Inject inject) {
+  /**
+   * See {@link KillChainPhaseInitializer} and {@link InjectLinksInitializer}: hydrate before
+   * open-in-view rendering.
+   */
+  private static Inject hydrateForResponse(Inject inject) {
     KillChainPhaseInitializer.initializeFromInjects(List.of(inject));
+    InjectLinksInitializer.initialize(List.of(inject));
     return inject;
   }
 }

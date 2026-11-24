@@ -77,8 +77,10 @@ public class DomainService implements DependenciesManager {
                     (String.format("%s: %s", DOMAIN_ID_NOT_FOUND_MSG, domainId))));
   }
 
-  public Iterable<Domain> findAllById(final List<String> domainIds) {
-    return domainRepository.findAllById(domainIds);
+  /** The domains among the given ids that belong to the given tenant. */
+  public List<Domain> findAllByIdInTenant(
+      final Collection<String> domainIds, final String tenantId) {
+    return domainRepository.findAllByIdInTenant(domainIds, tenantId);
   }
 
   @Transactional

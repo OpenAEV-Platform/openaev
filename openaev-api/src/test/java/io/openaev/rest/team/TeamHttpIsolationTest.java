@@ -8,8 +8,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -24,8 +24,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,16 +43,11 @@ import org.springframework.transaction.annotation.Transactional;
  * once: changing it inside the test transaction would hit the nesting guard in {@code
  * TenantScopeTransactionAspect}.
  */
+@CoversTenantIsolation("teams")
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Teams read isolation through the real HTTP endpoints")
-class TeamHttpIsolationTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class TeamHttpIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_OPTIONS_URI = "/api/tenants/{tenantId}/teams/options";
   private static final String TENANT_FIND_URI = "/api/tenants/{tenantId}/teams/find";

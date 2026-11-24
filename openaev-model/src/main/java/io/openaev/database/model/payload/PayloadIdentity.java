@@ -8,7 +8,7 @@ import io.openaev.database.audit.AuditableListener;
 import io.openaev.database.model.CollectorType;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.model.TenantBase;
+import io.openaev.database.model.catalog.CatalogIdentity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -22,7 +22,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "payload_identities")
 @EntityListeners(AuditableListener.class)
-public class PayloadIdentity implements TenantBase, Auditable {
+public class PayloadIdentity implements CatalogIdentity, Auditable {
 
   // -- ID --
 
@@ -53,6 +53,36 @@ public class PayloadIdentity implements TenantBase, Auditable {
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "payload_collector_type")
   private CollectorType collectorType;
+
+  // -- CATALOGUE --
+
+  /** The catalogue repository that releases its versions; null for a local payload. */
+  @Column(name = "payload_identity_repository", updatable = false)
+  private String repository;
+
+  /**
+   * The version shown: the installed catalogue one, or the newest of a local payload saved as
+   * several versions. Null for a local payload with one version, and once uninstalled.
+   */
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "payload_identity_latest_version")
+  @JsonIgnore
+  private Payload latestVersion;
+
+  public boolean isManaged() {
+    return repository != null;
+  }
+
+  public boolean isUninstalled() {
+    return isManaged() && latestVersion == null;
+  }
+
+  // -- OLDER VERSIONS --
+
+  /** The version shown when the injects on older versions were kept there; a newer one ends it. */
+  @Column(name = "payload_identity_older_versions_kept_for")
+  @JsonIgnore
+  private String olderVersionsKeptFor;
 
   // -- AUDIT --
 

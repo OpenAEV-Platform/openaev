@@ -5,7 +5,7 @@ import { useFormatter } from '../../../components/i18n';
 
 interface Props {
   variant: string;
-  status: 'Active' | 'Inactive' | 'Agentless';
+  status: 'Active' | 'Inactive' | 'Agentless' | 'Stale';
 }
 
 const AssetStatus: FunctionComponent<Props> = ({ status = 'Active' }) => {
@@ -19,6 +19,10 @@ const AssetStatus: FunctionComponent<Props> = ({ status = 'Active' }) => {
     case 'Agentless':
       return (
         <Chip label={t('Agentless')} severity="medium" />
+      );
+    case 'Stale':
+      return (
+        <Chip label={t('Stale')} severity="neutral" />
       );
     default:
       return (

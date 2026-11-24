@@ -37,6 +37,8 @@ interface Props {
   required?: boolean;
   disabled?: boolean;
   multiple?: boolean;
+  /** Help line under the field, always visible; an error message takes its place. */
+  helperText?: string;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -55,6 +57,7 @@ const SelectFieldController = ({
   multiple = false,
   required,
   disabled,
+  helperText,
 }: Props) => {
   const { control } = useFormContext();
 
@@ -102,7 +105,7 @@ const SelectFieldController = ({
                   </ComboboxControls>
                 </ComboboxField>
                 <ComboboxContent />
-                {error?.message ? <ComboboxHelperText>{error.message}</ComboboxHelperText> : null}
+                {(error?.message || helperText) ? <ComboboxHelperText>{error?.message || helperText}</ComboboxHelperText> : null}
               </Combobox>
             </div>
           );
@@ -131,7 +134,7 @@ const SelectFieldController = ({
                   </SelectItem>
                 ))}
               </SelectContent>
-              {error?.message ? <SelectHelperText>{error.message}</SelectHelperText> : null}
+              {(error?.message || helperText) ? <SelectHelperText>{error?.message || helperText}</SelectHelperText> : null}
             </Select>
           </div>
         );

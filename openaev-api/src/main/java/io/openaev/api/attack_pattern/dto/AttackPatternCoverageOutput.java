@@ -9,8 +9,9 @@ import java.util.List;
  * <p>Numbers are computed from the Elasticsearch {@code expectation-inject} documents (the same
  * aggregation that powers the home {@code security-coverage} matrix), grouped by attack pattern.
  * {@code *_success} counts SUCCESS expectation docs and {@code *_total} counts SUCCESS + FAILED
- * docs, independently for the PREVENTION and DETECTION expectation types. Counts are {@code long}
- * because they are raw Elasticsearch document counts and must not be truncated for large tenants.
+ * docs, independently for the PREVENTION, DETECTION and LOGGING expectation types. Counts are
+ * {@code long} because they are raw Elasticsearch document counts and must not be truncated for
+ * large tenants.
  */
 public record AttackPatternCoverageOutput(
     @JsonProperty("attack_pattern_id") String attackPatternId,
@@ -20,7 +21,9 @@ public record AttackPatternCoverageOutput(
     @JsonProperty("prevention_success") long preventionSuccess,
     @JsonProperty("prevention_total") long preventionTotal,
     @JsonProperty("detection_success") long detectionSuccess,
-    @JsonProperty("detection_total") long detectionTotal) {
+    @JsonProperty("detection_total") long detectionTotal,
+    @JsonProperty("logging_success") long loggingSuccess,
+    @JsonProperty("logging_total") long loggingTotal) {
 
   /** Minimal kill chain phase projection attached to an attack pattern coverage entry. */
   public record KillChainPhaseCoverage(

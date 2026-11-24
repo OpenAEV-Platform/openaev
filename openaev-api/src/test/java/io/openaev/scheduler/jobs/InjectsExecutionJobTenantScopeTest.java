@@ -6,7 +6,9 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -20,19 +22,24 @@ import io.openaev.database.model.Injection;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.executors.Executor;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
+import io.openaev.helper.InjectToRun;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -105,6 +112,12 @@ class InjectsExecutionJobTenantScopeTest {
             })
         .when(tenantScopedJobRunner)
         .runInTenant(anyString(), any(Runnable.class));
+    doAnswer(
+            invocation ->
+                scopedRunner.supplyInTenant(
+                    invocation.getArgument(0), invocation.<Supplier<?>>getArgument(1)))
+        .when(tenantScopedJobRunner)
+        .supplyInTenant(anyString(), any(Supplier.class));
 
     // Every sweep around the execution is a no-op here: this test is about the execution scope.
     when(tenantScopedJobRunner.supplyAcrossTenants(any()))
@@ -121,7 +134,7 @@ class InjectsExecutionJobTenantScopeTest {
     // Built before the when(): the helper stubs its own mocks, and nesting that inside
     // thenReturn(...) argument evaluation trips Mockito's unfinished-stubbing detection.
     ExecutableInject injectToRun = atomicInjectOfTenant(INJECT_TENANT);
-    when(injectHelper.getInjectsToRun()).thenReturn(List.of(injectToRun));
+    stubInjectsToRun(injectToRun);
 
     // Stand in for the real primitive: record the scope, run the work on this thread.
     doAnswer(
@@ -132,12 +145,20 @@ class InjectsExecutionJobTenantScopeTest {
             })
         .when(tenantTx)
         .execute(any(TxCtx.class), any(Runnable.class));
+    doAnswer(
+            invocation -> {
+              primitiveScope.set(invocation.getArgument(0));
+              Supplier<?> work = invocation.getArgument(1);
+              return work.get();
+            })
+        .when(tenantTx)
+        .execute(any(TxCtx.class), any(Supplier.class));
 
-    when(executor.execute(any(ExecutableInject.class)))
+    when(executor.executePhase1(any(ExecutableInject.class)))
         .thenAnswer(
             invocation -> {
               tenantDuringExecution.set(TenantContext.getCurrentTenant());
-              return null;
+              return Executor.ExecutionPhase1Result.completed(null);
             });
     doAnswer(
             invocation -> {
@@ -151,6 +172,19 @@ class InjectsExecutionJobTenantScopeTest {
   @AfterEach
   void clearScope() {
     TenantContext.clearCurrentTenant();
+  }
+
+  /** The poll returns these injects' ids, and each id reloads to its executable inject. */
+  private void stubInjectsToRun(ExecutableInject... executableInjects) {
+    List<InjectToRun> injectsToRun = new ArrayList<>();
+    for (ExecutableInject executableInject : executableInjects) {
+      Inject inject = executableInject.getInjection().getInject();
+      String exerciseId = executableInject.getExerciseId();
+      injectsToRun.add(
+          new InjectToRun(inject.getId(), inject.getTenant().getId(), exerciseId, Set.of()));
+      when(injectHelper.executableInject(inject.getId())).thenReturn(Optional.of(executableInject));
+    }
+    when(injectHelper.getInjectsToRun()).thenReturn(injectsToRun);
   }
 
   /** An atomic inject (no exercise) so the run needs no dependency or exercise bookkeeping. */
@@ -233,7 +267,8 @@ class InjectsExecutionJobTenantScopeTest {
   @Test
   @DisplayName("failed inject status update runs under the inject tenant scope")
   void failedStatusUpdateRunsUnderInjectTenant() throws Exception {
-    when(executor.execute(any(ExecutableInject.class))).thenThrow(new RuntimeException("boom"));
+    when(executor.executePhase1(any(ExecutableInject.class)))
+        .thenThrow(new RuntimeException("boom"));
 
     job.execute(null);
 
@@ -245,12 +280,16 @@ class InjectsExecutionJobTenantScopeTest {
   @DisplayName(
       "an execution failure is persisted in the execution transaction, not in a second one")
   void failedStatusIsPersistedInTheExecutionTransaction() throws Exception {
-    when(executor.execute(any(ExecutableInject.class))).thenThrow(new RuntimeException("boom"));
+    when(executor.executePhase1(any(ExecutableInject.class)))
+        .thenThrow(new RuntimeException("boom"));
 
     job.execute(null);
 
     // A single transaction: the traces written before the failure commit with the ERROR status.
-    verify(tenantTx, times(1)).execute(any(TxCtx.class), any(Runnable.class));
+    // Phase 1 (where the failure happens) opens through the Supplier overload; no second,
+    // Runnable-based transaction is opened since the failure never reaches a publish.
+    verify(tenantTx, times(1)).execute(any(TxCtx.class), any(Supplier.class));
+    verify(tenantTx, times(0)).execute(any(TxCtx.class), any(Runnable.class));
     verify(injectStatusService, times(1)).persistErrorStatusInTransaction(anyString(), eq("boom"));
   }
 
@@ -258,7 +297,8 @@ class InjectsExecutionJobTenantScopeTest {
   @DisplayName(
       "when the execution transaction cannot commit, the ERROR status is persisted in a fresh one")
   void failedCommitFallsBackToAFreshTransaction() throws Exception {
-    // First transaction (the execution) fails at commit; the second one (the fallback) runs.
+    // First transaction (the execution, Supplier-based) fails at commit; the second one (the
+    // Runnable-based fallback) runs.
     AtomicInteger transactions = new AtomicInteger();
     doAnswer(
             invocation -> {
@@ -272,6 +312,18 @@ class InjectsExecutionJobTenantScopeTest {
             })
         .when(tenantTx)
         .execute(any(TxCtx.class), any(Runnable.class));
+    doAnswer(
+            invocation -> {
+              primitiveScope.set(invocation.getArgument(0));
+              Object result = invocation.<Supplier<?>>getArgument(1).get();
+              if (transactions.incrementAndGet() == 1) {
+                throw new IllegalStateException(
+                    "commit failed", new RuntimeException("rollback-only"));
+              }
+              return result;
+            })
+        .when(tenantTx)
+        .execute(any(TxCtx.class), any(Supplier.class));
 
     job.execute(null);
 
@@ -302,8 +354,7 @@ class InjectsExecutionJobTenantScopeTest {
     ExecutableInject atomicInjectA = injectOfTenant(atomicTenantA, null);
     ExecutableInject atomicInjectB = injectOfTenant(atomicTenantB, null);
 
-    when(injectHelper.getInjectsToRun())
-        .thenReturn(List.of(exerciseInject, atomicInjectA, atomicInjectB));
+    stubInjectsToRun(exerciseInject, atomicInjectA, atomicInjectB);
 
     // Exercise batch bookkeeping (updateExercise), reached only for the exercise-linked inject.
     when(exerciseRepository.findById(exercise.getId())).thenReturn(Optional.of(exercise));
@@ -312,13 +363,13 @@ class InjectsExecutionJobTenantScopeTest {
 
     // Record the tenant scope actually active while each inject executes, keyed by inject id.
     Map<String, String> tenantSeenPerInject = new ConcurrentHashMap<>();
-    when(executor.execute(any(ExecutableInject.class)))
+    when(executor.executePhase1(any(ExecutableInject.class)))
         .thenAnswer(
             invocation -> {
               ExecutableInject arg = invocation.getArgument(0);
               String injectId = arg.getInjection().getInject().getId();
               tenantSeenPerInject.put(injectId, TenantContext.getCurrentTenant());
-              return null;
+              return Executor.ExecutionPhase1Result.completed(null);
             });
 
     job.execute(null);
@@ -328,5 +379,162 @@ class InjectsExecutionJobTenantScopeTest {
         .containsEntry(exerciseInject.getInjection().getInject().getId(), exerciseTenant)
         .containsEntry(atomicInjectA.getInjection().getInject().getId(), atomicTenantA)
         .containsEntry(atomicInjectB.getInjection().getInject().getId(), atomicTenantB);
+  }
+
+  @Test
+  @DisplayName(
+      "a failure recording a successful publish's outcome is logged, never retried as an error"
+          + " status, and does not abort the sweep")
+  void given_recordPublishSuccessFails_should_logAndNeverWriteAnErrorStatus() throws Exception {
+    Executor.ExternalPublish pending =
+        new Executor.ExternalPublish("the-inject-id", "the-status-id", "the-injector-id", "{}");
+    when(executor.executePhase1(any(ExecutableInject.class)))
+        .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
+    doThrow(new RuntimeException("could not record the outcome"))
+        .when(executor)
+        .recordPublishSuccess(pending);
+
+    // The sweep must complete even though recording this inject's outcome failed.
+    job.execute(null);
+
+    verify(injectStatusService, never()).persistErrorStatusInTransaction(anyString(), anyString());
+    verify(executor, never()).recordPublishFailure(any(), any());
+  }
+
+  @Test
+  @DisplayName(
+      "when recording a failed publish also fails, the job falls back to a plain error status")
+  void given_recordPublishFailureAlsoFails_should_fallBackToAnErrorStatus() throws Exception {
+    Executor.ExternalPublish pending =
+        new Executor.ExternalPublish("the-inject-id", "the-status-id", "the-injector-id", "{}");
+    when(executor.executePhase1(any(ExecutableInject.class)))
+        .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
+    doThrow(new IOException("broker unreachable")).when(executor).publish(pending);
+    doThrow(new RuntimeException("recording the failure also failed"))
+        .when(executor)
+        .recordPublishFailure(eq(pending), any());
+
+    // The sweep must complete even though both the publish and recording its failure failed.
+    job.execute(null);
+
+    verify(injectStatusService)
+        .persistErrorStatusInTransaction("the-inject-id", "broker unreachable");
+  }
+
+  @Test
+  @DisplayName(
+      "recording a published inject's outcome runs under the inject's tenant, in both scopes")
+  void given_nonDefaultTenant_should_recordPublishSuccessUnderItsScopes() throws Exception {
+    // Arrange
+    Executor.ExternalPublish pending =
+        new Executor.ExternalPublish("the-inject-id", "the-status-id", "the-injector-id", "{}");
+    when(executor.executePhase1(any(ExecutableInject.class)))
+        .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
+    AtomicReference<String> ambientTenant = new AtomicReference<>();
+    AtomicReference<String> primitiveGuc = new AtomicReference<>();
+    doAnswer(
+            invocation -> {
+              ambientTenant.set(TenantContext.getCurrentTenant());
+              primitiveGuc.set(primitiveScope.get().toGuc());
+              return null;
+            })
+        .when(executor)
+        .recordPublishSuccess(pending);
+
+    // Act
+    job.execute(null);
+
+    // Assert
+    assertThat(ambientTenant.get()).isEqualTo(INJECT_TENANT);
+    assertThat(primitiveGuc.get()).isEqualTo(INJECT_TENANT);
+  }
+
+  @Test
+  @DisplayName("recording a failed publish runs under the inject's tenant, in both scopes")
+  void given_nonDefaultTenant_should_recordPublishFailureUnderItsScopes() throws Exception {
+    // Arrange
+    Executor.ExternalPublish pending =
+        new Executor.ExternalPublish("the-inject-id", "the-status-id", "the-injector-id", "{}");
+    when(executor.executePhase1(any(ExecutableInject.class)))
+        .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
+    doThrow(new IOException("broker unreachable")).when(executor).publish(pending);
+    AtomicReference<String> ambientTenant = new AtomicReference<>();
+    AtomicReference<String> primitiveGuc = new AtomicReference<>();
+    doAnswer(
+            invocation -> {
+              ambientTenant.set(TenantContext.getCurrentTenant());
+              primitiveGuc.set(primitiveScope.get().toGuc());
+              return null;
+            })
+        .when(executor)
+        .recordPublishFailure(eq(pending), any());
+
+    // Act
+    job.execute(null);
+
+    // Assert
+    assertThat(ambientTenant.get()).isEqualTo(INJECT_TENANT);
+    assertThat(primitiveGuc.get()).isEqualTo(INJECT_TENANT);
+    verify(executor, never()).recordPublishSuccess(any());
+  }
+
+  @Test
+  @DisplayName("a publish that times out with no message is recorded with the exception type")
+  void given_publishFailureWithoutMessage_should_fallBackToTheExceptionType() throws Exception {
+    // Arrange: recording the failure also fails, so the plain error status carries the message
+    Executor.ExternalPublish pending =
+        new Executor.ExternalPublish("the-inject-id", "the-status-id", "the-injector-id", "{}");
+    when(executor.executePhase1(any(ExecutableInject.class)))
+        .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
+    doThrow(new TimeoutException()).when(executor).publish(pending);
+    doThrow(new RuntimeException("recording the failure failed"))
+        .when(executor)
+        .recordPublishFailure(eq(pending), any());
+
+    // Act
+    job.execute(null);
+
+    // Assert
+    verify(injectStatusService)
+        .persistErrorStatusInTransaction(
+            "the-inject-id", "Failed to publish the inject: TimeoutException");
+  }
+
+  @Test
+  @DisplayName("a batch larger than the publish slots waits for a slot: none is rejected")
+  void given_moreInjectsThanPublishSlots_should_neverExceedTheSlots() throws Exception {
+    // Arrange
+    int slots = 2;
+    int injects = 12;
+    when(executor.maxConcurrentPublishes()).thenReturn(slots);
+    ExecutableInject[] executables = new ExecutableInject[injects];
+    for (int i = 0; i < injects; i++) {
+      executables[i] = atomicInjectOfTenant(INJECT_TENANT);
+    }
+    stubInjectsToRun(executables);
+    Executor.ExternalPublish pending =
+        new Executor.ExternalPublish("the-inject-id", "the-status-id", "the-injector-id", "{}");
+    when(executor.executePhase1(any(ExecutableInject.class)))
+        .thenReturn(Executor.ExecutionPhase1Result.pendingPublish(pending));
+    AtomicInteger inFlight = new AtomicInteger();
+    AtomicInteger maxInFlight = new AtomicInteger();
+    AtomicInteger published = new AtomicInteger();
+    doAnswer(
+            invocation -> {
+              maxInFlight.accumulateAndGet(inFlight.incrementAndGet(), Math::max);
+              Thread.sleep(50);
+              inFlight.decrementAndGet();
+              published.incrementAndGet();
+              return null;
+            })
+        .when(executor)
+        .publish(pending);
+
+    // Act
+    job.execute(null);
+
+    // Assert
+    assertThat(published.get()).isEqualTo(injects);
+    assertThat(maxInFlight.get()).isLessThanOrEqualTo(slots);
   }
 }

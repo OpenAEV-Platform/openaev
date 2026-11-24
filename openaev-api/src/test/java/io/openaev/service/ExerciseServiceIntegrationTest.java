@@ -18,6 +18,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
@@ -53,6 +54,7 @@ import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -113,6 +115,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private InjectExpectationMapper injectExpectationMapper;
   @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
   @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private RowTenantScope rowTenantScope;
   @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private LessonsService lessonsService;
   @Autowired private FileService fileService;
@@ -126,7 +129,9 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private AttackPathExecutionIngestionService attackPathExecutionService;
   @Autowired private AutonomousRunRepository autonomousRunRepository;
+  @Autowired private io.openaev.service.finding.FindingDetachService findingDetachService;
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -186,14 +191,20 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
         eventPublisher,
         attackPathExecutionService,
         autonomousRunRepository,
-        permissionServiceProvider);
+        permissionServiceProvider,
+        findingDetachService);
   }
 
   @AfterAll
   public void teardown() {
     if (USER_ID != null) this.userRepository.deleteById(USER_ID);
-    if (TEAM_ID != null) this.teamRepository.deleteById(TEAM_ID);
-    if (INJECT_ID != null) this.injectRepository.deleteById(INJECT_ID);
+    // teams and injects are active tables: delete in the tenant the rows were written in
+    this.tenantScopedTransaction.execute(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> {
+          if (TEAM_ID != null) this.teamRepository.deleteById(TEAM_ID);
+          if (INJECT_ID != null) this.injectRepository.deleteById(INJECT_ID);
+        });
   }
 
   @DisplayName("Should create new contextual teams while exercise duplication")
@@ -306,24 +317,42 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     Exercise exercise = ExerciseFixture.getExercise();
     exercise.setTeams(List.of(teamSaved));
     Exercise exerciseSaved = this.exerciseRepository.saveAndFlush(exercise);
-    InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
-    Inject injectDefaultEmail = getInjectForEmailContract(injectorContract);
-    injectDefaultEmail.setExercise(exerciseSaved);
-    injectDefaultEmail.setTeams(List.of(teamSaved));
-    Inject injectDefaultEmailSaved = this.injectRepository.saveAndFlush(injectDefaultEmail);
-    INJECT_ID = injectDefaultEmailSaved.getId();
+    // injectors_contracts is tenant-active and nothing else in this plain (non-@Transactional)
+    // test sets a scope before this point, so resolving the contract and saving the inject that
+    // references it must share one scope, or the contract is detached by the time the inject save
+    // flushes.
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          InjectorContract injectorContract =
+              injectorContractFixture.getWellKnownSingleEmailContract();
+          Inject injectDefaultEmail = getInjectForEmailContract(injectorContract);
+          injectDefaultEmail.setExercise(exerciseSaved);
+          injectDefaultEmail.setTeams(List.of(teamSaved));
+          Inject injectDefaultEmailSaved = this.injectRepository.saveAndFlush(injectDefaultEmail);
+          INJECT_ID = injectDefaultEmailSaved.getId();
+        });
 
     // -- EXECUTE --
-    this.exerciseService.removeTeams(
-        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
-        exerciseSaved.getId(),
-        List.of(teamSaved.getId()));
+    // The service under test is built by hand, so it carries no Spring proxy and opens no
+    // transaction: the scoped read inside removeTeams needs one, with the scope on it.
+    TxCtx ctx = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
+    this.tenantScopedTransaction.execute(
+        ctx,
+        () -> {
+          this.exerciseService.removeTeams(ctx, exerciseSaved.getId(), List.of(teamSaved.getId()));
+        });
 
     // -- ASSERT --
-    List<Team> teams = this.teamRepository.findAll(fromExercise(exerciseSaved.getId()));
-    assertEquals(0, teams.size());
-    Inject injectAssert = this.injectRepository.findById(INJECT_ID).orElseThrow();
-    assertEquals(0, injectAssert.getTeams().size());
+    // teams and injects are active tables: read them back in the tenant they were written in
+    this.tenantScopedTransaction.execute(
+        ctx,
+        () -> {
+          List<Team> teams = this.teamRepository.findAll(fromExercise(exerciseSaved.getId()));
+          assertEquals(0, teams.size());
+          Inject injectAssert = this.injectRepository.findById(INJECT_ID).orElseThrow();
+          assertEquals(0, injectAssert.getTeams().size());
+        });
   }
 
   /**

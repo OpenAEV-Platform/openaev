@@ -1,12 +1,14 @@
 import { Checkbox } from '@filigran/design-system';
-import { CenterFocusStrongOutlined, HelpOutlineOutlined } from '@mui/icons-material';
+import { CategoryOutlined, CenterFocusStrongOutlined, HelpOutlineOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { bulkDeleteAssets, bulkReplaceAssetMarkings, searchAssets } from '../../../../actions/assets/endpoint-actions';
+import { type EndpointHelper } from '../../../../actions/assets/asset-helper';
+import { bulkDeleteAssets, bulkReplaceAssetMarkings, bulkUpdateAssets, searchAssets } from '../../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../../actions/executors/executor-action';
+import { fetchAssetFreshnessSettings } from '../../../../actions/settings/tenant-settings-action';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ExportButton from '../../../../components/common/ExportButton';
 import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
@@ -22,12 +24,14 @@ import ItemCriticality from '../../../../components/ItemCriticality';
 import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
+import { OpenCrqRowMark } from '../../../../components/xtm/XtmOpenCrq';
+import { OpenCtiRowMark } from '../../../../components/xtm/XtmPivot';
 import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
+import { useHelper } from '../../../../store';
 import { type AssetBulkProcessingInput, type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
-import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../utils/utils';
@@ -35,10 +39,12 @@ import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFr
 import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/EndpointAgentsExecutorsFragment';
 import ToolBar from '../../common/ToolBar';
 import { humanizeEnum } from '../asset-categories';
+import { keepStreamedChanges, patchRowsFromStore } from '../asset-stream-values';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import PostureScoreCell from '../PostureScoreCell';
 import usePostureScores from '../usePostureScores';
 import AssetPopover from './AssetPopover';
+import BulkClassificationDialog, { type BulkClassificationValues } from './BulkClassificationDialog';
 import BulkMarkingsDrawer from './BulkMarkingsDrawer';
 import EndpointCreation from './EndpointCreation';
 import ImportUploaderEndpoints from './ImportUploaderEndpoints';
@@ -60,6 +66,8 @@ const inlineStyles: Record<string, CSSProperties> = {
   asset_markings: { width: '9%' },
 };
 
+const selectEndpointsMap = (helper: EndpointHelper) => helper.getEndpointsMap();
+
 const Endpoints = () => {
   // Standard hooks
   const { classes } = useStyles();
@@ -72,16 +80,19 @@ const Endpoints = () => {
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS);
   const canManageMarkingAssignment = ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_ASSIGNMENT);
   const canBulkEditMarkings = markingEnabled && canManage && canManageMarkingAssignment;
-  // Resolved once for the whole page; the Markings column maps ids per row.
-  const markingDefinitions = useMarkingDefinitions({
-    skip: !markingEnabled,
-    assignableOnly: true,
-  });
 
   // Load executors once for the whole page; previously each row fetched its own.
   useDataLoader(() => {
     dispatch(fetchExecutors());
   });
+
+  // The stale threshold, named in the tooltip of a STALE status; absent when not readable.
+  const [staleAfterDays, setStaleAfterDays] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    fetchAssetFreshnessSettings()
+      .then((result: { data?: { asset_stale_after_days?: number } }) => setStaleAfterDays(result?.data?.asset_stale_after_days || undefined))
+      .catch(() => setStaleAfterDays(undefined));
+  }, []);
 
   // Query param
   const [searchParams] = useSearchParams();
@@ -106,6 +117,20 @@ const Endpoints = () => {
     textSearch: search,
   }));
 
+  // Sync the value retrieved from Redux store (that have been updated thro Streaming) into the state
+  // "endpoints" (direct axios call).
+  const endpointsMap = useHelper(selectEndpointsMap);
+  const [previousEndpointsMap, setPreviousEndpointsMap] = useState(endpointsMap);
+  if (endpointsMap !== previousEndpointsMap) {
+    setPreviousEndpointsMap(endpointsMap);
+    setEndpoints(rows => patchRowsFromStore(rows, previousEndpointsMap, endpointsMap));
+  }
+  // Read when a search answers, to keep what the stream changed while it ran.
+  const storedEndpoints = useRef(endpointsMap);
+  useEffect(() => {
+    storedEndpoints.current = endpointsMap;
+  }, [endpointsMap]);
+
   // Export
   const exportProps = {
     exportType: 'ENDPOINTS',
@@ -119,7 +144,8 @@ const Endpoints = () => {
 
   const searchEndpointsToLoad = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchAssets(input).finally(() => setLoading(false));
+    return keepStreamedChanges<EndpointOutput>(searchAssets, () => storedEndpoints.current)(input)
+      .finally(() => setLoading(false));
   };
 
   // Bulk selection
@@ -168,13 +194,41 @@ const Endpoints = () => {
     });
   };
 
+  const [openEditClassification, setOpenEditClassification] = useState(false);
+  const bulkEditClassification = (values: BulkClassificationValues) => {
+    return bulkUpdateAssets({
+      ...bulkSelectionInput,
+      ...values,
+    }).then(() => {
+      setOpenEditClassification(false);
+      handleClearSelectedElements();
+      setReloadCount(count => count + 1);
+    });
+  };
+
   // Headers
   const headers = [
     {
       field: EndpointListItemFragments.ASSET_NAME,
       label: 'Name',
       isSortable: true,
-      value: (endpoint: EndpointOutput) => endpoint.asset_name,
+      value: (endpoint: EndpointOutput) => (
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+        }}
+        >
+          {endpoint.asset_name}
+          {endpoint.asset_category !== 'AI_TARGET' && (
+            <>
+              {/* Contract v3: a 16 px mark only when found (source link first), nothing otherwise. */}
+              <OpenCtiRowMark kind="assets" objectKey={endpoint.asset_hostname} sourceUrl={endpoint.asset_external_reference} />
+              <OpenCrqRowMark kind="assets" objectKey={endpoint.asset_hostname} sourceUrl={endpoint.asset_external_reference} />
+            </>
+          )}
+        </span>
+      ),
     },
     {
       field: 'asset_category',
@@ -204,7 +258,14 @@ const Endpoints = () => {
       field: EndpointListItemFragments.ENDPOINT_ACTIVE,
       label: 'Status',
       isSortable: false,
-      value: (endpoint: EndpointOutput) => <EndpointActiveFragment activity_map={(endpoint.asset_agents ?? []).map(a => a.agent_active ?? false)} />,
+      value: (endpoint: EndpointOutput) => (
+        <EndpointActiveFragment
+          activity_map={(endpoint.asset_agents ?? []).map(a => a.agent_active ?? false)}
+          asset_status={endpoint.asset_status}
+          asset_last_seen={endpoint.asset_last_seen}
+          stale_after_days={staleAfterDays}
+        />
+      ),
     },
     {
       field: EndpointListItemFragments.ENDPOINT_PLATFORM,
@@ -249,11 +310,7 @@ const Endpoints = () => {
           // Not sortable: markings are stored as a text[] on the row, not a joinable column.
           isSortable: false,
           value: (endpoint: EndpointOutput) => (
-            <ItemMarkings
-              variant="list"
-              markingIds={endpoint.asset_markings ?? []}
-              definitions={markingDefinitions}
-            />
+            <ItemMarkings markingIds={endpoint.asset_markings} />
           ),
         }]
       : []),
@@ -340,14 +397,24 @@ const Endpoints = () => {
                   canManage={canManage}
                   deleteConfirmationSingular={t('Do you want to delete this asset?')}
                   deleteConfirmationPlural={t('Do you want to delete these {count} assets?', { count: String(numberOfSelectedElements) })}
-                  toolTasks={canBulkEditMarkings
-                    ? [{
-                        type: 'edit-markings',
-                        title: t('Edit markings'),
-                        icon: () => <CenterFocusStrongOutlined fontSize="small" />,
-                        onClick: () => setOpenEditMarkings(true),
-                      }]
-                    : []}
+                  toolTasks={[
+                    ...(canManage
+                      ? [{
+                          type: 'edit-classification',
+                          title: t('Edit classification'),
+                          icon: () => <CategoryOutlined fontSize="small" />,
+                          onClick: () => setOpenEditClassification(true),
+                        }]
+                      : []),
+                    ...(canBulkEditMarkings
+                      ? [{
+                          type: 'edit-markings',
+                          title: t('Edit markings'),
+                          icon: () => <CenterFocusStrongOutlined fontSize="small" />,
+                          onClick: () => setOpenEditMarkings(true),
+                        }]
+                      : []),
+                  ]}
                 />
               )}
             />
@@ -431,6 +498,13 @@ const Endpoints = () => {
               })
         }
       </List>
+      {canManage && openEditClassification && (
+        <BulkClassificationDialog
+          numberOfSelectedElements={numberOfSelectedElements}
+          onClose={() => setOpenEditClassification(false)}
+          onSubmit={bulkEditClassification}
+        />
+      )}
       {canBulkEditMarkings && openEditMarkings && (
         <BulkMarkingsDrawer
           onClose={() => setOpenEditMarkings(false)}

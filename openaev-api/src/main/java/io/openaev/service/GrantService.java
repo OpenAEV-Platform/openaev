@@ -1,5 +1,7 @@
 package io.openaev.service;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE;
 import io.openaev.database.model.Grant.GRANT_TYPE;
@@ -10,6 +12,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -23,9 +26,25 @@ public class GrantService {
   private final ScenarioRepository scenarioRepository;
   private final InjectRepository injectRepository;
   private final InjectorContractRepository injectorContractRepository;
+  private final TenantScopedTransaction tenantTx;
 
   public boolean hasReadGrant(@NotBlank final String resourceId, @NotNull final User user) {
     return hasGrant(resourceId, user, GRANT_TYPE.OBSERVER);
+  }
+
+  /**
+   * Same check as {@link #hasReadGrant(String, User)}, resolved in an explicit tenant instead of
+   * the user's scoped one: for a route that carries no tenant of its own (the player routes), where
+   * the scoped tenant falls back to the default one, the grant has to be read in the tenant of the
+   * resource.
+   *
+   * @param tenantId the tenant whose groups, next to platform groups, count for the grant
+   */
+  public boolean hasReadGrantInTenant(
+      @NotBlank final String resourceId,
+      @NotNull final User user,
+      @NotBlank final String tenantId) {
+    return hasGrant(resourceId, user, tenantId, GRANT_TYPE.OBSERVER);
   }
 
   public boolean hasWriteGrant(@NotBlank final String resourceId, @NotNull final User user) {
@@ -49,12 +68,31 @@ public class GrantService {
         user.getId(), GRANT_TYPE.OBSERVER.andHigher());
   }
 
+  /**
+   * Whether {@code user} holds {@code grantType} or higher on {@code resourceId}, through a group
+   * that counts in {@link User#scopedTenantId()}: that tenant's own group, or a platform group.
+   * Read with the transaction narrowed to that one tenant for the query alone, so a grant held
+   * through a group of the ambient tenant is visible even when the request's own scope is another
+   * tenant (the plain route's {@code X-Tenant-Ids} naming a tenant other than the ambient one): the
+   * query's own tenant parameter and the scope it runs under then always agree. Outside a
+   * transaction there is no scope to narrow; every caller of this method runs inside one.
+   */
   private boolean hasGrant(
       @NotBlank final String resourceId,
       @NotNull final User user,
       @NotNull final GRANT_TYPE grantType) {
+    String tenantId = user.scopedTenantId();
+    return tenantTx.executeOnCurrentTransaction(
+        TxCtx.forTenant(tenantId), () -> hasGrant(resourceId, user, tenantId, grantType));
+  }
+
+  private boolean hasGrant(
+      @NotBlank final String resourceId,
+      @NotNull final User user,
+      final String tenantId,
+      @NotNull final GRANT_TYPE grantType) {
     return this.grantRepository.existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
-        user.getId(), user.scopedTenantId(), resourceId, grantType.andHigher());
+        user.getId(), tenantId, resourceId, grantType.andHigher());
   }
 
   /**
@@ -64,10 +102,13 @@ public class GrantService {
    *
    * @param resourceId the resource ID to validate
    * @param resourceType the declared grant resource type
+   * @param tenantId the tenant of the group the grant is for: a built-in contract id repeats across
+   *     tenants, so a contract only counts when it exists in that one
    * @throws IllegalArgumentException if the resource ID is blank, the type is not grantable through
    *     a group, or no resource of that type has this ID
    */
-  public void validateResourceIdForGrant(String resourceId, GRANT_RESOURCE_TYPE resourceType) {
+  public void validateResourceIdForGrant(
+      String resourceId, GRANT_RESOURCE_TYPE resourceType, String tenantId) {
     if (StringUtils.isBlank(resourceId)) {
       throw new IllegalArgumentException("A valid resource ID should be present");
     }
@@ -83,8 +124,8 @@ public class GrantService {
               injectRepository.existsByIdAndScenarioIsNullAndExerciseIsNull(resourceId);
           // Threat arsenal: on the payload identity, else on the injector contract ID.
           case THREAT_ARSENAL ->
-              injectorContractRepository.existsByPayloadIdentityId(resourceId)
-                  || injectorContractRepository.existsByContractId(resourceId);
+              injectorContractRepository.existsByPayloadIdentityIdAndTenant(resourceId, tenantId)
+                  || injectorContractRepository.existsByContractIdAndTenant(resourceId, tenantId);
           default -> false;
         };
 
@@ -94,10 +135,21 @@ public class GrantService {
     }
   }
 
-  /** Ids a THREAT_ARSENAL grant on this contract may target: the contract, its payload identity. */
-  public List<String> threatArsenalGrantResources(@NotBlank final String contractId) {
+  /**
+   * Ids a THREAT_ARSENAL grant on this contract may target: the contract id and the payload
+   * identity of the contract's copy in the tenant of the request's scope. A contract id repeats
+   * across tenants, so a scope of several tenants names no single copy: it takes the contract id
+   * alone, and the handler refuses the request for want of one tenant.
+   *
+   * @param scopeTenants the tenants the request reads from
+   */
+  public List<String> threatArsenalGrantResources(
+      @NotBlank final String contractId, @NotNull final Set<String> scopeTenants) {
+    if (scopeTenants.size() != 1) {
+      return List.of(contractId);
+    }
     return injectorContractRepository
-        .findById(contractId)
+        .findByContractIdAndTenant(contractId, scopeTenants.iterator().next())
         .map(contract -> List.of(contractId, contract.getGrantResourceId()))
         .orElse(List.of(contractId))
         .stream()

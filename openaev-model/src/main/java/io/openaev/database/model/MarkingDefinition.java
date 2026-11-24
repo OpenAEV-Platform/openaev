@@ -69,6 +69,18 @@ public class MarkingDefinition implements TenantBase, Auditable {
   @Min(0)
   private Integer order = 0;
 
+  /**
+   * The STIX {@code standard_id} OpenCTI gives this marking, the name every product of the platform
+   * shares for it ({@link MarkingDefinitionStixIds}). Derived from type and definition when the row
+   * is created, kept as given when the marking is imported from OpenCTI; null when another
+   * definition of the tenant already carries it. Rows keep their local id: {@code marking_ids} and
+   * every clearance check still read {@link #id}.
+   */
+  @Queryable(filterable = true, searchable = true)
+  @Column(name = "marking_definition_stix_id")
+  @JsonProperty("marking_definition_stix_id")
+  private String stixId;
+
   @Column(name = "marking_definition_protected", nullable = false)
   @JsonProperty("marking_definition_protected")
   @NotNull

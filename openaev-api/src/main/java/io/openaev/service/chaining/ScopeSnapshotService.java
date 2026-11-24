@@ -352,12 +352,16 @@ public class ScopeSnapshotService {
 
   /**
    * One {@code SECURITY_PLATFORM} rule per connected tenant security platform (a collector with a
-   * non-null security platform FK), each carrying its launch snapshot. {@code selectedMode} is left
-   * null (informative, not an allow/deny target - see ADR-006).
+   * non-null security platform FK, its connector instance not paused), each carrying its launch
+   * snapshot. {@code selectedMode} is left null (informative, not an allow/deny target - see
+   * ADR-006).
    */
   private List<WorkflowScopeRule> buildSecurityPlatformRules(
       Workflow workflowRun, String tenantId) {
-    return collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(tenantId).stream()
+    return collectorRepository
+        .findAllActiveByTenantIdAndSecurityPlatformIsNotNull(
+            tenantId, ConnectorType.COLLECTOR.getIdKeyName())
+        .stream()
         .map(Collector::getSecurityPlatform)
         .filter(java.util.Objects::nonNull)
         .distinct()

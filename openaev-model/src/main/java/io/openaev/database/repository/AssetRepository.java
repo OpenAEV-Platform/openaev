@@ -41,6 +41,13 @@ public interface AssetRepository
   }
 
   /**
+   * Hostname lookup scoped by the transaction alone (the statement inspector restricts the rows to
+   * the request's tenant scope and markings). Hostnames are stored lower-case, so callers pass
+   * lower-case keys. Used by the XTM counterpart lookup another product runs on our assets.
+   */
+  List<Asset> findAllByHostnameIn(Collection<String> hostnames);
+
+  /**
    * Feeds the {@code asset} search index with the whole asset inventory: every asset type except
    * security platforms, which have their own index and never surface in the inventory (mirrors
    * {@code AssetService.searchAssets}). Host-only columns come from the Endpoint subclass rows of
@@ -167,6 +174,22 @@ public interface AssetRepository
   List<Object[]> assetsByInjectIds(Set<String> injectIds);
 
   List<Asset> findByTenantId(String tenantId);
+
+  /**
+   * Freshness: the assets of a tenant whose last observation crossed the stale threshold inside a
+   * window, i.e. last seen in {@code [from, to)} where {@code to} is now minus the threshold. Each
+   * one turned STALE during the window. An asset never observed has no verdict; security platforms
+   * are sources, not targets, and are left out.
+   */
+  @Query(
+      "SELECT a FROM Asset a WHERE a.tenant.id = :tenantId AND a.type <> 'SecurityPlatform'"
+          + " AND a.lastSeen IS NOT NULL AND a.lastSeen >= :from AND a.lastSeen < :to"
+          + " ORDER BY a.lastSeen, a.id")
+  List<Asset> findAssetsLastSeenBetween(
+      @Param("tenantId") String tenantId,
+      @Param("from") Instant from,
+      @Param("to") Instant to,
+      Pageable pageable);
 
   /**
    * Business criticality, display name and seen IP for a set of asset ids, as {@code [assetId,

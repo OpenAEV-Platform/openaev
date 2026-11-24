@@ -252,7 +252,7 @@ The manual relaunch is a **faithful copy** (#8726): the new inject keeps every t
 including the ones the user is not cleared for, because a relaunch deletes the original and would
 otherwise lose them for everyone. What the user may do is unchanged (`@AccessControl` on the original,
 the launchable check on what they see), and the dispatch below still runs only the targets the
-launcher is cleared for. See "Copying an inject" in the marking-filter section for the mechanism.
+launcher is cleared for. See "Copying an inject: the faithful copy" for the mechanism.
 
 What happens to this `launched_by` value once dispatch actually starts — and why reaching
 `resolveAllAssetsToExecute` turned out not to be the whole story — is covered next, since it's shared
@@ -687,6 +687,28 @@ public static final List<MarkedTable> FROM_ASSETS =
         linkedTo("execution_traces", "execution_agent_id", "agents", "agent_id"));    // (7)
 ```
 
+Why each entry is needed:
+
+- **(1) `findings_assets`**: the reads that skip the join to `assets` (asset ids, counts), the
+  collection rewrite of a finding's assets, and the `EXISTS` of (2).
+- **(2) `findings`**: visible when it has no asset, or at least one visible asset. A finding on GREEN
+  and RED stays visible, listing GREEN only; a finding on RED only is hidden.
+- **(3) `injects_expectations`**: the expectations on a hidden asset (and on its agents) are removed;
+  team, player and asset-group expectations have no `asset_id` and stay. Global scores are computed at
+  read time (`ResultUtils.computeGlobalExpectationResults`), so they cover the visible assets only.
+- **(4) `injects_assets`, (5) `asset_groups_assets`**: Hibernate rewrites a changed `List` with
+  `DELETE … WHERE inject_id = ?` then re-inserts what the user sent. Without (4), editing an inject
+  silently dropped a target the user could not see (`InjectAssetsMarkingUpdateTest`); with it, the
+  `DELETE` only reaches the visible links. Same for static asset groups with (5).
+- **(6) `agents`, (7) `execution_traces`**: the API takes any target id
+  (`GET /api/injects/execution-traces?targetId=…`, `GET /api/injects/{id}/execution-result?targetId=…`)
+  and `Inject` responses embed `inject_status.status_traces`, so the output of a RED agent was
+  reachable by anyone who knew its asset id. Traces with no agent (the inject's global traces) stay.
+
+The inspector itself is unchanged: `MarkingDimension.activeTables()` returns `assets` and its derived
+tables, so a statement on a derived table alone (e.g. `findings`) passes the fast gate and is
+rewritten; each table of the statement gets the predicate of its shape (table above).
+
 - **One property, one meaning.** `openaev.marking.active-tables` lists only tables that carry a
   `marking_ids` column (`assets`). Activating `assets` filters every table derived from it
   (`MarkedTables.withDerived`); if `assets` is not active, its derived tables stay unfiltered. Listing
@@ -701,111 +723,9 @@ public static final List<MarkedTable> FROM_ASSETS =
 - **Removed**: the `openaev.marking.linked-tables` property, its `child.fk>parent.key` /
   `table.key<link.fk` syntax and parser, and the startup column check that came with it.
 
-### How the inspector applies it
+### Copying an inject: the faithful copy
 
-Nothing changes in `ScopeStatementInspector`; it already works table by table:
-
-1. **Fast gate, before parsing**: a regex on `activeTables()` of every dimension. `MarkingDimension`
-   returns `assets` **and** its derived tables, so a statement on `findings` alone is not skipped.
-   A statement naming none of them (`scenarios`, `tags`…) is returned unchanged, never parsed.
-2. **Per table, after parsing**: for each table of the statement, each dimension that `covers()` it
-   adds its predicate; several dimensions are ANDed.
-
-| Statement touches | `TenantDimension` | `MarkingDimension` |
-|---|---|---|
-| `scenarios` only | — | — (stopped at the fast gate) |
-| `assets` | `can_access_tenant(…)` | own column |
-| `injects_expectations` | — | parent link (3) |
-| `findings` | `can_access_tenant(…)` | link rows (2) |
-| `findings_assets` | — | parent link (1) |
-| `injects_assets` / `asset_groups_assets` | — | parent link (4) / (5) |
-| `agents` | `can_access_tenant(…)` if v2-active | parent link (6) |
-| `execution_traces` | — | parent link (7), a two-hop chain: trace → agent → asset |
-
-### Concrete example: a lower-clearance user opens a simulation run by an admin
-
-An admin (full clearance) runs a scenario on `ASSET_GREEN` and `ASSET_RED`. A `TLP:GREEN` user then
-opens the simulation's results.
-
-**Findings.** `SELECT * FROM findings f`, as rewritten. `<findings_assets predicate>` in (2) is
-predicate (1) applied to the link row `l`:
-
-```sql
-SELECT * FROM findings f
-WHERE (
-  -- a) the finding is attached to no asset → nothing marks it → visible
-  NOT EXISTS (SELECT 1 FROM findings_assets l WHERE l.finding_id = f.finding_id)
-  OR
-  -- b) at least one of its assets is visible to me: (2), with (1) inlined for the link row
-  EXISTS (SELECT 1 FROM findings_assets l
-          WHERE l.finding_id = f.finding_id
-            AND (l.asset_id IS NULL OR EXISTS (
-                   SELECT 1 FROM assets a
-                   WHERE a.asset_id = l.asset_id
-                     AND is_marking_set_allowed(a.marking_ids))))
-)
-```
-
-`findings_assets.asset_id` is part of the primary key, so the `IS NULL` branch never matches here;
-it belongs to the generic parent-link shape, where a NULL foreign key is real. Branch b) is, by hand,
-`EXISTS (SELECT 1 FROM findings_assets l JOIN assets a ON a.asset_id = l.asset_id WHERE
-l.finding_id = f.finding_id AND is_marking_set_allowed(a.marking_ids))`.
-
-| Finding | `findings_assets` rows | a) no link? | b) a visible asset? | `TLP:GREEN` user sees it |
-|---|---|---|---|---|
-| port 445 open | GREEN, RED | no | yes (GREEN) | ✅, with only GREEN in its asset list |
-| CVE-2024-xxxx | RED | no | no | ❌ |
-| finding with no asset | — | yes | — | ✅ |
-
-**Expectations and scores.** The rows computed on `ASSET_RED` (its asset expectation and its agents'
-expectations, which carry `asset_id` too) are removed by (3); team, player and asset-group rows have
-no `asset_id` and stay. Global scores are computed at read time from these rows
-(`ResultUtils.computeGlobalExpectationResults`), so they cover the GREEN asset only.
-
-**Execution traces (the RED agent's output).** A trace is derived from its agent (7), the agent from
-its asset (6):
-
-```sql
-(t.execution_agent_id IS NULL OR EXISTS (
-   SELECT 1 FROM agents ag WHERE ag.agent_id = t.execution_agent_id
-     AND (ag.agent_asset IS NULL OR EXISTS (
-          SELECT 1 FROM assets a WHERE a.asset_id = ag.agent_asset
-            AND is_marking_set_allowed(a.marking_ids)))))
-```
-
-In the UI the traces are reached by clicking a target in the target list (Atomic testing or
-Simulation inject → target → *Execution* and *Terminal view*, also the *Terminal view* of the attack
-path), which already hides `ASSET_RED`. But the API takes any target id
-(`GET /api/injects/execution-traces?targetId=…`, `GET /api/injects/{id}/execution-result?targetId=…`),
-and the raw `Inject` responses embed `inject_status.status_traces`: the RED agent's output was
-reachable for anyone who knew or guessed the RED asset id. With (6) and (7), the RED agent and its
-traces do not exist for the `TLP:GREEN` user. Global traces (no agent) stay visible.
-
-**Editing the targets of an inject.** The `TLP:GREEN` user adds `ASSET_NEW` to an inject that
-targets `ASSET_GREEN` and `ASSET_RED`. They load `[GREEN]` (the join to `assets` hides RED) and send
-`[GREEN, NEW]`. `Inject.assets` is a `List` (a Hibernate bag), so changing it emits:
-
-```sql
-DELETE FROM injects_assets WHERE inject_id = ?            -- 1. drop every link
-INSERT INTO injects_assets VALUES (?, GREEN), (?, NEW)     -- 2. re-insert what the user sent
-```
-
-Without (4), statement 1 deletes the RED link: **editing an inject silently removed a target the
-user could not see** (reproduced by `InjectAssetsMarkingUpdateTest`, both for scenario/simulation
-injects and atomic testings). With (4), the inspector narrows it:
-
-```sql
-DELETE FROM injects_assets WHERE inject_id = ?
-  AND (injects_assets.asset_id IS NULL OR EXISTS (SELECT 1 FROM assets a
-       WHERE a.asset_id = injects_assets.asset_id AND is_marking_set_allowed(a.marking_ids)))
-```
-
-The RED link is out of reach, so it survives; statement 2 re-inserts GREEN and NEW, with no
-conflict. Static asset groups (`AssetGroup.assets`, also a `List`) behave the same way, fixed by (5).
-Reading `inject.getAssets()` is unchanged (the joined `assets` already hides RED), so a launch behaves
-exactly as before: the dispatch resolves the targets with the launcher's clearance on its own.
-
-**Copying an inject.** The `TLP:GREEN` user duplicates or relaunches an atomic testing that targets
+The `TLP:GREEN` user duplicates or relaunches an atomic testing that targets
 `ASSET_GREEN` and `ASSET_RED`. Built from what the user reads, the copy only sees `[GREEN]` and
 inserts a single link: **the copy silently dropped a target the user could not see**, and a relaunch,
 which deletes the original, lost it for everyone (#8726). The same held for every copy: duplicating
@@ -843,46 +763,79 @@ The autonomous-run endpoints (create, restart, promote) call `toExercise` outsid
 `FaithfulCopyTransaction`: their simulation is built from what the user can see, so it does not
 carry the targets they are not cleared for. Open: route them through `FaithfulCopyTransaction`.
 
-**Loading a finding's asset list.** For `finding.getAssets()` Hibernate emits:
+### The SSE stream: rules read from the registry and the JPA mapping
 
-```sql
-SELECT fa.finding_id, a.*
-FROM findings_assets fa
-JOIN assets a ON a.asset_id = fa.asset_id
-WHERE fa.finding_id = ?
+The stream sends, after commit, the entity as the publisher loaded it: no query runs for the reader, so the
+SQL rewrite does not apply. The stream applies the same rules in memory, read at startup from the active
+marked tables (registry included) and the JPA and JSON mapping. A table added to the registry, or
+activated for marking, is filtered on the stream too. Behind `MARKING` and `assets` active, like the SQL.
+
+| Rule | Read from | Example | Decision |
+|---|---|---|---|
+| own markings | the `marking_ids` column | an asset | sent when the reader holds the markings |
+| parent row | `linkedTo(table, fk, …)`, the `@JoinColumn(fk)` field | an agent, an expectation, a trace (through its agent) | sent when the parent row is visible; no parent: sent |
+| link rows (*about*) | `throughLinkRows(…)`, the `@JoinTable` field | a finding | sent when it has no link or one visible link |
+| listing | a field serialized as ids of a marked or derived entity | `inject_assets`, `asset_group_dynamic_assets` | hidden ids removed |
+| embedded | a field serialized whole, objects of a marked or derived table | `inject_expectations`, `inject_status.status_traces` | hidden objects removed |
+
+```mermaid
+classDiagram
+    class StreamService {
+        +listenDatabaseUpdate(BaseEvent)
+    }
+    class StreamClearanceService {
+        +isFiltering() boolean
+        +clearanceFor(User, tenantId) MarkingCtx
+    }
+    class StreamVisibilityService {
+        +visibilityOf(BaseEvent, tenantId) StreamVisibility
+    }
+    class StreamMarkingRules {
+        +forEntity(Class) EntityRule
+        +forTable(table) RowRule
+        +sourceOf(table) RowSource
+    }
+    class StreamVisibility {
+        +visibleUnder(MarkingCtx) boolean
+        +payloadFor(MarkingCtx) ObjectNode
+    }
+    StreamService --> StreamClearanceService : isFiltering() per event, clearanceFor() per reader
+    StreamService --> StreamVisibilityService : once per event
+    StreamService --> StreamVisibility : per reader
+    StreamVisibilityService --> StreamMarkingRules
+    StreamVisibilityService ..> StreamVisibility : builds
+    StreamMarkingRules --> MarkedTables : registry included
 ```
 
-| Table | `TenantDimension` | `MarkingDimension` | Rewrite |
-|---|---|---|---|
-| `findings_assets` (main) | not covered | parent link (1) | `AND (fa.asset_id IS NULL OR EXISTS (… assets …))` in the `WHERE` |
-| `assets` (joined) | `can_access_tenant(…)` | own column | `JOIN (SELECT * FROM assets a WHERE can_access_tenant(…) AND is_marking_set_allowed(…)) a` |
+- **`StreamMarkingRules`** (bean of `MarkingFilteringConfig`): the rules of each entity class, computed once
+  and cached, and where to read a table's markings by id.
+- **`StreamVisibilityService`**, once per event: serializes the payload, collects the ids the rules need, and
+  reads their markings by id (one JPQL query per table and hop) at system clearance, in the entity's tenant,
+  else the event's (an expectation has no tenant).
+- **`StreamVisibility`**, per reader: whether their clearance sees the event, and their copy of the payload.
+- **`StreamClearanceService`**: whether the stream filters at all, and the reader's clearance (cached).
 
-Here the RED link already disappears through the joined `assets` (inner join, Task 3), so (1) is
-redundant for this query. (1) is what protects the statements that read `findings_assets` **without**
-joining `assets`:
+```mermaid
+sequenceDiagram
+    participant P as Publisher transaction
+    participant S as StreamService (@Async)
+    participant V as StreamVisibilityService
+    actor R as Reader
+    P-->>S: BaseEvent, after commit
+    S->>V: visibilityOf(event, tenant)
+    V-->>S: StreamVisibility (markings read by id)
+    loop each reader
+        S->>S: tenant + READ gates, then clearanceFor(reader)
+        S-->>R: dropped, or the payload without what the clearance hides
+    end
+```
 
-- ids or counts: `SELECT asset_id FROM findings_assets WHERE finding_id = ?` would return the RED id;
-- the collection rewrite: `DELETE FROM findings_assets WHERE finding_id = ?` when a lower-clearance
-  user changes the finding's assets is narrowed to visible links, so the RED link survives instead
-  of being silently dropped;
-- the `EXISTS` of predicate (2) itself.
+- **Fail-closed**: markings that cannot be read (no tenant, parent row gone, read failure) hide the row from
+  every restricted reader.
+- **Cost**: one indexed read per table and hop for an event with rules; none otherwise, none with `MARKING`
+  off.
+- **Known limits**: the payload is the publisher's view, so a reader with more clearance may receive a shorter
+  list until reload; a reader who loses access gets no event. Both go with the signal-only stream
+  (implementation plan, Chunk 5 §3).
 
-### Semantics worth knowing
-
-- **A NULL foreign key is visible.** A row attached to no asset (a team expectation) has no marking
-  to inherit, exactly like an empty marking set.
-- **A hidden parent hides the row everywhere the table is read**, including as a joined table, a
-  sub-query, and a link table read on its own.
-- **Findings use a permissive rule**: visible when there is no link, or at least one visible asset.
-  A finding attached to a visible and to a restricted asset stays visible, and may carry information
-  that came from the restricted one. The strict alternative (hidden as soon as one asset is hidden)
-  is a one-branch change in `MarkingDimension.linkRowsPredicate`. To confirm with the PO.
-- **The parent's tenant is not re-checked inside the sub-select**: the foreign key already ties the
-  row to a parent of its own tenant, and the child is tenant-filtered on its own where it is a
-  tenant table.
-- **Who sees agents.** An HTTP transaction carrying a `TxCtx` gets the caller's clearance; the agent
-  callbacks (`/api/endpoints/register`, jobs, expectation updates) run as the agent service account,
-  whose `AGENT_RUNTIME_ACCESS` is a read bypass, so an agent always sees itself. The external
-  executors (CrowdStrike, MDE, SentinelOne, Tanium, Palo Alto Cortex, Caldera) sync agents through
-  `TenantScopedTransaction`, i.e. with system clearance. A transaction with no `TxCtx` has an empty
-  clearance and does not see agents of marked assets, exactly as it already does not see the assets.
+Tested by `StreamMarkingRulesTest` (rules per entity, a table out of the registry not filtered).

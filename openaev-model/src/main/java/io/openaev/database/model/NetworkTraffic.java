@@ -25,35 +25,35 @@ public class NetworkTraffic extends Payload {
   @JsonProperty("payload_type")
   private String type = NETWORK_TRAFFIC_TYPE;
 
-  @Hashed
+  @Hashed(change = Hashed.Change.MINOR)
   @Queryable(filterable = true, sortable = true)
   @Column(name = "network_traffic_ip_src")
   @JsonProperty("network_traffic_ip_src")
   @NotNull
   private String ipSrc;
 
-  @Hashed
+  @Hashed(change = Hashed.Change.MINOR)
   @Queryable(filterable = true, sortable = true)
   @Column(name = "network_traffic_ip_dst")
   @JsonProperty("network_traffic_ip_dst")
   @NotNull
   private String ipDst;
 
-  @Hashed
+  @Hashed(change = Hashed.Change.MINOR)
   @Queryable(filterable = true, sortable = true)
   @Column(name = "network_traffic_port_src")
   @JsonProperty("network_traffic_port_src")
   @NotNull
   private Integer portSrc;
 
-  @Hashed
+  @Hashed(change = Hashed.Change.MINOR)
   @Queryable(filterable = true, sortable = true)
   @Column(name = "network_traffic_port_dst")
   @JsonProperty("network_traffic_port_dst")
   @NotNull
   private Integer portDst;
 
-  @Hashed
+  @Hashed(change = Hashed.Change.MINOR)
   @Queryable(filterable = true, sortable = true)
   @Column(name = "network_traffic_protocol")
   @JsonProperty("network_traffic_protocol")

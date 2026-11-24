@@ -19,7 +19,7 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.exception.UnprocessableContentException;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.inject.form.InjectBulkProcessingInput;
+import io.openaev.rest.inject.form.InjectBulkDeleteInput;
 import io.openaev.service.AtomicTestingService;
 import io.openaev.service.FaithfulCopyTransaction;
 import io.openaev.service.InjectExpectationService;
@@ -28,6 +28,7 @@ import io.openaev.service.detection_remediation.DetectionRemediationService;
 import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.servlet.http.HttpServletResponse;
@@ -139,8 +140,16 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.INJECT)
-  public void deleteAtomicTesting(TxCtx ctx, @PathVariable @NotBlank final String injectId) {
-    atomicTestingService.deleteAtomicTesting(ctx, injectId);
+  public void deleteAtomicTesting(
+      TxCtx ctx,
+      @PathVariable @NotBlank final String injectId,
+      @Parameter(
+              description =
+                  "True keeps the findings produced by the atomic testing, detached from it. False"
+                      + " (the default) deletes them with the atomic testing.")
+          @RequestParam(name = "keep_findings", required = false, defaultValue = "false")
+          final boolean keepFindings) {
+    atomicTestingService.deleteAtomicTesting(ctx, injectId, keepFindings);
   }
 
   @Operation(
@@ -153,7 +162,7 @@ public class AtomicTestingApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ATOMIC_TESTING)
   public List<String> bulkDeleteAtomicTestings(
-      TxCtx ctx, @RequestBody @Valid final InjectBulkProcessingInput input) {
+      TxCtx ctx, @RequestBody @Valid final InjectBulkDeleteInput input) {
     return atomicTestingService.bulkDelete(ctx, input);
   }
 
@@ -265,6 +274,28 @@ public class AtomicTestingApi extends RestBehavior {
         faithfulCopy.execute(
             ctx, () -> atomicTestingService.relaunchAsCurrentUser(ctx, atomicTestingId));
     return atomicTestingService.findById(ctx, relaunchedId);
+  }
+
+  @PostMapping("/{atomicTestingId}/stop")
+  @Transactional
+  @AccessControl(
+      resourceId = "#atomicTestingId",
+      actionPerformed = Action.LAUNCH,
+      resourceType = ResourceType.INJECT)
+  @Operation(
+      summary = "Stop a running atomic testing",
+      description =
+          "Withdraws the agent jobs not picked up yet and ends the atomic testing in ERROR with an"
+              + " INTERRUPTED trace naming who stopped it. Answers 400 when it is not running.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "The stopped atomic testing"),
+        @ApiResponse(responseCode = "400", description = "The atomic testing is not running"),
+        @ApiResponse(responseCode = "404", description = "Atomic testing not found")
+      })
+  public InjectResultOverviewOutput stopAtomicTesting(
+      TxCtx ctx, @PathVariable @NotBlank final String atomicTestingId) {
+    return atomicTestingService.stop(ctx, atomicTestingId);
   }
 
   // -- RECURRENCE --

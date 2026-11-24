@@ -1,6 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Scenario;
+import io.openaev.database.raw.RawCatalogInstalledScenario;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawScenario;
 import io.openaev.database.raw.RawScenarioSimpleIndexing;
@@ -17,6 +18,7 @@ import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.Assert;
 
 /**
  * Repository interface for {@link Scenario} entities.
@@ -45,8 +47,12 @@ public interface ScenarioRepository
         StatisticRepository,
         JpaSpecificationExecutor<Scenario> {
 
+  // -- ONE SCENARIO --
+
   @Query("SELECT s.name FROM Scenario s WHERE s.id = :scenarioId")
   Optional<String> findNameById(@Param("scenarioId") String scenarioId);
+
+  // -- INDEXING --
 
   @Query(
       value =
@@ -134,6 +140,8 @@ public interface ScenarioRepository
   List<RawScenarioSimpleIndexing> findForIndexing(
       @Param("from") Instant from, @Param("limit") int limit);
 
+  // -- SIMULATIONS --
+
   @Query(
       value =
           "SELECT ex.exercise_id, "
@@ -152,11 +160,13 @@ public interface ScenarioRepository
               + "LEFT JOIN scenarios s ON se.scenario_id = s.scenario_id "
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
-              + "WHERE s.scenario_external_reference = :externalReference AND s.tenant_id = :#{#tenantContext.currentTenant} "
+              + "WHERE s.scenario_external_reference = :externalReference "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawAllByExternalReference(
       @Param("externalReference") String externalReference);
+
+  // -- STATISTICS --
 
   @Override
   @Query(
@@ -172,6 +182,8 @@ public interface ScenarioRepository
   @Query("select count(distinct s) from Scenario s where s.createdAt > :creationDate")
   long globalCount(@Param("creationDate") Instant creationDate);
 
+  // -- RAW SCENARIOS --
+
   @Query(
       value =
           "SELECT sce.scenario_id, sce.scenario_name, sce.scenario_subtitle, array_agg(sct.tag_id) FILTER (WHERE sct.tag_id IS NOT NULL) as scenario_tags "
@@ -180,7 +192,7 @@ public interface ScenarioRepository
               + "INNER JOIN grants ON grants.grant_resource = sce.scenario_id AND grants.grant_resource_type = 'SCENARIO' "
               + "INNER JOIN groups ON grants.grant_group = groups.group_id "
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
-              + "WHERE users_groups.user_id = :userId AND sce.tenant_id = :#{#tenantContext.currentTenant} "
+              + "WHERE users_groups.user_id = :userId "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawAllGranted(@Param("userId") String userId);
@@ -195,7 +207,6 @@ public interface ScenarioRepository
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
               + "WHERE users_groups.user_id = :userId "
               + "AND sce.scenario_id IN :scenarioIds "
-              + "AND sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawGrantedByScenarioIds(
@@ -206,7 +217,6 @@ public interface ScenarioRepository
           "SELECT sce.scenario_id, sce.tenant_id, sce.scenario_name, sce.scenario_subtitle, array_agg(sct.tag_id) FILTER (WHERE sct.tag_id IS NOT NULL) as scenario_tags "
               + "FROM scenarios sce "
               + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
-              + "WHERE sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawAll();
@@ -217,10 +227,11 @@ public interface ScenarioRepository
               + "FROM scenarios sce "
               + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
               + "WHERE sce.scenario_id IN :scenarioIds "
-              + "AND sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
+
+  // -- DETAIL --
 
   // Keep every CTE name distinct from a real table name (hence `exercises_agg` and
   // `scenario_tags_agg`): the tenant SQL inspector matches relations by name, so a CTE named
@@ -297,8 +308,12 @@ public interface ScenarioRepository
               + "       pf.scenario_platforms, "
               + "       sta.scenario_tags, "
               + "       rt.scenario_reply_to, "
-              + "       su.scenario_teams_users "
+              + "       su.scenario_teams_users, "
+              + "       sb.user_firstname AS scenario_scheduled_by_firstname, "
+              + "       sb.user_lastname AS scenario_scheduled_by_lastname, "
+              + "       sb.user_email AS scenario_scheduled_by_email "
               + "FROM scenarios s "
+              + "LEFT JOIN users sb ON sb.user_id = s.scenario_scheduled_by "
               + "LEFT JOIN all_users au ON au.scenario_id = s.scenario_id "
               + "LEFT JOIN scenario_users su ON su.scenario_id = s.scenario_id "
               + "LEFT JOIN exercises_agg ex ON ex.scenario_id = s.scenario_id "
@@ -306,7 +321,7 @@ public interface ScenarioRepository
               + "LEFT JOIN platforms pf ON pf.scenario_id = s.scenario_id "
               + "LEFT JOIN scenario_tags_agg sta ON sta.scenario_id = s.scenario_id "
               + "LEFT JOIN reply_to rt ON rt.scenario_id = s.scenario_id "
-              + "WHERE s.scenario_id = :scenarioId AND s.tenant_id = :#{#tenantContext.currentTenant}",
+              + "WHERE s.scenario_id = :scenarioId",
       nativeQuery = true)
   RawScenario getScenarioByIdAndTenantId(@Param("scenarioId") final String scenarioId);
 
@@ -348,7 +363,7 @@ public interface ScenarioRepository
   // -- CATEGORY --
 
   @Query(
-      "SELECT DISTINCT s.category FROM Scenario s WHERE LOWER(s.category) LIKE LOWER(CONCAT('%', :searchTerm, '%')) AND s.tenant.id = :#{#tenantContext.currentTenant}")
+      "SELECT DISTINCT s.category FROM Scenario s WHERE LOWER(s.category) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
   List<String> findDistinctCategoriesBySearchTerm(
       @Param("searchTerm") final String searchTerm, Pageable pageable);
 
@@ -380,9 +395,26 @@ public interface ScenarioRepository
   @Transactional
   void touchUpdatedAt(@Param("scenarioId") final String scenarioId);
 
+  // -- LOOKUPS --
+
   Optional<Scenario> findByExercises_Id(String exerciseId);
 
   Optional<Scenario> findByIdAndTenantId(String id, String tenantId);
+
+  /** The scenarios among the given ids that belong to the given tenant. */
+  @NotNull
+  List<Scenario> findAllByIdInAndTenantId(
+      @NotNull Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The scenarios among the given ids that belong to the given tenant. Refuses a null id list, as
+   * {@code findAllById} does.
+   */
+  @NotNull
+  default List<Scenario> findAllByIdInTenant(Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
@@ -394,4 +426,23 @@ public interface ScenarioRepository
       @NotNull String id, @NotNull Collection<String> tenantIds);
 
   boolean existsByIdAndTenantIdIn(@NotNull String id, @NotNull Collection<String> tenantIds);
+
+  /**
+   * Scenarios generated from the given external references (the STIX id of the threat knowledge
+   * they came from), most recently updated first, scoped by the transaction alone. Used by the XTM
+   * counterpart lookup another product runs on its threat objects.
+   */
+  List<Scenario> findAllByExternalReferenceInOrderByUpdatedAtDesc(
+      @NotNull Collection<String> externalReferences);
+
+  // -- CATALOGUE --
+
+  boolean existsByCatalogIdentityId(String identityId);
+
+  @Query(
+      "SELECT i.repository AS repository, i.externalId AS externalId, s.id AS scenarioId"
+          + " FROM Scenario s JOIN s.catalogIdentity i"
+          + " WHERE s.tenant.id = :tenantId AND i.externalId IN :externalIds")
+  List<RawCatalogInstalledScenario> findInstalledFromCatalog(
+      @Param("tenantId") String tenantId, @Param("externalIds") Collection<String> externalIds);
 }

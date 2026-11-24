@@ -3,6 +3,8 @@ package io.openaev.injectors.phishing.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
@@ -27,6 +29,7 @@ import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
+import io.openaev.utilstest.RowTenantScope;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -66,6 +69,14 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
   @Autowired private InjectComposer injectComposer;
   @Autowired private UserComposer userComposer;
   @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private RowTenantScope rowTenantScope;
+  @Autowired private TenantScopedTransaction tenantTx;
+
+  private static final TxCtx DEFAULT_SCOPE = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
+
+  private void inDefaultScopeDo(Runnable work) {
+    tenantTx.execute(DEFAULT_SCOPE, work);
+  }
 
   private Step persistStep(String data) {
     Step step =
@@ -74,11 +85,15 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
             .status(StepStatus.RUN)
             .data(data)
             .build();
-    workflowComposer
-        .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
-        .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
-        .withStep(stepComposer.forStep(step))
-        .persist();
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () ->
+            workflowComposer
+                .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+                .withSimulation(
+                    exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+                .withStep(stepComposer.forStep(step))
+                .persist());
     return step;
   }
 
@@ -88,7 +103,9 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
     // Explicit, not left to PhishingLandingPage's own v1 TenantBaseListener (removed on the
     // phishing_landing_pages activation): this test runs with no tenant context of its own.
     landingPage.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
-    return phishingLandingPageRepository.save(landingPage);
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID, () -> phishingLandingPageRepository.save(landingPage));
+    return landingPage;
   }
 
   private User persistUser() {
@@ -96,7 +113,20 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
   }
 
   private Inject persistInject() {
-    return injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get();
+    InjectComposer.Composer composer = injectComposer.forInject(InjectFixture.getDefaultInject());
+    rowTenantScope.write(Tenant.DEFAULT_TENANT_UUID, composer::persist);
+    return composer.get();
+  }
+
+  /** Deletes the inject in the scope of the tenant that owns it, as the API does. */
+  private void deleteInject(String injectId) {
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          if (injectRepository.existsById(injectId)) {
+            injectRepository.deleteById(injectId);
+          }
+        });
   }
 
   /**
@@ -109,21 +139,31 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
     if (user != null && userRepository.existsById(user.getId())) {
       userRepository.deleteById(user.getId());
     }
-    if (inject != null && injectRepository.existsById(inject.getId())) {
-      injectRepository.deleteById(inject.getId());
+    if (inject != null) {
+      deleteInject(inject.getId());
     }
     if (step != null) {
       String workflowId = step.getWorkflow().getId();
       String exerciseId = step.getWorkflow().getSimulation().getId();
-      if (workflowRepository.existsById(workflowId)) {
-        workflowRepository.deleteById(workflowId);
-      }
-      if (exerciseRepository.existsById(exerciseId)) {
-        exerciseRepository.deleteById(exerciseId);
-      }
+      rowTenantScope.write(
+          Tenant.DEFAULT_TENANT_UUID,
+          () -> {
+            if (workflowRepository.existsById(workflowId)) {
+              workflowRepository.deleteById(workflowId);
+            }
+            if (exerciseRepository.existsById(exerciseId)) {
+              exerciseRepository.deleteById(exerciseId);
+            }
+          });
     }
-    if (landingPage != null && phishingLandingPageRepository.existsById(landingPage.getId())) {
-      phishingLandingPageRepository.deleteById(landingPage.getId());
+    if (landingPage != null) {
+      rowTenantScope.write(
+          Tenant.DEFAULT_TENANT_UUID,
+          () -> {
+            if (phishingLandingPageRepository.existsById(landingPage.getId())) {
+              phishingLandingPageRepository.deleteById(landingPage.getId());
+            }
+          });
     }
   }
 
@@ -165,10 +205,13 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
                       null,
                       step.getId()));
 
-      PhishingResult saved = phishingResultRepository.findById(result.getId()).orElseThrow();
-      assertThat(saved.getStep()).isNotNull();
-      assertThat(saved.getStep().getId()).isEqualTo(step.getId());
-      assertThat(saved.getInject()).isNull();
+      inDefaultScopeDo(
+          () -> {
+            PhishingResult saved = phishingResultRepository.findById(result.getId()).orElseThrow();
+            assertThat(saved.getStep()).isNotNull();
+            assertThat(saved.getStep().getId()).isEqualTo(step.getId());
+            assertThat(saved.getInject()).isNull();
+          });
     }
 
     @Test
@@ -183,10 +226,13 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
           phishingTrackingService.createResult(
               inject, inject.getTenant().getId(), landingPage, user.getId(), null, null);
 
-      PhishingResult saved = phishingResultRepository.findById(result.getId()).orElseThrow();
-      assertThat(saved.getInject()).isNotNull();
-      assertThat(saved.getInject().getId()).isEqualTo(inject.getId());
-      assertThat(saved.getStep()).isNull();
+      inDefaultScopeDo(
+          () -> {
+            PhishingResult saved = phishingResultRepository.findById(result.getId()).orElseThrow();
+            assertThat(saved.getInject()).isNotNull();
+            assertThat(saved.getInject().getId()).isEqualTo(inject.getId());
+            assertThat(saved.getStep()).isNull();
+          });
     }
   }
 
@@ -222,14 +268,18 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
               null,
               step.getId());
 
-      var resolved = phishingTrackingService.resolveAndBackfillByToken(created.getToken());
+      var resolved =
+          phishingTrackingService.resolveAndBackfillByToken(DEFAULT_SCOPE, created.getToken());
 
       assertThat(resolved).isPresent();
       assertThat(resolved.get().getInject()).isNotNull();
       assertThat(resolved.get().getInject().getId()).isEqualTo(inject.getId());
-      PhishingResult saved = phishingResultRepository.findById(created.getId()).orElseThrow();
-      assertThat(saved.getInject()).isNotNull();
-      assertThat(saved.getInject().getId()).isEqualTo(inject.getId());
+      inDefaultScopeDo(
+          () -> {
+            PhishingResult saved = phishingResultRepository.findById(created.getId()).orElseThrow();
+            assertThat(saved.getInject()).isNotNull();
+            assertThat(saved.getInject().getId()).isEqualTo(inject.getId());
+          });
     }
   }
 
@@ -267,23 +317,30 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
       // Pushes sentAt into the past so the automated-probe delay guard (a hit within the first
       // seconds of "sending") does not suppress these hits.
       created.setSentAt(Instant.now().minusSeconds(120));
-      phishingResultRepository.save(created);
+      inDefaultScopeDo(() -> phishingResultRepository.save(created));
 
-      phishingTrackingService.markOpened(created.getToken(), "10.0.0.1", "Mozilla/5.0");
-      phishingTrackingService.markClicked(created.getToken(), "10.0.0.1", "Mozilla/5.0");
+      phishingTrackingService.markOpened(
+          DEFAULT_SCOPE, created.getToken(), "10.0.0.1", "Mozilla/5.0");
+      phishingTrackingService.markClicked(
+          DEFAULT_SCOPE, created.getToken(), "10.0.0.1", "Mozilla/5.0");
       phishingTrackingService.markSubmitted(
+          DEFAULT_SCOPE,
           created.getToken(),
           Map.of("username", "bob", "password", "secret"),
           "10.0.0.1",
-          "Mozilla/5.0");
+          "Mozilla/5.0",
+          null);
 
-      PhishingResult saved = phishingResultRepository.findById(created.getId()).orElseThrow();
-      assertThat(saved.getOpenedAt()).isNotNull();
-      assertThat(saved.getClickedAt()).isNotNull();
-      assertThat(saved.getSubmittedAt()).isNotNull();
-      // The inject must have been backfilled by the very first resolveByToken call.
-      assertThat(saved.getInject()).isNotNull();
-      assertThat(saved.getInject().getId()).isEqualTo(inject.getId());
+      inDefaultScopeDo(
+          () -> {
+            PhishingResult saved = phishingResultRepository.findById(created.getId()).orElseThrow();
+            assertThat(saved.getOpenedAt()).isNotNull();
+            assertThat(saved.getClickedAt()).isNotNull();
+            assertThat(saved.getSubmittedAt()).isNotNull();
+            // The inject must have been backfilled by the very first resolveByToken call.
+            assertThat(saved.getInject()).isNotNull();
+            assertThat(saved.getInject().getId()).isEqualTo(inject.getId());
+          });
     }
   }
 
@@ -319,11 +376,15 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
               user.getId(),
               null,
               step.getId());
-      assertThat(phishingResultRepository.findById(created.getId())).isPresent();
+      inDefaultScopeDo(
+          () -> assertThat(phishingResultRepository.findById(created.getId())).isPresent());
 
-      workflowRepository.deleteById(step.getWorkflow().getId());
+      rowTenantScope.write(
+          Tenant.DEFAULT_TENANT_UUID,
+          () -> workflowRepository.deleteById(step.getWorkflow().getId()));
 
-      assertThat(phishingResultRepository.findById(created.getId())).isEmpty();
+      inDefaultScopeDo(
+          () -> assertThat(phishingResultRepository.findById(created.getId())).isEmpty());
     }
 
     @Test
@@ -337,11 +398,13 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
       PhishingResult created =
           phishingTrackingService.createResult(
               inject, inject.getTenant().getId(), landingPage, user.getId(), null, null);
-      assertThat(phishingResultRepository.findById(created.getId())).isPresent();
+      inDefaultScopeDo(
+          () -> assertThat(phishingResultRepository.findById(created.getId())).isPresent());
 
-      injectRepository.deleteById(inject.getId());
+      deleteInject(inject.getId());
 
-      assertThat(phishingResultRepository.findById(created.getId())).isEmpty();
+      inDefaultScopeDo(
+          () -> assertThat(phishingResultRepository.findById(created.getId())).isEmpty());
     }
   }
 }

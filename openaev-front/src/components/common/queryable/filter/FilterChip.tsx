@@ -7,6 +7,7 @@ import { forwardRef, type FunctionComponent, useEffect, useRef, useState } from 
 
 import { type Filter, type PropertySchemaDTO } from '../../../../utils/api-types';
 import { useFormatter } from '../../../i18n';
+import { neutralChipSx, PENDING_CHIP_EDGE } from '../../chips/standardChip';
 import FilterChipPopover from './FilterChipPopover';
 import FilterChipValues from './FilterChipValues';
 import { type FilterHelpers } from './FilterHelpers';
@@ -60,9 +61,9 @@ const FilterChip: FunctionComponent<Props> = ({
     return R.isEmpty(values) || values?.some(v => R.isEmpty(v));
   };
 
-  const chipVariant = isEmpty(filter.values) && !['empty', 'not_empty'].includes(filter.operator ?? 'eq')
-    ? 'outlined'
-    : 'filled';
+  // A filter still waiting for its value stays outlined, as today; a complete one takes
+  // the design-system 1.13 chip look (neutral fill and a 30% hairline).
+  const isIncomplete = isEmpty(filter.values) && !['empty', 'not_empty'].includes(filter.operator ?? 'eq');
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
@@ -74,7 +75,7 @@ const FilterChip: FunctionComponent<Props> = ({
   return (
     <>
       <Chip
-        variant={chipVariant}
+        variant="outlined"
         label={(
           <Tooltip>
             <TooltipTrigger asChild>
@@ -101,13 +102,16 @@ const FilterChip: FunctionComponent<Props> = ({
         )}
         onDelete={handleRemoveFilter}
         deleteIcon={<ClearFilterIcon />}
-        sx={{
+        sx={() => ({
+          ...(isIncomplete
+            ? { border: PENDING_CHIP_EDGE }
+            : neutralChipSx()),
           'borderRadius': 1,
           // 8px on BOTH sides of the clear cross: the label's own padding on its
           // left, the icon's margin on its right.
           '& .MuiChip-label': { paddingRight: 1 },
           '& .MuiChip-deleteIcon': { margin: '0 8px 0 0' },
-        }}
+        })}
         ref={chipRef}
       />
 

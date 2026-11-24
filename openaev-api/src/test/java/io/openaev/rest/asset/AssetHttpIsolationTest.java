@@ -9,7 +9,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
@@ -22,7 +23,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,11 +41,11 @@ import org.springframework.transaction.annotation.Transactional;
  * is non-empty: an assertion that a result is empty stays green through exactly the fail-closed
  * regression being guarded against, so it proves nothing.
  */
+@CoversTenantIsolation("assets")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets")
 @WithMockUser(isAdmin = true)
 @DisplayName("assets read isolation through the real HTTP endpoints, all three discriminators")
-class AssetHttpIsolationTest extends IntegrationTest {
+class AssetHttpIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String ENDPOINT_BY_ID = "/api/tenants/{tenantId}/endpoints/{endpointId}";
   private static final String ASSET_BY_ID = "/api/tenants/{tenantId}/assets/{assetId}";
@@ -171,10 +171,11 @@ class AssetHttpIsolationTest extends IntegrationTest {
   @Test
   @DisplayName("under tenant A's path: deleting B's endpoint does not remove it, on either route")
   void deleteOtherTenantEndpointLeavesItInPlace() throws Exception {
-    // The endpoint route's delete is a native query carrying tenant_id = #tenantContext, so it
-    // matches nothing under A whatever the activation does. The generic asset route loads the row
-    // first (AssetService.deleteAsset calls asset(id), a primary-key load) and deletes the entity
-    // it got, so with assets disarmed that load returns B's endpoint and the row is gone.
+    // The endpoint route's delete is a native DELETE with no tenant predicate of its own: under A
+    // it matches nothing of B's only because the statement inspector adds the tenant filter while
+    // assets is armed, so with assets not armed both routes remove B's row. The generic asset route
+    // loads the row first (AssetService.deleteAsset calls asset(id), a primary-key load) and
+    // deletes the entity it got, so with assets not armed that load returns B's endpoint.
     mvc.perform(delete(ENDPOINT_BY_ID, tenantA, endpointB).with(csrf()));
     mvc.perform(delete(ASSET_BY_ID, tenantA, endpointB).with(csrf()));
     // The status is not the assertion: what matters is that the row is still there. A delete that

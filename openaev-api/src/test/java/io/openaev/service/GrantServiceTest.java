@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
@@ -18,6 +19,7 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.utils.fixtures.UserFixture;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -31,16 +33,29 @@ class GrantServiceTest {
 
   private static final String USER_ID = "userid";
   private static final String RESOURCE_ID = "resourceid";
+  private static final String TENANT_ID = "tenantid";
 
   @Mock private GrantRepository grantRepository;
   @Mock private ExerciseRepository exerciseRepository;
   @Mock private ScenarioRepository scenarioRepository;
   @Mock private InjectRepository injectRepository;
   @Mock private InjectorContractRepository injectorContractRepository;
+  @Mock private TenantScopedTransaction tenantTx;
 
   @InjectMocks private GrantService grantService;
 
   @Captor private ArgumentCaptor<Grant> grantCaptor;
+
+  @BeforeEach
+  void runScopedWorkDirectly() {
+    lenient()
+        .when(tenantTx.executeOnCurrentTransaction(any(), any()))
+        .thenAnswer(
+            invocation -> {
+              TenantScopedTransaction.ScopedWork<?, ?> work = invocation.getArgument(1);
+              return work.get();
+            });
+  }
 
   @Test
   void test_hasReadGrant_WHEN_has_read_grant() {
@@ -61,6 +76,19 @@ class GrantServiceTest {
             USER_ID, user.scopedTenantId(), RESOURCE_ID, Grant.GRANT_TYPE.OBSERVER.andHigher()))
         .thenReturn(false);
 
+    assertFalse(grantService.hasReadGrant(RESOURCE_ID, user));
+  }
+
+  @Test
+  void test_hasReadGrantInTenant_WHEN_grant_is_held_in_the_given_tenant() {
+    User user = UserFixture.getUser();
+    user.setId(USER_ID);
+    String otherTenant = "tenant-of-the-resource";
+    when(grantRepository.existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
+            USER_ID, otherTenant, RESOURCE_ID, Grant.GRANT_TYPE.OBSERVER.andHigher()))
+        .thenReturn(true);
+
+    assertTrue(grantService.hasReadGrantInTenant(RESOURCE_ID, user, otherTenant));
     assertFalse(grantService.hasReadGrant(RESOURCE_ID, user));
   }
 
@@ -155,7 +183,8 @@ class GrantServiceTest {
   void given_resourceOfTheDeclaredType_should_acceptGrant() {
     when(exerciseRepository.existsById(RESOURCE_ID)).thenReturn(true);
 
-    assertDoesNotThrow(() -> grantService.validateResourceIdForGrant(RESOURCE_ID, SIMULATION));
+    assertDoesNotThrow(
+        () -> grantService.validateResourceIdForGrant(RESOURCE_ID, SIMULATION, TENANT_ID));
     verifyNoInteractions(scenarioRepository, injectRepository, injectorContractRepository);
   }
 
@@ -166,7 +195,7 @@ class GrantServiceTest {
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> grantService.validateResourceIdForGrant(RESOURCE_ID, SIMULATION));
+        () -> grantService.validateResourceIdForGrant(RESOURCE_ID, SIMULATION, TENANT_ID));
     verifyNoInteractions(scenarioRepository);
   }
 
@@ -175,20 +204,21 @@ class GrantServiceTest {
     when(scenarioRepository.existsById(RESOURCE_ID)).thenReturn(true);
     when(injectRepository.existsByIdAndScenarioIsNullAndExerciseIsNull(RESOURCE_ID))
         .thenReturn(true);
-    when(injectorContractRepository.existsByContractId(RESOURCE_ID)).thenReturn(true);
+    when(injectorContractRepository.existsByContractIdAndTenant(RESOURCE_ID, TENANT_ID))
+        .thenReturn(true);
 
     assertDoesNotThrow(
         () ->
             grantService.validateResourceIdForGrant(
-                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.SCENARIO));
+                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.SCENARIO, TENANT_ID));
     assertDoesNotThrow(
         () ->
             grantService.validateResourceIdForGrant(
-                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING));
+                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING, TENANT_ID));
     assertDoesNotThrow(
         () ->
             grantService.validateResourceIdForGrant(
-                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL));
+                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL, TENANT_ID));
     verifyNoInteractions(exerciseRepository);
   }
 
@@ -198,9 +228,9 @@ class GrantServiceTest {
         IllegalArgumentException.class,
         () ->
             grantService.validateResourceIdForGrant(
-                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.UNKNOWN));
+                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.UNKNOWN, TENANT_ID));
     assertThrows(
         IllegalArgumentException.class,
-        () -> grantService.validateResourceIdForGrant(RESOURCE_ID, null));
+        () -> grantService.validateResourceIdForGrant(RESOURCE_ID, null, TENANT_ID));
   }
 }

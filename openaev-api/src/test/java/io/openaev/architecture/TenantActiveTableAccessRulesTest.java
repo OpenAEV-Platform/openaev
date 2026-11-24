@@ -6,15 +6,20 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.EvaluationResult;
 import io.openaev.architecture.fixture.TenantActiveTableAccessFixtures;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Proves the repository access rules of {@link TenantActiveTableAccessArchTest} fire on an accessor
@@ -69,6 +74,161 @@ class TenantActiveTableAccessRulesTest {
       assertThat(result.getFailureReport().toString())
           .contains("UnreviewedObjectiveTemplateAccessor")
           .contains("AutonomousObjectiveTemplateRepository");
+    }
+  }
+
+  @Nested
+  @DisplayName("execution_traces: association guard sees method references")
+  class ExecutionTracesAssociationMethodReferences {
+
+    @Test
+    @DisplayName("given an unreviewed method-reference reader, should violate")
+    void given_anUnreviewedMethodReferenceReader_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest
+                  .execution_traces_inject_status_association_access_is_reviewed,
+              TenantActiveTableAccessFixtures.UnreviewedExecutionTraceMethodReferenceReader.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("UnreviewedExecutionTraceMethodReferenceReader")
+          .contains("InjectStatus");
+    }
+  }
+
+  @Nested
+  @DisplayName("roles repository access")
+  class RolesRepositoryAccess {
+
+    @Test
+    @DisplayName("given an accessor outside the allowlist, should violate")
+    void given_anAccessorOutsideTheAllowlist_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.roles_repository_access_is_reviewed,
+              TenantActiveTableAccessFixtures.UnreviewedRoleAccessor.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("UnreviewedRoleAccessor")
+          .contains("RoleRepository");
+    }
+  }
+
+  @Nested
+  @DisplayName("roles platform row writers")
+  class RolesPlatformRowWriters {
+
+    private EvaluationResult roleWriters(Class<?>... fixtures) {
+      return evaluate(
+          TenantActiveTableAccessArchTest.roles_platform_row_writers_run_under_platform_write,
+          fixtures);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+        classes = {
+          TenantActiveTableAccessFixtures.UnmarkedPlatformRoleWriter.class,
+          TenantActiveTableAccessFixtures.UnmarkedRoleCapabilityJdbcWriter.class
+        })
+    @DisplayName("given a write of a role reached from no marker, should violate")
+    void given_aWriteOfARoleReachedFromNoMarker_should_violate(Class<?> fixture) {
+      // Act
+      EvaluationResult result = roleWriters(fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains(fixture.getSimpleName() + ".entry");
+    }
+
+    @Test
+    @DisplayName("given a role writer under the annotation, should not violate")
+    void given_aRoleWriterUnderTheAnnotation_should_notViolate() {
+      // Act
+      EvaluationResult result =
+          roleWriters(TenantActiveTableAccessFixtures.PlatformRoleWriterUnderTheAnnotation.class);
+
+      // Assert
+      assertThat(result.hasViolation()).as(result.getFailureReport().toString()).isFalse();
+    }
+
+    @Test
+    @DisplayName("given a writer of each table, should count it as a writer of its own table only")
+    void given_aWriterOfEachTable_should_countItAsAWriterOfItsOwnTableOnly() {
+      // Arrange
+      var classes =
+          new ClassFileImporter()
+              .importClasses(
+                  TenantActiveTableAccessFixtures.UnmarkedPlatformRowWriter.class,
+                  TenantActiveTableAccessFixtures.UnmarkedPlatformRoleWriter.class);
+
+      // Act
+      List<String> roleWriters =
+          classes.stream()
+              .flatMap(c -> c.getMethods().stream())
+              .filter(PlatformRowWriters.writeARow(PlatformRowWriters.ROLES, List.of()))
+              .map(m -> m.getOwner().getSimpleName())
+              .toList();
+      List<String> settingWriters =
+          classes.stream()
+              .flatMap(c -> c.getMethods().stream())
+              .filter(PlatformRowWriters.writeARow(PlatformRowWriters.PARAMETERS, List.of()))
+              .map(m -> m.getOwner().getSimpleName())
+              .toList();
+
+      // Assert
+      assertThat(roleWriters).containsExactly("UnmarkedPlatformRoleWriter");
+      assertThat(settingWriters).containsExactly("UnmarkedPlatformRowWriter");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        delimiter = '|',
+        value = {
+          "update Role r set r.name = :n where r.id = :id|true",
+          "DELETE FROM roles WHERE role_id = ?1|true",
+          "insert into roles_capabilities (role_id, capability) values (?, ?)|true",
+          "delete from groups_roles where role_id = ?|false",
+          "select r from Role r where r.id = :id|false",
+          "update groups set group_name = 'roles'|false"
+        })
+    @DisplayName("given a statement, should recognise a write of a role")
+    void given_aStatement_should_recogniseAWriteOfARole(String statement, boolean write) {
+      // Act + Assert
+      assertThat(PlatformRowWriters.isWriteOnTheTable(PlatformRowWriters.ROLES, statement))
+          .isEqualTo(write);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({
+      "TenantRoleWriterBuildingARoleWithoutATenant,1",
+      "TenantRoleWriterLookingUpByIdOnly,1"
+    })
+    @DisplayName("given an exempt role writer, should report what takes it out of the tenant rows")
+    void given_anExemptRoleWriter_should_reportWhatTakesItOutOfTheTenantRows(
+        String fixture, int violations) throws ClassNotFoundException {
+      // Arrange
+      Class<?> type =
+          Class.forName(TenantActiveTableAccessFixtures.class.getName() + "$" + fixture);
+      var write =
+          new ClassFileImporter()
+              .importClasses(type).stream()
+                  .flatMap(c -> c.getMethods().stream())
+                  .filter(m -> m.getName().equals("write"))
+                  .findFirst()
+                  .orElseThrow();
+
+      // Act
+      List<String> found =
+          PlatformRowWriters.tenantRowOnlyViolations(PlatformRowWriters.ROLES, write);
+
+      // Assert
+      assertThat(found).as(found.toString()).hasSize(violations);
     }
   }
 
@@ -245,7 +405,8 @@ class TenantActiveTableAccessRulesTest {
       var writers =
           writer.stream()
               .flatMap(c -> c.getMethods().stream())
-              .filter(PlatformRowWriters.writeASetting(java.util.List.of()))
+              .filter(
+                  PlatformRowWriters.writeARow(PlatformRowWriters.PARAMETERS, java.util.List.of()))
               .map(m -> m.getOwner().getSimpleName())
               .toList();
 
@@ -305,7 +466,8 @@ class TenantActiveTableAccessRulesTest {
     @DisplayName("given a statement, should recognise a write of the table")
     void given_aStatement_should_recogniseAWriteOfTheTable(String statement, boolean write) {
       // Act + Assert
-      assertThat(PlatformRowWriters.isWriteOnTheTable(statement)).isEqualTo(write);
+      assertThat(PlatformRowWriters.isWriteOnTheTable(PlatformRowWriters.PARAMETERS, statement))
+          .isEqualTo(write);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -352,7 +514,8 @@ class TenantActiveTableAccessRulesTest {
       var writers =
           classes.stream()
               .flatMap(c -> c.getMethods().stream())
-              .filter(PlatformRowWriters.writeASetting(java.util.List.of()))
+              .filter(
+                  PlatformRowWriters.writeARow(PlatformRowWriters.PARAMETERS, java.util.List.of()))
               .toList();
 
       // Assert
@@ -372,7 +535,8 @@ class TenantActiveTableAccessRulesTest {
       var writers =
           classes.stream()
               .flatMap(c -> c.getMethods().stream())
-              .filter(PlatformRowWriters.writeASetting(java.util.List.of()))
+              .filter(
+                  PlatformRowWriters.writeARow(PlatformRowWriters.PARAMETERS, java.util.List.of()))
               .toList();
 
       // Assert
@@ -427,7 +591,7 @@ class TenantActiveTableAccessRulesTest {
       return new ClassFileImporter()
           .importClasses(fixture).stream()
               .flatMap(c -> c.getMethods().stream())
-              .filter(PlatformRowWriters.writeASetting(ex))
+              .filter(PlatformRowWriters.writeARow(PlatformRowWriters.PARAMETERS, ex))
               .map(m -> m.getName() + "/" + m.getRawParameterTypes().size())
               .toList();
     }
@@ -493,7 +657,8 @@ class TenantActiveTableAccessRulesTest {
                   .orElseThrow();
 
       // Act
-      List<String> found = PlatformRowWriters.tenantRowOnlyViolations(write);
+      List<String> found =
+          PlatformRowWriters.tenantRowOnlyViolations(PlatformRowWriters.PARAMETERS, write);
 
       // Assert
       assertThat(found).as(found.toString()).hasSize(violations);
@@ -621,11 +786,681 @@ class TenantActiveTableAccessRulesTest {
       var readers =
           classes.stream()
               .flatMap(c -> c.getMethods().stream())
-              .filter(PlatformRowWriters.readATenantRowOfSettings())
+              .filter(PlatformRowWriters.readATenantRow(PlatformRowWriters.PARAMETERS))
               .toList();
 
       // Assert
       assertThat(readers).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("injectors_contracts: queries that take no tenant")
+  class InjectorContractTenantlessQuery {
+
+    static Stream<Arguments> tenantlessAccessors() {
+      return Stream.of(
+          Arguments.of(TenantActiveTableAccessFixtures.DeclaredBareIdLookup.class, "findById"),
+          Arguments.of(
+              TenantActiveTableAccessFixtures.DeclaredPayloadLookup.class,
+              "findInjectorContractByPayload"),
+          Arguments.of(TenantActiveTableAccessFixtures.SpecificationRead.class, "findAll"),
+          Arguments.of(TenantActiveTableAccessFixtures.ArglessCrudRead.class, "count"),
+          Arguments.of(TenantActiveTableAccessFixtures.BareIdLookupReference.class, "findById"),
+          Arguments.of(
+              TenantActiveTableAccessFixtures.ServiceBareIdLookup.class, "injectorContract"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tenantlessAccessors")
+    @DisplayName("given an accessor outside the allowlist, should violate")
+    void given_anAccessorOutsideTheAllowlist_should_violate(Class<?> fixture, String method) {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.injector_contract_tenantless_query_is_called_only_by,
+              fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains(method);
+    }
+
+    @Test
+    @DisplayName("given a new lookup in a class with a reviewed method, should violate on it only")
+    void given_aNewLookupInAClassWithAReviewedMethod_should_violateOnTheNewMethodOnly() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.ReviewedAndUnreviewedLookup.class;
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.tenantlessInjectorContractQueryIsCalledOnlyBy(
+              new TenantActiveTableAccessArchTest.AllowedCall(
+                  fixture, "approvedLookup", "findById", "the fixture's reviewed method"));
+
+      // Act
+      EvaluationResult result = evaluate(rule, fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("newLookup")
+          .doesNotContain("approvedLookup");
+    }
+
+    @Test
+    @DisplayName("given an access that carries a tenant, should not violate")
+    void given_anAccessThatCarriesATenant_should_notViolate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.injector_contract_tenantless_query_is_called_only_by,
+              TenantActiveTableAccessFixtures.TenantCarryingAccess.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("injectors_contracts: the pin an allowlist reason relies on")
+  class InjectorContractPinOrder {
+
+    private static TenantActiveTableAccessArchTest.AllowedCall pinnedCall(Class<?> fixture) {
+      return new TenantActiveTableAccessArchTest.AllowedCall(
+          fixture,
+          "find",
+          "injectorContract",
+          "the fixture's endpoint pins first",
+          TenantActiveTableAccessArchTest.Pin.requireOneTenantOfScope(
+              fixture, "find", InjectorContractService.class, "injectorContract"));
+    }
+
+    static Stream<Arguments> pinsThatDoNotComeFirst() {
+      return Stream.of(
+          Arguments.of(TenantActiveTableAccessFixtures.PinAfterLookup.class, "after"),
+          Arguments.of(TenantActiveTableAccessFixtures.LookupWithoutPin.class, "never calls"),
+          Arguments.of(TenantActiveTableAccessFixtures.PinInAnotherMethod.class, "never calls"),
+          Arguments.of(TenantActiveTableAccessFixtures.PinInsideIf.class, "only after a branch"),
+          Arguments.of(TenantActiveTableAccessFixtures.PinInsideTry.class, "only after a branch"),
+          Arguments.of(TenantActiveTableAccessFixtures.PinInsideLambda.class, "never calls"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("pinsThatDoNotComeFirst")
+    @DisplayName(
+        "given a pin that is missing, conditional, in a lambda or after the lookup, should violate")
+    void given_aPinThatDoesNotAlwaysRunFirst_should_violate(Class<?> fixture, String expected) {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.pinnedCallersPinBeforeTheLookup(pinnedCall(fixture)),
+              fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains(expected);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+        classes = {
+          TenantActiveTableAccessFixtures.PinBeforeLookup.class,
+          TenantActiveTableAccessFixtures.PinBeforeABranch.class
+        })
+    @DisplayName("given a pin called first, before the lookup, should not violate")
+    void given_aPinCalledFirstBeforeTheLookup_should_notViolate(Class<?> fixture) {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.pinnedCallersPinBeforeTheLookup(pinnedCall(fixture)),
+              fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("given a pin whose class is not analysed, should violate instead of passing")
+    void given_aPinWhoseClassIsNotAnalysed_should_violate() {
+      // Arrange
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.pinnedCallersPinBeforeTheLookup(
+              pinnedCall(TenantActiveTableAccessFixtures.PinBeforeLookup.class));
+
+      // Act
+      EvaluationResult result =
+          evaluate(rule, TenantActiveTableAccessFixtures.LookupWithoutPin.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("was not analysed");
+    }
+  }
+
+  @Nested
+  @DisplayName("injectors_contracts: the callers and routes an allowlist reason relies on")
+  class InjectorContractCallersAndRoutes {
+
+    private final Class<?> shapes = TenantActiveTableAccessFixtures.CallerShapes.class;
+
+    private TenantActiveTableAccessArchTest.CallersClaim claimOf(String... callers) {
+      return new TenantActiveTableAccessArchTest.CallersClaim(
+          shapes,
+          "claimed",
+          Stream.of(callers)
+              .map(caller -> new TenantActiveTableAccessArchTest.At(shapes, caller))
+              .toList());
+    }
+
+    @Test
+    @DisplayName("given a call from a method the claim does not list, should violate on it only")
+    void given_aCallFromAnUnlistedMethod_should_violateOnItOnly() {
+      // Act
+      EvaluationResult result =
+          evaluate(TenantActiveTableAccessArchTest.callersAreOnly(claimOf("listed")), shapes);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("unlisted")
+          .doesNotContain("CallerShapes.listed()");
+    }
+
+    @Test
+    @DisplayName("given every caller listed, should not violate")
+    void given_everyCallerListed_should_notViolate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.callersAreOnly(claimOf("listed", "unlisted")),
+              shapes);
+
+      // Assert
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("given a listed caller that no longer makes the call, should violate")
+    void given_aListedCallerThatNoLongerCalls_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.callersAreOnly(
+                  claimOf("listed", "unlisted", "renamed")),
+              shapes);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("renamed");
+    }
+
+    @Test
+    @DisplayName("given a claim of no caller whose class is not analysed, should violate")
+    void given_aClaimOfNoCallerWhoseClassIsNotAnalysed_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.callersAreOnly(claimOf()),
+              TenantActiveTableAccessFixtures.MethodRoutes.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("was not analysed");
+    }
+
+    @Test
+    @DisplayName("given an endpoint mapped on the tenant route only, should not violate")
+    void given_anEndpointMappedOnTheTenantRouteOnly_should_notViolate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.mappedOnTheTenantRouteOnly(
+                  new TenantActiveTableAccessArchTest.RouteClaim(
+                      TenantActiveTableAccessFixtures.MethodRoutes.class, "tenantOnly")),
+              TenantActiveTableAccessFixtures.MethodRoutes.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("given an endpoint also mapped on the short route, should violate")
+    void given_anEndpointAlsoMappedOnTheShortRoute_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.mappedOnTheTenantRouteOnly(
+                  new TenantActiveTableAccessArchTest.RouteClaim(
+                      TenantActiveTableAccessFixtures.MethodRoutes.class, "bothRoutes")),
+              TenantActiveTableAccessFixtures.MethodRoutes.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("/api/things");
+    }
+
+    @Test
+    @DisplayName("given a method with no mapping, should violate")
+    void given_aMethodWithNoMapping_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.mappedOnTheTenantRouteOnly(
+                  new TenantActiveTableAccessArchTest.RouteClaim(
+                      TenantActiveTableAccessFixtures.MethodRoutes.class, "unmapped")),
+              TenantActiveTableAccessFixtures.MethodRoutes.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("no mapping");
+    }
+
+    @Test
+    @DisplayName("given a route that comes from the class mapping, should follow its prefix")
+    void given_aRouteFromTheClassMapping_should_followItsPrefix() {
+      // Act
+      EvaluationResult tenant =
+          evaluate(
+              TenantActiveTableAccessArchTest.mappedOnTheTenantRouteOnly(
+                  new TenantActiveTableAccessArchTest.RouteClaim(
+                      TenantActiveTableAccessFixtures.TenantPrefixedClassRoute.class, "export")),
+              TenantActiveTableAccessFixtures.TenantPrefixedClassRoute.class);
+      EvaluationResult shortRoute =
+          evaluate(
+              TenantActiveTableAccessArchTest.mappedOnTheTenantRouteOnly(
+                  new TenantActiveTableAccessArchTest.RouteClaim(
+                      TenantActiveTableAccessFixtures.ShortClassRoute.class, "export")),
+              TenantActiveTableAccessFixtures.ShortClassRoute.class);
+
+      // Assert
+      assertThat(tenant.hasViolation()).isFalse();
+      assertThat(shortRoute.hasViolation()).isTrue();
+    }
+
+    @Test
+    @DisplayName("given a route claim whose class is not analysed, should violate")
+    void given_aRouteClaimWhoseClassIsNotAnalysed_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.mappedOnTheTenantRouteOnly(
+                  new TenantActiveTableAccessArchTest.RouteClaim(
+                      TenantActiveTableAccessFixtures.MethodRoutes.class, "tenantOnly")),
+              shapes);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("was not analysed");
+    }
+  }
+
+  @Nested
+  @DisplayName("injectors_contracts: the scope of the methods a class is allowlisted for")
+  class InjectorContractScopedMethods {
+
+    private final Class<?> scoped = TenantActiveTableAccessFixtures.ScopedCallers.class;
+    private final Class<?> unscoped = TenantActiveTableAccessFixtures.UnscopedCallers.class;
+
+    private static TenantActiveTableAccessArchTest.CallersClaim claim(
+        Class<?> owner, TenantActiveTableAccessArchTest.At... callers) {
+      return new TenantActiveTableAccessArchTest.CallersClaim(owner, "target", List.of(callers));
+    }
+
+    private static TenantActiveTableAccessArchTest.At at(
+        Class<?> in, String method, TenantActiveTableAccessArchTest.Scope scope) {
+      return new TenantActiveTableAccessArchTest.At(in, method, scope);
+    }
+
+    @Test
+    @DisplayName(
+        "given callers that take a TxCtx or open a scope around the call, should not violate")
+    void given_callersThatRunUnderAScope_should_notViolate() {
+      // Arrange
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.callersAreOnly(
+              claim(
+                  scoped,
+                  at(scoped, "withTxCtx", TenantActiveTableAccessArchTest.Scope.TX_CTX_ENTRY_POINT),
+                  at(
+                      scoped,
+                      "openedAroundLambda",
+                      TenantActiveTableAccessArchTest.Scope.OPENED_AROUND_LAMBDA)));
+
+      // Act
+      EvaluationResult result = evaluate(rule, scoped);
+
+      // Assert
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("given a caller that takes no TxCtx, should violate")
+    void given_aCallerWithoutATxCtx_should_violate() {
+      // Arrange
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.callersAreOnly(
+              claim(
+                  unscoped,
+                  at(
+                      unscoped,
+                      "withoutTxCtx",
+                      TenantActiveTableAccessArchTest.Scope.TX_CTX_ENTRY_POINT)));
+
+      // Act
+      EvaluationResult result = evaluate(rule, unscoped);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("withoutTxCtx")
+          .contains("is entered only through a public @Transactional method that takes a TxCtx");
+    }
+
+    @Test
+    @DisplayName("given a call made outside the lambda that opens the scope, should violate")
+    void given_aCallOutsideTheLambdaThatOpensTheScope_should_violate() {
+      // Arrange
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.callersAreOnly(
+              claim(
+                  unscoped,
+                  at(
+                      unscoped,
+                      "outsideTheLambda",
+                      TenantActiveTableAccessArchTest.Scope.OPENED_AROUND_LAMBDA)));
+
+      // Act
+      EvaluationResult result = evaluate(rule, unscoped);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("outsideTheLambda");
+    }
+
+    @Test
+    @DisplayName("given a lambda in a method that opens no scope, should violate")
+    void given_aLambdaInAMethodThatOpensNoScope_should_violate() {
+      // Arrange
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.callersAreOnly(
+              claim(
+                  unscoped,
+                  at(
+                      unscoped,
+                      "lambdaWithNoScope",
+                      TenantActiveTableAccessArchTest.Scope.OPENED_AROUND_LAMBDA)));
+
+      // Act
+      EvaluationResult result = evaluate(rule, unscoped);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("lambdaWithNoScope");
+    }
+
+    @Test
+    @DisplayName(
+        "given a method that opens a scope and makes the call in another lambda, should violate")
+    void given_aCallInALambdaBesideTheScope_should_violate() {
+      // Arrange
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.callersAreOnly(
+              claim(
+                  unscoped,
+                  at(
+                      unscoped,
+                      "executeBesideAnUnrelatedLambda",
+                      TenantActiveTableAccessArchTest.Scope.OPENED_AROUND_LAMBDA)));
+
+      // Act
+      EvaluationResult result = evaluate(rule, unscoped);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("executeBesideAnUnrelatedLambda");
+    }
+
+    @Test
+    @DisplayName("given a caller that takes a TxCtx and is not transactional, should violate")
+    void given_aTxCtxCallerThatIsNotTransactional_should_violate() {
+      // Arrange
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.callersAreOnly(
+              claim(
+                  unscoped,
+                  at(
+                      unscoped,
+                      "txCtxWithoutTransactional",
+                      TenantActiveTableAccessArchTest.Scope.TX_CTX_ENTRY_POINT)));
+
+      // Act
+      EvaluationResult result = evaluate(rule, unscoped);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("txCtxWithoutTransactional");
+    }
+
+    @Test
+    @DisplayName(
+        "given a transactional TxCtx caller called only from its own class, should violate")
+    void given_aTxCtxCallerCalledOnlyFromItsOwnClass_should_violate() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.SelfCalledTxCtxHelper.class;
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.callersAreOnly(
+              claim(
+                  fixture,
+                  at(fixture, "helper", TenantActiveTableAccessArchTest.Scope.TX_CTX_ENTRY_POINT),
+                  at(fixture, "entry", null)));
+
+      // Act
+      EvaluationResult result = evaluate(rule, fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("helper");
+    }
+
+    @Test
+    @DisplayName("given an overloaded caller claimed by its name alone, should violate")
+    void given_anOverloadedCallerClaimedByItsNameAlone_should_violate() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.OverloadedCallers.class;
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.callersAreOnly(
+              claim(fixture, at(fixture, "caller", null)));
+
+      // Act
+      EvaluationResult result = evaluate(rule, fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("caller");
+    }
+
+    @Test
+    @DisplayName(
+        "given an overloaded caller claimed with its parameter types, should violate on the other"
+            + " overload only")
+    void given_anOverloadClaimedWithItsParameterTypes_should_violateOnTheOtherOverloadOnly() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.OverloadedCallers.class;
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.callersAreOnly(
+              claim(
+                  fixture,
+                  new TenantActiveTableAccessArchTest.At(
+                      fixture,
+                      "caller",
+                      TenantActiveTableAccessArchTest.Scope.TX_CTX_ENTRY_POINT,
+                      List.of(TxCtx.class))));
+
+      // Act
+      EvaluationResult result = evaluate(rule, fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("OverloadedCallers.caller()")
+          .doesNotContain("OverloadedCallers.caller(io.openaev.context.TxCtx)");
+    }
+
+    @Test
+    @DisplayName("given an unlisted caller of a scoped method, should violate on it only")
+    void given_anUnlistedCallerOfAScopedMethod_should_violateOnItOnly() {
+      // Arrange
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.callersAreOnly(
+              claim(
+                  scoped,
+                  at(
+                      scoped,
+                      "withTxCtx",
+                      TenantActiveTableAccessArchTest.Scope.TX_CTX_ENTRY_POINT)));
+
+      // Act
+      EvaluationResult result = evaluate(rule, scoped);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("openedAroundLambda")
+          .doesNotContain("ScopedCallers.withTxCtx()");
+    }
+
+    @Test
+    @DisplayName(
+        "given a method outside the listed ones that reaches the table, should violate on it only")
+    void given_aMethodOutsideTheListedOnes_should_violateOnItOnly() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.ListedAndUnlistedReach.class;
+
+      // Act
+      EvaluationResult result = evaluateReach(fixture, fixture, "listed");
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("unlisted")
+          .doesNotContain("ListedAndUnlistedReach.listed()");
+    }
+
+    @Test
+    @DisplayName("given a listed method that does not reach the table, should violate")
+    void given_aListedMethodThatDoesNotReachTheTable_should_violate() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.ListedAndUnlistedReach.class;
+
+      // Act
+      EvaluationResult result = evaluateReach(fixture, fixture, "listed", "unlisted", "renamed");
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("renamed");
+    }
+
+    @Test
+    @DisplayName("given a listed class that is not analysed, should violate")
+    void given_aListedClassThatIsNotAnalysed_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluateReach(
+              TenantActiveTableAccessFixtures.ListedAndUnlistedReach.class,
+              TenantActiveTableAccessFixtures.TxCtxEntryPoint.class,
+              "listed",
+              "unlisted");
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("was not analysed");
+    }
+
+    private static EvaluationResult evaluateReach(
+        Class<?> listed, Class<?> analysed, String... methods) {
+      return evaluate(
+          TenantActiveTableAccessArchTest.tableIsReachedOnlyThrough(
+              "the contract repository",
+              access -> access.getTargetOwner().isAssignableTo(InjectorContractRepository.class),
+              new TenantActiveTableAccessArchTest.Reaching(listed, List.of(methods))),
+          analysed);
+    }
+
+    private static EvaluationResult evaluateEntryPoints(Class<?> in, String... methods) {
+      return evaluate(
+          TenantActiveTableAccessArchTest.methodsReachingTheTableTakeATxCtx(
+              new TenantActiveTableAccessArchTest.Reaching(in, List.of(methods))),
+          in);
+    }
+
+    @Test
+    @DisplayName(
+        "given a non-private method with a TxCtx that leads to the table, should not violate")
+    void given_aTxCtxEntryPointThatLeadsToTheTable_should_notViolate() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.TxCtxEntryPoint.class;
+
+      // Act
+      EvaluationResult result = evaluateEntryPoints(fixture, "helper");
+
+      // Assert
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("given an entry point that takes a TxCtx and is not transactional, should violate")
+    void given_aTxCtxEntryPointThatIsNotTransactional_should_violate() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.TxCtxEntryPointWithoutTransactional.class;
+
+      // Act
+      EvaluationResult result = evaluateEntryPoints(fixture, "helper");
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("entry");
+    }
+
+    @Test
+    @DisplayName(
+        "given a transactional TxCtx method reached only from its own class, should violate")
+    void given_aTxCtxMethodReachedOnlyFromItsOwnClass_should_violate() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.SelfCalledTxCtxHelper.class;
+
+      // Act
+      EvaluationResult result = evaluateEntryPoints(fixture, "helper");
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("entry");
+    }
+
+    @Test
+    @DisplayName("given a non-private method with no TxCtx that leads to the table, should violate")
+    void given_anEntryPointWithoutATxCtx_should_violate() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.UnscopedEntryPoint.class;
+
+      // Act
+      EvaluationResult result = evaluateEntryPoints(fixture, "helper");
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("entry").contains("no TxCtx");
+    }
+
+    @Test
+    @DisplayName("given a table reached by a method no non-private method leads to, should violate")
+    void given_noEntryPointToTheTable_should_violate() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.NoEntryPoint.class;
+
+      // Act
+      EvaluationResult result = evaluateEntryPoints(fixture, "helper");
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("has no caller");
     }
   }
 }

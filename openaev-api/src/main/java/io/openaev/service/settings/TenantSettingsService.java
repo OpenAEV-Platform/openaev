@@ -1,5 +1,8 @@
 package io.openaev.service.settings;
 
+import static io.openaev.database.model.TenantSettingKeys.ASSET_DISCOVERY_TAG;
+import static io.openaev.database.model.TenantSettingKeys.ASSET_STALE_AFTER_DAYS;
+import static io.openaev.database.model.TenantSettingKeys.COVERAGE_SCENARIO_READ_ONLY_FIRST;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_LANG;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_THEME;
 import static io.openaev.database.model.TenantSettingKeys.PLATFORM_NAME;
@@ -8,23 +11,29 @@ import static io.openaev.database.model.TenantSettingKeys.TENANT_SCENARIO_DASHBO
 import static io.openaev.database.model.TenantSettingKeys.TENANT_SIMULATION_DASHBOARD;
 
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.model.Theme;
 import io.openaev.database.repository.SettingRepository;
+import io.openaev.opencrq.config.OpenCRQConfig;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.config.XtmConfig;
+import io.openaev.rest.settings.form.AssetFreshnessSettingsInput;
+import io.openaev.rest.settings.form.CoverageScenarioSettingsInput;
 import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
 import io.openaev.rest.settings.form.ThemeInput;
 import io.openaev.rest.settings.response.TenantSettingsOutput;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -96,6 +105,79 @@ public class TenantSettingsService {
     return findSettings(tenantId);
   }
 
+  /** Effective asset freshness setting: the days after which an unseen asset turns stale. */
+  @Transactional(readOnly = true)
+  public AssetFreshnessSettingsInput findAssetFreshnessSettings(@NotBlank String tenantId) {
+    return readAssetFreshnessSettings(tenantId);
+  }
+
+  public AssetFreshnessSettingsInput updateAssetFreshnessSettings(
+      @NotBlank String tenantId, @NotNull AssetFreshnessSettingsInput input) {
+    Tenant tenant = new Tenant(tenantId);
+    upsert(tenant, ASSET_STALE_AFTER_DAYS.key(), String.valueOf(input.staleAfterDays()));
+    if (input.discoveryTag() != null) {
+      upsert(tenant, ASSET_DISCOVERY_TAG.key(), String.valueOf(input.discoveryTag()));
+    }
+    return readAssetFreshnessSettings(tenantId);
+  }
+
+  /**
+   * Whether the assets a run creates get the "discovered" tag in this tenant (off by default).
+   *
+   * <p>{@code ctx} scopes the read: a caller such as an inject output processor runs outside any
+   * tenant scope, and a tenant row of the dual-scope parameters table read with no scope comes back
+   * empty instead of failing. The aspect writes the scope from this parameter.
+   *
+   * <p>The read runs in its own transaction: a caller already inside a transaction scoped to
+   * several tenants (a run promoting a finding under an X-Tenant-Ids header naming two tenants)
+   * would otherwise see the aspect refuse the narrower single-tenant scope.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+  public boolean isAssetDiscoveryTagEnabled(TxCtx ctx, @NotBlank String tenantId) {
+    return readDiscoveryTag(loadTenantSettings(tenantId));
+  }
+
+  private boolean readDiscoveryTag(Map<String, Setting> tenantSettings) {
+    String value = resolveValue(tenantSettings, ASSET_DISCOVERY_TAG);
+    return value != null && Boolean.parseBoolean(value.trim());
+  }
+
+  private AssetFreshnessSettingsInput readAssetFreshnessSettings(String tenantId) {
+    Map<String, Setting> tenantSettings = loadTenantSettings(tenantId);
+    String value = resolveValue(tenantSettings, ASSET_STALE_AFTER_DAYS);
+    int days;
+    try {
+      days = Integer.parseInt(value == null ? "" : value.trim());
+    } catch (NumberFormatException e) {
+      days = Integer.parseInt(ASSET_STALE_AFTER_DAYS.defaultValue());
+    }
+    return new AssetFreshnessSettingsInput(days, readDiscoveryTag(tenantSettings));
+  }
+
+  /** Effective scheduling setting of coverage-built scenarios. */
+  @Transactional(readOnly = true)
+  public CoverageScenarioSettingsInput findCoverageScenarioSettings(@NotBlank String tenantId) {
+    Map<String, Setting> tenantSettings = loadTenantSettings(tenantId);
+    return new CoverageScenarioSettingsInput(
+        Boolean.parseBoolean(resolveValue(tenantSettings, COVERAGE_SCENARIO_READ_ONLY_FIRST)));
+  }
+
+  public CoverageScenarioSettingsInput updateCoverageScenarioSettings(
+      @NotBlank String tenantId, @NotNull CoverageScenarioSettingsInput input) {
+    upsert(
+        new Tenant(tenantId),
+        COVERAGE_SCENARIO_READ_ONLY_FIRST.key(),
+        String.valueOf(input.readOnlyFirst()));
+    Map<String, Setting> tenantSettings = loadTenantSettings(tenantId);
+    return new CoverageScenarioSettingsInput(
+        Boolean.parseBoolean(resolveValue(tenantSettings, COVERAGE_SCENARIO_READ_ONLY_FIRST)));
+  }
+
+  public void updateCatalogAutoInstall(
+      @NotBlank String tenantId, @NotNull TenantSettingKeys setting, boolean enabled) {
+    upsert(new Tenant(tenantId), setting.key(), String.valueOf(enabled));
+  }
+
   /** Update theme settings for a tenant. */
   public void updateTheme(@NotBlank String tenantId, @NotBlank String themeType, ThemeInput input) {
     validateThemeUrl(input.getLogoUrl());
@@ -156,6 +238,21 @@ public class TenantSettingsService {
             });
   }
 
+  /**
+   * Set a tenant setting to {@code value} only when it has no value yet (absent or blank).
+   *
+   * @return true when the setting was written
+   */
+  public boolean setSettingIfBlank(
+      @NotBlank String tenantId, @NotBlank String key, @NotBlank String value) {
+    Optional<Setting> current = settingRepository.findByKeyAndTenantId(key, tenantId);
+    if (current.isPresent() && StringUtils.hasText(current.get().getValue())) {
+      return false;
+    }
+    upsert(new Tenant(tenantId), key, value);
+    return true;
+  }
+
   // -- Private helpers --
 
   private Map<String, Setting> loadTenantSettings(@NotBlank String tenantId) {
@@ -167,6 +264,12 @@ public class TenantSettingsService {
       Map<String, Setting> tenantSettings, String tenantId) {
     OpenCTIConfig openctiConfig =
         Optional.ofNullable(xtmConfig.getOpencti()).map(m -> m.get(tenantId)).orElse(null);
+    // The OpenCRQ connection is shown only when it is used: configured and not turned off.
+    OpenCRQConfig opencrqConfig =
+        Optional.ofNullable(xtmConfig.getOpencrq())
+            .map(m -> m.get(tenantId))
+            .filter(OpenCRQConfig::isUsable)
+            .orElse(null);
     return new TenantSettingsOutput(
         resolveValue(tenantSettings, PLATFORM_NAME),
         resolveValue(tenantSettings, DEFAULT_THEME),
@@ -177,7 +280,9 @@ public class TenantSettingsService {
         createThemeFromSettings(tenantSettings, THEME_TYPE_DARK),
         createThemeFromSettings(tenantSettings, THEME_TYPE_LIGHT),
         Boolean.TRUE.equals(openctiConfig != null ? openctiConfig.getEnable() : null),
-        openctiConfig != null ? openctiConfig.getUrl() : null);
+        openctiConfig != null ? openctiConfig.getUrl() : null,
+        opencrqConfig != null,
+        opencrqConfig != null ? opencrqConfig.getUrl() : null);
   }
 
   private String resolveValue(Map<String, Setting> tenantSettings, TenantSettingKeys key) {

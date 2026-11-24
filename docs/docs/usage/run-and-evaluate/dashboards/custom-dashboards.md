@@ -69,6 +69,12 @@ Each row has an actions menu with:
 - **Update**: edit the Dashboard name, description, defaults, and parameters
 - **Delete**: remove the Dashboard (disabled if it is the current default home Dashboard)
 
+Before a delete, the confirmation lists what uses the Dashboard: the number of Scenarios and Simulations that show it in their Analysis tab, and whether it is the default scenario or simulation Dashboard. After the delete, those Scenarios and Simulations show the default Dashboard and the default setting that named it is emptied.
+
+### Restore the starter pack Dashboards
+
+If the Dashboards installed by the starter pack were deleted, go to **Settings > Parameters** and select **Restore starter pack dashboards**. The platform re-creates each missing starter pack Dashboard under its original name and sets the default scenario and simulation Dashboards back when they are empty. Dashboards that still exist and defaults that are already set are kept, so running it again creates nothing.
+
 ## What's next?
 
 - [Widgets](widgets.md) -- Configure individual Dashboard Widgets

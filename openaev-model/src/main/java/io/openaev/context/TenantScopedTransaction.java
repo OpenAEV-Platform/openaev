@@ -2,6 +2,8 @@ package io.openaev.context;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +11,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -77,7 +80,7 @@ public class TenantScopedTransaction {
               + " primitive call is an explicit scope boundary. Use executeNew() for deliberate"
               + " nesting.");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, false, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, false, false, work);
   }
 
   /** Same as {@link #execute(TxCtx, Supplier)} for work that returns nothing. */
@@ -88,6 +91,22 @@ public class TenantScopedTransaction {
           work.run();
           return null;
         });
+  }
+
+  /**
+   * Same as {@link #execute(TxCtx, Supplier)}, in a read-only transaction: the session's flush mode
+   * is MANUAL for its duration, so a managed entity of a session that outlives the transaction (the
+   * request's, under open-in-view) is never written by it. For a load that must not write what the
+   * caller left pending, as a repository's own {@code findById} does not.
+   */
+  public <T> T executeReadOnly(TxCtx ctx, Supplier<T> work) {
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.executeReadOnly() refuses to open inside an active"
+              + " transaction: a primitive call is an explicit scope boundary. Use executeNew() for"
+              + " deliberate nesting.");
+    }
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, false, true, work);
   }
 
   /**
@@ -102,7 +121,7 @@ public class TenantScopedTransaction {
           "TenantScopedTransaction.executeNew() is for deliberate nesting inside an active"
               + " transaction. At the top level, open through execute().");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, false, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, false, false, work);
   }
 
   /** Same as {@link #executeNew(TxCtx, Supplier)} for work that returns nothing. */
@@ -134,7 +153,7 @@ public class TenantScopedTransaction {
               + " transaction: a primitive call is an explicit scope boundary. Use"
               + " executeNewAsPlatformWrite() for deliberate nesting.");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, true, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, true, false, work);
   }
 
   /** Same as {@link #executeAsPlatformWrite(TxCtx, Supplier)} for work that returns nothing. */
@@ -159,7 +178,7 @@ public class TenantScopedTransaction {
           "TenantScopedTransaction.executeNewAsPlatformWrite() is for deliberate nesting inside an"
               + " active transaction. At the top level, open through executeAsPlatformWrite().");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, true, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, true, false, work);
   }
 
   /** Same as {@link #executeNewAsPlatformWrite(TxCtx, Supplier)} for work that returns nothing. */
@@ -231,9 +250,12 @@ public class TenantScopedTransaction {
    * transaction was opened with.
    *
    * <p>That tenant may lie outside the scope of the request that opened the transaction: this
-   * method does not check that the caller may see it. The caller must have checked its access to
-   * the row first, and pass that row's own tenant, never one taken from the request. The only
-   * caller is {@code WorkflowOwnerScope}, and an architecture test limits who may call it.
+   * method does not check that the caller may see it. So the work either runs in the tenant of a
+   * row whose access the caller checked first, that row's own tenant ({@code WorkflowOwnerScope}),
+   * or loads a user with its eager associations in that user's ambient tenant, for a permission
+   * decision ({@code CallerRightsInTenant}). Architecture tests limit the callers of this method to
+   * these two classes, and the callers of each of them to an allowlist; they do not check which row
+   * or which user those callers pass.
    *
    * <p>One transaction throughout, unlike {@link #executeNew}: the work sees the uncommitted writes
    * made before it, its writes share the transaction's fate, and it never waits on a lock the
@@ -396,6 +418,28 @@ public class TenantScopedTransaction {
     return new CapturedScope(currentScope(), currentMarkingScope());
   }
 
+  /**
+   * Refuses to go on unless the tenant scope of the CURRENT transaction holds every tenant of
+   * {@code tenantIds}. For a write that finds its rows through a scoped read: outside the scope the
+   * read returns nothing for a tenant, and the write then does nothing for it, without an error. An
+   * empty {@code tenantIds} is always covered. Reads the scope only: it changes nothing.
+   *
+   * @throws IllegalStateException when no transaction is active or the scope misses a tenant
+   */
+  public void requireScopeCovers(Collection<String> tenantIds) {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.requireScopeCovers() has no scope to check: no transaction is"
+              + " active.");
+    }
+    Set<String> scoped = tenants(currentScope());
+    if (!scoped.containsAll(tenantIds)) {
+      throw new IllegalStateException(
+          "The transaction's tenant scope '%s' does not hold every tenant of %s"
+              .formatted(String.join(",", scoped), tenantIds));
+    }
+  }
+
   /** The scopes of a transaction, put back by {@link #close()}. */
   public final class CapturedScope implements AutoCloseable {
 
@@ -490,10 +534,12 @@ public class TenantScopedTransaction {
     }
   }
 
-  private <T> T run(TxCtx ctx, int propagation, boolean platformWrite, Supplier<T> work) {
+  private <T> T run(
+      TxCtx ctx, int propagation, boolean platformWrite, boolean readOnly, Supplier<T> work) {
     requireScope(ctx);
     TransactionTemplate transaction = new TransactionTemplate(transactionManager);
     transaction.setPropagationBehavior(propagation);
+    transaction.setReadOnly(readOnly);
     return transaction.execute(
         status -> {
           // Resolved inside the transaction: an intention is re-resolved at every short
@@ -578,7 +624,10 @@ public class TenantScopedTransaction {
   }
 
   private static Set<String> tenants(String guc) {
-    return guc.isEmpty() ? Set.of() : Set.of(guc.split(","));
+    // A scope may list a tenant twice (TxCtx.forTenants accepts duplicates): Set.of would throw
+    return guc.isEmpty()
+        ? Set.of()
+        : Arrays.stream(guc.split(",")).collect(Collectors.toUnmodifiableSet());
   }
 
   private void setMarkingScope(String scope) {

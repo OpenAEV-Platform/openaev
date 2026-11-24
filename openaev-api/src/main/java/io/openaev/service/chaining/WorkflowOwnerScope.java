@@ -22,16 +22,14 @@ import org.springframework.stereotype.Component;
  * path tenant on the {@code /api/tenants/{tenantId}} route, the {@code X-Tenant-Ids} selector or
  * the caller's memberships on the non-prefixed route, and the ambient tenant, the v1 thread-local
  * {@link io.openaev.context.TenantContext#getCurrentTenant()}, when that scope is empty. Work that
- * runs without a request loads it on the ambient tenant. An injector contract is loaded on the
- * ambient tenant, the default one on the non-prefixed route whatever the {@code X-Tenant-Ids}
- * header names; moving that load to the request's scope belongs to the {@code injectors_contracts}
- * activation. Once access is granted, its workflow follows it: a workflow inherits its owner's
- * tenant and can never move (see {@code Workflow#attributeTenantFromOwner}), so reading it under
- * the caller's scope would miss it whenever that scope does not hold the owner's tenant (an empty
- * scope whose load fell back to the ambient tenant, or a contract loaded on the ambient tenant
- * under a selector naming another one), and a status change, a duplicate or an export would then go
- * on as if the owner were not chained. The classes allowed to call this one are an allowlist pinned
- * by an architecture test, each with the check its owner went through.
+ * runs without a request loads it on the ambient tenant. An injector contract is loaded through the
+ * statement inspector in the request's tenant scope, which the contract endpoints pin to one
+ * tenant. Once access is granted, its workflow follows it: a workflow inherits its owner's tenant
+ * and can never move (see {@code Workflow#attributeTenantFromOwner}), so reading it under the
+ * caller's scope would miss it whenever that scope does not hold the owner's tenant (an empty scope
+ * whose load fell back to the ambient tenant), and a status change, a duplicate or an export would
+ * then go on as if the owner were not chained. The classes allowed to call this one are an
+ * allowlist pinned by an architecture test, each with the check its owner went through.
  *
  * <p>An injector contract is handled the same way: once its deletion is granted, the step templates
  * that reference it are swept in the contract's own tenant, the tenant whose copy of the contract

@@ -18,6 +18,7 @@ import static io.openaev.service.InjectExpectationUtils.extractAssetIdsFromInjec
 import static io.openaev.utils.AgentUtils.isPrimaryAgent;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.InjectUtils.extractInjectExpectationsFromInjects;
+import static io.openaev.utils.MarkingUtils.markingIds;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.mapper.InjectStatusMapper.toExecutionTracesOutput;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
@@ -57,6 +58,7 @@ import io.openaev.rest.exception.CredentialResolutionException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.LicenseRestrictionException;
+import io.openaev.rest.inject.InjectLinksInitializer;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -133,6 +135,7 @@ public class InjectService {
   private final InjectRepository injectRepository;
   private final InjectAuthorisationRepository injectAuthorisationRepository;
   private final InjectDocumentRepository injectDocumentRepository;
+  private final io.openaev.service.finding.FindingDetachService findingDetachService;
   private final GrantRepository grantRepository;
   private final InjectorService injectorService;
   private final InjectStatusRepository injectStatusRepository;
@@ -208,8 +211,13 @@ public class InjectService {
       throw new IllegalArgumentException("Exactly one of exercise or scenario should be present");
     }
 
+    // Resolved in the parent's own tenant, not the request's ambient scope: a built-in contract id
+    // repeats across tenants (#8485), and a caller creating this inject can belong to several.
+    String parentTenantId =
+        exercise != null ? exercise.getTenant().getId() : scenario.getTenant().getId();
     InjectorContract injectorContract =
-        this.injectorContractService.injectorContract(input.getInjectorContract());
+        this.injectorContractService.injectorContractInTenant(
+            input.getInjectorContract(), parentTenantId);
 
     if (injectorContract.getConvertedContent() == null) {
       injectorContract.setConvertedContent(convertContent(injectorContract.getContent()));
@@ -219,14 +227,19 @@ public class InjectService {
     Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
     Inject inject = input.toInject(injectorContract, injector);
     inject.setUser(this.userService.currentUser());
-    inject.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
-    inject.setAssets(fromIterable(assetService.assets(input.getAssets())));
+    inject.setTeams(
+        fromIterable(teamRepository.findAllByIdInTenant(input.getTeams(), parentTenantId)));
+    inject.setAssets(fromIterable(assetService.assets(input.getAssets(), parentTenantId)));
     inject.setSecretReferences(
-        secretReferenceService.secretReferences(input.getSecretReferences()));
-    inject.setTags(tagService.tagSet(input.getTagIds()));
+        secretReferenceService.secretReferences(input.getSecretReferences(), parentTenantId));
+    inject.setTags(tagService.tagSet(input.getTagIds(), parentTenantId));
     List<InjectDocument> injectDocuments =
         input.getDocuments().stream()
-            .map(i -> i.toDocument(documentService.document(i.getDocumentId()), inject))
+            .map(
+                i ->
+                    i.toDocument(
+                        documentService.documentInTenant(i.getDocumentId(), parentTenantId),
+                        inject))
             .toList();
     inject.setDocuments(injectDocuments);
     // Set dependencies
@@ -281,7 +294,7 @@ public class InjectService {
       inject.setAssetGroups(
           this.tagRuleService.applyTagRuleToInjectCreation(
               tags.stream().map(Tag::getId).toList(),
-              assetGroupService.assetGroups(input.getAssetGroups())));
+              assetGroupService.assetGroups(input.getAssetGroups(), parentTenantId)));
     }
 
     // if inject content is null we add the defaults from the injector contract
@@ -296,8 +309,9 @@ public class InjectService {
 
   /**
    * The tenant of each given inject, as {@code [inject_id, tenant_id]} rows read from the inject's
-   * own column by a native projection that no tenant scope narrows. For the callers that resolve an
-   * inject's owner before acting in its tenant; an unknown inject is absent from the result.
+   * own column, in the caller's tenant scope. For the callers that resolve an inject's owner before
+   * acting in its tenant; an unknown inject and an inject outside the scope are absent from the
+   * result.
    */
   public List<Object[]> findTenantIdsByInjectIds(Collection<String> injectIds) {
     return injectRepository.findTenantIdsByInjectIds(injectIds);
@@ -317,10 +331,8 @@ public class InjectService {
   /**
    * Looks an inject up by id inside the request's tenant scope: the path tenant on the tenant
    * route, the {@code X-Tenant-Ids} selector or the caller's memberships on the non-prefixed route.
-   * Loads by primary key, which Hibernate filters do not apply to, then keeps the row only when its
-   * tenant lies in the request's scope: a derived query such as {@code findByIdAndTenantIdIn} would
-   * instead run under Inject's still-active v1 filter, which the non-prefixed route keys on the
-   * default tenant regardless of the resolved scope.
+   * The by-id load runs under the transaction's tenant scope, and the row is kept only when its
+   * tenant lies in the request's scope.
    *
    * <p>Carries its own read-only transaction so the request's tenant scope reaches the lookup even
    * when the caller runs under {@code Propagation.SUPPORTS} with no transaction already open: the
@@ -383,9 +395,10 @@ public class InjectService {
   /**
    * Tenant gate of the implant endpoints, run before {@link #checkAgentTargetsInject} and {@link
    * #checkAgentMayReportOnInject}: the inject must belong to a tenant of the request's scope. Reads
-   * the inject's tenant column only, by primary key and outside the v1 tenant filter, then compares
-   * it with the scope in Java, the test {@link #findInScope} applies, without loading the inject:
-   * it runs on every implant callback, under the per-inject lock.
+   * the inject's tenant column only, by primary key, then compares it with the scope in Java, the
+   * test {@link #findInScope} applies, without loading the inject: it runs on every implant
+   * callback, under the per-inject lock. The read itself is narrowed to the request's scope, so an
+   * inject of another tenant is not found and is refused like an unknown one.
    *
    * <p>An unknown inject and an inject of another tenant are refused alike (403, the message of the
    * agent checks), so the implant endpoints do not reveal whether an inject id exists.
@@ -537,7 +550,26 @@ public class InjectService {
 
   @Transactional(rollbackFor = Exception.class)
   public void deleteAllByIds(TxCtx ctx, List<String> injectIds) {
+    deleteInjects(injectIds, false);
+  }
+
+  /**
+   * Deletes the given injects.
+   *
+   * @param keepFindings true keeps the findings they produced, detached from them; false (the
+   *     default) deletes them with the injects
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteAllByIds(TxCtx ctx, List<String> injectIds, boolean keepFindings) {
+    deleteInjects(injectIds, keepFindings);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points (no self-invocation).
+  private void deleteInjects(List<String> injectIds, boolean keepFindings) {
     if (!CollectionUtils.isEmpty(injectIds)) {
+      if (keepFindings) {
+        findingDetachService.detachFromInjects(injectIds);
+      }
       injectRepository.deleteByAllIdsNative(injectIds);
       // Native delete: no JPA lifecycle event fires, notify the search engine explicitly so the
       // inject docs (and their expectation/finding docs via dependency cascade) are removed.
@@ -583,6 +615,10 @@ public class InjectService {
   }
 
   // -- SPECIFIC GETTER --
+
+  public Set<Inject> findByScenarioId(String scenarioId) {
+    return injectRepository.findByScenarioId(scenarioId);
+  }
 
   public List<Inject> getExecutedAndNotFinished() {
     return this.injectRepository.findAll(
@@ -703,12 +739,7 @@ public class InjectService {
    * the clearance covers <b>every</b> marking it carries (STIX AND-of-markings reading, not OR).
    */
   private boolean isVisibleUnderClearance(Asset asset, MarkingCtx clearance) {
-    String[] assetMarkingIds = asset.getMarkingIds();
-    if (assetMarkingIds == null || assetMarkingIds.length == 0) {
-      return true;
-    }
-    return clearance instanceof MarkingCtx.Restricted restricted
-        && restricted.markingIds().containsAll(Arrays.asList(assetMarkingIds));
+    return clearance.allows(markingIds(asset));
   }
 
   /**
@@ -849,6 +880,27 @@ public class InjectService {
 
   @Transactional
   public void delete(String id) {
+    deleteInject(id, false);
+  }
+
+  /**
+   * Deletes an inject.
+   *
+   * @param keepFindings true keeps the findings it produced, detached from it; false (the default)
+   *     deletes them with the inject
+   */
+  @Transactional
+  public void delete(String id, boolean keepFindings) {
+    deleteInject(id, keepFindings);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points (no self-invocation).
+  private void deleteInject(String id, boolean keepFindings) {
+    if (keepFindings) {
+      // Clears the session: the inject is loaded again without the detached findings, so its
+      // cascade (Inject.findings) no longer removes them.
+      findingDetachService.detachFromInjects(List.of(id));
+    }
     injectRepository.deleteById(id);
   }
 
@@ -921,6 +973,16 @@ public class InjectService {
     } else {
       log.warn("Injector contract does not support either Asset Groups or Assets.");
     }
+  }
+
+  /**
+   * Queues a copy of an inject: same contract, content and targets, the original kept. Used by the
+   * finding re-test, which runs again what produced a finding without replacing its history.
+   *
+   * @return the queued copy
+   */
+  public Inject duplicateAndQueue(@NotNull final String injectId) {
+    return saveInjectAndStatusAsQueuing(findAndDuplicateInject(injectId));
   }
 
   private Inject findAndDuplicateInject(String id) {
@@ -1012,22 +1074,31 @@ public class InjectService {
       }
     }
 
-    // We retrieve the data from DB for teams, assets and asset groups in the input values
-    Map<String, Team> teamsFromDB =
-        this.teamRepository.findAllById(teamsIDs).stream()
-            .collect(Collectors.toMap(Team::getId, team -> team));
-    Map<String, Asset> assetsFromDB =
-        this.assetService.assets(assetsIDs.stream().toList()).stream()
-            .collect(Collectors.toMap(Asset::getId, asset -> asset));
-    Map<String, AssetGroup> assetGroupsFromDB =
-        this.assetGroupService.assetGroups(assetGroupsIDs.stream().toList()).stream()
-            .collect(Collectors.toMap(AssetGroup::getId, assetGroup -> assetGroup));
-
-    // we update the injects values
-    injectsToUpdate.forEach(
-        inject -> {
-          applyUpdateOperation(inject, operations, teamsFromDB, assetsFromDB, assetGroupsFromDB);
-          inject.setUpdatedAt(now());
+    // The team, asset and asset group ids named in the request body resolve in the tenant of each
+    // inject being updated: an id of another tenant is treated like an unknown id, so the injects
+    // are grouped by tenant first.
+    Map<String, List<Inject>> injectsByTenant =
+        injectsToUpdate.stream()
+            .collect(Collectors.groupingBy(inject -> inject.getTenant().getId()));
+    injectsByTenant.forEach(
+        (tenantId, tenantInjects) -> {
+          Map<String, Team> teamsFromDB =
+              this.teamRepository.findAllByIdInTenant(teamsIDs, tenantId).stream()
+                  .collect(Collectors.toMap(Team::getId, team -> team));
+          Map<String, Asset> assetsFromDB =
+              this.assetService.assets(assetsIDs.stream().toList(), tenantId).stream()
+                  .collect(Collectors.toMap(Asset::getId, asset -> asset));
+          Map<String, AssetGroup> assetGroupsFromDB =
+              this.assetGroupService
+                  .assetGroups(assetGroupsIDs.stream().toList(), tenantId)
+                  .stream()
+                  .collect(Collectors.toMap(AssetGroup::getId, assetGroup -> assetGroup));
+          tenantInjects.forEach(
+              inject -> {
+                applyUpdateOperation(
+                    inject, operations, teamsFromDB, assetsFromDB, assetGroupsFromDB);
+                inject.setUpdatedAt(now());
+              });
         });
 
     // Save updated injects and return them
@@ -1046,6 +1117,11 @@ public class InjectService {
   @Transactional(readOnly = true)
   public List<Inject> getInjectsAndCheckPermission(
       TxCtx ctx, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
+    return findInjectsAndCheckPermission(ctx, input, requested_grant_level);
+  }
+
+  private List<Inject> findInjectsAndCheckPermission(
+      TxCtx ctx, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
     // Control and format inputs
     // Specification building
     Specification<Inject> filterSpecifications =
@@ -1055,6 +1131,19 @@ public class InjectService {
     // Bulk select, only on injects granted through scenario or simulation (or without grant for
     // atomic tests)
     return this.injectRepository.findAll(filterSpecifications);
+  }
+
+  /**
+   * Resolves the injects of a bulk delete like {@link #getInjectsAndCheckPermission} and loads
+   * their tags and secret references in the same scoped transaction. The native delete that follows
+   * removes the {@code injects_tags} rows, and the response serializes after the commit with no
+   * tenant scope, so both reads happen here.
+   */
+  @Transactional(readOnly = true)
+  public List<Inject> getInjectsToDeleteWithLinks(TxCtx ctx, InjectBulkProcessingInput input) {
+    List<Inject> injects = findInjectsAndCheckPermission(ctx, input, Grant.GRANT_TYPE.PLANNER);
+    InjectLinksInitializer.initialize(injects);
+    return injects;
   }
 
   /**
@@ -1090,7 +1179,8 @@ public class InjectService {
 
     // Resolve injector explicitly (BeanUtils cannot copy String → Injector)
     if (StringUtils.isNotBlank(input.getInjectorId())) {
-      inject.setInjector(injectUtils.resolveInjector(input.getInjectorId(), null));
+      inject.setInjector(
+          injectUtils.resolveInjectorInTenant(input.getInjectorId(), inject.getTenant().getId()));
     }
 
     // Set dependencies
@@ -1124,9 +1214,7 @@ public class InjectService {
                   injectDependency
                       .getCompositeId()
                       .setInjectParent(
-                          injectRepository
-                              .findById(entry.getRelationship().getInjectParentId())
-                              .orElse(null));
+                          parentInTenantOf(inject, entry.getRelationship().getInjectParentId()));
                   injectDependency.setInjectDependencyCondition(
                       new InjectDependencyConditions.InjectDependencyCondition());
                   injectDependency
@@ -1162,7 +1250,9 @@ public class InjectService {
       inject.getDependsOn().removeAll(injectDepencyToRemove);
     }
 
-    inject.setTeams(fromIterable(this.teamRepository.findAllById(input.getTeams())));
+    inject.setTeams(
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(input.getTeams(), inject.getTenant().getId())));
     // Only replace the assets when they change: replacing the collection makes Hibernate delete and
     // re-insert every injects_assets row, and a trigger then updates each of these assets. Injects
     // targeting the same assets would otherwise contend on those rows (concurrent updates of
@@ -1170,18 +1260,25 @@ public class InjectService {
     Set<String> currentAssetIds =
         inject.getAssets().stream().map(Asset::getId).collect(Collectors.toSet());
     if (input.getAssets() == null || !currentAssetIds.equals(new HashSet<>(input.getAssets()))) {
-      inject.setAssets(fromIterable(this.assetService.assets(input.getAssets())));
+      inject.setAssets(
+          fromIterable(this.assetService.assets(input.getAssets(), inject.getTenant().getId())));
     }
-    inject.setAssetGroups(fromIterable(this.assetGroupService.assetGroups(input.getAssetGroups())));
+    inject.setAssetGroups(
+        fromIterable(
+            this.assetGroupService.assetGroups(
+                input.getAssetGroups(), inject.getTenant().getId())));
     Set<String> previousSecretReferenceIds =
         inject.getSecretReferences().stream()
             .map(SecretReference::getId)
             .collect(Collectors.toSet());
     inject.setSecretReferences(
-        secretReferenceService.secretReferences(input.getSecretReferences()));
+        secretReferenceService.secretReferences(
+            input.getSecretReferences(), inject.getTenant().getId()));
     credentialMetricCollector.addNewlyAttachedCredentialsToInjectMetric(
         inject, previousSecretReferenceIds);
-    inject.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    inject.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(input.getTagIds(), inject.getTenant().getId())));
 
     // Set documents
     List<InjectDocumentInput> inputDocuments = input.getDocuments();
@@ -1202,7 +1299,9 @@ public class InjectService {
         .filter(doc -> !currentDocumentIds.contains(doc.getDocumentId()))
         .forEach(
             in -> {
-              Optional<Document> doc = this.documentRepository.findById(in.getDocumentId());
+              Optional<Document> doc =
+                  this.documentRepository.findByIdInTenant(
+                      in.getDocumentId(), inject.getTenant().getId());
               if (doc.isPresent()) {
                 InjectDocument injectDocument = new InjectDocument();
                 injectDocument.setInject(inject);
@@ -1226,6 +1325,19 @@ public class InjectService {
     inject.setDocuments(injectDocuments);
 
     return inject;
+  }
+
+  /**
+   * Resolves a dependency parent named in a request body in the tenant of the inject written. A
+   * parent of another tenant is answered like an unknown id.
+   *
+   * @throws ElementNotFoundException when no inject of that tenant carries the id
+   */
+  private Inject parentInTenantOf(final Inject inject, final String parentInjectId) {
+    return this.injectRepository
+        .findByIdAndTenantId(parentInjectId, inject.getTenant().getId())
+        .orElseThrow(
+            () -> new ElementNotFoundException("Inject not found with id: " + parentInjectId));
   }
 
   public Inject updateInjectActivation(
@@ -1634,10 +1746,11 @@ public class InjectService {
         .getObject()
         .filterInEachTenant(
             ctx,
-            () ->
-                currentUser.isAdmin()
-                    || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
-                    || currentUser.getCapabilities().contains(Capability.BYPASS),
+            currentUser,
+            caller ->
+                caller.isAdmin()
+                    || caller.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
+                    || caller.getCapabilities().contains(Capability.BYPASS),
             accessRight ->
                 accessRight
                     ? (root, query, cb) -> cb.conjunction()
@@ -1851,6 +1964,7 @@ public class InjectService {
     healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
     healthChecks.addAll(healthCheckUtils.runContentChecks(inject));
+    healthChecks.addAll(healthCheckUtils.runRevocationChecks(List.of(inject)));
 
     return healthChecks;
   }

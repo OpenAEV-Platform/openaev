@@ -144,6 +144,69 @@ class MinioServiceTest extends IntegrationTest {
     assertThat(minioService.countObjectsForCurrentTenant(dir)).isZero();
   }
 
+  @Test
+  void should_delete_directory_for_explicit_tenant_regardless_of_ambient_tenant() throws Exception {
+    // -- ARRANGE --
+    String owningTenant = UUID.randomUUID().toString();
+    String dir = "exercises/ex-to-delete-for-tenant/";
+    InputStream data = new ByteArrayInputStream(TEST_CONTENT);
+    minioService.uploadFileForTenant(
+        owningTenant, dir + "file1.txt", data, TEST_CONTENT.length, TEST_CONTENT_TYPE);
+    assertThat(minioService.countObjects(owningTenant + "/" + dir)).isEqualTo(1);
+
+    boolean hadTenant = TenantContext.hasCurrentTenant();
+    String previousTenant = hadTenant ? TenantContext.getCurrentTenant() : null;
+    // A different ambient tenant: on the non-prefixed route it is always the default one,
+    // whatever tenant actually owns the directory.
+    TenantContext.setCurrentTenant(UUID.randomUUID().toString());
+
+    try {
+      // -- ACT --
+      minioService.deleteDirectoryForTenant(owningTenant, dir);
+
+      // -- ASSERT --
+      assertThat(minioService.countObjects(owningTenant + "/" + dir)).isZero();
+    } finally {
+      if (hadTenant) {
+        TenantContext.setCurrentTenant(previousTenant);
+      } else {
+        TenantContext.clearCurrentTenant();
+      }
+    }
+  }
+
+  @Test
+  void should_get_file_container_for_explicit_tenant_regardless_of_ambient_tenant()
+      throws Exception {
+    // -- ARRANGE --
+    String owningTenant = UUID.randomUUID().toString();
+    String file = "containers-for-tenant/doc-uuid-77";
+    String originalName = "report-for-tenant.docx";
+    InputStream data = new ByteArrayInputStream(TEST_CONTENT);
+    minioService.uploadStreamForTenant(owningTenant, file, originalName, data);
+
+    boolean hadTenant = TenantContext.hasCurrentTenant();
+    String previousTenant = hadTenant ? TenantContext.getCurrentTenant() : null;
+    TenantContext.setCurrentTenant(UUID.randomUUID().toString());
+
+    try {
+      // -- ACT --
+      Optional<FileContainer> result = minioService.getFileContainerForTenant(owningTenant, file);
+
+      // -- ASSERT --
+      assertThat(result).isPresent();
+      FileContainer container = result.get();
+      assertThat(container.getName()).isEqualTo(originalName);
+      assertThat(container.getInputStream().readAllBytes()).isEqualTo(TEST_CONTENT);
+    } finally {
+      if (hadTenant) {
+        TenantContext.setCurrentTenant(previousTenant);
+      } else {
+        TenantContext.clearCurrentTenant();
+      }
+    }
+  }
+
   // -- HEALTH CHECK --
 
   @Test

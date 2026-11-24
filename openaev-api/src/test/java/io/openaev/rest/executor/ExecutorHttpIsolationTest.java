@@ -11,8 +11,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.rest.executor.form.ExecutorCreateInput;
 import io.openaev.rest.executor.form.ExecutorUpdateInput;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -29,8 +29,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,18 +37,13 @@ import org.springframework.transaction.annotation.Transactional;
  * isolates the table through the real {@link ExecutorApi} endpoints. A user who belongs to two
  * tenants sees an executor only under its own tenant's path, never another tenant's.
  */
+@CoversTenantIsolation("executors")
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("executors read and write isolation through the real HTTP endpoint")
-class ExecutorHttpIsolationTest extends IntegrationTest {
+class ExecutorHttpIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String EXECUTOR_BY_ID = "/api/tenants/{tenantId}/executors/{executorId}";
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

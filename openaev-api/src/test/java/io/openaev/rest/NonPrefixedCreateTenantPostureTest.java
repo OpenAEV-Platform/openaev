@@ -16,7 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.InjectorContract;
@@ -53,12 +53,17 @@ import org.springframework.transaction.annotation.Transactional;
  * scope that does not pin exactly one tenant is refused before anything is written. The injects
  * created with a scenario from injector contracts follow their scenario, and so does the workflow
  * of a chained simulation or scenario. The prefixed route is the control.
+ *
+ * <p>{@code injectors_contracts} is tenant-active: the test classpath arms no active-tables list by
+ * default, so this class arms the production one, or the injector-contract search behind the
+ * "scenario from injector contracts" create runs unscoped and matches the default tenant's copy of
+ * the built-in contract regardless of the request scope (#8485).
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Simulation and scenario creates take their tenant from the request scope")
-class NonPrefixedCreateTenantPostureTest extends IntegrationTest {
+class NonPrefixedCreateTenantPostureTest extends ProductionTablesIntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
@@ -472,9 +477,8 @@ class NonPrefixedCreateTenantPostureTest extends IntegrationTest {
 
     @ParameterizedTest(name = "{0}")
     @EnumSource(Create.class)
-    @DisplayName(
-        "Until the table is activated, the row is not readable by id back on the header route")
-    void given_headerRouteCreate_should_notBeReadableBackOnHeaderRoute(Create create)
+    @DisplayName("The row is readable by id back on the header route that created it")
+    void given_headerRouteCreate_should_beReadableBackOnHeaderRoute(Create create)
         throws Exception {
       // Arrange
       String tenantB = joinDefaultAndOtherTenant();
@@ -483,14 +487,13 @@ class NonPrefixedCreateTenantPostureTest extends IntegrationTest {
 
       // Act & Assert
       mvc.perform(get(create.readUri + "/{id}", id).header(TENANT_IDS_HEADER, tenantB))
-          .andExpect(status().isNotFound());
+          .andExpect(status().isOk());
     }
 
     @ParameterizedTest(name = "{0}")
     @EnumSource(Create.class)
-    @DisplayName("Until the table is activated, the row is not deletable on the header route")
-    void given_headerRouteCreate_should_notBeDeletableOnHeaderRoute(Create create)
-        throws Exception {
+    @DisplayName("The row is deletable on the header route that created it")
+    void given_headerRouteCreate_should_beDeletableOnHeaderRoute(Create create) throws Exception {
       // Arrange
       String tenantB = joinDefaultAndOtherTenant();
       String id = createInHeaderRoute(create, tenantB);
@@ -499,10 +502,10 @@ class NonPrefixedCreateTenantPostureTest extends IntegrationTest {
       // Act
       mvc.perform(
               delete(create.readUri + "/{id}", id).header(TENANT_IDS_HEADER, tenantB).with(csrf()))
-          .andExpect(status().isNotFound());
+          .andExpect(status().isOk());
 
       // Assert
-      assertEquals(tenantB, rowTenant(create, id), "the row is still there, in B");
+      assertEquals(0L, rowCount(create), "the row is gone");
     }
 
     private String createInHeaderRoute(Create create, String tenantB) throws Exception {

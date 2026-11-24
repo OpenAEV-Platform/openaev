@@ -16,22 +16,29 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Document;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.User;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
+import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.DomainFixture;
+import io.openaev.utils.fixtures.FileFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.ThreatArsenalInputFixture;
+import io.openaev.utils.fixtures.composers.DocumentComposer;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
+import io.openaev.utils.fixtures.files.PlainTextFile;
 import io.openaev.utils.helpers.UserTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.io.ByteArrayInputStream;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -56,6 +63,7 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
   @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mockMvc;
   @Autowired private ObjectMapper objectMapper;
+  @Autowired private DocumentComposer documentComposer;
   @Autowired private DomainComposer domainComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private InjectorFixture injectorFixture;
@@ -68,6 +76,7 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
         openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     injectorContractComposer.reset();
     domainComposer.reset();
+    documentComposer.reset();
   }
 
   @Nested
@@ -126,6 +135,55 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
         assertThat(document).isNotNull();
         assertThat(document.at("/data/type").asText()).isEqualTo("injectors_contracts");
       }
+    }
+
+    @Test
+    @DisplayName("Exporting an action whose payload has a file should put the file in the ZIP")
+    void given_actionWithPayloadFile_should_exportTheFileInTheZip() throws Exception {
+      // Arrange: the file belongs to the payload, one level below the exported injector contract
+      PlainTextFile file = FileFixture.getPlainTextFileContent();
+      Document document =
+          documentComposer
+              .forDocument(DocumentFixture.getDocument(file))
+              .withInMemoryFile(file)
+              .persist()
+              .get();
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      String createResponse =
+          mockMvc
+              .perform(
+                  post(tenantUri(ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL))
+                      .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                      .content(
+                          asJsonString(
+                              ThreatArsenalInputFixture.createDefaultExecutableAction(
+                                  List.of(domain.getId()), document.getId())))
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String actionId = JsonPath.read(createResponse, "$.injector_contract_id");
+
+      // Act
+      byte[] zipBytes =
+          mockMvc
+              .perform(get(tenantUri(EXPORT_URL).replace("{actionId}", actionId)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+
+      // Assert
+      Map<String, byte[]> entries = new HashMap<>();
+      try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
+        ZipEntry entry;
+        while ((entry = zis.getNextEntry()) != null) {
+          entries.put(entry.getName(), zis.readAllBytes());
+        }
+      }
+      assertThat(entries.keySet()).contains(document.getTarget());
+      assertThat(entries.get(document.getTarget())).isEqualTo(file.getContentBytes());
     }
 
     @Test

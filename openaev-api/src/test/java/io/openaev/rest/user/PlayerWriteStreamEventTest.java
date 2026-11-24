@@ -20,10 +20,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.OpenAEVPrincipal;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.audit.ModelBaseListener;
@@ -38,6 +37,9 @@ import io.openaev.service.PermissionService;
 import io.openaev.service.StreamService;
 import io.openaev.service.UserService;
 import io.openaev.service.attackpath.AttackPathAccessControl;
+import io.openaev.service.stream.StreamClearanceService;
+import io.openaev.service.stream.StreamVisibility;
+import io.openaev.service.stream.StreamVisibilityService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.OrganizationFixture;
 import io.openaev.utils.fixtures.PlayerFixture;
@@ -61,8 +63,6 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -90,13 +90,7 @@ import reactor.core.publisher.FluxSink;
 @Transactional
 @RecordApplicationEvents
 @DisplayName("Stream events of a player write")
-public class PlayerWriteStreamEventTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+public class PlayerWriteStreamEventTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
 
@@ -176,7 +170,13 @@ public class PlayerWriteStreamEventTest extends IntegrationTest {
     PermissionService permissions = mock(PermissionService.class);
     when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
     StreamService stream =
-        new StreamService(permissions, userService, attackPathAccessControl, mapper);
+        new StreamService(
+            permissions,
+            userService,
+            attackPathAccessControl,
+            mock(StreamClearanceService.class),
+            unfilteredMarkings(),
+            mapper);
     FluxSink<Object> sinkOfDefault = consumerOf(stream, "default", Tenant.DEFAULT_TENANT_UUID);
     FluxSink<Object> sinkOfB = consumerOf(stream, "b", tenantB);
 
@@ -343,7 +343,13 @@ public class PlayerWriteStreamEventTest extends IntegrationTest {
       PermissionService permissions = mock(PermissionService.class);
       when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
       StreamService stream =
-          new StreamService(permissions, userService, attackPathAccessControl, mapper);
+          new StreamService(
+              permissions,
+              userService,
+              attackPathAccessControl,
+              mock(StreamClearanceService.class),
+              unfilteredMarkings(),
+              mapper);
       FluxSink<Object> sinkOfDefault = consumerOf(stream, "default", Tenant.DEFAULT_TENANT_UUID);
       FluxSink<Object> sinkOfB = consumerOf(stream, "b", tenantB);
 
@@ -546,7 +552,13 @@ public class PlayerWriteStreamEventTest extends IntegrationTest {
       PermissionService permissions = mock(PermissionService.class);
       when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
       StreamService stream =
-          new StreamService(permissions, userService, attackPathAccessControl, mapper);
+          new StreamService(
+              permissions,
+              userService,
+              attackPathAccessControl,
+              mock(StreamClearanceService.class),
+              unfilteredMarkings(),
+              mapper);
       FluxSink<Object> sinkOfDefault = consumerOf(stream, "default", Tenant.DEFAULT_TENANT_UUID);
       FluxSink<Object> sinkOfB = consumerOf(stream, "b", tenantB);
 
@@ -607,5 +619,12 @@ public class PlayerWriteStreamEventTest extends IntegrationTest {
       assertTrue(eventTypesReceivedBy(outcome.sinkOfDefault()).contains(DELETION));
       assertTrue(eventTypesReceivedBy(outcome.sinkOfB()).contains(DELETION));
     }
+  }
+
+  /** A user carries no marking: its events are not filtered. */
+  private static StreamVisibilityService unfilteredMarkings() {
+    StreamVisibilityService markings = mock(StreamVisibilityService.class);
+    when(markings.visibilityOf(any(), any())).thenReturn(StreamVisibility.UNFILTERED);
+    return markings;
   }
 }

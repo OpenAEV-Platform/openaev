@@ -72,22 +72,18 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    */
   @Override
   public void handleReadyStepEvent(StepEvent stepEvent) {
-    // #6357: the chaining worker thread carries no tenant scope. Scope the event to its run's
-    // tenant
-    // on both mechanisms so run() resolves the right rows: the MT v2 primitive sets the GUC for the
-    // tenant-active tables the run writes (attackpath_execution), and TenantContext scopes the v1
-    // @Filter entities the run reads (injector contract, endpoints, assets) that are not yet
-    // migrated to v2. TenantContext is set on the pooled worker thread and cleared in finally so it
-    // never leaks to the next event (mirrors ScenarioExecutionJob). A null tenantId
-    // (legacy/in-flight
-    // message) falls back to the default tenant, today's behaviour. Per-event scoping keeps a
-    // failing
-    // event from rolling the rest of the batch back.
+    // #6357: the chaining worker thread carries no tenant scope, so the event is scoped to its
+    // run's tenant on both mechanisms. The v2 transaction scope covers the tenant-active tables the
+    // run reads and writes (injector contracts, endpoints and assets, attack path executions), and
+    // TenantContext covers the code that still reads the ambient tenant. TenantContext is set on
+    // the pooled worker thread and cleared in finally so it never leaks to the next event (mirrors
+    // ScenarioExecutionJob). A null tenantId (legacy/in-flight message) falls back to the default
+    // tenant. Per-event scoping keeps a failing event from rolling the rest of the batch back.
     String tenantId =
         stepEvent.getTenantId() != null ? stepEvent.getTenantId() : DEFAULT_TENANT_UUID;
     TenantContext.setCurrentTenant(tenantId);
+    AtomicReference<Workflow> toEvaluate = new AtomicReference<>();
     try {
-      AtomicReference<Workflow> toEvaluate = new AtomicReference<>();
       tenantTx.execute(
           TxCtx.forTenant(tenantId),
           () ->
@@ -110,7 +106,6 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
                           log.error(
                               "[Chaining] Ready consume: Step not found for StepEvent ID: {}",
                               stepEvent.getStepId())));
-      evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
     } catch (Exception e) {
       if (stepEvent.getRetryCount() < chainingConfig.getMaxRetryCount()) {
         stepEvent.setRetryCount(stepEvent.getRetryCount() + 1);
@@ -140,6 +135,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
         endReadyStepWithoutEvent(stepEvent, tenantId);
       }
     } finally {
+      evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
       TenantContext.clearCurrentTenant();
     }
   }
@@ -165,9 +161,9 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
           "[Chaining] Could not end step {} after its event was dropped, it stays READY.",
           stepEvent.getStepId(),
           e);
-      return;
+    } finally {
+      evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
     }
-    evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
   }
 
   /** Ends a step and gives its workflow run, which is evaluated once this is committed. */

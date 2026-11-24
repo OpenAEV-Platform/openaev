@@ -18,6 +18,7 @@ import AssetGroupsList from '../../../assets/asset_groups/AssetGroupsList';
 import InjectAddAssetGroups from '../../../simulations/simulation/injects/asset_groups/InjectAddAssetGroups';
 import AvailableVariablesDialog from '../../../simulations/simulation/variables/AvailableVariablesDialog';
 import type { ExpectationInput } from '../expectations/Expectation';
+import { enabledExpectations } from '../expectations/ExpectationUtils';
 import InjectExpectations from '../expectations/InjectExpectations';
 import InjectArticlesList from './articles/InjectArticlesList';
 import InjectChallengesList from './challenges/InjectChallengesList';
@@ -58,6 +59,7 @@ const InjectContentForm = ({
   const { control, setValue, getValues, formState: { errors } } = useFormContext();
   const ability = useAbility();
   const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+  const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
 
   // -- TEAMS --
   const renderTeams = (err?: string | null) => (
@@ -149,7 +151,7 @@ const InjectContentForm = ({
       handleExpectations={onExpectationChange}
       readOnly={enhancedFieldsMapByType.get('expectation')?.readOnly || readOnly}
       injectId={injectId}
-      availableExpectations={expectationContractElement?.availableExpectations ?? []}
+      availableExpectations={enabledExpectations(expectationContractElement?.availableExpectations, isLoggingEnabled)}
     />
   );
 

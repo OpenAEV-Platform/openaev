@@ -110,6 +110,7 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
   void cleanup() {
     JdbcTemplate jdbc = new JdbcTemplate(dataSource);
     seededExercises.forEach(id -> jdbc.update("DELETE FROM injects WHERE inject_exercise = ?", id));
+    seededScenarios.forEach(id -> jdbc.update("DELETE FROM injects WHERE inject_scenario = ?", id));
     seededExercises.forEach(id -> jdbc.update("DELETE FROM exercises WHERE exercise_id = ?", id));
     seededScenarios.forEach(
         id -> jdbc.update("DELETE FROM autonomous_runs WHERE autonomous_run_scenario_id = ?", id));
@@ -168,6 +169,31 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
         .update(
             "INSERT INTO scenarios_teams (scenario_id, team_id) VALUES (?, ?)", scenarioId, teamId);
     return teamId;
+  }
+
+  /** Seeds an inject of the simulation, in the simulation's tenant. */
+  String seedInjectOfSimulation(String tenantId, String simulationId) {
+    return seedInject(tenantId, "inject_exercise", simulationId);
+  }
+
+  /** Seeds an inject of the scenario, in the scenario's tenant. */
+  String seedInjectOfScenario(String tenantId, String scenarioId) {
+    return seedInject(tenantId, "inject_scenario", scenarioId);
+  }
+
+  private String seedInject(String tenantId, String parentColumn, String parentId) {
+    String id = UUID.randomUUID().toString();
+    new JdbcTemplate(dataSource)
+        .update(
+            "INSERT INTO injects (inject_id, inject_title, inject_all_teams, inject_enabled,"
+                + " inject_depends_duration, tenant_id, "
+                + parentColumn
+                + ") VALUES (?, ?, false, true, 0, ?, ?)",
+            id,
+            "authored-" + id,
+            tenantId,
+            parentId);
+    return id;
   }
 
   /** Enrolls the caller in the team, so the player lists of its simulation or scenario hold it. */
@@ -243,6 +269,13 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
     return new JdbcTemplate(dataSource)
         .queryForList(
             "SELECT tenant_id FROM injects WHERE inject_exercise = ?", String.class, simulationId);
+  }
+
+  /** The tenant of every inject row of the scenario, read with raw JDBC like the simulation's. */
+  List<String> scenarioInjectTenants(String scenarioId) {
+    return new JdbcTemplate(dataSource)
+        .queryForList(
+            "SELECT tenant_id FROM injects WHERE inject_scenario = ?", String.class, scenarioId);
   }
 
   boolean simulationDriftDismissed(String id) {
@@ -552,6 +585,20 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)));
   }
 
+  /** Duplicates the simulation and returns the copy's id, or null when no copy was made. */
+  String duplicatedSimulationId(Route route, String id) throws Exception {
+    int before = seededExercises.size();
+    duplicateSimulation(route, id);
+    return seededExercises.size() > before ? seededExercises.get(before) : null;
+  }
+
+  /** Duplicates the scenario and returns the copy's id, or null when no copy was made. */
+  String duplicatedScenarioId(Route route, String id) throws Exception {
+    int before = seededScenarios.size();
+    duplicateScenario(route, id);
+    return seededScenarios.size() > before ? seededScenarios.get(before) : null;
+  }
+
   /** Duplicates the scenario; a copy that was created is removed on teardown. */
   int duplicateScenario(Route route, String id) throws Exception {
     TenantContext.clearCurrentTenant();
@@ -559,6 +606,19 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
         mvc.perform(route.with(post(route.scenario(id)))).andReturn().getResponse();
     if (response.getStatus() == 200) {
       seededScenarios.add(JsonPath.read(response.getContentAsString(), "$.scenario_id"));
+    }
+    return response.getStatus();
+  }
+
+  /** Launches a simulation from the scenario; the simulation created is removed on teardown. */
+  int launchScenario(Route route, String scenarioId) throws Exception {
+    TenantContext.clearCurrentTenant();
+    MockHttpServletResponse response =
+        mvc.perform(route.with(post(route.scenario(scenarioId) + "/exercise/running")))
+            .andReturn()
+            .getResponse();
+    if (response.getStatus() == 200) {
+      seededExercises.add(JsonPath.read(response.getContentAsString(), "$.exercise_id"));
     }
     return response.getStatus();
   }

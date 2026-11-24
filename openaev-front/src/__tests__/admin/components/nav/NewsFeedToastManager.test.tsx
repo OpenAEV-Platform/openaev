@@ -5,7 +5,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { IntlProvider } from 'react-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DATA_FETCH_SUCCESS, DATA_UPDATE_SUCCESS } from '../../../../constants/ActionTypes';
+import { DATA_DELETE_SUCCESS, DATA_FETCH_SUCCESS, DATA_UPDATE_SUCCESS } from '../../../../constants/ActionTypes';
 import { type PlatformSettings, type User } from '../../../../utils/api-types';
 import { UserContext } from '../../../../utils/hooks/useAuth';
 import { expectLibraryIconButton, expectNoMuiControls } from '../../../utils/designSystemAssertions';
@@ -30,12 +30,8 @@ vi.mock('../../../../utils/hooks/useDataLoader', () => ({
   },
 }));
 
-const {
-  default: NewsFeedToastManager,
-  MAX_VISIBLE_TOASTS,
-  NEWS_FEED_ITEM_SCHEMA,
-  NEWS_FEED_TOAST_BATCH_MS,
-} = await import('../../../../admin/components/nav/NewsFeedToastManager');
+const { default: NewsFeedToastManager, MAX_VISIBLE_TOASTS } = await import('../../../../admin/components/nav/NewsFeedToastManager');
+const { NEWS_FEED_ITEM_SCHEMA, NEWS_FEED_STREAM_BATCH_MS } = await import('../../../../admin/components/nav/newsFeedStream');
 
 const HUB_URL = 'https://hub.example.com';
 
@@ -88,7 +84,7 @@ const streamEvent = (
 const pushEvents = async (...events: MessageEvent[]) => {
   await act(async () => {
     events.forEach(event => mocks.streamHandlers.get('message')?.(event));
-    await vi.advanceTimersByTimeAsync(NEWS_FEED_TOAST_BATCH_MS);
+    await vi.advanceTimersByTimeAsync(NEWS_FEED_STREAM_BATCH_MS);
   });
 };
 
@@ -231,6 +227,7 @@ describe('NewsFeedToastManager', () => {
 
     describe.each([
       ['an updated item', streamEvent('Ransomware', { eventType: DATA_UPDATE_SUCCESS })],
+      ['a deleted item', streamEvent('Ransomware', { eventType: DATA_DELETE_SUCCESS })],
       ['another entity', streamEvent('Ransomware', { schema: 'injects' })],
       ['another entity mentioning the news feed schema', streamEvent(NEWS_FEED_ITEM_SCHEMA, { schema: 'notifications' })],
     ])('given %s', (_, event) => {

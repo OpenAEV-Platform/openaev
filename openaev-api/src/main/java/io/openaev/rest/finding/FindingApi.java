@@ -5,15 +5,18 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.Finding;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.finding.form.FindingInput;
 import io.openaev.rest.finding.form.FindingOutput;
+import io.openaev.rest.finding.form.FindingRetestInput;
+import io.openaev.rest.finding.form.FindingRetestOutput;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.service.finding.FindingRetestService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.FindingMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +31,7 @@ public class FindingApi extends RestBehavior {
 
   private final FindingService findingService;
   private final FindingMapper findingMapper;
+  private final FindingRetestService findingRetestService;
 
   // -- CRUD --
 
@@ -72,25 +76,24 @@ public class FindingApi extends RestBehavior {
     return ResponseEntity.ok(this.findingService.findingSummary(id));
   }
 
-  @PostMapping({FINDING_URI, TENANT_FINDING_URI})
-  @Transactional
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.FINDING)
-  public ResponseEntity<FindingOutput> createFinding(
-      TxCtx ctx, @RequestBody @Valid @NotNull final FindingInput input) {
-    return ResponseEntity.ok(
-        this.findingMapper.toFindingOutput(
-            this.findingService.createFinding(
-                ctx, input.toFinding(new Finding()), input.getInjectId())));
-  }
+  // -- LIFECYCLE --
 
-  @DeleteMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})
+  /**
+   * Re-tests findings: queues a copy of the inject that last produced each of them, on the same
+   * targets and under the same contract, and returns the queued inject per finding. When a copy
+   * finishes, the finding stays OPEN if it was detected again, else it turns NOT_REPRODUCED. The
+   * caller needs the launch right on each inject re-run, checked in the service.
+   */
+  @PostMapping({FINDING_URI + "/retest", TENANT_FINDING_URI + "/retest"})
   @Transactional
-  @AccessControl(
-      resourceId = "#id",
-      actionPerformed = Action.DELETE,
-      resourceType = ResourceType.FINDING)
-  public ResponseEntity<Void> deleteFinding(TxCtx ctx, @PathVariable @NotNull final String id) {
-    this.findingService.deleteFinding(id);
-    return ResponseEntity.noContent().build();
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.FINDING)
+  public ResponseEntity<List<FindingRetestOutput>> retestFindings(
+      TxCtx ctx, @Valid @RequestBody final FindingRetestInput input) {
+    return ResponseEntity.ok(
+        this.findingRetestService
+            .retest(ctx, TxCtxScopeUtils.requireOneTenantOfScope(ctx), input.getFindingIds())
+            .stream()
+            .map(retest -> new FindingRetestOutput(retest.findingId(), retest.retestInjectId()))
+            .toList());
   }
 }

@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
@@ -23,16 +24,21 @@ import io.openaev.service.StreamService;
 import io.openaev.service.UserService;
 import io.openaev.service.attackpath.AttackPathAccessControl;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionEvent;
+import io.openaev.service.stream.StreamClearanceService;
+import io.openaev.service.stream.StreamVisibility;
+import io.openaev.service.stream.StreamVisibilityService;
 import io.openaev.service.utils.BulkOperationMonitor.BulkOperation;
 import io.openaev.service.utils.BulkOperationMonitor.BulkOperationEvent;
 import io.openaev.service.utils.BulkOperationMonitor.BulkOperationStatus;
 import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -77,14 +83,24 @@ public class StreamServiceTest {
 
   @Mock private AttackPathAccessControl attackPathAccessControl;
 
+  @Mock private StreamClearanceService streamClearanceService;
+
+  @Mock private StreamVisibilityService streamVisibilityService;
+
   @InjectMocks private StreamService streamService;
 
   @BeforeEach
   public void setup() throws Exception {
+    // Marking filtering is opt-in per test: by default every reader sees everything.
+    when(streamClearanceService.isFiltering()).thenReturn(true);
+    when(streamClearanceService.clearanceFor(any(), any())).thenReturn(MarkingCtx.all());
+    when(streamVisibilityService.visibilityOf(any(), any()))
+        .thenReturn(StreamVisibility.UNFILTERED);
+
     // mock consumer
     OpenAEVPrincipal mockPrincipal = mock(OpenAEVPrincipal.class);
     when(mockPrincipal.getId()).thenReturn(USER_ID);
-    when(userService.user(USER_ID)).thenReturn(mockUser);
+    when(userService.userWithRoles(USER_ID)).thenReturn(mockUser);
 
     // mock objectmapper using reflection
     Field mapperField = StreamService.class.getDeclaredField("mapper");
@@ -166,7 +182,7 @@ public class StreamServiceTest {
   private FluxSink<Object> registerSecondConsumer(User user) throws Exception {
     OpenAEVPrincipal principal = mock(OpenAEVPrincipal.class);
     when(principal.getId()).thenReturn(OTHER_USER_ID);
-    when(userService.user(OTHER_USER_ID)).thenReturn(user);
+    when(userService.userWithRoles(OTHER_USER_ID)).thenReturn(user);
     FluxSink<Object> sink = mock(FluxSink.class);
     @SuppressWarnings("unchecked")
     Map<String, Object> consumers =
@@ -561,7 +577,7 @@ public class StreamServiceTest {
     Agent agent = restrictedAgent();
     stubRead(mockUser, agent, true);
     stubRead(otherUser, agent, true);
-    when(userService.user(defaultConsumerFails ? USER_ID : OTHER_USER_ID))
+    when(userService.userWithRoles(defaultConsumerFails ? USER_ID : OTHER_USER_ID))
         .thenThrow(new ElementNotFoundException("User not found"));
     FluxSink<Object> failingSink = defaultConsumerFails ? mockSink : otherSink;
     FluxSink<Object> healthySink = defaultConsumerFails ? otherSink : mockSink;
@@ -581,7 +597,7 @@ public class StreamServiceTest {
     User privilegedUser = mock(User.class);
     OpenAEVPrincipal privilegedPrincipal = mock(OpenAEVPrincipal.class);
     when(privilegedPrincipal.getId()).thenReturn("privileged-user");
-    when(userService.user("privileged-user")).thenReturn(privilegedUser);
+    when(userService.userWithRoles("privileged-user")).thenReturn(privilegedUser);
     FluxSink<Object> privilegedSink = mock(FluxSink.class);
     @SuppressWarnings("unchecked")
     Map<String, Object> consumers =
@@ -704,6 +720,264 @@ public class StreamServiceTest {
     verify(permissionService, times(1))
         .hasPermission(mockUser, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ);
     verify(mockSink, times(2)).next(any());
+  }
+
+  // -- Marking clearance --
+  //
+  // Checked after the READ permission: a reader allowed to read assets still receives nothing about
+  // an asset carrying a marking they do not hold, deletions included (same reason as above). What
+  // an event shows each clearance is StreamVisibilityService's (StreamVisibilityServiceTest): here,
+  // how
+  // the stream applies it.
+
+  private static final MarkingCtx AMBER =
+      MarkingCtx.forMarkings(List.of("tlp-clear", "tlp-green", "tlp-amber"));
+
+  private void readerHolds(User user, MarkingCtx clearance) {
+    // In the tenant the event's markings are read in, the subject of its own test
+    when(streamClearanceService.clearanceFor(eq(user), any())).thenReturn(clearance);
+  }
+
+  /** Visible to every clearance but AMBER's, with no payload to filter. */
+  private StreamVisibility hiddenFromAmber() {
+    StreamVisibility visibility = mock(StreamVisibility.class);
+    when(visibility.visibleUnder(any())).thenReturn(true);
+    when(visibility.visibleUnder(AMBER)).thenReturn(false);
+    when(streamVisibilityService.visibilityOf(any(), any())).thenReturn(visibility);
+    return visibility;
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE, DATA_DELETE})
+  public void given_eventHiddenFromTheReader_should_sendNothing(String eventType) {
+    // Arrange
+    Endpoint endpoint = restrictedEndpoint();
+    stubRead(mockUser, endpoint, true);
+    hiddenFromAmber();
+    readerHolds(mockUser, AMBER);
+
+    // Act
+    streamService.listenDatabaseUpdate(
+        new BaseEvent(eventType, endpoint, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(mockSink, never()).next(any());
+  }
+
+  @Test
+  public void given_markedEvent_should_serveEachReaderByTheirOwnClearance() throws Exception {
+    // Arrange
+    User admin = mock(User.class);
+    FluxSink<Object> adminSink = registerSecondConsumer(admin);
+    Endpoint endpoint = restrictedEndpoint();
+    stubRead(mockUser, endpoint, true);
+    stubRead(admin, endpoint, true);
+    hiddenFromAmber();
+    readerHolds(mockUser, AMBER);
+    readerHolds(admin, MarkingCtx.all());
+
+    // Act
+    streamService.listenDatabaseUpdate(
+        new BaseEvent(DATA_UPDATE, endpoint, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(mockSink, never()).next(any());
+    verify(adminSink).next(any());
+    verify(streamVisibilityService, times(1)).visibilityOf(any(), any());
+  }
+
+  @Test
+  public void given_markedAssetInATenant_should_readTheMarkingsAndClearanceInTheRowsTenant() {
+    // Arrange
+    Endpoint endpoint = restrictedEndpoint();
+    endpoint.setTenant(tenant(TENANT_ID));
+    when(permissionService.hasPermissionInTenant(
+            TxCtx.forTenant(TENANT_ID),
+            mockUser,
+            RESOURCE_ID,
+            endpoint.getPermissionResourceType(),
+            Action.READ))
+        .thenReturn(true);
+    hiddenFromAmber();
+    when(streamClearanceService.clearanceFor(mockUser, TENANT_ID)).thenReturn(AMBER);
+    BaseEvent event = new BaseEvent(DATA_UPDATE, endpoint, mock(ObjectMapper.class));
+
+    // Act
+    streamService.listenDatabaseUpdate(event);
+
+    // Assert
+    verify(streamVisibilityService).visibilityOf(event, TENANT_ID);
+    verify(streamClearanceService).clearanceFor(mockUser, TENANT_ID);
+    verify(mockSink, never()).next(any());
+  }
+
+  @Test
+  public void given_markingFeatureOff_should_readNeitherTheMarkingsNorTheClearance() {
+    // Arrange
+    Endpoint endpoint = restrictedEndpoint();
+    stubRead(mockUser, endpoint, true);
+    hiddenFromAmber();
+    readerHolds(mockUser, AMBER);
+    when(streamClearanceService.isFiltering()).thenReturn(false);
+
+    // Act
+    streamService.listenDatabaseUpdate(
+        new BaseEvent(DATA_UPDATE, endpoint, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(mockSink).next(any());
+    verify(streamVisibilityService, never()).visibilityOf(any(), any());
+    verify(streamClearanceService, never()).clearanceFor(any(), any());
+  }
+
+  @Test
+  public void given_entityWithoutTenant_should_readItsMarkingsInTheEventsTenant() {
+    // Arrange: an expectation has no tenant of its own; its event keeps the tenant it was written
+    // in
+    PreventionInjectExpectation expectation = restrictedExpectation();
+    TenantContext.setCurrentTenant(TENANT_ID);
+    BaseEvent event;
+    try {
+      event = new BaseEvent(DATA_UPDATE, expectation, mock(ObjectMapper.class));
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+
+    // Act
+    streamService.listenDatabaseUpdate(event);
+
+    // Assert
+    verify(streamVisibilityService).visibilityOf(event, TENANT_ID);
+  }
+
+  @Test
+  public void given_entityWithoutTenant_should_resolveTheClearanceInTheEventsTenant() {
+    // Arrange: the default consumer has no tenant; the markings are read in the event's tenant
+    PreventionInjectExpectation expectation = restrictedExpectation();
+    stubRead(mockUser, expectation, true);
+    hiddenFromAmber();
+    TenantContext.setCurrentTenant(TENANT_ID);
+    BaseEvent event;
+    try {
+      event = new BaseEvent(DATA_UPDATE, expectation, mock(ObjectMapper.class));
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+
+    // Act
+    streamService.listenDatabaseUpdate(event);
+
+    // Assert
+    verify(streamClearanceService).clearanceFor(mockUser, TENANT_ID);
+  }
+
+  @Test
+  public void given_unfilteredEvent_should_notResolveTheReadersClearance() {
+    // Arrange
+    Endpoint endpoint = restrictedEndpoint();
+    stubRead(mockUser, endpoint, true);
+
+    // Act
+    streamService.listenDatabaseUpdate(
+        new BaseEvent(DATA_UPDATE, endpoint, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(mockSink).next(any());
+    verify(streamClearanceService, never()).clearanceFor(any(), any());
+  }
+
+  @Test
+  public void given_markedEvent_when_readerCannotRead_should_notResolveTheReadersClearance() {
+    // Arrange
+    Endpoint endpoint = restrictedEndpoint();
+    denyRead(endpoint);
+    hiddenFromAmber();
+
+    // Act
+    streamService.listenDatabaseUpdate(
+        new BaseEvent(DATA_UPDATE, endpoint, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(mockSink, never()).next(any());
+    verify(streamClearanceService, never()).clearanceFor(any(), any());
+  }
+
+  @Test
+  public void given_payloadToFilter_should_sendEachReaderTheirs() throws Exception {
+    // Arrange
+    ObjectMapper jsonMapper = useRealMapper();
+    User admin = mock(User.class);
+    FluxSink<Object> adminSink = registerSecondConsumer(admin);
+    Inject inject = InjectFixture.getDefaultInject();
+    inject.setId(RESOURCE_ID);
+    stubRead(mockUser, inject, true);
+    stubRead(admin, inject, true);
+    StreamVisibility visibility = mock(StreamVisibility.class);
+    when(visibility.visibleUnder(any())).thenReturn(true);
+    when(visibility.filtersPayload()).thenReturn(true);
+    ObjectNode amberPayload = jsonMapper.createObjectNode().put("inject_title", "for amber");
+    when(visibility.payloadFor(AMBER)).thenReturn(amberPayload);
+    when(streamVisibilityService.visibilityOf(any(), any())).thenReturn(visibility);
+    readerHolds(mockUser, AMBER);
+    readerHolds(admin, MarkingCtx.all());
+
+    // Act
+    streamService.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, inject, jsonMapper));
+
+    // Assert
+    assertEquals(
+        "for amber",
+        captureWireEvent(mockSink, jsonMapper).path("instance").path("inject_title").asText());
+    assertEquals(
+        inject.getTitle(),
+        captureWireEvent(adminSink, jsonMapper).path("instance").path("inject_title").asText());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_UPDATE, DATA_DELETE})
+  public void given_rowDeletedWithItsParent_should_sendItsIdOnlyOnDeletion(String eventType) {
+    // Arrange: the agents of a deleted endpoint, whose markings are gone with it
+    ObjectMapper jsonMapper = useRealMapper();
+    Agent agent = restrictedAgent();
+    stubRead(mockUser, agent, true);
+    StreamVisibility visibility = hiddenFromAmber();
+    when(visibility.parentDeleted()).thenReturn(true);
+    readerHolds(mockUser, AMBER);
+
+    // Act
+    streamService.listenDatabaseUpdate(new BaseEvent(eventType, agent, jsonMapper));
+
+    // Assert
+    if (DATA_UPDATE.equals(eventType)) {
+      verify(mockSink, never()).next(any());
+      return;
+    }
+    JsonNode wire = captureWireEvent(mockSink, jsonMapper);
+    assertEquals(DATA_DELETE, wire.path("event_type").asText());
+    assertEquals(jsonMapper.createObjectNode().put("agent_id", RESOURCE_ID), wire.path("instance"));
+  }
+
+  @Test
+  public void given_markingsThatCannotBeRead_should_reachOnlyUnrestrictedReaders()
+      throws Exception {
+    // Arrange
+    User admin = mock(User.class);
+    FluxSink<Object> adminSink = registerSecondConsumer(admin);
+    Endpoint endpoint = restrictedEndpoint();
+    stubRead(mockUser, endpoint, true);
+    stubRead(admin, endpoint, true);
+    when(streamVisibilityService.visibilityOf(any(), any()))
+        .thenThrow(new IllegalStateException("database down"));
+    readerHolds(mockUser, AMBER);
+    readerHolds(admin, MarkingCtx.all());
+
+    // Act
+    streamService.listenDatabaseUpdate(
+        new BaseEvent(DATA_UPDATE, endpoint, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(mockSink, never()).next(any());
+    verify(adminSink).next(any());
   }
 
   @Test

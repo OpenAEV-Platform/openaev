@@ -5,6 +5,7 @@ import io.openaev.database.raw.RawAssetGroupDynamicFilter;
 import io.openaev.database.raw.RawAssetGroupIndexing;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -16,6 +17,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.Assert;
 
 @Repository
 public interface AssetGroupRepository
@@ -73,6 +75,14 @@ public interface AssetGroupRepository
           + " AND ag.id IN :ids")
   List<AssetGroup> findDistinctByInjectsSimulationIdAndIdIn(String simulationId, List<String> ids);
 
+  /**
+   * Static membership of the given assets: one {@code [asset id, asset group id]} pair per explicit
+   * link in {@code asset_groups_assets}. Dynamic membership is resolved by the service, from the
+   * group's filter.
+   */
+  @Query("SELECT a.id, ag.id FROM AssetGroup ag JOIN ag.assets a WHERE a.id IN :assetIds")
+  List<Object[]> findStaticMembershipsOfAssets(@Param("assetIds") Collection<String> assetIds);
+
   // -- PAGINATION --
 
   @Query(
@@ -115,12 +125,7 @@ public interface AssetGroupRepository
           + "   :simulationOrScenarioId is NULL AND i.exercise.id is NULL AND i.scenario.id IS NULL"
           + "   OR (i.exercise.id = :simulationOrScenarioId"
           + "   OR i.scenario.id = :simulationOrScenarioId)"
-          + " ) AND (:name IS NULL OR lower(ag.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))"
-          // TODO v2: once injects gets v2 activated, drop this predicate; the inspector will
-          // scope the join automatically. It stays for now because the Hibernate @Filter does not
-          // reach a JPQL join on a still-v1 table here. No issue number: epic #6393 has no injects
-          // activation issue yet, and the table name is what the future Phase 7.5 grep looks for.
-          + " AND i.tenant.id = :#{#tenantContext.currentTenant}")
+          + " ) AND (:name IS NULL OR lower(ag.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))")
   List<AssetGroup> findAllBySimulationOrScenarioIdAndName(
       String simulationOrScenarioId, String name);
 
@@ -138,11 +143,10 @@ public interface AssetGroupRepository
     SELECT DISTINCT ag.asset_group_id AS id, ag.asset_group_name AS label
     FROM asset_groups ag
     WHERE ag.asset_group_id IN (
-        SELECT DISTINCT iag.asset_group_id
-        FROM injects i
-        INNER JOIN finding_occurrences fo ON fo.finding_occurrence_inject_id = i.inject_id
-        INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
-        INNER JOIN injects_asset_groups iag ON iag.inject_id = i.inject_id
+        SELECT DISTINCT aga.asset_group_id
+        FROM findings f
+        INNER JOIN findings_assets fa ON fa.finding_id = f.finding_id
+        INNER JOIN asset_groups_assets aga ON aga.asset_id = fa.asset_id
     ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
     """,
       nativeQuery = true)
@@ -154,12 +158,12 @@ public interface AssetGroupRepository
     SELECT DISTINCT ag.asset_group_id AS id, ag.asset_group_name AS label
     FROM asset_groups ag
     WHERE ag.asset_group_id IN (
-        SELECT DISTINCT iag.asset_group_id
-        FROM injects i
-        INNER JOIN finding_occurrences fo ON fo.finding_occurrence_inject_id = i.inject_id
-        INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
-        LEFT JOIN findings_assets fa ON fa.finding_id = f.finding_id
-        LEFT JOIN injects_asset_groups iag ON iag.inject_id = i.inject_id
+        SELECT DISTINCT aga.asset_group_id
+        FROM findings f
+        INNER JOIN findings_assets fa ON fa.finding_id = f.finding_id
+        INNER JOIN asset_groups_assets aga ON aga.asset_id = fa.asset_id
+        LEFT JOIN finding_occurrences fo ON fo.finding_occurrence_finding_id = f.finding_id
+        LEFT JOIN injects i ON i.inject_id = fo.finding_occurrence_inject_id
         LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise
         WHERE i.inject_id = :sourceId OR i.inject_exercise = :sourceId OR se.scenario_id = :sourceId OR fa.asset_id = :sourceId
     ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
@@ -176,4 +180,27 @@ public interface AssetGroupRepository
       nativeQuery = true)
   List<RawAssetGroupIndexing> findForIndexing(
       @Param("from") Instant from, @Param("limit") int limit);
+
+  /** The asset groups of the given tenants, by name. */
+  @NotNull
+  List<AssetGroup> findAllByTenantIdInOrderByNameAsc(@NotNull Collection<String> tenantIds);
+
+  /** One asset group, when it belongs to one of the given tenants. */
+  Optional<AssetGroup> findByIdAndTenantIdIn(
+      @NotNull String id, @NotNull Collection<String> tenantIds);
+
+  /** The asset groups among the given ids that belong to the given tenant. */
+  @NotNull
+  List<AssetGroup> findAllByIdInAndTenantId(
+      @NotNull Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The asset groups among the given ids that belong to the given tenant. Refuses a null id list,
+   * as {@code findAllById} does.
+   */
+  @NotNull
+  default List<AssetGroup> findAllByIdInTenant(Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 }

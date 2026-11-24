@@ -12,7 +12,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.service.MinioService;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -32,7 +33,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockPart;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,11 +53,11 @@ import org.springframework.transaction.annotation.Transactional;
  * statement inspector never rewrites, so a leaked request scope cannot mask the assertion. Objects
  * written to real storage are a side effect and are removed in teardown.
  */
+@CoversTenantIsolation("documents")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("documents read and write isolation through the real HTTP endpoints, both routes")
-class DocumentHttpIsolationTest extends IntegrationTest {
+class DocumentHttpIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String DOCUMENTS = "/api/documents";
   private static final String TENANT_DOCUMENTS = "/api/tenants/{tenantId}/documents";

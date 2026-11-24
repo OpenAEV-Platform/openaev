@@ -19,12 +19,16 @@ import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.author.Authored;
 import io.openaev.database.model.author.Authorship;
+import io.openaev.database.model.catalog.CatalogContent;
+import io.openaev.database.model.catalog.ContentType;
 import io.openaev.database.model.hash.ContentHashed;
 import io.openaev.database.model.hash.Hashed;
 import io.openaev.database.model.hash.NotHashed;
 import io.openaev.database.model.payload.HasPayloadIdentity;
+import io.openaev.database.model.payload.PayloadChangeGuard;
 import io.openaev.database.model.payload.PayloadDeleteGuard;
 import io.openaev.database.model.payload.PayloadIdentity;
+import io.openaev.database.model.payload.PayloadLatestVersionListener;
 import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
@@ -38,8 +42,10 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import org.hibernate.annotations.*;
 import org.hibernate.type.SqlTypes;
 
@@ -48,7 +54,13 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "payloads")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "payload_type", discriminatorType = STRING)
-@EntityListeners({ModelBaseListener.class, AuditableListener.class, PayloadDeleteGuard.class})
+@EntityListeners({
+  ModelBaseListener.class,
+  AuditableListener.class,
+  PayloadChangeGuard.class,
+  PayloadDeleteGuard.class,
+  PayloadLatestVersionListener.class
+})
 // payloads is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter, no
 // TenantBaseListener (#6437, #6430). A create path that forgets to stamp the tenant fails loudly
 // on the NOT NULL constraint instead of being silently defaulted to the ambient tenant.
@@ -76,7 +88,13 @@ import org.hibernate.type.SqlTypes;
     })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.PAYLOAD)
 public class Payload
-    implements GrantableBase, TenantBase, Authored, HasPayloadIdentity, Auditable, ContentHashed {
+    implements GrantableBase,
+        TenantBase,
+        Authored,
+        HasPayloadIdentity,
+        Auditable,
+        ContentHashed,
+        CatalogContent {
 
   private static final int DEFAULT_NUMBER_OF_ACTIONS_FOR_PAYLOAD = 1;
 
@@ -112,14 +130,14 @@ public class Payload
   @Setter(NONE)
   private String type;
 
-  @Hashed
+  @Hashed(change = Hashed.Change.PATCH)
   @Queryable(filterable = true, searchable = true, sortable = true)
   @Column(name = "payload_name")
   @JsonProperty("payload_name")
   @NotBlank
   private String name;
 
-  @Hashed
+  @Hashed(change = Hashed.Change.PATCH)
   @Queryable(filterable = true, sortable = true)
   @Column(name = "payload_description")
   @JsonProperty("payload_description")
@@ -139,7 +157,7 @@ public class Payload
   @JsonProperty("payload_cleanup_executor")
   private String cleanupExecutor;
 
-  @Hashed
+  @Hashed(change = Hashed.Change.MINOR)
   @Setter
   @Column(name = "payload_cleanup_command")
   @JsonProperty("payload_cleanup_command")
@@ -150,6 +168,18 @@ public class Payload
   @Column(name = "payload_elevation_required")
   @JsonProperty("payload_elevation_required")
   private boolean elevationRequired;
+
+  /**
+   * True when this payload only reads the target and changes nothing on it. Safe-mode scenarios run
+   * read-only payloads only; any other payload waits for an approval. A marker on the payload, not
+   * its content: kept out of the content hash.
+   */
+  @NotHashed
+  @Getter
+  @Column(name = "payload_read_only")
+  @JsonProperty("payload_read_only")
+  @Queryable(filterable = true)
+  private boolean readOnly;
 
   @Hashed(order = Hashed.Order.LIST)
   @Type(JsonType.class)
@@ -163,7 +193,7 @@ public class Payload
   @JsonProperty("payload_prerequisites")
   private List<PayloadPrerequisite> prerequisites = new ArrayList<>();
 
-  @Hashed(order = Hashed.Order.SET)
+  @Hashed(order = Hashed.Order.SET, change = Hashed.Change.MINOR)
   @Queryable(filterable = true, searchable = true)
   @Type(StringArrayType.class)
   @Column(name = "payload_expectations", columnDefinition = "text[]")
@@ -176,7 +206,7 @@ public class Payload
    * means "any security platform" (legacy behaviour). Used to pre-seed only the relevant collectors
    * when this payload's predefined expectations are instantiated on an inject.
    */
-  @Hashed(order = Hashed.Order.SET)
+  @Hashed(order = Hashed.Order.SET, change = Hashed.Change.MINOR)
   @Setter
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "payload_expected_security_platforms", columnDefinition = "jsonb")
@@ -230,6 +260,25 @@ public class Payload
   @JsonIgnore
   private String version = FIRST_VERSION;
 
+  // The Filigran version a customized copy is built from; null for any other payload.
+  @NotHashed
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "payload_base")
+  @JsonIgnore
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
+  private Payload base;
+
+  @JsonIgnore
+  public boolean isCustomized() {
+    return base != null;
+  }
+
+  @NotHashed
+  @Formula("EXISTS (SELECT 1 FROM payload_revocations r WHERE r.payload_id = payload_id)")
+  @JsonIgnore
+  private boolean revoked;
+
   // SHA-256 of the canonical content: same content, same hash, on any platform.
   @NotHashed
   @Column(name = "payload_content_hash")
@@ -242,6 +291,40 @@ public class Payload
   @Queryable(filterable = true, path = "identity.source")
   public PAYLOAD_SOURCE getSource() {
     return HasPayloadIdentity.super.getSource();
+  }
+
+  // -- CATALOGUE --
+
+  @Override
+  public ContentType getCatalogType() {
+    return ContentType.PAYLOAD;
+  }
+
+  @Override
+  public String getCatalogRepository() {
+    return getIdentity().getRepository();
+  }
+
+  @Override
+  public String getCatalogExternalId() {
+    return getExternalId();
+  }
+
+  @Override
+  public String getCatalogVersion() {
+    return version;
+  }
+
+  /** The version the Threat Arsenal shows: its identity's latest, else a local payload. */
+  @JsonIgnore
+  public boolean isLatest() {
+    Payload latest = getIdentity().getLatestVersion();
+    return latest == null ? !isManaged() : latest.getId().equals(id);
+  }
+
+  /** The version the Threat Arsenal lists for this payload: its identity's latest, else itself. */
+  public Payload listedVersion() {
+    return Optional.ofNullable(getIdentity().getLatestVersion()).orElse(this);
   }
 
   // -- AUTHOR --
@@ -276,7 +359,7 @@ public class Payload
     return Authored.super.getAuthorOrganization();
   }
 
-  @Hashed(order = Hashed.Order.OBJECTS)
+  @Hashed(order = Hashed.Order.OBJECTS, change = Hashed.Change.MINOR)
   @OneToMany(
       mappedBy = "payload",
       cascade = CascadeType.ALL,
@@ -287,7 +370,7 @@ public class Payload
 
   // -- OUTPUT PARSERS
 
-  @Hashed(order = Hashed.Order.OBJECTS)
+  @Hashed(order = Hashed.Order.OBJECTS, change = Hashed.Change.MINOR)
   @OneToMany(
       mappedBy = "payload",
       fetch = FetchType.EAGER,

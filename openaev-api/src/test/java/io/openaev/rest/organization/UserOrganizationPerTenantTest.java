@@ -110,6 +110,11 @@ class UserOrganizationPerTenantTest extends IntegrationTest {
   }
 
   private JsonNode response(MockHttpServletRequestBuilder request) throws Exception {
+    // Production runs each request on a fresh persistence context. In this single transaction the
+    // user stays managed across requests, and its organizations collection, initialised under the
+    // scope of one request's tenant, answers the next request's tenant from that same scope.
+    entityManager.flush();
+    entityManager.clear();
     String body =
         mvc.perform(request.accept(MediaType.APPLICATION_JSON))
             .andExpect(status().is2xxSuccessful())

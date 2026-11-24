@@ -1,0 +1,81 @@
+package io.openaev.api.catalog.scenario;
+
+import static io.openaev.api.catalog.CatalogRoutes.TENANT_CATALOG_URI;
+
+import io.openaev.aop.AccessControl;
+import io.openaev.aop.LogExecutionTime;
+import io.openaev.aop.RequirePreviewFeature;
+import io.openaev.api.catalog.CatalogItemMapper;
+import io.openaev.api.catalog.dto.CatalogInstallAllOutput;
+import io.openaev.api.catalog.dto.CatalogInstallOutput;
+import io.openaev.api.catalog.dto.scenario.CatalogScenarioInstallInput;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
+import io.openaev.database.model.Action;
+import io.openaev.database.model.ResourceType;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.catalog.scenario.CatalogScenarioInstaller;
+import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+/** Adds catalogue scenarios to the tenant; deleting one uninstalls it. */
+@RestController
+@RequirePreviewFeature(PreviewFeature.CATALOG)
+@RequiredArgsConstructor
+public class CatalogScenarioInstallApi {
+
+  private final CatalogScenarioInstaller catalogScenarioInstaller;
+  private final TenantWriteScopeResolver writeScopeResolver;
+  private final CatalogItemMapper catalogItemMapper;
+
+  // -- CREATE --
+
+  @LogExecutionTime
+  @Operation(
+      summary = "Install a catalogue scenario version",
+      description =
+          "Installs its payload versions first; refused if installed or the platform lacks a need.")
+  @PostMapping(TENANT_CATALOG_URI + "/scenarios/{externalId}/versions/{version}/install")
+  @ResponseStatus(HttpStatus.CREATED)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
+  @Transactional(propagation = Propagation.SUPPORTS)
+  public CatalogInstallOutput installScenario(
+      TxCtx ctx,
+      @PathVariable String externalId,
+      @PathVariable String version,
+      @Valid @RequestBody(required = false) CatalogScenarioInstallInput input)
+      throws Exception {
+    return new CatalogInstallOutput(
+        catalogScenarioInstaller
+            .install(
+                ctx,
+                writeScopeResolver.tenantForWrite(ctx, null),
+                externalId,
+                version,
+                // No body: the service applies the empty choice of the scenario's own type.
+                input == null ? null : input.toChoice())
+            .getId());
+  }
+
+  @LogExecutionTime
+  @Operation(
+      summary = "Install every catalogue scenario never installed",
+      description = "Chained ones and those the platform cannot run are left to install by hand.")
+  @PostMapping(TENANT_CATALOG_URI + "/scenarios/install-all")
+  @ResponseStatus(HttpStatus.CREATED)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
+  @Transactional(propagation = Propagation.SUPPORTS)
+  public CatalogInstallAllOutput installAllScenarios(TxCtx ctx) {
+    return catalogItemMapper.toOutput(
+        catalogScenarioInstaller.installAll(ctx, writeScopeResolver.tenantForWrite(ctx, null)));
+  }
+}

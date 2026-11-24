@@ -55,6 +55,7 @@ injectors_contracts injector_contract_external_id
 injectors_contracts injector_contract_id
 injectors_contracts injector_contract_payload
 kill_chain_phases phase_stix_id
+marking_definitions marking_definition_stix_id
 mitigations mitigation_external_id
 parameters parameter_key
 payload_identities payload_external_id

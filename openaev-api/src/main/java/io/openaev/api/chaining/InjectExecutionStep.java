@@ -78,6 +78,12 @@ import org.springframework.transaction.interceptor.TransactionAspectSupport;
 @Slf4j
 public class InjectExecutionStep implements ActionStep {
 
+  private static final ObjectMapper STEP_DATA_MAPPER =
+      new ObjectMapper()
+          .findAndRegisterModules()
+          .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+  private static final String STEP_INJECTOR_CONTRACT = "inject_injector_contract";
+
   private final InjectorContractService injectorContractService;
   private final UserService userService;
   private final AssetService assetService;
@@ -709,6 +715,15 @@ public class InjectExecutionStep implements ActionStep {
           "Data step of new step (TEMPLATE) do not contain injector contract");
     }
 
+    if ((simulation == null && scenario == null) || (simulation != null && scenario != null)) {
+      throw new IllegalArgumentException("Exactly one of exercise or scenario should be present");
+    }
+
+    // Resolved in the parent's own tenant, not the request's ambient scope: a built-in contract id
+    // repeats across tenants (#8485), and a caller authoring this step can belong to several.
+    String parentTenantId =
+        simulation != null ? simulation.getTenant().getId() : scenario.getTenant().getId();
+
     // #7418: verify the referenced injector contract still exists in this tenant BEFORE baking it
     // into the step snapshot, under a pessimistic share lock so authoring serializes with the
     // contract-delete transaction (there is no FK from step_data to the contract for a database
@@ -717,14 +732,11 @@ public class InjectExecutionStep implements ActionStep {
     // execution can never drift. A missing contract is an invalid client-provided reference, so it
     // is rejected as a 400 (BadRequestException), matching the threat-arsenal 400-not-404
     // precedent.
-    assertInjectorContractExists(data.getInjectorContract());
-
-    if ((simulation == null && scenario == null) || (simulation != null && scenario != null)) {
-      throw new IllegalArgumentException("Exactly one of exercise or scenario should be present");
-    }
+    assertInjectorContractExists(data.getInjectorContract(), parentTenantId);
 
     InjectorContract injectorContract =
-        this.injectorContractService.injectorContract(data.getInjectorContract());
+        this.injectorContractService.injectorContractInTenant(
+            data.getInjectorContract(), parentTenantId);
 
     Injector injector = injectUtils.resolveInjector(data.getInjectorId(), injectorContract);
     Inject inject = data.toInject(injectorContract, injector);
@@ -737,7 +749,11 @@ public class InjectExecutionStep implements ActionStep {
 
     List<InjectDocument> injectDocuments =
         data.getDocuments().stream()
-            .map(i -> i.toDocument(documentService.document(i.getDocumentId()), inject))
+            .map(
+                i ->
+                    i.toDocument(
+                        documentService.documentInTenant(i.getDocumentId(), parentTenantId),
+                        inject))
             .toList();
     inject.setDocuments(injectDocuments);
     Set<Tag> tags = new HashSet<>();
@@ -784,14 +800,21 @@ public class InjectExecutionStep implements ActionStep {
     if (inject.getContent() == null || inject.getContent().isEmpty()) {
       inject.setContent(resolveBaseInjectContent(inject, injectorContract));
     }
-    ObjectMapper om =
-        new ObjectMapper()
-            .findAndRegisterModules()
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     try {
-      return om.writeValueAsString(inject);
+      return STEP_DATA_MAPPER.writeValueAsString(inject);
     } catch (JsonProcessingException e) {
       throw new ChainingException("New step (TEMPLATE): Error processing Inject to JSON", e);
+    }
+  }
+
+  /** The step data with this injector contract in place of the one it was built with. */
+  public String withInjectorContract(String data, InjectorContract contract) {
+    try {
+      ObjectNode inject = (ObjectNode) STEP_DATA_MAPPER.readTree(data);
+      inject.set(STEP_INJECTOR_CONTRACT, STEP_DATA_MAPPER.valueToTree(contract));
+      return STEP_DATA_MAPPER.writeValueAsString(inject);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Unreadable step data", e);
     }
   }
 
@@ -804,13 +827,15 @@ public class InjectExecutionStep implements ActionStep {
    * only serializes when the row exists, which is exactly the window that mattered.
    *
    * @param injectorContractId the injector contract id referenced by the step data
-   * @throws BadRequestException if no such contract exists in the current tenant (400, not 404: an
-   *     invalid client-provided reference, per the threat-arsenal precedent)
+   * @param tenantId the step's parent (simulation or scenario) tenant, not the ambient scope: a
+   *     built-in contract id repeats across tenants (#8485)
+   * @throws BadRequestException if no such contract exists in that tenant (400, not 404: an invalid
+   *     client-provided reference, per the threat-arsenal precedent)
    */
-  private void assertInjectorContractExists(String injectorContractId) {
+  private void assertInjectorContractExists(String injectorContractId, String tenantId) {
     boolean exists =
         injectorContractRepository
-            .lockContractIdForAuthoring(injectorContractId, TenantContext.getCurrentTenant())
+            .lockContractIdForAuthoring(injectorContractId, tenantId)
             .isPresent();
     if (!exists) {
       throw new BadRequestException(
@@ -1118,7 +1143,11 @@ public class InjectExecutionStep implements ActionStep {
     ObjectNode injectContent =
         inject.getContent() != null ? inject.getContent() : JsonNodeFactory.instance.objectNode();
     return executableInjectService.resolveArgumentsForDisplay(
-        resolvedCommand, args, injectorContractContentFields, injectContent);
+        resolvedCommand,
+        args,
+        injectorContractContentFields,
+        injectContent,
+        inject.getTenant().getId());
   }
 
   /**

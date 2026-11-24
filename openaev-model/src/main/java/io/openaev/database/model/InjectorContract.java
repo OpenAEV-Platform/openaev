@@ -15,7 +15,6 @@ import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.database.model.author.Authored;
 import io.openaev.database.model.author.Authorship;
@@ -32,7 +31,6 @@ import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -40,12 +38,13 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Setter
 @Entity
 @Table(name = "injectors_contracts")
-@EntityListeners({
-  ModelBaseListener.class,
-  TenantBaseListener.class,
-  InjectorContractDeleteGuard.class
-})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+// injectors_contracts and its link tables are fully on v2 (statement inspector +
+// can_access_tenant). The v1 @Filter and TenantBaseListener are gone and must not come back: the
+// filter's thread-local predicate ANDs with the inspector's and returns nothing off the
+// tenant-prefixed route, and the listener would silently re-attribute an unattributed write to the
+// default tenant instead of failing. Reads are scoped by the request scope, writes are attributed
+// explicitly (TenantWriteScopeResolver, or the owning row's tenant for a dependent write).
+@EntityListeners({ModelBaseListener.class, InjectorContractDeleteGuard.class})
 public class InjectorContract implements TenantBase, CompositeIdResolvableI, Authored {
 
   public static final String ID_FIELD_NAME = "id";
@@ -117,6 +116,22 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI, Aut
   @Column(name = "injector_contract_custom")
   @JsonProperty("injector_contract_custom")
   private Boolean custom = false;
+
+  /**
+   * True when running this contract only reads the target (a version read, a protocol negotiation,
+   * a permission listing) and changes nothing on it. Safe-mode scenarios run read-only injects
+   * only; any other inject waits for an approval.
+   */
+  @Column(name = "injector_contract_read_only")
+  @JsonProperty("injector_contract_read_only")
+  @Queryable(filterable = true)
+  private Boolean readOnly = false;
+
+  /** Read-only when the contract or its payload is marked read-only. */
+  @JsonIgnore
+  public boolean isReadOnlyEffective() {
+    return Boolean.TRUE.equals(readOnly) || (payload != null && payload.isReadOnly());
+  }
 
   @JsonProperty("injector_contract_custom")
   public boolean getCustomEffective() {
@@ -289,7 +304,6 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI, Aut
       cascade = CascadeType.ALL,
       orphanRemoval = true,
       fetch = FetchType.EAGER)
-  @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
   @JsonIgnore
   private List<InjectorInjectorContract> injectorLinks = new ArrayList<>();
 

@@ -12,10 +12,10 @@ import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
+import io.openaev.service.payload.PayloadLocalVersioning;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -31,6 +31,7 @@ public class PayloadUpdateService {
   private final PayloadUtils payloadUtils;
 
   private final PayloadService payloadService;
+  private final PayloadLocalVersioning payloadLocalVersioning;
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
 
@@ -38,7 +39,6 @@ public class PayloadUpdateService {
   private final AttackPatternRepository attackPatternRepository;
   private final DomainRepository domainRepository;
   private final PayloadRepository payloadRepository;
-  private final DocumentService documentService;
 
   @Transactional(rollbackFor = Exception.class)
   public PayloadCreationService.PayloadInjectorContractCreationResult updatePayload(
@@ -55,7 +55,8 @@ public class PayloadUpdateService {
     // null". An absent collection means "no associations".
     List<AttackPattern> attackPatterns =
         fromIterable(
-            attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds())));
+            attackPatternRepository.findAllByIdInTenant(
+                emptyIfNull(input.getAttackPatternsIds()), payload.getTenant().getId()));
     return update(input, payload, attackPatterns);
   }
 
@@ -64,31 +65,41 @@ public class PayloadUpdateService {
     PayloadType payloadType = PayloadType.fromString(existingPayload.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
-    Payload payload = (Payload) Hibernate.unproxy(existingPayload);
-    payloadUtils.copyProperties(input, payload);
+    // Validated against the request's own arguments, before copyProperties: copyProperties sets
+    // the arguments straight onto the managed entity below, so a refusal after that point would
+    // still leave Hibernate's dirty checking holding the cross-tenant value to flush.
+    String tenantId = existingPayload.getTenant().getId();
+    payloadUtils.validateDocumentArguments(
+        input.getArguments(), existingPayload.getArguments(), tenantId);
 
-    // Somehow, loading tags can create a detached error on detection remediation.
-    // Detaching the collection before and reattaching it after bypass the issue
-    List<DetectionRemediation> originalDrs = new ArrayList<>(payload.getDetectionRemediations());
-    payload.setDetectionRemediations(Collections.emptyList());
-    payload.setDetectionRemediations(originalDrs);
-
-    if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
-    } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
-    }
+    Payload current = (Payload) Hibernate.unproxy(existingPayload);
+    Payload payload =
+        payloadLocalVersioning
+            .newVersion(current, input, attackPatterns)
+            .orElseGet(() -> updateInPlace(input, current));
 
     Payload saved = payloadRepository.save(payload);
     InjectorContract injectorContract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
             saved,
             attackPatterns,
-            iterableToSet(domainRepository.findAllById(emptyIfNull(input.getDomainIds()))),
+            iterableToSet(
+                domainRepository.findAllByIdInTenant(
+                    emptyIfNull(input.getDomainIds()), saved.getTenant().getId())),
             iterableToSet(
                 tagRepository.findAllByIdInTenant(
                     emptyIfNull(input.getTagIds()), saved.getTenant().getId())));
     return new PayloadCreationService.PayloadInjectorContractCreationResult(
         saved, injectorContract);
+  }
+
+  private Payload updateInPlace(PayloadUpdateInput input, Payload payload) {
+    payloadUtils.copyProperties(input, payload);
+    // Somehow, loading tags can create a detached error on detection remediation.
+    // Detaching the collection before and reattaching it after bypass the issue
+    List<DetectionRemediation> originalDrs = new ArrayList<>(payload.getDetectionRemediations());
+    payload.setDetectionRemediations(Collections.emptyList());
+    payload.setDetectionRemediations(originalDrs);
+    return payload;
   }
 }

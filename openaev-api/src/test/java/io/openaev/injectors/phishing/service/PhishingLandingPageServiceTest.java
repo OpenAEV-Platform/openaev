@@ -44,6 +44,7 @@ import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.organization.OrganizationService;
@@ -378,7 +379,7 @@ class PhishingLandingPageServiceTest {
     Document darkLogo = new Document();
     darkLogo.setId("doc-dark");
     when(landingPageRepository.findById("lp-1")).thenReturn(Optional.of(landingPage));
-    when(documentService.document("doc-dark")).thenReturn(darkLogo);
+    when(documentService.documentInTenant("doc-dark", "tenant-1")).thenReturn(darkLogo);
     when(landingPageRepository.save(any(PhishingLandingPage.class))).thenReturn(landingPage);
     when(injectorRepository.findByPhishingContractTypeByTenantId(eq(PhishingContract.TYPE), any()))
         .thenReturn(List.of());
@@ -390,7 +391,25 @@ class PhishingLandingPageServiceTest {
     // -- ASSERT --
     assertSame(darkLogo, updated.getLogoDark());
     assertNull(updated.getLogoLight());
-    verify(documentService).document("doc-dark");
+    verify(documentService).documentInTenant("doc-dark", "tenant-1");
+  }
+
+  @Test
+  @DisplayName("updateLogos refuses a logo document of another tenant")
+  void updateLogos_should_refuseForeignTenantDocument() {
+    // -- ARRANGE --
+    PhishingLandingPage landingPage = new PhishingLandingPage();
+    landingPage.setId("lp-1");
+    landingPage.setName("Login page");
+    landingPage.setTenant(new Tenant("tenant-1"));
+    when(landingPageRepository.findById("lp-1")).thenReturn(Optional.of(landingPage));
+    when(documentService.documentInTenant("doc-foreign", "tenant-1"))
+        .thenThrow(new ElementNotFoundException("Document not found"));
+
+    // -- ACT & ASSERT --
+    assertThrows(
+        ElementNotFoundException.class,
+        () -> phishingLandingPageService.updateLogos(TxCtx.missing(), "lp-1", "doc-foreign", null));
   }
 
   @Test

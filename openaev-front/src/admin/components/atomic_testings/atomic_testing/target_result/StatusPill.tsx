@@ -24,6 +24,8 @@ const StatusPill: FunctionComponent<Props> = ({ label, status }) => {
         borderRadius: 1,
         backgroundColor: tint(statusColor, 8),
         color: statusColor,
+        // The design-system 1.13 chip look: the tone fill and a 1px hairline at 30% of the tone.
+        border: `1px solid ${tint(statusColor, 30)}`,
         fontSize: 11,
         fontWeight: 700,
         letterSpacing: '0.04em',

@@ -8,8 +8,10 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.api.chaining.StepMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
+import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
@@ -32,6 +34,7 @@ import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.helpers.InjectTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -66,6 +69,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private EntityManager entityManager;
   ObjectMapper mapper = new ObjectMapper();
   @Autowired private InjectTestHelper injectTestHelper;
   String injectInputJson;
@@ -290,15 +294,99 @@ class StepServiceIntegrationTest extends IntegrationTest {
     Condition survivingRoot = conditionRepository.findById(rootId).orElse(null);
     assertNotNull(survivingRoot, "the preserved event survives");
     assertEquals(1, survivingRoot.getConditionChildren().size(), "and keeps its child");
-    // The step->root JOIN must survive too, not just the condition rows: the unconditional
-    // step-side conditionSteps.clear() must never orphan-delete the link the caller asked to
-    // preserve via conditionIds, or the updated step would be silently event-less. This is the
-    // exact clear() + linkExistingConditionsToStep(preserved) mechanism the autonomous
-    // updateInjectStepTemplateDataAndTrigger reuses to preserve a shared event on update (#7482).
+    // The step->root JOIN must survive too, not just the condition rows: the link the caller asked
+    // to preserve via conditionIds must never be orphan-deleted, or the updated step would be
+    // silently event-less. The autonomous updateInjectStepTemplateDataAndTrigger reuses the same
+    // preserve + linkExistingConditionsToStep mechanism to keep a shared event on update (#7482).
     List<Condition> stillLinked = conditionService.findAllConditionsByStepId(updated.getId());
     assertTrue(
         stillLinked.stream().anyMatch(c -> rootId.equals(c.getId())),
         "the step stays linked to its preserved event root");
+  }
+
+  @Test
+  void given_stepLinkedToAnEventInAFreshSession_should_keepTheEventLinksOnUpdate()
+      throws JsonProcessingException, ChainingException {
+    // Arrange
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    Workflow workflow =
+        workflowComposer
+            .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+            .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+            .persist()
+            .get();
+    StepsCreateInput.StepInput createInput = buildInvalidInput(); // root + one child
+    createInput.setDataStep(injectInput);
+    Step step = spyStepService.createStepTemplate(workflow, createInput);
+    String rootId =
+        conditionService.findAllConditionsByStepId(step.getId()).stream()
+            .filter(c -> c.getConditionParent() == null)
+            .map(Condition::getId)
+            .findFirst()
+            .orElseThrow();
+    // Start the update from an empty session, as an HTTP request does: the step then loads its
+    // condition links from the database, so its step-side collection is not empty.
+    entityManager.flush();
+    entityManager.clear();
+
+    StepInput updateInput =
+        StepInput.builder()
+            .workflowId(workflow.getId())
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .conditionIds(List.of(rootId))
+            .dataStep(injectInput)
+            .build();
+
+    // Act
+    spyStepService.updateStepTemplate(step.getId(), updateInput);
+    entityManager.flush();
+    entityManager.clear();
+
+    // Assert
+    List<Condition> stillLinked = conditionService.findAllConditionsByStepId(step.getId());
+    assertEquals(
+        2, stillLinked.size(), "the step stays linked to the preserved event's root and child");
+    assertTrue(stillLinked.stream().anyMatch(c -> rootId.equals(c.getId())));
+  }
+
+  @Test
+  void given_stepWhoseEventIsDroppedInAFreshSession_should_unlinkTheEventFromTheStepOnUpdate()
+      throws JsonProcessingException, ChainingException {
+    // Arrange
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    Workflow workflow =
+        workflowComposer
+            .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+            .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+            .persist()
+            .get();
+    StepsCreateInput.StepInput createInput = buildInvalidInput(); // root + one child
+    createInput.setDataStep(injectInput);
+    Step step = spyStepService.createStepTemplate(workflow, createInput);
+    entityManager.flush();
+    entityManager.clear();
+
+    StepInput updateInput =
+        StepInput.builder()
+            .workflowId(workflow.getId())
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .conditionIds(List.of())
+            .dataStep(injectInput)
+            .build();
+
+    // Act
+    // StepApi maps the step in the same transaction, before anything flushes: the step-side links
+    // it reads must already be rid of the dropped event.
+    StepOutput output =
+        StepMapper.toOutput(spyStepService.updateStepTemplate(step.getId(), updateInput));
+    entityManager.flush();
+    entityManager.clear();
+
+    // Assert
+    assertTrue(output.getConditionIds().isEmpty(), "the output no longer lists the dropped event");
+    assertTrue(
+        conditionService.findAllConditionsByStepId(step.getId()).isEmpty(),
+        "the dropped event is no longer linked to the step");
   }
 
   @Test
@@ -328,6 +416,31 @@ class StepServiceIntegrationTest extends IntegrationTest {
             BadRequestException.class, () -> spyStepService.createStepTemplate(workflow, input));
     assertTrue(ex.getMessage().contains(missingContractId));
     assertEquals(countBefore, stepRepository.count(), "no ghost step persisted");
+  }
+
+  @Test
+  void
+      given_workflowWithNeitherSimulationNorScenario_should_refuseStepTemplateWithChainingException()
+          throws Exception {
+    // No condition list is given, so the contract auto-links are built first. That step reads the
+    // tenant of the workflow's parent: a workflow with neither parent must still reach
+    // InjectExecutionStep#create and be refused there with the ChainingException it always was,
+    // not fail with a NullPointerException on the tenant read.
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput input = new StepsCreateInput.StepInput();
+    input.setStepAction(StepActionClass.INJECT_EXECUTION);
+    input.setDataStep(injectInput);
+    input.setConditions(null);
+    Workflow parentlessWorkflow = WorkflowFixture.getDefaultWorkflowTemplate();
+
+    long countBefore = stepRepository.count();
+    ChainingException ex =
+        assertThrows(
+            ChainingException.class,
+            () -> spyStepService.createStepTemplate(parentlessWorkflow, input));
+
+    assertTrue(ex.getMessage().contains("Workflow has no simulation or scenario"));
+    assertEquals(countBefore, stepRepository.count(), "no step persisted");
   }
 
   @Test

@@ -203,8 +203,10 @@ public class TeamApi extends RestBehavior {
     team.setOrganization(
         updateRelation(input.getOrganizationId(), team.getOrganization(), organizationRepository));
     team.setTags(iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), writeTenant)));
-    team.setExercises(iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
-    team.setScenarios(iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
+    team.setExercises(
+        iterableToSet(exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), writeTenant)));
+    team.setScenarios(
+        iterableToSet(scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), writeTenant)));
     return teamRepository.save(team);
   }
 
@@ -217,8 +219,7 @@ public class TeamApi extends RestBehavior {
   public Team upsertTeam(
       @RequireTenantSelector TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
     if (input.getContextual() && input.getExerciseIds().toArray().length > 1) {
-      throw new UnsupportedOperationException(
-          "Contextual team can only be associated to one exercise");
+      throw new BadRequestException("Contextual team can only be associated to one exercise");
     }
     String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
     Optional<Team> team =
@@ -242,8 +243,12 @@ public class TeamApi extends RestBehavior {
               input.getOrganizationId(), newTeam.getOrganization(), organizationRepository));
       newTeam.setTags(
           iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), writeTenant)));
-      newTeam.setExercises(iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
-      newTeam.setScenarios(iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
+      newTeam.setExercises(
+          iterableToSet(
+              exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), writeTenant)));
+      newTeam.setScenarios(
+          iterableToSet(
+              scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), writeTenant)));
       return teamRepository.save(newTeam);
     }
   }

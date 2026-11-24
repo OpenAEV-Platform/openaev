@@ -165,6 +165,9 @@ Findings are accessible from multiple locations in the platform:
 | **Scenario detail** | Findings aggregated across all Simulations of the Scenario |
 | **Inject execution results** | Findings produced by a specific Inject |
 | **Endpoint detail** | All Findings linked to a specific Asset |
+{%- if feature_visible("EXPLORATION_GRAPH") %}
+| **Exploration graph** | The Finding with the Assets it was found on and the Injects that produced it, from the **Explore in graph** button of the Finding detail (see [Exploration graph](../exploration-graph.md)) |
+{%- endif %}
 
 ## What's next?
 

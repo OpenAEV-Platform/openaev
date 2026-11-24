@@ -9,14 +9,15 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
-import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.group.form.GroupUpdateUsersInput;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.GroupFixtureWriter;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
@@ -33,9 +34,10 @@ import org.springframework.transaction.annotation.Transactional;
 class UserServiceTest extends IntegrationTest {
 
   @Autowired private UserService userService;
+  @Autowired private TenantGroupService tenantGroupService;
   @Autowired private UserComposer userComposer;
   @Autowired private TenantComposer tenantComposer;
-  @Autowired private GroupRepository groupRepository;
+  @Autowired private GroupFixtureWriter groupFixtureWriter;
   @Autowired private TokenRepository tokenRepository;
   @Autowired private TestUserHolder testUserHolder;
   @PersistenceContext private EntityManager entityManager;
@@ -194,6 +196,7 @@ class UserServiceTest extends IntegrationTest {
   }
 
   @Test
+  @WithMockUser
   @DisplayName("given_groupRemovedInTenant_should_notReassignItOnPlatformUpdate")
   void given_groupRemovedInTenant_should_notReassignItOnPlatformUpdate() {
     // -- ARRANGE --
@@ -208,9 +211,12 @@ class UserServiceTest extends IntegrationTest {
             "secureP@ss1",
             List.of(tenant.getId()));
     User created = userService.createUser(input, UserCreationScope.PLATFORM);
-    // The tenant admin removes the auto-assign group from the user, from within the tenant.
-    created.getUnscopedGroups().remove(tenantGroup);
-    userService.saveUser(created);
+    entityManager.flush();
+    entityManager.clear();
+    // The tenant admin removes the user from the auto-assign group, from within the tenant.
+    GroupUpdateUsersInput noMembers = new GroupUpdateUsersInput();
+    noMembers.setUserIds(List.of());
+    tenantGroupService.updateGroupUsers(tenant.getId(), tenantGroup.getId(), noMembers);
     entityManager.flush();
     entityManager.clear();
 
@@ -339,7 +345,7 @@ class UserServiceTest extends IntegrationTest {
     group.setName(name);
     group.setDefaultUserAssignation(true);
     group.setTenant(tenant);
-    return groupRepository.save(group);
+    return groupFixtureWriter.save(group);
   }
 
   // -- READ --

@@ -159,6 +159,26 @@ public class SpecificationUtils {
       String tenantId,
       Grant.GRANT_RESOURCE_TYPE resourceType,
       List<Grant.GRANT_TYPE> allowedGrantTypes) {
+    return accessibleResourcesSubquery(
+        query, cb, userId, cb.literal(tenantId), resourceType, allowedGrantTypes);
+  }
+
+  /**
+   * Same as above, for a tenant that is an expression: a literal, or a column of the outer query. A
+   * column makes the subquery correlated, so the database runs it once per row of the outer query;
+   * a resource whose rows are many and whose tenant is a column reads its grants through {@link
+   * #accessibleResourcesSubquery(CriteriaQuery, CriteriaBuilder, String, GrantGroups,
+   * Grant.GRANT_RESOURCE_TYPE, List)} instead.
+   *
+   * @param rowTenant the tenant the grant must count for
+   */
+  public static Subquery<String> accessibleResourcesSubquery(
+      CriteriaQuery<?> query,
+      CriteriaBuilder cb,
+      String userId,
+      Expression<String> rowTenant,
+      Grant.GRANT_RESOURCE_TYPE resourceType,
+      List<Grant.GRANT_TYPE> allowedGrantTypes) {
 
     Subquery<String> accessibleResources = query.subquery(String.class);
     Root<Grant> grantTable = accessibleResources.from(Grant.class);
@@ -173,9 +193,71 @@ public class SpecificationUtils {
     accessibleResources.where(
         cb.and(
             cb.equal(userTable.get("id"), userId),
-            groupCountsInTenant(cb, groupTable, tenantId),
+            groupCountsInTenant(cb, groupTable, rowTenant),
             cb.equal(grantTable.get("grantResourceType"), resourceType),
             grantTable.get("name").in(allowedGrantTypes)));
+
+    return accessibleResources;
+  }
+
+  /** The groups a grant is held through, for the grants of a resource whose tenant is a column. */
+  public enum GrantGroups {
+    /** The grants held through a group with no tenant: they count in every tenant. */
+    PLATFORM,
+    /**
+     * The grants held through a group of a tenant, keyed by {@link SpecificationUtils#tenantKey}.
+     */
+    KEYED_BY_TENANT
+  }
+
+  /**
+   * The grants of the user, in one of two sets that do not depend on the row they are matched with,
+   * so the database evaluates each once per statement:
+   *
+   * <ul>
+   *   <li>{@link GrantGroups#PLATFORM}: the resource ids of the grants held through a platform
+   *       group; a resource matches in any tenant;
+   *   <li>{@link GrantGroups#KEYED_BY_TENANT}: the keys {@link SpecificationUtils#tenantKey} builds
+   *       from the resource id and the tenant of the group that holds the grant; a resource matches
+   *       in a tenant when the key built from the resource and that tenant is in the set.
+   * </ul>
+   *
+   * A resource id repeats across tenants, so a grant counts for a row of a tenant when its group
+   * belongs to that tenant or is a platform group: {@code id IN platform OR key(id, rowTenant) IN
+   * keyedByTenant}.
+   *
+   * @param query The parent criteria query used to create the subquery
+   * @param cb The criteria builder for constructing query predicates
+   * @param userId The ID of the user whose grants are read
+   * @param groups The set to build: the platform groups' resource ids or the tenant groups' keys
+   * @param resourceType The type of resource to filter by
+   * @param allowedGrantTypes List of grant types that provide access (e.g., OBSERVER and higher)
+   * @return A subquery that selects resource ids, or tenant keys
+   */
+  public static Subquery<String> accessibleResourcesSubquery(
+      CriteriaQuery<?> query,
+      CriteriaBuilder cb,
+      String userId,
+      GrantGroups groups,
+      Grant.GRANT_RESOURCE_TYPE resourceType,
+      List<Grant.GRANT_TYPE> allowedGrantTypes) {
+
+    Subquery<String> accessibleResources = query.subquery(String.class);
+    Root<Grant> grantTable = accessibleResources.from(Grant.class);
+    Join<Grant, Group> groupTable = grantTable.join("group");
+    Join<Group, User> userTable = groupTable.join("users");
+
+    List<Predicate> conditions = new ArrayList<>();
+    conditions.add(cb.equal(userTable.get("id"), userId));
+    conditions.add(cb.equal(grantTable.get("grantResourceType"), resourceType));
+    conditions.add(grantTable.get("name").in(allowedGrantTypes));
+    if (groups == GrantGroups.PLATFORM) {
+      accessibleResources.select(grantTable.get("resourceId"));
+      conditions.add(groupCountsInTenant(cb, groupTable));
+    } else {
+      accessibleResources.select(groupTenantKey(cb, grantTable, groupTable));
+    }
+    accessibleResources.where(cb.and(conditions.toArray(new Predicate[0])));
 
     return accessibleResources;
   }
@@ -185,10 +267,36 @@ public class SpecificationUtils {
    * is a platform group.
    */
   private static Predicate groupCountsInTenant(
-      CriteriaBuilder cb, Join<Grant, Group> groupTable, String tenantId) {
+      CriteriaBuilder cb, Join<Grant, Group> groupTable, Expression<String> tenantId) {
     return cb.or(
         cb.isNull(groupTable.get("tenant")),
         cb.equal(groupTable.get("tenant").get("id"), tenantId));
+  }
+
+  /** A grant held through a platform group counts in every tenant: the group has no tenant. */
+  private static Predicate groupCountsInTenant(CriteriaBuilder cb, Join<Grant, Group> groupTable) {
+    return cb.isNull(groupTable.get("tenant"));
+  }
+
+  /**
+   * The key of a grant held through a group of a tenant: the resource id and the tenant of the
+   * group. The key carries the group's tenant, so a grant matches only a row of that tenant; a
+   * platform group gives a null key, which matches nothing.
+   */
+  private static Expression<String> groupTenantKey(
+      CriteriaBuilder cb, Root<Grant> grantTable, Join<Grant, Group> groupTable) {
+    return tenantKey(
+        cb, grantTable.<String>get("resourceId"), groupTable.get("tenant").<String>get("id"));
+  }
+
+  /**
+   * The key of a resource in a tenant, {@code resource|tenant}, built with the SQL concatenation so
+   * a null resource gives a null key. A tenant id is a 36-character UUID and ends the key, so two
+   * keys are equal exactly when the resources are equal and the tenants are equal.
+   */
+  public static Expression<String> tenantKey(
+      CriteriaBuilder cb, Expression<String> resourceId, Expression<String> tenantId) {
+    return cb.concat(cb.concat(resourceId, "|"), tenantId);
   }
 
   public static <T extends GrantableBase>

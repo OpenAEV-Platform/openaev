@@ -39,6 +39,12 @@ public interface HasPayloadIdentity extends JsonApiExtraAttributes {
     getIdentity().setSource(source);
   }
 
+  /** A version released by a catalogue, which the platform never changes. */
+  @JsonIgnore
+  default boolean isManaged() {
+    return getIdentity().isManaged();
+  }
+
   @JsonProperty("payload_collector_type")
   @JsonSerialize(using = CollectorTypeNameSerializer.class)
   @Schema(implementation = String.class)
@@ -49,6 +55,11 @@ public interface HasPayloadIdentity extends JsonApiExtraAttributes {
   @JsonIgnore
   default void setCollectorType(CollectorType collectorType) {
     getIdentity().setCollectorType(collectorType);
+  }
+
+  @JsonIgnore
+  default boolean isFromCollector() {
+    return getCollectorType() != null;
   }
 
   @Override

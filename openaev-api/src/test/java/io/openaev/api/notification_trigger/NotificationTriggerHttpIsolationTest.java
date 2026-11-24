@@ -12,7 +12,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerPeriod;
 import io.openaev.database.model.NotificationTriggerType;
@@ -31,7 +32,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,11 +48,11 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Each test method issues a single request so the per-request scope is set once: changing it
  * inside the test transaction would hit {@code TenantScopeTransactionAspect}'s nesting guard.
  */
+@CoversTenantIsolation("notification_triggers")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=notification_triggers")
 @WithMockUser(isAdmin = true)
 @DisplayName("notification_triggers read and write isolation through the real HTTP endpoint")
-class NotificationTriggerHttpIsolationTest extends IntegrationTest {
+class NotificationTriggerHttpIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String TRIGGER_BY_ID = "/api/tenants/{tenantId}/notification-triggers/{id}";
   private static final String TRIGGERS = "/api/tenants/{tenantId}/notification-triggers";
@@ -144,7 +144,7 @@ class NotificationTriggerHttpIsolationTest extends IntegrationTest {
                 post("/api/notification-triggers")
                     .header("X-Tenant-Ids", tenantA)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(liveTrigger("created-via-header", notifierDefault)))
+                    .content(asJsonString(liveTrigger("created-via-header", notifierA)))
                     .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
@@ -190,7 +190,7 @@ class NotificationTriggerHttpIsolationTest extends IntegrationTest {
             post("/api/notification-triggers")
                 .header("X-Tenant-Ids", tenantA)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(digestWith(childDefault, notifierDefault)))
+                .content(asJsonString(digestWith(childDefault, notifierA)))
                 .with(csrf()))
         .andExpect(status().is4xxClientError());
 

@@ -114,7 +114,7 @@ class ArchRuleRegistrationTest {
               "parameterised by the baseline, so the runner checks it from a @Test"),
           new Helper(
               WorkflowOwnerScopeCallerRules.class,
-              "ONLY_OWNER_SCOPE_MOVES_THE_CURRENT_TRANSACTION",
+              "ONLY_LISTED_CLASSES_MOVE_THE_CURRENT_TRANSACTION",
               WorkflowOwnerScopeCallerArchTest.class,
               "shared with WorkflowOwnerScopeCallerRulesTest, which proves it fires on fixtures"),
           new Helper(
@@ -126,7 +126,59 @@ class ArchRuleRegistrationTest {
               WorkflowOwnerScopeCallerRules.class,
               "scopeSetOnCurrentTransactionOnlyFrom",
               WorkflowOwnerScopeCallerArchTest.class,
-              "parameterised by the baseline, so the runner builds it from the baseline names"));
+              "parameterised by the baseline, so the runner builds it from the baseline names"),
+          new Helper(
+              WorkflowOwnerScopeCallerRules.class,
+              "callerRightsLoadedOnlyFrom",
+              WorkflowOwnerScopeCallerArchTest.class,
+              "parameterised by the allowlist, so the runner builds it from the allowlist names"),
+          new Helper(
+              WorkflowOwnerScopeCallerRules.class,
+              "ambientCallerReadOnlyFrom",
+              WorkflowOwnerScopeCallerArchTest.class,
+              "parameterised by the allowlist, so the runner builds it from the allowlist names"),
+          new Helper(
+              TenantActiveTableAccessArchTest.class,
+              "queryNamingTableIsCalledOnlyBy",
+              TenantActiveTableAccessArchTest.class,
+              "a parameterised rule factory; each @ArchTest field of the class calls it with its own"
+                  + " table and allowlist to build its own rule"),
+          new Helper(
+              TenantActiveTableAccessArchTest.class,
+              "tenantlessInjectorContractQueryIsCalledOnlyBy",
+              TenantActiveTableAccessArchTest.class,
+              "a parameterised rule factory; its one @ArchTest field calls it with the allowlist to"
+                  + " build its rule"),
+          new Helper(
+              TenantActiveTableAccessArchTest.class,
+              "pinnedCallersPinBeforeTheLookup",
+              TenantActiveTableAccessArchTest.class,
+              "a parameterised rule factory; its one @ArchTest field calls it with the same"
+                  + " allowlist to build its rule"),
+          new Helper(
+              TenantActiveTableAccessArchTest.class,
+              "callersAreOnly",
+              TenantActiveTableAccessArchTest.class,
+              "a parameterised rule factory; its one @ArchTest field calls it with the caller"
+                  + " claims to build its rule"),
+          new Helper(
+              TenantActiveTableAccessArchTest.class,
+              "tableIsReachedOnlyThrough",
+              TenantActiveTableAccessArchTest.class,
+              "a parameterised rule factory; its one @ArchTest field calls it with the methods"
+                  + " of the scoped classes to build its rule"),
+          new Helper(
+              TenantActiveTableAccessArchTest.class,
+              "methodsReachingTheTableTakeATxCtx",
+              TenantActiveTableAccessArchTest.class,
+              "a parameterised rule factory; its one @ArchTest field calls it with the scoped"
+                  + " classes that take a TxCtx to build its rule"),
+          new Helper(
+              TenantActiveTableAccessArchTest.class,
+              "mappedOnTheTenantRouteOnly",
+              TenantActiveTableAccessArchTest.class,
+              "a parameterised rule factory; its one @ArchTest field calls it with the route"
+                  + " claims to build its rule"));
 
   /** The members the ArchUnit engine can run as a rule, whether or not they are annotated. */
   private static Stream<JavaMember> ruleMembers() {

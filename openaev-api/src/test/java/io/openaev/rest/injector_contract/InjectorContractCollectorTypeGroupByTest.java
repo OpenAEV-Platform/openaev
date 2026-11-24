@@ -5,7 +5,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.CollectorType;
@@ -33,26 +33,32 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * With {@code collector_types} v2-activated, {@code InjectorContractService}'s tuple queries (FULL
- * and THREAT_ARSENAL) project {@code collector_type.name} while grouping only by {@code
- * collector_type.id} ({@code getCommonGroupBy}). {@code TenantStatementInspector} wraps the joined
- * {@code collector_types} in a filtered derived table, which has no primary key, so PostgreSQL
- * rejects the statement: the selected {@code name} column is no longer functionally dependent on
- * the grouped {@code id}. This surfaces as a 500 on {@code POST /injector_contracts/search} (full
- * details) and on both {@code /threat_arsenals/search} routes.
+ * Pins that the contract searches answer a success status on the production list of isolated
+ * tables, which holds {@code collector_types}. The tuple queries of {@code InjectorContractService}
+ * group by the id and every projected column ({@code getCommonGroupBy}); {@code
+ * TenantStatementInspector} wraps the joined {@code collector_types} in a filtered derived table,
+ * which has no primary key, so the statement is valid only if the projected columns are part of the
+ * grouping. Each test posts one search on the tenant route with the default input:
  *
- * <p>Deliberately NOT {@code @Transactional}, same shape as {@code PayloadCollectorTypeScopeTest}:
- * a test-managed transaction changes how the tenant scope is applied to the request and was found
- * to mask this exact defect.
+ * <ul>
+ *   <li>{@code given_collectorTypeActive_should_notFailOnInjectorContractSearch} posts {@code
+ *       /api/tenants/{id}/injector_contracts/search}, whose default input asks for the full
+ *       details;
+ *   <li>{@code given_collectorTypeActive_should_notFailOnThreatArsenalSearch} posts {@code
+ *       /api/tenants/{id}/threat_arsenals/search}, whose default input selects the THREAT_ARSENAL
+ *       mode.
+ * </ul>
+ *
+ * <p>Not {@code @Transactional}, same shape as {@code PayloadCollectorTypeScopeTest}: the request
+ * runs in its own transaction, as in production, and applies the tenant scope itself.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=collector_types")
 @WithMockUser(isAdmin = true)
-@DisplayName("InjectorContractApi/ThreatArsenalApi search with collector_types active")
-class InjectorContractCollectorTypeGroupByTest extends IntegrationTest {
+@DisplayName(
+    "InjectorContractApi/ThreatArsenalApi search on the production list of isolated tables")
+class InjectorContractCollectorTypeGroupByTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -133,8 +139,8 @@ class InjectorContractCollectorTypeGroupByTest extends IntegrationTest {
 
   @Test
   @DisplayName(
-      "POST /injector_contracts/search with full details does not 500 once collector_types is"
-          + " active")
+      "POST /api/tenants/{tenantId}/injector_contracts/search with full details answers a success"
+          + " status on the production list of isolated tables")
   void given_collectorTypeActive_should_notFailOnInjectorContractSearch() throws Exception {
     SearchPaginationInput input = new SearchPaginationInput();
 
@@ -147,7 +153,9 @@ class InjectorContractCollectorTypeGroupByTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("POST /threat_arsenals/search does not 500 once collector_types is active")
+  @DisplayName(
+      "POST /api/tenants/{tenantId}/threat_arsenals/search in THREAT_ARSENAL mode answers a success"
+          + " status on the production list of isolated tables")
   void given_collectorTypeActive_should_notFailOnThreatArsenalSearch() throws Exception {
     SearchPaginationInput input = new SearchPaginationInput();
 

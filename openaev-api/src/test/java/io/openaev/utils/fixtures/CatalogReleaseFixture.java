@@ -1,17 +1,30 @@
 package io.openaev.utils.fixtures;
 
+import static io.openaev.service.ImportService.EXPORT_ENTRY_SCENARIO;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.service.catalog.CatalogArchiveChecks;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 
 /** Manifest entries and files of a catalogue release, as the collector sends them. */
 public class CatalogReleaseFixture {
@@ -61,6 +74,80 @@ public class CatalogReleaseFixture {
     }
   }
 
+  /** A Command payload file as the repository stores it, and the content hash it releases. */
+  public record ReleasedPayload(byte[] file, String contentHash) {}
+
+  public static ReleasedPayload releasedPayload() {
+    try (InputStream in =
+        CatalogReleaseFixture.class.getResourceAsStream("/catalog/payload-hash-vectors.json")) {
+      JsonNode vector =
+          StreamSupport.stream(MAPPER.readTree(in).path("vectors").spliterator(), false)
+              .filter(v -> v.path("name").asText().contains("as the repository stores it"))
+              .findFirst()
+              .orElseThrow();
+      ObjectNode file = ((ObjectNode) vector.path("payload")).deepCopy();
+      file.remove("payload_id");
+      file.put("payload_external_id", PAYLOAD_ID);
+      file.set("payload_attack_patterns", vector.path("attack_patterns"));
+      return new ReleasedPayload(MAPPER.writeValueAsBytes(file), vector.path("sha256").asText());
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /** A scenario export holding one implant inject that runs the given payload file. */
+  public static byte[] scenarioPackage(byte[] payloadFile) {
+    return scenarioPackage(payloadFile, export -> {});
+  }
+
+  /** The same export, changed as a later version of it would be. */
+  public static byte[] scenarioPackage(byte[] payloadFile, Consumer<ObjectNode> change) {
+    return zippedExport(
+        "/importer-v1/import-scenario-with-attack-pattern.json",
+        export -> {
+          change.accept(export);
+          return (ObjectNode) export.get("scenario_injects").get(0).get("inject_injector_contract");
+        },
+        payloadFile);
+  }
+
+  /** A chained scenario export whose one workflow step runs the given payload file. */
+  public static byte[] chainedScenarioPackage(byte[] payloadFile) {
+    return zippedExport(
+        "/importer-v1/import-scenario-workflow-step-missing-contract-with-payload.json",
+        export ->
+            (ObjectNode)
+                export
+                    .get("scenario_workflow")
+                    .get("workflow_steps")
+                    .get(0)
+                    .get("step_data")
+                    .get("inject_injector_contract"),
+        payloadFile);
+  }
+
+  // The contract keeps an ID of the exporting platform: the import links its payload by content.
+  private static byte[] zippedExport(
+      String resource, Function<ObjectNode, ObjectNode> contractOf, byte[] payloadFile) {
+    try (InputStream in = CatalogReleaseFixture.class.getResourceAsStream(resource)) {
+      ObjectNode export = (ObjectNode) MAPPER.readTree(in);
+      ObjectNode contract = contractOf.apply(export);
+      contract.put("injector_contract_id", UUID.randomUUID().toString());
+      contract.set("injector_contract_payload", MAPPER.readTree(payloadFile));
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      try (ZipOutputStream zip = new ZipOutputStream(out)) {
+        ZipEntry entry = new ZipEntry("scenario.json");
+        entry.setComment(EXPORT_ENTRY_SCENARIO);
+        zip.putNextEntry(entry);
+        zip.write(MAPPER.writeValueAsBytes(export));
+        zip.closeEntry();
+      }
+      return out.toByteArray();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
   public static String scenarioFileName(String version) {
     return SCENARIO_ID + "-" + version + ".zip";
   }
@@ -100,6 +187,14 @@ public class CatalogReleaseFixture {
     return payload;
   }
 
+  public static Map<String, Object> payloadVersion(
+      String version, String status, ReleasedPayload released) {
+    Map<String, Object> payload = payloadVersion(version, released.file());
+    payload.put("sha256", released.contentHash());
+    payload.put("status", status);
+    return payload;
+  }
+
   public static Map<String, Object> manifest(
       String release, List<Map<String, Object>> items, List<Map<String, Object>> payloads) {
     Map<String, Object> manifest = new LinkedHashMap<>();
@@ -109,5 +204,20 @@ public class CatalogReleaseFixture {
     manifest.put("items", items);
     manifest.put("payloads", payloads);
     return manifest;
+  }
+
+  /** A sync request: the manifest, and each file of the release as an archive. */
+  public static MockMultipartHttpServletRequestBuilder syncRequest(
+      byte[] manifest, Map<String, byte[]> files, String uri, Object... uriVariables) {
+    MockMultipartHttpServletRequestBuilder request =
+        multipart(uri, uriVariables)
+            .file(
+                new MockMultipartFile(
+                    "manifest", "manifest.json", MediaType.APPLICATION_JSON_VALUE, manifest));
+    files.forEach(
+        (name, content) ->
+            request.file(
+                new MockMultipartFile("archives", name, "application/octet-stream", content)));
+    return request;
   }
 }

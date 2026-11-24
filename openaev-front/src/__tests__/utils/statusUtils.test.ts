@@ -22,6 +22,9 @@ describe('statusUtils', () => {
       ['SUCCESS', 'DETECTION', 'Detected'],
       ['PARTIAL', 'DETECTION', 'Partially Detected'],
       ['FAILED', 'DETECTION', 'Not Detected'],
+      ['SUCCESS', 'LOGGING', 'Logged'],
+      ['PARTIAL', 'LOGGING', 'Partially Logged'],
+      ['FAILED', 'LOGGING', 'Not Logged'],
       ['SUCCESS', 'VULNERABILITY', 'Not vulnerable'],
       ['PARTIAL', 'VULNERABILITY', 'Partially Vulnerable'],
       ['FAILED', 'VULNERABILITY', 'Vulnerable'],
@@ -46,6 +49,8 @@ describe('statusUtils', () => {
       ['Partially Detected', 'PARTIAL'],
       ['Not Detected', 'FAILED'],
       ['Partially Vulnerable', 'PARTIAL'],
+      ['Logged', 'SUCCESS'],
+      ['Not Logged', 'FAILED'],
     ])('given the result label %s, should colour it as %s', (label, result) => {
       // -- ACT & ASSERT --
       expect(statusSeverity(label)).toBe(statusSeverity(result));
@@ -64,6 +69,7 @@ describe('statusUtils', () => {
       ['Detected', 'success'],
       ['Partially Prevented', 'warning'],
       ['Not Prevented', 'error'],
+      ['Partially Logged', 'warning'],
       ['Vulnerable', 'error'],
       ['Pending', 'grey'],
       ['NOT_A_STATUS', 'error'],

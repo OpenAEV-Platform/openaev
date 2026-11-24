@@ -11,6 +11,7 @@ import { buildSearchPagination } from '../../../../components/common/queryable/Q
 import { useFormatter } from '../../../../components/i18n';
 import { type Filter, type NotificationTriggerInput, type NotificationTriggerOutput, type NotifierOutput } from '../../../../utils/api-types';
 import useAuth from '../../../../utils/hooks/useAuth';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import TriggerForm from './TriggerForm';
 import { eventTypesOf } from './triggerUtils';
 
@@ -34,6 +35,7 @@ const TriggerSubscribeButton: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const { me } = useAuth();
+  const catalogEnabled = isFeatureEnabled('CATALOG');
   const [instanceTrigger, setInstanceTrigger] = useState<NotificationTriggerOutput | null>(null);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
@@ -74,7 +76,7 @@ const TriggerSubscribeButton: FunctionComponent<Props> = ({
         notification_trigger_name: `${t('Instance trigger:')} ${resourceName}`,
         notification_trigger_type: 'LIVE',
         notification_trigger_resource_type: resourceType,
-        notification_trigger_event_types: eventTypesOf(resourceType),
+        notification_trigger_event_types: eventTypesOf(resourceType, catalogEnabled),
         notification_trigger_instance_id: resourceId,
         notification_trigger_notifiers: uiNotifier ? [uiNotifier.notifier_id] : [],
       }).then((created: { data: NotificationTriggerOutput }) => {

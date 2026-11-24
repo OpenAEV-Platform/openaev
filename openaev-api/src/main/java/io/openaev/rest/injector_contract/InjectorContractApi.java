@@ -3,6 +3,7 @@ package io.openaev.rest.injector_contract;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.config.RequireTenantSelector;
@@ -23,6 +24,8 @@ import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFacetCountsOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
+import io.openaev.service.threat_arsenal.ProvidingFilterSpecificationBuilder;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -32,6 +35,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -44,8 +48,13 @@ public class InjectorContractApi extends RestBehavior {
 
   private final InjectorContractService injectorContractService;
   private final TenantWriteScopeResolver writeScopeResolver;
+  private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
 
   @GetMapping({INJECTOR_CONTRACT_URL, TENANT_INJECTOR_CONTRACT_URL})
+  @Operation(
+      summary = "List injector contracts with their attack patterns",
+      description =
+          "One row per contract id; with several tenants and no selector, patterns are merged.")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   // ctx is unused directly: TenantScopeTransactionAspect reads it to scope the transaction, which
@@ -82,18 +91,27 @@ public class InjectorContractApi extends RestBehavior {
   // InjectorContractService#mapFull), which resolves against the activated injectors table.
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
       TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+    // injector_contract_providing is matched by the dedicated builder (payload output parsers, or
+    // the outputs declared in the content of a contract without payload), never by the generic
+    // equality over the whole content JSON, which no native contract can satisfy.
+    ProvidingFilterSpecificationBuilder.ProvidingFilterContext providing =
+        providingFilterSpecificationBuilder.extractProvidingFilter(handleArchitectureFilter(input));
+    Specification<InjectorContract> searchSpecification =
+        computeSearchJpa(providing.searchInput().getTextSearch());
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                spec,
-                specCount,
+                providingFilterSpecificationBuilder.combine(spec, providing, searchSpecification),
+                providingFilterSpecificationBuilder.combine(
+                    specCount, providing, searchSpecification),
                 pageable,
                 input.isIncludeFullDetails()
                     ? InjectorContractService.OutputMode.FULL
                     : InjectorContractService.OutputMode.BASE,
                 input.getInjectorContractIdsToIgnore(),
-                input.getInjectorContractIdsToProcess()),
-        handleArchitectureFilter(input),
+                input.getInjectorContractIdsToProcess(),
+                input.isGroupByPrimaryDomain()),
+        providing.searchInput(),
         InjectorContract.class);
   }
 
@@ -150,6 +168,13 @@ public class InjectorContractApi extends RestBehavior {
   /**
    * Retrieves a specific injector contract by ID.
    *
+   * <p>A request with no tenant selector is resolved by {@code @RequireTenantSelector}: a caller of
+   * a single tenant gets that tenant's row; a caller of several tenants that include the default
+   * one gets the default tenant's row, also when it meant another one; a caller of several tenants
+   * without the default one is refused with {@code TENANT_SELECTOR_REQUIRED}. Select the tenant
+   * with {@code X-Tenant-Ids} or the tenant-prefixed route. A selector naming several tenants, or a
+   * caller of no tenant, is refused with {@code TENANT_SINGLE_SCOPE_REQUIRED}.
+   *
    * @param injectorContractId the contract ID or external ID
    * @return the injector contract
    */
@@ -162,8 +187,13 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR_CONTRACT)
-  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
-  public InjectorContract injectorContract(TxCtx ctx, @PathVariable String injectorContractId) {
+  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads, and
+  // needs a single tenant: a bare scope spanning several tenants that all hold the same built-in
+  // contract id (#8485) makes the by-id-or-external-id lookup match more than one row and throw
+  // instead of resolving one.
+  public InjectorContract injectorContract(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String injectorContractId) {
+    TxCtxScopeUtils.requireOneTenantOfScope(ctx);
     return hydrated(injectorContractService.injectorContract(injectorContractId));
   }
 
@@ -185,6 +215,13 @@ public class InjectorContractApi extends RestBehavior {
   /**
    * Updates an existing injector contract.
    *
+   * <p>A request with no tenant selector is resolved by {@code @RequireTenantSelector}: a caller of
+   * a single tenant gets that tenant's row; a caller of several tenants that include the default
+   * one gets the default tenant's row, also when it meant another one; a caller of several tenants
+   * without the default one is refused with {@code TENANT_SELECTOR_REQUIRED}. Select the tenant
+   * with {@code X-Tenant-Ids} or the tenant-prefixed route. A selector naming several tenants, or a
+   * caller of no tenant, is refused with {@code TENANT_SINGLE_SCOPE_REQUIRED}.
+   *
    * @param injectorContractId the contract ID to update
    * @param input the update data
    * @return the updated injector contract
@@ -198,16 +235,25 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
-  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
+  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads, and
+  // needs a single tenant for the same reason as the GET above.
   public InjectorContract updateInjectorContract(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateInput input) {
+    TxCtxScopeUtils.requireOneTenantOfScope(ctx);
     return hydrated(injectorContractService.updateInjectorContract(injectorContractId, input));
   }
 
   /**
    * Updates the attack pattern tags and domains mappings for a contract.
+   *
+   * <p>A request with no tenant selector is resolved by {@code @RequireTenantSelector}: a caller of
+   * a single tenant gets that tenant's row; a caller of several tenants that include the default
+   * one gets the default tenant's row, also when it meant another one; a caller of several tenants
+   * without the default one is refused with {@code TENANT_SELECTOR_REQUIRED}. Select the tenant
+   * with {@code X-Tenant-Ids} or the tenant-prefixed route. A selector naming several tenants, or a
+   * caller of no tenant, is refused with {@code TENANT_SINGLE_SCOPE_REQUIRED}.
    *
    * @param injectorContractId the contract ID to update
    * @param input the mapping update data
@@ -222,11 +268,13 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
-  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
+  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads, and
+  // needs a single tenant for the same reason as the GET above.
   public InjectorContract updateInjectorContractMapping(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateMappingInput input) {
+    TxCtxScopeUtils.requireOneTenantOfScope(ctx);
     return hydrated(
         injectorContractService.updateInjectorContractTTPDomainsAndTags(injectorContractId, input));
   }
@@ -235,6 +283,13 @@ public class InjectorContractApi extends RestBehavior {
    * Deletes a custom injector contract.
    *
    * <p>Only custom (user-created) contracts can be deleted.
+   *
+   * <p>A request with no tenant selector is resolved by {@code @RequireTenantSelector}: a caller of
+   * a single tenant gets that tenant's row; a caller of several tenants that include the default
+   * one gets the default tenant's row, also when it meant another one; a caller of several tenants
+   * without the default one is refused with {@code TENANT_SELECTOR_REQUIRED}. Select the tenant
+   * with {@code X-Tenant-Ids} or the tenant-prefixed route. A selector naming several tenants, or a
+   * caller of no tenant, is refused with {@code TENANT_SINGLE_SCOPE_REQUIRED}.
    *
    * @param injectorContractId the contract ID to delete
    */
@@ -247,8 +302,11 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
-  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
-  public void deleteInjectorContract(TxCtx ctx, @PathVariable String injectorContractId) {
+  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads, and
+  // needs a single tenant for the same reason as the GET above.
+  public void deleteInjectorContract(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String injectorContractId) {
+    TxCtxScopeUtils.requireOneTenantOfScope(ctx);
     this.injectorContractService.deleteInjectorContract(injectorContractId);
   }
 

@@ -7,13 +7,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
-import io.openaev.utilstest.WithoutTenantScope;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.List;
@@ -23,8 +22,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,11 +43,11 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Each test stays on a single tenant path: the per-request scope is set once and the aspect
  * refuses to redefine it within one transaction.
  */
+@CoversTenantIsolation({"attackpath_execution", "attackpath_finding"})
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path POC read isolation through the real HTTP endpoints")
-@WithoutTenantScope
-class AttackPathHttpIsolationTest extends IntegrationTest {
+class AttackPathHttpIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String SIM = "SIM-ISO";
   private static final String ENDPOINT_KEY = "dc-01";
@@ -70,12 +67,6 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   private static final String PLAIN_GRAPH = PLAIN + "/simulations/{simulationId}/graph";
   private static final String PLAIN_LIST = PLAIN + "/simulations";
 
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
-
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private AttackPathExecutionRepository executionRepository;
@@ -90,6 +81,10 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   void seedGraphUnderTenantA() throws Exception {
     tenantA = tenantHelper.createTenantWithCurrentUser("ap-iso-a").getId();
     tenantB = tenantHelper.createTenantWithCurrentUser("ap-iso-b").getId();
+    // The mock caller's role is a row of the default tenant, written in the default tenant's scope
+    // that the test transaction starts with. From here on the class reads and seeds with no scope
+    // of its own: each request sets its own, and the two fail-closed cases need none at all.
+    tenantHelper.clearScope();
     executionId = seedExecution(tenantA);
     findingId = seedFinding(tenantA);
     linkExecutionFinding(executionId, findingId);
@@ -346,8 +341,9 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   @Test
   @DisplayName("no scope set: the read is empty although the rows exist (fail-closed)")
   void readWithoutScopeIsFailClosed() {
-    // No TxCtx in this test transaction, so the aspect never set app.current_tenants and the
-    // inspector denies every row. The row exists in the table, it is only hidden.
+    // The scope is cleared in @BeforeEach and no TxCtx runs in this test transaction, so
+    // app.current_tenants is empty and the inspector denies every row. The row exists in the
+    // table, it is only hidden.
     assertThat(executionRepository.findGraphRows(SIM)).isEmpty();
     assertThat(rawExecutionCount(executionId)).isEqualTo(1L);
   }

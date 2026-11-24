@@ -45,7 +45,10 @@ Both types share the same two remaining settings:
    Vulnerability, Security platform, Document, or Challenge.
 5. Select one or more **Event types**: **Create**, **Update**, **Delete**. For the Scenario Resource type, a
    fourth option, **Score degradation**, is also available: it fires when a Simulation's score drops below the
-   score of the previous run for the same Scenario.
+   score of the previous run for the same Scenario. For the Simulation Resource type, **Critical asset reached**
+   fires once when a Simulation finishes and its attack path reached an Asset whose criticality is High or Very
+   high. The Notification names the Simulation and links to its attack path; open it to see which Assets were
+   reached, with your own access rights.
 6. Optionally, add **Filters** to only match entities that satisfy specific conditions (for example, a Simulation
    filtered to a specific Tag). Leave the filters empty to match every entity of the selected Resource type.
 7. Select one or more **Notifiers**.

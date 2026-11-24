@@ -1,6 +1,7 @@
 import type { ConditionCreateInput } from '../../../../../utils/api-types';
 import type { ContractElement, ContractType } from '../../../../../utils/api-types-custom';
 import type { ExpectationInput } from '../../../common/injects/expectations/Expectation';
+import { enabledExpectations } from '../../../common/injects/expectations/ExpectationUtils';
 import type { ActionDetailData } from '../types';
 import type { FieldLink } from './FieldOutputLink';
 
@@ -117,6 +118,15 @@ export const getAutoLinkedFieldKeys = (contractFields: ContractElement[]): Set<s
       .map(f => f.key),
   );
 };
+
+/** The contract fields, their expectations limited to the ones the platform can create (see enabledExpectations). */
+export const withEnabledExpectations = (fields: ContractElement[], isLoggingEnabled: boolean): ContractElement[] =>
+  fields.map(field => (field.type === EXPECTATION_FIELD_TYPE && field.availableExpectations
+    ? {
+        ...field,
+        availableExpectations: enabledExpectations(field.availableExpectations, isLoggingEnabled),
+      }
+    : field));
 
 /** Type guard returns true if value is a valid ExpectationInput object. */
 export const isExpectationInput = (value: unknown): value is ExpectationInput =>

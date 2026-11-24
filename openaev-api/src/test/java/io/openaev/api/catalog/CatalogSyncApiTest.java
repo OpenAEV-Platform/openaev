@@ -1,7 +1,7 @@
 package io.openaev.api.catalog;
 
-import static io.openaev.api.catalog.CatalogApi.CATALOG_URI;
-import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
+import static io.openaev.api.catalog.CatalogRoutes.CATALOG_URI;
+import static io.openaev.api.catalog.CatalogRoutes.TENANT_CATALOG_URI;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.PAYLOAD_ID;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.SCENARIO_ID;
@@ -12,18 +12,19 @@ import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadFileName;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadVersion;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.scenarioFileName;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.scenarioItem;
+import static io.openaev.utils.fixtures.CatalogReleaseFixture.syncRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.api.catalog.action.dto.AvailableActionOutput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -36,11 +37,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -49,9 +50,6 @@ import org.springframework.transaction.annotation.Transactional;
 @TestPropertySource(properties = "openaev.enabled-dev-features=MARKING,CATALOG")
 @DisplayName("Catalogue sync endpoint")
 class CatalogSyncApiTest extends IntegrationTest {
-
-  private static final String CATALOG =
-      TENANT_CATALOG_URI.replace("{tenantId}", DEFAULT_TENANT_UUID);
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
@@ -114,18 +112,10 @@ class CatalogSyncApiTest extends IntegrationTest {
 
     ResultActions syncWithoutTenant(String... tenantIds) throws Exception {
       MockMultipartHttpServletRequestBuilder request =
-          multipart(CATALOG_URI + "/sync")
-              .file(
-                  new MockMultipartFile(
-                      "manifest",
-                      "manifest.json",
-                      MediaType.APPLICATION_JSON_VALUE,
-                      mapper.writeValueAsBytes(manifest(name, items, payloads))));
-      files.forEach(
-          (fileName, content) ->
-              request.file(
-                  new MockMultipartFile(
-                      "archives", fileName, "application/octet-stream", content)));
+          syncRequest(
+              mapper.writeValueAsBytes(manifest(name, items, payloads)),
+              files,
+              CATALOG_URI + "/sync");
       if (tenantIds.length > 0) {
         request.header("X-Tenant-Ids", String.join(",", tenantIds));
       }
@@ -138,24 +128,35 @@ class CatalogSyncApiTest extends IntegrationTest {
   }
 
   private ResultActions post(byte[] manifest, Map<String, byte[]> files) throws Exception {
-    MockMultipartHttpServletRequestBuilder request =
-        multipart(CATALOG + "/sync")
-            .file(
-                new MockMultipartFile(
-                    "manifest", "manifest.json", MediaType.APPLICATION_JSON_VALUE, manifest));
-    files.forEach(
-        (name, content) ->
-            request.file(
-                new MockMultipartFile("archives", name, "application/octet-stream", content)));
-    return mvc.perform(request.with(csrf()));
+    return mvc.perform(
+        syncRequest(manifest, files, TENANT_CATALOG_URI + "/sync", DEFAULT_TENANT_UUID)
+            .with(csrf()));
   }
 
   private JsonNode body(ResultActions result) throws Exception {
     return mapper.readTree(result.andReturn().getResponse().getContentAsString());
   }
 
+  // The first page of an Available tab.
   private JsonNode list(String type) throws Exception {
-    return body(mvc.perform(get(CATALOG + "/" + type)).andExpect(status().isOk()));
+    return body(mvc.perform(
+                MockMvcRequestBuilders.post(
+                        TENANT_CATALOG_URI + "/" + type + "/search", DEFAULT_TENANT_UUID)
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(mapper.writeValueAsString(new SearchPaginationInput())))
+            .andExpect(status().isOk()))
+        .path("content");
+  }
+
+  private List<String> availablePayloadIds() throws Exception {
+    List<String> ids = new ArrayList<>();
+    for (JsonNode action : list("actions")) {
+      if (AvailableActionOutput.PAYLOAD.equals(action.path("action_kind").asText())) {
+        ids.add(action.path("action_id").asText());
+      }
+    }
+    return ids;
   }
 
   @Nested
@@ -182,8 +183,7 @@ class CatalogSyncApiTest extends IntegrationTest {
       assertThat(again.path("applied").asBoolean()).isFalse();
       assertThat(list("scenarios").findValuesAsText("catalog_scenario_version"))
           .containsExactly("1.1.0");
-      assertThat(list("payloads").findValuesAsText("catalog_payload_external_id"))
-          .containsExactly(PAYLOAD_ID);
+      assertThat(availablePayloadIds()).containsExactly(PAYLOAD_ID);
     }
 
     @Test
@@ -206,7 +206,7 @@ class CatalogSyncApiTest extends IntegrationTest {
       assertThat(output.path("added").asInt()).isZero();
       assertThat(list("scenarios").findValuesAsText("catalog_scenario_external_id"))
           .containsExactly(SCENARIO_ID);
-      assertThat(list("payloads").findValuesAsText("catalog_payload_external_id")).isEmpty();
+      assertThat(availablePayloadIds()).isEmpty();
     }
 
     @Test
@@ -242,6 +242,44 @@ class CatalogSyncApiTest extends IntegrationTest {
       // Assert
       assertThat(output.path("added").asInt()).isEqualTo(1);
       assertThat(list("scenarios").findValuesAsText("catalog_scenario_external_id")).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "The latest offered flag moves to a newer verified version, and back when it is deprecated")
+    void given_newerThenDeprecatedVersion_should_moveTheLatestOfferedFlag() throws Exception {
+      // Arrange
+      byte[] first = archive("{\"v\":1}");
+      byte[] second = archive("{\"v\":2}");
+      release("1.261105.0").scenario("1.0.0", "VERIFIED", first).sync();
+
+      // Act
+      release("1.261106.0")
+          .scenario("1.0.0", "VERIFIED", first)
+          .scenario("1.1.0", "VERIFIED", second)
+          .sync()
+          .andExpect(status().isOk());
+      List<Object> afterNewer = latestOfferedScenarioVersions();
+      release("1.261107.0")
+          .scenario("1.0.0", "VERIFIED", first)
+          .scenario("1.1.0", "DEPRECATED", second)
+          .sync()
+          .andExpect(status().isOk());
+      List<Object> afterDeprecated = latestOfferedScenarioVersions();
+
+      // Assert
+      assertThat(afterNewer).containsExactly("1.1.0");
+      assertThat(afterDeprecated).containsExactly("1.0.0");
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Object> latestOfferedScenarioVersions() {
+      return entityManager
+          .createNativeQuery(
+              "SELECT catalog_item_version FROM catalog_items"
+                  + " WHERE catalog_item_external_id = :id AND catalog_item_latest_offered")
+          .setParameter("id", SCENARIO_ID)
+          .getResultList();
     }
 
     @Test

@@ -14,6 +14,9 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.utils.es.EntitiesPaginationInput;
 import io.openaev.utils.es.WidgetToEntitiesInput;
 import io.openaev.utils.es.WidgetToEntitiesOutput;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -116,6 +119,41 @@ public class DashboardApi extends RestBehavior {
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
     return this.dashboardService.attackPaths(ctx, widgetId, parameters);
+  }
+
+  @GetMapping("/base-entities")
+  @Transactional
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.DASHBOARD)
+  @Operation(
+      summary = "List the valid base_entity values of a widget filter",
+      description =
+          "Every widget analytics endpoint answers 400 when a base_entity filter names a value"
+              + " outside this list.")
+  @ApiResponses(
+      value = {@ApiResponse(responseCode = "200", description = "The valid base_entity values")})
+  public List<String> baseEntities(TxCtx ctx) {
+    return this.dashboardService.baseEntities();
+  }
+
+  @GetMapping("/group-by-fields")
+  @Transactional
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.DASHBOARD)
+  @Operation(
+      summary = "List the valid group-by fields of a structural histogram, per base_entity",
+      description =
+          "A structural histogram groups by a field of the search document of its base_entity."
+              + " Every widget analytics endpoint answers 400 when the group-by field of a"
+              + " structural histogram is not in the list of a base_entity its series name; the"
+              + " message names the indexed equivalent of a known SQL-only list filter, for"
+              + " instance finding_assets -> base_endpoint_side.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "The valid group-by fields, keyed by base_entity")
+      })
+  public Map<String, List<String>> groupByFields(TxCtx ctx) {
+    return this.dashboardService.groupByFields();
   }
 
   @GetMapping("/search/{search}")

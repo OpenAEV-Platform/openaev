@@ -21,6 +21,10 @@ import java.util.stream.Stream;
  * <p>Each entry spells out the columns of one hop, because the predicate is generated SQL and must
  * name them; a chain (a table derived from a derived table) resolves hop by hop down to the marked
  * table. The columns are checked against the schema by {@code MarkingLinkedTablesRowsTest}.
+ *
+ * <p>The stream reads its rules from these entries and the JPA mapping ({@link
+ * io.openaev.service.stream.StreamMarkingRules}): an entry added here is filtered on the stream
+ * too.
  */
 public final class MarkingDerivedTables {
 
@@ -34,7 +38,11 @@ public final class MarkingDerivedTables {
   public static final List<MarkedTable> LINKS_TO_ASSETS =
       List.of(
           linkedTo("injects_assets", "asset_id", "assets", "asset_id"),
-          linkedTo("asset_groups_assets", "asset_id", "assets", "asset_id"));
+          linkedTo("asset_groups_assets", "asset_id", "assets", "asset_id"),
+          // A typed link between two assets (#9447) follows the asset it was added from; the
+          // graph and the asset page also join the other end, which the inspector filters, so a
+          // link is shown only when both of its assets are.
+          linkedTo("assets_links", "asset_id", "assets", "asset_id"));
 
   /**
    * The objects a run produces on an asset: what an execution on a restricted asset leaves behind
@@ -54,6 +62,13 @@ public final class MarkingDerivedTables {
           // Traces with no agent are the inject's global traces and stay visible.
           linkedTo("agents", "agent_asset", "assets", "asset_id"),
           linkedTo("execution_traces", "execution_agent_id", "agents", "agent_id"));
+
+  /*
+   * attackpath_execution is deliberately NOT derived: it is a frozen run snapshot whose ingestion
+   * rewrites rows by simulation, so a derived predicate would let a rewrite skip rows the writer
+   * cannot see and leave them stale. Its readers join both asset ends instead (the graph slices
+   * and the landing ranking), which the inspector filters through assets.
+   */
 
   /** Every derived table, in no particular order: {@link MarkedTables} resolves the chains. */
   public static final List<MarkedTable> ALL =

@@ -19,12 +19,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Condition;
@@ -76,8 +76,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -106,10 +104,11 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
  * <p>The three APIs are mapped on the tenant prefix only (pinned in {@link Routes}), so there is no
  * header route to cover; a header naming another tenant is ignored on the prefixed route.
  */
+@CoversTenantIsolation({"workflows", "steps", "conditions"})
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Chaining workflow, step and condition isolation through the real HTTP endpoints")
-class ChainingHttpIsolationTest extends IntegrationTest {
+class ChainingHttpIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String WORKFLOW_CONFIGURATION_URI =
       TENANT_WORKFLOW_URI + "/{workflowId}/configuration";
@@ -120,12 +119,6 @@ class ChainingHttpIsolationTest extends IntegrationTest {
   private static final String WORKFLOW_ID_PARAM = "workflow_id";
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
   private static final String CONDITION_NAME = "chaining-iso-condition";
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

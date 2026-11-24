@@ -34,7 +34,6 @@ import org.hibernate.annotations.*;
 @Entity
 @Table(name = "injects")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @Slf4j
 @Grantable(Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING)
 public class Inject implements GrantableBase, Injection, TenantBase {
@@ -116,6 +115,12 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @Convert(converter = ContentConverter.class)
   @JsonProperty("inject_content")
   private ObjectNode content;
+
+  // The ID the inject has in its catalogue package, the same in every version of it.
+  @Getter
+  @Column(name = "inject_catalog_id")
+  @JsonIgnore
+  private String catalogId;
 
   @Getter
   @Column(name = "inject_created_at")
