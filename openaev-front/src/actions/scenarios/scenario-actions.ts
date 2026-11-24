@@ -79,8 +79,8 @@ export const updateScenario = (
   return putReferential(scenario, uri, data)(dispatch);
 };
 
-export const deleteScenario = (scenarioId: Scenario['scenario_id'], keepFindings = false) => (dispatch: Dispatch) => {
-  const uri = `${SCENARIO_URI}/${scenarioId}${keepFindings ? '?keep_findings=true' : ''}`;
+export const deleteScenario = (scenarioId: Scenario['scenario_id']) => (dispatch: Dispatch) => {
+  const uri = `${SCENARIO_URI}/${scenarioId}`;
   return delReferential(uri, scenario.key, scenarioId)(dispatch);
 };
 

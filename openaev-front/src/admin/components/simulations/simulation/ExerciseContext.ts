@@ -79,8 +79,8 @@ const injectContextForExercise = (exercise: Exercise) => {
     }> {
       return dispatch(injectDone(exercise.exercise_id, injectId));
     },
-    onDeleteInject(injectId: Inject['inject_id'], keepFindings = false): Promise<void> {
-      return dispatch(deleteInjectForExercise(exercise.exercise_id, injectId, keepFindings));
+    onDeleteInject(injectId: Inject['inject_id']): Promise<void> {
+      return dispatch(deleteInjectForExercise(exercise.exercise_id, injectId));
     },
     onImportInjectFromJson(file: File): Promise<void> {
       return importInjectsForSimulation(exercise.exercise_id, file).then(response => new Promise((resolve, _reject) => {
