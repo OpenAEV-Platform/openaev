@@ -58,8 +58,8 @@ const ChannelTvChannel = ({ channelReader }) => {
   } else if (firstArticleVideos.length >= 4) {
     firstArticleColumns = 3;
   }
-  const headArticles = articles.slice(0, 4).slice(1) || [];
-  const otherArticles = articles.slice(4) || [];
+  const headArticles = articles.slice(1, 4);
+  const otherArticles = articles.slice(4);
   const queryParams = userId && userId.length > 0 && userId !== 'null' ? `?userId=${userId}` : '';
   return (
     <div className={classes.container}>
