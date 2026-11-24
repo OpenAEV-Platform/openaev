@@ -76,6 +76,7 @@ class IndexingRegressionTest extends IntegrationTest {
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private FindingComposer findingComposer;
+  @Autowired private FindingLocationComposer findingLocationComposer;
   @Autowired private FindingOccurrenceComposer findingOccurrenceComposer;
   @Autowired private TeamComposer teamComposer;
   @Autowired private UserComposer userComposer;
@@ -1151,6 +1152,14 @@ class IndexingRegressionTest extends IntegrationTest {
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
       EndpointComposer.Composer endpointTwo =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      FindingLocationComposer.Composer locationEndpointOne =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(endpointOne);
+      FindingLocationComposer.Composer locationEndpointTwo =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(endpointTwo);
       // Both assets in the shared group, one asset in each of the others: the groups of the
       // finding are those of its assets, each listed once however many assets it holds
       AssetGroupComposer.Composer groupOwnOnly =
@@ -1169,8 +1178,7 @@ class IndexingRegressionTest extends IntegrationTest {
       FindingComposer.Composer findingWrapper =
           findingComposer
               .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
-              .withEndpoint(endpointOne)
-              .withEndpoint(endpointTwo);
+              .withLocation(locationEndpointOne);
       InjectComposer.Composer ownInject =
           injectComposer
               .forInject(InjectFixture.getDefaultInject())
@@ -1215,10 +1223,9 @@ class IndexingRegressionTest extends IntegrationTest {
       // contains, not containsExactly: a dynamic group seeded in the shared test database may also
       // match these endpoints; the side is a set, so each group is listed once
       assertThat(indexed.getBase_asset_groups_side())
-          .contains(
-              groupOwnOnly.get().getId(), groupShared.get().getId(), groupOtherOnly.get().getId());
+          .contains(groupOwnOnly.get().getId(), groupShared.get().getId());
       assertThat(indexed.getBase_endpoint_side())
-          .containsExactlyInAnyOrder(endpointOne.get().getId(), endpointTwo.get().getId());
+          .containsExactlyInAnyOrder(endpointOne.get().getId());
       assertThat(indexed.getBase_inject_side())
           .containsExactlyInAnyOrder(ownInject.get().getId(), otherInject.get().getId());
       assertThat(indexed.getBase_simulation_side())
@@ -1228,13 +1235,8 @@ class IndexingRegressionTest extends IntegrationTest {
           .containsExactlyInAnyOrder(
               findingWrapper.get().getField(), FindingOccurrenceFixture.OTHER_FIELD);
       assertThat(indexed.getBase_dependencies())
-          .as("the own inject, its simulation and scenario, and the assets delete the finding")
-          .containsExactlyInAnyOrder(
-              ownInject.get().getId(),
-              ownSimulation.get().getId(),
-              scenario.getId(),
-              endpointOne.get().getId(),
-              endpointTwo.get().getId());
+          .as("the location assets delete the finding")
+          .containsExactlyInAnyOrder(endpointOne.get().getId());
     }
 
     @Test
@@ -1250,6 +1252,14 @@ class IndexingRegressionTest extends IntegrationTest {
               EndpointFixture.createDefaultLinuxEndpointWithArch(Endpoint.PLATFORM_ARCH.x86_64));
       EndpointComposer.Composer assetB =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint("asset B"));
+      FindingLocationComposer.Composer locationAssetA =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(assetA);
+      FindingLocationComposer.Composer locationAssetB =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(assetB);
       AssetGroupComposer.Composer g1 =
           assetGroupComposer
               .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("G1 static"))
@@ -1272,7 +1282,7 @@ class IndexingRegressionTest extends IntegrationTest {
       FindingComposer.Composer findingWrapper =
           findingComposer
               .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
-              .withEndpoint(assetA);
+              .withLocation(locationAssetA);
       exerciseComposer
           .forExercise(ExerciseFixture.createDefaultExercise())
           .withInject(

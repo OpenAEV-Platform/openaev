@@ -1,7 +1,6 @@
 package io.openaev.engine.model.finding;
 
 import static io.openaev.engine.EsUtils.buildRestrictions;
-import static org.springframework.util.CollectionUtils.isEmpty;
 
 import io.openaev.database.model.AssetGroupMembershipResolver;
 import io.openaev.database.raw.RawFindingIndexing;
@@ -9,12 +8,7 @@ import io.openaev.database.repository.FindingRepository;
 import io.openaev.engine.Handler;
 import io.openaev.utils.SensitiveValueMaskingUtils;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -81,7 +75,8 @@ public class FindingHandler implements Handler<EsFinding> {
   static Set<String> assetGroupsOf(
       RawFindingIndexing finding, Map<String, Set<String>> groupsByAsset) {
     Set<String> groups = new HashSet<>(orEmpty(finding.getAsset_group_ids()));
-    groups.addAll(groupsByAsset.getOrDefault(finding.getFinding_location_asset_id(), Set.of()));
+    Optional<String> assetLocation = Optional.ofNullable(finding.getFinding_location_asset_id());
+    assetLocation.ifPresent(id -> groups.addAll(groupsByAsset.getOrDefault(id, Set.of())));
     return groups;
   }
 
@@ -118,11 +113,7 @@ public class FindingHandler implements Handler<EsFinding> {
     // asset or the user of its location. Its injects, simulations and scenarios are sides:
     // deleting one leaves it in place.
     List<String> dependencies = new ArrayList<>();
-    Stream.of(
-            finding.getFinding_inject_id(),
-            finding.getFinding_simulation_id(),
-            finding.getFinding_scenario_id(),
-            finding.getFinding_location_asset_id())
+    Stream.of(finding.getFinding_location_user_id(), finding.getFinding_location_asset_id())
         .filter(StringUtils::hasText)
         .forEach(dependencies::add);
     esFinding.setBase_inject_side(orEmpty(finding.getInject_ids()));
@@ -132,12 +123,6 @@ public class FindingHandler implements Handler<EsFinding> {
     esFinding.setBase_endpoint_side(locationAssetId != null ? Set.of(locationAssetId) : Set.of());
     // A side, not a dependency: deleting an asset group leaves the finding in place.
     esFinding.setBase_asset_groups_side(assetGroupsOf(finding, groupsByAsset));
-    if (!isEmpty(finding.getAsset_ids())) {
-      dependencies.addAll(finding.getAsset_ids());
-      esFinding.setBase_endpoint_side(finding.getAsset_ids());
-    } else {
-      esFinding.setBase_endpoint_side(Set.of());
-    }
     esFinding.setBase_dependencies(dependencies);
     return esFinding;
   }
