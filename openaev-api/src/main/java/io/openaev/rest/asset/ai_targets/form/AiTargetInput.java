@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -51,4 +52,8 @@ public class AiTargetInput extends AssetInput {
   @JsonProperty("asset_criticality")
   @Schema(types = {"string", "null"})
   private AssetCriticality criticality;
+
+  // Absent on an update: the markings stay as they are.
+  @JsonProperty("asset_markings")
+  private Set<String> markingIds;
 }

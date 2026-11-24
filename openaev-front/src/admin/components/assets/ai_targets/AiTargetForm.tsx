@@ -8,20 +8,18 @@ import MarkingField from '../../../../components/fields/MarkingField';
 import TagField from '../../../../components/fields/TagField';
 import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
-import { type AiTargetInput, type MarkedAiTargetInput } from '../../../../utils/api-types';
+import { type AiTargetInput } from '../../../../utils/api-types';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import { zodImplement } from '../../../../utils/Zod';
 import { CRITICALITY_OPTIONS, humanizeEnum } from '../asset-categories';
 
-type AiTargetFormValues = AiTargetInput & { asset_markings?: string[] | null };
-
 interface Props {
-  onSubmit: SubmitHandler<MarkedAiTargetInput>;
+  onSubmit: SubmitHandler<AiTargetInput>;
   handleClose: () => void;
   editing?: boolean;
-  initialValues?: AiTargetInput & { asset_markings?: string[] | null };
+  initialValues?: AiTargetInput;
 }
 
 const PROVIDERS = [
@@ -91,10 +89,10 @@ const AiTargetForm: FunctionComponent<Props> = ({
     control,
     handleSubmit,
     formState: { errors, isDirty, isSubmitting },
-  } = useForm<AiTargetFormValues>({
+  } = useForm<AiTargetInput>({
     mode: 'onTouched',
     resolver: zodResolver(
-      zodImplement<AiTargetFormValues>().with({
+      zodImplement<AiTargetInput>().with({
         asset_name: z.string().min(1, { message: t('Should not be empty') }),
         ai_target_provider: z.enum(PROVIDERS),
         ai_target_modality: z.enum(MODALITIES).optional(),
@@ -107,10 +105,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         asset_description: z.string().optional(),
         asset_tags: z.string().array().optional(),
         asset_external_reference: z.string().optional(),
-        // .nullable() matters here: the backend's markingIds field (Asset.java) has no default
-        // initializer, so an AI target with no markings assigned comes back as literal `null`
-        // rather than `[]` - .optional() alone rejects that and silently blocks every submit.
-        asset_markings: z.string().array().optional().nullable(),
+        asset_markings: z.string().array().optional(),
       }),
     ),
     defaultValues: initialValues,

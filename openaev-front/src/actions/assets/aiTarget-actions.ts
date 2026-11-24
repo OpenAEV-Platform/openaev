@@ -8,18 +8,18 @@ import {
   simpleCall,
   simplePostCall,
 } from '../../utils/Action';
-import { type Asset, type MarkedAiTargetInput, type SearchPaginationInput } from '../../utils/api-types';
+import { type AiTargetInput, type Asset, type SearchPaginationInput } from '../../utils/api-types';
 import { aiTarget, arrayOfAiTargets } from './asset-schema';
 
 const AI_TARGET_URI = '/api/ai_targets';
 
-export const addAiTarget = (data: MarkedAiTargetInput) => (dispatch: Dispatch) => {
+export const addAiTarget = (data: AiTargetInput) => (dispatch: Dispatch) => {
   return postReferential(aiTarget, AI_TARGET_URI, data)(dispatch);
 };
 
 export const updateAiTarget = (
   assetId: Asset['asset_id'],
-  data: MarkedAiTargetInput,
+  data: AiTargetInput,
 ) => (dispatch: Dispatch) => {
   const uri = `${AI_TARGET_URI}/${assetId}`;
   return putReferential(aiTarget, uri, data)(dispatch);

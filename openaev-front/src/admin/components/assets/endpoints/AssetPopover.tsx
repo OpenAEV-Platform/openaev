@@ -8,7 +8,7 @@ import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
-import { type AiTargetInput, type AssetOutput, type EndpointOverviewOutput, type MarkedAiTargetInput } from '../../../../utils/api-types';
+import { type AiTargetInput, type AssetOutput, type EndpointOverviewOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -34,7 +34,7 @@ export interface AssetPopoverProps {
 
 // Fields prefilled into the AI target edit form; the inventory row only carries the shared asset
 // fields, so the full connection config is fetched from /api/ai_targets/{id} on edit.
-const AI_TARGET_INPUT_KEYS: (keyof AiTargetInput | 'asset_markings')[] = [
+const AI_TARGET_INPUT_KEYS: (keyof AiTargetInput)[] = [
   'asset_name',
   'ai_target_provider',
   'ai_target_modality',
@@ -74,15 +74,19 @@ const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
   const handleCloseEdit = () => setEdition(false);
 
   // AI target edit: fetch the full connection config lazily when the drawer opens.
-  const [aiTargetValues, setAiTargetValues] = useState<(AiTargetInput & { asset_markings?: string[] | null }) | null>(null);
+  const [aiTargetValues, setAiTargetValues] = useState<AiTargetInput | null>(null);
   useEffect(() => {
     if (edition && isAiTarget && !aiTargetValues) {
       fetchAiTargetById(endpoint.asset_id).then((response: { data: Record<string, unknown> }) => {
         const asset = response.data;
         const values = Object.fromEntries(
           AI_TARGET_INPUT_KEYS.map(key => [key, asset[key]]),
-        ) as unknown as AiTargetInput & { asset_markings?: string[] | null };
-        setAiTargetValues(values);
+        ) as unknown as AiTargetInput;
+        // An AI target without markings comes back with null.
+        setAiTargetValues({
+          ...values,
+          asset_markings: values.asset_markings ?? [],
+        });
       });
     }
     if (!edition) {
@@ -91,7 +95,7 @@ const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
   }, [edition, isAiTarget, endpoint.asset_id, aiTargetValues]);
 
   // The drawer stays open on a failed save, so the user sees the error.
-  const submitEditAiTarget = (data: MarkedAiTargetInput) => {
+  const submitEditAiTarget = (data: AiTargetInput) => {
     return dispatch(updateAiTarget(endpoint.asset_id, data)).then(
       (result: {
         result: string;

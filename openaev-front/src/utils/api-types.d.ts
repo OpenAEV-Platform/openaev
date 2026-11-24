@@ -363,35 +363,6 @@ export interface AiResult {
   chunk_id?: string;
 }
 
-export interface MarkedAiTargetInput {
-  ai_target_configuration?: Record<string, any>;
-  ai_target_endpoint?: string | null;
-  ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
-  ai_target_model?: string | null;
-  ai_target_provider:
-    | "OPENAI_COMPATIBLE"
-    | "ANTHROPIC"
-    | "AZURE_OPENAI"
-    | "AWS_BEDROCK"
-    | "GOOGLE_VERTEX"
-    | "HUGGINGFACE"
-    | "OLLAMA"
-    | "CUSTOM_HTTP"
-    | "MCP_SERVER"
-    | "AGENT_HTTP"
-    | "XTM_ONE";
-  ai_target_system_prompt?: string | null;
-  ai_target_token?: string | null;
-  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
-  asset_description?: string;
-  asset_external_reference?: string;
-  /** @uniqueItems true */
-  asset_markings?: string[];
-  /** @minLength 1 */
-  asset_name: string;
-  asset_tags?: string[];
-}
-
 export interface AiTargetInput {
   ai_target_configuration?: Record<string, any>;
   ai_target_endpoint?: string | null;
@@ -414,6 +385,7 @@ export interface AiTargetInput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
+  asset_markings?: string[];
   /** @minLength 1 */
   asset_name: string;
   asset_tags?: string[];
