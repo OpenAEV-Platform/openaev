@@ -36,7 +36,6 @@ io.openaev.context.AmbientTenantBridge#callInTenantChecked | TenantContext.setCu
 io.openaev.database.audit.BaseEvent#<init> | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
 io.openaev.database.audit.TenantBaseListener#manageTenant | TenantContext.getCurrentTenant | 1 | v1 filter seam reads the ambient tenant to arm the filter or stamp rows
 io.openaev.database.audit.TenantBaseListener#manageTenant | TenantContext.hasCurrentTenant | 1 | v1 filter seam reads the ambient tenant to arm the filter or stamp rows
-io.openaev.database.audit.TenantIdBaseListener#manageTenant | TenantContext.getCurrentTenant | 1 | v1 filter seam reads the ambient tenant to arm the filter or stamp rows
 io.openaev.database.model.BaseConnectorEntity#resolveCompositeId | TenantContext.getCurrentTenant | 1 | storage key or connector id derives from the ambient tenant
 io.openaev.database.model.ConnectorInstancePersisted | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.Inject | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
