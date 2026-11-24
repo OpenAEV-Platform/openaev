@@ -4771,7 +4771,9 @@ class TenantActiveTableAccessArchTest {
               InjectHandler.class,
               // Reached only from the threat arsenal usages endpoint, a read-only transaction
               // that carries a TxCtx and passes the one tenant of its scope to the query:
-              PayloadVersionService.class)
+              PayloadVersionService.class,
+              // Runtime migration, under the migration processor's forTenant scope:
+              io.openaev.processor.core.V20261119_Add_logging_expectation_to_manual_payloads.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(InjectRepository.class)
