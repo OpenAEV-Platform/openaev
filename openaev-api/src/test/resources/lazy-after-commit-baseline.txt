@@ -1289,8 +1289,8 @@ TeamApi.upsertTeam -> Team.tags | ATTENUATED | measured: initialised inside the 
 TeamApi.upsertTeam -> Team.users | ATTENUATED | measured: initialised inside the transaction whenever written
 TenantSettingsApi.homeDashboard -> CustomDashboard.widgets | ATTENUATED | measured: initialised inside the transaction whenever written
 UserApi.changePasswordReset -> User.isPlayer() | ATTENUATED | measured: initialised inside the transaction whenever written
-UserApi.changePasswordReset -> User.tags | NOT ESTABLISHED | written while lazy, no gated read recorded
-UserApi.changePasswordReset -> User.teams | NOT ESTABLISHED | written while lazy, no gated read recorded
+UserApi.changePasswordReset -> User.tags | ATTENUATED | fixed by the response hydration of teams and tags
+UserApi.changePasswordReset -> User.teams | ATTENUATED | fixed by the response hydration of teams and tags
 UserApi.login -> User.isPlayer() | ATTENUATED | measured: initialised inside the transaction whenever written
-UserApi.login -> User.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
-UserApi.login -> User.teams | NOT ESTABLISHED | read after the commit, but no test row to lose
+UserApi.login -> User.tags | ATTENUATED | fixed by the response hydration of teams and tags
+UserApi.login -> User.teams | ATTENUATED | fixed by the response hydration of teams and tags
