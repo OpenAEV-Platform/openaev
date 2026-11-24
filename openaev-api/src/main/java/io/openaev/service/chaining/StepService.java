@@ -1221,35 +1221,6 @@ public class StepService {
   }
 
   /**
-   * The asset ids baked into the asset-centric step templates of a workflow, in no particular order
-   * and without duplicates. A caller that rewrites that perimeter from what it can see uses it to
-   * find the ids it does not see, and keeps them.
-   */
-  public List<String> assetIdsOnStepTemplates(String workflowId) {
-    Set<String> assetIds = new LinkedHashSet<>();
-    for (Step template : findAllStepTemplateByWorkflow(workflowId)) {
-      if (!StepActionClass.INJECT_EXECUTION.equals(template.getStepAction())
-          || template.getData() == null
-          || !stepTargetingService.isAssetCentric(template)) {
-        continue;
-      }
-      try {
-        JsonElement assets =
-            JsonParser.parseString(template.getData()).getAsJsonObject().get("inject_assets");
-        if (assets != null && assets.isJsonArray()) {
-          assets.getAsJsonArray().forEach(asset -> assetIds.add(asset.getAsString()));
-        }
-      } catch (Exception e) {
-        log.warn(
-            "[Chaining] Failed to read the scope assets of step template {}: {}",
-            template.getId(),
-            e.getMessage());
-      }
-    }
-    return List.copyOf(assetIds);
-  }
-
-  /**
    * Returns the step data with {@code inject_assets} replaced by the given asset IDs, or {@code
    * null} when the data is already up to date (or cannot be parsed) so the caller skips the write.
    */

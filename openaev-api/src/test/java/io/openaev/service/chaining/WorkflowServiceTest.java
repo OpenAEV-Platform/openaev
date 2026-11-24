@@ -23,6 +23,7 @@ import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.service.FaithfulCopyTransaction;
 import io.openaev.service.LessonsService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
@@ -66,6 +67,7 @@ class WorkflowServiceTest {
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private ScopeSnapshotService scopeSnapshotService;
   @Mock private ScopeService scopeService;
+  @Mock private FaithfulCopyTransaction faithfulCopy;
   @Mock private LessonsService lessonsService;
   @Mock private WorkflowStateService workflowStateService;
   @Mock private WorkflowStateStore workflowStateStore;
@@ -106,6 +108,7 @@ class WorkflowServiceTest {
             stepDelayQueueService,
             scopeSnapshotService,
             scopeService,
+            faithfulCopy,
             lessonsService,
             workflowRepository,
             workflowScopeRuleRepository,
@@ -118,6 +121,15 @@ class WorkflowServiceTest {
             scopeMetricCollector,
             chainingSafetyPolicyMetricCollector,
             resultsMetricCollector);
+  }
+
+  /** The scope resolution a tenant workflow hands to the system-clearance door runs as given. */
+  @SuppressWarnings("unchecked")
+  private void stubScopeResolutionRunsInline() {
+    when(faithfulCopy.readIds(any(), any()))
+        .thenAnswer(
+            invocation ->
+                ((java.util.function.Supplier<List<String>>) invocation.getArgument(1)).get());
   }
 
   // ========================================================================
@@ -1115,31 +1127,32 @@ class WorkflowServiceTest {
     }
 
     @Test
-    @DisplayName("should keep the assets of the templates the writer cannot see when realigning")
-    void given_templatesCarryingAHiddenAsset_should_keepItWhenRealigning() {
+    @DisplayName("should realign the templates from the saved scope at the system clearance")
+    void given_tenantWorkflow_should_realignFromTheScopeResolvedAtSystemClearance() {
       // Arrange
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow =
-          Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
+          Workflow.builder()
+              .id(workflowId)
+              .tenant(new Tenant("tenant-1"))
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .build();
       WorkflowConfigurationInput input = new WorkflowConfigurationInput();
       input.setWorkflowScopeRules(WorkflowFixture.getDefaultWorkflowScopeRuleInputList());
-      Asset visible = new Asset();
-      visible.setId("asset-123");
+      Asset inScope = new Asset();
+      inScope.setId("asset-123");
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
-      when(scopeService.getValidAssets(workflowId)).thenReturn(List.of(visible));
-      when(stepService.assetIdsOnStepTemplates(workflowId))
-          .thenReturn(List.of("red-asset", "asset-123"));
-      when(scopeSnapshotService.hiddenAssetIds(any(), eq(List.of("red-asset", "asset-123"))))
-          .thenReturn(Set.of("red-asset"));
+      when(scopeService.getValidAssets(workflowId)).thenReturn(List.of(inScope));
+      stubScopeResolutionRunsInline();
 
       // Act
       workflowService.updateWorkflowConfiguration(workflowId, input);
 
-      // Assert: a restricted editor's rewrite does not strip the asset it cannot see
-      verify(stepService)
-          .syncScopeAssetsOnStepTemplates(workflow, List.of("asset-123", "red-asset"));
+      // Assert: the templates follow the scope, not the assets they carried before
+      verify(stepService).syncScopeAssetsOnStepTemplates(workflow, List.of("asset-123"));
     }
 
     @Test
@@ -1362,6 +1375,7 @@ class WorkflowServiceTest {
       when(scopeSnapshotService.hiddenAssetIds(any(), any())).thenReturn(Set.of("asset-red"));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
       when(scopeService.getValidAssets("wf-template")).thenReturn(List.of());
+      stubScopeResolutionRunsInline();
 
       // Act
       workflowService.cleanScopeRulesSimulation("sim-1");
@@ -1550,6 +1564,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               scopeSnapshotService,
               scopeService,
+              faithfulCopy,
               lessonsService,
               workflowRepository,
               workflowScopeRuleRepository,
@@ -2006,6 +2021,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               scopeSnapshotService,
               scopeService,
+              faithfulCopy,
               lessonsService,
               workflowRepository,
               workflowScopeRuleRepository,
@@ -2196,6 +2212,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               scopeSnapshotService,
               scopeService,
+              faithfulCopy,
               lessonsService,
               workflowRepository,
               workflowScopeRuleRepository,
@@ -2466,6 +2483,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               scopeSnapshotService,
               scopeService,
+              faithfulCopy,
               lessonsService,
               workflowRepository,
               workflowScopeRuleRepository,

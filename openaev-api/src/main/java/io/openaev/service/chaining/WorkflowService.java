@@ -18,6 +18,7 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.service.FaithfulCopyTransaction;
 import io.openaev.service.LessonsService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
@@ -27,6 +28,7 @@ import io.openaev.validator.IpAddressUtils;
 import io.openaev.validator.primitive.PrimitiveFormatValidator;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +61,7 @@ public class WorkflowService {
   private final StepDelayQueueService stepDelayQueueService;
   private final ScopeSnapshotService scopeSnapshotService;
   private final ScopeService scopeService;
+  private final FaithfulCopyTransaction faithfulCopy;
   private final LessonsService lessonsService;
 
   private final WorkflowRepository workflowRepository;
@@ -207,6 +210,8 @@ public class WorkflowService {
     }
     if (change.scopeRulesChanged()) {
       realignTemplateActionTargets(workflow);
+      // The realignment cleared the persistence context: the workflow is loaded again.
+      workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
       pruneLessonTargets(workflow);
     }
     return workflow;
@@ -469,39 +474,30 @@ public class WorkflowService {
       return;
     }
     workflowRepository.flush();
-    List<String> scopedAssetIds =
-        Optional.ofNullable(scopeService.getValidAssets(workflow.getId()))
-            .orElse(List.of())
-            .stream()
-            .map(Asset::getId)
-            .toList();
+    String workflowId = workflow.getId();
+    String tenantId = workflow.getTenant() == null ? null : workflow.getTenant().getId();
     stepService.syncScopeAssetsOnStepTemplates(
-        workflow, withAssetsTheWriterCannotSee(workflow, scopedAssetIds));
+        workflow, scopeAssetIdsOfAnyClearance(workflowId, tenantId));
   }
 
   /**
-   * The scope assets computed for the writer, plus the assets the templates already carry that the
-   * writer is not cleared for. The scope is resolved under the writer's clearance, so an asset it
-   * cannot see is never in it: rewriting the templates from it alone would strip those assets for
-   * everyone the next time a restricted user edits the scope.
+   * The assets of the saved scope (allowlist minus denylist), whatever the writer is cleared for.
+   * Under the writer's clearance an asset it cannot see is never in the scope, so rewriting the
+   * templates from that view would strip it for everyone, and keeping every hidden asset the
+   * templates already carry would keep one the writer has just removed (or denylisted, through a
+   * group it saw). The scope is resolved on the current transaction, which sees the rule changes
+   * not yet committed, with every marking of the tenant. The persistence context is cleared on both
+   * sides, so the caller reloads the workflow it uses afterwards.
    */
-  private List<String> withAssetsTheWriterCannotSee(
-      Workflow workflow, List<String> scopedAssetIds) {
-    List<String> onTemplates = stepService.assetIdsOnStepTemplates(workflow.getId());
-    if (onTemplates.isEmpty()) {
-      return scopedAssetIds;
-    }
-    String tenantId = workflow.getTenant() == null ? null : workflow.getTenant().getId();
-    Set<String> hidden = scopeSnapshotService.hiddenAssetIds(tenantId, onTemplates);
-    if (hidden.isEmpty()) {
-      return scopedAssetIds;
-    }
-    List<String> kept = new ArrayList<>(scopedAssetIds);
-    onTemplates.stream()
-        .filter(hidden::contains)
-        .filter(id -> !kept.contains(id))
-        .forEach(kept::add);
-    return kept;
+  private List<String> scopeAssetIdsOfAnyClearance(String workflowId, String tenantId) {
+    Supplier<List<String>> resolution =
+        () ->
+            Optional.ofNullable(scopeService.getValidAssets(workflowId)).orElse(List.of()).stream()
+                .map(Asset::getId)
+                .toList();
+    return tenantId == null
+        ? resolution.get()
+        : faithfulCopy.readIds(TxCtx.forTenant(tenantId), resolution);
   }
 
   /**

@@ -2089,31 +2089,6 @@ class StepServiceTest {
     }
 
     @Test
-    @DisplayName("should list the assets baked into the asset-centric templates, once each")
-    void given_assetCentricTemplates_should_listTheirAssetIdsOnce() {
-      // Arrange
-      Step first =
-          injectStepTemplate("step-1", "{\"inject_title\":\"a\",\"inject_assets\":[\"x\",\"y\"]}");
-      Step second =
-          injectStepTemplate("step-2", "{\"inject_title\":\"b\",\"inject_assets\":[\"y\",\"z\"]}");
-      Step audience =
-          injectStepTemplate("step-3", "{\"inject_title\":\"mail\",\"inject_assets\":[\"w\"]}");
-      Step noAssets = injectStepTemplate("step-4", "{\"inject_title\":\"c\"}");
-      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId("wf-1"))
-          .thenReturn(List.of(first, second, audience, noAssets));
-      when(stepTargetingService.isAssetCentric(first)).thenReturn(true);
-      when(stepTargetingService.isAssetCentric(second)).thenReturn(true);
-      when(stepTargetingService.isAssetCentric(audience)).thenReturn(false);
-      when(stepTargetingService.isAssetCentric(noAssets)).thenReturn(true);
-
-      // Act
-      List<String> assetIds = stepService.assetIdsOnStepTemplates("wf-1");
-
-      // Assert
-      assertEquals(List.of("x", "y", "z"), assetIds);
-    }
-
-    @Test
     @DisplayName(
         "given an asset-centric step template, should rewrite inject_assets with the scope")
     void given_assetCentricStepTemplate_should_rewriteInjectAssetsWithScope() {

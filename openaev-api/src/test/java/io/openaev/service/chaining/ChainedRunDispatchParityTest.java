@@ -798,7 +798,7 @@ class ChainedRunDispatchParityTest extends IntegrationTest {
 
       // -- ASSERT --
       assertThat(shownAssetIds).containsExactly(green.getId());
-      assertThat(storedAssetIds())
+      assertThat(templateAssetIds())
           .as("the RED asset is still on the template the GREEN editor saved")
           .containsExactlyInAnyOrder(green.getId(), red.getId());
       assertThat(saved.getData().get("inject_assets"))
@@ -825,23 +825,49 @@ class ChainedRunDispatchParityTest extends IntegrationTest {
       inRequestOf(greenLauncher, () -> updateTemplate("new title", List.of(green.getId())));
 
       // -- ASSERT --
-      assertThat(storedAssetIds()).containsExactly(green.getId());
+      assertThat(templateAssetIds()).containsExactly(green.getId());
     }
 
-    /**
-     * The perimeter stored on the template, whatever its contract: the saved template carries the
-     * manual contract, which is not asset-centric, so {@code assetIdsOnStepTemplates} skips it.
-     */
-    private Set<String> storedAssetIds() {
-      return inTenant(
+    @Test
+    @DisplayName("given a GREEN editor removing a group holding the RED asset, should drop it")
+    void given_greenEditorRemovingAGroupWithTheRedAsset_should_dropItFromTheTemplates() {
+      // -- ARRANGE -- the RED asset is in the scope through the group only, which GREEN sees
+      jdbc.update(
+          "INSERT INTO asset_groups_assets (asset_group_id, asset_id) VALUES (?, ?)",
+          groupId,
+          red.getId());
+      inTenant(
           () -> {
-            Set<String> ids = new HashSet<>();
-            JsonParser.parseString(stepRepository.findById(stepTemplateId).orElseThrow().getData())
-                .getAsJsonObject()
-                .getAsJsonArray("inject_assets")
-                .forEach(asset -> ids.add(asset.getAsString()));
-            return ids;
+            Workflow template = workflowRepository.findById(templateWorkflowId).orElseThrow();
+            template
+                .getWorkflowScopeRules()
+                .removeIf(rule -> red.getId().equals(rule.getRuleValue()));
+            workflowRepository.save(template);
+            return null;
           });
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setWorkflowScopeRules(
+          List.of(
+              WorkflowScopeRuleInput.builder()
+                  .id(ruleIdOf(green.getId()))
+                  .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                  .ruleSource(ScopeRuleSource.ASSET)
+                  .ruleValue(green.getId())
+                  .build()));
+
+      // -- ACT -- the editor removes the group
+      inRequestOf(
+          greenLauncher,
+          () -> {
+            workflowService.updateWorkflowConfiguration(templateWorkflowId, input);
+            return null;
+          });
+
+      // -- ASSERT --
+      assertThat(ruleValues()).containsExactly(green.getId());
+      assertThat(templateAssetIds())
+          .as("the RED asset no longer satisfies the scope, so no template targets it")
+          .containsExactly(green.getId());
     }
 
     private StepOutput updateTemplate(String title, List<String> assetIds) {
@@ -900,9 +926,19 @@ class ChainedRunDispatchParityTest extends IntegrationTest {
                   .collect(Collectors.toSet()));
     }
 
-    /** The perimeter baked into the template, read at the system clearance. */
+    /**
+     * The perimeter stored on the template, read at the system clearance, whatever its contract.
+     */
     private Set<String> templateAssetIds() {
-      return inTenant(() -> new HashSet<>(stepService.assetIdsOnStepTemplates(templateWorkflowId)));
+      return inTenant(
+          () -> {
+            Set<String> ids = new HashSet<>();
+            JsonParser.parseString(stepRepository.findById(stepTemplateId).orElseThrow().getData())
+                .getAsJsonObject()
+                .getAsJsonArray("inject_assets")
+                .forEach(asset -> ids.add(asset.getAsString()));
+            return ids;
+          });
     }
   }
 
