@@ -65,7 +65,7 @@ The platform notifies you about payload approval without any Trigger to configur
 
 | You receive | When |
 |---|---|
-| **Payloads pending approval** | A Payload, or a new version of an approved Payload, waits for approval. Sent to the users whose role in the Tenant explicitly holds *Approve content*, except its author. Platform administrators and *Bypass* holders without that capability are not notified. A Payload already pending does not notify again |
+| **Payloads pending approval** | A Payload, a new version of an approved Payload, or a rejected version fixed and sent again waits for approval. Sent to the users whose role in the Tenant explicitly holds *Approve content*, except its author. Platform administrators and *Bypass* holders without that capability are not notified. A Payload already pending does not notify again |
 | **Approval of your payloads** | A Payload or version you submitted is approved, rejected (with the reason), or replaced by a newer version submitted by someone else |
 
 Notifications are sent in batches every minute: several Payloads going pending at once (for example a Collector
