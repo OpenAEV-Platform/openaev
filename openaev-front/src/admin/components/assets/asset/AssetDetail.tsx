@@ -26,9 +26,7 @@ import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PlatformIcon from '../../../../components/PlatformIcon';
-import XtmOnePivot from '../../../../components/xtm/XtmOnePivot';
-import OpenCrqPivot from '../../../../components/xtm/XtmOpenCrq';
-import OpenCtiPivot from '../../../../components/xtm/XtmPivot';
+import XtmCounterpartsEmblem from '../../../../components/xtm/XtmCounterpartsEmblem';
 import { useHelper } from '../../../../store';
 import {
   type EndpointOverviewOutput,
@@ -59,7 +57,6 @@ import InjectsPlayedOverTimeChart from '../statistics/InjectsPlayedOverTimeChart
 import PostureScoreOverTimeChart from '../statistics/PostureScoreOverTimeChart';
 import useExpectationPosture from '../useExpectationPosture';
 import AssetLinks from './AssetLinks';
-import AssetOwners from './AssetOwners';
 
 // The backend's EndpointOverviewOutput now also carries the AI target connection metadata and the
 // asset's markings; until the API types are regenerated (needs a backend restart) they are
@@ -215,14 +212,18 @@ const AssetDetail = () => {
         title={asset.asset_name}
         action={(
           <>
-            {/* Contract v3: the cross-product emblems come first, leftmost, before the page's own
-                actions; one icon-only emblem per counterpart product in the fixed order XTM One,
-                OpenCTI, OpenAEV, OpenCRQ (the page's own product skipped). An asset imported from
-                one of them is found from its source link first (rule 5); OpenCRQ keys its
-                supporting assets by hostname only. */}
-            {!isAiTarget && <XtmOnePivot kind="assets" objectKey={counterpartKey} sourceUrl={asset.asset_external_reference} />}
-            {!isAiTarget && <OpenCtiPivot kind="assets" objectKey={counterpartKey} sourceUrl={asset.asset_external_reference} />}
-            {!isAiTarget && <OpenCrqPivot kind="assets" objectKey={asset.asset_hostname} sourceUrl={asset.asset_external_reference} />}
+            {/* The single XTM One emblem comes first, leftmost, before the page's own actions; its
+                surface lists XTM One, OpenCTI and OpenCRQ. An asset imported from one of them is
+                found from its source link first (rule 5); OpenCRQ keys its supporting assets by
+                hostname only. */}
+            {!isAiTarget && (
+              <XtmCounterpartsEmblem
+                kind="assets"
+                objectKey={counterpartKey}
+                openCrqKey={asset.asset_hostname ?? null}
+                sourceUrl={asset.asset_external_reference}
+              />
+            )}
             <ExploreInGraphButton type="ASSET" entityId={id} />
             {/* Entity-scoped reports - self-hides without the reporting
                 access capability. */}
@@ -449,15 +450,6 @@ const AssetDetail = () => {
                   )}
             </SectionBlock>
           </DetailSections>
-
-          {/* Owners (business and technical, persons or teams) belong to the same preview feature. */}
-          {graphEnabled && (
-            <AssetOwners
-              assetId={id}
-              assetName={asset.asset_name}
-              canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS)}
-            />
-          )}
 
           {/* Asset-to-asset links (hosts, uses, logged on...), both directions, read-only and
               compact; edited in the Manage links drawer only. The graph lives in the Graph tab. */}

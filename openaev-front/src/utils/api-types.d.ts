@@ -944,9 +944,6 @@ export interface AssetLinkInput {
 export interface AssetLinkOutput {
   /** @format date-time */
   asset_link_created_at?: string;
-  /** @format date-time */
-  asset_link_last_seen_at?: string;
-  asset_link_origin?: "MANUAL" | "COLLECTOR" | "SYNC" | "AGENT";
   asset_link_source_id?: string;
   asset_link_source_name?: string;
   asset_link_source_type?: string;
@@ -1145,27 +1142,6 @@ export interface AssetOutput {
     | "Unknown";
   /** Whether the asset belongs to the asset group statically or dynamically */
   is_static?: boolean;
-}
-
-export interface AssetOwnerInput {
-  asset_owner_role: "OWNED_BY" | "MANAGED_BY";
-  asset_owner_source?: "MANUAL" | "COLLECTOR" | "SYNC" | "AGENT";
-  asset_owner_team_id?: string;
-  asset_owner_user_id?: string;
-}
-
-export interface AssetOwnerOutput {
-  asset_id?: string;
-  asset_name?: string;
-  /** @format date-time */
-  asset_owner_created_at?: string;
-  asset_owner_id?: string;
-  asset_owner_kind?: string;
-  asset_owner_name?: string;
-  asset_owner_role?: "OWNED_BY" | "MANAGED_BY";
-  asset_owner_source?: "MANUAL" | "COLLECTOR" | "SYNC" | "AGENT";
-  asset_owner_team_id?: string;
-  asset_owner_user_id?: string;
 }
 
 /** Frozen asset composing a launched simulation's scope rule (display only). */
@@ -6945,8 +6921,6 @@ export interface GraphEdgeOutput {
     | "IN_TEAM"
     | "TEAM_OF"
     | "LINKED_TO"
-    | "OWNED_BY"
-    | "MANAGED_BY"
     | "ATTACK_STEP";
 }
 
@@ -11196,6 +11170,7 @@ export interface PlatformSettings {
     | "LOGGING_EXPECTATION"
     | "CATALOG"
     | "EXPLORATION_GRAPH"
+    | "XTM_COUNTERPARTS"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -11608,6 +11583,7 @@ export interface PublicPlatformSettings {
     | "LOGGING_EXPECTATION"
     | "CATALOG"
     | "EXPLORATION_GRAPH"
+    | "XTM_COUNTERPARTS"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -14603,7 +14579,6 @@ export interface UpdateProfileInput {
   /** @minLength 1 */
   user_lastname: string;
   user_organization?: string;
-  user_pastel_colours?: boolean;
   /** @minLength 1 */
   user_theme: string;
 }
@@ -14782,8 +14757,6 @@ export interface User {
   user_lastname?: string;
   /** Organization ID of the user */
   user_organization?: string;
-  /** Pastel colours preference of the user: soft pastel chips when true (default), the standard colours shared by every XTM Platform module when false */
-  user_pastel_colours?: boolean;
   /** PGP key of the user */
   user_pgp_key?: string;
   /** Phone number of the user */
