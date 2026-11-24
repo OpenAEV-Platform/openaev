@@ -21,6 +21,8 @@ export const addThreatArsenalAction = (data: ThreatArsenalActionCreateInput) => 
   return simplePostCall(THREAT_ARSENAL_URI, data, {}, true, true);
 };
 
+export const fetchThreatArsenalVersionChanges = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/changes`);
+
 export const fetchThreatArsenalAction = (actionId: string) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}`;
   return simpleCall(uri);

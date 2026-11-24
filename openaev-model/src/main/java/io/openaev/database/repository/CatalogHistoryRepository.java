@@ -13,4 +13,8 @@ public interface CatalogHistoryRepository extends JpaRepository<CatalogHistory, 
   @EntityGraph(attributePaths = "user")
   List<CatalogHistory> findAllByTenantIdAndTypeAndRepositoryAndExternalIdOrderByCreatedAtDesc(
       String tenantId, ContentType type, String repository, String externalId);
+
+  @EntityGraph(attributePaths = "user")
+  List<CatalogHistory> findAllByTenantIdAndTypeAndContentIdOrderByCreatedAtDesc(
+      String tenantId, ContentType type, String contentId);
 }

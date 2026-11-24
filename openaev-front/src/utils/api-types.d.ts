@@ -2810,7 +2810,8 @@ export interface CatalogHistoryOutput {
     | "REVOKE"
     | "LIFT_REVOCATION"
     | "UPDATE"
-    | "ROLLBACK";
+    | "ROLLBACK"
+    | "SAVE";
   /** @format date-time */
   catalog_history_created_at: string;
   /** @minLength 1 */
@@ -10941,6 +10942,17 @@ export interface PayloadUsagesOutput {
   payload_usages: PayloadUsageOutput[];
   /** @format int32 */
   payload_usages_hidden_count?: number;
+}
+
+export interface PayloadVersionChangeOutput {
+  change_after?: JsonNode;
+  /** Its value in the version just below; empty when it had none */
+  change_before?: JsonNode;
+  /**
+   * The changed field, as the payload names it
+   * @minLength 1
+   */
+  change_field: string;
 }
 
 export interface PayloadVersionOutput {

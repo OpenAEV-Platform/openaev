@@ -180,8 +180,7 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMove
               </button>
               {changesOpen && (
                 <VersionChanges
-                  beforeActionId={previous.payload_action_id}
-                  afterActionId={latest.payload_action_id}
+                  actionId={latest.payload_action_id}
                   beforeVersion={previous.payload_version}
                   afterVersion={latest.payload_version}
                 />

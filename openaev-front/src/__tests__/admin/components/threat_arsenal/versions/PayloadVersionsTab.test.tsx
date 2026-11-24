@@ -4,17 +4,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import PayloadVersionsTab from '../../../../../admin/components/threat_arsenal/versions/PayloadVersionsTab';
 import { aUsage, aVersion, renderInApp, someUsages } from '../threatArsenalTestUtils';
 
-const { keep, showAgain, can, details } = vi.hoisted(() => ({
+const { keep, showAgain, can, changes } = vi.hoisted(() => ({
   keep: vi.fn(),
   showAgain: vi.fn(),
   can: vi.fn(() => false),
-  // Each version's full details: the command is its version number.
-  details: vi.fn((actionId: string) => Promise.resolve({
-    data: {
-      action_id: actionId,
-      action_labels: { en: 'Mimikatz' },
-      command_content: actionId === 'action-v2' ? 'mimikatz v2' : 'mimikatz v1',
-    },
+  // What v2 changed: its command.
+  changes: vi.fn(() => Promise.resolve({
+    data: [{
+      change_field: 'command_content',
+      change_before: 'mimikatz v1',
+      change_after: 'mimikatz v2',
+    }],
   })),
 }));
 
@@ -22,7 +22,7 @@ vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
   keepThreatArsenalOlderVersions: keep,
   showThreatArsenalOlderVersions: showAgain,
   moveThreatArsenalUsages: vi.fn(),
-  fetchThreatArsenalAction: details,
+  fetchThreatArsenalVersionChanges: changes,
 }));
 vi.mock('../../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can }) }));
 

@@ -19,12 +19,9 @@ interface Props extends VersionsProps {
 }
 
 // What one version changed from the one before it: the same before / after block as every other diff.
-const VersionChanges: FunctionComponent<Props> = ({ beforeActionId, afterActionId, beforeVersion, afterVersion }) => {
+const VersionChanges: FunctionComponent<Props> = ({ actionId, beforeVersion, afterVersion }) => {
   const { t } = useFormatter();
-  const rows = useVersionChanges({
-    beforeActionId,
-    afterActionId,
-  });
+  const rows = useVersionChanges({ actionId });
   if (!rows) {
     return <Skeleton className="h-16" />;
   }

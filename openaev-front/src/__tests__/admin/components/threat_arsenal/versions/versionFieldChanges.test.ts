@@ -1,52 +1,48 @@
 import { describe, expect, it } from 'vitest';
 
 import versionFieldChanges from '../../../../../admin/components/threat_arsenal/versions/versionFieldChanges';
-import { type ThreatArsenalActionFullOutput } from '../../../../../utils/api-types';
-
-const aVersion = (overrides: Partial<ThreatArsenalActionFullOutput> = {}) => ({
-  action_id: 'action',
-  action_labels: { en: 'Discover network shares' },
-  action_description: 'Lists the shares',
-  action_platforms: ['Windows'],
-  command_executor: 'cmd',
-  command_content: 'net share',
-  action_arguments: [],
-  ...overrides,
-}) as ThreatArsenalActionFullOutput;
-
-const name = (details: ThreatArsenalActionFullOutput) => details.action_labels.en;
 
 describe('versionFieldChanges', () => {
-  it('given_aChangedCommand_should_returnOnlyThatField', () => {
+  it('given_aChangedCommand_should_nameItAsTheForm', () => {
     // Act
-    const rows = versionFieldChanges(aVersion(), aVersion({ command_content: 'net view' }), name);
+    const rows = versionFieldChanges([{
+      change_field: 'command_content',
+      change_before: 'net share',
+      change_after: 'net view',
+    }]);
 
     // Assert
     expect(rows).toEqual([{
-      id: 'COMMAND_CONTENT',
+      id: 'command_content',
       field: 'Command',
       before: 'net share',
       after: 'net view',
     }]);
   });
 
-  it('given_aNewNameAndPlatform_should_listThemInFormOrder', () => {
+  it('given_aFieldTheFormDoesNotShow_should_nameItFromThePayload', () => {
     // Act
-    const rows = versionFieldChanges(aVersion(), aVersion({
-      action_labels: { en: 'Discover shares' },
-      action_platforms: ['Windows', 'Linux'],
-    }), name);
+    const rows = versionFieldChanges([{
+      change_field: 'payload_output_parsers',
+      change_before: [],
+      change_after: [{ output_parser_mode: 'STDOUT' }],
+    }]);
 
     // Assert
-    expect(rows.map(row => row.id)).toEqual(['NAME', 'PLATFORMS']);
-    expect(rows[1].after).toBe('Windows\nLinux');
+    expect(rows[0].field).toBe('Output parsers');
+    expect(rows[0].before).toBe('');
+    expect(rows[0].after).toBe('{"output_parser_mode":"STDOUT"}');
   });
 
-  it('given_emptyValuesOnly_should_returnNoChange', () => {
+  it('given_aList_should_showOneItemPerLine', () => {
     // Act
-    const rows = versionFieldChanges(aVersion({ action_cleanup_command: undefined }), aVersion({ action_cleanup_command: '' }), name);
+    const rows = versionFieldChanges([{
+      change_field: 'payload_platforms',
+      change_before: ['Windows'],
+      change_after: ['Windows', 'Linux'],
+    }]);
 
     // Assert
-    expect(rows).toEqual([]);
+    expect(rows[0].after).toBe('Windows\nLinux');
   });
 });

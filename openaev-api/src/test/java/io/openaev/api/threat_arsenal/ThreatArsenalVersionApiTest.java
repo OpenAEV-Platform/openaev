@@ -5,6 +5,7 @@ import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSEN
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.injector_contract.fields.ContractText.textField;
+import static io.openaev.rest.payload.PayloadApi.TENANT_PAYLOAD_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.service.payload.PayloadVersionService.NOT_ANOTHER_VERSION;
 import static io.openaev.service.payload.PayloadVersionService.VERSION_REVOKED;
@@ -31,6 +32,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.Command;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
@@ -48,6 +50,7 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.payload.PayloadUsageMoveService;
 import io.openaev.service.payload.PayloadUsageMoveService.Moves;
@@ -60,6 +63,7 @@ import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
+import io.openaev.utils.fixtures.PayloadInputFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
@@ -498,6 +502,49 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
         .andExpect(status().isNotFound());
   }
 
+  // -- CHANGES --
+
+  @Test
+  @DisplayName("says what a version changed since the version just below it")
+  void given_newerVersion_should_listItsChangedFields() throws Exception {
+    // Arrange
+    List<InjectorContract> versions = localVersions();
+    Command newer = (Command) versions.get(1).getPayload();
+    newer.setContent("net view");
+    payloadRepository.save(newer);
+    entityManager.flush();
+
+    // Act
+    JsonNode changes =
+        body(
+            mvc.perform(
+                    get(
+                        TENANT_THREAT_ARSENAL_URL + "/{actionId}/changes",
+                        DEFAULT_TENANT_UUID,
+                        versions.get(1).getId()))
+                .andExpect(status().isOk()));
+
+    // Assert
+    assertThat(changes.findValuesAsText("change_field")).containsExactly("command_content");
+    assertThat(changes.findValuesAsText("change_after")).containsExactly("net view");
+  }
+
+  @Test
+  @DisplayName("has no change for the first version")
+  void given_firstVersion_should_haveNoChange() throws Exception {
+    // Arrange
+    List<InjectorContract> versions = localVersions();
+
+    // Act & Assert
+    mvc.perform(
+            get(
+                TENANT_THREAT_ARSENAL_URL + "/{actionId}/changes",
+                DEFAULT_TENANT_UUID,
+                versions.get(0).getId()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(0));
+  }
+
   // -- HISTORY --
 
   @Test
@@ -540,6 +587,42 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
                 action.getId()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(0));
+  }
+
+  @Test
+  @DisplayName("lists the save that added a version to a payload made in the tenant")
+  void given_localPayloadSavedAsNewVersion_should_listTheSave() throws Exception {
+    // Arrange
+    InjectorContract action = localAction();
+    PayloadUpdateInput input = PayloadInputFixture.getDefaultCommandPayloadUpdateInput(List.of());
+    input.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
+    mvc.perform(
+            put(
+                    TENANT_PAYLOAD_URI + "/{payloadId}",
+                    DEFAULT_TENANT_UUID,
+                    action.getPayload().getId())
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(input)))
+        .andExpect(status().isOk());
+
+    // Act
+    JsonNode history =
+        body(
+            mvc.perform(
+                    get(
+                        TENANT_THREAT_ARSENAL_URL + "/{actionId}/history",
+                        DEFAULT_TENANT_UUID,
+                        action.getId()))
+                .andExpect(status().isOk()));
+
+    // Assert
+    assertThat(history.findValuesAsText("catalog_history_action"))
+        .containsExactly(CatalogHistory.Action.SAVE.name());
+    assertThat(history.findValuesAsText("catalog_history_mode"))
+        .containsExactly(CatalogHistory.Mode.MANUAL.name());
+    assertThat(history.findValuesAsText("catalog_history_version"))
+        .doesNotContain(Payload.FIRST_VERSION);
   }
 
   // -- SEARCH --
@@ -838,18 +921,20 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
         TENANT_THREAT_ARSENAL_URL + "/{actionId}/older-versions-kept";
 
     private List<String> flagged(String tenantId, InjectorContract... actions) throws Exception {
-      List<String> actionIds = Arrays.stream(actions).map(InjectorContract::getId).toList();
-      JsonNode flagged =
-          body(
-              mvc.perform(
-                      post(OLDER_VERSIONS_IN_USE_URL, tenantId)
-                          .with(csrf())
-                          .contentType(MediaType.APPLICATION_JSON)
-                          .content(mapper.writeValueAsString(Map.of("action_ids", actionIds))))
-                  .andExpect(status().isOk()));
       List<String> ids = new ArrayList<>();
-      flagged.forEach(id -> ids.add(id.asText()));
+      olderUsages(tenantId, actions).fieldNames().forEachRemaining(ids::add);
       return ids;
+    }
+
+    private JsonNode olderUsages(String tenantId, InjectorContract... actions) throws Exception {
+      List<String> actionIds = Arrays.stream(actions).map(InjectorContract::getId).toList();
+      return body(
+          mvc.perform(
+                  post(OLDER_VERSIONS_IN_USE_URL, tenantId)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(mapper.writeValueAsString(Map.of("action_ids", actionIds))))
+              .andExpect(status().isOk()));
     }
 
     private ResultActions keep(String tenantId, InjectorContract action) throws Exception {
@@ -900,6 +985,22 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
       // Act & Assert
       assertThat(flagged(DEFAULT_TENANT_UUID, versions.get(1)))
           .containsExactly(versions.get(1).getId());
+    }
+
+    @Test
+    @DisplayName("counts the atomic testings and chained steps still on older versions")
+    void given_usagesOnOlderVersions_should_countThem() throws Exception {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      atomicTestingOn(versions.get(0));
+      atomicTestingOn(versions.get(0));
+      chainedStepOn(versions.get(0));
+
+      // Act
+      JsonNode usages = olderUsages(DEFAULT_TENANT_UUID, versions.get(1));
+
+      // Assert
+      assertThat(usages.path(versions.get(1).getId()).asLong()).isEqualTo(3);
     }
 
     @Test

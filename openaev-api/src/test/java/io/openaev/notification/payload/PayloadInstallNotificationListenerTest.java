@@ -79,7 +79,7 @@ class PayloadInstallNotificationListenerTest {
   private static CatalogContentChanged changed(
       ContentType type, CatalogHistory.Action action, CatalogHistory.Mode mode) {
     return new CatalogContentChanged(
-        TENANT, type, REPOSITORY, EXTERNAL_ID, "1.1.0", action, mode, null);
+        TENANT, type, REPOSITORY, EXTERNAL_ID, null, "1.1.0", action, mode, null);
   }
 
   private void runInSaltTyphoon() {

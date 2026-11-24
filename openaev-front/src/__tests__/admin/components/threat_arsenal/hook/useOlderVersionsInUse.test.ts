@@ -29,22 +29,22 @@ describe('useOlderVersionsInUse', () => {
 
   it('given a page listed should ask once for its payload actions only', async () => {
     // Arrange
-    fetchOlderVersionsInUse.mockResolvedValue({ data: ['action-v2'] });
+    fetchOlderVersionsInUse.mockResolvedValue({ data: { 'action-v2': 3 } });
 
     // Act
     const { result } = renderListing([withPayload, builtIn]);
 
     // Assert
-    await waitFor(() => expect(result.current.isInUse('action-v2')).toBe(true));
+    await waitFor(() => expect(result.current.olderUsages('action-v2')).toBe(3));
     expect(fetchOlderVersionsInUse).toHaveBeenCalledTimes(1);
     expect(fetchOlderVersionsInUse).toHaveBeenCalledWith({ action_ids: ['action-v2'] });
   });
 
   it('given the next page listed should ask for its actions only', async () => {
     // Arrange
-    fetchOlderVersionsInUse.mockResolvedValueOnce({ data: ['action-v2'] }).mockResolvedValueOnce({ data: [] });
+    fetchOlderVersionsInUse.mockResolvedValueOnce({ data: { 'action-v2': 3 } }).mockResolvedValueOnce({ data: {} });
     const { result, rerender } = renderListing([withPayload]);
-    await waitFor(() => expect(result.current.isInUse('action-v2')).toBe(true));
+    await waitFor(() => expect(result.current.olderUsages('action-v2')).toBe(3));
 
     // Act
     rerender({ listed: [withPayload, nextPage] });
@@ -52,20 +52,20 @@ describe('useOlderVersionsInUse', () => {
     // Assert
     await waitFor(() => expect(fetchOlderVersionsInUse).toHaveBeenCalledTimes(2));
     expect(fetchOlderVersionsInUse).toHaveBeenLastCalledWith({ action_ids: ['action-v3'] });
-    expect(result.current.isInUse('action-v2')).toBe(true);
+    expect(result.current.olderUsages('action-v2')).toBe(3);
   });
 
   it('given an action loaded again without injects left behind should drop its flag', async () => {
     // Arrange
-    fetchOlderVersionsInUse.mockResolvedValueOnce({ data: ['action-v2'] }).mockResolvedValueOnce({ data: [] });
+    fetchOlderVersionsInUse.mockResolvedValueOnce({ data: { 'action-v2': 3 } }).mockResolvedValueOnce({ data: {} });
     const { result } = renderListing([withPayload]);
-    await waitFor(() => expect(result.current.isInUse('action-v2')).toBe(true));
+    await waitFor(() => expect(result.current.olderUsages('action-v2')).toBe(3));
 
     // Act
     act(() => result.current.reload(withPayload));
 
     // Assert
-    await waitFor(() => expect(result.current.isInUse('action-v2')).toBe(false));
+    await waitFor(() => expect(result.current.olderUsages('action-v2')).toBe(0));
   });
 
   it('given only actions without a payload should not ask', () => {

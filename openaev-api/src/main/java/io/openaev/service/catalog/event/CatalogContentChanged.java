@@ -5,12 +5,13 @@ import io.openaev.database.model.catalog.CatalogContent;
 import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.database.model.catalog.ContentType;
 
-/** A version of catalogue content installed or uninstalled in a tenant, by a user or by itself. */
+/** A version of content installed, uninstalled or saved in a tenant, by a user or by itself. */
 public record CatalogContentChanged(
     String tenantId,
     ContentType type,
     String repository,
     String externalId,
+    String contentId,
     String version,
     CatalogHistory.Action action,
     CatalogHistory.Mode mode,
@@ -23,6 +24,7 @@ public record CatalogContentChanged(
         content.getCatalogType(),
         content.getCatalogRepository(),
         content.getCatalogExternalId(),
+        content.getCatalogContentId(),
         content.getCatalogVersion(),
         action,
         mode,

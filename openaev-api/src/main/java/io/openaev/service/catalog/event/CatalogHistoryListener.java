@@ -30,6 +30,7 @@ public class CatalogHistoryListener {
     history.setType(event.type());
     history.setRepository(event.repository());
     history.setExternalId(event.externalId());
+    history.setContentId(event.contentId());
     history.setVersion(event.version());
     history.setAction(event.action());
     history.setMode(event.mode());

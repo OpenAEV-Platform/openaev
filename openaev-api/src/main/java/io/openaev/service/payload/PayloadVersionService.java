@@ -12,6 +12,7 @@ import io.openaev.database.model.Step;
 import io.openaev.database.model.User;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.model.payload.PayloadRevocation;
+import io.openaev.database.raw.RawOlderVersionUsages;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.PayloadIdentityRepository;
 import io.openaev.rest.exception.BadRequestException;
@@ -51,6 +52,7 @@ public class PayloadVersionService {
   private final StepService stepService;
   private final PermissionService permissionService;
   private final UserService userService;
+  private final PayloadChangeKind payloadChangeKind;
 
   // -- READ --
 
@@ -68,6 +70,16 @@ public class PayloadVersionService {
             version ->
                 output(version, actions.get(version.getId()), revocations.get(version.getId())))
         .toList();
+  }
+
+  /** What this version changed since the one just below it; empty for the first version. */
+  public Optional<PayloadChange> changeFromPrevious(String tenantId, String actionId) {
+    Payload version = payload(tenantId, actionId);
+    return payloadService.versionsOf(tenantId, version).stream()
+        .filter(
+            other -> SemanticVersion.ORDER.compare(other.getVersion(), version.getVersion()) < 0)
+        .max(Comparator.comparing(Payload::getVersion, SemanticVersion.ORDER))
+        .map(previous -> payloadChangeKind.since(previous, List.of(version)).getFirst());
   }
 
   /** Refused when the version is not another version of the payload, or is revoked. */
@@ -159,13 +171,17 @@ public class PayloadVersionService {
     return stepService.findScenarioStepTemplatesByContract(tenantId, action.getId());
   }
 
-  /** Of these actions, the ones whose card says injects still run an older version. */
-  public List<String> actionsWithOlderVersionsInUse(String tenantId, List<String> actionIds) {
+  /**
+   * Of these actions, the ones whose card says injects still run an older version, with how many.
+   */
+  public Map<String, Long> olderVersionUsages(String tenantId, List<String> actionIds) {
     if (actionIds.isEmpty()) {
-      return List.of();
+      return Map.of();
     }
-    return payloadIdentityRepository.findAllActionIdsByTenantIdWithOlderVersionsInUse(
-        tenantId, actionIds);
+    return payloadIdentityRepository.countOlderVersionUsagesByTenantId(tenantId, actionIds).stream()
+        .filter(action -> action.getUsages() > 0)
+        .collect(
+            Collectors.toMap(RawOlderVersionUsages::getActionId, RawOlderVersionUsages::getUsages));
   }
 
   // -- UPDATE --

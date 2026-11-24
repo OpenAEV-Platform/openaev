@@ -35,10 +35,11 @@ public class CatalogHistoryService {
     return history(scenarioService.scenario(ctx, scenarioId));
   }
 
-  /** Newest first; empty for content that does not come from the catalogue. */
+  /** Newest first; local content, which has no catalogue key, is found by its content id. */
   private List<CatalogHistory> history(CatalogContent content) {
     if (content.getCatalogRepository() == null) {
-      return List.of();
+      return catalogHistoryRepository.findAllByTenantIdAndTypeAndContentIdOrderByCreatedAtDesc(
+          content.getTenant().getId(), content.getCatalogType(), content.getCatalogContentId());
     }
     return catalogHistoryRepository
         .findAllByTenantIdAndTypeAndRepositoryAndExternalIdOrderByCreatedAtDesc(

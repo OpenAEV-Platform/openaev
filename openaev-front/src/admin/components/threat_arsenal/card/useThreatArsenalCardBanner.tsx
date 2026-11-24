@@ -6,20 +6,17 @@ import { type ThreatArsenalAction } from '../../../../utils/api-types';
 import useCountLabel from '../../../../utils/hooks/useCountLabel';
 import { type OpenedTab } from '../hook/useOpenedAction';
 import { isShownRevoked } from '../utils/threatArsenalStatusUtils';
-import useOlderUsageCount from './useOlderUsageCount';
 
 /** The card's one banner, a direct child of the Card: a revoked version first, then injects left on an older version. */
 const useThreatArsenalCardBanner = (
   action: ThreatArsenalAction,
-  olderVersionsInUse: boolean,
+  olderUsages: number,
   onShowVersions: (action: ThreatArsenalAction, tab?: OpenedTab) => void,
 ) => {
   const { t } = useFormatter();
   const counted = useCountLabel();
   // Read on every render, before any condition: it reads the feature flags, a hook.
   const revoked = isShownRevoked(action);
-  // How many, once counted: the size of the job says whether to move now.
-  const olderCount = useOlderUsageCount(action.injector_contract_id, olderVersionsInUse && !revoked);
   // The card itself opens the drawer on click: the banner action opens its Versions tab instead.
   const showVersions = (tab: OpenedTab) => (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -41,7 +38,8 @@ const useThreatArsenalCardBanner = (
       </CardBanner>
     );
   }
-  if (olderVersionsInUse) {
+  // How many: the size of the job says whether to move now.
+  if (olderUsages > 0) {
     return (
       <CardBanner
         severity="warning"
@@ -50,7 +48,7 @@ const useThreatArsenalCardBanner = (
           onClick: showVersions('move'),
         }}
       >
-        {olderCount ? counted(olderCount, '1 inject uses an older version', '{count} injects use an older version') : t('Injects use an older version')}
+        {counted(olderUsages, '1 inject uses an older version', '{count} injects use an older version')}
       </CardBanner>
     );
   }

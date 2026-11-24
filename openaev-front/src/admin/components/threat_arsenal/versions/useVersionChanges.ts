@@ -1,25 +1,27 @@
+import { fetchThreatArsenalVersionChanges } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import { type ChangesTableRow } from '../../../../components/common/update/ChangesTable';
 import { useFormatter } from '../../../../components/i18n';
-import useVersionDetails from './useVersionDetails';
+import { type PayloadVersionChangeOutput } from '../../../../utils/api-types';
+import useLoadedOnKey from '../../../../utils/hooks/useLoadedOnKey';
 import versionFieldChanges from './versionFieldChanges';
 
 export interface VersionsProps {
-  // The action of the version before, and of the version after.
-  beforeActionId: string;
-  afterActionId: string;
+  // The action of the version whose changes are shown.
+  actionId: string;
 }
 
-/** What one version changed from the one before it, field by field; null while both load. */
-const useVersionChanges = ({ beforeActionId, afterActionId }: VersionsProps): ChangesTableRow[] | null => {
-  const { t, tPick } = useFormatter();
-  const before = useVersionDetails(beforeActionId);
-  const after = useVersionDetails(afterActionId);
-  if (!before || !after) return null;
-  return versionFieldChanges(before, after, details => tPick(details.action_labels))
-    .map(row => ({
-      ...row,
-      field: t(row.field),
-    }));
+const loadChanges = (actionId: string) => fetchThreatArsenalVersionChanges(actionId)
+  .then(({ data }: { data: PayloadVersionChangeOutput[] }) => data);
+
+/** What one version changed from the one just below it, field by field; null while it loads. */
+const useVersionChanges = ({ actionId }: VersionsProps): ChangesTableRow[] | null => {
+  const { t } = useFormatter();
+  const { value } = useLoadedOnKey<PayloadVersionChangeOutput[] | null>(actionId, loadChanges, null);
+  if (!value) return null;
+  return versionFieldChanges(value).map(row => ({
+    ...row,
+    field: t(row.field),
+  }));
 };
 
 export default useVersionChanges;

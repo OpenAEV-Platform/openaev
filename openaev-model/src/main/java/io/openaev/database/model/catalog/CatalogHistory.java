@@ -26,7 +26,8 @@ public class CatalogHistory implements TenantBase {
     REVOKE,
     LIFT_REVOCATION,
     UPDATE,
-    ROLLBACK
+    ROLLBACK,
+    SAVE
   }
 
   public enum Mode {
@@ -52,13 +53,15 @@ public class CatalogHistory implements TenantBase {
   @NotNull
   private ContentType type;
 
+  // Null for local content, which is found by its content id.
   @Column(name = "catalog_history_repository", updatable = false)
-  @NotNull
   private String repository;
 
   @Column(name = "catalog_history_external_id", updatable = false)
-  @NotNull
   private String externalId;
+
+  @Column(name = "catalog_history_content_id", updatable = false)
+  private String contentId;
 
   @Column(name = "catalog_history_version", updatable = false)
   @NotNull

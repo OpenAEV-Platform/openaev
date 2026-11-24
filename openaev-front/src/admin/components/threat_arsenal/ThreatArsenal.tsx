@@ -150,7 +150,7 @@ const ThreatArsenal = () => {
                   <ThreatArsenalCard
                     key={action.injector_contract_id}
                     action={action}
-                    olderVersionsInUse={olderVersions.isInUse(action.injector_contract_id)}
+                    olderUsages={olderVersions.olderUsages(action.injector_contract_id)}
                     onSelect={() => openAction(action)}
                     onUpdate={active.replaceAction}
                     onDuplicate={active.addAction}

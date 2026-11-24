@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 
+import { fetchThreatArsenalOlderVersionsInUse } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import { type ThreatArsenalAction } from '../../../../utils/api-types';
-import { olderVersionsInUse } from './usages/usageCounts';
-import useUsagesByVersion from './usages/useUsagesByVersion';
-import usePayloadVersions from './usePayloadVersions';
 
 /**
  * After a save that added a version: the new card replaces this one, and when injects are left on older
@@ -15,15 +13,19 @@ const useAfterNewVersion = (
   onShowSaved?: (action: ThreatArsenalAction) => void,
 ) => {
   const [saved, setSaved] = useState<ThreatArsenalAction | null>(null);
-  const versions = usePayloadVersions(saved?.injector_contract_id ?? '', !!saved);
-  const usages = useUsagesByVersion(saved ? versions : null);
 
   useEffect(() => {
-    if (!saved || !versions || !usages) return;
-    onUpdate?.(saved, actionId);
-    if (olderVersionsInUse(versions, usages, saved.injector_contract_id).length > 0) onShowSaved?.(saved);
-    setSaved(null);
-  }, [saved, versions, usages]);
+    if (!saved) return;
+    const savedId = saved.injector_contract_id;
+    fetchThreatArsenalOlderVersionsInUse({ action_ids: [savedId] })
+      .then(({ data }: { data: Record<string, number> }) => data[savedId] ?? 0)
+      .catch(() => 0)
+      .then((olderUsages) => {
+        onUpdate?.(saved, actionId);
+        if (olderUsages > 0) onShowSaved?.(saved);
+        setSaved(null);
+      });
+  }, [saved]);
 
   return (action: ThreatArsenalAction) => {
     if (action.injector_contract_id === actionId) {

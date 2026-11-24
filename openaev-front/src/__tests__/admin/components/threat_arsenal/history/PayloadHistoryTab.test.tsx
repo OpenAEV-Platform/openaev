@@ -7,19 +7,19 @@ import { aVersion, renderInApp } from '../threatArsenalTestUtils';
 const mocks = vi.hoisted(() => ({
   history: vi.fn(),
   versions: vi.fn(),
-  details: vi.fn((actionId: string) => Promise.resolve({
-    data: {
-      action_id: actionId,
-      action_labels: { en: 'Mimikatz' },
-      command_content: actionId === 'action-v2' ? 'mimikatz v2' : 'mimikatz v1',
-    },
+  changes: vi.fn(() => Promise.resolve({
+    data: [{
+      change_field: 'command_content',
+      change_before: 'mimikatz v1',
+      change_after: 'mimikatz v2',
+    }],
   })),
 }));
 
 vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
   fetchThreatArsenalHistory: mocks.history,
   fetchThreatArsenalVersions: mocks.versions,
-  fetchThreatArsenalAction: mocks.details,
+  fetchThreatArsenalVersionChanges: mocks.changes,
 }));
 
 const entry = (action: 'INSTALL' | 'UPDATE', version: string) => ({

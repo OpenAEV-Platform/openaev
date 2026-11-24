@@ -734,6 +734,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.threat_arsenal.customization.ThreatArsenalCustomizationApi#update",
           // payload_identities, injects, steps: the injects left on an older version.
           "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#olderVersionsInUse",
+          "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#changes",
           "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#keepOlderVersions",
           "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#showOlderVersions",
           // scenario_revisions, scenarios, catalog_items, payloads: a catalogue scenario updated

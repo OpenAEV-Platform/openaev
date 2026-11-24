@@ -17,6 +17,7 @@ const ACTION_LABELS: Record<CatalogHistoryOutput['catalog_history_action'], stri
   LIFT_REVOCATION: 'Revocation lifted',
   UPDATE: 'Updated',
   ROLLBACK: 'Rolled back',
+  SAVE: 'Saved',
 };
 
 /** What an entry changed, when the content says it: the version it came from, the fields, the before / after. */

@@ -2,6 +2,7 @@ package io.openaev.service.payload;
 
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.database.model.hash.Hashed;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.repository.PayloadIdentityRepository;
@@ -12,6 +13,7 @@ import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.catalog.event.CatalogChangePublisher;
 import io.openaev.utils.catalog.SemanticVersion;
 import java.time.Instant;
 import java.util.List;
@@ -32,6 +34,7 @@ public class PayloadLocalVersioning {
   private final PayloadChangeKind payloadChangeKind;
   private final PayloadIdentityRepository payloadIdentityRepository;
   private final PreviewFeatureService previewFeatureService;
+  private final CatalogChangePublisher changePublisher;
 
   /** The new version this input makes; empty when the payload is to be updated in place. */
   public Optional<Payload> newVersion(
@@ -61,8 +64,9 @@ public class PayloadLocalVersioning {
   }
 
   /**
-   * Numbers the candidate after the newest version and makes it the one shown. Locked: two saves at
-   * once number one after the other instead of taking the same number.
+   * Numbers the candidate after the newest version, makes it the one shown and records the save in
+   * the history. Locked: two saves at once number one after the other instead of taking the same
+   * number.
    */
   public Payload addVersion(Payload current, Payload candidate, Hashed.Change change) {
     PayloadIdentity identity =
@@ -81,6 +85,7 @@ public class PayloadLocalVersioning {
     candidate.setCreatedAt(Instant.now());
     candidate.setUpdatedAt(candidate.getCreatedAt());
     identity.setLatestVersion(candidate);
+    changePublisher.changed(candidate, CatalogHistory.Action.SAVE, CatalogHistory.Mode.MANUAL);
     return candidate;
   }
 }

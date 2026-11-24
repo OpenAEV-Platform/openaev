@@ -1,50 +1,40 @@
 import { type ChangesTableRow } from '../../../../components/common/update/ChangesTable';
-import { type ThreatArsenalActionFullOutput } from '../../../../utils/api-types';
-import { CUSTOMIZABLE_FIELD_LABELS, CUSTOMIZABLE_FORM_FIELDS, type CustomizableField, fieldText } from '../customization/fieldUpdates';
-import sameValue from '../customization/sameValue';
+import { type PayloadVersionChangeOutput } from '../../../../utils/api-types';
+import { CUSTOMIZABLE_FIELD_LABELS } from '../customization/fieldUpdates';
 
-type Details = ThreatArsenalActionFullOutput;
-
-// What a version runs, in the order the action form shows it.
-const RUN_FIELDS: CustomizableField[] = ['PLATFORMS', 'COMMAND_EXECUTOR', 'COMMAND_CONTENT', 'ARGUMENTS', 'PREREQUISITES', 'CLEANUP_EXECUTOR', 'CLEANUP_COMMAND'];
-
-const formValue = (details: Details, field: CustomizableField) => (details as unknown as Record<string, unknown>)[CUSTOMIZABLE_FORM_FIELDS[field]];
-
-/**
- * What changed from one version of a payload to the next, field by field, as the before / after rows of
- * the ChangesTable: the name and description, then what the payload runs. Unchanged fields are left out.
- */
-const versionFieldChanges = (before: Details, after: Details, name: (details: Details) => string): ChangesTableRow[] => {
-  const rows: ChangesTableRow[] = [];
-  if (name(before) !== name(after)) {
-    rows.push({
-      id: 'NAME',
-      field: 'Name',
-      before: name(before),
-      after: name(after),
-    });
-  }
-  if (!sameValue(before.action_description, after.action_description)) {
-    rows.push({
-      id: 'DESCRIPTION',
-      field: 'Description',
-      before: before.action_description ?? '',
-      after: after.action_description ?? '',
-    });
-  }
-  RUN_FIELDS.forEach((field) => {
-    const left = formValue(before, field);
-    const right = formValue(after, field);
-    if (!sameValue(left, right)) {
-      rows.push({
-        id: field,
-        field: CUSTOMIZABLE_FIELD_LABELS[field],
-        before: fieldText(field, left),
-        after: fieldText(field, right),
-      });
-    }
-  });
-  return rows;
+// The payload's own name of each field the action form shows; any other field reads from its name.
+const FIELD_LABELS: Record<string, string> = {
+  payload_name: 'Name',
+  payload_description: 'Description',
+  payload_platforms: CUSTOMIZABLE_FIELD_LABELS.PLATFORMS,
+  command_executor: CUSTOMIZABLE_FIELD_LABELS.COMMAND_EXECUTOR,
+  command_content: CUSTOMIZABLE_FIELD_LABELS.COMMAND_CONTENT,
+  payload_arguments: CUSTOMIZABLE_FIELD_LABELS.ARGUMENTS,
+  payload_prerequisites: CUSTOMIZABLE_FIELD_LABELS.PREREQUISITES,
+  payload_cleanup_executor: CUSTOMIZABLE_FIELD_LABELS.CLEANUP_EXECUTOR,
+  payload_cleanup_command: CUSTOMIZABLE_FIELD_LABELS.CLEANUP_COMMAND,
 };
+
+const fieldLabel = (field: string) => FIELD_LABELS[field] ?? field
+  .replace(/^(payload|command)_/, '')
+  .replace(/_/g, ' ')
+  .replace(/^./, first => first.toUpperCase());
+
+const itemText = (item: unknown) => (typeof item === 'string' ? item : JSON.stringify(item));
+
+/** A value as text: a list one item per line, nothing when empty. */
+const valueText = (value: unknown): string => {
+  if (value === null || value === undefined) return '';
+  if (Array.isArray(value)) return value.map(itemText).join('\n');
+  return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+};
+
+/** What a version changed, as the before / after rows of the ChangesTable. */
+const versionFieldChanges = (changes: PayloadVersionChangeOutput[]): ChangesTableRow[] => changes.map(change => ({
+  id: change.change_field,
+  field: fieldLabel(change.change_field),
+  before: valueText(change.change_before),
+  after: valueText(change.change_after),
+}));
 
 export default versionFieldChanges;

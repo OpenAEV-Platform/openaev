@@ -1,27 +1,14 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import useAfterNewVersion from '../../../../../admin/components/threat_arsenal/versions/useAfterNewVersion';
-import { type PayloadUsagesOutput, type PayloadVersionOutput } from '../../../../../utils/api-types';
-import { actionId, payloadId, payloadVersion, usage, usagesOf, versionAction } from './payloadVersionFixtures';
+import { actionId, versionAction } from './payloadVersionFixtures';
 
-const mocks = vi.hoisted(() => ({
-  usePayloadVersions: vi.fn(),
-  useUsagesByVersion: vi.fn(),
-}));
+const mocks = vi.hoisted(() => ({ olderVersionsInUse: vi.fn() }));
 
-vi.mock('../../../../../admin/components/threat_arsenal/versions/usePayloadVersions', () => ({ default: mocks.usePayloadVersions }));
-vi.mock('../../../../../admin/components/threat_arsenal/versions/usages/useUsagesByVersion', () => ({ default: mocks.useUsagesByVersion }));
+vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({ fetchThreatArsenalOlderVersionsInUse: mocks.olderVersionsInUse }));
 
 const SAVED_ID = actionId('1.0.0');
-
-// The versions the new action's payload has once loaded, and the usages of each one.
-const versionsLoaded = (usagesByVersion: Record<string, PayloadUsagesOutput>) => {
-  mocks.usePayloadVersions.mockImplementation((_id: string, load: boolean) => (load ? Object.keys(usagesByVersion).map(payloadVersion) : null));
-  mocks.useUsagesByVersion.mockImplementation((versions: PayloadVersionOutput[] | null) => (versions
-    ? Object.fromEntries(Object.entries(usagesByVersion).map(([version, usages]) => [payloadId(version), usages]))
-    : null));
-};
 
 const renderAfterSave = () => {
   const onUpdate = vi.fn();
@@ -36,13 +23,11 @@ const renderAfterSave = () => {
 
 describe('useAfterNewVersion', () => {
   beforeEach(() => {
-    mocks.usePayloadVersions.mockReset();
-    mocks.useUsagesByVersion.mockReset();
+    mocks.olderVersionsInUse.mockReset();
   });
 
   it('given_saveInPlace_should_updateTheCardRightAway', () => {
     // Arrange
-    versionsLoaded({});
     const { afterSave, onUpdate, onShowSaved } = renderAfterSave();
 
     // Act
@@ -51,45 +36,39 @@ describe('useAfterNewVersion', () => {
     // Assert
     expect(onUpdate).toHaveBeenCalledWith(versionAction('1.0.0'), SAVED_ID);
     expect(onShowSaved).not.toHaveBeenCalled();
+    expect(mocks.olderVersionsInUse).not.toHaveBeenCalled();
   });
 
-  it('given_injectsOnOlderVersions_should_replaceTheCardAndOpenItsVersions', () => {
+  it('given_injectsOnOlderVersions_should_replaceTheCardAndOpenItsVersions', async () => {
     // Arrange
-    versionsLoaded({
-      '1.1.0': usagesOf(usage('inject-new')),
-      '1.0.0': usagesOf(usage('inject-1'), usage('inject-2')),
-      '0.9.0': usagesOf(),
-    });
+    mocks.olderVersionsInUse.mockResolvedValue({ data: { [actionId('1.1.0')]: 2 } });
     const { afterSave, onUpdate, onShowSaved } = renderAfterSave();
 
     // Act
     act(() => afterSave(versionAction('1.1.0')));
 
     // Assert
+    await waitFor(() => expect(onShowSaved).toHaveBeenCalledWith(versionAction('1.1.0')));
     expect(onUpdate).toHaveBeenCalledWith(versionAction('1.1.0'), SAVED_ID);
-    expect(onShowSaved).toHaveBeenCalledWith(versionAction('1.1.0'));
+    expect(mocks.olderVersionsInUse).toHaveBeenCalledWith({ action_ids: [actionId('1.1.0')] });
   });
 
-  it('given_noInjectOnOlderVersions_should_replaceTheCardOnly', () => {
+  it('given_noInjectOnOlderVersions_should_replaceTheCardOnly', async () => {
     // Arrange
-    versionsLoaded({
-      '1.1.0': usagesOf(),
-      '1.0.0': usagesOf(),
-    });
+    mocks.olderVersionsInUse.mockResolvedValue({ data: {} });
     const { afterSave, onUpdate, onShowSaved } = renderAfterSave();
 
     // Act
     act(() => afterSave(versionAction('1.1.0')));
 
     // Assert
-    expect(onUpdate).toHaveBeenCalledWith(versionAction('1.1.0'), SAVED_ID);
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith(versionAction('1.1.0'), SAVED_ID));
     expect(onShowSaved).not.toHaveBeenCalled();
   });
 
-  it('given_usagesStillLoading_should_wait', () => {
+  it('given_countStillLoading_should_wait', () => {
     // Arrange
-    mocks.usePayloadVersions.mockReturnValue([payloadVersion('1.1.0'), payloadVersion('1.0.0')]);
-    mocks.useUsagesByVersion.mockReturnValue(null);
+    mocks.olderVersionsInUse.mockReturnValue(new Promise(() => undefined));
     const { afterSave, onUpdate, onShowSaved } = renderAfterSave();
 
     // Act
