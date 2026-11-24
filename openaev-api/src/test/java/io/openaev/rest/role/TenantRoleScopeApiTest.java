@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Role;
@@ -478,6 +479,7 @@ class TenantRoleScopeApiTest extends IntegrationTest {
       assertEquals(0L, rawCountByName("created-without-membership"));
     }
 
+    @ExpectsEmptyScopeReads("a caller with no membership lists no tenant role")
     @Test
     @DisplayName("given a list, should return no role")
     void given_list_should_returnNoRole() throws Exception {

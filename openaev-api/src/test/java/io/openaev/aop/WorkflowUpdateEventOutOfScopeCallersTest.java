@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -176,6 +177,8 @@ class WorkflowUpdateEventOutOfScopeCallersTest extends ProductionTablesIntegrati
       assertRefusedWithNothingPublished(httpStatus);
     }
 
+    @ExpectsEmptyScopeReads(
+        "a caller with no tenant membership reads no inject and notifies nothing")
     @Test
     @DisplayName("given no tenant membership should refuse the update and notify no step")
     void given_anExpectationUpdateWithNoTenantMembership_should_refuseItAndNotifyNoStep()
@@ -239,6 +242,8 @@ class WorkflowUpdateEventOutOfScopeCallersTest extends ProductionTablesIntegrati
       assertRefusedWithNothingPublished(httpStatus);
     }
 
+    @ExpectsEmptyScopeReads(
+        "a caller with no tenant membership reads no inject and notifies nothing")
     @Test
     @DisplayName("given no tenant membership should refuse the report and notify nothing")
     void given_anExecutionReportWithNoTenantMembership_should_refuseItAndNotifyNothing()

@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -345,6 +346,7 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
           .andExpect(status().isForbidden());
     }
 
+    @ExpectsEmptyScopeReads("a caller with no membership reads no organization")
     @Test
     @DisplayName("Missing memberships never grant access to the default tenant")
     void given_noMembership_should_rejectIdAccess() throws Exception {
@@ -586,6 +588,7 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
       }
     }
 
+    @ExpectsEmptyScopeReads("a row outside the scope of the caller is hidden by the empty read")
     @ParameterizedTest
     @ValueSource(strings = {"none", "plain", "header"})
     @DisplayName("Unprefixed collections never expose an unauthorized ambient default tenant")

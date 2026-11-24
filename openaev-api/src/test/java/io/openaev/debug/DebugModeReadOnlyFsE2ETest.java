@@ -50,7 +50,7 @@ class DebugModeReadOnlyFsE2ETest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("requests are still served while JFR is degraded")
   void requestsStillServed() throws Exception {
     mvc.perform(get(TAG_URI)).andExpect(status().isOk());

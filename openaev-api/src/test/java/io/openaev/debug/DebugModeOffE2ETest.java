@@ -77,7 +77,7 @@ class DebugModeOffE2ETest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("a real request produces no debug log lines at all (no slowdown by default)")
   void noDebugLogsByDefault() throws Exception {
     Logger debugLogger = (Logger) LoggerFactory.getLogger("io.openaev.debug");

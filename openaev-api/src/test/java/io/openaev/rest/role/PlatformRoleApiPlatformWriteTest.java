@@ -119,7 +119,7 @@ class PlatformRoleApiPlatformWriteTest extends ProductionTablesIntegrationTest {
     }
 
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("given_anUnmarkedTransaction_should_deleteAPlatformRoleThroughTheEndpoint")
     void given_anUnmarkedTransaction_should_deleteAPlatformRoleThroughTheEndpoint()
         throws Exception {

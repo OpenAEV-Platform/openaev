@@ -55,9 +55,10 @@ import org.springframework.test.web.servlet.MockMvc;
  * persistence context, or the request's {@code findById} is a first-level-cache hit that never
  * queries the database and the endpoint answers 200 whatever the scope is. Ground truth goes
  * through raw JDBC, which the Hibernate statement inspector never rewrites, so a scope leaked into
- * the connection cannot mask it. {@code @TestPropertySource} arms {@code import_mappers} for this
- * class only; the test classpath declares no active table, so without it the inspector is inert.
+ * the connection cannot mask it. {@link ExpectsEmptyScopeReads} tells the fail-closed gate that the
+ * empty reads of this class are its subject.
  */
+@ExpectsEmptyScopeReads("a caller with no membership reads and writes nothing on an active table")
 @WithMockUser(isAdmin = true)
 @DisplayName("A caller with no tenant membership reads and writes nothing on an active table")
 class CallerWithoutTenantMembershipTest extends IntegrationTest {
