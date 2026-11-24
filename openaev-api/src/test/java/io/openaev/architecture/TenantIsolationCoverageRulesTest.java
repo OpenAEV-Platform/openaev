@@ -738,4 +738,62 @@ class TenantIsolationCoverageRulesTest {
       collectTests(nested, tests);
     }
   }
+
+  @Nested
+  @DisplayName("The test profile's list")
+  class TheTestProfileList {
+
+    private Scan scanWithProfile(Set<String> profile, Class<?>... classes) {
+      return Scan.of(List.of(classes), List.of(), List.of(), PRODUCTION, SELF_ISOLATED, profile);
+    }
+
+    @Test
+    @DisplayName("given a class that declares nothing, should read the list of the profile")
+    void given_classThatDeclaresNothing_should_readTheListOfTheProfile() {
+      // Arrange
+      Scan scan = scanWithProfile(Set.of("tags", "documents"), MarksWithNoDeclaration.class);
+
+      // Act
+      Effective effective = scan.effective(MarksWithNoDeclaration.class);
+
+      // Assert
+      assertThat(effective.failure()).isNull();
+      assertThat(effective.tables()).containsExactlyInAnyOrder("tags", "documents");
+      assertThat(scan.markedOutsideTheEffectiveList()).isEmpty();
+      assertThat(scan.covered()).containsOnlyKeys("tags", "documents");
+    }
+
+    @Test
+    @DisplayName("given a profile that lacks the marked table, should name the class")
+    void given_profileThatLacksTheMarkedTable_should_nameTheClass() {
+      // Arrange
+      Scan scan = scanWithProfile(Set.of("tags"), MarksWithNoDeclaration.class);
+
+      // Act and Assert
+      assertThat(scan.markedOutsideTheEffectiveList())
+          .singleElement()
+          .satisfies(
+              line ->
+                  assertThat(line)
+                      .contains("MarksWithNoDeclaration")
+                      .contains("marks 'documents'")
+                      .contains("its effective list [tags]"));
+      assertThat(scan.covered()).isEmpty();
+      assertThat(scan.uncovered()).containsExactlyInAnyOrder("documents", "tags");
+    }
+
+    @Test
+    @DisplayName("given a class that declares its own list, should not read the profile")
+    void given_classThatDeclaresItsOwnList_should_notReadTheProfile() {
+      // Arrange
+      Scan scan = scanWithProfile(Set.of("tags"), MarksOnAProbePin.class);
+
+      // Act
+      Effective effective = scan.effective(MarksOnAProbePin.class);
+
+      // Assert
+      assertThat(effective.tables()).containsExactlyInAnyOrder("tags", "documents");
+      assertThat(effective.sites()).containsExactly(MarksOnAProbePin.class.getName());
+    }
+  }
 }

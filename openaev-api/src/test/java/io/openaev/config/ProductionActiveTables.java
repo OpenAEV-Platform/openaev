@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 public final class ProductionActiveTables {
 
   private static final String APPLICATION_PROPERTIES = "src/main/resources/application.properties";
+  private static final String TEST_PROPERTIES = "src/test/resources/application.properties";
   private static final String KEY = "openaev.tenant.active-tables";
 
   private ProductionActiveTables() {}
@@ -41,13 +42,27 @@ public final class ProductionActiveTables {
    * {@link #armedBy}, so the terminal {@code *} comes back as the tables it arms.
    */
   public static Set<String> names() {
+    return armedBy(rawValue(APPLICATION_PROPERTIES));
+  }
+
+  /**
+   * The tables the test profile arms for every test that sets no list of its own, read the same way
+   * as {@link #names()} from {@code src/test/resources/application.properties}. The test classpath
+   * shadows the production file, so this is the list a plain integration test runs on; {@code
+   * TestProfileActiveTablesTest} fails when it differs from production's.
+   */
+  public static Set<String> testProfileNames() {
+    return armedBy(rawValue(TEST_PROPERTIES));
+  }
+
+  private static String rawValue(String file) {
     Properties properties = new Properties();
-    try (InputStream in = new FileInputStream(APPLICATION_PROPERTIES)) {
+    try (InputStream in = new FileInputStream(file)) {
       properties.load(in);
     } catch (IOException e) {
-      throw new UncheckedIOException("cannot read " + APPLICATION_PROPERTIES, e);
+      throw new UncheckedIOException("cannot read " + file, e);
     }
-    return armedBy(properties.getProperty(KEY, ""));
+    return properties.getProperty(KEY, "");
   }
 
   /**
