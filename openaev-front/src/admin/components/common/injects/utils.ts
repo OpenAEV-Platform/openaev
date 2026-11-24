@@ -114,18 +114,19 @@ export const getValidatingRule = (field: ContractElement, t: Translate) => {
       rule = z.array(z.string()).min(1, { message: t('Required') }).default([]);
       break;
 
-    case 'asset-group-reference':
-      // Cardinality "n" stores a list of asset group ids, cardinality "1" a single id.
+    case 'select':
+    case 'choice':
+    case 'dependency-select':
+      // A cardinality "n" select holds a list of ids; a cardinality "1" select a single id.
+      // prefault, not default: zod 4 returns a default without validating it, so an untouched
+      // field would pass; a prefault goes through min(1) and is refused as Required.
       rule = field.cardinality === 'n'
-        ? z.array(z.string()).min(1, { message: t('Required') }).default([])
+        ? z.array(z.string()).min(1, { message: t('Required') }).prefault([])
         : z.string().min(1, { message: t('Required') });
       break;
 
     case 'text':
     case 'textarea':
-    case 'select':
-    case 'choice':
-    case 'dependency-select':
     case 'ai-target':
     case 'document':
       rule = z.string().min(1, { message: t('Required') });
