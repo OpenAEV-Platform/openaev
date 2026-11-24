@@ -12,8 +12,8 @@ import AssetGroupRulesCell from './AssetGroupRulesCell';
 // Every chip of the Rules column is the same height as the library's own.
 const RULES_CHIP_HEIGHT = 24;
 
-// Standard colours ("Pastel colours" off): outlined, as the design-system Chip and the
-// AND/OR mode chip beside them; the `pastel` root class keeps the filled tile.
+// The design-system 1.13 chip look (neutral fill and a 30% hairline), as the AND/OR mode
+// chip beside them.
 const CHIP_SX = [
   {
     borderRadius: 1,

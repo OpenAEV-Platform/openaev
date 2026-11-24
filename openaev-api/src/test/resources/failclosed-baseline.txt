@@ -95,6 +95,20 @@ io.openaev.service.InjectorService.createNewBuiltinInjector
 io.openaev.service.UserService.findByToken tables=roles,groups
 io.openaev.service.UserService.createAdminSession tables=roles,groups
 
+# BENIGN - roles and marking_definitions activation. The user load of the access check
+# (UserService.findWithRoles, from currentUser, currentUserOrNull and userWithRoles) reads the roles
+# and the markings of the caller's groups with the request's scope, which is empty for a caller who
+# belongs to no tenant (a platform operator, a user a test builds with no membership); a member has
+# its tenants in scope. Such a caller holds platform groups only, and a platform group links platform
+# roles only (the database refuses a tenant role on it), so the roles it needs are read whatever the
+# scope: its capability check passes (ScopedCurrentUserLoadTest, NoMembership and OutsideATransaction,
+# the two branches of the load). The markings of its groups are tenant rows and come back empty, but
+# nothing reads them from this load: the clearance of a request is read by JDBC from the link table
+# (MarkingClearanceCacheManager.findClearance) and neither branch of the load writes the link table
+# (CurrentUserLoadUnscopedMarkingsTest). Waived for these two tables only.
+io.openaev.service.UserService.findWithRoles tables=roles
+io.openaev.service.UserService.findWithRoles tables=marking_definitions
+
 # BENIGN - roles activation (#9147). The platform role and platform group endpoints run in the scope
 # of their caller, empty for a platform operator who belongs to no tenant. They read platform roles
 # only: the platform role service reads the rows with no tenant, and the eager roles of a platform
@@ -108,6 +122,38 @@ io.openaev.service.platform.roles.PlatformRoleService.findById tables=roles
 io.openaev.service.platform.roles.PlatformRoleService.findByIds tables=roles
 io.openaev.service.platform.roles.PlatformRoleService.lambda$search$2 tables=roles
 io.openaev.service.platform.roles.PlatformRoleService.delete tables=roles
+
+# BENIGN - groups activation. These reads run with an empty scope and return the platform groups
+# of the caller and none of its tenant groups, which is all they need. groups is dual-scope: a row
+# with no tenant is readable under any scope, a tenant group needs its tenant in scope. The scope is
+# empty for a caller who belongs to no tenant (a platform operator, a user a test builds with no
+# membership), who holds no tenant group: leaving a tenant revokes its groups (UserTenantGroupScopeTest),
+# and for the pre-auth password reset, which runs before a tenant is chosen. A caller who belongs to
+# a tenant has it in its scope, so the same reads return its tenant groups (the control of each
+# pin below).
+# - findWithRoles, the user load of the access check: the capabilities of an operator of no tenant
+#   come from its platform groups (ScopedCurrentUserLoadTest, no-membership case).
+# - replaceTags: the reload after the tag replacement is read again under the scope of the user's
+#   tenants (UserService.applyUpdate), and the groups it leaves are checked by
+#   UserLoadUnscopedGroupsTest (WhatTheCallersWrite) and UserTenantGroupScopeTest.
+# - resetPassword and sendPasswordResetEmail: pre-auth, the load saves the user without touching its
+#   groups (the link rows are unchanged, UserLoadUnscopedGroupsTest), and the mail reads a name and
+#   an address.
+# - PlatformGroupService.search: the platform group search lists the groups with no tenant by
+#   construction; a tenant group never appears and a platform group does
+#   (PlatformGroupApiTest, Isolation). The group output carries no role and no marking.
+# - ScenarioService.scenarios and ExerciseService.exercises by id: the granted half of the read joins
+#   groups through the grants of the caller. A caller of no tenant holds none, so it reads nothing,
+#   and a member reads its grants (ExerciseApiSearchTest and ScenarioApiSearchTest, the
+#   no_grants and with_grants tests of the by-id search). Waived for the tables each read names.
+io.openaev.service.UserService.findWithRoles tables=groups
+io.openaev.service.UserService.replaceTags tables=groups
+io.openaev.service.UserService.resetPassword tables=groups
+io.openaev.service.UserService.sendPasswordResetEmail tables=groups
+io.openaev.service.platform.groups.PlatformGroupService.lambda$search$1 tables=groups
+io.openaev.service.platform.groups.PlatformGroupService.lambda$search$1 tables=groups,marking_definitions
+io.openaev.service.scenario.ScenarioService.lambda$scenarios$4 tables=groups,scenarios
+io.openaev.rest.exercise.service.ExerciseService.lambda$exercises$5 tables=assets,exercises,groups,injects
 
 # BENIGN - roles activation (#9147). These production paths load a user with no scope, so the roles
 # of its groups come back without its tenant roles, and none of them evaluates a right from that
@@ -124,3 +170,22 @@ io.openaev.rest.user.UserApi.login tables=roles
 io.openaev.service.UserService.resetPassword tables=roles
 io.openaev.service.UserService.sendPasswordResetEmail tables=roles
 io.openaev.service.UserService.user tables=roles
+
+# BENIGN - marking_definitions activation. The same unscoped loads of a user as the roles block
+# above also read the markings of the user's groups (the eager Group.markings collection), and with
+# no scope that collection comes back empty. Nothing at these sites returns, writes or decides from
+# it: no response carries the markings of a group (the user serializes its groups as ids), the
+# groups_markings links are never rewritten from the loaded collection (the password reset saves
+# the user and leaves the links in place), and the clearance of a request is read by JDBC from the
+# link table, not from the entity (MarkingClearanceCacheManager.findClearance). The setup email
+# reads the name and the email only. The by-id user read serves the platform user read, the player
+# delete, the audit log and the tenant detach, which drops the user's group links and evicts its
+# clearance. Both flows are pinned end to end by UserLoadUnscopedMarkingsTest: the setup email
+# through the public reset request and the mailing boundary, and the tenant detach with the
+# clearance cached first (the revocation runs in the scope of the tenant and evicts the clearance
+# itself). Waived for marking_definitions only.
+io.openaev.rest.user.UserApi.login tables=marking_definitions
+io.openaev.service.UserService.findByToken tables=marking_definitions
+io.openaev.service.UserService.resetPassword tables=marking_definitions
+io.openaev.service.UserService.sendPasswordResetEmail tables=marking_definitions
+io.openaev.service.UserService.user tables=marking_definitions

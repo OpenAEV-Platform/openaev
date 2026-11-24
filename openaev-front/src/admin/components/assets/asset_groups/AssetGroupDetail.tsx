@@ -11,6 +11,7 @@ import { searchDistinctFindings } from '../../../../actions/findings/finding-act
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import AssetTypeFragment from '../../../../components/common/list/fragments/AssetTypeFragment';
+import markingsColumn from '../../../../components/common/list/markingsColumn';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -34,6 +35,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
@@ -49,12 +51,13 @@ import useExpectationPosture from '../useExpectationPosture';
 import AssetGroupPopover from './AssetGroupPopover';
 import computeRuleValues from './assetGroupRules';
 
-const inlineStyles: Record<string, CSSProperties> = {
-  asset_name: { width: '40%' },
+const columnStyles = (markingEnabled: boolean): Record<string, CSSProperties> => ({
+  asset_name: { width: markingEnabled ? '30%' : '40%' },
   asset_type: { width: '20%' },
-  asset_criticality: { width: '20%' },
-  asset_tags: { width: '20%' },
-};
+  asset_criticality: { width: markingEnabled ? '15%' : '20%' },
+  asset_markings: { width: '20%' },
+  asset_tags: { width: markingEnabled ? '15%' : '20%' },
+});
 
 // Adds a scoped filter to a search input without mutating the caller's group.
 const withFilter = (input: SearchPaginationInput, key: string, values: string[]): SearchPaginationInput => {
@@ -76,6 +79,8 @@ const withFilter = (input: SearchPaginationInput, key: string, values: string[])
 
 const AssetGroupDetail = () => {
   const { t } = useFormatter();
+  const markingEnabled = isFeatureEnabled('MARKING');
+  const inlineStyles = columnStyles(markingEnabled);
   const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -154,6 +159,7 @@ const AssetGroupDetail = () => {
       isSortable: false,
       value: (asset: AssetOutput) => <ItemCriticality criticality={asset.asset_criticality} />,
     },
+    ...(markingEnabled ? [markingsColumn('asset_markings', (asset: AssetOutput) => asset.asset_markings)] : []),
     {
       field: 'asset_tags',
       label: 'Tags',

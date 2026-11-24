@@ -15,11 +15,13 @@ import io.openaev.opencti.config.XtmConfig;
 import io.openaev.xtm.counterpart.Counterpart;
 import io.openaev.xtm.counterpart.CounterpartKind;
 import io.openaev.xtm.counterpart.CounterpartUnavailableException;
+import io.openaev.xtmone.XtmOneClient;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ClassicHttpRequest;
@@ -35,11 +37,14 @@ class OpenCRQCounterpartProviderTest {
 
   private final ObjectMapper mapper = new ObjectMapper();
 
+  /** Mockito answers Optional.empty() by default: no XTM One user token unless a test gives one. */
+  private final XtmOneClient xtmOneClient = mock(XtmOneClient.class);
+
   private OpenCRQCounterpartProvider provider(Map<String, Object> opencrq) {
     XtmConfig config = new XtmConfig();
     org.springframework.test.util.ReflectionTestUtils.setField(config, "mapper", mapper);
     config.setOpencrq(opencrq);
-    return new OpenCRQCounterpartProvider(config, null, mapper);
+    return new OpenCRQCounterpartProvider(config, null, mapper, xtmOneClient);
   }
 
   private static final Map<String, Object> CONNECTED =
@@ -52,7 +57,7 @@ class OpenCRQCounterpartProviderTest {
     XtmConfig config = new XtmConfig();
     org.springframework.test.util.ReflectionTestUtils.setField(config, "mapper", mapper);
     config.setOpencrq(CONNECTED);
-    return new OpenCRQCounterpartProvider(config, httpClientFactory, mapper);
+    return new OpenCRQCounterpartProvider(config, httpClientFactory, mapper, xtmOneClient);
   }
 
   /** OpenCRQ answers {@code status} with {@code body} to the next lookup. */
@@ -102,6 +107,35 @@ class OpenCRQCounterpartProviderTest {
     assertThat(get.getUri().toString()).startsWith("https://ocrq/trpc/xtm.lookup?input=");
     assertThat(get.getFirstHeader(HttpHeaders.AUTHORIZATION).getValue())
         .isEqualTo("Bearer ogrc_secret");
+    assertThat(get.getFirstHeader(OpenCRQCounterpartProvider.XTM_USER_TOKEN_HEADER)).isNull();
+  }
+
+  @Test
+  @DisplayName("the user token XTM One exchanged for OpenCRQ is forwarded beside the service token")
+  void resolveForwardsTheXtmOneUserToken() throws Exception {
+    when(xtmOneClient.exchangeUserToken(any())).thenReturn(Optional.of("xtm-one-user-token"));
+    ArgumentCaptor<ClassicHttpRequest> request = answers(200, "{\"result\":{\"data\":[]}}");
+
+    connected().resolve("t", CounterpartKind.VULNERABILITY, List.of("CVE-2024-1"));
+
+    HttpGet get = (HttpGet) request.getValue();
+    assertThat(get.getFirstHeader(OpenCRQCounterpartProvider.XTM_USER_TOKEN_HEADER).getValue())
+        .isEqualTo("xtm-one-user-token");
+    assertThat(get.getFirstHeader(HttpHeaders.AUTHORIZATION).getValue())
+        .isEqualTo("Bearer ogrc_secret");
+  }
+
+  @Test
+  @DisplayName("a failing exchange leaves the lookup as it was, without the user token")
+  void resolveWithoutExchange() throws Exception {
+    when(xtmOneClient.exchangeUserToken(any())).thenThrow(new IllegalStateException("no user"));
+    ArgumentCaptor<ClassicHttpRequest> request = answers(200, "{\"result\":{\"data\":[]}}");
+
+    assertThat(connected().resolve("t", CounterpartKind.VULNERABILITY, List.of("CVE-2024-1")))
+        .isEmpty();
+
+    HttpGet get = (HttpGet) request.getValue();
+    assertThat(get.getFirstHeader(OpenCRQCounterpartProvider.XTM_USER_TOKEN_HEADER)).isNull();
   }
 
   @Test

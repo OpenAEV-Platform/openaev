@@ -162,6 +162,8 @@ export interface AgentTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -417,6 +419,8 @@ export interface AiTargetTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -904,6 +908,8 @@ export interface AssetGroupTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -2349,6 +2355,8 @@ interface BaseInjectTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_prevention_status?:
     | "FAILED"
     | "PENDING"
@@ -5432,6 +5440,11 @@ export interface EndpointSimple {
    */
   asset_id: string;
   /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
+  /**
    * Asset name
    * @minLength 1
    */
@@ -5470,6 +5483,8 @@ export interface EndpointTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -8852,6 +8867,8 @@ export interface ManualTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -11153,6 +11170,7 @@ export interface PlatformSettings {
     | "LOGGING_EXPECTATION"
     | "CATALOG"
     | "EXPLORATION_GRAPH"
+    | "XTM_COUNTERPARTS"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -11368,6 +11386,8 @@ export interface PlayerTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -11563,6 +11583,7 @@ export interface PublicPlatformSettings {
     | "LOGGING_EXPECTATION"
     | "CATALOG"
     | "EXPLORATION_GRAPH"
+    | "XTM_COUNTERPARTS"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -13880,6 +13901,8 @@ export interface TeamTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -14556,7 +14579,6 @@ export interface UpdateProfileInput {
   /** @minLength 1 */
   user_lastname: string;
   user_organization?: string;
-  user_pastel_colours?: boolean;
   /** @minLength 1 */
   user_theme: string;
 }
@@ -14735,8 +14757,6 @@ export interface User {
   user_lastname?: string;
   /** Organization ID of the user */
   user_organization?: string;
-  /** Pastel colours preference of the user: soft pastel chips when true (default), the standard colours shared by every XTM Platform module when false */
-  user_pastel_colours?: boolean;
   /** PGP key of the user */
   user_pgp_key?: string;
   /** Phone number of the user */

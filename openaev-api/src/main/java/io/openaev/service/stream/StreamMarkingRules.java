@@ -36,10 +36,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * <ul>
  *   <li><b>Row</b>: whether the entity is sent, by its own markings (an asset), the row it points
  *       to (an agent, a trace), or its link rows (a finding, hidden when all its assets are).
- *   <li><b>Listings</b>: the ids of marked or derived rows in the payload, at any depth, keep only
- *       the visible ones (an inject's targets, a finding's groups' assets).
- *   <li><b>Embedded</b>: the objects of a marked or derived table in the payload keep only the
- *       visible ones (an inject's expectations and traces).
+ *   <li><b>Listings</b>: the ids of marked or derived rows in the payload, alone or in a list, at
+ *       any depth, keep only the visible ones (an inject's targets, a finding's groups' assets, an
+ *       injector's security platform).
+ *   <li><b>Embedded</b>: the objects of a marked or derived table in the payload, alone or in an
+ *       array, keep only the visible ones (an inject's expectations and traces, a collector's
+ *       security platform).
  * </ul>
  *
  * The markings are read after commit ({@link StreamVisibilityService}).
@@ -79,18 +81,18 @@ public class StreamMarkingRules {
   }
 
   /**
-   * Ids of a marked or derived table listed in a payload.
+   * Ids of a marked or derived table in a payload, alone or in a list.
    *
-   * @param path the JSON path of the list, dot-separated, through nested objects and arrays (e.g.
-   *     {@code finding_asset_groups.asset_group_assets})
+   * @param path the JSON path of the id or list, dot-separated, through nested objects and arrays
+   *     (e.g. {@code finding_asset_groups.asset_group_assets})
    * @param table the table of the listed rows
    */
   public record ListingRule(String path, String table) {}
 
   /**
-   * An array of objects of a marked or derived table embedded whole in a payload.
+   * Objects of a marked or derived table embedded whole in a payload, alone or in an array.
    *
-   * @param path the JSON path of the array, dot-separated (e.g. {@code
+   * @param path the JSON path of the object or array, dot-separated (e.g. {@code
    *     inject_status.status_traces})
    * @param idProperty the property identifying an element
    * @param table the table of the elements, whose {@link RowRule} each element follows
@@ -202,6 +204,10 @@ public class StreamMarkingRules {
     List<ListingRule> listings = new ArrayList<>();
     List<EmbeddedRule> embedded = new ArrayList<>();
     collectNested(entity, "", new HashSet<>(), listings, embedded);
+    if (row != null && !row.about()) {
+      // The id of the row's own parent: the entity is hidden with it, nothing to filter.
+      listings.removeIf(listing -> listing.path().equals(row.parentProperty()));
+    }
     if (row == null && listings.isEmpty() && embedded.isEmpty()) {
       return EntityRule.NONE;
     }
@@ -249,7 +255,7 @@ public class StreamMarkingRules {
     for (BeanPropertyDefinition property : propertiesOf(type)) {
       String path = prefix + property.getName();
       String table = tableOfContent(property);
-      if (table != null && isIdList(property)) {
+      if (table != null && isIds(property)) {
         if (canBeHidden(contentClassOf(property), table)) {
           listings.add(new ListingRule(path, table));
         }
@@ -260,9 +266,7 @@ public class StreamMarkingRules {
         continue;
       }
       if (table != null) {
-        if (property.getPrimaryType().isCollectionLikeType()) {
-          embedded.add(new EmbeddedRule(path, idPropertyOf(content), table));
-        }
+        embedded.add(new EmbeddedRule(path, idPropertyOf(content), table));
       } else {
         collectNested(content, path + ".", walked, listings, embedded);
       }
@@ -302,11 +306,13 @@ public class StreamMarkingRules {
     return accessor != null && accessor.getAnnotation(annotation) != null;
   }
 
-  /** Serialized as ids (an id-only serializer): the payload lists the rows, not their content. */
-  private static boolean isIdList(BeanPropertyDefinition property) {
+  /**
+   * Serialized as ids (an id-only serializer, for one row or a list): the payload points to the
+   * rows, not their content.
+   */
+  private static boolean isIds(BeanPropertyDefinition property) {
     JsonSerialize serializer = property.getAccessor().getAnnotation(JsonSerialize.class);
-    return property.getPrimaryType().isCollectionLikeType()
-        && serializer != null
+    return serializer != null
         && serializer.using() != MultiModelSerializer.class
         && serializer.using() != JsonSerializer.None.class;
   }

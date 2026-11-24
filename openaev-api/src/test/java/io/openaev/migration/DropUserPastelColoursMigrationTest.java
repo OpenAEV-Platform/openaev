@@ -3,7 +3,6 @@ package io.openaev.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.User;
 import java.sql.Connection;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.Context;
@@ -14,49 +13,32 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Verifies the "Pastel colours" column: nullable, left unset on existing users (unset reads as the
- * pastel default, so nobody is flipped), and a rerun changes nothing. The test transaction rolls
- * back what it touches.
+ * Verifies the "Pastel colours" column is gone after the drop migration, also when it was added
+ * again first, and that a rerun changes nothing. The test transaction rolls back what it touches.
  */
 @Transactional
-@DisplayName("Migration V6_20261123030000000: add user pastel colours")
-class AddUserPastelColoursMigrationTest extends IntegrationTest {
+@DisplayName("Migration V6_20261124000000000: drop user pastel colours")
+class DropUserPastelColoursMigrationTest extends IntegrationTest {
 
-  @Autowired private V6_20261123030000000__Add_user_pastel_colours migration;
-
-  @Test
-  @DisplayName("Given existing users should add a nullable column left unset, a rerun is a no-op")
-  void given_existingUsers_should_addANullableColumnLeftUnset() {
-    // Act
-    runMigration();
-    runMigration();
-
-    // Assert
-    String nullable =
-        queryString(
-            "SELECT is_nullable FROM information_schema.columns WHERE table_name = 'users'"
-                + " AND column_name = 'user_pastel_colours'");
-    assertThat(nullable).isEqualTo("YES");
-    String adminValue =
-        queryString(
-            "SELECT CAST(user_pastel_colours AS text) FROM users WHERE user_id = '"
-                + User.ADMIN_UUID
-                + "'");
-    assertThat(adminValue).isNull();
-  }
+  @Autowired private V6_20261123030000000__Add_user_pastel_colours addMigration;
+  @Autowired private V6_20261124000000000__Drop_user_pastel_colours dropMigration;
 
   @Test
-  @DisplayName("Given an unset preference should read as pastel, and an absent update keeps it")
-  void given_anUnsetPreference_should_readAsPastel() {
+  @DisplayName("Given the column should drop it, a rerun is a no-op")
+  void given_theColumn_should_dropIt() {
     // Arrange
-    User user = new User();
+    withConnection(connection -> addMigration.migrate(contextOn(connection)));
+
+    // Act
+    withConnection(connection -> dropMigration.migrate(contextOn(connection)));
+    withConnection(connection -> dropMigration.migrate(contextOn(connection)));
 
     // Assert
-    assertThat(user.getPastelColours()).isTrue();
-    user.setPastelColours(false);
-    assertThat(user.getPastelColours()).isFalse();
-    user.setPastelColours(null);
-    assertThat(user.getPastelColours()).isFalse();
+    String count =
+        queryString(
+            "SELECT CAST(COUNT(*) AS text) FROM information_schema.columns"
+                + " WHERE table_name = 'users' AND column_name = 'user_pastel_colours'");
+    assertThat(count).isEqualTo("0");
   }
 
   private String queryString(String sql) {
@@ -69,10 +51,6 @@ class AddUserPastelColoursMigrationTest extends IntegrationTest {
           }
         });
     return value[0];
-  }
-
-  private void runMigration() {
-    withConnection(connection -> migration.migrate(contextOn(connection)));
   }
 
   @FunctionalInterface
