@@ -31,8 +31,9 @@ const inlineStyles: Record<string, CSSProperties> = ({
   finding_value: { width: '27%' },
   finding_assets: { width: '20%' },
   finding_markings: { width: '12%' },
-  finding_created_at: { width: '14%' },
-  finding_updated_at: { width: '14%' },
+  finding_sources: { width: '8%' },
+  finding_created_at: { width: '10%' },
+  finding_updated_at: { width: '10%' },
 });
 
 const FindingListView = ({ loading, findings, queryableHelpers, hiddenFields = [] }: Props) => {
@@ -127,6 +128,12 @@ const FindingListView = ({ loading, findings, queryableHelpers, hiddenFields = [
     ...(markingEnabled
       ? [markingsColumn('finding_markings', (finding: AggregatedFindingOutput) => (finding.finding_assets ?? []).flatMap(asset => asset.asset_markings ?? []))]
       : []),
+    {
+      field: 'finding_sources',
+      label: 'Sources',
+      isSortable: false,
+      value: (finding: AggregatedFindingOutput) => finding.finding_sources?.map(source => source.injector_type).join(','),
+    },
     {
       field: 'finding_created_at',
       label: 'First seen',

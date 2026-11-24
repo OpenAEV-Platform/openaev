@@ -25,11 +25,12 @@ const Findings = () => {
   const [total, setTotal] = useState<number>(0);
 
   const availableFilterNames = [
-      'finding_type',
-      'finding_created_at',
-      'finding_updated_at',
-      'finding_asset_groups',
-      'finding_assets',
+    'finding_type',
+    'finding_created_at',
+    'finding_updated_at',
+    'finding_asset_groups',
+    'finding_assets',
+    'finding_sources',
   ];
 
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(

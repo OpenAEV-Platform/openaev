@@ -1,5 +1,6 @@
 package io.openaev.utils.mapper;
 
+import io.openaev.api.injector.dto.InjectorSimple;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.rest.asset_group.form.AssetGroupSimple;
@@ -145,6 +146,15 @@ public class FindingMapper {
         .assets(
             relatedAssets.stream()
                 .map(endpointMapper::toEndpointSimple)
+                .collect(Collectors.toSet()))
+        .sources(
+            finding.getInjects().stream()
+                .map(
+                    inject ->
+                        InjectorSimple.builder()
+                            .name(inject.getInjector().getName())
+                            .type(inject.getInjector().getType())
+                            .build())
                 .collect(Collectors.toSet()))
         .build();
   }

@@ -309,4 +309,14 @@ public class Finding implements TenantBase {
         .flatMap(asset -> asset.getAssetGroups().stream())
         .collect(Collectors.toSet());
   }
+
+  @JsonProperty("finding_sources")
+  @Queryable(searchable = true, filterable = true, path = "occurrences.inject.injector.type")
+  public List<Injector> getInjectors() {
+    return getInjects().stream()
+        .map(Inject::getInjector)
+        .filter(Objects::nonNull)
+        .distinct()
+        .toList();
+  }
 }

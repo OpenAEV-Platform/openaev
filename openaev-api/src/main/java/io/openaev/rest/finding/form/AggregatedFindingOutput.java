@@ -4,6 +4,7 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.api.injector.dto.InjectorSimple;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.rest.asset.endpoint.form.EndpointSimple;
 import io.openaev.rest.asset_group.form.AssetGroupSimple;
@@ -58,4 +59,10 @@ public class AggregatedFindingOutput {
   @Schema(description = "Asset groups linked to assets")
   @JsonProperty("finding_asset_groups")
   private Set<AssetGroupSimple> assetGroups;
+
+  @Schema(
+      description =
+          "Injectors that detected the finding, across every occurrence of its (type, value) group")
+  @JsonProperty("finding_sources")
+  private Set<InjectorSimple> sources;
 }
