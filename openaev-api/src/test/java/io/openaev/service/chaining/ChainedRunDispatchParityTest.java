@@ -9,6 +9,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.WorkflowConfigurationMapper;
 import io.openaev.api.chaining.dto.AssetSnapshotOutput;
+import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationOutput;
@@ -30,6 +31,7 @@ import io.openaev.database.model.ScopeRuleSnapshot;
 import io.openaev.database.model.ScopeRuleSource;
 import io.openaev.database.model.ScopeRuleValueType;
 import io.openaev.database.model.Step;
+import io.openaev.database.model.StepActionClass;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.model.Workflow;
@@ -41,9 +43,11 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.injectors.manual.ManualContract;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
@@ -775,6 +779,70 @@ class ChainedRunDispatchParityTest extends IntegrationTest {
       assertThat(templateAssetIds())
           .as("the realigned template keeps the RED asset it carried")
           .containsExactlyInAnyOrder(green.getId(), red.getId());
+    }
+
+    @Test
+    @DisplayName("given a GREEN editor changing only the title, should keep the RED template asset")
+    void given_greenEditorChangingTheTitle_should_keepTheRedTemplateAsset() {
+      // -- ARRANGE -- the editor reads the template, then sends back what it was shown
+      StepOutput shown =
+          inRequestOf(
+              greenLauncher,
+              () -> stepService.toReaderOutput(stepService.findStepTemplateById(stepTemplateId)));
+      List<String> shownAssetIds = new ArrayList<>();
+      shown.getData().get("inject_assets").forEach(node -> shownAssetIds.add(node.asText()));
+
+      // -- ACT --
+      StepOutput saved =
+          inRequestOf(greenLauncher, () -> updateTemplate("new title", shownAssetIds));
+
+      // -- ASSERT --
+      assertThat(shownAssetIds).containsExactly(green.getId());
+      assertThat(templateAssetIds())
+          .as("the RED asset is still on the template the GREEN editor saved")
+          .containsExactlyInAnyOrder(green.getId(), red.getId());
+      assertThat(saved.getData().get("inject_assets"))
+          .as("the response keeps hiding it from the GREEN editor")
+          .extracting(node -> node.asText())
+          .containsExactly(green.getId());
+    }
+
+    @Test
+    @DisplayName("given a RED asset no longer in the scope, should not keep it on the template")
+    void given_redAssetOutOfTheScope_should_notKeepItOnTheTemplate() {
+      // -- ARRANGE --
+      inTenant(
+          () -> {
+            Workflow template = workflowRepository.findById(templateWorkflowId).orElseThrow();
+            template
+                .getWorkflowScopeRules()
+                .removeIf(rule -> red.getId().equals(rule.getRuleValue()));
+            workflowRepository.save(template);
+            return null;
+          });
+
+      // -- ACT --
+      inRequestOf(greenLauncher, () -> updateTemplate("new title", List.of(green.getId())));
+
+      // -- ASSERT --
+      assertThat(templateAssetIds()).containsExactly(green.getId());
+    }
+
+    private StepOutput updateTemplate(String title, List<String> assetIds) {
+      InjectInput inject = new InjectInput();
+      inject.setTitle(title);
+      inject.setInjectorContract(ManualContract.MANUAL_DEFAULT);
+      inject.setAssets(assetIds);
+      StepInput input = new StepInput();
+      input.setWorkflowId(templateWorkflowId);
+      input.setStepAction(StepActionClass.INJECT_EXECUTION);
+      input.setDataStep(inject);
+      input.setConditions(List.of());
+      try {
+        return stepService.toReaderOutput(stepService.updateStepTemplate(stepTemplateId, input));
+      } catch (ChainingException e) {
+        throw new IllegalStateException(e);
+      }
     }
 
     private WorkflowConfigurationOutput configurationReadBy(User user) {

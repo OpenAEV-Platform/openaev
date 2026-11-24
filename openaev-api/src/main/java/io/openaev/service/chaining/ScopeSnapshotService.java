@@ -50,6 +50,7 @@ public class ScopeSnapshotService {
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
   private final TenantScopedTransaction tenantTx;
+  private final ScopeService scopeService;
 
   /**
    * Freezes the launch snapshot on a RUN workflow's rules and appends the connected security
@@ -204,6 +205,28 @@ public class ScopeSnapshotService {
       return Set.of();
     }
     return atSystemClearance(tenantId, () -> assetService.visibleAssetIds(notVisible));
+  }
+
+  /**
+   * Among {@code assetIds}, those the workflow scope (allowlist minus denylist) still resolves to.
+   * The scope is resolved at the system clearance: under the caller's own, an asset it is not
+   * cleared for is never in it.
+   *
+   * @param tenantId the tenant of the workflow
+   */
+  public Set<String> assetIdsInScope(
+      String tenantId, String workflowId, Collection<String> assetIds) {
+    if (assetIds.isEmpty()) {
+      return Set.of();
+    }
+    Set<String> candidates = Set.copyOf(assetIds);
+    return atSystemClearance(
+        tenantId,
+        () ->
+            scopeService.getValidAssets(workflowId).stream()
+                .map(Asset::getId)
+                .filter(candidates::contains)
+                .collect(Collectors.toSet()));
   }
 
   /**

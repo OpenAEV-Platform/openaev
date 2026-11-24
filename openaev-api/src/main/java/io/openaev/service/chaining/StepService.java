@@ -1312,7 +1312,7 @@ public class StepService {
     // Apply updated fields from the candidate to the existing persistent entity
     existing.setStepAction(updatedCandidate.getStepAction());
     existing.setLimitExecution(updatedCandidate.getLimitExecution());
-    existing.setData(updatedCandidate.getData());
+    existing.setData(keepingHiddenScopeAssets(existing, updatedCandidate.getData()));
     existing.setInput(updatedCandidate.getInput());
     existing.setOutputParser(updatedCandidate.getOutputParser());
 
@@ -1325,6 +1325,46 @@ public class StepService {
     stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), existing);
     conditionService.linkExistingConditionsToStep(existing, stepInput.getConditionIds());
     return saveStep(existing);
+  }
+
+  /**
+   * The new template data, with back the assets the template carried that the writer is not cleared
+   * for and that are still in the workflow scope. The writer submits the perimeter it was shown,
+   * which {@link #toReaderOutputs} cut of those assets, so replacing the data with it would strip
+   * them for everyone. An asset the scope no longer holds is not kept: the scope save drops it too.
+   */
+  private String keepingHiddenScopeAssets(Step existing, String newData) {
+    List<String> before = StepMapper.assetIdsOf(existing);
+    if (before.isEmpty() || newData == null) {
+      return newData;
+    }
+    String tenantId = tenantIdOf(existing);
+    Set<String> hidden = scopeSnapshotService.hiddenAssetIds(tenantId, before);
+    if (hidden.isEmpty()) {
+      return newData;
+    }
+    Set<String> kept =
+        scopeSnapshotService.assetIdsInScope(tenantId, existing.getWorkflow().getId(), hidden);
+    try {
+      JsonObject dataObject = JsonParser.parseString(newData).getAsJsonObject();
+      JsonElement assets = dataObject.get("inject_assets");
+      if (kept.isEmpty() || assets == null || !assets.isJsonArray()) {
+        return newData;
+      }
+      Set<String> submitted = new HashSet<>();
+      assets.getAsJsonArray().forEach(asset -> submitted.add(asset.getAsString()));
+      before.stream()
+          .filter(kept::contains)
+          .filter(submitted::add)
+          .forEach(assets.getAsJsonArray()::add);
+      return dataObject.toString();
+    } catch (Exception e) {
+      log.warn(
+          "[Chaining] Failed to keep the hidden scope assets on step template {}: {}",
+          existing.getId(),
+          e.getMessage());
+      return newData;
+    }
   }
 
   /**
