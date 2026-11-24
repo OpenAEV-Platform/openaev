@@ -7,7 +7,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.utils.SensitiveValueMaskingUtils;
@@ -27,7 +26,7 @@ import org.hibernate.annotations.*;
 @Data
 @Entity
 @Table(name = "findings")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@EntityListeners(ModelBaseListener.class)
 public class Finding implements TenantBase {
 
   // findings is on multi-tenancy v2 (#6420 / #6421 / #6442).
@@ -40,11 +39,11 @@ public class Finding implements TenantBase {
   // took (#7844 removes it for both). It only stamps tenant_id on write and never filters a read,
   // so keeping it costs no isolation.
   //
-  // It is redundant rather than load-bearing: the production create path,
-  // FindingRecordingService, stamps the tenant of the transaction scope and refuses a scope that
-  // names anything but one tenant. What #7844 still has to prepare is the test ground: test sites
-  // persist a Finding straight through a repository, and neither FindingFixture nor FindingComposer
-  // stamps a
+  // It is redundant rather than load-bearing: both production create paths resolve the tenant
+  // explicitly from the inject that produced the finding. FindingService.createFindings stamps it,
+  // and FindingWriter receives it as a required argument and now refuses a blank one. What #7844
+  // still has to prepare is the test ground: twenty-two test sites persist a
+  // Finding straight through a repository, and neither FindingFixture nor FindingComposer stamps a
   // tenant, so they all lean on this listener today.
 
   @Id
@@ -104,8 +103,7 @@ public class Finding implements TenantBase {
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
-  // The tenant here must be set automatically with the inject tenant when the finding is created by
-  // the inject
+  // Every creator sets the tenant explicitly: the inject's tenant for a finding the inject produces
   private Tenant tenant;
 
   // -- IDENTITY --
