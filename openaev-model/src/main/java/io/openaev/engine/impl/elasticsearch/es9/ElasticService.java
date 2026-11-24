@@ -210,6 +210,37 @@ public class ElasticService implements EngineService {
                 .toList();
         boolQuery.mustNot(notContainsQueries);
         break;
+      case starts_with:
+      case not_starts_with:
+      case ends_with:
+      case not_ends_with:
+        // Prefix / suffix on a keyword or text field: a wildcard anchored on one side
+        boolean prefix =
+            operator == Filters.FilterOperator.starts_with
+                || operator == Filters.FilterOperator.not_starts_with;
+        List<Query> affixQueries =
+            filter.getValues().stream()
+                .filter(v -> v != null && !v.isEmpty())
+                .map(
+                    v -> {
+                      String escaped = escapeWildcard(toVal(field, v, parameters).stringValue());
+                      String pattern = prefix ? escaped + "*" : "*" + escaped;
+                      return WildcardQuery.of(
+                              w -> w.field(elasticField).value(pattern).caseInsensitive(true))
+                          ._toQuery();
+                    })
+                .toList();
+        if (!affixQueries.isEmpty()) {
+          if (operator == Filters.FilterOperator.not_starts_with
+              || operator == Filters.FilterOperator.not_ends_with) {
+            boolQuery.mustNot(affixQueries);
+          } else if (filterMode == Filters.FilterMode.and) {
+            boolQuery.must(affixQueries);
+          } else {
+            boolQuery.should(affixQueries).minimumShouldMatch("1");
+          }
+        }
+        break;
       case gt:
       case gte:
       case lt:

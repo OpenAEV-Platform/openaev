@@ -194,6 +194,57 @@ public class OperationUtilsRuntime {
     return value.toString().toLowerCase().startsWith(text.toLowerCase());
   }
 
+  // -- NOT END WITH --
+
+  /**
+   * Checks if the value does not end with any of the specified texts (see {@link
+   * #notContainsTexts} for the AND rationale).
+   *
+   * @param value the value to check
+   * @param texts the suffixes to test
+   * @return true if the value ends with none of the texts
+   */
+  public static boolean notEndWithTexts(
+      @NotNull final Object value, @NotNull final List<String> texts) {
+    return texts.stream().allMatch(text -> notEndWithText(value, text));
+  }
+
+  /**
+   * Checks if the value does not end with the specified text (case-insensitive).
+   *
+   * @param value the value to check
+   * @param text the suffix to test
+   * @return true if the value does not end with the text
+   */
+  public static boolean notEndWithText(@NotNull final Object value, @NotBlank final String text) {
+    return !endWithText(value, text);
+  }
+
+  // -- END WITH --
+
+  /**
+   * Checks if the value ends with any of the specified texts.
+   *
+   * @param value the value to check
+   * @param texts the suffixes to test
+   * @return true if the value ends with at least one text
+   */
+  public static boolean endWithTexts(
+      @NotNull final Object value, @NotNull final List<String> texts) {
+    return texts.stream().anyMatch(text -> endWithText(value, text));
+  }
+
+  /**
+   * Checks if the value ends with the specified text (case-insensitive).
+   *
+   * @param value the value to check
+   * @param text the suffix to test
+   * @return true if the value ends with the text
+   */
+  public static boolean endWithText(@NotNull final Object value, @NotBlank final String text) {
+    return value.toString().toLowerCase().endsWith(text.toLowerCase());
+  }
+
   // -- NOT EMPTY --
 
   /**

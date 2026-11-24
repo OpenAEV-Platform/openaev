@@ -130,6 +130,7 @@ public interface AssetRepository
               + "GROUP BY ia.asset_id"
               + ") "
               + "SELECT a.asset_id, a.asset_type, a.asset_category, a.asset_name, a.asset_external_reference, "
+              + "a.asset_subcategory, a.asset_criticality, a.asset_internet_facing, a.asset_url, "
               + "a.asset_ips, a.asset_hostname, a.endpoint_platform, a.endpoint_arch, "
               + "a.asset_mac_addresses, a.asset_seen_ip, a.asset_created_at, a.asset_updated_at, "
               // Host-only flag: the column has DEFAULT FALSE, so non-host rows carry false in SQL

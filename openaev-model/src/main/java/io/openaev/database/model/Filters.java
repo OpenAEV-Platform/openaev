@@ -56,6 +56,8 @@ public class Filters {
     not_contains,
     starts_with,
     not_starts_with,
+    ends_with,
+    not_ends_with,
     gt,
     gte,
     lt,
