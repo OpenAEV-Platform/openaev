@@ -119,7 +119,7 @@ export const getValidatingRule = (field: ContractElement, t: Translate) => {
     case 'dependency-select':
       // A cardinality "n" select holds a list of ids; a cardinality "1" select a single id.
       rule = field.cardinality === 'n'
-        ? z.array(z.string()).min(1, { message: t('Required') })
+        ? z.array(z.string()).min(1, { message: t('Required') }).default([])
         : z.string().min(1, { message: t('Required') });
       break;
 
