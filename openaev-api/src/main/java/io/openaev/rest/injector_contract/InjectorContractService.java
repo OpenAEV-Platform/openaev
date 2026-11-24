@@ -1424,11 +1424,6 @@ public class InjectorContractService implements DependenciesManager {
     return counts;
   }
 
-  /**
-   * Number of contracts per payload approval status under the given filters, so the Threat Arsenal
-   * sidebar can display live counts on its approval facet. Payload-less contracts are not counted:
-   * they need no approval.
-   */
   /** How many contracts the filters, search and access keep within {@code scope}. */
   public long countWithin(SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
@@ -1442,6 +1437,11 @@ public class InjectorContractService implements DependenciesManager {
     return entityManager.createQuery(q).getSingleResult();
   }
 
+  /**
+   * Number of contracts per payload approval status under the given filters, so the Threat Arsenal
+   * sidebar can display live counts on its approval facet. Payload-less contracts are not counted:
+   * they need no approval.
+   */
   public Map<String, Long> getApprovalStatusCounts(
       SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();

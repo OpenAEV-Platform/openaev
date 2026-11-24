@@ -22,7 +22,6 @@
   "No version to move back to pending approval.": "Нет версии, которую можно вернуть в ожидание одобрения.",
   "No version to reject.": "Нет версии для отклонения.",
   "Note (optional)": "Примечание (необязательно)",
-  "Saved, not published: nothing uses them and nobody reviews them yet.": "Сохранены, не опубликованы: пока их ничто не использует и никто не проверяет.",
   "The version waits for approval again: it can no longer be picked or run, and injects using it cannot launch until it is approved. Nobody is notified: ask for the review yourself.": "Версия снова ожидает одобрения: её больше нельзя выбрать или запустить, а использующие её инжекты не смогут запуститься, пока она не будет одобрена. Никто не уведомляется: запросите проверку сами.",
   "Untitled": "Без названия",
   "Verified and tested by Filigran": "Проверено и протестировано Filigran",

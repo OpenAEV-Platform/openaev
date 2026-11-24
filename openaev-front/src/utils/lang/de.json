@@ -22,7 +22,6 @@
   "No version to move back to pending approval.": "Keine Version, die zurück auf „Freigabe ausstehend“ gesetzt werden kann.",
   "No version to reject.": "Keine Version zum Ablehnen.",
   "Note (optional)": "Notiz (optional)",
-  "Saved, not published: nothing uses them and nobody reviews them yet.": "Gespeichert, nicht veröffentlicht: Nichts verwendet sie und niemand prüft sie bisher.",
   "The version waits for approval again: it can no longer be picked or run, and injects using it cannot launch until it is approved. Nobody is notified: ask for the review yourself.": "Die Version wartet erneut auf Freigabe: Sie kann nicht mehr ausgewählt oder ausgeführt werden, und Injects, die sie verwenden, können erst nach der Freigabe starten. Niemand wird benachrichtigt: Bitten Sie selbst um die Prüfung.",
   "Untitled": "Ohne Titel",
   "Verified and tested by Filigran": "Von Filigran verifiziert und getestet",

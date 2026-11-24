@@ -405,16 +405,6 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
             title={t('Drafts')}
             meta={<Text variant="content-compact" className="text-default-secondary">{String(shownDrafts.length)}</Text>}
           >
-            <Text
-              variant="content-compact"
-              className="text-default-secondary"
-              style={{
-                display: 'block',
-                marginBottom: 12,
-              }}
-            >
-              {t('Saved, not published: nothing uses them and nobody reviews them yet.')}
-            </Text>
             <MarketplaceGrid loading={false} isEmpty={false} emptyState={null}>
               {shownDrafts.map(draftCard)}
             </MarketplaceGrid>
