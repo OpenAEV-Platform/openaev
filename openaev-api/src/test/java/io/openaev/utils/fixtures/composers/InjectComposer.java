@@ -139,7 +139,6 @@ public class InjectComposer extends ComposerBase<Inject> {
       findingComposers.add(findingComposer);
       Finding finding = findingComposer.get();
       finding.setInject(this.inject);
-      this.inject.getFindings().add(finding);
       findingOccurrenceComposers.add(
           findingOccurrenceComposer.forOccurrence(
               createOccurrence(finding, this.inject, Instant.now(), finding.getField())));

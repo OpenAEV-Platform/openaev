@@ -216,7 +216,6 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.finding.FindingDistinctSearchService;
 import io.openaev.rest.finding.FindingSearchApi;
 import io.openaev.rest.finding.FindingService;
-import io.openaev.rest.finding.FindingWriter;
 import io.openaev.rest.helper.TeamHelper;
 import io.openaev.rest.inject.InjectApi;
 import io.openaev.rest.inject.ScenarioInjectApi;
@@ -1738,7 +1737,6 @@ class TenantActiveTableAccessArchTest {
               FindingMapper.class,
               // REQUIRES_NEW, so each declares its own TxCtx and the aspect scopes the new
               // transaction (see the note on the class).
-              FindingWriter.class,
               FindingRecordingService.class,
               // Background writers, each reaching the primitive with the tenant taken from the
               // inject or run that owns the work.
@@ -1755,10 +1753,6 @@ class TenantActiveTableAccessArchTest {
               // One pass after an upgrade over every tenant's findings, each batch in
               // TxCtx.allTenants() (FindingValueDisplayBackfillTest).
               FindingValueDisplayBackfill.class,
-              // Opt-in keep_findings on delete: Propagation.MANDATORY, so it only joins the
-              // tenant-scoped transaction of the delete entry point that calls it (pinned by
-              // DeleteKeepFindingsApiTest).
-              io.openaev.service.finding.FindingDetachService.class,
               // Re-test on demand: reached only from FindingApi#retestFindings, a TxCtx-carrying
               // @Transactional handler, with the one tenant of its scope; every read names it.
               io.openaev.service.finding.FindingRetestService.class,
