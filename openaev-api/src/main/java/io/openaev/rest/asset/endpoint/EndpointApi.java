@@ -7,7 +7,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.asset.AssetMarkingsService;
 import io.openaev.api.asset.dto.AssetBulkUpdateInput;
-import io.openaev.api.asset.dto.EndpointCreateInput;
+import io.openaev.api.asset.dto.MarkedEndpointInput;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -91,13 +91,13 @@ public class EndpointApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
   // executors table (the created endpoint's agents eager-load their executor).
-  public Endpoint createEndpoint(TxCtx ctx, @Valid @RequestBody final EndpointCreateInput input) {
+  public Endpoint createEndpoint(TxCtx ctx, @Valid @RequestBody final MarkedEndpointInput input) {
     // Resolve the single tenant this write belongs to, and refuse an unscoped or ambiguous
     // request with a 400 rather than letting the v1 thread-local pick one. Same resolution as
     // /register below; TenantContext.getCurrentTenant() silently falls back to DEFAULT.
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Endpoint endpoint = endpointService.buildEndpoint(input, tenantId);
-    assetMarkingsService.markNewAsset(tenantId, endpoint, input.getMarkingIds());
+    assetMarkingsService.markAsset(tenantId, endpoint, input.getMarkingIds());
     return endpointService.createEndpoint(endpoint, tenantId);
   }
 
@@ -275,9 +275,10 @@ public class EndpointApi extends RestBehavior {
   public EndpointOverviewOutput updateEndpoint(
       TxCtx ctx,
       @PathVariable @NotBlank final String endpointId,
-      @Valid @RequestBody final EndpointInput input) {
-    Endpoint endpoint =
-        this.endpointService.updateEndpoint(endpointId, input, TenantContext.getCurrentTenant());
+      @Valid @RequestBody final MarkedEndpointInput input) {
+    String tenantId = TenantContext.getCurrentTenant();
+    Endpoint endpoint = this.endpointService.updateEndpoint(endpointId, input, tenantId);
+    assetMarkingsService.markAsset(tenantId, endpoint, input.getMarkingIds());
     return withAssetGroups(endpointMapper.toEndpointOverviewOutput(endpoint), endpoint);
   }
 

@@ -2,11 +2,13 @@ package io.openaev.api.asset;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.marking.MarkingEscalationValidator.assertCanAssignMarkings;
+import static io.openaev.service.marking.MarkingEscalationValidator.holdsAll;
 import static io.openaev.utils.MarkingUtils.markingIds;
 
 import io.openaev.api.asset.dto.AssetBulkReplaceMarkingsInput;
 import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Asset;
@@ -29,6 +31,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -87,12 +90,28 @@ public class AssetMarkingsService {
             .findByIdAndTenantId(assetId, tenantId)
             .orElseThrow(() -> new ElementNotFoundException("Asset not found: " + assetId));
 
-    Set<String> uniqueMarkingIds = new LinkedHashSet<>(input.markingIds());
-    User currentUser = userService.currentUser();
-    assertCanAssign(tenantId, currentUser, resolveMarkings(tenantId, uniqueMarkingIds));
+    replaceMarkings(tenantId, asset, new LinkedHashSet<>(input.markingIds()));
+    return assetRepository.save(asset);
+  }
 
-    Set<String> removed = applyAssetMarkings(asset, uniqueMarkingIds);
-    Asset saved = assetRepository.save(asset);
+  /**
+   * Puts the requested markings on an asset being created or updated, before it is saved, so a new
+   * asset never exists unmarked. Same guards as {@link #updateAssetMarkings}, but markings left
+   * {@code null} or unchanged need no check: a caller without {@code MANAGE_MARKING_ASSIGNMENT} can
+   * still create an unmarked asset or edit the rest of a marked one.
+   */
+  public void markAsset(
+      @NotBlank final String tenantId, @NotNull final Asset asset, final Set<String> markingIds) {
+    if (markingIds == null || markingIds.equals(markingIds(asset))) {
+      return;
+    }
+    replaceMarkings(tenantId, asset, new LinkedHashSet<>(markingIds));
+  }
+
+  private void replaceMarkings(String tenantId, Asset asset, Set<String> markingIds) {
+    User currentUser = userService.currentUser();
+    assertCanAssign(tenantId, currentUser, markingIds, () -> resolveMarkings(tenantId, markingIds));
+    Set<String> removed = applyAssetMarkings(asset, markingIds);
     // Only removals are logged (design §4.3): adding a marking narrows who can read the asset and
     // needs no explaining, while removing one widens it, and widening is the direction that turns
     // into an incident. Logged rather than raised as a domain event because the platform has no
@@ -103,24 +122,8 @@ public class AssetMarkingsService {
           asset.getId(),
           currentUser.getId(),
           removed,
-          uniqueMarkingIds);
+          markingIds);
     }
-    return saved;
-  }
-
-  /**
-   * Puts markings on an asset being created, before its first save, so it never exists unmarked.
-   * Same guards as {@link #updateAssetMarkings}. Without markings, no capability is checked.
-   */
-  public void markNewAsset(
-      @NotBlank final String tenantId, @NotNull final Asset asset, final Set<String> markingIds) {
-    if (markingIds == null || markingIds.isEmpty()) {
-      return;
-    }
-    Set<String> uniqueMarkingIds = new LinkedHashSet<>(markingIds);
-    assertCanAssign(
-        tenantId, userService.currentUser(), resolveMarkings(tenantId, uniqueMarkingIds));
-    applyAssetMarkings(asset, uniqueMarkingIds);
   }
 
   private List<MarkingDefinition> resolveMarkings(String tenantId, Set<String> markingIds) {
@@ -133,10 +136,18 @@ public class AssetMarkingsService {
     return markings;
   }
 
+  // The cached clearance is enough when it holds every id: the markings are read only to explain a
+  // refusal, an unknown one as a 404 and one not held as a 403 naming it.
   private void assertCanAssign(
-      String tenantId, User currentUser, List<MarkingDefinition> markings) {
-    assertCanAssignMarkings(
-        markingClearanceCacheManager.findClearance(currentUser.getId(), tenantId), markings);
+      String tenantId,
+      User currentUser,
+      Set<String> markingIds,
+      Supplier<List<MarkingDefinition>> markings) {
+    MarkingCtx clearance =
+        markingClearanceCacheManager.findClearance(currentUser.getId(), tenantId);
+    if (!holdsAll(clearance, markingIds)) {
+      assertCanAssignMarkings(clearance, markings.get());
+    }
     assertMarkingAssignmentCapability(tenantId, currentUser);
   }
 
@@ -194,12 +205,14 @@ public class AssetMarkingsService {
       @NotNull final AssetBulkReplaceMarkingsInput input) {
     Set<String> uniqueMarkingIds = new LinkedHashSet<>(input.getMarkingIds());
 
-    List<MarkingDefinition> markings =
-        bulkDeleteExecutor.resolveInTransaction(
-            ctx, () -> resolveMarkings(tenantId, uniqueMarkingIds));
-
     User currentUser = userService.currentUser();
-    assertCanAssign(tenantId, currentUser, markings);
+    assertCanAssign(
+        tenantId,
+        currentUser,
+        uniqueMarkingIds,
+        () ->
+            bulkDeleteExecutor.resolveInTransaction(
+                ctx, () -> resolveMarkings(tenantId, uniqueMarkingIds)));
 
     List<String> assetIds = assetService.resolveBulkAssetIds(ctx, input);
 

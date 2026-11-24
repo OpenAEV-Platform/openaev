@@ -1,14 +1,14 @@
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { updateAssetsOnAssetGroup } from '../../../../actions/asset_groups/assetgroup-action';
-import { fetchAiTargetById, updateAiTarget, updateAiTargetMarkings } from '../../../../actions/assets/aiTarget-actions';
+import { fetchAiTargetById, updateAiTarget } from '../../../../actions/assets/aiTarget-actions';
 import { deleteAsset } from '../../../../actions/assets/endpoint-actions';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
-import { type AiTargetInput, type AssetOutput, type EndpointOverviewOutput } from '../../../../utils/api-types';
+import { type AiTargetInput, type AssetOutput, type EndpointOverviewOutput, type MarkedAiTargetInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -34,8 +34,6 @@ export interface AssetPopoverProps {
 
 // Fields prefilled into the AI target edit form; the inventory row only carries the shared asset
 // fields, so the full connection config is fetched from /api/ai_targets/{id} on edit.
-// asset_markings isn't part of AiTargetInput (it's written through its own endpoint, not this
-// form's submit - see AiTargetForm), but it still needs to flow into the picker's initial value.
 const AI_TARGET_INPUT_KEYS: (keyof AiTargetInput | 'asset_markings')[] = [
   'asset_name',
   'ai_target_provider',
@@ -92,14 +90,8 @@ const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
     }
   }, [edition, isAiTarget, endpoint.asset_id, aiTargetValues]);
 
-  // Returns whether the update actually succeeded - AiTargetForm awaits this (SubmitHandler's own
-  // return type, `unknown`, already permits it) to decide whether to revert a markings change that
-  // committed earlier in the same submit. See AssetForm's `onSubmit` doc for the full rationale.
-  //
-  // handleCloseEdit is now conditional on success (it previously ran unconditionally, closing the
-  // drawer even on a failed save) - closing on failure would both hide the error from the user and
-  // contradict the "form stays open on a half-applied save" guarantee the revert logic relies on.
-  const submitEditAiTarget = (data: AiTargetInput) => {
+  // The drawer stays open on a failed save, so the user sees the error.
+  const submitEditAiTarget = (data: MarkedAiTargetInput) => {
     return dispatch(updateAiTarget(endpoint.asset_id, data)).then(
       (result: {
         result: string;
@@ -111,22 +103,8 @@ const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
           }
           handleCloseEdit();
         }
-        return !!result.entities;
       },
     );
-  };
-
-  // Awaited by AiTargetForm before submitEditAiTarget runs - see AssetForm's `onMarkingsChange`
-  // doc for why the two can't fire concurrently. Suppressed success toast (false) since the
-  // asset update above already confirms the save; updateAiTarget's own response already carries
-  // asset_markings fresh from the DB (Asset is returned as-is, unlike EndpointOverviewOutput), so
-  // there's nothing to patch in afterwards the way EndpointUpdate has to.
-  const onMarkingsChangeAiTarget = async (markingIds: string[]): Promise<boolean> => {
-    const result = await dispatch(updateAiTargetMarkings(endpoint.asset_id, { asset_markings: markingIds }, false));
-    // Same "does it have entities" success check used above: putReferential resolves either the
-    // normalized {entities, result} on success, or a buildError(...) object on failure - it never
-    // rejects, so this is the only way to tell them apart.
-    return !!(result as { entities?: unknown } | undefined)?.entities;
   };
 
   // Removal from an asset group (contextual, not a deletion)
@@ -191,7 +169,6 @@ const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
                   initialValues={aiTargetValues}
                   editing
                   onSubmit={submitEditAiTarget}
-                  onMarkingsChange={onMarkingsChangeAiTarget}
                   handleClose={handleCloseEdit}
                 />
               )

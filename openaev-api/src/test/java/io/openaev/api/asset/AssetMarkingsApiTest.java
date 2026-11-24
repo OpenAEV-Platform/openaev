@@ -72,6 +72,8 @@ class AssetMarkingsApiTest extends IntegrationTest {
   private static final String TENANT_ASSET_URI = "/api/tenants/{tenantId}/assets";
   private static final String ENDPOINT_CREATE_URI = "/api/tenants/{tenantId}/endpoints/agentless";
   private static final String AI_TARGET_CREATE_URI = "/api/tenants/{tenantId}/ai_targets";
+  private static final String ENDPOINT_UPDATE_URI =
+      "/api/tenants/{tenantId}/endpoints/{endpointId}";
 
   @Autowired private MockMvc mvc;
   @Autowired private DataSource dataSource;
@@ -408,6 +410,46 @@ class AssetMarkingsApiTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("updating an asset with markings")
+  class Updating {
+
+    @Test
+    @DisplayName("given changed markings, should update the endpoint and its markings together")
+    void given_changedMarkings_should_updateBoth() throws Exception {
+      // -- ARRANGE --
+      EndpointInput input = endpointInput();
+
+      // -- ACT --
+      updateEndpoint(input, List.of(green.getId())).andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertEquals(1, assetsNamed(input.getName()));
+      assertArrayEquals(new String[] {green.getId()}, storedMarkings());
+    }
+
+    @Test
+    @DisplayName(
+        "given unchanged markings and no MANAGE_MARKING_ASSIGNMENT, should update the endpoint")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
+    void given_unchangedMarkingsWithoutCapability_should_updateEndpoint() throws Exception {
+      // -- ARRANGE --
+      jdbc.update(
+          "UPDATE assets SET marking_ids = ARRAY[?] WHERE asset_id = ?",
+          green.getId(),
+          asset.getId());
+      entityManager.clear();
+      EndpointInput input = endpointInput();
+
+      // -- ACT --
+      updateEndpoint(input, List.of(green.getId())).andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertEquals(1, assetsNamed(input.getName()));
+      assertArrayEquals(new String[] {green.getId()}, storedMarkings());
+    }
+  }
+
   // -- HELPERS --
 
   private ResultActions assignMarkings(List<String> markingIds) throws Exception {
@@ -434,14 +476,27 @@ class AssetMarkingsApiTest extends IntegrationTest {
 
   private ResultActions createAsset(String uri, Object input, List<String> markingIds)
       throws Exception {
-    Map<String, Object> body = asStringJson(asJsonString(input), Map.class);
-    body.put("asset_markings", markingIds);
     return mvc.perform(
         post(uri, tenantId)
-            .content(asJsonString(body))
+            .content(withMarkings(input, markingIds))
             .contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON)
             .with(csrf()));
+  }
+
+  private ResultActions updateEndpoint(Object input, List<String> markingIds) throws Exception {
+    return mvc.perform(
+        put(ENDPOINT_UPDATE_URI, tenantId, asset.getId())
+            .content(withMarkings(input, markingIds))
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON)
+            .with(csrf()));
+  }
+
+  private static String withMarkings(Object input, List<String> markingIds) {
+    Map<String, Object> body = asStringJson(asJsonString(input), Map.class);
+    body.put("asset_markings", markingIds);
+    return asJsonString(body);
   }
 
   private static EndpointInput endpointInput() {

@@ -3,17 +3,6 @@ import { type ChipSeverity } from '@filigran/design-system';
 import { type MarkingDefinitionOutput } from './api-types';
 import { type Option } from './Option';
 
-// Order-independent: a marking picker's Autocomplete can re-emit the same selection in a
-// different order without the assigned set actually changing, and treating that as "changed"
-// would fire the markings PUT (and its own success/failure notification) on every save even when
-// markings never moved. Shared by every form that hosts a markings picker (AssetForm,
-// AiTargetForm, ...) so they all draw the same "did markings actually change?" line.
-const markingIdSetsEqual = (a: string[], b: string[]): boolean => {
-  const setA = new Set(a);
-  const setB = new Set(b);
-  return setA.size === setB.size && [...setA].every(id => setB.has(id));
-};
-
 // Seeded definitions already store the display value with its type baked in, e.g.
 // `marking_definition_definition: "TLP:RED"` for a `marking_definition_type: "TLP"`. Prefixing
 // unconditionally would render `TLP:TLP:RED`, so the type is only prepended when the definition
@@ -88,5 +77,3 @@ export const sortMarkings = (markings: MarkingDefinitionOutput[]): MarkingDefini
     }
     return b.marking_definition_order - a.marking_definition_order;
   });
-
-export default markingIdSetsEqual;

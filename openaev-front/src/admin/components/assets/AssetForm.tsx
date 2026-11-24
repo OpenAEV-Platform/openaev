@@ -23,8 +23,7 @@ import SwitchFieldController from '../../../components/fields/SwitchFieldControl
 import TagFieldController from '../../../components/fields/TagFieldController';
 import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
-import { type EndpointCreateInput, type EndpointInput } from '../../../utils/api-types';
-import markingIdSetsEqual from '../../../utils/markings';
+import { type EndpointInput, type MarkedEndpointInput } from '../../../utils/api-types';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { formatMacAddress } from '../../../utils/String';
@@ -44,36 +43,16 @@ import {
 } from './asset-categories';
 import { withoutNullValues } from './asset-stream-values';
 
-// A new asset sends its markings with the create payload; an edited one through `onMarkingsChange`.
 type AssetFormValues = EndpointInput & { asset_markings?: string[] | null };
 
 interface Props {
   category: AssetCategory;
-  /**
-   * May resolve to `false` to report failure - `SubmitHandler`'s own return type (`unknown`)
-   * already allows this, so it costs nothing for a caller that doesn't need the distinction. When
-   * markings were also changed this submit, `false` here triggers a compensating revert: the
-   * markings PUT (see `onMarkingsChange`) commits independently and earlier, so if this fails
-   * afterwards the asset would otherwise be left with new markings but none of the rest of the
-   * save applied.
-   */
-  onSubmit: SubmitHandler<EndpointCreateInput>;
+  onSubmit: SubmitHandler<MarkedEndpointInput>;
   handleClose: () => void;
   editing?: boolean;
   initialValues?: Partial<EndpointInput> & { asset_markings?: string[] | null };
   /** For HOST endpoints, agent-managed fields (platform/arch/hostname) are only editable when agentless. */
   agentless?: boolean;
-  /**
-   * Called on submit with the full replacement marking id list, and awaited before `onSubmit`
-   * runs (see the race explained where it's awaited). Only invoked while editing. Resolves to
-   * `false` on failure (the caller has already shown its own error notification for it) - a
-   * `false` here cancels `onSubmit` too, so the form stays open on a half-applied save instead of
-   * reporting success for the endpoint fields while the markings silently didn't take.
-   *
-   * Also called a second time, with the pre-submit id list, to revert the markings PUT if it
-   * committed but `onSubmit` then failed - see `handleSubmitWithoutPropagation`.
-   */
-  onMarkingsChange?: (markingIds: string[]) => boolean | Promise<boolean>;
 }
 
 const regexMacAddress = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
@@ -223,7 +202,6 @@ const AssetForm: FunctionComponent<Props> = ({
   editing,
   agentless,
   initialValues = {},
-  onMarkingsChange,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -288,62 +266,14 @@ const AssetForm: FunctionComponent<Props> = ({
   const ability = useAbility();
   const showMarkings = isFeatureEnabled('MARKING') && ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_ASSIGNMENT);
 
-  // Markings are split out of the submitted payload and reported through `onMarkingsChange`
-  // instead: they don't belong to EndpointInput and are persisted through their own endpoint (see
-  // the `AssetFormValues` comment above). Only sent when the picker was even available and its
-  // selection actually moved from what the form opened with - there's nothing to replace
-  // otherwise, and skipping avoids a pointless PUT (plus its own success/failure notification) on
-  // every save of an asset whose markings were never touched.
-  //
-  // Awaited *before* onSubmit, not fired alongside it: both PUTs normalize into the same store
-  // entity (see updateAssetMarkings's doc), and firing them concurrently is a race - whichever
-  // response lands last wins the merge. The endpoint PUT's response carries a full snapshot of the
-  // asset, markings included, read from the DB at the time it runs; if it lands after the markings
-  // PUT it's fine (it already reflects the write), but if it lands first - or the two just
-  // interleave - its (pre-write) asset_markings silently reverts what the markings PUT just saved.
-  // Awaiting removes the race entirely: by the time the endpoint PUT is even sent, the marking
-  // write has already committed, so its response is guaranteed consistent whichever order the
-  // network delivers things in.
+  // Without the picker, the markings are left out: the asset keeps the ones it has.
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    handleSubmit(async ({ asset_markings, ...endpointData }) => {
-      if (!editing) {
-        await onSubmit({
-          ...endpointData,
-          asset_markings: asset_markings ?? [],
-        });
-        return;
-      }
-      const initialIds = defaultValues.asset_markings ?? [];
-      let markingsChanged = false;
-      if (showMarkings) {
-        const currentIds = asset_markings ?? [];
-        markingsChanged = !markingIdSetsEqual(currentIds, initialIds);
-        if (markingsChanged) {
-          const markingsSaved = await onMarkingsChange?.(currentIds);
-          // `false` means the markings PUT failed - its own error notification already fired (see
-          // onMarkingsChange's doc), so don't also run the endpoint update: better to leave the
-          // form open on a save the user can see failed than to report success for the fields that
-          // did go through while the markings silently didn't.
-          if (markingsSaved === false) {
-            return;
-          }
-        }
-      }
-
-      const saved = await onSubmit(endpointData);
-
-      // The markings PUT already committed (it ran, and succeeded, above) but the rest of the save
-      // didn't - rather than leave the asset with new markings and none of the other changes,
-      // compensate by reverting markings to what the form opened with. Best-effort and silent: the
-      // asset/markings split is an implementation detail, not something to surface to the user, so
-      // no extra messaging here either way - a failed revert still gets the same generic error
-      // notification any other failed PUT would (see onMarkingsChange's own dispatch).
-      if (saved === false && markingsChanged) {
-        await onMarkingsChange?.(initialIds);
-      }
-    })(e);
+    handleSubmit(({ asset_markings, ...endpointData }) => onSubmit({
+      ...endpointData,
+      ...(showMarkings ? { asset_markings: asset_markings ?? [] } : {}),
+    }))(e);
   };
 
   // HOST platform/arch/hostname are managed by the agent: only editable for agentless hosts.

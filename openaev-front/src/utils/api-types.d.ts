@@ -363,7 +363,7 @@ export interface AiResult {
   chunk_id?: string;
 }
 
-export interface AiTargetCreateInput {
+export interface MarkedAiTargetInput {
   ai_target_configuration?: Record<string, any>;
   ai_target_endpoint?: string | null;
   ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
@@ -4765,7 +4765,7 @@ export interface Endpoint {
   listened?: boolean;
 }
 
-export interface EndpointCreateInput {
+export interface MarkedEndpointInput {
   asset_category?:
     | "HOST"
     | "CONTAINER_WORKLOAD"
