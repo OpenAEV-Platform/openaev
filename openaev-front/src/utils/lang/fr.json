@@ -5196,6 +5196,7 @@
   "{count} edits of yours": "{count} de vos modifications",
   "After: add targets to 1 new inject.": "Ensuite : ajoutez des cibles à 1 nouvel inject.",
   "After: add targets to {count} new injects.": "Ensuite : ajoutez des cibles à {count} nouveaux injects.",
+  "The preview didn't load. Nothing was changed.": "L'aperçu ne s'est pas chargé. Rien n'a été modifié.",
   "What's new in Filigran v{version}": "Nouveautés de Filigran v{version}",
   "Revoke a version": "Révoquer une version",
   "Lift a revocation": "Lever une révocation",

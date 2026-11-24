@@ -134,26 +134,31 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
   // A kept edit opens on its value, said unchanged: never as a red / green diff that reads like a change.
   const [shownKept, setShownKept] = useState<string | null>(null);
 
-  // Apply failed: the preview no longer matters, only what happened and what to do.
-  if (applyError) {
+  // Failed (the preview did not load, or applying did not go through): only what happened and what to do,
+  // in a small dialog, as a DS warning. A refusal the server explains (400) keeps its reason.
+  if (applyError || refusal !== null) {
+    let title = target.failedTitle;
+    let description = String(t('Try again, or contact your administrator if it keeps failing.'));
+    let next = <Button onClick={update.apply} loading={update.applying}>{t('Try again')}</Button>;
+    if (refusal !== null) {
+      title = String(t('The preview didn\'t load. Nothing was changed.'));
+      if (refusal.status === 400 && refusal.message) description = refusal.message;
+      next = <Button onClick={update.retryPreview}>{t('Try again')}</Button>;
+    } else if (applyError === 'changed') {
+      title = String(t('The scenario changed since this preview. Nothing was changed.'));
+      description = String(t('See the latest preview before applying.'));
+      next = <Button onClick={update.showLatestPreview}>{t('Show the latest preview')}</Button>;
+    }
     return (
       <Dialog open onOpenChange={open => !open && onClose()}>
         <DialogContent size="sm">
           <DialogTitle>{target.title}</DialogTitle>
           <DialogBody>
-            <Alert
-              severity="error"
-              title={applyError === 'changed' ? t('The scenario changed since this preview. Nothing was changed.') : target.failedTitle}
-              description={applyError === 'changed'
-                ? t('See the latest preview before applying.')
-                : t('Try again, or contact your administrator if it keeps failing.')}
-            />
+            <Alert severity="warning" title={title} description={description} />
           </DialogBody>
           <DialogFooter>
             <Button priority="secondary" onClick={onClose}>{t('Close')}</Button>
-            {applyError === 'changed'
-              ? <Button onClick={update.showLatestPreview}>{t('Show the latest preview')}</Button>
-              : <Button onClick={update.apply} loading={update.applying}>{t('Try again')}</Button>}
+            {next}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -206,9 +211,6 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
   );
 
   const body = () => {
-    if (refusal !== null) {
-      return <Alert severity="error" title={refusal || t('Something went wrong. Please refresh the page or try again later.')} />;
-    }
     if (preview === null) {
       return <Spinner />;
     }

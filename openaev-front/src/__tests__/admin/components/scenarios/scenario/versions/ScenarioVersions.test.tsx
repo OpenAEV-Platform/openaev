@@ -392,7 +392,7 @@ describe('ScenarioVersions', () => {
   it.each([
     ['Update', 'Update'],
     ['Roll back to this revision', 'Roll back'],
-  ])('given_aPreviewRefused_should_showWhyInsteadOfLoading (%s)', async (action, applyLabel) => {
+  ])('given_aPreviewRefused_should_showWhyInsteadOfLoading (%s)', async (action) => {
     // Arrange
     const refusal = 'This scenario was installed before updates were supported: it cannot be updated or rolled back';
     renderVersions();
@@ -403,13 +403,15 @@ describe('ScenarioVersions', () => {
     });
 
     // Act
-    const dialog = await open(action);
+    await open(action);
 
-    // Assert
-    expect(await within(dialog).findByText(refusal)).toBeInTheDocument();
-    expect(dialog.querySelector('[class*="animate-spin"]')).not.toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: applyLabel })).toBeDisabled();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    // Assert: a warning, the server's reason under it, and a way to try again or close.
+    const failed = await screen.findByRole('dialog');
+    expect(await within(failed).findByText('The preview didn\'t load. Nothing was changed.')).toBeInTheDocument();
+    expect(within(failed).getByText(refusal)).toBeInTheDocument();
+    expect(failed.querySelector('[class*="animate-spin"]')).not.toBeInTheDocument();
+    expect(within(failed).getByRole('button', { name: 'Try again' })).toBeEnabled();
+    fireEvent.click(within(failed).getAllByRole('button', { name: 'Close' })[0]);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 

@@ -9,8 +9,11 @@ export type ScenarioUpdateChoice = NonNullable<ScenarioUpdateInput['scenario_upd
 // The changes an update or a rollback brings, the side chosen or the value typed for each conflict, and applying it.
 const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) => {
   const [preview, setPreview] = useState<ScenarioUpdatePreviewOutput | null>(null);
-  // Why the server refused the preview, empty when it gave no reason.
-  const [refusal, setRefusal] = useState<string | null>(null);
+  // Why the server refused the preview: its message and status, the message empty when it gave none.
+  const [refusal, setRefusal] = useState<{
+    message: string;
+    status?: number;
+  } | null>(null);
   const [choices, setChoices] = useState<Record<string, ScenarioUpdateChoice>>({});
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [applying, setApplying] = useState(false);
@@ -22,12 +25,22 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
   useEffect(() => {
     let active = true;
     setPreview(null);
+    setRefusal(null);
     target.preview()
       .then((previewed) => {
         if (active) setPreview(previewed);
       })
-      .catch((error: { message?: string } | false) => {
-        if (active) setRefusal((error && error.message) || '');
+      .catch((error: {
+        message?: string;
+        status?: number;
+        response?: { status?: number };
+      } | false) => {
+        if (active) {
+          setRefusal({
+            message: (error && error.message) || '',
+            status: error ? error.response?.status ?? error.status : undefined,
+          });
+        }
       });
     return () => {
       active = false;
@@ -94,6 +107,8 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
     applying,
     apply,
     applyError,
+    // The preview did not load: it is asked again.
+    retryPreview: () => setPreviewKey(key => key + 1),
     // The scenario changed: its latest preview replaces the error.
     showLatestPreview: () => {
       setApplyError(null);
