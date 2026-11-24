@@ -216,3 +216,22 @@ io.openaev.service.UserService.user tables=marking_definitions
 # without the scope (ThreatArsenalBulkDeleteEligibilityTenantTest). Every other THREAT_ARSENAL
 # endpoint is transactional with a TxCtx, so its check reads inside the request scope.
 io.openaev.service.GrantService.threatArsenalGrantResources tables=injectors_contracts
+
+# DENY-ALL BY DESIGN - by-id reads of a simulation, a scenario or an inject under an empty scope.
+# A caller with no membership and no selector, an anonymous player on a route that names no tenant
+# (TxCtx.missing()) and an agent token of no tenant reach these reads with an empty scope on purpose:
+# the row is not found and the endpoint answers 404 or 403, which is the isolation the tests below
+# pin (ByIdRequestScopeTest, ByIdRequestScopeArmedTest, the Chained*WorkflowFollowsItsTenantTest
+# classes, the Player*AnonymousRouteTest classes, PlayerUrlTokenRoutesTenantPathTest,
+# SimulationChallengeApiPlayerLegacyRouteTest, InjectImplantTenantScopeTest). A caller that belongs
+# to a tenant has it in scope, so the same reads return its rows. Waived for the tables each read
+# names only.
+io.openaev.rest.exercise.service.ExerciseService.findInScope tables=exercises
+io.openaev.rest.exercise.service.ExerciseService.findByIdInScope tables=exercises,scenarios,security_coverages
+io.openaev.service.scenario.ScenarioService.findInScope tables=scenarios
+io.openaev.rest.inject.service.InjectService.requireInScopeForAgent tables=injects
+io.openaev.rest.inject.service.InjectService.doFindInScope tables=collector_types,documents,exercises,injectors_contracts,injects,payload_identities,payload_revocations,payloads,scenarios,security_coverages
+# The user of a url access token is loaded with its groups before the simulation is looked up, so
+# the empty scope of a route that names no tenant reaches the groups read as well.
+io.openaev.rest.helper.RestBehavior.impersonateUser tables=groups
+io.openaev.service.ChannelService.validateArticles tables=channels
