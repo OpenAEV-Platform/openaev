@@ -4,9 +4,8 @@ import { Box } from '@mui/material';
 import { useState } from 'react';
 
 import { SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
-import type { Page } from '../../../components/common/queryable/Page';
 import { useFormatter } from '../../../components/i18n';
-import type { FindingOutput, RelatedFindingOutput, SearchPaginationInput } from '../../../utils/api-types';
+import type { FindingOutput } from '../../../utils/api-types';
 import FindingOccurrencesList from './FindingOccurrencesList';
 import FindingOccurrencesTimeline from './FindingOccurrencesTimeline';
 
@@ -19,15 +18,15 @@ const initialViewMode = (): ViewMode => (
 );
 
 interface Props {
-  searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;
-  finding: Pick<FindingOutput, 'finding_type' | 'finding_value'>;
+  findingId: string;
+  findingType: FindingOutput['finding_type'];
   contextId?: string;
 }
 
 // "Finding timeline" section: every occurrence of the finding (one per inject), either as a
-// filterable table or as a horizontal time strip - the strip is what makes a recurring detection
+// table or as a horizontal time strip - the strip is what makes a recurring detection
 // (e.g. a scheduled atomic testing re-finding the same credential) readable at a glance.
-const FindingOccurrences = ({ searchFindings, finding, contextId }: Props) => {
+const FindingOccurrences = ({ findingId, findingType, contextId }: Props) => {
   const { t } = useFormatter();
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
 
@@ -48,7 +47,7 @@ const FindingOccurrences = ({ searchFindings, finding, contextId }: Props) => {
       }}
       >
         <Box sx={{ '& > *': { marginBottom: '0 !important' } }}>
-          <SectionLabel>{t('Finding timeline')}</SectionLabel>
+          <SectionLabel>{t('Also detected on :')}</SectionLabel>
         </Box>
         <div style={{ flex: 1 }} />
         <ButtonGroup
@@ -75,16 +74,13 @@ const FindingOccurrences = ({ searchFindings, finding, contextId }: Props) => {
       {viewMode === 'list'
         ? (
             <FindingOccurrencesList
-              searchFindings={searchFindings}
-              finding={finding}
+              findingId={findingId}
+              findingType={findingType}
               contextId={contextId}
             />
           )
         : (
-            <FindingOccurrencesTimeline
-              searchFindings={searchFindings}
-              finding={finding}
-            />
+            <FindingOccurrencesTimeline findingId={findingId} />
           )}
     </div>
   );

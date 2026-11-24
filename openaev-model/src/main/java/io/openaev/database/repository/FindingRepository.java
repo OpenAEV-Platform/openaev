@@ -24,74 +24,10 @@ public interface FindingRepository
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
-  /** The findings of a tenant among the given ids. */
-  List<Finding> findAllByIdInAndTenantId(@NotNull Collection<String> ids, @NotNull String tenantId);
-
   /** The findings whose pending re-test is the given inject. */
   List<Finding> findAllByRetestInjectIdAndTenantId(
       @NotNull String retestInjectId, @NotNull String tenantId);
 
-  // -- GROUP-WIDE SUMMARY (findings deduplicated by (type, displayed value) within a tenant) --
-  //
-  // Grouped on the displayed value like the distinct list, so the summary of a row counts the same
-  // occurrences as the row itself, and never tells two secrets displayed alike apart (ADR-017).
-
-  /**
-   * First/last seen and occurrence count for a (type, value) finding group. A single {@code
-   * Finding} row is one occurrence per inject, so the true "first seen" is the MIN of the group's
-   * creation dates and "last seen" the MAX of the group's update dates - not the dates of an
-   * arbitrary representative row.
-   */
-  @Query(
-      "SELECT MIN(f.creationDate) AS firstSeen, MAX(f.updateDate) AS lastSeen,"
-          + " COUNT(f) AS occurrences FROM Finding f"
-          + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
-  FindingSeenAggregate findSeenAggregate(
-      @Param("type") ContractOutputType type,
-      @Param("displayValue") String displayValue,
-      @Param("tenantId") String tenantId);
-
-  @Query(
-      "SELECT COUNT(DISTINCT a.id) FROM Finding f JOIN f.assets a"
-          + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
-  long countDistinctAssets(
-      @Param("type") ContractOutputType type,
-      @Param("displayValue") String displayValue,
-      @Param("tenantId") String tenantId);
-
-  @Query(
-      "SELECT COUNT(DISTINCT t.id) FROM Finding f JOIN f.teams t"
-          + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
-  long countDistinctTeams(
-      @Param("type") ContractOutputType type,
-      @Param("displayValue") String displayValue,
-      @Param("tenantId") String tenantId);
-
-  @Query(
-      "SELECT COUNT(DISTINCT u.id) FROM Finding f JOIN f.users u"
-          + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
-  long countDistinctUsers(
-      @Param("type") ContractOutputType type,
-      @Param("displayValue") String displayValue,
-      @Param("tenantId") String tenantId);
-
-  @Query(
-      "SELECT COUNT(DISTINCT ag.id) FROM FindingOccurrence o JOIN o.finding f JOIN o.inject i"
-          + " JOIN i.assetGroups ag"
-          + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
-  List<String> findDistinctAssetIds(
-      @Param("type") ContractOutputType type,
-      @Param("displayValue") String displayValue,
-      @Param("tenantId") String tenantId);
-
-  /** Projection for {@link #findSeenAggregate}. */
-  interface FindingSeenAggregate {
-    Instant getFirstSeen();
-
-    Instant getLastSeen();
-
-    long getOccurrences();
-  }
 
   // For testing purposes only
   @Query(

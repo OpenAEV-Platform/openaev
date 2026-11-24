@@ -5,7 +5,7 @@ import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
-import { searchDistinctFindings } from '../../../../actions/findings/finding-actions';
+import { searchFindings } from '../../../../actions/findings/finding-actions';
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
 import { fetchOrganizations } from '../../../../actions/Organization';
 import { searchPlayers } from '../../../../actions/players/player-actions';
@@ -375,7 +375,7 @@ const TeamDetail = () => {
             <SectionBlock title={t('Findings')}>
               <FindingList
                 filterLocalStorageKey="team-findings"
-                searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_teams', [teamId]))}
+                searchFindings={(input: SearchPaginationInput) => searchFindings(withFilter(input, 'finding_teams', [teamId]))}
                 contextId={teamId}
               />
             </SectionBlock>

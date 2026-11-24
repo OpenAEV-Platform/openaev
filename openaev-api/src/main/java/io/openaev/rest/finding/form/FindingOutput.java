@@ -5,15 +5,11 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ContractOutputType;
-import io.openaev.database.model.FindingStatus;
-import io.openaev.rest.asset_group.form.AssetGroupSimple;
-import io.openaev.rest.exercise.form.ExerciseSimple;
-import io.openaev.rest.scenario.form.ScenarioSimple;
+import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.List;
 import java.util.Set;
 import lombok.Data;
 import lombok.experimental.SuperBuilder;
@@ -34,11 +30,6 @@ public class FindingOutput {
   @NotBlank
   private String id;
 
-  @Schema(description = "Contract output field the finding was extracted from")
-  @JsonProperty("finding_field")
-  @NotBlank
-  private String field;
-
   @Schema(
       description = "Represents the data type being extracted.",
       example = "text, number, port, portscan, ipv4, ipv6, credentials, cve")
@@ -54,65 +45,23 @@ public class FindingOutput {
   @NotBlank
   private String value;
 
-  @Schema(description = "Finding name")
-  @JsonProperty("finding_name")
-  private String name;
-
   @Schema(description = "Tag ids linked to the finding")
   @JsonProperty("finding_tags")
   private Set<String> tags;
 
-  @Schema(description = "Inject that produced the finding")
-  @JsonProperty("finding_inject_id")
-  private String injectId;
-
   @Schema(description = "First time the finding was seen")
-  @JsonProperty("finding_created_at")
-  @NotNull
-  private Instant creationDate;
+  @JsonProperty("finding_first_seen")
+  private Instant firstSeen;
 
   @Schema(description = "Last time the finding was seen")
-  @JsonProperty("finding_updated_at")
-  @NotNull
-  private Instant updateDate;
+  @JsonProperty("finding_last_seen")
+  private Instant lastSeen;
 
-  @Schema(description = "Lifecycle status: OPEN, NOT_REPRODUCED or RESOLVED")
-  @JsonProperty("finding_status")
-  private FindingStatus status;
+  @Schema(description = "Number of occurrences, one per inject that detected the finding")
+  @JsonProperty("finding_occurrences_count")
+  private long occurrencesCount;
 
-  @Schema(description = "When a re-test last ended on the finding")
-  @JsonProperty("finding_last_tested")
-  private Instant lastTested;
-
-  @Schema(description = "Inject whose run set the current status (a detection or a re-test)")
-  @JsonProperty("finding_status_inject_id")
-  private String statusInjectId;
-
-  @Schema(description = "Re-test inject queued and not finished yet")
-  @JsonProperty("finding_retest_inject_id")
-  private String retestInjectId;
-
-  @Schema(description = "Asset ids linked to the finding")
-  @JsonProperty("finding_assets")
-  private List<String> assets;
-
-  @Schema(description = "Team ids linked to the finding")
-  @JsonProperty("finding_teams")
-  private List<String> teams;
-
-  @Schema(description = "User ids linked to the finding")
-  @JsonProperty("finding_users")
-  private List<String> users;
-
-  @Schema(description = "Simulation the finding was produced in")
-  @JsonProperty("finding_simulation")
-  private ExerciseSimple simulation;
-
-  @Schema(description = "Scenario the finding was produced in")
-  @JsonProperty("finding_scenario")
-  private ScenarioSimple scenario;
-
-  @Schema(description = "Asset groups targeted by the inject that produced the finding")
-  @JsonProperty("finding_asset_groups")
-  private Set<AssetGroupSimple> assetGroups;
+  @Schema(description = "Asset or player the finding was detected on, absent when unknown")
+  @JsonProperty("finding_location")
+  private TargetSimple location;
 }

@@ -1,6 +1,7 @@
 package io.openaev.rest.finding;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -15,11 +16,11 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.finding.identity.DetectedFinding;
 import io.openaev.finding.identity.LocationIdentity;
 import io.openaev.finding.identity.LocationIdentity.AssetLocation;
-import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.service.finding.FindingRecordingService;
 import io.openaev.utils.mapper.FindingMapper;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
@@ -29,6 +30,8 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,7 +45,6 @@ public class FindingService {
   private static final String HOST = "host";
 
   private final FindingRepository findingRepository;
-  private final FindingMapper findingMapper;
   private final FindingRecordingService findingRecordingService;
   private final AssetRepository assetRepository;
   private final TeamRepository teamRepository;
@@ -66,11 +68,8 @@ public class FindingService {
         .orElseThrow(() -> new EntityNotFoundException("Finding not found with id: " + id));
   }
 
-  /**
-   * Resolves the group-wide data backing the summary of a finding - the group being every
-   * occurrence sharing its (type, value) in the tenant - and delegates the assembly of the output
-   * to the mapper.
-   */
+  // -- SEARCH --
+
   public FindingSummaryOutput findingSummary(@NotNull final String id) {
     Finding finding = finding(id);
     String tenantId = TenantContext.getCurrentTenant();
@@ -78,16 +77,28 @@ public class FindingService {
     String displayValue = finding.getValueDisplay();
 
     FindingRepository.FindingSeenAggregate seen =
-        this.findingRepository.findSeenAggregate(type, displayValue, tenantId);
+            this.findingRepository.findSeenAggregate(type, displayValue, tenantId);
 
     FindingMapper.FindingImpactCounts counts =
-        new FindingMapper.FindingImpactCounts(
-            this.findingRepository.countDistinctAssets(type, displayValue, tenantId),
-            this.findingRepository.countDistinctTeams(type, displayValue, tenantId),
-            this.findingRepository.countDistinctUsers(type, displayValue, tenantId),
-            countDistinctAssetGroups(type, displayValue, tenantId));
+            new FindingMapper.FindingImpactCounts(
+                    this.findingRepository.countDistinctAssets(type, displayValue, tenantId),
+                    this.findingRepository.countDistinctTeams(type, displayValue, tenantId),
+                    this.findingRepository.countDistinctUsers(type, displayValue, tenantId),
+                    countDistinctAssetGroups(type, displayValue, tenantId));
 
     return this.findingMapper.toFindingSummaryOutput(finding, seen, counts);
+  }
+
+  @Transactional(readOnly = true)
+  public Page<Finding> searchFindings(
+      @NotNull final Specification<Finding> scope,
+      @NotNull final SearchPaginationInput searchPaginationInput) {
+    return buildPaginationJPA(
+        (specification, pageable) ->
+            this.findingRepository.findAll(
+                scope.and(FindingSpecification.matching(specification)), pageable),
+        searchPaginationInput,
+        Finding.class);
   }
 
   /**

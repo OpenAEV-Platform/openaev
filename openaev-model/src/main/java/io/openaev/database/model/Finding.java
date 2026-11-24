@@ -119,12 +119,14 @@ public class Finding implements TenantBase {
   @JsonIgnore
   private FindingLocation location;
 
+  @Queryable(filterable = true, sortable = true, label = "first seen")
   @Column(name = "finding_first_seen")
-  @JsonIgnore
+  @JsonProperty("finding_first_seen")
   private Instant firstSeen;
 
+  @Queryable(filterable = true, sortable = true, label = "last seen")
   @Column(name = "finding_last_seen")
-  @JsonIgnore
+  @JsonProperty("finding_last_seen")
   private Instant lastSeen;
 
   // -- LIFECYCLE --

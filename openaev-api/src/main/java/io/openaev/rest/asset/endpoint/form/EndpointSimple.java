@@ -27,10 +27,6 @@ public class EndpointSimple {
   // Display metadata so list chips can render the same glyph as the asset pages (category
   // taxonomy icon, or the OS platform brand icon for host-like endpoints).
 
-  @Schema(description = "Asset type discriminator (e.g. Endpoint, SecurityPlatform)")
-  @JsonProperty("asset_type")
-  private String type;
-
   @Schema(description = "Asset category (taxonomy: HOST, WEB_APPLICATION, CLOUD_RESOURCE, ...)")
   @JsonProperty("asset_category")
   private String category;

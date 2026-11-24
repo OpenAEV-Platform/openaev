@@ -7,7 +7,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 
 import { fetchAssetGroup, searchEndpointsFromAssetGroup, searchInjectsForAssetGroup } from '../../../../actions/asset_groups/assetgroup-action';
 import { type AssetGroupsHelper } from '../../../../actions/asset_groups/assetgroup-helper';
-import { searchDistinctFindings } from '../../../../actions/findings/finding-actions';
+import { searchFindings } from '../../../../actions/findings/finding-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import AssetTypeFragment from '../../../../components/common/list/fragments/AssetTypeFragment';
@@ -91,7 +91,7 @@ const AssetGroupDetail = () => {
     [assetGroupId],
   ));
   const findingsTotal = useSearchTotal(useCallback(
-    (input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_asset_groups', [assetGroupId])),
+    (input: SearchPaginationInput) => searchFindings(withFilter(input, 'finding_asset_groups', [assetGroupId])),
     [assetGroupId],
   ));
   const posture = useExpectationPosture('base_asset_group_side', assetGroupId);
@@ -358,7 +358,7 @@ const AssetGroupDetail = () => {
           <SectionBlock title={t('Findings')}>
             <FindingList
               filterLocalStorageKey="asset-group-findings"
-              searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_asset_groups', [assetGroupId]))}
+              searchFindings={(input: SearchPaginationInput) => searchFindings(withFilter(input, 'finding_asset_groups', [assetGroupId]))}
               contextId={assetGroupId}
             />
           </SectionBlock>

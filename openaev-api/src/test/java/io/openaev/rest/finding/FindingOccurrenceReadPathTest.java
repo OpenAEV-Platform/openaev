@@ -19,7 +19,6 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.specification.FindingSpecification;
-import io.openaev.rest.finding.form.FindingOutput;
 import io.openaev.schema.PropertySchema;
 import io.openaev.schema.SchemaUtils;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -32,7 +31,6 @@ import io.openaev.utils.fixtures.composers.FindingComposer;
 import io.openaev.utils.fixtures.composers.FindingOccurrenceComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
-import io.openaev.utils.mapper.FindingMapper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
@@ -67,7 +65,6 @@ class FindingOccurrenceReadPathTest extends IntegrationTest {
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private FindingRepository findingRepository;
   @Autowired private FindingOccurrenceComposer findingOccurrenceComposer;
-  @Autowired private FindingMapper findingMapper;
   @Autowired private EntityManager entityManager;
   @Autowired private MockMvc mvc;
 
@@ -150,17 +147,6 @@ class FindingOccurrenceReadPathTest extends IntegrationTest {
           .containsExactlyInAnyOrder(firstInject.getId(), secondInject.getId());
       assertThat(finding.getSimulations()).extracting(Exercise::getId).contains(simulation.getId());
       assertThat(finding.getFields()).containsExactlyInAnyOrder(TEXT_FIELD, OTHER_FIELD);
-    }
-
-    @Test
-    @DisplayName("Should show the inject and field of the latest occurrence")
-    void given_twoOccurrences_should_showTheLatestOccurrence() {
-      // Act
-      FindingOutput output = findingMapper.toFindingOutput(reload());
-
-      // Assert
-      assertThat(output.getInjectId()).isEqualTo(secondInject.getId());
-      assertThat(output.getField()).isEqualTo(OTHER_FIELD);
     }
 
     @Test
@@ -271,25 +257,6 @@ class FindingOccurrenceReadPathTest extends IntegrationTest {
 
       // Assert
       assertThat(sortable).doesNotContain("finding_inject_id", "finding_field");
-    }
-  }
-
-  @Nested
-  @DisplayName("When the inject of the latest occurrence was deleted")
-  class WhenTheLatestInjectWasDeleted {
-
-    @Test
-    @DisplayName("Should show the latest occurrence that still has its inject")
-    void given_aLatestOccurrenceWithoutInject_should_showThePreviousOne() {
-      // Arrange
-      addOccurrence(null, later(), OTHER_FIELD);
-
-      // Act
-      FindingOutput output = findingMapper.toFindingOutput(reload());
-
-      // Assert
-      assertThat(output.getInjectId()).isEqualTo(firstInject.getId());
-      assertThat(output.getField()).isEqualTo(TEXT_FIELD);
     }
   }
 

@@ -4,16 +4,16 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
-import { initSorting, type Page } from '../../../components/common/queryable/Page';
+import { searchFindingOccurrences } from '../../../actions/findings/finding-actions';
+import { initSorting } from '../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import Empty from '../../../components/Empty';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
 import { ATOMIC_BASE_URL, SIMULATION_BASE_URL } from '../../../constants/BaseUrls';
-import type { FindingOutput, RelatedFindingOutput, SearchPaginationInput } from '../../../utils/api-types';
+import type { FindingOccurrenceOutput } from '../../../utils/api-types';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { buildOccurrencesFilter, occurrenceTargets } from './FindingOccurrencesUtils';
 
 // Maximum markers stacked per time bucket before collapsing into a "+N" badge.
 const MAX_DOTS_PER_GROUP = 4;
@@ -25,22 +25,19 @@ const BUCKET_SIZE = 2.5;
 // say so explicitly when a pathological finding has even more occurrences.
 const TIMELINE_FETCH_SIZE = 500;
 
-interface Props {
-  searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;
-  finding: Pick<FindingOutput, 'finding_type' | 'finding_value'>;
-}
+interface Props { findingId: string }
 
 // Horizontal occurrence timeline: every detection of this finding is plotted on a single time
-// axis at the moment it was last seen in its inject, so re-detections (e.g. a recurring atomic
+// axis at the moment it was seen in its inject, so re-detections (e.g. a recurring atomic
 // testing) read as a dense progression and one-shot findings as a single milestone. Mirrors the
 // simulation ExecutionFlowStrip geometry so the two strips feel like the same product.
-const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
+const FindingOccurrencesTimeline = ({ findingId }: Props) => {
   const theme = useTheme();
   const { t, fndt } = useFormatter();
   const ability = useAbility();
 
   const [loading, setLoading] = useState<boolean>(true);
-  const [occurrences, setOccurrences] = useState<RelatedFindingOutput[]>([]);
+  const [occurrences, setOccurrences] = useState<FindingOccurrenceOutput[]>([]);
   const [total, setTotal] = useState<number>(0);
 
   useEffect(() => {
@@ -48,11 +45,10 @@ const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
     setLoading(true);
     // DESC so that, when the window overflows, it keeps the MOST RECENT occurrences
     // (the markers are re-sorted ascending client-side for plotting).
-    searchFindings(buildSearchPagination({
+    searchFindingOccurrences(findingId, buildSearchPagination({
       page: 0,
       size: TIMELINE_FETCH_SIZE,
-      sorts: initSorting('finding_updated_at', 'DESC'),
-      filterGroup: buildOccurrencesFilter(finding),
+      sorts: initSorting('finding_occurrence_date', 'DESC'),
     }))
       .then((res) => {
         if (cancelled) return;
@@ -65,9 +61,9 @@ const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
     return () => {
       cancelled = true;
     };
-  }, [finding.finding_type, finding.finding_value]);
+  }, [findingId]);
 
-  const seenAt = (occurrence: RelatedFindingOutput) => new Date(occurrence.finding_updated_at).getTime();
+  const seenAt = (occurrence: FindingOccurrenceOutput) => new Date(occurrence.finding_occurrence_date).getTime();
 
   const sorted = useMemo(
     () => [...occurrences].sort((a, b) => seenAt(a) - seenAt(b)),
@@ -83,7 +79,7 @@ const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
 
   // Group near-simultaneous detections into a single stacked marker.
   const groups = useMemo(() => {
-    const map = new Map<number, RelatedFindingOutput[]>();
+    const map = new Map<number, FindingOccurrenceOutput[]>();
     sorted.forEach((occurrence) => {
       const bucket = Math.round(positionFor(seenAt(occurrence)) / BUCKET_SIZE) * BUCKET_SIZE;
       map.set(bucket, [...(map.get(bucket) ?? []), occurrence]);
@@ -94,10 +90,10 @@ const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
 
   // Same pivot rules as FindingContextLink: atomic injects link to the atomic testing page,
   // simulation injects to the inject inside its simulation - only when the user may access it.
-  const occurrenceLink = (occurrence: RelatedFindingOutput): string | undefined => {
-    const injectId = occurrence.finding_inject?.inject_id;
+  const occurrenceLink = (occurrence: FindingOccurrenceOutput): string | undefined => {
+    const injectId = occurrence.finding_occurrence_inject?.inject_id;
     if (!injectId) return undefined;
-    const simulationId = occurrence.finding_simulation?.exercise_id;
+    const simulationId = occurrence.finding_occurrence_simulation?.context_id;
     if (!simulationId) {
       const allowed = ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT)
         || ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, injectId);
@@ -148,12 +144,8 @@ const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
   // Only render the middle label when it will not repeat the edge labels.
   const showMidLabel = span >= 10 * 60_000;
 
-  const dot = (occurrence: RelatedFindingOutput) => {
+  const dot = (occurrence: FindingOccurrenceOutput) => {
     const link = occurrenceLink(occurrence);
-    const targetNames = occurrenceTargets(occurrence)
-      .map(target => target.target_name)
-      .filter(Boolean)
-      .slice(0, 5);
     const marker = (
       <Box
         sx={{
@@ -174,7 +166,7 @@ const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
       />
     );
     return (
-      <Tooltip key={occurrence.finding_id}>
+      <Tooltip key={occurrence.finding_occurrence_id}>
         <TooltipTrigger asChild>
           <span className="inline-flex">
             {link
@@ -184,7 +176,7 @@ const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
         </TooltipTrigger>
         <TooltipContent>
           <Fragment>
-            {occurrence.finding_inject?.inject_title ?? '-'}
+            {occurrence.finding_occurrence_inject?.inject_title ?? t('No longer linked to an inject')}
             <br />
             <span style={{
               display: 'block',
@@ -192,16 +184,16 @@ const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
               fontWeight: 'bold',
             }}
             >
-              {fndt(occurrence.finding_updated_at)}
+              {fndt(occurrence.finding_occurrence_date)}
             </span>
-            {targetNames.length > 0 && (
+            {occurrence.finding_occurrence_field && (
               <span style={{
                 display: 'block',
                 textAlign: 'center',
                 opacity: 0.8,
               }}
               >
-                {targetNames.join(', ')}
+                {occurrence.finding_occurrence_field}
               </span>
             )}
           </Fragment>

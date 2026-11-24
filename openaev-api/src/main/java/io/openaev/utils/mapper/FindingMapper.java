@@ -3,16 +3,14 @@ package io.openaev.utils.mapper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.rest.asset_group.form.AssetGroupSimple;
+import io.openaev.rest.asset.endpoint.form.EndpointSimple;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
-import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.rest.finding.form.FindingOutput;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
 import io.openaev.service.AssetGroupService;
+import io.openaev.rest.finding.form.FindingSimple;
 import io.openaev.utils.TargetType;
-import java.time.Instant;
-import java.util.Comparator;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -82,116 +80,56 @@ public class FindingMapper {
    * API returns. Its value is the displayed value ({@link Finding#getValueDisplay()}), never the
    * cleartext, so a secret value never leaves the platform.
    */
-  public FindingOutput toFindingOutput(Finding finding) {
-    Optional<FindingOccurrence> occurrence = latestOccurrence(finding);
-    Optional<Inject> inject = occurrence.map(FindingOccurrence::getInject);
-    Optional<Exercise> simulation = inject.map(Inject::getExercise);
+  public FindingOutput toFindingOutput(Finding finding, long occurrencesCount) {
     return FindingOutput.builder()
         .id(finding.getId())
-        .field(occurrence.map(FindingOccurrence::getField).orElse(null))
         .type(finding.getType())
         .value(finding.getValueDisplay())
-        .name(finding.getName())
         .tags(finding.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
-        .injectId(inject.map(Inject::getId).orElse(null))
-        .creationDate(finding.getCreationDate())
-        .updateDate(finding.getUpdateDate())
-        .status(finding.getStatus())
-        .lastTested(finding.getLastTested())
-        .statusInjectId(finding.getStatusInjectId())
-        .retestInjectId(finding.getRetestInjectId())
-        .assets(finding.getAssets().stream().map(Asset::getId).toList())
-        .teams(finding.getTeams().stream().map(Team::getId).toList())
-        .users(finding.getUsers().stream().map(User::getId).toList())
-        .simulation(simulation.map(exerciseMapper::toExerciseSimple).orElse(null))
-        .scenario(
-            simulation
-                .map(Exercise::getScenario)
-                .map(scenarioMapper::toScenarioSimple)
-                .orElse(null))
-        .assetGroups(assetGroupsOf(finding))
+        .firstSeen(finding.getFirstSeen())
+        .lastSeen(finding.getLastSeen())
+        .occurrencesCount(occurrencesCount)
+        .location(toLocation(finding.getLocation()))
         .build();
   }
 
-  public AggregatedFindingOutput toAggregatedFindingOutput(
-      Finding finding, List<Asset> relatedAssets) {
-    return toAggregatedFindingOutput(
-        finding, relatedAssets, finding.getCreationDate(), finding.getUpdateDate());
-  }
-
-  /**
-   * Aggregated (deduplicated by type + value) output. The representative {@code finding} row is the
-   * most recent occurrence in the group (greatest {@code updateDate}, tie-broken by smallest id -
-   * see {@code FindingSpecification.distinctTypeValueWithFilter}), so its own {@code updateDate}
-   * already matches the group last seen; its {@code creationDate}, however, is that single
-   * occurrence's, so callers must still pass the group-wide first/last seen explicitly.
-   */
-  public AggregatedFindingOutput toAggregatedFindingOutput(
-      Finding finding, List<Asset> relatedAssets, Instant firstSeen, Instant lastSeen) {
-    return AggregatedFindingOutput.builder()
+  public FindingSimple toFindingSimple(Finding finding) {
+    return FindingSimple.builder()
         .id(finding.getId())
-        .value(finding.getValueDisplay())
         .type(finding.getType())
-        .creationDate(firstSeen)
-        .updateDate(lastSeen)
-        // Findings can attach to ANY asset type (agentless websites, AI targets, cloud/network
-        // assets), so no instanceof Endpoint filtering here.
-        .assets(
-            relatedAssets.stream()
+        .value(finding.getValueDisplay())
+        .asset(
+            Optional.ofNullable(finding.getLocation())
+                .map(FindingLocation::getAsset)
                 .map(endpointMapper::toEndpointSimple)
-                .collect(Collectors.toSet()))
-        .build();
-  }
-
-  public RelatedFindingOutput toRelatedFindingOutput(Finding finding) {
-    Optional<Inject> inject = latestOccurrence(finding).map(FindingOccurrence::getInject);
-    Optional<Exercise> simulation = inject.map(Inject::getExercise);
-    return RelatedFindingOutput.builder()
-        .id(finding.getId())
-        .value(finding.getValueDisplay())
-        .type(finding.getType())
-        .updateDate(finding.getUpdateDate())
-        .assets(
-            finding.getAssets().stream()
-                .map(asset -> endpointMapper.toEndpointSimple(asset))
-                .collect(Collectors.toSet()))
-        .assetGroups(assetGroupsOf(finding))
-        .inject(inject.map(injectMapper::toInjectSimple).orElse(null))
-        .simulation(simulation.map(exerciseMapper::toExerciseSimple).orElse(null))
-        .scenario(
-            simulation
-                .map(Exercise::getScenario)
-                .map(scenario -> scenarioMapper.toScenarioSimple(scenario))
                 .orElse(null))
-        // Teams and persons attached to this occurrence (e.g. phishing credential findings): the
-        // occurrence list needs them to show WHO was impacted, not only which machine.
-        .teams(
-            finding.getTeams().stream()
-                .map(
-                    team ->
-                        TargetSimple.builder()
-                            .id(team.getId())
-                            .name(team.getName())
-                            .type(TargetType.TEAMS)
-                            .build())
-                .collect(Collectors.toSet()))
-        .users(
-            finding.getUsers().stream()
-                .map(
-                    user ->
-                        TargetSimple.builder()
-                            .id(user.getId())
-                            .name(user.getNameOrEmail())
-                            .type(TargetType.PLAYERS)
-                            .build())
-                .collect(Collectors.toSet()))
-        .creationDate(finding.getCreationDate())
+        .firstSeen(finding.getFirstSeen())
+        .lastSeen(finding.getLastSeen())
         .build();
   }
 
-  private static Optional<FindingOccurrence> latestOccurrence(Finding finding) {
-    return finding.getOccurrences().stream()
-        .filter(occurrence -> occurrence.getInject() != null)
-        .max(Comparator.comparing(FindingOccurrence::getDate));
+  private TargetSimple toLocation(FindingLocation location) {
+    if (location == null) {
+      return null;
+    }
+    if (location.getAsset() != null) {
+      EndpointSimple asset = endpointMapper.toEndpointSimple(location.getAsset());
+      return TargetSimple.builder()
+          .id(asset.getId())
+          .name(asset.getName())
+          .type(TargetType.ASSETS)
+          .category(asset.getCategory())
+          .subtype(asset.getPlatform())
+          .build();
+    }
+    if (location.getUser() != null) {
+      User user = location.getUser();
+      return TargetSimple.builder()
+          .id(user.getId())
+          .name(user.getNameOrEmail())
+          .type(TargetType.PLAYERS)
+          .build();
+    }
+    return null;
   }
 }

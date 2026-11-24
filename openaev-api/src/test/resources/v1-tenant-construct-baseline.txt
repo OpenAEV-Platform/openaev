@@ -121,7 +121,6 @@ io.openaev.rest.expectation.ExpectationApi#getInjectLoggingExpectationsNotFilled
 io.openaev.rest.expectation.ExpectationApi#getInjectPreventionExpectationsNotFilled | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the prevention expectation query with the ambient tenant
 io.openaev.rest.expectation.ExpectationApi#getInjectPreventionExpectationsNotFilledForSource | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the prevention expectation query by source with the ambient tenant
 io.openaev.rest.finding.FindingService#finding | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
-io.openaev.rest.finding.FindingService#findingSummary | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
 io.openaev.rest.inject.SimulationInjectApi#executeInject | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
 io.openaev.rest.payload.DetectionRemediationUtils#copy | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
 io.openaev.rest.reporting.service.PlaywrightReportingRenderer#execute | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
