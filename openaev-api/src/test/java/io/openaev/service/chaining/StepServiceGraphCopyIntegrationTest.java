@@ -70,7 +70,9 @@ class StepServiceGraphCopyIntegrationTest {
     return workflowRepository.save(template);
   }
 
+  // A nested class needs its own marker: the listener reads it from the class it opens or closes.
   @Nested
+  @KeepRabbit
   @DisplayName("DEPEND_ON remapping")
   class DependOnRemapping {
 
