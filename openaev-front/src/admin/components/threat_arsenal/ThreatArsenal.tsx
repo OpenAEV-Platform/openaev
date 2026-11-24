@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import DialogDelete from '../../../components/common/DialogDelete';
 import MarketplaceBrowser from '../../../components/common/marketplace/page/MarketplaceBrowser';
+import MarketplaceCatalogTabs from '../../../components/common/marketplace/page/MarketplaceCatalogTabs';
 import MarketplaceLoadMore from '../../../components/common/marketplace/results/MarketplaceLoadMore';
 import MarketplaceSections from '../../../components/common/marketplace/results/MarketplaceSections';
 import MarketplaceSortSelect from '../../../components/common/marketplace/toolbar/MarketplaceSortSelect';
@@ -11,6 +12,7 @@ import MarketplaceViewToggle from '../../../components/common/marketplace/toolba
 import useMarketplaceView from '../../../components/common/marketplace/toolbar/useMarketplaceView';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../components/i18n';
+import { THREAT_ARSENAL_BASE_URL } from '../../../constants/BaseUrls';
 import { type ThreatArsenalAction } from '../../../utils/api-types';
 import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
@@ -30,7 +32,6 @@ import { THREAT_ARSENAL_SORT_OPTIONS } from './list/threatArsenalListConfig';
 import ThreatArsenalHeaderActions from './page/ThreatArsenalHeaderActions';
 import ThreatArsenalHero from './page/ThreatArsenalHero';
 import ThreatArsenalSidebar from './page/ThreatArsenalSidebar';
-import ThreatArsenalTabs from './page/ThreatArsenalTabs';
 import ThreatArsenalEmptyState from './ThreatArsenalEmptyState';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
 import actionDomains from './utils/actionDomains';
@@ -82,7 +83,7 @@ const ThreatArsenal = () => {
           )}
           />
         )}
-        tabs={<ThreatArsenalTabs active="active" />}
+        tabs={<MarketplaceCatalogTabs active="active" baseUrl={THREAT_ARSENAL_BASE_URL} />}
         sidebar={(
           <ThreatArsenalSidebar
             domainElements={facets.iconBarOrderedDomains}

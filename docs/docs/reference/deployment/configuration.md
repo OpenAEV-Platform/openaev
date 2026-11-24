@@ -218,7 +218,6 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 | openaev.xtm.opencti.{id}.api_url             | OPENAEV_XTM_OPENCTI_{id}_API_URL             |               | OpenCTI API URL — completely overrides the base URL. Defaults to `openaev.xtm.opencti.{id}.url` + `/graphql`                                   |
 | openaev.xtm.opencti.{id}.token               | OPENAEV_XTM_OPENCTI_{id}_TOKEN               |               | OpenCTI API token                                                                                                                              |
 
-{% if feature_visible("EXPLORATION_GRAPH") %}
 #### XTM Suite: OpenCRQ
 
 Each OpenCRQ connection is scoped to an OpenAEV tenant, identified by its UUID (`{id}`). It serves the OpenCRQ pivots (see [OpenCTI and OpenCRQ pivots](../../integrations/xtm-suite/xtm-suite-connector.md#opencti-and-opencrq-pivots)) and the OpenCRQ entry of the product switcher. A connection with a URL and a token is enabled by default; set `enable` to `false` to turn it off. On a single-tenant deployment, the keys without `{id}` (`openaev.xtm.opencrq.url`, `OPENAEV_XTM_OPENCRQ_URL`, ...) configure the default tenant (`2cffad3a-0001-4078-b0e2-ef74274022c3`).
@@ -230,7 +229,6 @@ Each OpenCRQ connection is scoped to an OpenAEV tenant, identified by its UUID (
 | openaev.xtm.opencrq.{id}.api-url   | OPENAEV_XTM_OPENCRQ_{id}_API-URL   |               | OpenCRQ API URL, overrides the base URL. Defaults to `openaev.xtm.opencrq.{id}.url` + `/trpc` |
 | openaev.xtm.opencrq.{id}.token     | OPENAEV_XTM_OPENCRQ_{id}_TOKEN     |               | OpenCRQ service-account token                                                                |
 
-{% endif %}
 #### XTM Suite: XTM Hub
 
 | Parameter                                             | Environment variable             | Default value | Description                                                         |

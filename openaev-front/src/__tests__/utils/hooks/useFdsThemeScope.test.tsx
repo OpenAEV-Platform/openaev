@@ -10,12 +10,11 @@ afterEach(() => {
   document.documentElement.className = '';
 });
 
-const Harness = ({ mode, custom, pastel }: {
+const Harness = ({ mode, custom }: {
   mode: FdsThemeMode;
   custom: FdsCustomTheme;
-  pastel?: boolean;
 }) => {
-  useFdsThemeScope(mode, custom, pastel);
+  useFdsThemeScope(mode, custom);
   return null;
 };
 
@@ -83,15 +82,8 @@ describe('useFdsThemeScope', () => {
     expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 
-  it('keeps pastel by default, the OpenAEV default for a user who never chose', () => {
+  it('sets no pastel class: the design system draws one chip style (1.13)', () => {
     render(<Harness mode="dark" custom={{}} />);
-    expect(document.documentElement.classList.contains('pastel')).toBe(true);
-  });
-
-  it('drops the pastel class when the user turns the preference off, and sets it back on', () => {
-    const { rerender } = render(<Harness mode="dark" custom={{}} pastel={false} />);
     expect(document.documentElement.classList.contains('pastel')).toBe(false);
-    rerender(<Harness mode="dark" custom={{}} pastel />);
-    expect(document.documentElement.classList.contains('pastel')).toBe(true);
   });
 });

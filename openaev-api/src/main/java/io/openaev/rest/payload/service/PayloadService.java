@@ -401,9 +401,21 @@ public class PayloadService {
     return payloadRepository.findAllByTenantIdAndIdentityExternalId(tenantId, externalId);
   }
 
+  /** Every version of these catalogue payloads in the tenant. */
+  public List<Payload> versions(String tenantId, Collection<String> externalIds) {
+    return payloadRepository.findAllByTenantIdAndIdentityExternalIdIn(tenantId, externalIds);
+  }
+
   /** Every version of this payload in the tenant, itself included. */
   public List<Payload> versionsOf(String tenantId, Payload payload) {
     return payloadRepository.findAllVersionsByTenantIdAndPayloadId(tenantId, payload.getId());
+  }
+
+  /** The customized copies built on one of these versions, at their latest version. */
+  public List<Payload> latestCopiesOf(String tenantId, Collection<Payload> bases) {
+    return payloadRepository.findAllByTenantIdAndBaseIn(tenantId, bases).stream()
+        .filter(Payload::isLatest)
+        .toList();
   }
 
   public PayloadWithRelatedEntities findPayloadWithRelatedEntities(String payloadId) {

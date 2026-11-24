@@ -31,7 +31,7 @@ describe('triggerUtils', () => {
     it.each<[string, boolean, string[]]>([
       ['SCENARIO', false, ['CREATE', 'UPDATE', 'DELETE', 'SCORE_DEGRADATION']],
       ['SCENARIO', true, ['CREATE', 'UPDATE', 'DELETE', 'SCORE_DEGRADATION', 'PAYLOAD_REVOKED', 'NEW_PAYLOAD_VERSION']],
-      ['PAYLOAD', true, ['CREATE', 'UPDATE', 'DELETE', 'REVOKED', 'REVOCATION_LIFTED']],
+      ['PAYLOAD', true, ['CREATE', 'UPDATE', 'DELETE', 'REVOKED', 'REVOCATION_LIFTED', 'BASE_UPDATE_AVAILABLE']],
       ['CATALOG_SYNC', false, []],
       ['CATALOG_SYNC', true, ['RELEASE_RECEIVED', 'INSTALLED_AUTOMATICALLY', 'SYNC_BLOCKED']],
     ])('offers the events %s sends, catalogue preview %s', (resourceType, catalogEnabled, expected) => {

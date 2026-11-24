@@ -17,6 +17,7 @@ public enum NotificationTriggerEventType {
   NEW_PAYLOAD_VERSION(ResourceType.SCENARIO, "new payload version available"),
   REVOKED(ResourceType.PAYLOAD, "revoked"),
   REVOCATION_LIFTED(ResourceType.PAYLOAD, "revocation lifted"),
+  BASE_UPDATE_AVAILABLE(ResourceType.PAYLOAD, "Filigran update available"),
   INSTALLED_AUTOMATICALLY(ResourceType.CATALOG_SYNC, "installed automatically"),
   RELEASE_RECEIVED(ResourceType.CATALOG_SYNC, "release received"),
   SYNC_BLOCKED(ResourceType.CATALOG_SYNC, "sync blocked"),

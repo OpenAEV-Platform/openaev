@@ -27,7 +27,7 @@ import io.openaev.notification.engine.NotificationResourceCatalog;
 import io.openaev.service.catalog.CatalogOffer;
 import io.openaev.service.catalog.scenario.CatalogScenarioService;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -113,8 +113,8 @@ class CatalogNotificationListenerTest {
     @DisplayName("New scenarios, updates of installed ones and new actions are told in one message")
     void given_newContent_should_tellWhatTheReleaseBrings() {
       // Arrange
-      when(catalogScenarioService.installedKeys(TENANT))
-          .thenReturn(Set.of(CatalogOffer.key(REPOSITORY, "ransomware")));
+      when(catalogScenarioService.installedScenarioIds(eq(TENANT), any()))
+          .thenReturn(Map.of(CatalogOffer.key(REPOSITORY, "ransomware"), "scenario-id"));
 
       // Act
       listener.onReleaseApplied(

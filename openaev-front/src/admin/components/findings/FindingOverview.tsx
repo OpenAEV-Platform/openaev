@@ -12,8 +12,7 @@ import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
-import OpenCrqPivot from '../../../components/xtm/XtmOpenCrq';
-import OpenCtiPivot from '../../../components/xtm/XtmPivot';
+import XtmCounterpartsEmblem from '../../../components/xtm/XtmCounterpartsEmblem';
 import type { FindingOutput, FindingSummaryOutput } from '../../../utils/api-types';
 import useExplorationGraph from '../../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
@@ -92,11 +91,11 @@ const FindingOverview = () => {
         iconNode={<FindingIcon findingType={finding.finding_type} />}
         overline={typeLabel}
         title={finding.finding_value}
-        action={graphEnabled ? (
+        action={(isCVE || graphEnabled) ? (
           <>
-            <ExploreInGraphButton type="FINDING" entityId={findingId} />
-            {isCVE && <OpenCtiPivot kind="vulnerabilities" objectKey={finding.finding_value} />}
-            {isCVE && <OpenCrqPivot kind="vulnerabilities" objectKey={finding.finding_value} />}
+            {/* The single XTM One emblem first (its own XTM_COUNTERPARTS flag), then the graph. */}
+            {isCVE && <XtmCounterpartsEmblem kind="vulnerabilities" objectKey={finding.finding_value} />}
+            {graphEnabled && <ExploreInGraphButton type="FINDING" entityId={findingId} />}
           </>
         ) : undefined}
         chips={cvssScore != null

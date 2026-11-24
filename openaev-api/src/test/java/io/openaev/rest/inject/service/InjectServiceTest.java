@@ -153,7 +153,7 @@ class InjectServiceTest {
     // row stands in for it here.
     lenient().when(permissionServiceProvider.getObject()).thenReturn(permissionService);
     lenient()
-        .when(permissionService.filterInEachTenant(any(), any(), any()))
+        .when(permissionService.filterInEachTenant(any(), any(), any(), any()))
         .thenReturn(Specification.unrestricted());
     // InjectStatusService serializes the inject (Instant / Optional fields) into the SSE
     // BaseEvent payload on status transitions, so the mapper needs the JSR-310/JDK8 modules.
@@ -183,7 +183,8 @@ class InjectServiceTest {
             stepTargetingService,
             conditionService,
             previewFeatureService,
-            payloadRevocationService));
+            payloadRevocationService,
+            injectorContractContentUtils));
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
@@ -197,7 +198,8 @@ class InjectServiceTest {
                 stepTargetingService,
                 conditionService,
                 previewFeatureService,
-                payloadRevocationService)));
+                payloadRevocationService,
+                injectorContractContentUtils)));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }

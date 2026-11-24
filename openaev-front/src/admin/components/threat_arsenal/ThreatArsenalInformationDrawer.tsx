@@ -103,6 +103,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
     afterSave,
     closeNotice,
   } = useActionDrawer(open, threatArsenalAction, initialTab, onUpdate);
+  const shownRevoked = isShownRevoked(shownAction);
   const payloadTabs: Record<string, () => ReactNode> = {
     versions: () => (
       <PayloadVersionsTab
@@ -176,7 +177,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
       open={open}
       handleClose={onClose}
       title={t('Action information')}
-      headerActions={canRunTest && onRunTest && shownAction && !isShownRevoked(shownAction) && (
+      headerActions={canRunTest && onRunTest && shownAction && !shownRevoked && (
         <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => onRunTest(shownAction)}>{t('Run a test')}</Button>
       )}
     >

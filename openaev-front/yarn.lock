@@ -606,9 +606,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@filigran/design-system@npm:1.11.0":
-  version: 1.11.0
-  resolution: "@filigran/design-system@npm:1.11.0"
+"@filigran/design-system@npm:1.13.0":
+  version: 1.13.0
+  resolution: "@filigran/design-system@npm:1.13.0"
   dependencies:
     "@dnd-kit/core": "npm:^6.3.1"
     "@dnd-kit/sortable": "npm:^10.0.0"
@@ -648,7 +648,7 @@ __metadata:
     react-dom: ^19.0.0
   bin:
     filigran-design-system: bin/install-skills.mjs
-  checksum: 10c0/a1d89eb146433c5a43c0be9883664c3e0c2d5855d657d2657558ab6a48b6848ed846cd611e21abc1cd2af8614856cdc6ecbb2695907033e1b6602fdc5614e1cb
+  checksum: 10c0/68f68269589051088340f5649881aec7c8d4b072d391224671298e1c62e802cb8d1480bcf157ee57699f98e5d49cab9db32e328a3366c035446263ddadcfc9b7
   languageName: node
   linkType: hard
 
@@ -5548,19 +5548,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dompurify@npm:3.4.17":
-  version: 3.4.17
-  resolution: "dompurify@npm:3.4.17"
-  dependencies:
-    "@types/trusted-types": "npm:^2.0.7"
-  dependenciesMeta:
-    "@types/trusted-types":
-      optional: true
-  checksum: 10c0/6a12251ef5e700fc91b6d96d33e9f8b5fd590c55276f632cf42d182c5808e9f48d5bef435ab26eac235dfcc05ed8fe95e1c8308dcc502bf1050e561f14d0361a
-  languageName: node
-  linkType: hard
-
-"dompurify@npm:^3.4.11":
+"dompurify@npm:3.4.18, dompurify@npm:^3.4.11":
   version: 3.4.18
   resolution: "dompurify@npm:3.4.18"
   dependencies:
@@ -9839,7 +9827,7 @@ __metadata:
     "@eslint/js": "npm:10.0.1"
     "@faker-js/faker": "npm:10.6.0"
     "@filigran/chatbot": "npm:7.0.0"
-    "@filigran/design-system": "npm:1.11.0"
+    "@filigran/design-system": "npm:1.13.0"
     "@filigran/rich-text-editor": "npm:@filigran/rich-text-editor@1.2.2"
     "@fontsource/geologica": "npm:5.3.0"
     "@fontsource/ibm-plex-sans": "npm:5.3.0"
@@ -9872,7 +9860,7 @@ __metadata:
     cross-env: "npm:10.1.0"
     date-fns: "npm:4.4.0"
     dependency-cruiser: "npm:18.7.2"
-    dompurify: "npm:3.4.17"
+    dompurify: "npm:3.4.18"
     eslint: "npm:10.14.0"
     eslint-plugin-custom-rules: "workspace:*"
     eslint-plugin-i18next: "npm:6.1.5"

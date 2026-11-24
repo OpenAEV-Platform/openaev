@@ -231,7 +231,9 @@ public class GraphExplorationApi extends RestBehavior {
       private boolean can(String id, ResourceType type) {
         return permissionService.holdsInScope(
             ctx,
-            () -> permissionService.hasPermission(user, Optional.empty(), id, type, Action.READ));
+            user,
+            caller ->
+                permissionService.hasPermission(caller, Optional.empty(), id, type, Action.READ));
       }
     };
   }

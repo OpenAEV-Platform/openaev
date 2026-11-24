@@ -18,6 +18,7 @@ import io.openaev.service.UserService;
 import io.openaev.service.platform.roles.PlatformRoleService;
 import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -43,6 +44,7 @@ public class PlatformGroupService {
   private final UserService userService;
   private final ReferenceResolver referenceResolver;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
+  private final EntityManager entityManager;
 
   // -- CREATE --
 
@@ -92,6 +94,12 @@ public class PlatformGroupService {
   @Transactional(readOnly = true)
   public Optional<Group> findByName(@NotBlank final String name) {
     return groupRepository.findByNameAndTenantIsNull(name);
+  }
+
+  /** Every platform group of this name, as the name is not unique. */
+  @Transactional(readOnly = true)
+  public List<Group> findAllByName(@NotBlank final String name) {
+    return groupRepository.findAllByNameAndTenantIsNull(name);
   }
 
   @Transactional(readOnly = true)
@@ -165,10 +173,14 @@ public class PlatformGroupService {
 
   public void delete(@NotBlank final String groupId) {
     Group group = findById(groupId);
-    // Clear bidirectional associations before delete to avoid TransientObjectException
-    // (User entities in the persistence context would otherwise still reference the removed Group)
     List<String> members = group.getUsers().stream().map(User::getId).toList();
-    group.getUsers().forEach(user -> user.getUnscopedGroups().remove(group));
+    // User.groups is EAGER, so loading group.getUsers() above already pulled each member's own
+    // groups collection into this session, a second mapping of the same join table owned from the
+    // user side. Detaching each member drops it from this session's managed set without editing
+    // that collection, so nothing is flushed through it: there is no stale reference to the group
+    // once it is gone, and no rewrite of a membership set this delete never means to touch.
+    // Deleting the group removes the join rows it owns on its own side (Group.users).
+    group.getUsers().forEach(entityManager::detach);
     groupRepository.delete(group);
     // Deleting the group revokes whatever markings it granted, for every member at once.
     markingClearanceCacheManager.evictForUsers(members);

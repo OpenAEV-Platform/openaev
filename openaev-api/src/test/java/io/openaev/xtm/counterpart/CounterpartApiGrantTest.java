@@ -44,7 +44,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @WithMockUser(isAdmin = false)
-@TestPropertySource(properties = "openaev.enabled-dev-features=MARKING,EXPLORATION_GRAPH")
+// EXPLORATION_GRAPH off on purpose: the routes have their own flag, XTM_COUNTERPARTS, on here.
+@TestPropertySource(properties = "openaev.enabled-dev-features=MARKING,XTM_COUNTERPARTS")
 @DisplayName("XTM reverse lookups: rights through the HTTP stack")
 class CounterpartApiGrantTest extends IntegrationTest {
 

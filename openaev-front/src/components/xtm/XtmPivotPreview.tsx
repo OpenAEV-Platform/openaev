@@ -2,9 +2,10 @@ import { Chip, Skeleton } from '@filigran/design-system';
 import { Box } from '@mui/material';
 import { type FunctionComponent, type ReactNode } from 'react';
 
+import { ASSET_CATEGORY_DEFS, humanizeEnum } from '../../admin/components/assets/asset-categories';
 import { type FactOutput } from '../../utils/api-types';
 import { useFormatter } from '../i18n';
-import { DATE_FACTS, MONEY_FACTS, orderedFacts } from './counterpartFacts';
+import { DATE_FACTS, ENUM_FACTS, MONEY_FACTS, orderedFacts } from './counterpartFacts';
 
 // The preview card every cross-platform pivot of OpenAEV opens on hover and on keyboard focus: what
 // the click brings. The design system has no hover card yet, so it is the content of the FDS
@@ -44,6 +45,15 @@ export const PivotFactList: FunctionComponent<FactListProps> = ({ facts, labels 
           display = n(value);
         } else if (DATE_FACTS.has(key)) {
           display = fsd(fact.fact_value);
+        } else if (ENUM_FACTS.has(key) && fact.fact_value) {
+          // OpenAEV's own labels, keys of the 9 catalogs: the category's label ("Host", "Generic
+          // asset"), the criticality in sentence case ("Very high").
+          const enumValue = fact.fact_value.toUpperCase();
+          const humanized = humanizeEnum(enumValue);
+          const label = key === 'category'
+            ? (ASSET_CATEGORY_DEFS[enumValue]?.label ?? humanized)
+            : humanized.charAt(0) + humanized.slice(1).toLowerCase();
+          display = t(label);
         }
         return (
           <Box key={key} sx={{ display: 'contents' }}>

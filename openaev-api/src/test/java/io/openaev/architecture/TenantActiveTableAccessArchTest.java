@@ -296,6 +296,7 @@ import io.openaev.service.autonomous.AutonomousRunReconciliationWriter;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.autonomous.AutonomousTimeoutService;
 import io.openaev.service.autonomous.CapabilityResolverService;
+import io.openaev.service.catalog.CatalogFacetCounter;
 import io.openaev.service.catalog.CatalogListService;
 import io.openaev.service.catalog.CatalogService;
 import io.openaev.service.catalog.payload.CatalogPayloadService;
@@ -393,6 +394,46 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @AnalyzeClasses(packages = "io.openaev", importOptions = ImportOption.DoNotIncludeTests.class)
 class TenantActiveTableAccessArchTest {
 
+  /** The accessors of {@code RoleRepository}, each with the scope it runs under. */
+  private static final Class<?>[] ROLES_REPOSITORY_ACCESSORS = {
+    // Tenant roles, by the tenant each method names; every caller passes a TxCtx holding it:
+    io.openaev.service.TenantRoleService.class,
+    // Platform roles, readable under any scope, written under @PlatformWrite:
+    io.openaev.service.platform.roles.PlatformRoleService.class,
+    // Datapacks, run by MigrationProcessor in the scope of the tenant they process:
+    io.openaev.processor.core.V20260811_Add_phishing_reporting_capabilities_to_default_roles.class,
+    io.openaev.processor.datapack.V20261001_Default_tenant_roles_and_groups.class
+  };
+
+  /**
+   * The accessors of {@code GroupRepository}, each with the scope it runs under, following the
+   * pattern {@link #ROLES_REPOSITORY_ACCESSORS} set for roles.
+   */
+  private static final Class<?>[] GROUPS_REPOSITORY_ACCESSORS = {
+    // Tenant groups, by the tenant each method names; every caller passes a TxCtx holding it:
+    io.openaev.service.TenantGroupService.class,
+    // Platform groups, readable under any scope, written under @PlatformWrite:
+    io.openaev.service.platform.groups.PlatformGroupService.class,
+    // SSO group mapping and the user-side group reads: reads by name/id, the platform-group create
+    // wrapped in executeNewAsPlatformWrite, the tenant-group create through TenantGroupService:
+    io.openaev.service.UserService.class,
+    // Adds or removes one users_groups row from the group side, by (user, group) id: the group is
+    // looked up by id and the row write is bounded to that one group's own rows:
+    io.openaev.service.UserGroupMembershipService.class,
+    // Resolves a notification trigger's recipient group ids inside the TxCtx-scoped
+    // NotificationTriggerApi transaction; the inspector scopes the lookup:
+    NotificationTriggerMapper.class,
+    // Deletes the legacy pre-multi-tenant connector group of the default tenant, a tenant row:
+    io.openaev.opencti.connectors.service.LegacyOpenCTIConnectorMigration.class,
+    // Datapacks, run by MigrationProcessor in the scope of the tenant they process:
+    V20260330_Default_tenant_data.class,
+    V20261002_Default_group_markings.class,
+    // A role's delete clears it from the groups that link it (findAllByRoles), under the scope or
+    // platform-write marker of the role delete itself:
+    io.openaev.service.TenantRoleService.class,
+    io.openaev.service.platform.roles.PlatformRoleService.class
+  };
+
   /** Tables guarded by this test. Must cover every entry of the production allowlist. */
   private static final Set<String> GUARDED_TABLES =
       Set.of(
@@ -472,7 +513,10 @@ class TenantActiveTableAccessArchTest {
           "exercises",
           "scenarios",
           "injects",
-          "execution_traces");
+          "execution_traces",
+          "roles",
+          "scenario_revisions",
+          "groups");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -2473,7 +2517,7 @@ class TenantActiveTableAccessArchTest {
           .that()
           .doNotBelongToAnyOf(
               // Called by the catalogue API and sync, inside their scoped transactions:
-              CatalogService.class, CatalogListService.class)
+              CatalogService.class, CatalogListService.class, CatalogFacetCounter.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(CatalogItemRepository.class)
@@ -2622,9 +2666,10 @@ class TenantActiveTableAccessArchTest {
    * executeNewAsPlatformWrite}) may, and a refused write raises. So the guard follows the writers:
    * every method that modifies a {@code Setting} (see {@link PlatformRowWriters}), directly or
    * through {@code SettingService} and {@code PlatformSettingsService}, is reached only through
-   * such a marker. The methods of {@link PlatformRowWriters#TENANT_ROW_WRITERS} write tenant rows
-   * only, each with its reason. A tenant row read with no scope still comes back empty; the readers
-   * of tenant rows are covered by {@link #parameters_tenant_row_readers_off_the_request_thread}.
+   * such a marker. The methods of {@link PlatformRowWriters#PARAMETERS} tenant-row writers write
+   * tenant rows only, each with its reason. A tenant row read with no scope still comes back empty;
+   * the readers of tenant rows are covered by {@link
+   * #parameters_tenant_row_readers_off_the_request_thread}.
    *
    * <p>Covered, as a call or as a method reference: the settings repository writes (saveAll
    * included), a setter of a {@code Setting} (dirty checking), an {@code EntityManager} / {@code
@@ -2641,8 +2686,10 @@ class TenantActiveTableAccessArchTest {
   @ArchTest
   static final ArchRule parameters_platform_row_writers_run_under_platform_write =
       methods()
-          .that(PlatformRowWriters.writeASetting(PlatformRowWriters.TENANT_ROW_WRITERS))
-          .should(PlatformRowWriters.beReachedOnlyUnderPlatformWrite())
+          .that(
+              PlatformRowWriters.writeARow(
+                  PlatformRowWriters.PARAMETERS, PlatformRowWriters.PARAMETERS.tenantRowWriters()))
+          .should(PlatformRowWriters.beReachedOnlyUnderPlatformWrite(PlatformRowWriters.PARAMETERS))
           .because(
               "parameters is dual-scope: a write of a platform row outside a platform-write"
                   + " transaction is refused with an error. Every writer the rule can see (settings"
@@ -2663,7 +2710,12 @@ class TenantActiveTableAccessArchTest {
    */
   @ArchTest
   static void parameters_tenant_row_writer_exemptions_are_live(JavaClasses classes) {
-    for (PlatformRowWriters.TenantRowWriter exemption : PlatformRowWriters.TENANT_ROW_WRITERS) {
+    assertTenantRowWriterExemptionsAreLive(classes, PlatformRowWriters.PARAMETERS);
+  }
+
+  private static void assertTenantRowWriterExemptionsAreLive(
+      JavaClasses classes, PlatformRowWriters.DualScopeTable table) {
+    for (PlatformRowWriters.TenantRowWriter exemption : table.tenantRowWriters()) {
       java.util.List<com.tngtech.archunit.core.domain.JavaMethod> exempted =
           classes.stream()
               .filter(c -> c.isAssignableTo(exemption.owner()))
@@ -2671,16 +2723,18 @@ class TenantActiveTableAccessArchTest {
               .filter(m -> PlatformRowWriters.isTenantRowWriter(m, java.util.List.of(exemption)))
               .toList();
       assertTrue(
-          exempted.stream().anyMatch(PlatformRowWriters::writesASetting),
+          exempted.stream().anyMatch(m -> PlatformRowWriters.writesARow(table, m)),
           () ->
               exemption.owner().getSimpleName()
                   + "#"
                   + exemption.method()
                   + exemption.parameterTypes().stream().map(Class::getSimpleName).toList()
-                  + " is exempted as a tenant-row-only writer but no longer modifies a Setting:"
-                  + " remove the entry");
+                  + " is exempted as a tenant-row-only writer but no longer writes a row of "
+                  + table.name()
+                  + ": remove the entry");
       for (com.tngtech.archunit.core.domain.JavaMethod method : exempted) {
-        java.util.List<String> violations = PlatformRowWriters.tenantRowOnlyViolations(method);
+        java.util.List<String> violations =
+            PlatformRowWriters.tenantRowOnlyViolations(table, method);
         assertTrue(
             violations.isEmpty(),
             () ->
@@ -2690,6 +2744,96 @@ class TenantActiveTableAccessArchTest {
       }
     }
   }
+
+  /**
+   * {@code roles} is dual-scope like {@code parameters}: a platform role ({@code tenant_id IS
+   * NULL}) and its capabilities are readable under any scope and written only inside a
+   * platform-write transaction, the database refusing the write otherwise ({@code
+   * require_tenant_write} for Hibernate, a row trigger on {@code roles} and {@code
+   * roles_capabilities} for JDBC). Every method that writes a role (see {@link PlatformRowWriters},
+   * table {@link PlatformRowWriters#ROLES}), directly or through {@code PlatformRoleService}, is
+   * reached only through such a marker; the writers of {@link PlatformRowWriters#ROLES} that touch
+   * tenant roles only are exempted, each with its reason. A write of {@code groups_roles} is not a
+   * write of a role: its rule is that the role and the group share a tenant, checked by the trigger
+   * of that table. Not covered: what the {@code parameters} rule does not cover either.
+   */
+  @ArchTest
+  static final ArchRule roles_platform_row_writers_run_under_platform_write =
+      methods()
+          .that(
+              PlatformRowWriters.writeARow(
+                  PlatformRowWriters.ROLES, PlatformRowWriters.ROLES.tenantRowWriters()))
+          .should(PlatformRowWriters.beReachedOnlyUnderPlatformWrite(PlatformRowWriters.ROLES))
+          .because(
+              "roles is dual-scope: a write of a platform role or of its capabilities outside a"
+                  + " platform-write transaction is refused with an error. Every writer the rule can"
+                  + " see must sit under @PlatformWrite or executeAsPlatformWrite/"
+                  + "executeNewAsPlatformWrite, or be a listed writer of tenant roles only");
+
+  /** Each tenant-row-only exemption of {@code roles} is live and touches tenant roles only. */
+  @ArchTest
+  static void roles_tenant_row_writer_exemptions_are_live(JavaClasses classes) {
+    assertTenantRowWriterExemptionsAreLive(classes, PlatformRowWriters.ROLES);
+  }
+
+  /**
+   * {@code roles} is active: a tenant role read with no scope comes back empty, and a role of
+   * another tenant is not readable. The accessors below each carry a scope; the platform roles are
+   * read by {@code PlatformRoleService} under any scope.
+   */
+  @ArchTest
+  static final ArchRule roles_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(ROLES_REPOSITORY_ACCESSORS)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.RoleRepository.class)
+          .because(
+              "roles is tenant-active: an accessor without a tenant scope silently reads no tenant"
+                  + " role, and a capability check built on it refuses what the role grants. New"
+                  + " accessors must carry a scope and be allowlisted here");
+
+  /**
+   * {@code groups} is dual-scope like {@code roles} (see {@link PlatformRowWriters#GROUPS}): a
+   * write of a platform group outside a platform-write transaction is refused by the database.
+   * Every writer this rule can see is marked or listed as a tenant-row-only writer.
+   */
+  @ArchTest
+  static final ArchRule groups_platform_row_writers_run_under_platform_write =
+      methods()
+          .that(
+              PlatformRowWriters.writeARow(
+                  PlatformRowWriters.GROUPS, PlatformRowWriters.GROUPS.tenantRowWriters()))
+          .should(PlatformRowWriters.beReachedOnlyUnderPlatformWrite(PlatformRowWriters.GROUPS))
+          .because(
+              "groups is dual-scope: a write of a platform row outside a platform-write transaction"
+                  + " will be refused once groups is active. Every writer the rule can see must sit"
+                  + " under @PlatformWrite or executeAsPlatformWrite/executeNewAsPlatformWrite, or"
+                  + " be a listed writer of tenant groups only");
+
+  /** Each tenant-row-only exemption of {@code groups} is live and touches tenant groups only. */
+  @ArchTest
+  static void groups_tenant_row_writer_exemptions_are_live(JavaClasses classes) {
+    assertTenantRowWriterExemptionsAreLive(classes, PlatformRowWriters.GROUPS);
+  }
+
+  /**
+   * Follows the pattern {@link #roles_repository_access_is_reviewed} set for roles: the platform
+   * groups are read by {@code PlatformGroupService} under any scope, the tenant groups by {@code
+   * TenantGroupService} under the tenant each method names.
+   */
+  @ArchTest
+  static final ArchRule groups_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(GROUPS_REPOSITORY_ACCESSORS)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.GroupRepository.class)
+          .because(
+              "groups is tenant-active: an accessor without a tenant scope silently reads no tenant"
+                  + " group. New accessors must carry a scope and be allowlisted here");
 
   /**
    * A tenant row of {@code parameters} read with no tenant scope comes back empty, silently: the
@@ -2703,8 +2847,8 @@ class TenantActiveTableAccessArchTest {
   @ArchTest
   static final ArchRule parameters_tenant_row_readers_off_the_request_thread =
       methods()
-          .that(PlatformRowWriters.readATenantRowOfSettings())
-          .should(PlatformRowWriters.beReachedOnlyUnderATenantScope())
+          .that(PlatformRowWriters.readATenantRow(PlatformRowWriters.PARAMETERS))
+          .should(PlatformRowWriters.beReachedOnlyUnderATenantScope(PlatformRowWriters.PARAMETERS))
           .because(
               "a tenant row of the dual-scope parameters table read with no scope comes back empty"
                   + " instead of failing");
@@ -2799,7 +2943,9 @@ class TenantActiveTableAccessArchTest {
               // tenant of its TxCtx-carrying threat arsenal version endpoints:
               PayloadVersionService.class,
               // Reads the identity it is handed by the catalogue, to describe the change:
-              io.openaev.service.catalog.event.CatalogChangePublisher.class)
+              io.openaev.service.catalog.event.CatalogChangePublisher.class,
+              // Subquery of the Available tab search, run by CatalogPayloadOfferService:
+              io.openaev.database.specification.CatalogItemSpecification.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(PayloadIdentity.class)
@@ -4742,4 +4888,19 @@ class TenantActiveTableAccessArchTest {
                   + " WITHOUT touching ExecutionTraceRepository: a getTraces() outside a scoped"
                   + " transaction silently loads zero rows. New callers must run inside a"
                   + " tenant-scoped transaction and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule scenario_revisions_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Keyed by tenant, inside the scoped transaction of the install, update and rollback
+              // routes:
+              io.openaev.service.catalog.scenario.update.ScenarioRevisionService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.ScenarioRevisionRepository.class)
+          .because(
+              "scenario_revisions is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 }

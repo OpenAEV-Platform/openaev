@@ -91,7 +91,11 @@ public class CatalogNotificationListener {
     if (event.firstSync()) {
       return news;
     }
-    Set<String> installed = catalogScenarioService.installedKeys(event.tenantId());
+    Set<String> installed =
+        catalogScenarioService
+            .installedScenarioIds(
+                event.tenantId(), event.added().stream().map(AddedVersion::externalId).toList())
+            .keySet();
     List<String> newScenarios = new ArrayList<>();
     List<String> updates = new ArrayList<>();
     int newActions = 0;

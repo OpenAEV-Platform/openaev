@@ -48,22 +48,37 @@ class CatalogListServiceTest {
   class LatestOffered {
 
     @Test
-    @DisplayName("keep the highest offered version of each item, by name, but the excluded keys")
-    void given_versionsAndExcludedKey_should_keepLatestOfferedOfOthers() {
+    @DisplayName("keep the latest offered version of each item, but the excluded keys")
+    void given_latestOfferedAndExcludedKey_should_keepTheOthers() {
+      // Arrange
+      CatalogPayload other = item("beacon", "Beacon", "1.0.0", CatalogItemStatus.VERIFIED);
+      CatalogPayload latest = item("dump", "Dump", "1.10.0", CatalogItemStatus.VERIFIED);
+      CatalogPayload installed = item("agent", "Agent", "1.0.0", CatalogItemStatus.VERIFIED);
+      when(catalogItemRepository.findAllLatestOffered(CatalogPayload.class))
+          .thenReturn(List.of(installed, other, latest));
+
+      // Act
+      List<CatalogPayload> offered =
+          catalogListService.latestOfferedExcept(
+              CatalogPayload.class, Set.of(CatalogOffer.key(REPOSITORY, "agent")));
+
+      // Assert
+      assertThat(offered).containsExactly(other, latest);
+    }
+
+    @Test
+    @DisplayName("are the highest offered version of each item, by name")
+    void given_versions_should_keepTheHighestOfferedOfEach() {
       // Arrange
       CatalogPayload older = item("dump", "Dump", "1.2.0", CatalogItemStatus.VERIFIED);
       CatalogPayload latest = item("dump", "Dump", "1.10.0", CatalogItemStatus.VERIFIED);
       CatalogPayload revoked = item("dump", "Dump", "2.0.0", CatalogItemStatus.REVOKED);
       CatalogPayload deprecated = item("scan", "Scan", "1.0.0", CatalogItemStatus.DEPRECATED);
       CatalogPayload other = item("beacon", "Beacon", "1.0.0", CatalogItemStatus.VERIFIED);
-      CatalogPayload installed = item("agent", "Agent", "1.0.0", CatalogItemStatus.VERIFIED);
-      when(catalogItemRepository.findAllOfType(CatalogPayload.class))
-          .thenReturn(List.of(older, latest, revoked, deprecated, other, installed));
 
       // Act
       List<CatalogPayload> offered =
-          catalogListService.latestOfferedExcept(
-              CatalogPayload.class, Set.of(CatalogOffer.key(REPOSITORY, "agent")));
+          CatalogListService.latestVersions(List.of(older, latest, revoked, deprecated, other));
 
       // Assert
       assertThat(offered).containsExactly(other, latest);

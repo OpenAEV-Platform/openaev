@@ -9,10 +9,10 @@ import {
   useAuthorFacetOptions,
 } from '../../../../../components/common/facets/ContractFacets';
 import { type FacetRow, type FacetSection, FacetSidebar } from '../../../../../components/common/facets/FacetFilters';
+import { FACET_PLATFORMS, platformFacetIcon } from '../../../../../components/common/facets/facetPlatforms';
 import { type FilterHelpers } from '../../../../../components/common/queryable/filter/FilterHelpers';
 import { generateFilterId } from '../../../../../components/common/queryable/filter/FilterUtils';
 import { useFormatter } from '../../../../../components/i18n';
-import PlatformIcon from '../../../../../components/PlatformIcon';
 import { useHelper } from '../../../../../store';
 import { type Filter, type KillChainPhase, type SearchPaginationInput } from '../../../../../utils/api-types';
 import { sortKillChainPhase } from '../../../../../utils/kill_chain_phases/kill_chain_phases';
@@ -23,7 +23,6 @@ const PLATFORM_FILTER_KEY = 'injector_contract_platforms';
 const KILL_CHAIN_FILTER_KEY = 'injector_contract_kill_chain_phases';
 const STATUS_FILTER_KEY = 'injector_contract_payload_status';
 const AUTHOR_FILTER_KEY = 'injector_contract_payload_author';
-const PLATFORMS = ['Windows', 'Linux', 'MacOS'];
 
 interface FacetCounts {
   platforms: Record<string, number>;
@@ -170,11 +169,11 @@ const InjectContractSidebar = ({ domainElements, searchPaginationInput, filterHe
       onToggle: element.function,
     }));
 
-    const platformRows: FacetRow[] = PLATFORMS.map(platform => ({
+    const platformRows: FacetRow[] = FACET_PLATFORMS.map(platform => ({
       value: platform,
       label: t(platform),
       count: facetCounts ? (facetCounts.platforms[platform] ?? 0) : undefined,
-      icon: () => <PlatformIcon platform={platform} width={16} />,
+      icon: () => platformFacetIcon(platform),
       checked: platformValues.includes(platform),
       onToggle: () => toggleValue(PLATFORM_FILTER_KEY, platformValues, platform),
     }));

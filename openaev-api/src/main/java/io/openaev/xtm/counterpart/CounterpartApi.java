@@ -30,16 +30,17 @@ import org.springframework.web.bind.annotation.*;
 /**
  * Cross-platform awareness: which connected XTM products this tenant reaches, and which of our
  * objects they also hold. Each lookup is guarded by the right to search the object kind it reads.
- * Part of the exploration graph preview feature: every route answers a 404 while {@code
- * EXPLORATION_GRAPH} is off (the default).
+ * Behind the dedicated preview feature {@code XTM_COUNTERPARTS} (off by default; Sam, 23 Nov 2026),
+ * apart from the exploration graph ({@code EXPLORATION_GRAPH}): while it is off every route answers
+ * a 404 before any lookup runs, so no call goes out to a connected product.
  *
  * <p>The counterpart lookups call the connected products over the network and read no table, so
  * they run outside any database transaction: a slow remote product never holds a connection of the
  * pool.
  */
 @RestController
-@RequirePreviewFeature(PreviewFeature.EXPLORATION_GRAPH)
 @RequiredArgsConstructor
+@RequirePreviewFeature(PreviewFeature.XTM_COUNTERPARTS)
 @RequestMapping(CounterpartApi.XTM_API)
 @Tag(name = "XTM counterparts", description = "Objects shared with the other XTM products")
 public class CounterpartApi extends RestBehavior {
@@ -206,7 +207,9 @@ public class CounterpartApi extends RestBehavior {
       private boolean can(String id, ResourceType type) {
         return permissionService.holdsInScope(
             ctx,
-            () -> permissionService.hasPermission(user, Optional.empty(), id, type, Action.READ));
+            user,
+            caller ->
+                permissionService.hasPermission(caller, Optional.empty(), id, type, Action.READ));
       }
     };
   }

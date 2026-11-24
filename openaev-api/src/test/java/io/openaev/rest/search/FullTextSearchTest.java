@@ -18,6 +18,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.search.FullTextSearchApi;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.GrantComposer;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
@@ -56,6 +57,7 @@ public class FullTextSearchTest extends IntegrationTest {
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private TenantRoleComposer tenantRoleComposer;
   @Autowired private GrantComposer grantComposer;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
 
   private static final List<String> SCENARIO_IDS = new ArrayList<>();
   private static Scenario testScenarioCrisis;
@@ -107,6 +109,34 @@ public class FullTextSearchTest extends IntegrationTest {
     tenantGroupComposer.reset();
     tenantRoleComposer.reset();
     grantComposer.reset();
+  }
+
+  /**
+   * Persists a caller holding {@code capability} through a role of the default tenant, and makes it
+   * a member of that tenant, as a real holder of that role is. The test transaction already runs in
+   * the default tenant's scope (see {@link io.openaev.utilstest.DefaultTenantScopeTestListener}),
+   * and the flush in {@code attachUserToTenant} writes the rows in it before the request, which
+   * starts from a cleared scope.
+   */
+  private User persistDefaultTenantMemberWith(Capability capability) {
+    TenantGroupComposer.Composer groupComposed =
+        tenantGroupComposer
+            .forGroup(TenantGroupFixture.getGroup())
+            .withRole(
+                tenantRoleComposer.forRole(
+                    TenantRoleFixture.getRole(
+                        capability == null ? new HashSet<>() : new HashSet<>(Set.of(capability)))));
+    User user =
+        userComposer
+            .forUser(
+                UserFixture.getUser(
+                    "Firstname", "Lastname", UUID.randomUUID() + "@unittests.invalid"))
+            .withGroup(groupComposed)
+            .persist()
+            .get();
+    // Flushes the pending rows in the test transaction's scope, then adds the membership.
+    tenantIsolationTestHelper.attachUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID);
+    return user;
   }
 
   private static Stream<Arguments> countScenarioTestCases() {
@@ -338,23 +368,7 @@ public class FullTextSearchTest extends IntegrationTest {
     SearchPaginationInput searchPaginationInput =
         PaginationFixture.getDefault().textSearch(searchTerm).build();
 
-    TenantGroupComposer.Composer groupComposed =
-        tenantGroupComposer
-            .forGroup(TenantGroupFixture.getGroup())
-            .withRole(
-                tenantRoleComposer.forRole(
-                    TenantRoleFixture.getRole(
-                        capability == null ? new HashSet<>() : new HashSet<>(Set.of(capability)))));
-
-    this.testUser =
-        userComposer
-            .forUser(
-                UserFixture.getUser(
-                    "Firstname", "Lastname", UUID.randomUUID() + "@unittests.invalid"))
-            .withGroup(groupComposed)
-            .persist()
-            .get();
-    tenantRepository.addUserToTenant(this.testUser.getId(), Tenant.DEFAULT_TENANT_UUID);
+    this.testUser = persistDefaultTenantMemberWith(capability);
 
     Authentication auth = buildAuthenticationToken(this.testUser);
 
@@ -383,23 +397,7 @@ public class FullTextSearchTest extends IntegrationTest {
     FullTextSearchApi.SearchTerm term = new FullTextSearchApi.SearchTerm();
     term.setSearchTerm(searchTerm);
 
-    TenantGroupComposer.Composer groupComposed =
-        tenantGroupComposer
-            .forGroup(TenantGroupFixture.getGroup())
-            .withRole(
-                tenantRoleComposer.forRole(
-                    TenantRoleFixture.getRole(
-                        capability == null ? new HashSet<>() : new HashSet<>(Set.of(capability)))));
-
-    this.testUser =
-        userComposer
-            .forUser(
-                UserFixture.getUser(
-                    "Firstname", "Lastname", UUID.randomUUID() + "@unittests.invalid"))
-            .withGroup(groupComposed)
-            .persist()
-            .get();
-    tenantRepository.addUserToTenant(this.testUser.getId(), Tenant.DEFAULT_TENANT_UUID);
+    this.testUser = persistDefaultTenantMemberWith(capability);
 
     Authentication auth = buildAuthenticationToken(this.testUser);
 

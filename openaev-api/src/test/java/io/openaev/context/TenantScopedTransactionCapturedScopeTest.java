@@ -3,8 +3,7 @@ package io.openaev.context;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.TagRepository;
 import java.util.UUID;
@@ -16,8 +15,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -33,15 +30,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  * auto-committed JDBC.
  */
 @DisplayName("TenantScopedTransaction: capturing the scope of the current transaction")
-class TenantScopedTransactionCapturedScopeTest extends IntegrationTest {
+class TenantScopedTransactionCapturedScopeTest extends ProductionTablesIntegrationTest {
 
   private static final String RENAMED = "captured-scope-renamed";
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private PlatformTransactionManager transactionManager;

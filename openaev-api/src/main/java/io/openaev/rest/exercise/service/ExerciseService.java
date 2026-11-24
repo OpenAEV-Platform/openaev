@@ -281,6 +281,11 @@ public class ExerciseService {
     }
   }
 
+  @Transactional(readOnly = true)
+  public long countByScenario(@NotBlank final String tenantId, @NotBlank final String scenarioId) {
+    return this.exerciseRepository.countByTenantIdAndScenarioId(tenantId, scenarioId);
+  }
+
   /**
    * Initializes the lazy {@code exercise_documents} a raw {@link Exercise} response serializes as
    * an id array. Serialization runs open-in-view after the controller transaction has committed,
@@ -698,7 +703,8 @@ public class ExerciseService {
         .getObject()
         .listInEachTenant(
             ctx,
-            () -> canAccessEverySimulation(currentUser),
+            currentUser,
+            ExerciseService::canAccessEverySimulation,
             all,
             granted,
             RawExerciseSimple::getTenant_id,
@@ -719,7 +725,8 @@ public class ExerciseService {
         .getObject()
         .filterInEachTenant(
             ctx,
-            () -> canAccessEverySimulation(currentUser),
+            currentUser,
+            ExerciseService::canAccessEverySimulation,
             accessRight ->
                 SpecificationUtils.hasGrantAccess(
                     currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
@@ -881,9 +888,11 @@ public class ExerciseService {
                           .getObject()
                           .filterInEachTenant(
                               ctx,
-                              () ->
-                                  user.isAdminOrBypass()
-                                      || user.getCapabilities()
+                              user,
+                              caller ->
+                                  caller.isAdminOrBypass()
+                                      || caller
+                                          .getCapabilities()
                                           .contains(Capability.DELETE_ASSESSMENT),
                               deleteRight ->
                                   SpecificationUtils.hasGrantAccess(

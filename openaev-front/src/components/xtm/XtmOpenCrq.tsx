@@ -6,7 +6,6 @@ import { type FunctionComponent, type MouseEvent, type ReactNode } from 'react';
 import { type CounterpartKindPath } from '../../actions/xtm/counterpart-actions';
 // The OpenCRQ glyph alone (no coloured square ground), painted through a CSS mask in every state.
 import ocrqMask from '../../static/images/xtm/xtm-mark-opencrq.svg';
-import useExplorationGraph from '../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { useFormatter } from '../i18n';
@@ -175,9 +174,8 @@ const OpenCrqRowMarkLookup: FunctionComponent<RowMarkProps> = ({
   return reserveSlot ? slot(mark) : mark;
 };
 
-// The pivots belong to the exploration graph preview feature: off (the default), they draw nothing
-// and never ask the backend (the lookup component, and its request, is not mounted).
-export const OpenCrqRowMark: FunctionComponent<RowMarkProps> = props => (useExplorationGraph() ? <OpenCrqRowMarkLookup {...props} /> : null);
-const OpenCrqPivot: FunctionComponent<PivotProps> = props => (useExplorationGraph() ? <OpenCrqPivotLookup {...props} /> : null);
+// The pivots are not behind a feature flag (Sam, 23 Nov 2026): the exploration graph preview
+// feature gates the graph alone, never the cross-product emblems and their deep integration.
+export const OpenCrqRowMark = OpenCrqRowMarkLookup;
 
-export default OpenCrqPivot;
+export default OpenCrqPivotLookup;

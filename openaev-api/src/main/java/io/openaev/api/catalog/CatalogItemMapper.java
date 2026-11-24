@@ -6,6 +6,7 @@ import io.openaev.api.catalog.dto.CatalogInstallAllOutput;
 import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.api.catalog.dto.payload.CatalogPayloadOutput;
 import io.openaev.api.catalog.dto.scenario.CatalogScenarioOutput;
+import io.openaev.api.catalog.dto.scenario.CatalogScenarioRequirementOutput;
 import io.openaev.api.catalog.dto.scenario.CatalogScenarioVersionOutput;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.catalog.CatalogItemStatus;
@@ -15,6 +16,7 @@ import io.openaev.rest.domain.DomainService;
 import io.openaev.service.catalog.InstallableVersion;
 import io.openaev.service.catalog.Installed;
 import io.openaev.service.catalog.scenario.CatalogScenarioType;
+import io.openaev.service.catalog.scenario.MissingRequirement;
 import io.openaev.service.catalog.scenario.OfferedScenario;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,7 +76,7 @@ public class CatalogItemMapper {
     target.setSeverity(item.severity());
     target.setCategory(item.category());
     target.setMainFocus(item.mainFocus());
-    target.setScenarioType(item.scenarioTypeOrType());
+    target.setScenarioType(CatalogScenarioType.of(item.scenarioTypeOrType()).name());
     target.setPlatforms(
         item.platforms() == null ? new String[0] : item.platforms().toArray(new String[0]));
     target.setInjectsCount(item.injectsCount());
@@ -122,9 +124,21 @@ public class CatalogItemMapper {
         version.getAuthor(),
         CatalogScenarioType.of(version.getScenarioType()).name(),
         version.getCategory(),
+        version.getMainFocus(),
+        version.getSeverity(),
+        version.getChangelog(),
+        version.getInjectsCount(),
         version.getPlatforms(),
         version.getPublishedAt(),
-        offered.missingRequirements());
+        offered.missingRequirements().stream().map(CatalogItemMapper::toRequirementOutput).toList(),
+        offered.payloads().stream().map(this::toOutput).toList(),
+        offered.installedScenarioId());
+  }
+
+  public static CatalogScenarioRequirementOutput toRequirementOutput(
+      MissingRequirement requirement) {
+    return new CatalogScenarioRequirementOutput(
+        requirement.label(), requirement.name(), requirement.integrationId(), requirement.status());
   }
 
   public CatalogScenarioVersionOutput toVersionOutput(CatalogScenario version) {

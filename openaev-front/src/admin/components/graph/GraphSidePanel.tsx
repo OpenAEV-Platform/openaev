@@ -11,8 +11,7 @@ import { Drawer, List, ListItemButton, ListItemText } from '@mui/material';
 import { Link } from 'react-router';
 
 import { useFormatter } from '../../../components/i18n';
-import OpenCrqPivot from '../../../components/xtm/XtmOpenCrq';
-import OpenCtiPivot from '../../../components/xtm/XtmPivot';
+import XtmCounterpartsEmblem from '../../../components/xtm/XtmCounterpartsEmblem';
 import NODE_ICON from './graph-icons';
 import {
   EDGE_TYPE_LABEL,
@@ -120,12 +119,10 @@ const GraphSidePanel = ({
         <Chip label={`${t('Findings')}: ${node.node_finding_count}`} />
       </div>
       <div className="mt-4 flex flex-col gap-2">
-        {/* The node's counterparts, as on the entity's own screen: the icon-only emblem of each
-            product (contract v3), OpenCTI then OpenCRQ. */}
+        {/* The node's counterparts, as on the entity's own screen: the single XTM One emblem. */}
         {counterpart && (
           <div className="flex items-center gap-1">
-            <OpenCtiPivot kind={counterpart.kind} objectKey={counterpart.key} />
-            <OpenCrqPivot kind={counterpart.kind} objectKey={counterpart.key} />
+            <XtmCounterpartsEmblem kind={counterpart.kind} objectKey={counterpart.key} />
           </div>
         )}
         {href && (

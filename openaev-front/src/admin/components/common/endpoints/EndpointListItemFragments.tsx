@@ -1,6 +1,7 @@
 enum EndpointListItemFragments {
   ASSET_NAME = 'asset_name',
   ASSET_TAGS = 'asset_tags',
+  ASSET_MARKINGS = 'asset_markings',
   BASE_TAGS_SIDE = 'base_tags_side',
   ASSET_TYPE = 'asset_type',
   ENDPOINT_ACTIVE = 'endpoint_active',

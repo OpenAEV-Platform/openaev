@@ -1,16 +1,16 @@
-import { Button, Chip, Spinner, Text } from '@filigran/design-system';
-import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
+import { Button, Text } from '@filigran/design-system';
+import { useTheme } from '@mui/material/styles';
+import { type FunctionComponent } from 'react';
 
-import { fetchCatalogScenarioVersions } from '../../../../actions/catalog/scenario-catalog-actions';
+import { Field } from '../../../../components/common/detail/EntityDetailCommon';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import ItemMainFocus from '../../../../components/ItemMainFocus';
-import ItemSeverity from '../../../../components/ItemSeverity';
-import PlatformIcon from '../../../../components/PlatformIcon';
-import { type CatalogScenarioOutput, type CatalogScenarioVersionOutput } from '../../../../utils/api-types';
-import { scenarioCategories } from '../constants';
-import ScenarioType from '../scenario/ScenarioType';
-import { catalogScenarioType } from './catalogScenarioFilters';
+import PlatformIconGroup from '../../../../components/PlatformIconGroup';
+import { type CatalogScenarioOutput } from '../../../../utils/api-types';
+import { type ScenarioFormInput } from '../ScenarioForm';
+import CatalogScenarioAction from './CatalogScenarioAction';
+import MissingRequirementAlert from './MissingRequirementAlert';
+import ScenarioCatalogFacts from './ScenarioCatalogFacts';
 
 interface Props {
   scenario: CatalogScenarioOutput | null;
@@ -19,161 +19,94 @@ interface Props {
   onInstall: (scenario: CatalogScenarioOutput) => void;
 }
 
-const Section = ({ title, children }: {
-  title: string;
-  children: ReactNode;
-}) => (
-  <div style={{
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-  }}
-  >
-    <Text variant="title-xs">{title}</Text>
-    {children}
-  </div>
-);
+const factsOf = (scenario: CatalogScenarioOutput): ScenarioFormInput => ({
+  scenario_name: scenario.catalog_scenario_name ?? scenario.catalog_scenario_external_id,
+  scenario_description: scenario.catalog_scenario_description ?? '',
+  scenario_category: scenario.catalog_scenario_category,
+  scenario_main_focus: scenario.catalog_scenario_main_focus,
+  scenario_severity: scenario.catalog_scenario_severity as ScenarioFormInput['scenario_severity'],
+  scenario_tags: [],
+});
 
-// A scenario of the Available tab: what it is and needs, before installing it.
+// A scenario of the Available tab: what it runs and needs, before installing it.
 const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall, onClose, onInstall }) => {
   const { t, nsd } = useFormatter();
+  const theme = useTheme();
   const missing = scenario?.catalog_scenario_missing_requirements ?? [];
-  const category = scenario?.catalog_scenario_category;
-  const [shown, setShown] = useState<CatalogScenarioVersionOutput | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    setShown(null);
-    if (!scenario) return undefined;
-    let active = true;
-    setLoading(true);
-    fetchCatalogScenarioVersions(scenario.catalog_scenario_external_id)
-      .then((versions) => {
-        if (active) setShown(versions.find(version => version.catalog_scenario_version === scenario.catalog_scenario_version) ?? null);
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [scenario]);
-
-  const ofVersion = (value: ReactNode): ReactNode => (loading ? <Spinner size="sm" /> : value);
-
-  const details: {
-    label: string;
-    value: ReactNode;
-  }[] = scenario
-    ? [
-        {
-          label: t('Version'),
-          value: `v${scenario.catalog_scenario_version}`,
-        },
-        {
-          label: t('Published'),
-          value: scenario.catalog_scenario_published_at ? nsd(scenario.catalog_scenario_published_at) : '–',
-        },
-        {
-          label: t('Author'),
-          value: scenario.catalog_scenario_author ?? '–',
-        },
-        {
-          label: t('Type'),
-          value: <ScenarioType type={catalogScenarioType(scenario)} />,
-        },
-        {
-          label: t('Category'),
-          value: category ? t(scenarioCategories.get(category) ?? category) : '–',
-        },
-        {
-          label: t('Main focus'),
-          value: ofVersion(shown?.catalog_scenario_main_focus
-            ? <ItemMainFocus mainFocus={shown.catalog_scenario_main_focus} label={t(shown.catalog_scenario_main_focus)} size="small" />
-            : '–'),
-        },
-        {
-          label: t('Severity'),
-          value: ofVersion(shown?.catalog_scenario_severity
-            ? <ItemSeverity severity={shown.catalog_scenario_severity} label={t(shown.catalog_scenario_severity)} />
-            : '–'),
-        },
-        {
-          label: t('Injects'),
-          value: ofVersion(shown?.catalog_scenario_injects_count ?? '–'),
-        },
-        {
-          label: t('Platforms'),
-          value: scenario.catalog_scenario_platforms.length > 0
-            ? (
-                <div style={{
-                  display: 'flex',
-                  gap: 4,
-                }}
-                >
-                  {scenario.catalog_scenario_platforms.map(platform => <PlatformIcon key={platform} width={16} platform={platform} tooltip />)}
-                </div>
-              )
-            : '–',
-        },
-      ]
-    : [];
+  const payloads = scenario?.catalog_scenario_payloads ?? [];
+  const row = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing(1),
+  } as const;
+  const column = {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.spacing(1),
+  } as const;
 
   return (
     <Drawer
       open={scenario !== null}
       handleClose={onClose}
       title={scenario ? (scenario.catalog_scenario_name ?? scenario.catalog_scenario_external_id) : ''}
-      headerActions={canInstall && scenario && (
-        <Button disabled={missing.length > 0} onClick={() => onInstall(scenario)}>{t('Install')}</Button>
-      )}
     >
       {scenario && (
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 24,
+          gap: theme.spacing(3),
         }}
         >
-          {scenario.catalog_scenario_description && <Text variant="content-base">{scenario.catalog_scenario_description}</Text>}
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            gap: 16,
+            ...row,
+            flexWrap: 'wrap',
           }}
           >
-            {details.map(({ label, value }) => (
-              <div
-                key={label}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 4,
-                }}
-              >
-                <Text variant="content-caption">{label}</Text>
-                {typeof value === 'object' ? value : <Text variant="content-base">{value}</Text>}
-              </div>
-            ))}
+            <PlatformIconGroup platforms={scenario.catalog_scenario_platforms} width={16} />
+            <Text variant="content-caption">
+              {[
+                `v${scenario.catalog_scenario_version}`,
+                scenario.catalog_scenario_injects_count != null ? t('{count} injects', { count: String(scenario.catalog_scenario_injects_count) }) : null,
+                scenario.catalog_scenario_published_at ? `${t('Published')} ${nsd(scenario.catalog_scenario_published_at)}` : null,
+                scenario.catalog_scenario_author ? `${t('by')} ${scenario.catalog_scenario_author}` : null,
+              ].filter(Boolean).join(' · ')}
+            </Text>
           </div>
+          <ScenarioCatalogFacts key={`${scenario.catalog_scenario_external_id}:${scenario.catalog_scenario_version}`} values={factsOf(scenario)} />
           {missing.length > 0 && (
-            <Section title={t('Requirements missing')}>
-              <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 8,
-              }}
-              >
-                {missing.map(requirement => <Chip key={requirement} label={requirement} severity="high" />)}
+            <Field label={t('Missing to run it')}>
+              <div style={column}>
+                {missing.map(requirement => (
+                  <MissingRequirementAlert key={requirement.requirement_label} requirement={requirement} severity="warning" />
+                ))}
               </div>
-            </Section>
+            </Field>
           )}
-          {shown?.catalog_scenario_changelog && (
-            <Section title={t('What\'s new in v{version}', { version: shown.catalog_scenario_version })}>
-              <Text variant="content-base">{shown.catalog_scenario_changelog}</Text>
-            </Section>
+          {payloads.length > 0 && (
+            <Field label={t('Payloads')}>
+              <div style={column}>
+                {payloads.map(payload => (
+                  <Text key={`${payload.catalog_payload_external_id}:${payload.catalog_payload_version}`} variant="content-base">
+                    {`${payload.catalog_payload_name ?? payload.catalog_payload_external_id} · v${payload.catalog_payload_version}`}
+                  </Text>
+                ))}
+              </div>
+            </Field>
           )}
+          {scenario.catalog_scenario_changelog && (
+            <Field label={t('What\'s new in v{version}', { version: scenario.catalog_scenario_version })}>
+              {scenario.catalog_scenario_changelog}
+            </Field>
+          )}
+          <div style={{
+            ...row,
+            justifyContent: 'flex-end',
+          }}
+          >
+            <Button type="button" priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
+            <CatalogScenarioAction scenario={scenario} canInstall={canInstall} onInstall={() => onInstall(scenario)} />
+          </div>
         </div>
       )}
     </Drawer>
