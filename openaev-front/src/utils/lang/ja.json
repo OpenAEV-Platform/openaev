@@ -5196,5 +5196,10 @@
   "Connect XTM One to see this asset in the CTEM inventory: its criticality, category and every source that reports it.": "XTM One を接続すると、CTEM インベントリでこのアセットの重要度、カテゴリ、報告元のすべてのソースを確認できます。",
   "Open the connection guide to connect XTM One.": "接続ガイドを開いて XTM One を接続します。",
   "Ask an administrator to connect XTM One to see this asset there.": "このアセットを XTM One で表示するには、管理者に XTM One の接続を依頼してください。",
-  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "XTM One の CTEM インベントリで、このアセットとその報告元のすべてのソースを確認します。"
+  "See this asset in the XTM One CTEM inventory, with every source that reports it.": "XTM One の CTEM インベントリで、このアセットとその報告元のすべてのソースを確認します。",
+  "Across the XTM Platform": "XTM プラットフォーム全体",
+  "Not found across the XTM Platform": "XTM プラットフォームで見つかりません",
+  "Found": "見つかりました",
+  "Not found": "見つかりません",
+  "Unavailable": "利用できません"
 }
