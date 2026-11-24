@@ -37,7 +37,7 @@ const injectContextForScenario = (scenario: Scenario) => {
     onBulkUpdateInject(param: InjectBulkUpdateInputs): Promise<Inject[] | void> {
       return bulkUpdateInjectForScenario(scenario.scenario_id, param).then((result: { data: Inject[] }) => result?.data);
     },
-    onUpdateInject(injectId: Inject['inject_id'], inject: Inject): Promise<{
+    onUpdateInject(injectId: Inject['inject_id'], inject: Inject | InjectInput): Promise<{
       result: string;
       entities: { injects: Record<string, InjectStore> };
     }> {
@@ -49,8 +49,8 @@ const injectContextForScenario = (scenario: Scenario) => {
     }> {
       return dispatch(updateInjectActivationForScenario(scenario.scenario_id, injectId, injectEnabled));
     },
-    onDeleteInject(injectId: Inject['inject_id']): Promise<void> {
-      return dispatch(deleteInjectScenario(scenario.scenario_id, injectId));
+    onDeleteInject(injectId: Inject['inject_id'], keepFindings = false): Promise<void> {
+      return dispatch(deleteInjectScenario(scenario.scenario_id, injectId, keepFindings));
     },
     onImportInjectFromJson(file: File): Promise<void> {
       return importInjectsForScenario(scenario.scenario_id, file).then(response => new Promise((resolve, _reject) => {

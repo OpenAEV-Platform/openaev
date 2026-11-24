@@ -15,6 +15,7 @@ import ColorPickerField from '../../../../components/ColorPickerField';
 import CheckboxIndicator from '../../../../components/common/CheckboxIndicator';
 import DocumentField from '../../../../components/fields/DocumentField';
 import MarkDownFieldController from '../../../../components/fields/MarkDownFieldController';
+import SearchAutocompleteField from '../../../../components/fields/SearchAutocompleteField';
 import SelectFieldController from '../../../../components/fields/SelectFieldController';
 import SwitchFieldController from '../../../../components/fields/SwitchFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
@@ -54,7 +55,6 @@ import {
   resolveSubjectOptions,
   searchSubjectOptions,
 } from '../ReportingFormUtils';
-import ReportingAutocompleteField from './ReportingAutocompleteField';
 import ReportingScheduleFields, { type ReportingScheduleFieldsValues } from './ReportingScheduleFields';
 import { buildScheduleFieldsSchema, scheduleInputFromValues, scheduleValuesFromSchedule, validateScheduleTime } from './reportingScheduleUtils';
 
@@ -494,7 +494,7 @@ const ReportingForm: FunctionComponent<Props> = ({
           control={control}
           name="reporting_context_id"
           render={({ field, fieldState: { error } }) => (
-            <ReportingAutocompleteField
+            <SearchAutocompleteField
               label={t(REPORTING_CONTEXT_LABELS[contextType])}
               required
               error={!!error}
@@ -703,7 +703,7 @@ const ReportingForm: FunctionComponent<Props> = ({
                                 control={control}
                                 name={`modules.${index}.kill_chains`}
                                 render={({ field: killChains }) => (
-                                  <ReportingAutocompleteField
+                                  <SearchAutocompleteField
                                     multiple
                                     label={t('Kill chains')}
                                     labelPosition="left"

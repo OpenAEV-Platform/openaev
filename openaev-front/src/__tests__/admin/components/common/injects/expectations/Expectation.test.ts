@@ -7,6 +7,7 @@ import {
   isTechnicalExpectation,
   predefinedExpectations,
 } from '../../../../../../admin/components/common/injects/expectations/ExpectationUtils';
+import { type InjectExpectationOutput } from '../../../../../../utils/api-types';
 
 describe('Expectation type helpers', () => {
   describe('Function: expectationTypeLabelKey()', () => {
@@ -25,7 +26,7 @@ describe('Expectation type helpers', () => {
   });
 
   describe('Functions: isTechnicalExpectation() and isManualExpectation()', () => {
-    it.each([
+    it.each<[InjectExpectationOutput['inject_expectation_type'], boolean, boolean]>([
       ['PREVENTION', true, false],
       ['DETECTION', true, false],
       ['LOGGING', true, false],
@@ -33,7 +34,6 @@ describe('Expectation type helpers', () => {
       ['MANUAL', false, true],
       ['CHALLENGE', false, true],
       ['ARTICLE', false, true],
-      ['HUMAN_RESPONSE', false, false],
     ])('given %s, should be technical: %s, manual: %s', (type, technical, manual) => {
       // -- ACT & ASSERT --
       expect(isTechnicalExpectation(type)).toBe(technical);

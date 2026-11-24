@@ -59,6 +59,7 @@ public class ExecutionExecutorServiceTest {
   @Mock private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   @Mock private ConnectorInstanceRepository connectorInstanceRepository;
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
+  @Mock private io.openaev.service.settings.RuntimeSettingsService runtimeSettingsService;
   @Mock private AgentRepository agentRepository;
   @Mock private EndpointService endpointService;
   @Mock private AuditLogger auditLogger;
@@ -90,7 +91,7 @@ public class ExecutionExecutorServiceTest {
             executionTraceRepository,
             injectStatusRepository,
             injectService,
-            new ExecutorUtils(assetAgentJobRepository),
+            new ExecutorUtils(assetAgentJobRepository, runtimeSettingsService),
             endpointService,
             connectorInstanceService,
             agentServiceAccountPrivilegeService,

@@ -23,19 +23,25 @@ import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Base;
+import io.openaev.database.model.Collector;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.ManualInjectExpectation;
 import io.openaev.database.model.PreventionInjectExpectation;
+import io.openaev.database.model.SecurityPlatform;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetGroupFixture;
+import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.FindingFixture;
 import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
@@ -45,6 +51,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -211,6 +218,27 @@ class StreamVisibilityServiceTest {
     }
 
     @Test
+    @DisplayName("a row deleted with its parent is told apart from a hidden or unread one")
+    void given_rowDeletedWithItsParent_should_beToldApart() {
+      // Act
+      StreamVisibility deletedWithItsAsset =
+          service.visibilityOf(
+              new BaseEvent(DATA_DELETE, agentOn("agent-id", endpoint("gone")), mapper), TENANT_ID);
+      StreamVisibility onAHiddenAsset =
+          service.visibilityOf(
+              new BaseEvent(DATA_DELETE, agentOn("agent-on-r", endpoint("r", "tlp-red")), mapper),
+              TENANT_ID);
+      StreamVisibility unread =
+          service.visibilityOf(
+              new BaseEvent(DATA_DELETE, agentOn("agent-id", endpoint("gone")), mapper), null);
+
+      // Assert
+      assertThat(deletedWithItsAsset.parentDeleted()).isTrue();
+      assertThat(onAHiddenAsset.parentDeleted()).isFalse();
+      assertThat(unread.parentDeleted()).isFalse();
+    }
+
+    @Test
     @DisplayName("with no tenant to read in, a row reaches only unrestricted readers")
     void given_noTenant_should_failClosed() {
       // Act
@@ -256,18 +284,19 @@ class StreamVisibilityServiceTest {
     @Test
     @DisplayName("a finding's groups, serialized whole, keep only the visible assets")
     void given_findingOnAGroupWithAHiddenAsset_should_keepTheVisibleOnesInTheGroup() {
-      // Arrange
+      // Arrange: the finding is on g, so its group is the group g belongs to
+      Endpoint visible = endpoint("g");
       AssetGroup group = AssetGroupFixture.createDefaultAssetGroup("group");
       group.setId("group-id");
-      group.setAssets(List.of(endpoint("g"), endpoint("r")));
+      group.setAssets(List.of(visible, endpoint("r")));
+      visible.setAssetGroups(Set.of(group));
       Inject inject = InjectFixture.getDefaultInject();
       inject.setId("inject-id");
-      inject.setAssetGroups(List.of(group));
       Finding finding = FindingFixture.createDefaultTextFinding();
       finding.setId("finding-id");
       finding.setOccurrences(
           List.of(createOccurrence(finding, inject, Instant.now(), finding.getField())));
-      finding.setAssets(List.of(endpoint("g")));
+      finding.setAssets(List.of(visible));
 
       // Act
       StreamVisibility visibility = visibilityOf(finding);
@@ -277,6 +306,46 @@ class StreamVisibilityServiceTest {
       assertThat(idsAt(amber, "asset_group_assets", null)).containsExactly("g");
       JsonNode red = visibility.payloadFor(RED).path("finding_asset_groups").path(0);
       assertThat(idsAt(red, "asset_group_assets", null)).containsExactly("g", "r");
+    }
+
+    @Test
+    @DisplayName("a single object embedded whole is removed when hidden")
+    void given_collectorOfAHiddenSecurityPlatform_should_removeIt() {
+      // Arrange
+      SecurityPlatform platform = SecurityPlatformFixture.createDefault("platform", "EDR");
+      platform.setId("platform-r");
+      platform.setMarkingIds(new String[] {"tlp-red"});
+      Collector collector = CollectorFixture.createDefaultCollector("collector");
+      collector.setSecurityPlatform(platform);
+
+      // Act
+      StreamVisibility visibility = visibilityOf(collector);
+
+      // Assert
+      assertThat(visibility.visibleUnder(AMBER)).isTrue();
+      assertThat(visibility.payloadFor(AMBER).path("collector_security_platform").isNull())
+          .isTrue();
+      assertThat(visibility.payloadFor(RED).path("collector_security_platform").path("asset_id"))
+          .hasToString("\"platform-r\"");
+    }
+
+    @Test
+    @DisplayName("a single id is removed when hidden")
+    void given_injectorOfAHiddenSecurityPlatform_should_removeItsId() {
+      // Arrange
+      SecurityPlatform platform = SecurityPlatformFixture.createDefault("platform", "EDR");
+      platform.setId("r");
+      Injector injector = InjectorFixture.createDefaultInjector("injector");
+      injector.setSecurityPlatform(platform);
+
+      // Act
+      StreamVisibility visibility = visibilityOf(injector);
+
+      // Assert
+      assertThat(visibility.visibleUnder(AMBER)).isTrue();
+      assertThat(visibility.payloadFor(AMBER).path("injector_security_platform").isNull()).isTrue();
+      assertThat(visibility.payloadFor(RED).path("injector_security_platform"))
+          .hasToString("\"r\"");
     }
 
     @Test

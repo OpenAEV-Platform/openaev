@@ -3,8 +3,11 @@ package io.openaev.database.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -13,70 +16,113 @@ import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RowTenantScope;
-import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 /**
- * #6357: the batched inject-execution callback consumer ({@code
- * BatchingInjectStatusService.handleInjectExecutionCallback}) groups callbacks by their inject's
- * tenant on a worker thread that carries no ambient tenant (or the wrong one), so the resolution
- * must not depend on the Hibernate tenant {@code @Filter}. This pins that {@code
- * findTenantIdByInjectId} is native and therefore filter-exempt: under one tenant's active scope it
- * still returns another tenant's inject's real owning tenant, where a filtered query would be
- * empty.
+ * The owner lookup of injects ({@code findTenantIdsByInjectIds}) reads an active table, so it is
+ * narrowed to the tenant scope it runs in: under one tenant's scope an inject of another tenant is
+ * absent, exactly like an unknown one. The batched callback consumer groups a batch that mixes
+ * tenants, so it reads the owners under {@code TxCtx.allTenants()}, where every inject resolves to
+ * its own tenant.
+ *
+ * <p>The production active tables are armed, so the class follows what production enforces.
+ *
+ * <p>Deliberately NOT {@code @Transactional}: each read runs in a transaction of its own, under the
+ * scope it states. The rows are committed in their tenant and removed with it.
  */
-@Transactional
 @WithMockUser(isAdmin = true)
-@DisplayName("inject tenant projection is native and filter-exempt (#6357)")
+@DisplayName("Owner lookup of injects")
 class InjectTenantProjectionTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
+
+  private static final String UNKNOWN_INJECT_ID = "does-not-exist";
 
   @Autowired private InjectRepository injectRepository;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private InjectComposer injectComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectorContractFixture injectorContractFixture;
-  @Autowired private EntityManager entityManager;
   @Autowired private RowTenantScope rowTenantScope;
 
-  @Test
-  @DisplayName("resolves each inject's owning tenant under a different active scope")
-  void resolvesOwningTenantFilterExempt() throws Exception {
-    Tenant tenantA = tenantHelper.createTenantWithCurrentUser("proj-a");
-    Tenant tenantB = tenantHelper.createTenantWithCurrentUser("proj-b");
+  private String tenantA;
+  private String tenantB;
+  private String injectA;
+  private String injectB;
 
-    String injectA = seedInjectInTenant(tenantA.getId());
-    String injectB = seedInjectInTenant(tenantB.getId());
+  @BeforeEach
+  void seedOneInjectInEachOfTwoTenants() throws Exception {
+    tenantA = tenantHelper.createTenantWithCurrentUser("proj-a").getId();
+    tenantB = tenantHelper.createTenantWithCurrentUser("proj-b").getId();
+    injectA = seedInjectInTenant(tenantA);
+    injectB = seedInjectInTenant(tenantB);
+    TenantContext.clearCurrentTenant();
+  }
 
-    // Ambient scope = tenant B, with its @Filter enabled: a filtered read of tenant A's inject
-    // would
-    // be empty. The native projection is filter-exempt, so it still resolves each inject's real
-    // owning tenant.
-    tenantHelper.switchToTenant(tenantB.getId(), entityManager);
+  @AfterEach
+  void deleteTheTenants() {
+    TenantContext.clearCurrentTenant();
+    tenantHelper.deleteCommittedTenants(tenantA, tenantB);
+  }
 
-    Map<String, String> tenantByInjectId =
-        injectRepository
-            .findTenantIdsByInjectIds(List.of(injectA, injectB, "does-not-exist"))
-            .stream()
-            .collect(Collectors.toMap(row -> (String) row[0], row -> (String) row[1]));
+  @Nested
+  @DisplayName("Read in the scope of one tenant")
+  class OneTenantScope {
 
-    assertThat(tenantByInjectId).containsEntry(injectA, tenantA.getId());
-    assertThat(tenantByInjectId).containsEntry(injectB, tenantB.getId());
-    // An unknown inject is simply absent, so the consumer falls back to the default tenant.
-    assertThat(tenantByInjectId).doesNotContainKey("does-not-exist");
+    @Test
+    @DisplayName("given the scope of one tenant should resolve only the injects of that tenant")
+    void given_theScopeOfOneTenant_should_resolveOnlyTheInjectsOfThatTenant() {
+      // Act
+      Map<String, String> tenantByInjectId = ownersUnder(TxCtx.forTenant(tenantB));
+
+      // Assert
+      assertThat(tenantByInjectId).containsExactlyEntriesOf(Map.of(injectB, tenantB));
+    }
+  }
+
+  @Nested
+  @DisplayName("Read across tenants")
+  class AllTenantsScope {
+
+    @Test
+    @DisplayName("given all tenants should resolve the owning tenant of every known inject")
+    void given_allTenants_should_resolveTheOwningTenantOfEveryKnownInject() {
+      // Act
+      Map<String, String> tenantByInjectId = ownersUnder(TxCtx.allTenants());
+
+      // Assert
+      assertThat(tenantByInjectId)
+          .containsExactlyInAnyOrderEntriesOf(Map.of(injectA, tenantA, injectB, tenantB));
+    }
+  }
+
+  private Map<String, String> ownersUnder(TxCtx scope) {
+    return tenantTx.execute(
+        scope,
+        () ->
+            injectRepository
+                .findTenantIdsByInjectIds(List.of(injectA, injectB, UNKNOWN_INJECT_ID))
+                .stream()
+                .collect(Collectors.toMap(row -> (String) row[0], row -> (String) row[1])));
   }
 
   private String seedInjectInTenant(String tenantId) {
-    tenantHelper.switchToTenant(tenantId, entityManager);
-    // injectors_contracts is tenant-active: switchToTenant only sets the v1 filter, so resolving
-    // (find-or-creating) the built-in contract and persisting the inject that references it need
-    // the v2 scope too, in the same scope or the contract is detached by the time the inject save
-    // flushes.
+    TenantContext.setCurrentTenant(tenantId);
     String[] injectId = new String[1];
     rowTenantScope.write(
         tenantId,

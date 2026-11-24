@@ -307,9 +307,6 @@ public class StepService {
     List<String> preserved = new ArrayList<>(preservedDependOnIds);
     preserved.addAll(reusedEventIds);
     conditionService.deleteAllConditionsByStepId(stepTemplateId, preserved);
-    if (existing.getConditionSteps() != null) {
-      existing.getConditionSteps().clear();
-    }
     stepConditionTemplate(triggerConditions, existing.getWorkflow().getId(), existing);
     conditionService.linkExistingConditionsToStep(existing, preservedDependOnIds);
     // Link the reused event roots (idempotent: a re-passed, still-linked event is a no-op; a newly
@@ -1132,6 +1129,29 @@ public class StepService {
     return this.stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(idWorkflow);
   }
 
+  /** The scenario step templates creating an inject of this contract in the tenant. */
+  @Transactional(readOnly = true)
+  public List<Step> findScenarioStepTemplatesByContract(String tenantId, String contractId) {
+    return stepRepository.findScenarioTemplatesByTenantIdAndInjectorContractId(
+        tenantId, contractId);
+  }
+
+  /** Points a step template at another injector contract, with a fresh copy of it in its data. */
+  @Transactional(rollbackFor = Exception.class)
+  public Step updateStepTemplateInjectorContract(Step stepTemplate, InjectorContract contract) {
+    WorkflowEditability.assertLogicMapEditable(stepTemplate.getWorkflow());
+    stepTemplate.setData(
+        injectExecutionStep.withInjectorContract(stepTemplate.getData(), contract));
+    return saveStep(stepTemplate);
+  }
+
+  /** The title of the inject this step creates. */
+  public String injectTitle(Step step) {
+    JsonElement data = JsonParser.parseString(step.getData());
+    JsonElement title = data.isJsonObject() ? data.getAsJsonObject().get("inject_title") : null;
+    return title == null || title.isJsonNull() ? null : title.getAsString();
+  }
+
   /**
    * Re-aligns the asset perimeter baked into every asset-centric INJECT_EXECUTION step template of
    * a workflow with the workflow scope.
@@ -1241,12 +1261,6 @@ public class StepService {
     // but preserve conditions referenced by conditionIds so they can be re-linked
     conditionService.deleteAllConditionsByStepId(
         stepId, stepInput.getConditionIds() != null ? stepInput.getConditionIds() : List.of());
-
-    // Clear the step-side collection to stay consistent with the condition-side unlinking above.
-    // linkExistingConditionsToStep below will recreate the preserved links.
-    if (existing.getConditionSteps() != null) {
-      existing.getConditionSteps().clear();
-    }
 
     // Recreate conditions from input (same logic as create)
     stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), existing);

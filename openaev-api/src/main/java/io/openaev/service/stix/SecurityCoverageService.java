@@ -30,6 +30,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.stix.error.BundleValidationError;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.DomainObject;
@@ -90,6 +91,7 @@ public class SecurityCoverageService {
 
   private final SecurityCoverageUtils securityCoverageUtils;
   private final ResultsMetricCollector resultsMetricCollector;
+  private final TenantSettingsService tenantSettingsService;
 
   /**
    * Creates or updates a security coverage and the associated scenario, and updates the
@@ -130,13 +132,11 @@ public class SecurityCoverageService {
                       + " security_coverages.tenant_id is NOT NULL. The caller must resolve a"
                       + " single tenant for this bundle.");
         };
-    // The scenario takes its coverage's tenant explicitly, but its injects are still on a v1 table:
-    // TenantBaseListener stamps them from TenantContext, which TenantInterceptor only sets on the
-    // /api/tenants/{tenantId}/ route. On the header route it is unset and falls back to the default
-    // tenant, so the coverage landed in the requested tenant while the injects derived from it
-    // landed in the default one. Bridging the resolved tenant onto v1 for this transaction keeps
-    // the whole bundle in one tenant; the bridge goes away when scenarios and injects are
-    // activated.
+    // The scenario takes its coverage's tenant explicitly. TenantBaseListener stamps a row written
+    // with no tenant from TenantContext, which TenantInterceptor sets only on the
+    // /api/tenants/{tenantId}/ route: the resolved tenant is set on TenantContext for this
+    // transaction, so a row of the bundle written with no tenant takes it on both routes. Removing
+    // the bridge belongs to the v1 exit.
     String previousTenant =
         TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
     TenantContext.setCurrentTenant(tenantId);
@@ -406,12 +406,37 @@ public class SecurityCoverageService {
         securityCoverageInjectService.createdInjectsForScenarioAndSecurityCoverage(
             ctx, scenario, securityCoverage);
     scenario.setInjects(injects);
+    applyReadOnlyFirst(scenario, injects, securityCoverage.getTenant().getId());
     log.info(
         "Creating or Updating Scenario with ID: {} from Security coverage with external ID: {}",
         scenario.getId(),
         securityCoverage.getExternalId());
 
     return scenario;
+  }
+
+  /**
+   * Applies the opt-in read-only first build (tenant setting {@code
+   * coverage_scenario_read_only_first}, off by default): see {@link CoverageScenarioReadOnlyFirst}.
+   * With the setting at its default nothing changes: the scenario is built and scheduled exactly as
+   * before. The scenario is saved by the caller's transaction (scenario and injects are managed).
+   */
+  private void applyReadOnlyFirst(Scenario scenario, Set<Inject> injects, String tenantId) {
+    // io.openaev.stix.types.Boolean is imported in this file: qualify java.lang.Boolean.
+    boolean readOnlyFirst =
+        java.lang.Boolean.parseBoolean(
+            tenantSettingsService.resolveSettingValue(
+                tenantId, TenantSettingKeys.COVERAGE_SCENARIO_READ_ONLY_FIRST));
+    if (!readOnlyFirst) {
+      return;
+    }
+    List<Inject> held = CoverageScenarioReadOnlyFirst.apply(scenario, injects);
+    if (!held.isEmpty()) {
+      log.info(
+          "Scenario {} built read-only first: {} inject(s) held, schedule left unset",
+          scenario.getId(),
+          held.size());
+    }
   }
 
   /**

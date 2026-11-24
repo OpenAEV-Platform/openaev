@@ -1,12 +1,14 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { OpenInNewOutlined } from '@mui/icons-material';
-import { ListItemButton, Typography } from '@mui/material';
+import { ListItemButton } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Link } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
+import ItemMarkings from '../../../../components/ItemMarkings';
 import type { InjectTarget } from '../../../../utils/api-types';
 import { getTargetOverviewLabel, getTargetOverviewUrl } from '../../../../utils/target/TargetUtils';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import NewAtomicTestingResult from './NewAtomicTestingResult';
 import TargetIcon from './TargetIcon';
 
@@ -25,6 +27,7 @@ const NewTargetListItem: React.FC<Props> = ({ onClick, target, selected }) => {
 
   const overviewUrl = getTargetOverviewUrl(target);
   const overviewLabel = t(getTargetOverviewLabel(target));
+  const markingIds = isFeatureEnabled('MARKING') ? target.target_markings ?? [] : [];
 
   return (
     <ListItemButton
@@ -49,19 +52,27 @@ const NewTargetListItem: React.FC<Props> = ({ onClick, target, selected }) => {
       }}
     >
       <TargetIcon target={target} />
-      <Typography
-        sx={{
-          flex: 1,
-          minWidth: 0,
-          fontSize: 13,
-          fontWeight: 600,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
+      <div style={{
+        flex: 1,
+        minWidth: 0,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+      }}
       >
-        {target?.target_name}
-      </Typography>
+        <Text
+          variant="content-compact-bold"
+          style={{
+            minWidth: 0,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {target?.target_name}
+        </Text>
+        {markingIds.length > 0 && <ItemMarkings markingIds={markingIds} limit={1} />}
+      </div>
       {overviewUrl && (
         <Tooltip>
           <TooltipTrigger asChild>

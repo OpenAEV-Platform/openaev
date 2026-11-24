@@ -7,6 +7,8 @@ import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_OTHER_ENDP
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_AUTHORITY_HOST_URI;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_OTHER_AUTHORITY_HOST_URI;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_OTHER_CLIENT_SECRET;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_OTHER_SCOPE;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_SCOPE;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_CUSTOM_IAM_URI;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_CUSTOM_OAUTH_ACCESS_TOKEN;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_CUSTOM_PROJECTS_URI;
@@ -522,8 +524,9 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
   class AzureServicePrincipal {
 
     @Test
-    @DisplayName("Given overrides, should store the authority host and encrypt the certificate")
-    void given_overrides_should_storeAuthorityHostAndEncryptCertificate() {
+    @DisplayName(
+        "Given overrides, should store the authority host and scope and encrypt the certificate")
+    void given_overrides_should_storeAuthorityHostAndScopeAndEncryptCertificate() {
       // Act
       AzureServicePrincipalSecret secret =
           (AzureServicePrincipalSecret)
@@ -532,6 +535,7 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
 
       // Assert
       assertThat(secret.getAzureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      assertThat(secret.getAzureScope()).isEqualTo(AZURE_SCOPE);
       assertThat(secret.getAzureRequestsCertificate())
           .isNotNull()
           .isNotEqualTo(azureRequestsCertificateBytes());
@@ -557,6 +561,7 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
       // Assert
       assertThat(updated.getAzureRequestsCertificate()).isEqualTo(storedCertificate);
       assertThat(updated.getAzureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      assertThat(updated.getAzureScope()).isEqualTo(AZURE_SCOPE);
     }
 
     @Test
@@ -585,15 +590,18 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Given a blank authority host, should clear the stored one")
-    void given_blankAuthorityHost_should_clearStoredOne() {
+    @DisplayName("Given a blank authority host and scope, should clear the stored ones")
+    void given_blankAuthorityHostAndScope_should_clearStoredOnes() {
       // Arrange
       AzureServicePrincipalSecret existing =
           (AzureServicePrincipalSecret)
               azureServicePrincipalHandler.buildOrUpdate(
                   null, azureServicePrincipalRequestWithOverrides());
       SecretStoreRequest request =
-          azureServicePrincipalRequest().toBuilder().azureAuthorityHostUri("").build();
+          azureServicePrincipalRequest().toBuilder()
+              .azureAuthorityHostUri("")
+              .azureScope("")
+              .build();
 
       // Act
       AzureServicePrincipalSecret updated =
@@ -602,6 +610,7 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
 
       // Assert
       assertThat(updated.getAzureAuthorityHostUri()).isNull();
+      assertThat(updated.getAzureScope()).isNull();
     }
 
     @Test
@@ -618,6 +627,7 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
 
       // Assert
       assertThat(metadata.azureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      assertThat(metadata.azureScope()).isEqualTo(AZURE_SCOPE);
       assertThat(metadata.azureRequestsCertificateDefined()).isTrue();
     }
 
@@ -638,8 +648,10 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
       // Assert
       assertThat(metadata.azureRequestsCertificateDefined()).isFalse();
       assertThat(metadata.azureAuthorityHostUri()).isNull();
+      assertThat(metadata.azureScope()).isNull();
       assertThat(resolved.azureRequestsCertificate()).isNull();
       assertThat(resolved.azureAuthorityHostUri()).isNull();
+      assertThat(resolved.azureScope()).isNull();
     }
 
     @Test
@@ -658,31 +670,36 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
 
       // Assert
       assertThat(resolved.azureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      assertThat(resolved.azureScope()).isEqualTo(AZURE_SCOPE);
       assertThat(resolved.azureRequestsCertificate()).isEqualTo(azureRequestsCertificateBytes());
     }
 
     @Test
-    @DisplayName("Given a new authority host without the client secret, should throw")
-    void given_newAuthorityHostWithoutClientSecret_should_throw() {
+    @DisplayName("Given a new authority host or scope without the client secret, should throw")
+    void given_newEndpointWithoutClientSecret_should_throw() {
       // Arrange
       AzureServicePrincipalSecret existing =
           (AzureServicePrincipalSecret)
               azureServicePrincipalHandler.buildOrUpdate(
                   null, azureServicePrincipalRequestWithOverrides());
-      SecretStoreRequest request =
-          SecretStoreRequest.builder()
-              .azureAuthorityHostUri(AZURE_OTHER_AUTHORITY_HOST_URI)
-              .build();
+      List<SecretStoreRequest> requests =
+          List.of(
+              SecretStoreRequest.builder()
+                  .azureAuthorityHostUri(AZURE_OTHER_AUTHORITY_HOST_URI)
+                  .build(),
+              SecretStoreRequest.builder().azureScope(AZURE_OTHER_SCOPE).build());
 
       // Act & Assert
-      assertThatThrownBy(() -> azureServicePrincipalHandler.buildOrUpdate(existing, request))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("client secret must be reset in order to change");
+      for (SecretStoreRequest request : requests) {
+        assertThatThrownBy(() -> azureServicePrincipalHandler.buildOrUpdate(existing, request))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("client secret must be reset in order to change");
+      }
     }
 
     @Test
-    @DisplayName("Given a new authority host with the client secret only, should store it")
-    void given_newAuthorityHostWithClientSecretOnly_should_storeIt() {
+    @DisplayName("Given a new authority host and scope with the client secret, should store them")
+    void given_newEndpointsWithClientSecret_should_storeThem() {
       // Arrange
       AzureServicePrincipalSecret existing =
           (AzureServicePrincipalSecret)
@@ -691,6 +708,7 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
       SecretStoreRequest request =
           SecretStoreRequest.builder()
               .azureAuthorityHostUri(AZURE_OTHER_AUTHORITY_HOST_URI)
+              .azureScope(AZURE_OTHER_SCOPE)
               .azureClientSecret(AZURE_OTHER_CLIENT_SECRET)
               .build();
 
@@ -701,6 +719,7 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
 
       // Assert
       assertThat(updated.getAzureAuthorityHostUri()).isEqualTo(AZURE_OTHER_AUTHORITY_HOST_URI);
+      assertThat(updated.getAzureScope()).isEqualTo(AZURE_OTHER_SCOPE);
     }
   }
 
@@ -709,8 +728,9 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
   class AzureManagedIdentity {
 
     @Test
-    @DisplayName("Given overrides, should store the authority host and encrypt the certificate")
-    void given_overrides_should_storeAuthorityHostAndEncryptCertificate() {
+    @DisplayName(
+        "Given overrides, should store the authority host and scope and encrypt the certificate")
+    void given_overrides_should_storeAuthorityHostAndScopeAndEncryptCertificate() {
       // Act
       AzureManagedIdentitySecret secret =
           (AzureManagedIdentitySecret)
@@ -719,6 +739,7 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
 
       // Assert
       assertThat(secret.getAzureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      assertThat(secret.getAzureScope()).isEqualTo(AZURE_SCOPE);
       assertThat(secret.getAzureRequestsCertificate())
           .isNotNull()
           .isNotEqualTo(azureRequestsCertificateBytes());
@@ -764,14 +785,16 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
 
       // Assert
       assertThat(metadata.azureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      assertThat(metadata.azureScope()).isEqualTo(AZURE_SCOPE);
       assertThat(metadata.azureRequestsCertificateDefined()).isTrue();
       assertThat(resolved.azureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      assertThat(resolved.azureScope()).isEqualTo(AZURE_SCOPE);
       assertThat(resolved.azureRequestsCertificate()).isEqualTo(azureRequestsCertificateBytes());
     }
 
     @Test
-    @DisplayName("Given a new authority host, should not require any other value")
-    void given_newAuthorityHost_should_notRequireAnyOtherValue() {
+    @DisplayName("Given a new authority host and scope, should not require any other value")
+    void given_newEndpoints_should_notRequireAnyOtherValue() {
       // Arrange
       AzureManagedIdentitySecret existing =
           (AzureManagedIdentitySecret)
@@ -780,6 +803,7 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
       SecretStoreRequest request =
           SecretStoreRequest.builder()
               .azureAuthorityHostUri(AZURE_OTHER_AUTHORITY_HOST_URI)
+              .azureScope(AZURE_OTHER_SCOPE)
               .build();
 
       // Act
@@ -788,6 +812,7 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
 
       // Assert
       assertThat(updated.getAzureAuthorityHostUri()).isEqualTo(AZURE_OTHER_AUTHORITY_HOST_URI);
+      assertThat(updated.getAzureScope()).isEqualTo(AZURE_OTHER_SCOPE);
     }
   }
 }

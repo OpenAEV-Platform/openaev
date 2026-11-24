@@ -106,6 +106,11 @@ detail panel to keep the working area clear.
 8. Use the **Export as PNG** button (next to the fullscreen toggle, in the graph view) to download the map as an
    image. The export always contains the **whole** graph — every node, whatever the current zoom or pan — so it can
    be dropped into a report or a debrief as-is.
+{%- if feature_visible("EXPLORATION_GRAPH") %}
+9. Use the **Explore in graph** button to open the Simulation in the
+   [exploration graph](../run-and-evaluate/exploration-graph.md), where you can pivot to the identities, Asset groups
+   and Findings of each Asset on the chain.
+{%- endif %}
 
 ### Reading the legend
 

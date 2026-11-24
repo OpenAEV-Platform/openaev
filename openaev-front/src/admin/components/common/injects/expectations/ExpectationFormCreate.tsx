@@ -10,7 +10,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import ItemSecurityPlatformType from '../../../../../components/ItemSecurityPlatformType';
 import ScaleBar from '../../../../../components/scalebar/ScaleBar';
 import { useHelper } from '../../../../../store';
-import { type InjectExpectationOutput, type PlatformSettings } from '../../../../../utils/api-types';
+import { type PlatformSettings } from '../../../../../utils/api-types';
 import { splitDuration } from '../../../../../utils/Time';
 import { type ExpectationInput, type ExpectationInputForm, SECURITY_PLATFORM_TYPES } from './Expectation';
 import { formProps, infoMessage } from './ExpectationFormUtils';
@@ -60,9 +60,9 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
   const availableTypes = Array.from(new Set(availableExpectations.map(e => e.expectation_type)));
   const initialType = availableTypes[0] ?? 'MANUAL';
-  const [expectationType, setExpectationType] = useState<string>(initialType);
+  const [expectationType, setExpectationType] = useState<ExpectationInput['expectation_type']>(initialType);
 
-  const expectationExpirationTime = useExpectationExpirationTime(initialType as InjectExpectationOutput['inject_expectation_type']);
+  const expectationExpirationTime = useExpectationExpirationTime(initialType);
 
   const getExpectationDefaultScoreByType = (expectationType: string): number => {
     if (expectationType === 'MANUAL') {
@@ -145,7 +145,8 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         <Select
           value={expectationType}
           onValueChange={(next) => {
-            const selectedType = next;
+            // The options are built from availableTypes, so the value is always an expectation type.
+            const selectedType = next as ExpectationInput['expectation_type'];
             setExpectationType(selectedType);
             setValue('expectation_type', selectedType, { shouldValidate: true });
           }}

@@ -4,6 +4,7 @@ import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.FileDrop;
 import io.openaev.database.model.Payload;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -101,10 +102,35 @@ public interface PayloadRepository
   List<Payload> findOrphansByNameAndTenantId(
       @Param("name") String name, @Param("tenantId") String tenantId);
 
+  // -- NAME --
+
+  @Query(
+      "SELECT COUNT(p) > 0 FROM Payload p WHERE p.tenant.id = :tenantId"
+          + " AND LOWER(TRIM(p.name)) = LOWER(TRIM(:name))"
+          + " AND (:payloadId IS NULL OR p.identity.id <>"
+          + " (SELECT v.identity.id FROM Payload v WHERE v.id = :payloadId))")
+  boolean existsByTenantIdAndNameOutsideVersionsOf(
+      @Param("tenantId") String tenantId,
+      @Param("name") String name,
+      @Param("payloadId") String payloadId);
+
   // -- IDENTITY --
 
   List<Payload> findAllByTenantIdAndIdentityExternalId(
       @NotNull String tenantId, @NotNull String externalId);
+
+  List<Payload> findAllByTenantIdAndIdentityExternalIdIn(
+      @NotNull String tenantId, @NotNull Collection<String> externalIds);
+
+  /** Every version of this payload in the tenant, itself included. */
+  @Query(
+      "SELECT v FROM Payload v WHERE v.tenant.id = :tenantId AND v.identity.id ="
+          + " (SELECT p.identity.id FROM Payload p WHERE p.id = :payloadId AND p.tenant.id = :tenantId)")
+  List<Payload> findAllVersionsByTenantIdAndPayloadId(
+      @Param("tenantId") @NotNull String tenantId, @Param("payloadId") @NotNull String payloadId);
+
+  List<Payload> findAllByTenantIdAndBaseIn(
+      @NotNull String tenantId, @NotNull Collection<Payload> bases);
 
   Optional<Payload> findByIdentityExternalIdAndIdentityRepositoryIsNull(@NotNull String externalId);
 

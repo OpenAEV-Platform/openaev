@@ -36,7 +36,13 @@ class DualScopeUnscopedPlatformReadGuardTest {
    * read of its platform rows fail.
    */
   private static final Map<String, String> PINNED =
-      Map.of("parameters", "io.openaev.rest.settings.PlatformSettingsUnscopedAccessTest");
+      Map.of(
+          "parameters",
+          "io.openaev.rest.settings.PlatformSettingsUnscopedAccessTest",
+          "roles",
+          "io.openaev.runner.DualScopeRolesBootTest",
+          "groups",
+          "io.openaev.runner.DualScopeGroupsBootTest");
 
   static Set<String> unpinned(Set<String> armed, Set<String> dualScope) {
     Set<String> unpinned = new TreeSet<>(armed);
@@ -68,10 +74,12 @@ class DualScopeUnscopedPlatformReadGuardTest {
   void given_aDualScopeTableArmedWithNoPin_should_reportIt() {
     // Act
     Set<String> unpinned =
-        unpinned(Set.of("parameters", "groups", "tags"), Set.of("parameters", "groups", "roles"));
+        unpinned(
+            Set.of("parameters", "an_unpinned_table", "tags"),
+            Set.of("parameters", "an_unpinned_table", "roles"));
 
     // Assert
-    assertThat(unpinned).containsExactly("groups");
+    assertThat(unpinned).containsExactly("an_unpinned_table");
   }
 
   /**

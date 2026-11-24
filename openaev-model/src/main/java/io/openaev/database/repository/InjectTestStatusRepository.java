@@ -14,4 +14,10 @@ public interface InjectTestStatusRepository
   Optional<InjectTestStatus> findById(@NotNull String id);
 
   Optional<InjectTestStatus> findByInject(@NotNull Inject inject);
+
+  Optional<InjectTestStatus> findByIdAndInjectExerciseId(
+      @NotNull String id, @NotNull String exerciseId);
+
+  Optional<InjectTestStatus> findByIdAndInjectScenarioId(
+      @NotNull String id, @NotNull String scenarioId);
 }

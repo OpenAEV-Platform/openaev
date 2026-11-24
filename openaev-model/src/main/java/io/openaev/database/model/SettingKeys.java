@@ -20,7 +20,12 @@ public enum SettingKeys {
 
   XTM_COMPOSER_ID("xtm_composer_id", ""),
   XTM_COMPOSER_NAME("xtm_composer_name", ""),
-  XTM_COMPOSER_VERSION("xtm_composer_version", ""),
+  // The version XTM Composer reports at registration and on each connectivity refresh.
+  XTM_COMPOSER_VERSION("xtm_composer_version", "unknown"),
+  // The container image XTM Composer reports, empty when it reports none.
+  XTM_COMPOSER_IMAGE("xtm_composer_image", ""),
+  // The OpenAEV version XTM Composer registered against: it registers again when it changes.
+  XTM_COMPOSER_PLATFORM_VERSION("xtm_composer_platform_version", ""),
   XTM_COMPOSER_PUBLIC_KEY("xtm_composer_public_key", ""),
   XTM_COMPOSER_LAST_CONNECTIVITY_CHECK("xtm_composer_last_connectivity_check", ""),
 
@@ -29,6 +34,11 @@ public enum SettingKeys {
 
   // Session management
   PLATFORM_SESSION_MAX_CONCURRENT("platform_session_max_concurrent", "0"),
+
+  // Inject execution: minutes before a pending inject is finalized with a timeout. No default
+  // here: while unset, inject.execution.threshold.minutes applies
+  // (InjectExecutionThresholdService).
+  INJECT_EXECUTION_THRESHOLD_MINUTES("inject_execution_threshold_minutes", ""),
 
   // AI capabilities
   FILIGRAN_CHATBOT_AI_CGU_STATUS("filigran_chatbot_ai_cgu_status", ""),

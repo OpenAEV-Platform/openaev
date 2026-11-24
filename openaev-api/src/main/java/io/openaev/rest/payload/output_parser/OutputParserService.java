@@ -69,10 +69,17 @@ public class OutputParserService {
     if (source == null) {
       return;
     }
+    // The tag ids of the output elements resolve in the tenant of the payload written,
+    // so the payload must carry its tenant before its output parsers are copied.
+    String tenantId =
+        Objects.requireNonNull(
+                targetElement.getTenant(),
+                "Set the payload tenant before copying its output parsers")
+            .getId();
     Set<OutputParser> outputParsers =
         source.stream()
             .filter(Objects::nonNull)
-            .map(this::mapFromInput)
+            .map(input -> mapFromInput(input, tenantId))
             .peek(parser -> parser.setPayload(targetElement))
             .collect(Collectors.toSet());
 
@@ -85,11 +92,11 @@ public class OutputParserService {
    * <p>If the input has an ID, the corresponding entity is retrieved and updated. Otherwise, a new
    * instance is created. Contract output elements are copied accordingly.
    */
-  private OutputParser mapFromInput(OutputParserInput input) {
+  private OutputParser mapFromInput(OutputParserInput input, String tenantId) {
     if (input.getId() == null) {
       OutputParser newParser = OutputParserUtils.copyFromInput(input, new OutputParser());
       contractOutputElementService.copyContractOutputElementsFromInput(
-          input.getContractOutputElements(), newParser);
+          input.getContractOutputElements(), newParser, tenantId);
       return newParser;
     }
 
@@ -99,14 +106,14 @@ public class OutputParserService {
             source -> {
               OutputParser copy = OutputParserUtils.copyFromInput(input, source);
               contractOutputElementService.copyContractOutputElementsFromInput(
-                  input.getContractOutputElements(), copy);
+                  input.getContractOutputElements(), copy, tenantId);
               return copy;
             })
         .orElseGet(
             () -> {
               OutputParser copy = OutputParserUtils.copyFromInput(input, new OutputParser());
               contractOutputElementService.copyContractOutputElementsFromInput(
-                  input.getContractOutputElements(), copy);
+                  input.getContractOutputElements(), copy, tenantId);
               return copy;
             });
   }

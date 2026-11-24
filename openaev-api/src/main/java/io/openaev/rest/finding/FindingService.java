@@ -8,6 +8,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.FindingRepository;
+import io.openaev.database.repository.FindingRepository.FindingCountRow;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.finding.identity.DetectedFinding;
@@ -48,6 +49,7 @@ public class FindingService {
   private final AssetRepository assetRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
+  private final AssetGroupMembershipResolver assetGroupMembershipResolver;
 
   // -- CRUD --
 
@@ -85,9 +87,23 @@ public class FindingService {
             this.findingRepository.countDistinctAssets(type, displayValue, tenantId),
             this.findingRepository.countDistinctTeams(type, displayValue, tenantId),
             this.findingRepository.countDistinctUsers(type, displayValue, tenantId),
-            this.findingRepository.countDistinctAssetGroups(type, displayValue, tenantId));
+            countDistinctAssetGroups(type, displayValue, tenantId));
 
     return this.findingMapper.toFindingSummaryOutput(finding, seen, counts);
+  }
+
+  /**
+   * The asset groups of the whole (type, value) group: those that contain one of its assets,
+   * statically or through their dynamic filter. Never the groups its injects targeted.
+   */
+  private long countDistinctAssetGroups(
+      ContractOutputType type, String displayValue, String tenantId) {
+    List<String> assetIds =
+        this.findingRepository.findDistinctAssetIds(type, displayValue, tenantId);
+    return this.assetGroupMembershipResolver.assetGroupIdsByAssetId(assetIds).values().stream()
+        .flatMap(Set::stream)
+        .distinct()
+        .count();
   }
 
   /**
@@ -412,5 +428,19 @@ public class FindingService {
 
   private <T> List<T> fetchEntities(List<String> ids, Function<String, Optional<T>> finder) {
     return ids.stream().map(finder).filter(Optional::isPresent).map(Optional::get).toList();
+  }
+
+  /** The number of findings per asset id, for the XTM counterpart lookup facts. */
+  public List<FindingCountRow> countFindingsByAssetIdIn(Collection<String> assetIds) {
+    return findingRepository.countFindingsByAssetIdIn(assetIds);
+  }
+
+  /**
+   * The number of findings and affected assets per upper-cased value of the given type, for the XTM
+   * counterpart lookup facts.
+   */
+  public List<FindingCountRow> countFindingsByTypeAndValueIn(
+      ContractOutputType type, Collection<String> values) {
+    return findingRepository.countFindingsByTypeAndValueIn(type, values);
   }
 }

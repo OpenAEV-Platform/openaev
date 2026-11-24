@@ -1283,8 +1283,6 @@ class StepServiceTest {
       Step existing = new Step();
       Workflow existingWorkflow = new Workflow();
       existing.setWorkflow(existingWorkflow);
-      existing.setConditionSteps(
-          new ArrayList<>(List.of(new ConditionStep(), new ConditionStep())));
 
       Step candidate = new Step();
       candidate.setStepAction(StepActionClass.INJECT_EXECUTION);
@@ -1313,7 +1311,6 @@ class StepServiceTest {
       assertSame(saved, updated);
       assertEquals(5, existing.getLimitExecution());
       assertEquals("{\"updated\":true}", existing.getData());
-      assertTrue(existing.getConditionSteps().isEmpty());
       verify(conditionService).deleteAllConditionsByStepId(stepId, List.of("cond-x"));
       verify(conditionService).linkExistingConditionsToStep(existing, List.of("cond-x"));
       verify(stepRepository).save(existing);

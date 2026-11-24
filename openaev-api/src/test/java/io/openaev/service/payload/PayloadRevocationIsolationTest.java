@@ -2,9 +2,8 @@ package io.openaev.service.payload;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -21,15 +20,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 @CoversTenantIsolation("payload_revocations")
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("payload_revocations read isolation under a tenant scope")
-class PayloadRevocationIsolationTest extends IntegrationTest {
+class PayloadRevocationIsolationTest extends ProductionTablesIntegrationTest {
 
   @Autowired private PayloadRepository payloadRepository;
   @Autowired private PayloadRevocationRepository payloadRevocationRepository;
@@ -38,12 +35,6 @@ class PayloadRevocationIsolationTest extends IntegrationTest {
 
   private String tenantA;
   private String revocationIdA;
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @BeforeEach
   void seedTwoTenantsWithOneRevocationEach() throws Exception {

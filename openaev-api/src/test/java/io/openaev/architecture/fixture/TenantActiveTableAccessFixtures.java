@@ -4,12 +4,17 @@ import io.openaev.aop.PlatformWrite;
 import io.openaev.config.TenantUriUtils;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.ExecutionTrace;
+import io.openaev.database.model.InjectStatus;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.Role;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.RoleRepository;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.autonomous.AutonomousObjectiveTemplateRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
@@ -55,6 +60,103 @@ public final class TenantActiveTableAccessFixtures {
 
     public long countTemplates() {
       return objectiveTemplateRepository.count();
+    }
+  }
+
+  /** Reads roles from a class no access rule allowlists. */
+  public static class UnreviewedRoleAccessor {
+
+    private final RoleRepository roleRepository;
+
+    public UnreviewedRoleAccessor(RoleRepository roleRepository) {
+      this.roleRepository = roleRepository;
+    }
+
+    public long countRoles() {
+      return roleRepository.count();
+    }
+  }
+
+  /** Writes a role through its repository with nothing that marks the transaction. */
+  public static class UnmarkedPlatformRoleWriter {
+
+    private final RoleRepository roleRepository;
+
+    public UnmarkedPlatformRoleWriter(RoleRepository roleRepository) {
+      this.roleRepository = roleRepository;
+    }
+
+    public void entry(Role role) {
+      write(role);
+    }
+
+    private void write(Role role) {
+      roleRepository.save(role);
+    }
+  }
+
+  /** Rewrites the capabilities of a role by JDBC with nothing that marks the transaction. */
+  public static class UnmarkedRoleCapabilityJdbcWriter {
+
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    public UnmarkedRoleCapabilityJdbcWriter(
+        org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+      this.jdbcTemplate = jdbcTemplate;
+    }
+
+    public void entry(String roleId) {
+      jdbcTemplate.update("DELETE FROM roles_capabilities WHERE role_id = ?", roleId);
+    }
+  }
+
+  /** The role writer is reached from a method that carries the platform-write marker. */
+  public static class PlatformRoleWriterUnderTheAnnotation {
+
+    private final RoleRepository roleRepository;
+
+    public PlatformRoleWriterUnderTheAnnotation(RoleRepository roleRepository) {
+      this.roleRepository = roleRepository;
+    }
+
+    @PlatformWrite
+    @Transactional
+    public void entry(TxCtx ctx, Role role) {
+      write(role);
+    }
+
+    private void write(Role role) {
+      roleRepository.delete(role);
+    }
+  }
+
+  /** An exempt role writer that builds a role and never gives it a tenant: a platform row. */
+  public static class TenantRoleWriterBuildingARoleWithoutATenant {
+
+    private final RoleRepository roleRepository;
+
+    public TenantRoleWriterBuildingARoleWithoutATenant(RoleRepository roleRepository) {
+      this.roleRepository = roleRepository;
+    }
+
+    public void write(String name) {
+      Role role = new Role();
+      role.setName(name);
+      roleRepository.save(role);
+    }
+  }
+
+  /** An exempt role writer that looks its role up by id alone, which reaches a platform role. */
+  public static class TenantRoleWriterLookingUpByIdOnly {
+
+    private final RoleRepository roleRepository;
+
+    public TenantRoleWriterLookingUpByIdOnly(RoleRepository roleRepository) {
+      this.roleRepository = roleRepository;
+    }
+
+    public void write(String id, String tenantId) {
+      roleRepository.findById(id).ifPresent(roleRepository::delete);
     }
   }
 
@@ -1209,6 +1311,28 @@ public final class TenantActiveTableAccessFixtures {
 
     private long helper() {
       return repository.count();
+    }
+  }
+
+  /**
+   * Reaches {@code execution_traces} through {@code InjectStatus#getTraces} as a METHOD REFERENCE,
+   * not a direct call: an association guard built on {@code .should().callMethod(...)} sees only
+   * {@code JavaMethodCall} and misses this reader entirely.
+   */
+  public static class UnreviewedExecutionTraceMethodReferenceReader {
+
+    private final InjectStatusRepository injectStatusRepository;
+
+    public UnreviewedExecutionTraceMethodReferenceReader(
+        InjectStatusRepository injectStatusRepository) {
+      this.injectStatusRepository = injectStatusRepository;
+    }
+
+    public List<ExecutionTrace> job(String injectId) {
+      return injectStatusRepository
+          .findByInjectId(injectId)
+          .map(InjectStatus::getTraces)
+          .orElse(List.of());
     }
   }
 }

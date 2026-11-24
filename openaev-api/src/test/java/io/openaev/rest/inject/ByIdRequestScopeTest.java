@@ -9,10 +9,13 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Atomic testing and plain-inject by-id reads resolve the row inside the request's tenant scope,
- * with the production list of isolated tables ({@code injects} is not in it). On the tenant route
- * the scope is the path tenant, so nothing changes there. On the non-prefixed route the scope is
- * the {@code X-Tenant-Ids} selector, or the caller's memberships when it names none: a row outside
- * that scope is not found by id.
+ * with the production list of isolated tables, which now includes {@code injects}. On the tenant
+ * route the scope is the path tenant, so nothing changes there. On the non-prefixed route the scope
+ * is the {@code X-Tenant-Ids} selector, or the caller's memberships when it names none: a row
+ * outside that scope is not found by id. A caller with no selector and no tenant membership at all
+ * now gets an empty scope and finds nothing, proven instead by {@link ByIdRequestScopeArmedTest
+ * #given_callerWithNoMembershipAndNoSelector_should_notFindDefaultTenantRow}, which predates this
+ * table's own activation and is unchanged by it.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Atomic testing and inject by-id reads in the request scope, production tables")
@@ -129,24 +132,6 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
       // Assert
       assertThat(new int[] {read, update, delete}).containsExactly(200, 200, 200);
       assertThat(atomicTestingExists(injectId)).isFalse();
-    }
-
-    @Test
-    @DisplayName(
-        "given a caller with no membership and no selector, a default tenant atomic testing stays"
-            + " reachable by id while the table keeps the v1 filter")
-    void given_callerWithNoMembershipAndNoSelector_should_reachDefaultTenantRowsUntilIsolation()
-        throws Exception {
-      // Arrange
-      String injectId = seedAtomicTesting(DEFAULT_TENANT);
-      leaveMemberTenant();
-      Route route = noSelectorRoute();
-
-      // Act
-      int update = updateAtomicTestingTags(route, injectId);
-
-      // Assert
-      assertThat(update).isEqualTo(200);
     }
 
     @Test

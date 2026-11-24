@@ -73,6 +73,7 @@ class DashboardApiTest extends IntegrationTest {
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private FindingComposer findingComposer;
+  @Autowired private AssetGroupComposer assetGroupComposer;
   @Autowired private CustomDashboardParameterComposer customDashboardParameterComposer;
   @Autowired private AttackPatternRepository attackPatternRepository;
   @Autowired private EndpointRepository endpointRepository;
@@ -1059,6 +1060,109 @@ class DashboardApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Finding histogram on a SQL-only key answers 400 naming the indexed field")
+    void given_findingHistogramOnSqlOnlyKey_should_answerBadRequest() throws Exception {
+      // Arrange: finding_assets filters the SQL findings list but is not in the search index
+      Widget widget =
+          persistWidget(
+              WidgetFixture.createStructuralWidgetWithTimeRange(
+                  LAST_QUARTER, "base_created_at", "finding_assets", "finding"));
+      String timeRangeParameterId =
+          widget.getCustomDashboard().getParameters().stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/series/" + widget.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(
+                          asJsonString(Map.of(timeRangeParameterId, String.valueOf(LAST_QUARTER))))
+                      .with(csrf()))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat(response)
+          .contains("finding_assets")
+          .contains("Use 'base_endpoint_side' instead")
+          .contains("base_asset_groups_side");
+    }
+
+    @Test
+    @DisplayName("Finding histogram by asset group counts each finding in its assets' groups")
+    void given_findingHistogramByAssetGroup_should_countPerGroup() throws Exception {
+      // Arrange: endpoint A is in group A, endpoint B in group B. The first inject targets both
+      // groups but its two findings are on endpoint A only; the second inject's finding is on
+      // endpoint B. A finding counts in the groups of its assets, never in the inject's targets.
+      EndpointComposer.Composer endpointA =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      EndpointComposer.Composer endpointB =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      AssetGroupComposer.Composer groupA =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("Group A"))
+              .withAsset(endpointA);
+      AssetGroupComposer.Composer groupB =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("Group B"))
+              .withAsset(endpointB);
+      exerciseComposer
+          .forExercise(ExerciseFixture.createDefaultExercise())
+          .withInject(
+              injectComposer
+                  .forInject(InjectFixture.getDefaultInject())
+                  .withAssetGroup(groupA)
+                  .withAssetGroup(groupB)
+                  .withFinding(
+                      findingComposer
+                          .forFinding(FindingFixture.createDefaultTextFindingWithRandomValue())
+                          .withEndpoint(endpointA))
+                  .withFinding(
+                      findingComposer
+                          .forFinding(FindingFixture.createDefaultTextFindingWithRandomValue())
+                          .withEndpoint(endpointA)))
+          .withInject(
+              injectComposer
+                  .forInject(InjectFixture.getDefaultInject())
+                  .withAssetGroup(groupB)
+                  .withFinding(
+                      findingComposer
+                          .forFinding(FindingFixture.createDefaultTextFindingWithRandomValue())
+                          .withEndpoint(endpointB)))
+          .persist();
+      Widget widget =
+          persistWidget(
+              WidgetFixture.createStructuralWidgetWithTimeRange(
+                  LAST_QUARTER, "base_created_at", "base_asset_groups_side", "finding"));
+      flushAndIndex();
+
+      // Act
+      String response = performWithLastQuarter("/series/", widget);
+
+      // Assert
+      assertThatJson(response).node("[0].data").isArray().size().isEqualTo(2);
+      assertThatJson(response)
+          .node("[0].data")
+          .isArray()
+          .anySatisfy(
+              bucket -> {
+                assertThatJson(bucket).node("key").isEqualTo(groupA.get().getId());
+                assertThatJson(bucket).node("value").isEqualTo(2);
+              })
+          .anySatisfy(
+              bucket -> {
+                assertThatJson(bucket).node("key").isEqualTo(groupB.get().getId());
+                assertThatJson(bucket).node("value").isEqualTo(1);
+              });
+    }
+
+    @Test
     @DisplayName("Asset histogram by finding resolves its bucket label to the masked value")
     void given_assetHistogramByFindings_should_resolveMaskedLabel() throws Exception {
       // Arrange
@@ -1624,6 +1728,89 @@ class DashboardApiTest extends IntegrationTest {
               });
 
       assertThatJson(response).node("es_entities.es_datas").isArray().hasSize(2);
+    }
+  }
+
+  @Nested
+  @DisplayName("When a widget filter names an unknown base_entity")
+  class WhenBaseEntityIsUnknown {
+
+    private String adHocFlatCount(String baseEntity) {
+      return "{\"widget_config\":{\"widget_configuration_type\":\"flat\",\"series\":[{\"name\":\"S\","
+          + "\"filter\":{\"mode\":\"and\",\"filters\":[{\"id\":\"f\",\"key\":\"base_entity\","
+          + "\"operator\":\"eq\",\"values\":[\""
+          + baseEntity
+          + "\"],\"mode\":\"or\"}]}}]}}";
+    }
+
+    @Test
+    @DisplayName("Given the retired endpoint model, the ad-hoc count answers 400 naming asset")
+    void given_retiredBaseEntity_should_answerBadRequestNamingTheSuccessor() throws Exception {
+      String response =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/adhoc/count")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(adHocFlatCount("endpoint"))
+                      .with(csrf()))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat(response).contains("endpoint").contains("replaced by 'asset'");
+    }
+
+    @Test
+    @DisplayName("Given asset with no time range or date attribute, the ad-hoc count counts assets")
+    void given_assetWithDefaults_should_countAssets() throws Exception {
+      endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
+      entityManager.flush();
+      entityManager.clear();
+      indexEveryTenant();
+      Thread.sleep(1000);
+
+      String response =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/adhoc/count")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(adHocFlatCount("asset"))
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).node("interval_count").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("The valid base_entity values are listed")
+    void given_baseEntitiesEndpoint_should_listTheEngineModels() throws Exception {
+      String response =
+          mvc.perform(get(DASHBOARD_URI + "/base-entities"))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).isArray().contains("asset", "finding").doesNotContain("endpoint");
+    }
+
+    @Test
+    @DisplayName("The valid group-by fields are listed per base_entity")
+    void given_groupByFieldsEndpoint_should_listTheIndexedFields() throws Exception {
+      String response =
+          mvc.perform(get(DASHBOARD_URI + "/group-by-fields"))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response)
+          .node("finding")
+          .isArray()
+          .contains("base_endpoint_side", "base_asset_groups_side", "finding_type")
+          .doesNotContain("finding_assets", "finding_asset_groups");
     }
   }
 }

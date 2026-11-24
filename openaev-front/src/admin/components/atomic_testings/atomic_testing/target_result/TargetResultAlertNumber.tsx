@@ -3,12 +3,13 @@ import { Typography } from '@mui/material';
 import { type FunctionComponent, type MouseEvent, useEffect, useState } from 'react';
 
 import { getAlertLinksCount } from '../../../../../actions/atomic_testings/atomic-testing-actions';
-import { useFormatter } from '../../../../../components/i18n';
 import { type InjectExpectationResult } from '../../../../../utils/api-types';
 
 interface Props {
   injectExpectationId: string;
   expectationResult: InjectExpectationResult;
+  // Translated tooltip of the button opening the alerts dialog.
+  showLabel: string;
   onShowAlerts?: () => void;
 }
 
@@ -17,9 +18,9 @@ interface Props {
 const TargetResultAlertNumber: FunctionComponent<Props> = ({
   injectExpectationId,
   expectationResult,
+  showLabel,
   onShowAlerts,
 }) => {
-  const { t } = useFormatter();
   const [alertLinksNumber, setAlertLinksNumber] = useState<number | null>(0);
 
   useEffect(() => {
@@ -53,7 +54,7 @@ const TargetResultAlertNumber: FunctionComponent<Props> = ({
           {alertLinksNumber}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{t('Show alerts')}</TooltipContent>
+      <TooltipContent>{showLabel}</TooltipContent>
     </Tooltip>
   );
 };

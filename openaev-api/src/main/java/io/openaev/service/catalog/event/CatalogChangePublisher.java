@@ -1,6 +1,5 @@
 package io.openaev.service.catalog.event;
 
-import io.openaev.database.model.User;
 import io.openaev.database.model.catalog.CatalogContent;
 import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.service.UserService;
@@ -18,16 +17,7 @@ public class CatalogChangePublisher {
 
   public void changed(
       CatalogContent content, CatalogHistory.Action action, CatalogHistory.Mode mode) {
-    User user = userService.currentUserOrNull();
     eventPublisher.publishEvent(
-        new CatalogContentChanged(
-            content.getTenant().getId(),
-            content.getCatalogType(),
-            content.getCatalogRepository(),
-            content.getCatalogExternalId(),
-            content.getCatalogVersion(),
-            action,
-            mode,
-            user == null ? null : user.getId()));
+        CatalogContentChanged.of(content, action, mode, userService.currentUserOrNull()));
   }
 }

@@ -9,6 +9,7 @@ import { DetailHero } from '../../../../components/common/detail/EntityDetailCom
 import { useFormatter } from '../../../../components/i18n';
 import { type ConnectorItemType, prettifyUseCase } from '../catalog_connectors/catalog-facets';
 import useCaseIcon from '../catalog_connectors/use-case-icons';
+import useConnectorTypeLabels from '../catalog_connectors/useConnectorTypeLabels';
 
 interface Props {
   title: string;
@@ -44,12 +45,7 @@ const ConnectorDetailHero = ({
   const theme = useTheme();
   const { t } = useFormatter();
 
-  const typeLabels: Record<ConnectorItemType, string> = {
-    COLLECTOR: t('Collector'),
-    INJECTOR: t('Injector'),
-    EXECUTOR: t('Executor'),
-    SECRETS_PROVIDER: t('Secrets Provider'),
-  };
+  const typeLabels = useConnectorTypeLabels();
 
   return (
     <DetailHero

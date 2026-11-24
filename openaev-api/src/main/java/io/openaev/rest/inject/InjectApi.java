@@ -78,7 +78,7 @@ import org.springframework.web.bind.annotation.*;
 public class InjectApi extends RestBehavior {
 
   public static final String INJECT_URI = "/api/injects";
-  static final String TENANT_INJECT_URI = TENANT_PREFIX + "/injects";
+  public static final String TENANT_INJECT_URI = TENANT_PREFIX + "/injects";
 
   private static final int MAX_NEXT_INJECTS = 6;
 
@@ -178,11 +178,10 @@ public class InjectApi extends RestBehavior {
                 .and(
                     permissionService.filterInEachTenant(
                         ctx,
-                        () ->
-                            currentUser.isAdminOrBypass()
-                                || currentUser
-                                    .getCapabilities()
-                                    .contains(Capability.ACCESS_ASSESSMENT),
+                        currentUser,
+                        caller ->
+                            caller.isAdminOrBypass()
+                                || caller.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
                         accessRight ->
                             SpecificationUtils.hasGrantAccess(
                                 currentUser.getId(),

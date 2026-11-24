@@ -584,4 +584,40 @@ class ImportMapperActivationConfigTest {
   void prodConfigActivatesInjectorsInjectorContracts() throws Exception {
     assertActiveTableEntry("injectors_injector_contracts");
   }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains exercises")
+  void prodConfigActivatesExercises() throws Exception {
+    assertActiveTableEntry("exercises");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains scenarios")
+  void prodConfigActivatesScenarios() throws Exception {
+    assertActiveTableEntry("scenarios");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains injects")
+  void prodConfigActivatesInjects() throws Exception {
+    assertActiveTableEntry("injects");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains execution_traces")
+  void prodConfigActivatesExecutionTraces() throws Exception {
+    assertActiveTableEntry("execution_traces");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains roles")
+  void prodConfigActivatesRoles() throws Exception {
+    assertActiveTableEntry("roles");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains groups")
+  void prodConfigActivatesGroups() throws Exception {
+    assertActiveTableEntry("groups");
+  }
 }

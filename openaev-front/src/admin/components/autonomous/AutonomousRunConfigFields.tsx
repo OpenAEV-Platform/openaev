@@ -74,7 +74,7 @@ const aiAlertSx = (theme: Theme) => ({
  * Embeds the manual chained-scope picker body ({@link ScopeForm}, minus its own footer) for a single
  * list, wiring the one {@link ScopeSelection} state object to ScopeForm's per-kind change callbacks.
  */
-const ScopeSection = ({
+export const ScopeSection = ({
   mode,
   selection,
   onChange,

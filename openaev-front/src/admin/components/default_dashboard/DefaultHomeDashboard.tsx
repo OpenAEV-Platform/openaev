@@ -15,6 +15,7 @@ import { useBulkOperationsFinishedCount } from '../../../utils/bulkOperations';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import limitConcurrency from '../../../utils/limitConcurrency';
+import { isFeatureEnabled } from '../../../utils/utils';
 import { CustomDashboardContext, type CustomDashboardContextType, type WidgetResultsConf } from '../workspaces/custom_dashboards/CustomDashboardContext';
 import CustomDashboardReactLayout from '../workspaces/custom_dashboards/CustomDashboardReactLayout';
 import { getTimeRangeItems } from '../workspaces/custom_dashboards/widgets/configuration/common/TimeRangeUtils';
@@ -103,7 +104,11 @@ const DefaultHomeDashboard = () => {
   // context value and refetches all ~20 widgets (same rule as DefaultHomeResults).
   // `locale` is the stable signal that t's output actually changed, so a runtime
   // language switch still recomputes the titles (one refetch, but only then).
-  const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange, t, humanResponsePresent === true), [timeRange, locale, humanResponsePresent]);
+  const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
+  const widgets = useMemo(
+    () => buildDefaultHomeWidgets(timeRange, t, humanResponsePresent === true, isLoggingEnabled),
+    [timeRange, locale, humanResponsePresent, isLoggingEnabled],
+  );
 
   const widgetById = useMemo(() => {
     const map = new Map<string, Widget>();
@@ -273,7 +278,7 @@ const DefaultHomeDashboard = () => {
               <Loader variant="inElement" />
             </div>
           )
-        : <CustomDashboardReactLayout key={`default-grid-hr-${humanResponsePresent}`} readOnly />}
+        : <CustomDashboardReactLayout key={`default-grid-hr-${humanResponsePresent}-logging-${isLoggingEnabled}`} readOnly />}
     </CustomDashboardContext.Provider>
   );
 };

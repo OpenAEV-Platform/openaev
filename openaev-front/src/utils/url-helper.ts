@@ -173,6 +173,8 @@ export const TENANT_EXEMPT_PREFIXES = [
   '/api/xtmhub/auto-register',
   '/api/schemas',
   '/api/engine',
+  // Public comcheck page: the mailed link carries no tenant, the status id names the comcheck
+  '/api/comcheck',
 ];
 
 const isUnderPrefix = (uri: string, prefix: string): boolean => uri === prefix

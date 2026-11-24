@@ -3,6 +3,9 @@ package io.openaev.api.threat_arsenal;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.StringUtils.DUPLICATE_SUFFIX;
+import static io.openaev.utils.fixtures.payload_fixture.ContractOutputElementInputFixture.createDefaultContractOutputElementInputIPV6;
+import static io.openaev.utils.fixtures.payload_fixture.OutputParserInputFixture.createDefaultOutputParseInput;
+import static io.openaev.utils.fixtures.payload_fixture.RegexGroupInputFixture.createDefaultRegexGroupInputIPV6;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -26,8 +29,10 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
+import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -35,6 +40,7 @@ import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.helpers.UserTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utils.pagination.SortField;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -710,6 +716,38 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       assertTrue(
           totalElements >= expectedMinCount,
           "Expected at least " + expectedMinCount + " results but got " + totalElements);
+    }
+
+    @Test
+    @DisplayName("Searching by primary domain returns each domain's actions together")
+    void given_groupByPrimaryDomain_should_returnActionsInDomainOrder() throws Exception {
+      // Arrange
+      InjectorContractSearchPaginationInput input = new InjectorContractSearchPaginationInput();
+      input.setSize(20);
+      input.setSorts(
+          List.of(SortField.builder().property("action_labels").direction("DESC").build()));
+      input.setGroupByPrimaryDomain(true);
+      String first =
+          domain1.get().getName().compareTo(domain2.get().getName()) < 0
+              ? domain1.get().getId()
+              : domain2.get().getId();
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/search")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> primaryDomains = JsonPath.read(response, "$.content[*].action_domains_ids[0]");
+      int firstCount = (int) primaryDomains.stream().filter(first::equals).count();
+      assertThat(primaryDomains.subList(0, firstCount)).containsOnly(first);
     }
 
     static Stream<Arguments> domainCountFilterProvider() {
@@ -1777,6 +1815,245 @@ public class ThreatArsenalApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(updateInput)))
           .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Updating an action that keeps a name another payload also uses should succeed")
+    void given_unchangedNameSharedWithAnotherPayload_should_updateAction() throws Exception {
+      // Arrange
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput createInput =
+          ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(domain.getId()));
+      String actionId = createAction(createInput);
+      persistPayloadNamed(createInput.name());
+
+      // Act & Assert
+      mvc.perform(
+              put(THREAT_ARSENAL_URI + "/" + actionId)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(updateInputNamed(createInput.name(), domain))))
+          .andExpect(status().is2xxSuccessful());
+    }
+
+    @Test
+    @DisplayName("Renaming an action to the name of another payload should fail")
+    void given_nameOfAnotherPayload_should_returnBadRequest() throws Exception {
+      // Arrange
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      String actionId =
+          createAction(
+              ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(domain.getId())));
+      String takenName = persistPayloadNamed("Name taken by another payload").getName();
+
+      // Act & Assert
+      mvc.perform(
+              put(THREAT_ARSENAL_URI + "/" + actionId)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(updateInputNamed(takenName, domain))))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(PayloadService.PAYLOAD_NAME_TAKEN));
+    }
+
+    private String createAction(ThreatArsenalActionCreateInput createInput) throws Exception {
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(createInput)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      return JsonPath.read(response, "$.injector_contract_id");
+    }
+
+    // Saved without the name check, as a catalogue install does.
+    private Payload persistPayloadNamed(String name) {
+      Payload payload = PayloadFixture.createDefaultCommand();
+      payload.setName(name);
+      return payloadComposer.forPayload(payload).persist().get();
+    }
+
+    private ThreatArsenalActionUpdateInput updateInputNamed(String name, Domain domain) {
+      return new ThreatArsenalActionUpdateInput(
+          name,
+          new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+          "This does something, maybe",
+          "bash",
+          "echo hello",
+          Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+          new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+          Collections.emptyMap(),
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          Collections.emptyList(),
+          Collections.emptyList(),
+          null,
+          null,
+          List.of(domain.getId()));
+    }
+  }
+
+  @Nested
+  @WithMockUser(isAdmin = true)
+  @DisplayName("Output element tags")
+  class OutputElementTags {
+
+    @Test
+    @DisplayName(
+        "Reading an action should return the tag and the finding flag of its output element")
+    void given_outputElementWithTag_should_returnTagAndFindingFlag() throws Exception {
+      // Arrange
+      Tag tag = tagComposer.forTag(TagFixture.getTagWithText("Output tag")).persist().get();
+      String actionId = createActionWithOutputElementTag(tag);
+
+      // Act
+      String response =
+          mvc.perform(get(THREAT_ARSENAL_URI + "/" + actionId))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      String element = "$.action_output_parsers[0].output_parser_contract_output_elements[0]";
+      List<String> tagIds = JsonPath.read(response, element + ".contract_output_element_tags");
+      assertThat(tagIds).containsExactly(tag.getId());
+      Boolean isFinding = JsonPath.read(response, element + ".contract_output_element_is_finding");
+      assertTrue(isFinding);
+    }
+
+    @Test
+    @DisplayName("Updating an existing output element should replace its tags")
+    void given_existingParserAndElementIds_should_replaceElementTags() throws Exception {
+      // Arrange
+      Tag oldTag = tagComposer.forTag(TagFixture.getTagWithText("Old output tag")).persist().get();
+      Tag newTag = tagComposer.forTag(TagFixture.getTagWithText("New output tag")).persist().get();
+      String actionId = createActionWithOutputElementTag(oldTag);
+      OutputParser parser = payloadOf(actionId).getOutputParsers().iterator().next();
+      ContractOutputElement element = parser.getContractOutputElements().iterator().next();
+
+      // Act
+      updateOutputParser(actionId, outputParserInput(parser.getId(), element.getId(), newTag));
+
+      // Assert
+      assertThat(outputElementTagIds(actionId)).containsExactly(newTag.getId());
+    }
+
+    @Test
+    @DisplayName("Updating with unknown parser and element ids should create them with their tags")
+    void given_unknownParserAndElementIds_should_createElementWithTags() throws Exception {
+      // Arrange
+      Tag tag = tagComposer.forTag(TagFixture.getTagWithText("Unknown ids tag")).persist().get();
+      String actionId = createActionWithOutputElementTag(tag);
+      String unknownParserId = UUID.randomUUID().toString();
+      String unknownElementId = UUID.randomUUID().toString();
+
+      // Act
+      updateOutputParser(actionId, outputParserInput(unknownParserId, unknownElementId, tag));
+
+      // Assert
+      assertThat(outputElementTagIds(actionId)).containsExactly(tag.getId());
+    }
+
+    @Test
+    @DisplayName("Saving an output element with a tag of another tenant should not link that tag")
+    void given_tagOfAnotherTenant_should_notLinkItToTheOutputElement() throws Exception {
+      // Arrange
+      String otherTenantId = tenantHelper.createTenant("output-element-tags-other").getId();
+      Tag otherTenantTag = TagFixture.getTagWithText("Other tenant output tag");
+      otherTenantTag.setTenant(new Tenant(otherTenantId));
+      tagComposer.forTag(otherTenantTag).persist();
+
+      // Act: the action is written in the caller's tenant, the tag belongs to another one.
+      String actionId = createActionWithOutputElementTag(otherTenantTag);
+
+      // Assert
+      assertThat(outputElementTagIds(actionId)).isEmpty();
+    }
+
+    private String createActionWithOutputElementTag(Tag tag) throws Exception {
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput input =
+          ThreatArsenalInputFixture.createCommandLineActionWithOutputParser(
+              List.of(domain.getId()));
+      input.outputParsers().stream()
+          .flatMap(parser -> parser.getContractOutputElements().stream())
+          .forEach(element -> element.setTagIds(List.of(tag.getId())));
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      return JsonPath.read(response, "$.injector_contract_id");
+    }
+
+    private OutputParserInput outputParserInput(String parserId, String elementId, Tag tag) {
+      ContractOutputElementInput element = createDefaultContractOutputElementInputIPV6();
+      element.setId(elementId);
+      element.setRegexGroups(Set.of(createDefaultRegexGroupInputIPV6()));
+      element.setTagIds(List.of(tag.getId()));
+      OutputParserInput parser = createDefaultOutputParseInput();
+      parser.setId(parserId);
+      parser.setContractOutputElements(Set.of(element));
+      return parser;
+    }
+
+    private void updateOutputParser(String actionId, OutputParserInput parser) throws Exception {
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionUpdateInput input =
+          new ThreatArsenalActionUpdateInput(
+              "Command line payload",
+              new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+              "This does something, maybe",
+              "bash",
+              "echo hello",
+              Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+              new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              Collections.emptyList(),
+              Collections.emptyList(),
+              null,
+              Set.of(parser),
+              List.of(domain.getId()));
+      mvc.perform(
+              put(THREAT_ARSENAL_URI + "/" + actionId)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().is2xxSuccessful());
+    }
+
+    private Payload payloadOf(String actionId) {
+      return injectorContractRepository.findById(actionId).orElseThrow().getPayload();
+    }
+
+    private List<String> outputElementTagIds(String actionId) {
+      return payloadOf(actionId).getOutputParsers().stream()
+          .flatMap(parser -> parser.getContractOutputElements().stream())
+          .flatMap(element -> element.getTags().stream())
+          .map(Tag::getId)
+          .toList();
     }
   }
 
