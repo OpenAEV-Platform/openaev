@@ -59,6 +59,7 @@ public class XtmPeerPrivilegeService extends AbstractPrivilegeService {
       TenantUserService tenantUserService,
       MarkingClearanceCacheManager markingClearanceCacheManager,
       TenantWriteScopeResolver writeScopeResolver,
+      UserGroupMembershipService userGroupMembershipService,
       SessionManager sessionManager) {
     super(
         tenantRoleService,
@@ -66,7 +67,8 @@ public class XtmPeerPrivilegeService extends AbstractPrivilegeService {
         userService,
         tenantUserService,
         markingClearanceCacheManager,
-        writeScopeResolver);
+        writeScopeResolver,
+        userGroupMembershipService);
     this.sessionManager = sessionManager;
   }
 
@@ -134,7 +136,7 @@ public class XtmPeerPrivilegeService extends AbstractPrivilegeService {
     Optional<User> existing = userService.findByEmailIgnoreCase(peerEmail);
     if (existing.isEmpty()) {
       User user = userService.createInternalUser(peerEmail, name, null, false, token);
-      user.setGroups(new ArrayList<>(List.of(group)));
+      joinGroupAsNewAccount(user, group);
       tenantUserService.attachToTenant(user.getId(), DEFAULT_TENANT_UUID);
       userService.saveUser(user);
       log.info("XTM peer account {} created", peerEmail);

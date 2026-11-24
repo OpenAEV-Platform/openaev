@@ -25,7 +25,7 @@ Your job is to ensure no code introduces cross-tenant data leaks or breaks tenan
 
 Follow `.claude/skills/review-multi-tenancy/SKILL.md` step-by-step, running
 every command — that is the single source of truth for the procedure
-(Step 1 inventory → Step 2/2b @Filter + v1-vs-v2 classification → Step 3
+(Step 1 inventory → Step 2/2b table classification → Step 3
 native queries → Step 4 migrations → Step 5 async/background → Step 6 API
 responses → Step 7 caching → Step 8 dual-scope → Step 9 compile findings).
 Do not maintain a separate copy of these steps here; a duplicated procedure
@@ -37,12 +37,10 @@ duplicate).
 Two steps deserve emphasis because getting them wrong produces the opposite
 of the intended finding:
 
-- **Step 2b (v1 vs v2 classification)** must run before Steps 2, 3, 5: a
-  table's governing mechanism (v2-active / v1 / permanently-v1-by-design)
-  changes what "correct" looks like and what severity a gap gets. Do not
-  apply the v1 `@Filter`/`WHERE tenant_id` checklist to a v2-active table, or
-  the `TxCtx` checklist to a v1 one — each produces false positives on the
-  other's table.
+- **Step 2b (table classification)** must run before Steps 2, 3, 5: whether
+  a table is in `active-tables` changes what "correct" looks like and what severity a gap
+  gets. Do not apply the explicit `WHERE tenant_id` checklist to an active table, or the
+  `TxCtx` checklist to an inactive one: each produces false positives on the other's table.
 - **Step 5 (background contexts)**: a job converted to
   `TenantScopedTransaction` no longer needs `TenantContext.setCurrentTenant()`
   for READS against v2-active tables — but still needs it if it persists any
@@ -52,9 +50,9 @@ of the intended finding:
   block is read-only, every touched table is v2-active, and no legacy path is
   reached — otherwise flag its *absence* as 🔴 CRITICAL, never its presence.
   A `session.disableFilter("tenantFilter")` presented as what makes a read
-  cross-tenant is not: it widens nothing (see `multi-tenancy.instructions.md`
-  > Background Threads Carry Both Scopes), and `TenantFilterDisableArchTest`
-  rejects any new call. Ask for the primitive with an explicit scope instead.
+  cross-tenant is not: no filter is defined, and `TenantFilterRemovedArchTest`
+  fails any call (see `multi-tenancy.instructions.md` > Background Threads
+  Carry Both Scopes). Ask for the primitive with an explicit scope.
   A new `TenantContext` or `AmbientTenantBridge` call, tenant listener or `#tenantContext` query fails
   `V1TenantConstructArchTest`; a line added to `v1-tenant-construct-baseline.txt` is flagged 🟠 HIGH.
 - **Step 3 (native queries)**: besides the v1/v2 shape checks, look at what the
@@ -98,10 +96,9 @@ When the Test Specialist writes isolation tests, flag this agent to verify the p
 | Severity | Criteria | Action |
 |---|---|---|
 | 🔴 **CRITICAL** | Cross-tenant data leak: query returns data from other tenants | `issue (blocking):` — PR must not merge |
-| 🔴 **CRITICAL** | Missing `@Filter` on new `TenantBase` entity **not yet v2-active** (check Step 2b) | `issue (blocking):` — invisible to Hibernate filter |
 | 🔴 **CRITICAL** | `@Transactional` entrypoint whose call graph reaches a **v2-active** table (directly, via another service, or via an association/join) without a `TxCtx` parameter | `issue (blocking):` — silent empty-result regression, not a loud failure; see the `changeExerciseStatus` incident (a sibling caller of the same gate had `TxCtx`, this one didn't) |
-| 🔴 **CRITICAL** | `@Filter("tenantFilter")` still present on a table that IS v2-active | `issue (blocking):` — v1 and v2 are mutually exclusive per table, not defense in depth |
-| 🟠 **HIGH** | Native query without `WHERE tenant_id` on a **v1** table | `issue (blocking):` — bypasses Hibernate filter |
+| 🔴 **CRITICAL** | A Hibernate `@Filter` declaration or an `enableFilter` / `disableFilter` call on a tenant entity | `issue (blocking):`: `TenantFilterRemovedArchTest` forbids the filter; isolation is the inspector's |
+| 🟠 **HIGH** | Query without `WHERE tenant_id` on a table **outside `active-tables`** | `issue (blocking):` no ambient read isolation |
 | 🟠 **HIGH** | Native query `JOIN`ing a **v2-active** table with a FROM/JOIN shape not in `TenantStatementInspectorTest`'s accepted list | `issue (blocking):` — fails closed (`TENANT_FILTERING_REFUSED`) in production (#7007) |
 | 🟠 **HIGH** | Global unique constraint on tenant-scoped entity (should be composite with `tenant_id`) | `issue (blocking):` — blocks multi-tenant usage |
 | 🟠 **HIGH** | Single service handling both platform and tenant scope for dual-scope entity | `issue (blocking):` — cross-scope data leak risk |

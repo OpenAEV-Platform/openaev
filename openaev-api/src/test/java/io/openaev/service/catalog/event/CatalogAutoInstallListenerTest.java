@@ -17,7 +17,6 @@ import io.openaev.service.catalog.Installed;
 import io.openaev.service.catalog.payload.CatalogPayloadInstaller;
 import io.openaev.service.catalog.scenario.CatalogScenarioInstaller;
 import io.openaev.service.catalog.scenario.InstallableScenarioVersion;
-import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
@@ -37,7 +36,6 @@ class CatalogAutoInstallListenerTest {
 
   @Mock private CatalogPayloadInstaller catalogPayloadInstaller;
   @Mock private CatalogScenarioInstaller catalogScenarioInstaller;
-  @Mock private EntityManager entityManager;
   @Mock private ApplicationEventPublisher eventPublisher;
 
   @Test
@@ -62,7 +60,7 @@ class CatalogAutoInstallListenerTest {
         new CatalogAutoInstallListener(
             catalogPayloadInstaller,
             catalogScenarioInstaller,
-            new AmbientTenantBridge(entityManager),
+            new AmbientTenantBridge(),
             eventPublisher);
 
     // Act
@@ -98,7 +96,7 @@ class CatalogAutoInstallListenerTest {
         new CatalogAutoInstallListener(
             catalogPayloadInstaller,
             catalogScenarioInstaller,
-            new AmbientTenantBridge(entityManager),
+            new AmbientTenantBridge(),
             eventPublisher);
 
     // Act

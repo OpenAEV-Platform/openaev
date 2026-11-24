@@ -40,6 +40,7 @@ import io.openaev.api.payload.PayloadApiExporter;
 import io.openaev.api.threat_arsenal.ThreatArsenalApi;
 import io.openaev.api.threat_arsenal.ThreatArsenalApiExporter;
 import io.openaev.api.xtmhub.XtmHubApi;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.TenantUriUtils;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.AmbientTenantBridge;
@@ -344,8 +345,6 @@ import io.openaev.utils.mapper.VulnerabilityMapper;
 import io.openaev.xtm.counterpart.LocalObjectService;
 import io.openaev.xtmhub.XtmHubService;
 import io.openaev.xtmone.XtmOneHealthSnapshot;
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
@@ -357,7 +356,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -402,6 +400,35 @@ class TenantActiveTableAccessArchTest {
     // Datapacks, run by MigrationProcessor in the scope of the tenant they process:
     io.openaev.processor.core.V20260811_Add_phishing_reporting_capabilities_to_default_roles.class,
     io.openaev.processor.datapack.V20261001_Default_tenant_roles_and_groups.class
+  };
+
+  /**
+   * The accessors of {@code GroupRepository}, each with the scope it runs under, following the
+   * pattern {@link #ROLES_REPOSITORY_ACCESSORS} set for roles.
+   */
+  private static final Class<?>[] GROUPS_REPOSITORY_ACCESSORS = {
+    // Tenant groups, by the tenant each method names; every caller passes a TxCtx holding it:
+    io.openaev.service.TenantGroupService.class,
+    // Platform groups, readable under any scope, written under @PlatformWrite:
+    io.openaev.service.platform.groups.PlatformGroupService.class,
+    // SSO group mapping and the user-side group reads: reads by name/id, the platform-group create
+    // wrapped in executeNewAsPlatformWrite, the tenant-group create through TenantGroupService:
+    io.openaev.service.UserService.class,
+    // Adds or removes one users_groups row from the group side, by (user, group) id: the group is
+    // looked up by id and the row write is bounded to that one group's own rows:
+    io.openaev.service.UserGroupMembershipService.class,
+    // Resolves a notification trigger's recipient group ids inside the TxCtx-scoped
+    // NotificationTriggerApi transaction; the inspector scopes the lookup:
+    NotificationTriggerMapper.class,
+    // Deletes the legacy pre-multi-tenant connector group of the default tenant, a tenant row:
+    io.openaev.opencti.connectors.service.LegacyOpenCTIConnectorMigration.class,
+    // Datapacks, run by MigrationProcessor in the scope of the tenant they process:
+    V20260330_Default_tenant_data.class,
+    V20261002_Default_group_markings.class,
+    // A role's delete clears it from the groups that link it (findAllByRoles), under the scope or
+    // platform-write marker of the role delete itself:
+    io.openaev.service.TenantRoleService.class,
+    io.openaev.service.platform.roles.PlatformRoleService.class
   };
 
   /** Tables guarded by this test. Must cover every entry of the production allowlist. */
@@ -484,19 +511,13 @@ class TenantActiveTableAccessArchTest {
           "scenarios",
           "injects",
           "execution_traces",
-          "roles");
+          "roles",
+          "scenario_revisions",
+          "groups");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
-    Properties props = new Properties();
-    try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
-      props.load(in);
-    }
-    Set<String> active =
-        Arrays.stream(props.getProperty("openaev.tenant.active-tables", "").split(","))
-            .map(String::trim)
-            .filter(s -> !s.isEmpty())
-            .collect(Collectors.toSet());
+    Set<String> active = ProductionActiveTables.names();
     assertTrue(
         GUARDED_TABLES.containsAll(active),
         "every table in openaev.tenant.active-tables needs a guard in this test; missing: "
@@ -2758,6 +2779,47 @@ class TenantActiveTableAccessArchTest {
                   + " accessors must carry a scope and be allowlisted here");
 
   /**
+   * {@code groups} is dual-scope like {@code roles} (see {@link PlatformRowWriters#GROUPS}): a
+   * write of a platform group outside a platform-write transaction is refused by the database.
+   * Every writer this rule can see is marked or listed as a tenant-row-only writer.
+   */
+  @ArchTest
+  static final ArchRule groups_platform_row_writers_run_under_platform_write =
+      methods()
+          .that(
+              PlatformRowWriters.writeARow(
+                  PlatformRowWriters.GROUPS, PlatformRowWriters.GROUPS.tenantRowWriters()))
+          .should(PlatformRowWriters.beReachedOnlyUnderPlatformWrite(PlatformRowWriters.GROUPS))
+          .because(
+              "groups is dual-scope: a write of a platform row outside a platform-write transaction"
+                  + " will be refused once groups is active. Every writer the rule can see must sit"
+                  + " under @PlatformWrite or executeAsPlatformWrite/executeNewAsPlatformWrite, or"
+                  + " be a listed writer of tenant groups only");
+
+  /** Each tenant-row-only exemption of {@code groups} is live and touches tenant groups only. */
+  @ArchTest
+  static void groups_tenant_row_writer_exemptions_are_live(JavaClasses classes) {
+    assertTenantRowWriterExemptionsAreLive(classes, PlatformRowWriters.GROUPS);
+  }
+
+  /**
+   * Follows the pattern {@link #roles_repository_access_is_reviewed} set for roles: the platform
+   * groups are read by {@code PlatformGroupService} under any scope, the tenant groups by {@code
+   * TenantGroupService} under the tenant each method names.
+   */
+  @ArchTest
+  static final ArchRule groups_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(GROUPS_REPOSITORY_ACCESSORS)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.GroupRepository.class)
+          .because(
+              "groups is tenant-active: an accessor without a tenant scope silently reads no tenant"
+                  + " group. New accessors must carry a scope and be allowlisted here");
+
+  /**
    * A tenant row of {@code parameters} read with no tenant scope comes back empty, silently: the
    * platform rows are readable under any scope, the tenant rows are not. Every method that reads
    * one (any repository read not named for the platform row) must be reached on every path through
@@ -4810,4 +4872,19 @@ class TenantActiveTableAccessArchTest {
                   + " WITHOUT touching ExecutionTraceRepository: a getTraces() outside a scoped"
                   + " transaction silently loads zero rows. New callers must run inside a"
                   + " tenant-scoped transaction and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule scenario_revisions_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Keyed by tenant, inside the scoped transaction of the install, update and rollback
+              // routes:
+              io.openaev.service.catalog.scenario.update.ScenarioRevisionService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.ScenarioRevisionRepository.class)
+          .because(
+              "scenario_revisions is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 }

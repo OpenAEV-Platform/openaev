@@ -37,7 +37,7 @@ import UpdateInjectLogicalChains from './UpdateInjectLogicalChains';
 interface Props {
   open: boolean;
   handleClose: () => void;
-  onUpdateInject: (data: Inject) => Promise<void>;
+  onUpdateInject: (data: InjectInput) => Promise<void>;
   massUpdateInject?: (data: Inject[]) => Promise<void>;
   injectId: string;
   isAtomic?: boolean;
@@ -231,7 +231,7 @@ const UpdateInject: React.FC<Props> = ({
                 isAtomic={isAtomic}
                 defaultInject={inject}
                 injectorContractContent={injectorContractContent}
-                onSubmitInject={(data: InjectInput) => onUpdateInject(data as Inject)}
+                onSubmitInject={onUpdateInject}
                 articlesFromExerciseOrScenario={articlesFromExerciseOrScenario}
                 uriVariable={uriVariable}
                 variablesFromExerciseOrScenario={variablesFromExerciseOrScenario}

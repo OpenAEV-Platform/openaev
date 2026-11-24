@@ -5,11 +5,13 @@ import { makeStyles } from 'tss-react/mui';
 
 import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
 import AssetTypeFragment from '../../../../components/common/list/fragments/AssetTypeFragment';
+import markingsColumn from '../../../../components/common/list/markingsColumn';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { type SortHelpers } from '../../../../components/common/queryable/sort/SortHelpers';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type AssetOutput } from '../../../../utils/api-types';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import { type AssetPopoverProps } from './AssetPopover';
@@ -58,16 +60,19 @@ const AssetsList = <T extends AssetOutput>({
 }: Props<T>) => {
   // Standard hooks
   const { classes } = useStyles();
+  const markingEnabled = isFeatureEnabled('MARKING');
 
   const component = (asset: T) => {
     return renderActions(asset);
   };
 
+  const nameWidth = markingEnabled ? '25%' : '30%';
   const inlineStyles: Record<string, CSSProperties> = {
-    asset_name: { width: compact ? '40%' : '30%' },
+    asset_name: { width: compact ? '40%' : nameWidth },
     asset_platform: { width: compact ? '10%' : '20%' },
-    asset_tags: { width: '30%' },
-    asset_type: { width: '20%' },
+    asset_markings: { width: '25%' },
+    asset_tags: { width: markingEnabled ? '15%' : '30%' },
+    asset_type: { width: markingEnabled ? '15%' : '20%' },
   };
 
   const headers = [
@@ -83,11 +88,12 @@ const AssetsList = <T extends AssetOutput>({
       isSortable: true,
       value: (asset: T) => <AssetPlatformFragment platform={asset.endpoint_platform} />,
     },
+    ...(markingEnabled ? [markingsColumn(EndpointListItemFragments.ASSET_MARKINGS, (asset: T) => asset.asset_markings)] : []),
     {
       field: EndpointListItemFragments.ASSET_TAGS,
       label: 'Tags',
       isSortable: false,
-      value: (asset: T) => <ItemTags variant="list" tags={asset.asset_tags ?? []} />,
+      value: (asset: T) => <ItemTags variant={markingEnabled ? 'reduced-view' : 'list'} tags={asset.asset_tags ?? []} />,
     },
     {
       field: EndpointListItemFragments.ASSET_TYPE,

@@ -11,9 +11,14 @@ const mocks = vi.hoisted(() => ({
   searchCatalogScenarios: vi.fn(),
   fetchCatalogScenarioFacetCounts: vi.fn(),
   installAllCatalogScenarios: vi.fn(),
+  navigate: vi.fn(),
   loadMore: { current: () => {} },
 }));
 
+vi.mock(import('react-router'), async importOriginal => ({
+  ...(await importOriginal()),
+  useNavigate: () => mocks.navigate,
+}));
 vi.mock('../../../../../components/i18n', () => ({
   useFormatter: () => ({
     t: (key: string, values?: Record<string, unknown>) => Object.entries(values ?? {})
@@ -57,6 +62,7 @@ const scenario = (name: string, type: string): CatalogScenarioOutput => ({
   catalog_scenario_version: '1.0',
   catalog_scenario_platforms: ['Linux'],
   catalog_scenario_missing_requirements: [],
+  catalog_scenario_payloads: [],
 });
 const PHISHING = scenario('Phishing', 'TIME_BASED');
 const RANSOMWARE = scenario('Ransomware', 'CHAINED');
@@ -194,11 +200,10 @@ describe('ScenariosAvailable', () => {
     await waitFor(() => expect(lastSearch().textSearch ?? '').toBe(''));
   });
 
-  it('given_anInstalledScenario_should_notifyWithALinkToItAndSearchAgain', async () => {
+  it('given_anInstalledScenario_should_notifyWithALinkToItAndOpenIt', async () => {
     // Arrange
     renderPage();
     await waitFor(() => expect(cardTitles()).toHaveLength(2));
-    const searches = mocks.searchCatalogScenarios.mock.calls.length;
 
     // Act
     fireEvent.click(screen.getAllByRole('button', { name: 'Install' })[0]);
@@ -208,6 +213,6 @@ describe('ScenariosAvailable', () => {
     const message = render(<MemoryRouter>{vi.mocked(MESSAGING$.notifySuccess).mock.lastCall?.[0]}</MemoryRouter>);
     expect(message.container.textContent).toContain('Phishing v1.0 installed');
     expect(message.getByRole('link', { name: 'Open' }).getAttribute('href')).toBe('/admin/scenarios/installed-phishing');
-    await waitFor(() => expect(mocks.searchCatalogScenarios.mock.calls.length).toBeGreaterThan(searches));
+    expect(mocks.navigate).toHaveBeenCalledWith('/admin/scenarios/installed-phishing');
   });
 });

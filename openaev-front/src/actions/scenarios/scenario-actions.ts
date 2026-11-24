@@ -20,6 +20,7 @@ import {
   type LessonsQuestionUpdateInput, type Pagination,
   type Scenario, type ScenarioAndInjectorContractsInputs, type ScenarioBulkProcessingInput, type ScenarioIdsAndInjectorContractsInputs,
   type ScenarioInput,
+  type ScenarioLaunchCheckOutput,
   type ScenarioLaunchOutput,
   type ScenarioRecurrenceInput,
   type ScenarioTargetsInput,
@@ -122,6 +123,9 @@ export const duplicateScenario = (scenarioId: string) => (dispatch: Dispatch) =>
 };
 
 // -- SCENARIO TO EXERCISE
+
+export const fetchScenarioLaunchCheck = (scenarioId: string): Promise<ScenarioLaunchCheckOutput> => simpleCall(`${SCENARIO_URI}/${scenarioId}/launch-check`)
+  .then(({ data }: { data: ScenarioLaunchCheckOutput }) => data);
 
 export const launchScenario = (scenarioId: string, targets?: ScenarioTargetsInput): Promise<ScenarioLaunchOutput> => simplePostCall(`${SCENARIO_URI}/${scenarioId}/exercise/running`, targets)
   .then(({ data }: { data: ScenarioLaunchOutput }) => data);

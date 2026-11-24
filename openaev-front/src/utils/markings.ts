@@ -29,8 +29,8 @@ export const markingLabel = (marking: MarkingDefinitionOutput) => {
 
 // The tone a predefined marking (TLP, PAP) is drawn with, the same mapping every XTM Platform
 // module uses (OpenCTI, OpenCRQ, XTM One): red is critical, amber high, green low, clear neutral.
-// Drawn through the design system's severity chip, it follows the user's "Pastel colours"
-// preference. `undefined`: a custom marking, which keeps its administrator's colour.
+// Drawn through the design system's severity chip. `undefined`: a custom marking, which keeps
+// its administrator's colour.
 export const markingTone = (marking: MarkingDefinitionOutput): ChipSeverity | undefined => {
   switch (markingLabel(marking)) {
     case 'TLP:RED':
@@ -79,5 +79,14 @@ export const collapseToHighestPerType = (
   return Array.from(highestByType.values())
     .sort((a, b) => b.marking_definition_order - a.marking_definition_order);
 };
+
+// Most restrictive first within a type (TLP:RED at the top), for the marking pickers.
+export const sortMarkings = (markings: MarkingDefinitionOutput[]): MarkingDefinitionOutput[] =>
+  [...markings].sort((a, b) => {
+    if (a.marking_definition_type !== b.marking_definition_type) {
+      return a.marking_definition_type.localeCompare(b.marking_definition_type);
+    }
+    return b.marking_definition_order - a.marking_definition_order;
+  });
 
 export default markingIdSetsEqual;

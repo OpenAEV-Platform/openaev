@@ -16,10 +16,9 @@ public interface PhishingLandingPageRepository
         JpaSpecificationExecutor<PhishingLandingPage> {
 
   /**
-   * Looks up a landing page by its ID using a JPQL query so that the active Hibernate tenant filter
-   * ({@code tenantFilter}) is applied. {@code EntityManager.find()} (used by the default
-   * CrudRepository#findById) bypasses Hibernate filters and must not be used directly for
-   * tenant-scoped entities (same fix as ChannelRepository / ChallengeRepository #6027).
+   * Looks up a landing page by its ID using a JPQL query, so the same statement goes through the
+   * tenant inspector as every other query (same shape as ChannelRepository / ChallengeRepository
+   * #6027).
    */
   @NotNull
   @Query("SELECT p FROM PhishingLandingPage p WHERE p.id = :id")

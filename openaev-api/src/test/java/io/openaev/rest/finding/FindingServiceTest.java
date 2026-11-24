@@ -53,19 +53,15 @@ class FindingServiceTest extends IntegrationTest {
   @WithMockUser
   class TenantIsolation {
 
-    // Switching tenants has to move BOTH mechanisms. The v1 thread-local and @Filter still drive
-    // the injects this suite creates and the tenant TenantBaseListener stamps on a write; the v2
-    // GUC is what findings now read through. Setting only the v1 side is what left this class
-    // asserting an isolation nothing enforced: notBeReadableFromTenantY passed because the scope
-    // was empty and NOTHING was readable, including tenant X's own rows.
+    // Switching tenants moves the v1 thread-local, which drives the injects this suite
+    // creates and the tenant TenantBaseListener stamps on a write, and the v2 GUC, which findings
+    // read through. Setting only the v1 side left this class asserting an isolation nothing
+    // enforced: notBeReadableFromTenantY passed because, with an empty scope, NOTHING is
+    // readable, including tenant X's own rows.
     private void switchToTenant(String tenantId) {
       entityManager.flush();
       entityManager.clear();
       TenantContext.setCurrentTenant(tenantId);
-      entityManager
-          .unwrap(org.hibernate.Session.class)
-          .enableFilter("tenantFilter")
-          .setParameter("tenantId", tenantId);
       tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
     }
 

@@ -4,6 +4,7 @@ import {
   type AvailableIntegrationActionOutput,
   type AvailablePayloadActionOutput,
 } from '../../../../utils/api-types';
+import { catalogConnectorUrl } from '../../integrations/catalog_connectors/catalog-facets';
 
 interface ByKind<R> {
   PAYLOAD: (action: AvailablePayloadActionOutput) => R;
@@ -21,4 +22,4 @@ export const useActionName = (): ActionName => {
   return action => tPick(action.action_labels) || Object.values(action.action_labels)[0] || action.action_id;
 };
 
-export const integrationUrl = (action: AvailableIntegrationActionOutput) => `/admin/integrations/catalog/${action.action_integration_id}`;
+export const integrationUrl = (action: AvailableIntegrationActionOutput) => catalogConnectorUrl(action.action_integration_id);

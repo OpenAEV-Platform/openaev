@@ -162,6 +162,8 @@ export interface AgentTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -310,7 +312,6 @@ export interface AiAttack {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -417,6 +418,8 @@ export interface AiTargetTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -904,6 +907,8 @@ export interface AssetGroupTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -1018,6 +1023,11 @@ export interface AssetOutput {
    * @minLength 1
    */
   asset_id: string;
+  /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
   /**
    * Asset name
    * @minLength 1
@@ -2344,6 +2354,8 @@ interface BaseInjectTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_prevention_status?:
     | "FAILED"
     | "PENDING"
@@ -2450,7 +2462,6 @@ interface BasePayload {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -2797,7 +2808,9 @@ export interface CatalogHistoryOutput {
     | "INSTALL"
     | "UNINSTALL"
     | "REVOKE"
-    | "LIFT_REVOCATION";
+    | "LIFT_REVOCATION"
+    | "UPDATE"
+    | "ROLLBACK";
   /** @format date-time */
   catalog_history_created_at: string;
   /** @minLength 1 */
@@ -2839,18 +2852,33 @@ export interface CatalogScenarioInstallInput {
 export interface CatalogScenarioOutput {
   catalog_scenario_author?: string;
   catalog_scenario_category?: string;
+  catalog_scenario_changelog?: string;
   catalog_scenario_description?: string;
   /** @minLength 1 */
   catalog_scenario_external_id: string;
+  /** @format int32 */
+  catalog_scenario_injects_count?: number;
   catalog_scenario_installed_scenario_id?: string;
-  catalog_scenario_missing_requirements: string[];
+  catalog_scenario_main_focus?: string;
+  catalog_scenario_missing_requirements: CatalogScenarioRequirementOutput[];
   catalog_scenario_name?: string;
+  catalog_scenario_payloads: CatalogPayloadOutput[];
   catalog_scenario_platforms: string[];
   /** @format date-time */
   catalog_scenario_published_at?: string;
+  catalog_scenario_severity?: string;
   catalog_scenario_type: string;
   /** @minLength 1 */
   catalog_scenario_version: string;
+}
+
+export interface CatalogScenarioRequirementOutput {
+  requirement_integration_id?: string;
+  /** @minLength 1 */
+  requirement_label: string;
+  /** @minLength 1 */
+  requirement_name: string;
+  requirement_status?: "NOT_DEPLOYED" | "NOT_RUNNING";
 }
 
 export interface CatalogScenarioVersionOutput {
@@ -3232,7 +3260,6 @@ export interface Command {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -3698,10 +3725,6 @@ export interface CounterpartOutput {
   counterpart_product?: string;
   counterpart_status?: string;
   counterpart_url?: string;
-}
-
-export interface CoverageScenarioSettingsInput {
-  coverage_scenario_read_only_first: boolean;
 }
 
 export interface CreateConnectorInstanceInput {
@@ -4443,7 +4466,6 @@ export interface DnsResolution {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -5410,6 +5432,11 @@ export interface EndpointSimple {
    */
   asset_id: string;
   /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
+  /**
    * Asset name
    * @minLength 1
    */
@@ -5448,6 +5475,8 @@ export interface EndpointTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -6093,7 +6122,6 @@ export interface Executable {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -6556,7 +6584,6 @@ export interface FileDrop {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -7925,6 +7952,15 @@ export type InjectTarget = BaseInjectTarget &
     | BaseInjectTargetTargetTypeMapping<"MANUAL", ManualTarget>
   );
 
+export interface InjectTargetsOutput {
+  /** @minLength 1 */
+  inject_id: string;
+  inject_target_kinds: ("ASSETS" | "ASSET_GROUPS" | "TEAMS" | "HOSTS")[];
+  inject_targeted?: boolean;
+  /** @minLength 1 */
+  inject_title: string;
+}
+
 export interface InjectTeamsInput {
   inject_teams?: string[];
 }
@@ -8047,7 +8083,6 @@ export interface InjectorContract {
     | "kerberoastable_account"
     | "expectation_signature"
   )[];
-  injector_contract_read_only?: boolean;
   injector_contract_tags?: string[];
   /** @format date-time */
   injector_contract_updated_at: string;
@@ -8807,6 +8842,8 @@ export interface ManualTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -9022,7 +9059,6 @@ export interface NetworkTraffic {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -9128,6 +9164,7 @@ export interface NotificationTriggerInput {
     | "NEW_PAYLOAD_VERSION"
     | "REVOKED"
     | "REVOCATION_LIFTED"
+    | "BASE_UPDATE_AVAILABLE"
     | "INSTALLED_AUTOMATICALLY"
     | "RELEASE_RECEIVED"
     | "SYNC_BLOCKED"
@@ -9249,6 +9286,7 @@ export interface NotificationTriggerOutput {
     | "NEW_PAYLOAD_VERSION"
     | "REVOKED"
     | "REVOCATION_LIFTED"
+    | "BASE_UPDATE_AVAILABLE"
     | "INSTALLED_AUTOMATICALLY"
     | "RELEASE_RECEIVED"
     | "SYNC_BLOCKED"
@@ -11106,6 +11144,7 @@ export interface PlatformSettings {
     | "LOGGING_EXPECTATION"
     | "CATALOG"
     | "EXPLORATION_GRAPH"
+    | "XTM_COUNTERPARTS"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -11321,6 +11360,8 @@ export interface PlayerTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -11516,6 +11557,7 @@ export interface PublicPlatformSettings {
     | "LOGGING_EXPECTATION"
     | "CATALOG"
     | "EXPLORATION_GRAPH"
+    | "XTM_COUNTERPARTS"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -11949,6 +11991,15 @@ export interface ResultDistribution {
   value: number;
 }
 
+export interface RevokedInjectOutput {
+  /** @minLength 1 */
+  inject_action_id: string;
+  /** @minLength 1 */
+  inject_id: string;
+  /** @minLength 1 */
+  inject_title: string;
+}
+
 export interface RoleInput {
   /** @uniqueItems true */
   role_capabilities?: (
@@ -12293,6 +12344,42 @@ export interface ScenarioChallengesReader {
   scenario_information?: PublicScenario;
 }
 
+export interface ScenarioChangeOutput {
+  scenario_change_applied?: JsonNode;
+  scenario_change_base?: JsonNode;
+  scenario_change_editable: boolean;
+  scenario_change_element_kind: "SCENARIO" | "VARIABLES" | "INJECT";
+  scenario_change_field_key?: string;
+  scenario_change_field_kind?:
+    | "NAME"
+    | "DESCRIPTION"
+    | "SEVERITY"
+    | "CATEGORY"
+    | "TITLE"
+    | "CONTRACT"
+    | "DEPENDS_DURATION"
+    | "DEPENDS_ON"
+    | "ARGUMENT"
+    | "VARIABLE";
+  /** @minLength 1 */
+  scenario_change_id: string;
+  scenario_change_local?: JsonNode;
+  scenario_change_status:
+    | "TAKE_APPLIED"
+    | "KEEP_MINE"
+    | "CONFLICT"
+    | "ADDED"
+    | "REMOVED";
+  scenario_change_title?: string;
+}
+
+export interface ScenarioChangelogOutput {
+  /** @minLength 1 */
+  scenario_changelog: string;
+  /** @minLength 1 */
+  scenario_changelog_version: string;
+}
+
 export interface ScenarioIdsAndInjectorContractsInputs {
   injector_contract_search_pagination_input: InjectorContractSearchPaginationInput;
   /** @minLength 1 */
@@ -12325,6 +12412,12 @@ export interface ScenarioInput {
   scenario_severity?: "low" | "medium" | "high" | "critical";
   scenario_subtitle?: string;
   scenario_tags?: string[];
+}
+
+export interface ScenarioLaunchCheckOutput {
+  launch_check_injects: InjectTargetsOutput[];
+  launch_check_missing_requirements: CatalogScenarioRequirementOutput[];
+  launch_check_revoked_injects: RevokedInjectOutput[];
 }
 
 export interface ScenarioLaunchOutput {
@@ -12427,6 +12520,12 @@ export interface ScenarioOutput {
   scenario_workflow_id?: string;
 }
 
+export interface ScenarioPayloadVersionOutput {
+  payload_name?: string;
+  /** @minLength 1 */
+  payload_version: string;
+}
+
 export interface ScenarioReachabilityAssertionInput {
   /** True to make the scenario a reachability assertion: only read-only injects may run on its schedule */
   scenario_reachability_assertion?: boolean;
@@ -12438,6 +12537,19 @@ export interface ScenarioRecurrenceInput {
   scenario_recurrence_end?: string;
   /** @format date-time */
   scenario_recurrence_start?: string;
+}
+
+export interface ScenarioRevisionOutput {
+  /** @minLength 1 */
+  scenario_revision_catalog_version: string;
+  /** @format date-time */
+  scenario_revision_created_at: string;
+  /** @minLength 1 */
+  scenario_revision_id: string;
+  /** @format int32 */
+  scenario_revision_number: number;
+  scenario_revision_reason: "INSTALL" | "UPDATE" | "ROLLBACK";
+  scenario_revision_user?: string;
 }
 
 export interface ScenarioSimple {
@@ -12477,6 +12589,22 @@ export interface ScenarioTeamUserOutput {
   user_id?: string;
 }
 
+export interface ScenarioUpdateInput {
+  scenario_update_choices?: Record<
+    string,
+    "KEEP_MINE" | "TAKE_APPLIED" | "EDIT"
+  >;
+  scenario_update_edits?: Record<string, string>;
+}
+
+export interface ScenarioUpdatePreviewOutput {
+  scenario_update_changelogs: ScenarioChangelogOutput[];
+  scenario_update_changes: ScenarioChangeOutput[];
+  scenario_update_lost_dependencies: string[];
+  scenario_update_payloads_to_install: ScenarioPayloadVersionOutput[];
+  scenario_update_revoked_payloads: ScenarioPayloadVersionOutput[];
+}
+
 export interface ScenarioUpdateTagsInput {
   apply_tag_rule?: boolean;
   scenario_tags?: string[];
@@ -12484,6 +12612,23 @@ export interface ScenarioUpdateTagsInput {
 
 export interface ScenarioUpdateTeamsInput {
   scenario_teams?: string[];
+}
+
+export interface ScenarioVersionOutput {
+  /** @minLength 1 */
+  scenario_version: string;
+  scenario_version_changelog?: string;
+  scenario_version_current: boolean;
+  scenario_version_latest: boolean;
+  /** @format date-time */
+  scenario_version_published_at?: string;
+  scenario_version_status: "VERIFIED" | "DEPRECATED" | "REVOKED";
+}
+
+export interface ScenarioVersionsOutput {
+  /** @format int64 */
+  scenario_simulations_count: number;
+  scenario_versions: ScenarioVersionOutput[];
 }
 
 /** An asset that is in scope (allowlisted and not denylisted) for a workflow. */
@@ -13729,6 +13874,8 @@ export interface TeamTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -14405,7 +14552,6 @@ export interface UpdateProfileInput {
   /** @minLength 1 */
   user_lastname: string;
   user_organization?: string;
-  user_pastel_colours?: boolean;
   /** @minLength 1 */
   user_theme: string;
 }
@@ -14584,8 +14730,6 @@ export interface User {
   user_lastname?: string;
   /** Organization ID of the user */
   user_organization?: string;
-  /** Pastel colours preference of the user: soft pastel chips when true (default), the standard colours shared by every XTM Platform module when false */
-  user_pastel_colours?: boolean;
   /** PGP key of the user */
   user_pgp_key?: string;
   /** Phone number of the user */

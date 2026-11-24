@@ -416,13 +416,12 @@ public interface StepRepository extends JpaRepository<Step, String> {
    *
    * <p>Tenant scoping is mandatory here: {@code InjectorContract} has a composite {@code (id,
    * tenant_id)} key and the default contracts are provisioned id-for-id into every tenant, so the
-   * same contract id string legitimately exists in several tenants at once. Native SQL bypasses the
-   * Hibernate {@code tenantFilter}, so the tenant is matched explicitly. It is resolved through the
-   * owning workflow's scenario or simulation ({@code COALESCE} - a workflow is attached to exactly
-   * one of the two), which gives the same value as the step's own {@code tenant_id}, since that
-   * column is set from the owner when the row is written. A workflow attached to neither is
-   * unreachable from any tenant UI and is deliberately left alone rather than risk sweeping another
-   * tenant's graph.
+   * same contract id string legitimately exists in several tenants at once. The tenant is matched
+   * explicitly in the SQL. It is resolved through the owning workflow's scenario or simulation
+   * ({@code COALESCE} - a workflow is attached to exactly one of the two), which gives the same
+   * value as the step's own {@code tenant_id}, since that column is set from the owner when the row
+   * is written. A workflow attached to neither is unreachable from any tenant UI and is
+   * deliberately left alone rather than risk sweeping another tenant's graph.
    *
    * <p>Scoped to TEMPLATE steps on purpose: RUN steps carry immutable execution history and must
    * survive their contract's deletion, mirroring the TEMPLATE-only rule of {@code

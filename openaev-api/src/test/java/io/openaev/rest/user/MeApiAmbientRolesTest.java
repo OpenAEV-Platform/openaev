@@ -312,8 +312,9 @@ class MeApiAmbientRolesTest extends ProductionTablesIntegrationTest {
             () -> {
               User loaded = userRepository.findById(user.getId()).orElseThrow();
               statistics.clear();
-              permissionService.withRolesInAmbientTenant(loaded, scope);
-              return new Measure(statistics.getPrepareStatementCount(), loaded.getCapabilities());
+              User described = permissionService.withRolesInAmbientTenant(loaded, scope);
+              return new Measure(
+                  statistics.getPrepareStatementCount(), described.getCapabilities());
             });
       } finally {
         TenantContext.clearCurrentTenant();

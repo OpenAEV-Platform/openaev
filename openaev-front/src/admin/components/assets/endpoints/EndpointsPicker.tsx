@@ -7,6 +7,7 @@ import { arrayOfEndpoints } from '../../../../actions/assets/asset-schema';
 import { findEndpoints, searchEndpoints } from '../../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../../actions/executors/executor-action';
 import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
+import markingsColumn from '../../../../components/common/list/markingsColumn';
 import { buildFilter } from '../../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -24,6 +25,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import AssetStatus from '../AssetStatus';
 
@@ -57,6 +59,7 @@ const EndpointsPicker: FunctionComponent<Props> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [endpointValues, setEndpointValues] = useState<(Endpoint | EndpointOutput)[]>([]);
   const { executorsMap } = useHelper((helper: ExecutorHelper) => ({ executorsMap: helper.getExecutorsMap() }));
+  const markingEnabled = isFeatureEnabled('MARKING');
 
   useDataLoader(() => {
     if (ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)) {
@@ -126,7 +129,7 @@ const EndpointsPicker: FunctionComponent<Props> = ({
             </Tooltip>
           );
         },
-        width: 15,
+        width: markingEnabled ? 10 : 15,
       },
       {
         field: 'endpoint_platform',
@@ -148,7 +151,7 @@ const EndpointsPicker: FunctionComponent<Props> = ({
         label: 'Architecture',
         isSortable: true,
         value: (endpoint: EndpointOutput) => endpoint.endpoint_arch,
-        width: 15,
+        width: markingEnabled ? 10 : 15,
       },
       {
         field: 'endpoint_agents_executor',
@@ -201,6 +204,12 @@ const EndpointsPicker: FunctionComponent<Props> = ({
         },
         width: 10,
       },
+      ...(markingEnabled
+        ? [{
+            ...markingsColumn('asset_markings', (endpoint: EndpointOutput) => endpoint.asset_markings),
+            width: 10,
+          }]
+        : []),
       {
         field: 'asset_tags',
         label: 'Tags',
@@ -209,7 +218,7 @@ const EndpointsPicker: FunctionComponent<Props> = ({
         width: 20,
       },
     ],
-  }), [executorsMap]);
+  }), [executorsMap, markingEnabled]);
 
   // Pagination
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);

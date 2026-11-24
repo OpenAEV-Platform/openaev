@@ -72,6 +72,7 @@ import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import io.openaev.utilstest.RowTenantScope;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -978,6 +979,9 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
       assertThat(flagged(otherTenant, latest)).isEmpty();
       keep(otherTenant, latest).andExpect(status().is4xxClientError());
       entityManager.clear();
+      // The request left the other tenant's scope on the test transaction; the action belongs to
+      // the default tenant, so it is read back from there.
+      DefaultTenantScopeTestListener.setAmbientScope(entityManager, DEFAULT_TENANT_UUID);
       PayloadIdentity identity = payload(latest.getPayload().getId()).getIdentity();
       assertThat(identity.getOlderVersionsKeptFor()).isNull();
     }
