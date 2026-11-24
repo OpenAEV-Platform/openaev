@@ -38,19 +38,15 @@ const MailDistributionByPlayer: FunctionComponent<Props> = ({ exerciseId }) => {
 
   const communicationsUsers = R.uniq(
     R.flatten(
-      R.map(
-        (n: Communication) => R.map((u: string) => usersMap[u], n.communication_users),
-        communications,
+      communications.map(
+        (n: Communication) => n.communication_users.map((u: string) => usersMap[u]),
       ),
     ),
   );
   const sortedUsersByCommunicationNumber = R.pipe(
     R.map((n: User) => ({
       ...n,
-      user_communications_number: R.filter(
-        (c: Communication) => n && R.includes(n.user_id, c.communication_users),
-        communications,
-      ).length,
+      user_communications_number: communications.filter((c: Communication) => n && R.includes(n.user_id, c.communication_users)).length,
     })),
     (items: Array<User & { user_communications_number: number }>) => items.toSorted(descendBy('user_communications_number')),
     R.take(10),

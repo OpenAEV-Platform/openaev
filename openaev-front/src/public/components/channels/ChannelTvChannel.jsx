@@ -2,7 +2,6 @@ import { Button } from '@filigran/design-system';
 import { ChatBubbleOutlineOutlined, FavoriteBorderOutlined, ShareOutlined } from '@mui/icons-material';
 import { Avatar, Card, CardContent, CardHeader, CardMedia, Grid, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { makeStyles } from 'tss-react/mui';
 
 import Empty from '../../../components/Empty';
@@ -46,7 +45,7 @@ const ChannelTvChannel = ({ channelReader }) => {
   const baseUri = buildTenantApiPath(`/api/player/${exercise?.exercise_id ?? scenario?.scenario_id}`);
   const { documentsMap } = useHelper(helper => ({ documentsMap: helper.getDocumentsMap() }));
   const logo = isDark ? channel.channel_logo_dark : channel.channel_logo_light;
-  const firstArticle = R.head(articles) || null;
+  const firstArticle = articles[0] || null;
   const firstArticleVideos = (firstArticle?.article_documents || [])
     .map(docId => (documentsMap[docId] ? documentsMap[docId] : undefined))
     .filter(d => d !== undefined)
@@ -59,8 +58,8 @@ const ChannelTvChannel = ({ channelReader }) => {
   } else if (firstArticleVideos.length >= 4) {
     firstArticleColumns = 3;
   }
-  const headArticles = R.tail(R.take(4, articles)) || [];
-  const otherArticles = R.drop(4, articles) || [];
+  const headArticles = articles.slice(0, 4).slice(1) || [];
+  const otherArticles = articles.slice(4) || [];
   const queryParams = userId && userId.length > 0 && userId !== 'null' ? `?userId=${userId}` : '';
   return (
     <div className={classes.container}>

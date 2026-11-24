@@ -61,7 +61,7 @@ const InjectAddArticles: FunctionComponent<Props> = ({
     } else if (injectArticlesIds.includes(articleId)) {
       handleRemoveArticle(articleId);
     } else {
-      setArticleIds(R.append(articleId, articleIds));
+      setArticleIds([...articleIds, articleId]);
     }
   };
 

@@ -51,7 +51,7 @@ class OldAttackPatternFieldComponent extends Component {
     this.props.addAttackPattern(data).then((result) => {
       if (result.result) {
         const newAttackPattern = result.entities.attackpatterns[result.result];
-        const killChainPhase = R.head(newAttackPattern.attack_pattern_kill_chain_phases);
+        const killChainPhase = newAttackPattern.attack_pattern_kill_chain_phases[0];
         const killChainName = killChainPhase ? killChainPhasesMap[killChainPhase]?.phase_kill_chain_name ?? null : null;
         const attackPatterns = R.append(
           {
@@ -82,7 +82,7 @@ class OldAttackPatternFieldComponent extends Component {
     } = this.props;
     const attackPatternsOptions = attackPatterns.map(
       (n) => {
-        const killChainPhase = R.head(n.attack_pattern_kill_chain_phases);
+        const killChainPhase = n.attack_pattern_kill_chain_phases[0];
         const killChainName = killChainPhase ? killChainPhasesMap[killChainPhase]?.phase_kill_chain_name ?? null : null;
         return {
           id: useExternalId ? n.attack_pattern_external_id : n.attack_pattern_id,

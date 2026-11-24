@@ -348,10 +348,7 @@ const Injects: FunctionComponent<Props> = ({
     }
     if (selectedElements && !R.isEmpty(selectedElements)) {
       // Find the indexes of the first and last selected entities
-      let firstIndex = R.findIndex(
-        (n: Inject) => n.inject_id === R.head(Object.values(selectedElements)).inject_id,
-        injects,
-      );
+      let firstIndex = injects.findIndex((n: Inject) => n.inject_id === Object.values(selectedElements)[0].inject_id);
       if (currentIndex > firstIndex) {
         let entities: InjectOutputType[] = [];
         while (firstIndex <= currentIndex) {

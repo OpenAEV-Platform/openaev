@@ -35,8 +35,8 @@ const ExerciseDistributionScoreByTeamInPercentage: FunctionComponent<Props> = ({
     // A team shows up once at least one of its expectations has been evaluated
     R.filter(([, expectations]: [string, InjectExpectationOutput[]]) => expectations.some(e => e.inject_expectation_score != null)),
     R.map(([teamId, expectations]: [string, InjectExpectationOutput[]]) => {
-      const reachedScore = R.sum(expectations.map(e => e.inject_expectation_score ?? 0));
-      const expectedScore = R.sum(expectations.map(e => e.inject_expectation_expected_score));
+      const reachedScore = expectations.map(e => e.inject_expectation_score ?? 0).reduce((acc, value) => acc + value, 0);
+      const expectedScore = expectations.map(e => e.inject_expectation_expected_score).reduce((acc, value) => acc + value, 0);
       return {
         ...teamsMap[teamId],
         team_total_percent_score: Math.round((reachedScore * 100) / (expectedScore || 1)),

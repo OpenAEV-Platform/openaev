@@ -31,7 +31,7 @@ const buildError = (data: AxiosError) => {
         R.propOr([], 'errors'),
         R.head(),
       );
-      return [R.head(elem), extractErrorsPipe(elem)];
+      return [elem[0], extractErrorsPipe(elem)];
     }),
     Object.fromEntries,
     (errors: Record<string, unknown>) => ({
