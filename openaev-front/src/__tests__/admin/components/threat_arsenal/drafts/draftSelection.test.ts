@@ -92,7 +92,7 @@ describe('draftSelection', () => {
       expect(rejectedOptionLabel(t, version('a2', '1.1.0', 'REJECTED'))).toBe('v1.1.0 · Rejected');
     });
 
-    it('given a draft fixing a rejected version should show why it was rejected', () => {
+    it('given a rejected version edited should show it as a draft', () => {
       // Arrange
       const fix = {
         ...draft('d1', 'a2', true),
@@ -101,7 +101,7 @@ describe('draftSelection', () => {
       };
 
       // Act / Assert
-      expect(draftOptionLabel(t, fix)).toBe('v1.1.0 · Rejected, being fixed: Deletes system logs');
+      expect(draftOptionLabel(t, fix)).toBe('Draft from v1.1.0');
       expect(draftOptionLabel(t, {
         ...draft('d2', 'a1'),
         draft_source_version: '1.0.0',
