@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.users.dto.UserInput;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
@@ -49,6 +50,7 @@ class UserTenantGroupScopeTest extends ProductionTablesIntegrationTest {
   @PersistenceContext private EntityManager entityManager;
 
   @Test
+  @ExpectsEmptyScopeReads("an operator of no tenant has no scope to read its associations under")
   @DisplayName(
       "given_anOperatorWithNoTenantMembership_should_grantAttachedAndRevokeDetachedGroupsOnUpdate")
   void

@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.users.dto.UserInput;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tenant;
@@ -423,6 +424,8 @@ public class TenantUserNoSelectorReadScopeTest extends ProductionTablesIntegrati
   @DisplayName("Caller with no tenant membership")
   class NoMembership {
 
+    @ExpectsEmptyScopeReads(
+        "a caller with no membership has no scope to read the lazy associations under")
     @ParameterizedTest(name = "{0}")
     @EnumSource(
         value = Handler.class,

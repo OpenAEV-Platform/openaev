@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.MarkingCtx;
@@ -173,6 +174,8 @@ class UserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTest {
   @DisplayName("the load the callers run with no scope")
   class UnscopedLoad {
 
+    @ExpectsEmptyScopeReads(
+        "the unscoped load is the subject: the markings of the group come back empty")
     @Test
     @DisplayName("given_noScope_should_loadTheGroupOfTheUserByIdWithNoMarking")
     void given_noScope_should_loadTheGroupOfTheUserByIdWithNoMarking() {
@@ -184,6 +187,8 @@ class UserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTest {
       assertThat(loaded.getUnscopedGroups().get(0).getMarkings()).isEmpty();
     }
 
+    @ExpectsEmptyScopeReads(
+        "the unscoped load is the subject: the markings of the group come back empty")
     @Test
     @DisplayName("given_noScope_should_loadTheGroupOfTheUserByEmailWithNoMarking")
     void given_noScope_should_loadTheGroupOfTheUserByEmailWithNoMarking() {
@@ -290,6 +295,8 @@ class UserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTest {
       assertThat(storedMarkingLinks()).isEqualTo(1);
     }
 
+    @ExpectsEmptyScopeReads(
+        "the unscoped loads are the subject: the clearance is read from the link table")
     @Test
     @DisplayName("given_noScopeLoadsOfTheUser_should_stillGrantTheMarkingOfTheGroupAsClearance")
     void given_noScopeLoadsOfTheUser_should_stillGrantTheMarkingOfTheGroupAsClearance() {

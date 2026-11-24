@@ -17,6 +17,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.*;
 import io.openaev.rest.user.form.login.LoginUserInput;
@@ -49,6 +52,8 @@ class UserApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private UserRepository userRepository;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   @MockitoBean private MailingService mailingService;
   @MockitoBean private RandomUtils randomUtils;
@@ -238,7 +243,11 @@ class UserApiTest extends IntegrationTest {
       // this is not a big deal, but we must guarantee that the mock
       // sets an actual value and not "null" in the reset token map
       when(randomUtils.getRandomAlphanumeric(anyInt())).thenReturn("reset_token");
-      userRepository.save(UserFixture.getUser("Reset", "Me", EMAIL));
+      // A user belongs to a tenant, so the reset answers in the scope of its memberships.
+      User user = userRepository.save(UserFixture.getUser("Reset", "Me", EMAIL));
+      tenantTx.execute(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> tenantRepository.addUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID));
     }
 
     @AfterEach
@@ -247,7 +256,9 @@ class UserApiTest extends IntegrationTest {
       // bootstrap admin, who now belongs to the default-tenant "Administrators" group; deleting a
       // group member through Hibernate without clearing the bidirectional users_groups link raises
       // a TransientObjectException (see TenantGroupService.delete()).
-      userRepository.findByEmailIgnoreCase(EMAIL).ifPresent(userRepository::delete);
+      tenantTx.execute(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> userRepository.findByEmailIgnoreCase(EMAIL).ifPresent(userRepository::delete));
     }
 
     @DisplayName("With a known email")

@@ -115,27 +115,35 @@ class StreamServiceInjectsScopeTest extends IntegrationTest {
 
     TenantContext.setCurrentTenant(tenantB);
     try {
-      Inject atomicTesting =
-          injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get();
-      injectId = atomicTesting.getId();
+      // The rows of the tenant are written in a transaction scoped to it, as a request writes them.
+      tenantTx.execute(
+          TxCtx.forTenant(tenantB),
+          () -> {
+            Inject atomicTesting =
+                injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get();
+            injectId = atomicTesting.getId();
 
-      Grant observer =
-          GrantFixture.getGrant(
-              injectId, Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING, Grant.GRANT_TYPE.OBSERVER, null);
-      // Empty-capability role: the read must come from the grant, so the grant query runs.
-      TenantGroupComposer.Composer group =
-          tenantGroupComposer
-              .forGroup(TenantGroupFixture.getGroup())
-              .withRole(tenantRoleComposer.forRole(TenantRoleFixture.getRole(Set.of())))
-              .withGrant(grantComposer.forGrant(observer));
-      grantedUser =
-          userComposer
-              .forUser(
-                  UserFixture.getUser(
-                      "Stream", "Observer", UUID.randomUUID() + "@unittests.invalid"))
-              .withGroup(group)
-              .persist()
-              .get();
+            Grant observer =
+                GrantFixture.getGrant(
+                    injectId,
+                    Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING,
+                    Grant.GRANT_TYPE.OBSERVER,
+                    null);
+            // Empty-capability role: the read must come from the grant, so the grant query runs.
+            TenantGroupComposer.Composer group =
+                tenantGroupComposer
+                    .forGroup(TenantGroupFixture.getGroup())
+                    .withRole(tenantRoleComposer.forRole(TenantRoleFixture.getRole(Set.of())))
+                    .withGrant(grantComposer.forGrant(observer));
+            grantedUser =
+                userComposer
+                    .forUser(
+                        UserFixture.getUser(
+                            "Stream", "Observer", UUID.randomUUID() + "@unittests.invalid"))
+                    .withGroup(group)
+                    .persist()
+                    .get();
+          });
     } finally {
       TenantContext.clearCurrentTenant();
     }

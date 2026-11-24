@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -140,6 +141,7 @@ class UserLoadUnscopedGroupsTest extends ProductionTablesIntegrationTest {
   @DisplayName("the load the callers run with no scope")
   class UnscopedLoad {
 
+    @ExpectsEmptyScopeReads("the unscoped load is the subject: only the platform group is loaded")
     @Test
     @DisplayName("given_noScope_should_loadThePlatformGroupOfTheUserAndNotItsTenantGroup")
     void given_noScope_should_loadThePlatformGroupOfTheUserAndNotItsTenantGroup() {
@@ -197,6 +199,7 @@ class UserLoadUnscopedGroupsTest extends ProductionTablesIntegrationTest {
       assertThat(storedGroupIds()).containsExactlyInAnyOrder(platformGroupId, tenantGroupId);
     }
 
+    @ExpectsEmptyScopeReads("an operator of no tenant updates its profile with no scope")
     @Test
     @DisplayName("given_anOperatorOfNoTenant_should_keepTheTenantGroupWhenOnlyTheProfileChanges")
     void given_anOperatorOfNoTenant_should_keepTheTenantGroupWhenOnlyTheProfileChanges() {

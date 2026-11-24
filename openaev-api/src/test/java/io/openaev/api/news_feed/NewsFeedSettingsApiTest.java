@@ -24,6 +24,7 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
+import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,6 +52,7 @@ class NewsFeedSettingsApiTest extends IntegrationTest {
   @Autowired private TenantXtmHubRegistrationRepository registrationRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private UserService userService;
+  @Autowired private EntityManager entityManager;
 
   @MockitoBean private PreviewFeatureService previewFeatureService;
 
@@ -84,11 +86,16 @@ class NewsFeedSettingsApiTest extends IntegrationTest {
 
   private org.springframework.test.web.servlet.ResultActions putSettings(Object... types)
       throws Exception {
-    return mvc.perform(
-        put(SETTINGS_URI, tenantId)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(asJsonString(Map.of(SUBSCRIBED_TYPES_FIELD, types)))
-            .with(csrf()));
+    org.springframework.test.web.servlet.ResultActions result =
+        mvc.perform(
+            put(SETTINGS_URI, tenantId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(Map.of(SUBSCRIBED_TYPES_FIELD, types)))
+                .with(csrf()));
+    // A request commits its own transaction in production; the test transaction spans the requests,
+    // so the change is written here, where the ambient scope is set, and not by the next request.
+    entityManager.flush();
+    return result;
   }
 
   @Nested

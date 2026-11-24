@@ -53,16 +53,21 @@ class XtmPeerTokenApiTest extends IntegrationTest {
   private String adminToken;
 
   private String issue(String bearer, String email, int expectedStatus) throws Exception {
-    return mockMvc
-        .perform(
-            post(XTM_PEER_TOKENS_URI)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + bearer)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(ISSUE_BODY.formatted(email)))
-        .andExpect(status().is(expectedStatus))
-        .andReturn()
-        .getResponse()
-        .getContentAsString();
+    String body =
+        mockMvc
+            .perform(
+                post(XTM_PEER_TOKENS_URI)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + bearer)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(ISSUE_BODY.formatted(email)))
+            .andExpect(status().is(expectedStatus))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    // A request commits its own transaction in production; the test transaction spans the requests,
+    // so the account is written here, where the ambient scope is set, and not by the next request.
+    entityManager.flush();
+    return body;
   }
 
   private void meWith(String token, int expectedStatus) throws Exception {

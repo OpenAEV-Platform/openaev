@@ -90,7 +90,7 @@ public class MeApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUser
+  @WithMockUser(autoJoinDefaultTenant = true)
   @DisplayName("PUT /api/me/profile")
   class PutMeProfile {
     private static final String URI = ME_URI + "/profile";
@@ -138,7 +138,7 @@ public class MeApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUser
+  @WithMockUser(autoJoinDefaultTenant = true)
   @DisplayName("PUT /api/me/password")
   class PutMePassword {
     private static final String URI = ME_URI + "/password";
@@ -248,7 +248,7 @@ public class MeApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUser
+  @WithMockUser(autoJoinDefaultTenant = true)
   @DisplayName("PUT /api/me/email")
   class PutMeEmail {
     private static final String URI = ME_URI + "/email";
@@ -369,7 +369,7 @@ public class MeApiTest extends IntegrationTest {
       User me = testUserHolder.get();
 
       me.setPassword(userService.encodeUserPassword(currentPassword));
-      userRepository.save(me);
+      userRepository.saveAndFlush(me);
 
       UpdateMeEmailInput input = new UpdateMeEmailInput();
       input.setCurrentPassword(currentPassword);
@@ -407,7 +407,7 @@ public class MeApiTest extends IntegrationTest {
       User me = testUserHolder.get();
       String currentEmail = me.getEmail();
       me.setPassword(userService.encodeUserPassword(currentPassword));
-      userRepository.save(me);
+      userRepository.saveAndFlush(me);
 
       UpdateMeEmailInput input = new UpdateMeEmailInput();
       input.setCurrentPassword(currentPassword);
@@ -460,7 +460,7 @@ public class MeApiTest extends IntegrationTest {
       User me = testUserHolder.get();
       String previousEmail = me.getEmail();
       me.setPassword(userService.encodeUserPassword(currentPassword));
-      userRepository.save(me);
+      userRepository.saveAndFlush(me);
 
       UpdateMeEmailInput input = new UpdateMeEmailInput();
       input.setCurrentPassword(currentPassword);
@@ -524,7 +524,7 @@ public class MeApiTest extends IntegrationTest {
       User me = testUserHolder.get();
       String previousEmail = me.getEmail();
       me.setPassword(userService.encodeUserPassword(currentPassword));
-      userRepository.save(me);
+      userRepository.saveAndFlush(me);
 
       UpdateMeEmailInput input = new UpdateMeEmailInput();
       input.setCurrentPassword(currentPassword);
@@ -586,7 +586,7 @@ public class MeApiTest extends IntegrationTest {
 
       String expectedEmail = me.getEmail();
       me.setPassword(userService.encodeUserPassword(currentPassword));
-      userRepository.save(me);
+      userRepository.saveAndFlush(me);
 
       UpdateMeEmailInput input = new UpdateMeEmailInput();
       input.setCurrentPassword(currentPassword);
@@ -688,7 +688,7 @@ public class MeApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("GET /api/me")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   class GetMe {
 
     @Test
