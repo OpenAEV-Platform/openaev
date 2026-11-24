@@ -63,6 +63,8 @@ public class FindingComposer extends ComposerBase<Finding> {
     @Override
     public FindingComposer.Composer persist() {
       injectComposer.ifPresent(InjectComposer.Composer::persist);
+      // The finding belongs to the tenant of the inject that produced it
+      injectComposer.ifPresent(inject -> this.finding.setTenant(inject.get().getTenant()));
       endpointComposers.forEach(EndpointComposer.Composer::persist);
       tagComposers.forEach(TagComposer.Composer::persist);
       findingRepository.save(this.finding);
