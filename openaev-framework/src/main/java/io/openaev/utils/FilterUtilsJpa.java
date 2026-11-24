@@ -262,8 +262,7 @@ public final class FilterUtilsJpa {
           (paths, texts) -> startWithTexts((Expression<String>) paths, cb, texts, type);
       case not_ends_with ->
           (paths, texts) -> notEndWithTexts((Expression<String>) paths, cb, texts, type);
-      case ends_with ->
-          (paths, texts) -> endWithTexts((Expression<String>) paths, cb, texts, type);
+      case ends_with -> (paths, texts) -> endWithTexts((Expression<String>) paths, cb, texts, type);
       case empty ->
           isNumericType(type)
               ? (paths, texts) -> emptyNumbers((Expression<? extends Number>) paths, cb)

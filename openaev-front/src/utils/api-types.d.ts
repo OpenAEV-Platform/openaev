@@ -5518,15 +5518,19 @@ export interface EntitiesPaginationInput {
 
 export interface EsAsset {
   asset_category?: string;
+  asset_criticality?: string;
   asset_description?: string;
   asset_external_reference?: string;
   asset_hostname?: string;
+  asset_internet_facing?: boolean;
   /** @uniqueItems true */
   asset_ips?: string[];
   /** @uniqueItems true */
   asset_mac_addresses?: string[];
   asset_name?: string;
   asset_seen_ip?: string;
+  asset_subcategory?: string;
+  asset_url?: string;
   /** @format date-time */
   base_created_at?: string;
   base_dependencies?: string[];

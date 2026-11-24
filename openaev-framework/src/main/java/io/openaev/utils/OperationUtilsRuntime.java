@@ -197,8 +197,8 @@ public class OperationUtilsRuntime {
   // -- NOT END WITH --
 
   /**
-   * Checks if the value does not end with any of the specified texts (see {@link
-   * #notContainsTexts} for the AND rationale).
+   * Checks if the value does not end with any of the specified texts (see {@link #notContainsTexts}
+   * for the AND rationale).
    *
    * @param value the value to check
    * @param texts the suffixes to test
