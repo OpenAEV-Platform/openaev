@@ -132,6 +132,17 @@ const PARENTS_OF: Record<string, (instance: Record<string, unknown>) => EntityRe
 const parentsOf = (schema: string, instance: Record<string, unknown>) =>
   (Object.hasOwn(PARENTS_OF, schema) ? PARENTS_OF[schema](instance) : []);
 
+// Asset subtypes stream under their own schema (`getStreamSchema()`), which the Redux store keeps
+// in separate buckets; queries see one asset id space.
+const TYPE_OF: Record<string, string> = {
+  endpoints: ENTITY_TYPES.ASSETS,
+  securityplatforms: ENTITY_TYPES.ASSETS,
+  aitargets: ENTITY_TYPES.ASSETS,
+};
+
+// Own keys only, as in parentsOf.
+const typeOf = (schema: string) => (Object.hasOwn(TYPE_OF, schema) ? TYPE_OF[schema] : schema);
+
 const actionOf = (eventType: string): EntityChangeAction => {
   switch (eventType) {
     case DATA_FETCH_SUCCESS:
@@ -150,7 +161,7 @@ const toEntityChange = (message: StreamMessage): EntityChange | undefined => {
   const rawId = message.instance[message.attribute_id];
   if (rawId === undefined || rawId === null || rawId === '') return undefined;
   const change: EntityChange = {
-    type: message.attribute_schema,
+    type: typeOf(message.attribute_schema),
     id: String(rawId),
     action: actionOf(message.event_type),
   };

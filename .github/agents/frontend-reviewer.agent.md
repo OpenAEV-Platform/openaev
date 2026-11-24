@@ -40,7 +40,8 @@ These thresholds trigger automatic severity levels regardless of subjective asse
 
 | Metric | Threshold | Severity |
 |---|---|---|
-| **List without pagination** | Any `map()` over an API list without `PaginationComponentV2` on a collection with >50 potential items | 🟠 HIGH |
+| **List without pagination** | Any `map()` over an API list without `usePaginatedQuery` or `PaginationComponentV2` on a collection with >50 potential items | 🟠 HIGH |
+| **Paginated query fed by hand** | A list on `usePaginatedQuery` that sets its total or rows by hand (`handleChangeTotalElements`, `incrementTotalElements`, a copy of `items` in state) instead of describing the change, or a new `PaginationComponentV2` `fetch` on a screen that reads its rows from a query | 🟠 HIGH |
 | **Re-render risk** | `useEffect` with missing or incorrect dependency array on a component that fetches data | 🟠 HIGH |
 | **Component size** | Single component file >300 lines → suggest splitting | 🟡 MEDIUM |
 | **`any` type usage** | Any `any` in new code (not pre-existing) | 🟡 MEDIUM |
@@ -64,7 +65,7 @@ These thresholds trigger automatic severity levels regardless of subjective asse
 | **Button convention** | Affirmative confirm not `priority="primary"`, Cancel not `priority="secondary"`, or irreversible delete confirm not `variant="destructive"` (per `frontend.instructions.md`) | 🟡 MEDIUM |
 | **Query cache written by hand** | `setQueryData`, `removeQueries`, an optimistic update or a direct `invalidateQueries` in feature code — describe the change through `useLiveMutation` / `useApplyChanges` instead (`frontend.instructions.md` → Data Loading & State) | 🟠 HIGH |
 | **Mixed data sources** | A screen migrated to TanStack Query that still reads the same server data from Redux (`useHelper`) or `useDataLoader` | 🟠 HIGH |
-| **Live query without `meta.live`** | A query that a change (stream or mutation) can make stale but declares no `meta.live`, builds it without `liveMeta` (untyped `refs`, type names outside `ENTITY_TYPES`), misses embedded entities in `refs`, or is a count / filtered list without `watch` | 🟡 MEDIUM |
+| **Live query without `meta.live`** | A query that a change (stream or mutation) can make stale but declares no `meta.live`, builds it without `liveMeta` (untyped `refs`, type names outside `ENTITY_TYPES`), misses embedded entities in `refs`, or is a count / filtered list without `watch` (a paginated list declares `collections` and `refs` instead) | 🟡 MEDIUM |
 | **Query data mutated or copied** | Sorting or editing a query's `data` in place, or copying it into `useState` / Redux — sort in a stable `select` | 🟠 HIGH |
 | **Error over data** | A query's error rendered in place of data it still has after a failed refetch (5xx, network), instead of only without data or on a client error (`isClientError`) | 🟡 MEDIUM |
 | **Thunk in a query or mutation** | A `queryFn` / `mutationFn` calling `dispatch(...)` or a `*Referential` action instead of a plain call resolving to the data | 🟠 HIGH |

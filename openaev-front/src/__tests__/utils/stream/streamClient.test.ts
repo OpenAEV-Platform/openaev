@@ -475,6 +475,25 @@ describe('streamClient', () => {
       }]);
     });
 
+    it.each(['endpoints', 'securityplatforms', 'aitargets'])('given_anAssetSubtypeStreamedAs_%s_should_emitAnAssetChange', (schema) => {
+      // Arrange
+      const changes = collect();
+
+      // Act
+      FakeEventSource.last.emit('message', message({
+        attribute_id: 'asset_id',
+        attribute_schema: schema,
+        instance: { asset_id: 'asset1' },
+      }));
+
+      // Assert
+      expect(changes).toEqual([{
+        type: 'assets',
+        id: 'asset1',
+        action: 'update',
+      }]);
+    });
+
     it('given_aSchemaWithoutParentsOrAnAgentWithoutAsset_should_leaveTheParentsOut', () => {
       // Arrange
       const changes = collect();
