@@ -1,6 +1,7 @@
 package io.openaev.rest.exercise;
 
-import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -41,9 +42,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-@WithMockUser(isAdmin = true)
+@WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
 @DisplayName("Simulation logs, comchecks and documents API")
 class ExerciseChildrenApiTest extends IntegrationTest {
+
+  /**
+   * The simulation routes under the default tenant, where the fixtures live, as the UI calls them.
+   */
+  private static final String SIMULATIONS_URI =
+      TENANT_EXERCISE_URI.replace("{tenantId}", DEFAULT_TENANT_UUID);
 
   private static final String LOG_BODY =
       "{\"log_title\":\"changed\",\"log_content\":\"changed\",\"log_tags\":[]}";
@@ -98,7 +105,7 @@ class ExerciseChildrenApiTest extends IntegrationTest {
   }
 
   private String simulationUri() {
-    return EXERCISE_URI + "/" + simulationId;
+    return SIMULATIONS_URI + "/" + simulationId;
   }
 
   private static MockHttpServletRequestBuilder withBody(

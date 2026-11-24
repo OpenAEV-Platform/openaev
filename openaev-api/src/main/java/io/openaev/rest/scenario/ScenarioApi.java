@@ -34,6 +34,7 @@ import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.ExerciseResponseHydrator;
@@ -50,10 +51,12 @@ import io.openaev.service.catalog.scenario.targeting.TargetChoice;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.period.RecurrenceService;
+import io.openaev.service.scenario.ReachabilityAssertions;
 import io.openaev.service.scenario.ScenarioLaunchService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -96,6 +99,7 @@ public class ScenarioApi extends RestBehavior {
   private final TeamService teamService;
   private final AssetGroupService assetGroupService;
   private final EndpointService endpointService;
+  private final EndpointMapper endpointMapper;
   private final ChannelService channelService;
   private final DocumentService documentService;
   private final TenantSettingsService tenantSettingsService;
@@ -163,9 +167,9 @@ public class ScenarioApi extends RestBehavior {
   public ScenarioSimple createScenarioWithInjectorContracts(
       TxCtx ctx, @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    // The contract search and the injects are not tenant-active yet and follow the ambient tenant:
-    // align it on the write tenant so the scenario and its injects stay in one tenant on both
-    // routes.
+    // The injects take their scenario's tenant and the contract search runs in the request scope.
+    // The ambient tenant is aligned on the write tenant for any row of this path that
+    // TenantBaseListener stamps from it; removing the alignment belongs to the v1 exit.
     return ambientTenantBridge.callInTenant(
         tenantId,
         () ->
@@ -193,9 +197,9 @@ public class ScenarioApi extends RestBehavior {
     // The injects are written in one tenant, the write tenant of the request: a scope naming
     // several tenants cannot designate it and is refused, as on the create endpoint above.
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    // The contract search and the injects are not tenant-active yet and follow the ambient tenant:
-    // align it on the write tenant so the scenarios and their injects stay in one tenant on both
-    // routes.
+    // The injects take their scenario's tenant and the contract search runs in the request scope.
+    // The ambient tenant is aligned on the write tenant for any row of this path that
+    // TenantBaseListener stamps from it; removing the alignment belongs to the v1 exit.
     return ambientTenantBridge.callInTenant(
         tenantId,
         () ->
@@ -366,7 +370,10 @@ public class ScenarioApi extends RestBehavior {
     if (input.getReplyTos() == null) {
       scenario.setReplyTos(currentReplyTos);
     }
-    scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    scenario.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), scenario.getTenant().getId())));
     if (hasText(input.getCustomDashboard())) {
       scenario.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
@@ -436,7 +443,10 @@ public class ScenarioApi extends RestBehavior {
       @Valid @RequestBody final ScenarioUpdateTagsInput input) {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     Set<Tag> currentTagList = scenario.getTags();
-    scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    scenario.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), scenario.getTenant().getId())));
     return hydrateForResponse(
         this.scenarioService.updateScenario(scenario, currentTagList, input.isApplyTagRule()));
   }
@@ -646,6 +656,10 @@ public class ScenarioApi extends RestBehavior {
             || (input.getRecurrence() != null && !input.getRecurrence().isBlank());
     if (schedules) {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
+      String refusal = ReachabilityAssertions.refusal(scenario);
+      if (refusal != null) {
+        throw new BadRequestException(refusal);
+      }
       scenario.setScheduledBy(
           this.userRepository
               .findById(currentUser().getId())
@@ -653,6 +667,40 @@ public class ScenarioApi extends RestBehavior {
     }
     scenario.setUpdateAttributes(input);
     return hydrateForResponse(this.scenarioService.updateScenario(scenario));
+  }
+
+  // -- REACHABILITY ASSERTION --
+
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/reachability-assertion",
+    TENANT_SCENARIO_URI + "/{scenarioId}/reachability-assertion"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.LAUNCH,
+      resourceType = ResourceType.SCENARIO)
+  @Operation(
+      summary = "Declare or clear a reachability assertion",
+      description =
+          "A reachability assertion runs only read-only injects on its schedule. Declaring a"
+              + " scheduled scenario that holds an enabled inject which is not read-only is"
+              + " refused.")
+  public ScenarioOutput updateScenarioReachabilityAssertion(
+      TxCtx ctx,
+      @PathVariable @NotBlank final String scenarioId,
+      @Valid @RequestBody final ScenarioReachabilityAssertionInput input) {
+    Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
+    scenario.setReachabilityAssertion(input.isReachabilityAssertion());
+    boolean scheduled = hasText(scenario.getRecurrence()) || scenario.getRecurrenceStart() != null;
+    String refusal = ReachabilityAssertions.refusal(scenario);
+    if (scheduled && refusal != null) {
+      throw new BadRequestException(refusal);
+    }
+    this.scenarioService.updateScenario(scenario);
+    // A DTO read inside the transaction: the entity would serialise its lazy associations after
+    // the commit (LazyAssociationAfterCommitArchTest).
+    return this.scenarioService.getScenarioById(ctx, scenarioId);
   }
 
   // -- OPTION --
@@ -715,10 +763,8 @@ public class ScenarioApi extends RestBehavior {
     return hydrateForResponse(scenarioRepository.save(scenario));
   }
 
-  @PostMapping({
-    SCENARIO_URI + "/{scenarioId}/exercise/running",
-    TENANT_SCENARIO_URI + "/{scenarioId}/exercise/running"
-  })
+  // Legacy route for existing clients; the tenant route is ScenarioLaunchApi#launch.
+  @PostMapping(SCENARIO_URI + "/{scenarioId}/exercise/running")
   @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
@@ -763,10 +809,14 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
+  // Deprecated: the UI stopped calling it when the inject form moved to the asset-groups/find
+  // route, which loads only the selected ids. Kept for API clients until its removal.
+  @Deprecated(since = "3.261118.0", forRemoval = true)
   @Operation(
       summary =
           "Get asset groups. Can only be called if the user has access to the given scenario.",
-      description = "Get all asset groups used by injects for a given scenario")
+      description = "Get all asset groups used by injects for a given scenario",
+      deprecated = true)
   @Transactional
   public List<AssetGroup> assetGroups(TxCtx ctx, @PathVariable String scenarioId) {
     return this.assetGroupService.assetGroupsForScenario(scenarioId);
@@ -818,12 +868,18 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Operation(
       summary = "Get endpoints. Can only be called if the user has access to the given scenario.",
-      description = "Get all endpoints used by injects for a given scenario")
+      description = "Get all endpoints used by injects for a given scenario",
+      deprecated = true)
   @Transactional
   // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
   // executors table (each endpoint's agents eager-load their executor).
-  public List<Endpoint> endpoints(TxCtx ctx, @PathVariable String scenarioId) {
-    return this.endpointService.endpointsForScenario(scenarioId);
+  // Deprecated: the UI stopped calling it when the inject form moved to the endpoints/find
+  // route, which loads only the selected ids. Kept for API clients until its removal.
+  @Deprecated(since = "3.261118.0", forRemoval = true)
+  public List<EndpointOutput> endpoints(TxCtx ctx, @PathVariable String scenarioId) {
+    return this.endpointService.endpointsForScenario(scenarioId).stream()
+        .map(endpointMapper::toEndpointOutput)
+        .toList();
   }
 
   @PostMapping({

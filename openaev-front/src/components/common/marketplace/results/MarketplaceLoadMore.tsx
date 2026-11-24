@@ -1,5 +1,5 @@
 import { Spinner } from '@filigran/design-system';
-import { Box } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useRef } from 'react';
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
 
 // Bottom of a marketplace list: asks for the next page once it scrolls into view.
 const MarketplaceLoadMore: FunctionComponent<Props> = ({ hasMore, loading, paused, onLoadMore }) => {
+  const theme = useTheme();
   const sentinel = useRef<HTMLDivElement>(null);
   const loadMore = useRef(onLoadMore);
   loadMore.current = onLoadMore;
@@ -28,16 +29,16 @@ const MarketplaceLoadMore: FunctionComponent<Props> = ({ hasMore, loading, pause
 
   if (!hasMore && !loading) return null;
   return (
-    <Box
+    <div
       ref={sentinel}
-      sx={{
+      style={{
         display: 'flex',
         justifyContent: 'center',
-        padding: 2,
+        padding: theme.spacing(2),
       }}
     >
       {loading && <Spinner size="md" />}
-    </Box>
+    </div>
   );
 };
 

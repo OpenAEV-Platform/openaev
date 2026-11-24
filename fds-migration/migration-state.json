@@ -71,7 +71,8 @@
         "openaev-front/src/admin/components/lessons/simulations/LessonsCategories.tsx",
         "openaev-front/src/admin/components/lessons/simulations/Lessons.tsx",
         "openaev-front/src/admin/components/lessons/scenarios/LessonsCategories.tsx",
-        "openaev-front/src/admin/components/lessons/scenarios/Lessons.tsx"
+        "openaev-front/src/admin/components/lessons/scenarios/Lessons.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersions.tsx"
       ]
     },
     {
@@ -104,7 +105,9 @@
       ],
       "reason": "Form-field wave: the multiline branch of the same wrapper. `resize` is pinned to none on every site, as arbitrated; `rows` and autosize (`minRows`/`maxRows`) replay the previous heights.",
       "files": [
-        "openaev-front/src/components/fields/TextFieldFds.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
+        "openaev-front/src/components/fields/TextFieldFds.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioConflicts.tsx"
       ]
     },
     {
@@ -162,7 +165,10 @@
         "openaev-front/src/components/fields/CheckboxFieldController.tsx",
         "openaev-front/src/public/components/login/Login.tsx",
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectAll.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsagesTable.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadNewVersionDialog.tsx"
       ]
     },
     {
@@ -341,6 +347,7 @@
         "openaev-front/src/components/common/list/fragments/DateFragment.tsx",
         "openaev-front/src/components/common/list/fragments/EndpointActiveFragment.tsx",
         "openaev-front/src/components/common/list/fragments/EndpointAgentsPrivilegeFragment.tsx",
+        "openaev-front/src/components/common/marketplace/install/MarketplaceInstallActions.tsx",
         "openaev-front/src/components/common/overview/CodeBlock.tsx",
         "openaev-front/src/components/common/queryable/filter/FilterAutocomplete.tsx",
         "openaev-front/src/components/common/queryable/filter/FilterChip.tsx",
@@ -358,7 +365,8 @@
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectAll.tsx",
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectionBar.tsx",
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
+        "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogCard.tsx"
       ]
     },
     {
@@ -432,6 +440,7 @@
         "openaev-front/src/admin/components/scenarios/scenario/ScenarioHeader.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/scenario_assistant/AttackPatternAIAssistantDialog.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/scenario_assistant/ScenarioAssistant.tsx",
+        "openaev-front/src/admin/components/scenarios/targets/InjectTargetsList.tsx",
         "openaev-front/src/admin/components/settings/attack_patterns/AttackPatternPopover.jsx",
         "openaev-front/src/admin/components/settings/data_ingestion/xls_mapper/MapperForm.tsx",
         "openaev-front/src/admin/components/settings/data_ingestion/xls_mapper/RulesContractContent.tsx",
@@ -472,6 +481,7 @@
         "openaev-front/src/components/common/dialog/Dialog.tsx",
         "openaev-front/src/components/common/import/DragAndDropImportDialog.tsx",
         "openaev-front/src/components/common/loader/ListLoader.tsx",
+        "openaev-front/src/components/common/marketplace/install/MarketplaceInstallActions.tsx",
         "openaev-front/src/components/common/terminal/Terminal.tsx",
         "openaev-front/src/components/fields/TagFieldSingle.tsx",
         "openaev-front/src/private/components/nav/TopBar.tsx",
@@ -545,6 +555,7 @@
         "openaev-front/src/admin/components/scenarios/scenario/ScenarioHeader.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/ScenarioStatus.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/ScenarioType.tsx",
+        "openaev-front/src/admin/components/scenarios/targets/ScenarioTargetsDrawer.tsx",
         "openaev-front/src/admin/components/search/FullTextSearch.tsx",
         "openaev-front/src/admin/components/settings/custom_domains/CustomDomainStatusChip.tsx",
         "openaev-front/src/admin/components/settings/kill_chain_phases/KillChainPhases.tsx",
@@ -568,6 +579,8 @@
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalScenarioUpdateComponent.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/DetectionRemediationInfo.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/OutputFormTab.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadTrustLine.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
         "openaev-front/src/admin/components/workspaces/custom_dashboards/results/ResultsListCells.tsx",
         "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/list/elements/ExpectationTypeChip.tsx",
         "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/list/elements/InjectExpectationSourceFragment.tsx",
@@ -599,7 +612,15 @@
         "openaev-front/src/components/common/marketplace/results/MarketplaceSectionHeader.tsx",
         "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
         "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
-        "openaev-front/src/components/common/marketplace/card/MarketplaceCardMeta.tsx"
+        "openaev-front/src/components/common/marketplace/card/MarketplaceCardMeta.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadNewVersionDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/customization/BlockSide.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/catalog/CatalogPayloadInstallAction.tsx",
+        "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogCard.tsx",
+        "openaev-front/src/admin/components/scenarios/targets/InjectTargetsList.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersionsTable.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateSummary.tsx"
       ]
     },
     {
@@ -623,6 +644,7 @@
         "openaev-front/src/admin/components/simulations/simulation/injects/InjectIndexTabs.tsx",
         "openaev-front/src/admin/components/simulations/simulation/variables/AvailableVariablesDialog.tsx",
         "openaev-front/src/admin/components/threat_arsenal/form/RemediationFormTabs.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalInformationDrawer.tsx",
         "openaev-front/src/components/common/tabs/Tabs.tsx",
         "openaev-front/src/components/common/marketplace/page/MarketplaceTabs.tsx"
       ]
@@ -677,7 +699,7 @@
         "openaev-front/src/admin/components/common/entreprise_edition/EnterpriseEditionButton.tsx",
         "openaev-front/src/admin/components/common/form/TextFieldAskAI.tsx",
         "openaev-front/src/admin/components/common/healthchecks/HealthcheckIndicator.tsx",
-        "openaev-front/src/admin/components/common/healthchecks/Healthchecks.tsx",
+        "openaev-front/src/admin/components/common/healthchecks/HealthcheckFixButton.tsx",
         "openaev-front/src/admin/components/common/injects/ImportFileSelector.tsx",
         "openaev-front/src/admin/components/common/injects/ImportUploaderInjectFromInjectsTest.tsx",
         "openaev-front/src/admin/components/common/injects/ImportUploaderInjectFromXlsInjects.tsx",
@@ -753,6 +775,10 @@
         "openaev-front/src/admin/components/reporting/form/ReportingScheduleForm.tsx",
         "openaev-front/src/admin/components/scenarios/ScenarioForm.tsx",
         "openaev-front/src/admin/components/scenarios/ScenarioFormChaining.tsx",
+        "openaev-front/src/admin/components/scenarios/catalog/CatalogScenarioInstallDrawer.tsx",
+        "openaev-front/src/admin/components/scenarios/catalog/MissingRequirementAlert.tsx",
+        "openaev-front/src/admin/components/scenarios/launch/RevokedInjectsFix.tsx",
+        "openaev-front/src/admin/components/scenarios/launch/ScenarioLaunchCheckDrawer.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/Scenario.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/ScenarioHeader.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/scenario_assistant/AttackPatternAIAssistantDialog.tsx",
@@ -843,6 +869,7 @@
         "openaev-front/src/components/common/export/ExportOptionsDialog.tsx",
         "openaev-front/src/components/common/import/DragAndDropImportDialog.tsx",
         "openaev-front/src/components/common/loader/LoaderDialog.tsx",
+        "openaev-front/src/components/common/marketplace/install/MarketplaceInstallActions.tsx",
         "openaev-front/src/components/common/overview/Section.tsx",
         "openaev-front/src/components/common/pagination/PaginationComponent.tsx",
         "openaev-front/src/components/common/queryable/pagination/PaginationComponentV2.tsx",
@@ -861,7 +888,24 @@
         "openaev-front/src/public/components/trialbanners/TopBanner.tsx",
         "openaev-front/src/utils/ai/ResponseDialog.tsx",
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectionBar.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/card/ThreatArsenalCard.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveBar.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx",
+        "openaev-front/src/admin/components/integrations/Integrations.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadNewVersionDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateBanner.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/customization/RevertToFiligran.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalInformationDrawer.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/VersionsTabNote.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/catalog/CatalogPayloadInstallAction.tsx",
+        "openaev-front/src/admin/components/scenarios/catalog/CatalogScenarioAction.tsx",
+        "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogDrawer.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioRevisionsTable.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersionsTable.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioConflicts.tsx"
       ]
     },
     {
@@ -930,6 +974,136 @@
       "reason": "The type icon tile of the XTM Hub news feed toasts, tinted from the theme primary colour as on the OpenCTI news feed toasts.",
       "files": [
         "openaev-front/src/admin/components/nav/NewsFeedToastItem.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "A message about the payload a drawer shows: its revocation, and what a revoked version breaks.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationBanner.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionsTab.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsageMoveResult.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateBanner.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalInformationDrawer.tsx"
+      ]
+    },
+    {
+      "component": "Dialog",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The revoke and lift dialog of a payload version: title, description, scrolling body and footer actions.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadNewVersionDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateDialog.tsx"
+      ]
+    },
+    {
+      "component": "Select",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The payload version picker.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/versions/PayloadVersionSelect.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Warning shown when another payload version of the action needs values the previous one did not.",
+      "files": [
+        "openaev-front/src/admin/components/common/injects/create/InjectCreationConfig.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Inline warnings with an optional action button (e.g. Dismiss) instead of the MUI Alert.",
+      "files": [
+        "openaev-front/src/admin/components/integrations/Integrations.tsx"
+      ]
+    },
+    {
+      "component": "RadioGroup",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "One side to keep for each conflict of an update.",
+      "files": [
+        "openaev-front/src/components/common/update/ConflictChoice.tsx"
+      ]
+    },
+    {
+      "component": "Menu",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The actions menu of a Threat Arsenal action: trigger, items and separator.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalActionPopover.tsx"
+      ]
+    },
+    {
+      "component": "CardBanner",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The one banner of a Threat Arsenal card, a direct child of the library Card: a revoked version, or injects left on an older version.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/card/useThreatArsenalCardBanner.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "What stands in the way of installing or launching a scenario, each with its fix: a missing integration, injects without a target or on a revoked version, an empty allow list.",
+      "files": [
+        "openaev-front/src/admin/components/scenarios/catalog/ChainedScopeFields.tsx",
+        "openaev-front/src/admin/components/scenarios/catalog/MissingRequirementAlert.tsx",
+        "openaev-front/src/admin/components/scenarios/launch/ScenarioLaunchCheckDrawer.tsx",
+        "openaev-front/src/admin/components/scenarios/targets/InjectTargetsList.tsx"
+      ]
+    },
+    {
+      "component": "Dialog",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The update and rollback dialog of a catalogue scenario.",
+      "files": [
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Inline notice of the scenario update dialog.",
+      "files": [
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx"
       ]
     }
   ],

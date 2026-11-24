@@ -54,6 +54,13 @@ export const relaunchAtomicTesting = (injectId: string) => {
   return simplePostCall(uri);
 };
 
+// Stops a running atomic testing: its pending agent jobs are withdrawn and it
+// ends in error with a trace naming who stopped it.
+export const stopAtomicTesting = (injectId: string) => {
+  const uri = `${ATOMIC_TESTING_URI}/${injectId}/stop`;
+  return simplePostCall(uri);
+};
+
 export const updateAtomicTestingRecurrence = (injectId: string, data: InjectRecurrenceInput) => {
   const uri = `${ATOMIC_TESTING_URI}/${injectId}/recurrence`;
   return simplePutCall(uri, data);

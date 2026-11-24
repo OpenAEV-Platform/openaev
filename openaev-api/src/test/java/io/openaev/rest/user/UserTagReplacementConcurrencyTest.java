@@ -52,6 +52,9 @@ import org.springframework.test.context.DynamicPropertySource;
 @DisplayName("Tag replacement of a user by concurrent transactions")
 class UserTagReplacementConcurrencyTest extends IntegrationTest {
 
+  // Own context, not ProductionTablesIntegrationTest: AddedTags reads the shared
+  // SessionFactory's global Statistics counter, which a context shared with other test
+  // classes can pollute with their own statements between the clear() and the read.
   @DynamicPropertySource
   static void productionActiveTables(DynamicPropertyRegistry registry) {
     registry.add(

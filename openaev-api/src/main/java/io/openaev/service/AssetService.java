@@ -5,13 +5,16 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.asset.AssetOptionOutput;
+import io.openaev.api.asset.dto.AssetBulkUpdateInput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.AssetType;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.model.Tag;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
+import io.openaev.database.repository.TagRepository;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.rest.asset.form.AssetBulkProcessingInput;
 import io.openaev.rest.exception.BadRequestException;
@@ -27,6 +30,8 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +52,7 @@ public class AssetService {
   private final AssetRepository assetRepository;
   private final SecurityPlatformRepository securityPlatformRepository;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+  private final TagRepository tagRepository;
 
   public Asset asset(@NotBlank final String assetId) {
     return this.assetRepository
@@ -130,11 +136,97 @@ public class AssetService {
   }
 
   /**
+   * Bulk update of the classification of assets (category, subcategory, URL, criticality) and tag
+   * addition, over the same selection as {@link #bulkDeleteAssets} (explicit ids, or the inventory
+   * search input with exclusions; security platforms always out of scope).
+   *
+   * <p>A null attribute is left unchanged; tags are added to the existing ones. The subcategory is
+   * validated against its category ({@link AssetCategorizationValidator}): with a subcategory the
+   * category is required, so every selected asset ends with a consistent pair; with a category and
+   * no subcategory, an asset whose current subcategory belongs to another category has it cleared.
+   * Tag ids are resolved in the write tenant; an unknown one fails the whole call before any write.
+   *
+   * <p>Same chunked, non-request-wide transaction shape as the other bulk operations, so a large
+   * selection never holds row locks for its whole duration.
+   *
+   * @param tenantId the tenant the tags are resolved in (the caller's write scope)
+   * @return the ids of the updated assets
+   */
+  public List<String> bulkUpdateAssets(
+      final TxCtx ctx, @NotBlank final String tenantId, @NotNull final AssetBulkUpdateInput input) {
+    if (input.getCategory() == null
+        && input.getSubcategory() == null
+        && input.getUrl() == null
+        && input.getCriticality() == null
+        && CollectionUtils.isEmpty(input.getTagIdsToAdd())) {
+      throw new BadRequestException("Nothing to update: give at least one attribute");
+    }
+    if (input.getSubcategory() != null && input.getCategory() == null) {
+      throw new BadRequestException("asset_subcategory requires asset_category");
+    }
+    AssetCategorizationValidator.validate(input.getCategory(), input.getSubcategory());
+
+    Set<Tag> tagsToAdd =
+        CollectionUtils.isEmpty(input.getTagIdsToAdd())
+            ? Set.of()
+            : bulkDeleteExecutor.resolveInTransaction(
+                ctx,
+                () -> {
+                  Set<String> wanted = new HashSet<>(input.getTagIdsToAdd());
+                  Set<Tag> found =
+                      new HashSet<>(tagRepository.findAllByIdInTenant(wanted, tenantId));
+                  if (found.size() != wanted.size()) {
+                    throw new ElementNotFoundException(
+                        "One or more tags not found in the current tenant");
+                  }
+                  return found;
+                });
+
+    List<String> assetIds = resolveBulkAssetIds(ctx, input);
+    return bulkDeleteExecutor.processInChunks(
+        ctx,
+        "update",
+        "assets",
+        assetIds,
+        chunk -> {
+          List<Asset> assets = fromIterable(assetRepository.findAllById(chunk));
+          for (Asset asset : assets) {
+            applyBulkUpdate(asset, input, tagsToAdd);
+          }
+          assetRepository.saveAll(assets);
+        });
+  }
+
+  private static void applyBulkUpdate(
+      final Asset asset, final AssetBulkUpdateInput input, final Set<Tag> tagsToAdd) {
+    if (input.getCategory() != null) {
+      asset.setCategory(input.getCategory());
+      if (input.getSubcategory() != null) {
+        asset.setSubcategory(input.getSubcategory());
+      } else if (asset.getSubcategory() != null
+          && !asset.getSubcategory().getCategory().equals(input.getCategory())) {
+        asset.setSubcategory(null);
+      }
+    }
+    if (input.getUrl() != null) {
+      asset.setUrl(StringUtils.trimToNull(input.getUrl()));
+    }
+    if (input.getCriticality() != null) {
+      asset.setCriticality(input.getCriticality());
+    }
+    if (!tagsToAdd.isEmpty()) {
+      Set<Tag> tags = asset.getTags() == null ? new HashSet<>() : new HashSet<>(asset.getTags());
+      tags.addAll(tagsToAdd);
+      asset.setTags(tags);
+    }
+  }
+
+  /**
    * Resolves the ids of assets matched by a bulk selection (explicit ids, or a search input with
    * optional exclusions - the same select-all pattern as {@link #bulkDeleteAssets}), always
    * excluding security platforms. Shared by every bulk asset operation so the selection semantics -
    * including the explicit-ids-XOR-search-input validation - stay identical across them (today:
-   * delete, bulk marking assignment).
+   * delete, bulk marking assignment, bulk update).
    *
    * <p>Resolved in a short read transaction (via {@code bulkDeleteExecutor}, despite the name a
    * generic chunked-operation helper) so the Hibernate tenant filter applies to the query.
@@ -249,5 +341,13 @@ public class AssetService {
         entityManager.clear();
       }
     }
+  }
+
+  /**
+   * The assets whose hostname is one of the given lower-case keys, read in the caller's transaction
+   * so the tenant and marking scope applies. Used by the XTM counterpart lookup.
+   */
+  public List<Asset> findAllByHostnameIn(Collection<String> hostnames) {
+    return assetRepository.findAllByHostnameIn(hostnames);
   }
 }

@@ -2,7 +2,8 @@ package io.openaev.service.catalog.payload;
 
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.catalog.CatalogItemStatus;
-import io.openaev.database.repository.CatalogItemRepository;
+import io.openaev.database.model.catalog.CatalogPayload;
+import io.openaev.service.catalog.CatalogListService;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -15,12 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CatalogPayloadStatuses {
 
-  private final CatalogItemRepository catalogItemRepository;
+  private final CatalogListService catalogListService;
 
   @Transactional(readOnly = true)
   public Snapshot current() {
     return new Snapshot(
-        catalogItemRepository.findAllPayloads().stream()
+        catalogListService.all(CatalogPayload.class).stream()
             .collect(
                 Collectors.toMap(
                     item ->
@@ -28,7 +29,7 @@ public class CatalogPayloadStatuses {
                             item.getRelease().getRepository(),
                             item.getExternalId(),
                             item.getVersion()),
-                    item -> item.getStatus())));
+                    CatalogPayload::getStatus)));
   }
 
   public record Version(String repository, String externalId, String version) {

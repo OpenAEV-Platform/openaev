@@ -124,7 +124,8 @@ public class NotificationTriggerApi {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return notificationTriggerMapper.toNotificationTriggerOutput(
         notificationTriggerService.update(
-            triggerId, notificationTriggerMapper.toNotificationTrigger(tenantId, input)));
+            triggerId,
+            notificationTriggerMapper.toNotificationTriggerForUpdate(tenantId, triggerId, input)));
   }
 
   @LogExecutionTime

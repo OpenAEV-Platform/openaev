@@ -55,6 +55,8 @@ public interface ExerciseRepository
 
   boolean existsByIdAndTenantIdIn(@NotNull String id, @NotNull Collection<String> tenantIds);
 
+  long countByTenantIdAndScenarioId(@NotNull String tenantId, @NotNull String scenarioId);
+
   @Modifying
   @Query(value = "DELETE FROM exercises WHERE exercise_id = :simulationId", nativeQuery = true)
   void deleteById(@Param("simulationId") String simulationId);
@@ -354,7 +356,6 @@ public interface ExerciseRepository
                 INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
                 INNER JOIN exercises e ON i.inject_exercise = e.exercise_id
                 WHERE (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-                AND i.tenant_id = :#{#tenantContext.currentTenant}
                 ORDER BY e.exercise_created_at DESC;
             """,
       nativeQuery = true)
@@ -372,7 +373,6 @@ public interface ExerciseRepository
                 LEFT JOIN scenarios_exercises se ON se.exercise_id = e.exercise_id
                 WHERE (se.scenario_id = :sourceId OR fa.asset_id = :sourceId)
                 AND (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-                AND i.tenant_id = :#{#tenantContext.currentTenant}
                 ORDER BY e.exercise_created_at DESC;
             """,
       nativeQuery = true)
@@ -474,4 +474,23 @@ public interface ExerciseRepository
       nativeQuery = true)
   List<RawSimulationIndexing> findForIndexing(
       @Param("from") Instant from, @Param("limit") int limit);
+
+  /**
+   * Simulations run from each of the given scenarios, with the start of the latest one: the key
+   * facts another XTM product shows next to its scenario pivot. One row per scenario with at least
+   * one simulation.
+   */
+  @Query(
+      "SELECT e.scenario.id AS scenarioId, COUNT(e) AS simulations, MAX(e.start) AS lastStart"
+          + " FROM Exercise e WHERE e.scenario.id IN :scenarioIds GROUP BY e.scenario.id")
+  List<ScenarioSimulationsRow> countSimulationsByScenarioIdIn(
+      @Param("scenarioIds") Collection<String> scenarioIds);
+
+  interface ScenarioSimulationsRow {
+    String getScenarioId();
+
+    long getSimulations();
+
+    Instant getLastStart();
+  }
 }

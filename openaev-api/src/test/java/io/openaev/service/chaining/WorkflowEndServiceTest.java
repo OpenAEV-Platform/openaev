@@ -38,6 +38,8 @@ class WorkflowEndServiceTest {
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
   @Mock private WorkflowStateStore workflowStateStore;
 
+  @Mock private io.openaev.service.NotificationEventService notificationEventService;
+
   @InjectMocks private WorkflowEndService workflowEndService;
 
   @Nested

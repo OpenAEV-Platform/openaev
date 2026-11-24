@@ -6,9 +6,6 @@ import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.service.catalog.CatalogFileService;
 import io.openaev.service.catalog.CatalogInstaller;
 import io.openaev.service.catalog.CatalogOffer;
-import io.openaev.service.catalog.payload.InstallablePayloadVersion;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -53,16 +50,12 @@ public class CatalogScenarioInstaller
       ScenarioInstallChoice choice,
       CatalogHistory.Mode mode)
       throws Exception {
-    Map<InstallablePayloadVersion, byte[]> payloadFiles = new LinkedHashMap<>();
-    for (InstallablePayloadVersion payload : released.payloads()) {
-      payloadFiles.put(payload, catalogFileService.storedFile(payload.fileHash()));
-    }
     return catalogScenarioService.install(
         ctx,
         tenantId,
         released,
         catalogFileService.storedFile(released.archiveHash()),
-        payloadFiles,
+        catalogFileService.payloadFiles(released.payloads()),
         choice,
         mode);
   }

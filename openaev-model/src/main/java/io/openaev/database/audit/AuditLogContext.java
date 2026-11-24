@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
@@ -57,6 +58,26 @@ public final class AuditLogContext {
 
   public static Map<String, Object> getBefore(String entityId) {
     return beforeSnapshots().get(entityId);
+  }
+
+  /**
+   * Runs {@code work} and then puts the before-snapshots back as they were when it started. For a
+   * read in a persistence context other than the request's: its loads fire {@code @PostLoad} on the
+   * request thread, and would otherwise replace the snapshot of an entity the request read itself,
+   * by id, with the entity as that other read saw it.
+   */
+  public static <T> T withBeforeSnapshotsRestored(Supplier<T> work) {
+    if (!hasRequestContext()) {
+      return work.get();
+    }
+    Map<String, Map<String, Object>> before = new LinkedHashMap<>(beforeSnapshots());
+    try {
+      return work.get();
+    } finally {
+      Map<String, Map<String, Object>> current = beforeSnapshots();
+      current.clear();
+      current.putAll(before);
+    }
   }
 
   // -- Entity snapshots --

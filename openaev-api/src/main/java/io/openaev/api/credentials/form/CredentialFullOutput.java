@@ -82,6 +82,7 @@ public record CredentialFullOutput(
     @Schema(description = "Azure authority host URI")
         @JsonProperty("credential_azure_authority_host_uri")
         String azureAuthorityHostUri,
+    @Schema(description = "Azure scope") @JsonProperty("credential_azure_scope") String azureScope,
     @Schema(
             description =
                 "Whether an Azure requests certificate is stored; the certificate itself is never returned")

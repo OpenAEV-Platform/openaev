@@ -9,6 +9,7 @@ import io.openaev.security.token.ConnectorJwtExtractor;
 import io.openaev.security.token.ExtractorBase;
 import io.openaev.security.token.PlainTokenExtractor;
 import io.openaev.security.token.XtmJwksExtractor;
+import io.openaev.security.token.XtmUserJwtExtractor;
 import io.openaev.service.UserService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -33,6 +34,7 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
   private ConnectorJwtExtractor connectorJwtExtractor;
   private PlainTokenExtractor plainTokenExtractor;
   private XtmJwksExtractor xtmJwksExtractor;
+  private XtmUserJwtExtractor xtmUserJwtExtractor;
   private OpenAEVConfig openAEVConfig;
 
   @Autowired
@@ -56,6 +58,11 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
   }
 
   @Autowired
+  public void setXtmUserJwtExtractor(XtmUserJwtExtractor xtmUserJwtExtractor) {
+    this.xtmUserJwtExtractor = xtmUserJwtExtractor;
+  }
+
+  @Autowired
   public void setPlainTokenExtractor(PlainTokenExtractor plainTokenExtractor) {
     this.plainTokenExtractor = plainTokenExtractor;
   }
@@ -63,7 +70,11 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
   private Optional<User> getAuthedUserFromAuthorizationHeader(
       String value, HttpServletRequest request) {
     Set<ExtractorBase> extractors =
-        Set.of(this.connectorJwtExtractor, this.xtmJwksExtractor, this.plainTokenExtractor);
+        Set.of(
+            this.connectorJwtExtractor,
+            this.xtmJwksExtractor,
+            this.xtmUserJwtExtractor,
+            this.plainTokenExtractor);
 
     if (!value.toLowerCase().startsWith(BEARER_PREFIX)) {
       return this.plainTokenExtractor.authUser(value, request);

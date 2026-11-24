@@ -1,4 +1,4 @@
-import { FactCheckOutlined, MailOutlined, NoteAltOutlined, TrackChangesOutlined } from '@mui/icons-material';
+import { Icon } from '@filigran/design-system';
 import { type FunctionComponent, useContext } from 'react';
 
 import RightMenu, { type RightMenuEntry } from '../../../../components/common/menu/RightMenu';
@@ -19,22 +19,22 @@ const ExecutionMenu: FunctionComponent<Props> = ({ exerciseId }) => {
   const entries: RightMenuEntry[] = [
     {
       path: `${base}/timeline`,
-      icon: () => (<TrackChangesOutlined />),
+      icon: () => (<Icon name="radar" size={16} />),
       label: 'Overview',
     },
     {
       path: `${base}/mails`,
-      icon: () => (<MailOutlined />),
+      icon: () => (<Icon name="mail" size={16} />),
       label: 'Mails',
     },
     {
       path: `${base}/validations`,
-      icon: () => (<FactCheckOutlined />),
+      icon: () => (<Icon name="list-checks" size={16} />),
       label: 'Validations',
     },
     {
       path: `${base}/logs`,
-      icon: () => (<NoteAltOutlined />),
+      icon: () => (<Icon name="square-pen" size={16} />),
       label: 'Simulation logs',
     },
   ];

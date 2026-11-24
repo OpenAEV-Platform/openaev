@@ -36,7 +36,9 @@ public class StreamClearanceService {
    *     the reader holds no marking and only receives unmarked entities (fail-closed).
    */
   public MarkingCtx clearanceFor(User user, String tenantId) {
-    if (!isFiltering()) {
+    // The first admin holds every marking: on the stream, that includes the rows whose markings
+    // could not be read.
+    if (!isFiltering() || User.ADMIN_UUID.equals(user.getId())) {
       return MarkingCtx.all();
     }
     if (tenantId == null) {

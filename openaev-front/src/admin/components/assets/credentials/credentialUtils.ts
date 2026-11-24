@@ -42,6 +42,7 @@ const convertCredentialFullOutputToCredentialInput = (credential: CredentialFull
     azure_tenant_id: credential.credential_azure_tenant_id,
     azure_subscription_id: credential.credential_azure_subscription_id,
     azure_authority_host_uri: credential.credential_azure_authority_host_uri,
+    azure_scope: credential.credential_azure_scope,
     // The certificate never travels back either: same placeholder rule as the GCP key file.
     azure_requests_certificate: credential.credential_azure_requests_certificate_defined ? DOTS : '',
     // GCP: the key file never travels back, the backend only tells us whether one is stored so the

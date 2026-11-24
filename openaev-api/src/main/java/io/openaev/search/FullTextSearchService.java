@@ -11,10 +11,12 @@ import static java.util.stream.Collectors.toMap;
 import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.database.specification.TenantSpecification;
+import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.PostConstruct;
@@ -44,6 +46,7 @@ public class FullTextSearchService {
   private final ScenarioRepository scenarioRepository;
   private final ExerciseRepository exerciseRepository;
   private final UserService userService;
+  private final PermissionService permissionService;
   private final FullTextSearchQuery fullTextSearchQuery;
 
   private Map<Class<? extends Base>, SearchableClass<? extends Base>> searchableClasses;
@@ -112,7 +115,9 @@ public class FullTextSearchService {
   }
 
   public Page<FullTextSearchResult> fullTextSearch(
-      @NotBlank final Class<?> clazz, @NotNull final SearchPaginationInput searchPaginationInput) {
+      final TxCtx ctx,
+      @NotBlank final Class<?> clazz,
+      @NotNull final SearchPaginationInput searchPaginationInput) {
     if (!hasText(searchPaginationInput.getTextSearch())) {
       return generateEmptyResult(searchPaginationInput);
     }
@@ -124,12 +129,12 @@ public class FullTextSearchService {
             .orElseThrow(
                 () -> new IllegalArgumentException(clazz + " is not handle by full text search"));
 
-    return search(searchable, searchPaginationInput);
+    return search(ctx, searchable, searchPaginationInput);
   }
 
   private <T extends Base> Page<FullTextSearchResult> search(
-      SearchableClass<T> searchable, SearchPaginationInput searchPaginationInput) {
-    User currentUser = userService.currentUser();
+      TxCtx ctx, SearchableClass<T> searchable, SearchPaginationInput searchPaginationInput) {
+    User currentUser = callerInAmbientTenant(ctx);
     // Check if the principal has the right to search this class
     Capability capaForClass = searchable.capability();
     boolean isGrantable = searchable.clazz().getAnnotation(Grantable.class) != null;
@@ -154,20 +159,20 @@ public class FullTextSearchService {
 
   /**
    * Perform a full text search on all classes and only return the counts for each class. To get the
-   * results, use the {@link #fullTextSearch(Class, SearchPaginationInput)}
+   * results, use the {@link #fullTextSearch(TxCtx, Class, SearchPaginationInput)}
    *
    * @param searchTerm the search term to use
    * @return a map of class type to the count of results for that class
    */
   public Map<Class<? extends Base>, FullTextSearchCountResult> fullTextSearch(
-      @Nullable final String searchTerm) {
+      final TxCtx ctx, @Nullable final String searchTerm) {
     if (!hasText(searchTerm)) {
       return searchableClasses.keySet().stream()
           .collect(toMap(identity(), c -> new FullTextSearchCountResult(c.getSimpleName(), 0L)));
     }
 
     String finalSearchTerm = getFinalSearchTerm(searchTerm);
-    User currentUser = userService.currentUser();
+    User currentUser = callerInAmbientTenant(ctx);
 
     // Only search classes that the user has access to
     return searchableClasses.values().stream()
@@ -177,6 +182,15 @@ public class FullTextSearchService {
                     || currentUser.getCapabilities().contains(s.capability())
                     || Capability.BYPASS.equals(s.capability()))
         .collect(toMap(SearchableClass::clazz, s -> count(s, finalSearchTerm, currentUser)));
+  }
+
+  /**
+   * The caller with the roles it holds in the ambient tenant, the tenant whose scenarios and
+   * simulations are searched: the capability checks of the search are taken on it, whatever tenants
+   * the request's scope names.
+   */
+  private User callerInAmbientTenant(TxCtx ctx) {
+    return permissionService.callerInAmbientTenant(userService.currentUser(), ctx);
   }
 
   private <T extends Base> FullTextSearchCountResult count(

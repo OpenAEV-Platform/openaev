@@ -42,6 +42,15 @@ public enum NotificationResourceCatalog {
           .collect(
               LinkedHashMap::new, (map, entry) -> map.put(entry.resourceType, entry), Map::putAll);
 
+  /**
+   * The resource type a recipient's read right is checked on. Every entry but the catalogue sync is
+   * checked on its own type; a catalogue sync event is about the catalogue, whose releases carry no
+   * permission of their own.
+   */
+  public ResourceType getAccessResourceType() {
+    return this == CATALOG_SYNC ? ResourceType.CATALOG : resourceType;
+  }
+
   public static Optional<NotificationResourceCatalog> fromResourceType(ResourceType resourceType) {
     return Optional.ofNullable(BY_RESOURCE_TYPE.get(resourceType));
   }

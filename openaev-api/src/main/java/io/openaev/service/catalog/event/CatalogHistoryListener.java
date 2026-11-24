@@ -1,9 +1,13 @@
 package io.openaev.service.catalog.event;
 
+import io.openaev.database.model.Payload;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.payload.PayloadRevocationChanged;
 import io.openaev.database.repository.CatalogHistoryRepository;
+import io.openaev.rest.payload.service.PayloadService;
+import io.openaev.service.UserService;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
@@ -16,6 +20,8 @@ public class CatalogHistoryListener {
 
   private final CatalogHistoryRepository catalogHistoryRepository;
   private final EntityManager entityManager;
+  private final PayloadService payloadService;
+  private final UserService userService;
 
   @EventListener
   public void onContentChanged(CatalogContentChanged event) {
@@ -31,5 +37,19 @@ public class CatalogHistoryListener {
       history.setUser(entityManager.getReference(User.class, event.userId()));
     }
     catalogHistoryRepository.save(history);
+  }
+
+  @EventListener
+  public void onRevocationChanged(PayloadRevocationChanged event) {
+    Payload payload = payloadService.payload(event.tenantId(), event.payloadId());
+    if (payload.getCatalogRepository() == null) {
+      return;
+    }
+    onContentChanged(
+        CatalogContentChanged.of(
+            payload,
+            event.revoked() ? CatalogHistory.Action.REVOKE : CatalogHistory.Action.LIFT_REVOCATION,
+            event.byCatalogue() ? CatalogHistory.Mode.AUTO : CatalogHistory.Mode.MANUAL,
+            userService.currentUserOrNull()));
   }
 }

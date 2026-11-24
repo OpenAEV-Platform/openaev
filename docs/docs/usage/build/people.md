@@ -57,6 +57,14 @@ players and teams from other organizations.
 This feature can be particularly useful if you are using OpenAEV to plan and execute simulations for various companies
 or subsidiaries.
 
+{% if feature_visible("EXPLORATION_GRAPH") %}
+## People in the exploration graph
+
+A Player's page has a **Graph** tab that shows the Player with the Assets it is the identity of, its Teams and its
+Organization. Players, Teams and Organizations also carry an **Explore in graph** button that opens the
+[exploration graph](../run-and-evaluate/exploration-graph.md) focused on them.
+
+{% endif %}
 ## What's next?
 
 - [Scenarios](scenario/scenario.md) -- Assign Teams and Players to Scenarios

@@ -13,8 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Group;
@@ -47,8 +46,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,19 +56,14 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("User JSON groups of the request tenant")
-public class UserJsonGroupsTenantTest extends IntegrationTest {
+public class UserJsonGroupsTenantTest extends ProductionTablesIntegrationTest {
 
   private static final String UNSCOPED_GROUPS = "unscopedGroups";
   private static final String USER_GROUPS = "user_groups";
 
   /** Production's active tables: the handlers read tables the inspector gates. */
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
-
   @Autowired private MockMvc mvc;
+
   @Autowired private ObjectMapper objectMapper;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private TestUserHolder testUserHolder;

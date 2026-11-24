@@ -22,9 +22,10 @@ interface Props {
   isChecked: (action: ThreatArsenalAction) => boolean;
   onSelect: (action: ThreatArsenalAction) => void;
   onToggle: (action: ThreatArsenalAction, event: MouseEvent<HTMLElement>) => void;
-  onUpdate: (result: ThreatArsenalAction) => void;
+  onUpdate: (result: ThreatArsenalAction, replacedId?: string) => void;
   onDuplicate: (result: ThreatArsenalAction) => void;
   onDelete: (actionId: string) => void;
+  onShowVersions: (action: ThreatArsenalAction) => void;
 }
 
 const ThreatArsenalList: FunctionComponent<Props> = ({
@@ -41,6 +42,7 @@ const ThreatArsenalList: FunctionComponent<Props> = ({
   onUpdate,
   onDuplicate,
   onDelete,
+  onShowVersions,
 }) => {
   const { t } = useFormatter();
   if (!loading && actions.length === 0) {
@@ -99,6 +101,7 @@ const ThreatArsenalList: FunctionComponent<Props> = ({
                   onUpdate={onUpdate}
                   onDuplicate={onDuplicate}
                   onDelete={() => onDelete(action.injector_contract_id)}
+                  onShowVersions={onShowVersions}
                 />
               ))}
             </Fragment>
