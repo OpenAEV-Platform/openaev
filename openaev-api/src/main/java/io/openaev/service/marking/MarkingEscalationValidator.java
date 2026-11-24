@@ -2,10 +2,8 @@ package io.openaev.service.marking;
 
 import io.openaev.context.MarkingCtx;
 import io.openaev.database.model.MarkingDefinition;
-import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.MarkingAboveClearanceException;
 import java.util.Collection;
-import java.util.List;
 import java.util.OptionalInt;
 import java.util.Set;
 
@@ -34,7 +32,7 @@ public final class MarkingEscalationValidator {
   /**
    * @param clearance the caller's own clearance in the tenant being written to
    * @param requested the markings they are trying to grant
-   * @throws ForbiddenException naming the markings they do not hold
+   * @throws MarkingAboveClearanceException when one of the markings is not in their clearance
    */
   public static void assertCanAssignMarkings(
       MarkingCtx clearance, Collection<MarkingDefinition> requested) {
@@ -43,18 +41,8 @@ public final class MarkingEscalationValidator {
             ? Set.copyOf(restricted.markingIds())
             : Set.of();
 
-    List<String> unheld =
-        requested.stream()
-            .filter(marking -> !held.contains(marking.getId()))
-            .map(MarkingDefinition::getDefinition)
-            .sorted()
-            .toList();
-
-    if (!unheld.isEmpty()) {
-      // Names rather than ids: the caller chose these in a UI that shows names, and an id would
-      // make a legitimate mistake unreadable.
-      throw new ForbiddenException(
-          "Cannot assign markings you do not hold: " + String.join(", ", unheld));
+    if (requested.stream().anyMatch(marking -> !held.contains(marking.getId()))) {
+      throw new MarkingAboveClearanceException();
     }
   }
 

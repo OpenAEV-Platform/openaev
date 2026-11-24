@@ -788,7 +788,8 @@ class TenantActiveTableAccessArchTest {
               MarkingDefinitionApi.class,
               // Service behind the handler; every caller is a wired handler:
               MarkingDefinitionService.class,
-              // OpenCTI-format import behind MarkingDefinitionApi.importStix, a TxCtx-carrying
+              // OpenCTI-format import behind MarkingDefinitionImporterApi.importStix, a
+              // TxCtx-carrying
               // @Transactional handler: its two reads take the write tenant the handler resolved
               // (findByStixIdAndTenantId, findByTypeAndDefinitionAndTenantId) and creation
               // goes through MarkingDefinitionService.create.

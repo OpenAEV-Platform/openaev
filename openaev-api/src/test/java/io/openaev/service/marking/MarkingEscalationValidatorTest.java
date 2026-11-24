@@ -50,36 +50,30 @@ class MarkingEscalationValidatorTest {
       List<MarkingDefinition> requested = List.of(marking("m-red", "TLP:RED"));
 
       // -- ACT --
-      ForbiddenException thrown =
+      MarkingAboveClearanceException thrown =
           assertThrows(
-              ForbiddenException.class,
+              MarkingAboveClearanceException.class,
               () -> assertCanAssignMarkings(MarkingCtx.none(), requested));
 
       // -- ASSERT --
       // This is the default state of every user, and it is the case that makes the guard worth
       // having: managing a group must not be a route to granting oneself TLP:RED.
-      assertTrue(thrown.getMessage().contains("TLP:RED"), thrown.getMessage());
+      assertEquals(MarkingAboveClearanceException.CODE, thrown.getMessage());
     }
 
     @Test
-    @DisplayName("given a partial clearance, should refuse and name only the unheld markings")
-    void given_partialClearance_should_nameOnlyTheUnheldOnes() {
+    @DisplayName("given a partial clearance, should refuse when one requested marking is unheld")
+    void given_partialClearance_should_refuse() {
       // -- ARRANGE --
       MarkingCtx clearance = MarkingCtx.forMarkings(List.of("m-green"));
 
-      // -- ACT --
-      ForbiddenException thrown =
-          assertThrows(
-              ForbiddenException.class,
-              () ->
-                  assertCanAssignMarkings(
-                      clearance,
-                      List.of(marking("m-green", "TLP:GREEN"), marking("m-red", "TLP:RED"))));
-
-      // -- ASSERT --
-      // Naming the held one too would send the caller to fix something that is not wrong.
-      assertTrue(thrown.getMessage().contains("TLP:RED"), thrown.getMessage());
-      assertTrue(!thrown.getMessage().contains("TLP:GREEN"), thrown.getMessage());
+      // -- ACT / ASSERT --
+      assertThrows(
+          MarkingAboveClearanceException.class,
+          () ->
+              assertCanAssignMarkings(
+                  clearance,
+                  List.of(marking("m-green", "TLP:GREEN"), marking("m-red", "TLP:RED"))));
     }
 
     @Test
@@ -93,7 +87,7 @@ class MarkingEscalationValidatorTest {
 
       // -- ACT / ASSERT --
       assertThrows(
-          ForbiddenException.class,
+          MarkingAboveClearanceException.class,
           () -> assertCanAssignMarkings(unresolved, List.of(marking("m-red", "TLP:RED"))));
     }
   }

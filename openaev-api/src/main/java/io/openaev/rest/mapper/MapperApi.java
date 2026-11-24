@@ -15,7 +15,6 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.raw.RawPaginationImportMapper;
 import io.openaev.database.repository.ImportMapperRepository;
-import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ImportException;
 import io.openaev.rest.helper.RestBehavior;
@@ -59,10 +58,6 @@ public class MapperApi extends RestBehavior {
 
   public static final String MAPPER_URI = "/api/mappers";
   public static final String TENANT_MAPPER_URI = TENANT_PREFIX + "/mappers";
-
-  // These two forward a client-supplied csvType under the mapper capability: a type with its own
-  // endpoint is reached there, under its own capability, never through this one.
-  private static final Set<CsvType> TYPES_WITH_DEDICATED_API = Set.of(CsvType.MARKING_DEFINITIONS);
 
   private final ImportMapperRepository importMapperRepository;
   private final MapperService mapperService;
@@ -145,7 +140,6 @@ public class MapperApi extends RestBehavior {
       @RequestParam CsvType csvType,
       @RequestBody @Valid final SearchPaginationInput input,
       HttpServletResponse response) {
-    assertHandledHere(csvType);
     mapperService.exportMappersCsv(ctx, csvType, input, response);
   }
 
@@ -257,13 +251,6 @@ public class MapperApi extends RestBehavior {
       @RequestParam CsvType csvType,
       @RequestPart("file") @NotNull MultipartFile file)
       throws Exception {
-    assertHandledHere(csvType);
     mapperService.importMappersCsv(ctx, file, csvType);
-  }
-
-  private static void assertHandledHere(CsvType csvType) {
-    if (TYPES_WITH_DEDICATED_API.contains(csvType)) {
-      throw new BadRequestException("This CSV type is handled by its own API");
-    }
   }
 }
