@@ -174,8 +174,16 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
     || (user.user_lastname || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1
     || (user.user_phone || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1
     || (user.user_organization || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1;
+  // The organization column displays the organization name, so it sorts by that name rather than by its id
+  const organizationName = (user: UserStoreExtended) => (user.user_organization
+    ? organizationsMap?.[user.user_organization]?.organization_name
+    : undefined) ?? '';
+  const compareByOrganization = (a: UserStoreExtended, b: UserStoreExtended) => organizationName(a).localeCompare(organizationName(b));
   const sortKey = sortBy as keyof UserStoreExtended;
-  const compareUsers = orderAsc ? ascendBy<UserStoreExtended>(sortKey) : descendBy<UserStoreExtended>(sortKey);
+  const compareByKey = orderAsc ? ascendBy<UserStoreExtended>(sortKey) : descendBy<UserStoreExtended>(sortKey);
+  const compareUsers = sortBy === 'user_organization'
+    ? (a: UserStoreExtended, b: UserStoreExtended) => (orderAsc ? compareByOrganization(a, b) : compareByOrganization(b, a))
+    : compareByKey;
   const sortedUsers: UserStoreExtended[] = users
     .filter(u => !!u)
     .filter((user: UserStore) => tags.length === 0
@@ -303,7 +311,7 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
                   {sortHeader('user_email', 'Email address', true)}
                   {sortHeader('user_options', 'Options', false)}
                   {sortHeader('user_organization', 'Organization', true)}
-                  {sortHeader('user_tags', 'Tags', true)}
+                  {sortHeader('user_tags', 'Tags', false)}
                 </>
               )}
             />

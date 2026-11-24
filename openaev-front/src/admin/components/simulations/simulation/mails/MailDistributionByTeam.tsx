@@ -36,13 +36,13 @@ const MailDistributionByTeam: FunctionComponent<Props> = ({ exerciseId }) => {
       ...a,
       team_communications_number: a.team_communications?.length,
     })),
-    (items: Array<Team & { team_communications_number: number }>) => items.toSorted(descendBy('team_communications_number')),
+    (items: Array<Team & { team_communications_number: number | undefined }>) => items.toSorted(descendBy('team_communications_number')),
     R.take(10),
   )(teams || []);
   const totalMailsByTeamData = [
     {
       name: t('Total mails'),
-      data: sortedTeamsByCommunicationNumber.map((a: Team & { team_communications_number: number }) => ({
+      data: sortedTeamsByCommunicationNumber.map((a: Team & { team_communications_number: number | undefined }) => ({
         x: a.team_name,
         y: a.team_communications_number,
         fillColor: teamsColors[a.team_id],
