@@ -19,6 +19,7 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.ScopeRuleSelectedMode;
+import io.openaev.database.model.ScopeRuleSnapshot;
 import io.openaev.database.model.ScopeRuleSource;
 import io.openaev.database.model.ScopeRuleValueType;
 import io.openaev.database.model.Tenant;
@@ -66,6 +67,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
@@ -126,6 +128,7 @@ class ChainedRunDispatchParityTest extends IntegrationTest {
   @Autowired private InjectService injectService;
   @Autowired private WorkflowRepository workflowRepository;
   @Autowired private WorkflowScopeRuleRepository workflowScopeRuleRepository;
+  @Autowired private ScopeSnapshotService scopeSnapshotService;
   @Autowired private MarkingClearanceCacheManager clearanceCache;
   @Autowired private DataSource dataSource;
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
@@ -480,6 +483,115 @@ class ChainedRunDispatchParityTest extends IntegrationTest {
                   .stream()
                   .map(WorkflowScopeRule::getRuleValue)
                   .collect(Collectors.toSet()));
+    }
+  }
+
+  /**
+   * The photos of the allow / deny rules are frozen by whoever starts or ends the run, and only two
+   * code paths write them: the start ({@code freezeLaunch}) and the end ({@code freezeEnd}: cancel,
+   * timeout, no more progress). Both resolve them at the system clearance, so a restricted user
+   * cannot narrow a photo the admin reads, and the photo is the same whoever froze it. A reset or a
+   * deletion writes no end photo at all.
+   */
+  @Nested
+  @DisplayName("the photos of the scope rules frozen by a restricted user")
+  class FrozenSnapshots {
+
+    @Test
+    @DisplayName("given a GREEN user starting the run, should freeze the RED asset as a RED user")
+    void given_greenLauncher_should_freezeTheLaunchPhotoOfTheRedAsset() {
+      // -- ARRANGE --
+      String frozenByGreen = persistWorkflow(false);
+      String frozenByRed = persistWorkflow(false);
+
+      // -- ACT --
+      freeze(greenLauncher, frozenByGreen, run -> scopeSnapshotService.freezeLaunch(run, tenantId));
+      freeze(redLauncher, frozenByRed, run -> scopeSnapshotService.freezeLaunch(run, tenantId));
+
+      // -- ASSERT --
+      ScopeRuleSnapshot photo = launchPhotoOf(frozenByGreen, red);
+      assertThat(photo.getAssets())
+          .as("the RED asset is resolved, not degraded to its raw id as a deleted one")
+          .extracting(ScopeRuleSnapshot.AssetSnapshot::getId)
+          .containsExactly(red.getId());
+      assertThat(photo).isEqualTo(launchPhotoOf(frozenByRed, red));
+    }
+
+    @Test
+    @DisplayName("given a GREEN user cancelling the run, should freeze the RED asset as a RED user")
+    void given_greenUserCancelling_should_freezeTheEndPhotoOfTheRedAsset() {
+      // -- ARRANGE --
+      String frozenByGreen = persistWorkflow(false);
+      String frozenByRed = persistWorkflow(false);
+
+      // -- ACT --
+      freeze(
+          greenLauncher,
+          frozenByGreen,
+          run ->
+              scopeSnapshotService.freezeEnd(run, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED));
+      freeze(
+          redLauncher,
+          frozenByRed,
+          run ->
+              scopeSnapshotService.freezeEnd(run, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED));
+
+      // -- ASSERT --
+      ScopeRuleSnapshot photo = endPhotoOf(frozenByGreen, red);
+      assertThat(photo.getDeleted())
+          .as("the RED asset exists: it is not frozen as deleted during the execution")
+          .isNotEqualTo(Boolean.TRUE);
+      assertThat(photo.getAssets())
+          .extracting(ScopeRuleSnapshot.AssetSnapshot::getId)
+          .containsExactly(red.getId());
+      assertThat(photo).isEqualTo(endPhotoOf(frozenByRed, red));
+    }
+
+    @Test
+    @DisplayName("given a GREEN user resetting the simulation, should write no end photo")
+    void given_greenUserResetting_should_writeNoEndPhoto() {
+      // -- ARRANGE --
+      String workflowId = persistWorkflow(false);
+
+      // -- ACT --
+      freeze(
+          greenLauncher,
+          workflowId,
+          run ->
+              scopeSnapshotService.freezeEnd(
+                  run, WorkflowEndService.WORKFLOW_END_CAUSE.DELETED_BY_RESET_SIMULATION));
+
+      // -- ASSERT --
+      assertThat(endPhotoOf(workflowId, red)).isNull();
+      assertThat(endPhotoOf(workflowId, green)).isNull();
+    }
+
+    /** Runs {@code freezing} on the workflow, in the request of {@code user}. */
+    private void freeze(User user, String workflowId, Consumer<Workflow> freezing) {
+      inRequestOf(
+          user,
+          () -> {
+            freezing.accept(workflowRepository.findById(workflowId).orElseThrow());
+            return null;
+          });
+    }
+
+    private ScopeRuleSnapshot launchPhotoOf(String workflowId, Endpoint asset) {
+      return ruleOf(workflowId, asset).getSnapshotStart();
+    }
+
+    private ScopeRuleSnapshot endPhotoOf(String workflowId, Endpoint asset) {
+      return ruleOf(workflowId, asset).getSnapshotEnd();
+    }
+
+    /** Read back from the repository at the system clearance, not through a restricted reader. */
+    private WorkflowScopeRule ruleOf(String workflowId, Endpoint asset) {
+      return inTenant(
+          () ->
+              workflowRepository.findById(workflowId).orElseThrow().getWorkflowScopeRules().stream()
+                  .filter(rule -> asset.getId().equals(rule.getRuleValue()))
+                  .findFirst()
+                  .orElseThrow());
     }
   }
 
