@@ -84,6 +84,7 @@ public class ExerciseApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Not retrieving first page of exercises by text search")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_not_working_search_input_should_return_a_page_of_exercises() throws Exception {
         SearchPaginationInput searchPaginationInput =
             PaginationFixture.getDefault().textSearch("wrong").build();
@@ -226,7 +227,7 @@ public class ExerciseApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Search exercises by ids as user non granted")
-      @WithMockUser(isAdmin = false)
+      @WithMockUser(isAdmin = false, autoJoinDefaultTenant = true)
       void given_list_of_ids_select_exercises_without_capabilities_no_grants() throws Exception {
         GetExercisesInput getExercisesInput = new GetExercisesInput();
         getExercisesInput.setExerciseIds(EXERCISE_IDS);

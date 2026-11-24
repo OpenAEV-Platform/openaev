@@ -130,6 +130,7 @@ public class InjectTargetSearchTest extends ProductionTablesIntegrationTest {
   public class WhenInjectDoesNotExist {
     @Test
     @DisplayName("Returns not found")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     public void whenInjectDoesNotExist_returnNotFound() throws Exception {
       String id = UUID.randomUUID().toString();
       mvc.perform(
@@ -169,6 +170,7 @@ public class InjectTargetSearchTest extends ProductionTablesIntegrationTest {
   public class WhenInjectWithoutAuthorisation {
     @Test
     @DisplayName("Returns not found") // obfuscate lacking privs with NOT_FOUND
+    @WithMockUser(autoJoinDefaultTenant = true)
     public void withoutAuthorisation_returnNotFound() throws Exception {
       String id = UUID.randomUUID().toString();
       mvc.perform(

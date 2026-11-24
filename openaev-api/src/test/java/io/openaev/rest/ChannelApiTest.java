@@ -116,7 +116,7 @@ class ChannelApiTest extends IntegrationTest {
   @DisplayName("Retrieve articles for scenario")
   @Test
   @Order(2)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void retrieveArticlesForScenarioTest() throws Exception {
     // -- EXECUTE --
     String response =
@@ -167,7 +167,7 @@ class ChannelApiTest extends IntegrationTest {
   @DisplayName("Delete article for scenario")
   @Test
   @Order(4)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void deleteArticleForScenarioTest() throws Exception {
     // -- EXECUTE 1 ASSERT --
     this.mvc

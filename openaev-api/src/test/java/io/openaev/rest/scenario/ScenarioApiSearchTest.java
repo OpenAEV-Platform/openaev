@@ -100,6 +100,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Not retrieving first page of scenario by textsearch")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_not_working_search_input_should_return_a_page_of_scenarios() throws Exception {
         SearchPaginationInput searchPaginationInput =
             PaginationFixture.getDefault().textSearch("wrong").build();

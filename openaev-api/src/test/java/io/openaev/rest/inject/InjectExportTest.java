@@ -570,6 +570,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("When lacking OBSERVER grant on exercise, return NOT FOUND")
+      @WithMockUser(autoJoinDefaultTenant = true)
       public void whenLackingOBSERVERGrantOnExerciseReturnNotFound() throws Exception {
         List<InjectComposer.Composer> injectWrappers = createDefaultInjectWrappers();
 
@@ -716,6 +717,7 @@ public class InjectExportTest extends IntegrationTest {
   public class IndividualExportWithAdminAuthorisation {
     @Test
     @DisplayName("When the inject is not found in the database, return NOT FOUND")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     public void whenIndividualExportInjectIsNotFound_returnNotFound() throws Exception {
       List<InjectExportTarget> targets = createDefaultInjectTargets();
 
