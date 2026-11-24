@@ -22,13 +22,6 @@ vi.mock('../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (va
 
 vi.mock('../../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: () => true }) }));
 
-vi.mock('../../../../../components/common/Drawer', () => ({
-  default: ({ open, children }: {
-    open: boolean;
-    children: ReactNode;
-  }) => (open ? <div data-testid="create-drawer">{children}</div> : null),
-}));
-
 vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({ addThreatArsenalAction: (input: unknown) => calls.add(input) }));
 
 vi.mock('../../../../../actions/threat_arsenals/threatArsenal-draft-actions', () => ({
@@ -45,6 +38,22 @@ const SAVE = 'save-draft';
 const SUBMIT = 'submit';
 const DISCARD = 'discard-draft';
 const OPEN = 'open';
+const CLOSE = 'close';
+
+vi.mock('../../../../../components/common/Drawer', () => ({
+  default: ({ open, handleClose, children }: {
+    open: boolean;
+    handleClose: () => void;
+    children: ReactNode;
+  }) => (open
+    ? (
+        <div data-testid="create-drawer">
+          <button type="button" onClick={handleClose}>{CLOSE}</button>
+          {children}
+        </div>
+      )
+    : null),
+}));
 
 // The form is not under test: its buttons call the draft mode and the submit the drawer gives it.
 vi.mock('../../../../../admin/components/threat_arsenal/ThreatArsenalActionForm', () => ({
@@ -144,6 +153,23 @@ describe('CreateThreatArsenalAction: a new action saved as a draft', () => {
     expect(screen.getByTestId('initial-name').textContent).toBe('Saved new action');
     await waitFor(() => expect(calls.saveDraft).toHaveBeenCalledWith('draft-1', { draft_content: { action_name: 'Dump credentials' } }));
     expect(calls.createDraft).not.toHaveBeenCalled();
+  });
+
+  it('given a draft saved from Create and the drawer closed should start a new action on the next Create', async () => {
+    // Arrange
+    renderCreate();
+    fireEvent.click(screen.getByText(OPEN));
+    fireEvent.click(screen.getByText(SAVE));
+    await waitFor(() => expect(screen.getByTestId('saved').textContent).toBe('true'));
+    fireEvent.click(screen.getByText(CLOSE));
+
+    // Act
+    fireEvent.click(screen.getByText(OPEN));
+    fireEvent.click(screen.getByText(SAVE));
+
+    // Assert
+    await waitFor(() => expect(calls.createDraft).toHaveBeenCalledTimes(2));
+    expect(calls.saveDraft).not.toHaveBeenCalled();
   });
 
   it('given a saved draft discarded should ask first, then discard it', async () => {

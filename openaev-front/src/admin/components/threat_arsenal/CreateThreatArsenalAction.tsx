@@ -59,7 +59,14 @@ const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate, renderT
   const [discarding, setDiscarding] = useState(false);
 
   const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+  // Opened from Create (no draft given): a draft saved meanwhile is kept, but the next Create starts
+  // a new action instead of overwriting it. It is found again in My changes.
+  const handleClose = () => {
+    setOpen(false);
+    if (!draft) {
+      setDraftId(undefined);
+    }
+  };
 
   const onSubmit = (data: ThreatArsenalActionCreateCustomInput) => {
     const inputValues: ApiThreatArsenalActionCreateInput = {

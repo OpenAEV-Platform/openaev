@@ -22,7 +22,6 @@
   "No version to move back to pending approval.": "No version to move back to pending approval.",
   "No version to reject.": "No version to reject.",
   "Note (optional)": "Note (optional)",
-  "Saved, not published: nothing uses them and nobody reviews them yet.": "Saved, not published: nothing uses them and nobody reviews them yet.",
   "The version waits for approval again: it can no longer be picked or run, and injects using it cannot launch until it is approved. Nobody is notified: ask for the review yourself.": "The version waits for approval again: it can no longer be picked or run, and injects using it cannot launch until it is approved. Nobody is notified: ask for the review yourself.",
   "Untitled": "Untitled",
   "Verified and tested by Filigran": "Verified and tested by Filigran",

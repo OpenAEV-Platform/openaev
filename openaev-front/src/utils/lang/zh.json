@@ -22,7 +22,6 @@
   "No version to move back to pending approval.": "没有可退回待审批的版本。",
   "No version to reject.": "没有可拒绝的版本。",
   "Note (optional)": "备注（可选）",
-  "Saved, not published: nothing uses them and nobody reviews them yet.": "已保存，未发布：尚无任何内容使用它们，也无人审核。",
   "The version waits for approval again: it can no longer be picked or run, and injects using it cannot launch until it is approved. Nobody is notified: ask for the review yourself.": "该版本将再次等待审批：无法再被选择或运行，使用它的注入在其获批之前无法启动。不会通知任何人：请自行请求审核。",
   "Untitled": "无标题",
   "Verified and tested by Filigran": "已由 Filigran 验证和测试",
