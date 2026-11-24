@@ -2,9 +2,16 @@ package io.openaev.utils.fixtures;
 
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
+import io.openaev.database.model.Tenant;
 import java.util.UUID;
 
 public class FindingFixture {
+
+  private static Finding newFinding() {
+    Finding finding = new Finding();
+    finding.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    return finding;
+  }
 
   public static final String TEXT_FIELD = "text_field";
   public static final String IPV6_FIELD = "ipv6_field";
@@ -15,7 +22,7 @@ public class FindingFixture {
   public static final String CREDENTIALS_PASSWORD = "motdepasse";
 
   public static Finding createDefaultTextFinding() {
-    Finding finding = new Finding();
+    Finding finding = newFinding();
     finding.setType(ContractOutputType.Text);
     finding.setName("Text");
     finding.setField(TEXT_FIELD);
@@ -34,7 +41,7 @@ public class FindingFixture {
     String cveName =
         "CVE-%d-%d"
             .formatted(Math.round(Math.random() * 1000), Math.round(Math.random() * 1000000));
-    Finding finding = new Finding();
+    Finding finding = newFinding();
     finding.setType(ContractOutputType.CVE);
     finding.setName("vulnerability");
     finding.setField(TEXT_FIELD);
@@ -44,7 +51,7 @@ public class FindingFixture {
   }
 
   public static Finding createDefaultIPV6Finding() {
-    Finding finding = new Finding();
+    Finding finding = newFinding();
     finding.setType(ContractOutputType.IPv6);
     finding.setName("Ipv6");
     finding.setField(IPV6_FIELD);
@@ -59,7 +66,7 @@ public class FindingFixture {
   }
 
   public static Finding createDefaultFindingCredentials() {
-    Finding finding = new Finding();
+    Finding finding = newFinding();
     finding.setType(ContractOutputType.Credentials);
     finding.setName("Credentials");
     finding.setField(CREDENTIALS_FIELD);
@@ -79,7 +86,7 @@ public class FindingFixture {
   }
 
   public static Finding createDefaultPasswordPolicyFinding() {
-    Finding finding = new Finding();
+    Finding finding = newFinding();
     finding.setType(ContractOutputType.PasswordPolicy);
     finding.setName("Password policy");
     finding.setField(PASSWORD_POLICY_FIELD);
@@ -88,7 +95,7 @@ public class FindingFixture {
   }
 
   public static Finding createDefaultKerberoastableAccountFinding() {
-    Finding finding = new Finding();
+    Finding finding = newFinding();
     finding.setType(ContractOutputType.KerberoastableAccount);
     finding.setName("Kerberoastable account");
     finding.setField(ACCOUNT_FIELD);
@@ -97,7 +104,7 @@ public class FindingFixture {
   }
 
   public static Finding createDefaultAsreproastableAccountFinding() {
-    Finding finding = new Finding();
+    Finding finding = newFinding();
     finding.setType(ContractOutputType.AsreproastableAccount);
     finding.setName("AS-REP roastable account");
     finding.setField(ACCOUNT_FIELD);

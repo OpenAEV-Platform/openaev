@@ -321,6 +321,7 @@ class FindingServiceTest extends IntegrationTest {
         inject = injectRepository.save(inject);
 
         Finding finding = new Finding();
+        finding.setTenant(new Tenant(tenantId));
         finding.setValue("tenant-finding-" + UUID.randomUUID());
         finding.setInject(inject);
         finding.setField("finding_field");

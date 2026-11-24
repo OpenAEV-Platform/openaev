@@ -3,12 +3,14 @@ package io.openaev.rest.finding;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
+import io.openaev.database.model.Tenant;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -109,6 +111,20 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Should file the finding under the tenant of its inject, with no ambient tenant")
+    void given_anAgentFinding_should_beAttributedToTheInjectTenant() {
+      // Arrange
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+
+      // Act
+      String findingId = saveAgentFinding("agent-" + UUID.randomUUID());
+
+      // Assert
+      assertThat(tenantOf(findingId)).isEqualTo(tenantId);
+    }
+
+    @Test
     @DisplayName("Should keep a single occurrence when the same finding is reported again")
     void given_aRepeatedReport_should_keepOneOccurrence() {
       // Arrange
@@ -126,6 +142,25 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
   @Nested
   @DisplayName("When an injector or phishing writes findings")
   class WhenAnInjectorWritesFindings {
+
+    @Test
+    @DisplayName("Should file each written finding under the tenant of its inject")
+    void given_twoFindings_should_beAttributedToTheInjectTenant() {
+      // Arrange
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      Finding first = finding("injector-" + UUID.randomUUID());
+      Finding second = finding("injector-" + UUID.randomUUID());
+
+      // Act
+      tenantTx.execute(
+          TxCtx.forTenant(tenantId),
+          () -> findingService.createFindings(List.of(first, second), injectId));
+
+      // Assert
+      assertThat(tenantOf(first.getId())).isEqualTo(tenantId);
+      assertThat(tenantOf(second.getId())).isEqualTo(tenantId);
+    }
 
     @Test
     @DisplayName("Should record one occurrence per written finding")
@@ -184,6 +219,11 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
     finding.setValue(value);
     finding.setName("occurrence probe");
     return finding;
+  }
+
+  private String tenantOf(String findingId) {
+    return jdbc.queryForObject(
+        "SELECT tenant_id FROM findings WHERE finding_id = ?", String.class, findingId);
   }
 
   private Map<String, Object> singleOccurrenceOf(String findingId) {
