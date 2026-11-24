@@ -83,7 +83,6 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
   const draftName = (draft: PayloadDraftOutput) => (draft.draft_content as { action_name?: string } | undefined)?.action_name || t('Untitled');
   const draftKind = (draft: PayloadDraftOutput) => {
     if (draft.draft_new_action) return t('New action');
-    if (draft.draft_rework) return t('v{version} · Rejected, being fixed', { version: draft.draft_source_version ?? '' });
     return t('Draft from v{version}', { version: draft.draft_source_version ?? '' });
   };
 

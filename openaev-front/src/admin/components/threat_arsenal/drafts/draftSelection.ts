@@ -64,17 +64,8 @@ export const publishedFromDrafts = (history: ContentHistoryOutput[]): Record<str
 
 type Translate = (key: string, values?: Record<string, string>) => string;
 
-/** A draft in the selector: the version it started from, or the rejected version it fixes and why. */
-export const draftOptionLabel = (t: Translate, draft: PayloadDraftOutput) => {
-  const version = draft.draft_source_version ?? '';
-  if (!draft.draft_rework) return t('Draft from v{version}', { version });
-  return draft.draft_rework_reason
-    ? t('v{version} · Rejected, being fixed: {reason}', {
-        version,
-        reason: shortReason(draft.draft_rework_reason),
-      })
-    : t('v{version} · Rejected, being fixed', { version });
-};
+/** A draft in the selector, named after the version it started from. A rejected version becomes a draft once edited. */
+export const draftOptionLabel = (t: Translate, draft: PayloadDraftOutput) => t('Draft from v{version}', { version: draft.draft_source_version ?? '' });
 
 /** A rejected version in the selector, with the reason it was rejected. */
 export const rejectedOptionLabel = (t: Translate, version: PayloadVersionOutput) => {
