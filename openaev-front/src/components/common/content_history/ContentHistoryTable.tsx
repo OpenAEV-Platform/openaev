@@ -1,5 +1,4 @@
 import { IconButton, Skeleton, Text } from '@filigran/design-system';
-import { ExpandLess, ExpandMore } from '@mui/icons-material';
 // fds:keep-mui the library has no Table yet
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -8,6 +7,7 @@ import { Fragment, type FunctionComponent, type ReactNode, useState } from 'reac
 import { type ContentChangeOutput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
 import { FDS_TABLE_SX, fdsTableFrameStyle, fdsTableSectionStyle } from '../fdsTableSpec';
+import { FoldArrow } from '../FoldRow';
 import { LIB_SURFACE_LAYER } from '../libSurfaceBorder';
 
 const ACTION_LABELS: Record<ContentChangeOutput['content_change_action'], string> = {
@@ -104,10 +104,9 @@ const ContentHistoryTable: FunctionComponent<Props> = ({ history, changesOf }) =
                               <IconButton
                                 priority="tertiary"
                                 size="sm"
-                                // White like the Versions rows' arrow (the tertiary button would paint it blue).
-                                icon={open
-                                  ? <ExpandLess fontSize="small" style={{ color: 'var(--text-default-primary)' }} />
-                                  : <ExpandMore fontSize="small" style={{ color: 'var(--text-default-primary)' }} />}
+                                // FDS-WORKAROUND: white like the Versions rows' arrow, the tertiary IconButton paints it blue
+                                // — remove when the library IconButton has a neutral colour — see the History arrow note in this PR
+                                icon={<FoldArrow open={open} neutral />}
                                 aria-label={open ? t('Hide the changes') : t('Show the changes')}
                                 aria-expanded={open}
                                 onClick={() => setOpened(open ? null : entry.content_change_id)}
@@ -118,8 +117,9 @@ const ContentHistoryTable: FunctionComponent<Props> = ({ history, changesOf }) =
                       </TableRow>
                       {/* The field by field change, the same before / after block as everywhere else. */}
                       {open && changes && (
-                        <TableRow>
-                          <TableCell colSpan={columns} sx={{ padding: `${theme.spacing(2)} !important` }}>{changes.details}</TableCell>
+                        // `&&` outweighs the table's own cell padding.
+                        <TableRow sx={{ '&& > td': { p: 2 } }}>
+                          <TableCell colSpan={columns}>{changes.details}</TableCell>
                         </TableRow>
                       )}
                     </Fragment>

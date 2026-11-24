@@ -90,6 +90,7 @@ import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButto
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
 import ScenarioLaunchReadiness from '../launch/ScenarioLaunchReadiness';
+import useLaunchCheck from '../launch/useLaunchCheck';
 import useOpenLaunchedSimulation from '../launch/useOpenLaunchedSimulation';
 import useScenarioLaunch from '../launch/useScenarioLaunch';
 import {
@@ -480,8 +481,10 @@ const ScenarioHeader = ({
 
   // Normal launch: through the launch check with the catalogue preview, else after a confirm dialog.
   const scenarioType = isScenarioChaining ? SCENARIO_TYPE_CHAINED : SCENARIO_TYPE_TIME_BASED;
-  const { launch, launchDrawer } = useScenarioLaunch(onAutonomousRunCleared);
   const isCatalogEnabled = isFeatureEnabled('CATALOG');
+  // One launch check for the header's button and the drawer it opens.
+  const launchCheck = useLaunchCheck(isCatalogEnabled ? scenarioId : null);
+  const { launch, launchDrawer } = useScenarioLaunch(onAutonomousRunCleared, launchCheck);
   const handleLaunchNormal = () => (isCatalogEnabled
     ? launch({
         scenarioId,
@@ -782,7 +785,7 @@ const ScenarioHeader = ({
               {/* With the launch check, one control says what it finds (targets, integrations, revoked
                   versions and the healthchecks) and opens it; without it, the healthchecks as before. */}
               {isCatalogEnabled
-                ? <ScenarioLaunchReadiness scenarioId={scenarioId} onOpen={handleLaunchNormal} checkOpen={!!launchDrawer} />
+                ? <ScenarioLaunchReadiness launchCheck={launchCheck.launchCheck} onOpen={handleLaunchNormal} />
                 : canManage && <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />}
               {canManage && (
                 <ExpectationsDriftIndicator

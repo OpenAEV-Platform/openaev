@@ -1,9 +1,9 @@
 import { Alert, Button, Chip, Skeleton, Text } from '@filigran/design-system';
-import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 
 import { fdsGroupRowStyle, fdsTableFrameStyle } from '../../../../components/common/fdsTableSpec';
+import FoldRow from '../../../../components/common/FoldRow';
 import { LIB_SURFACE_LAYER } from '../../../../components/common/libSurfaceBorder';
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadUsagesOutput, type PayloadVersionOutput } from '../../../../utils/api-types';
@@ -11,6 +11,7 @@ import useCountLabel from '../../../../utils/hooks/useCountLabel';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import OlderVersionsNote from './OlderVersionsNote';
+import SavedVersionChanges from './SavedVersionChanges';
 import PayloadUsageMoveBar from './usages/PayloadUsageMoveBar';
 import PayloadUsageMoveResult from './usages/PayloadUsageMoveResult';
 import PayloadUsagesTable from './usages/PayloadUsagesTable';
@@ -18,7 +19,6 @@ import { olderVersionsInUse, totalUsageCount, usageCount } from './usages/usageC
 import useUsageMove from './usages/useUsageMove';
 import useFocusMove from './useFocusMove';
 import useOlderVersionsKept from './useOlderVersionsKept';
-import VersionChanges from './VersionChanges';
 import { versionRows } from './versionRows';
 
 interface VersionProps {
@@ -35,7 +35,6 @@ interface VersionProps {
 
 const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, usages, canMove, onMoved, focusMove, preselect }) => {
   const { t } = useFormatter();
-  const theme = useTheme();
   const counted = useCountLabel();
   const [expanded, setExpanded] = useState(version.payload_is_latest && !focusMove);
   const move = useUsageMove({
@@ -56,7 +55,7 @@ const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, us
 
   return (
     <div ref={row}>
-      <button type="button" style={fdsGroupRowStyle(theme)} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+      <FoldRow open={expanded} onToggle={() => setExpanded(!expanded)}>
         <Text variant="content-base-bold">{`v${version.payload_version}`}</Text>
         {usages && (
           <Text variant="content-base" className="text-default-secondary">
@@ -64,9 +63,7 @@ const PayloadVersion: FunctionComponent<VersionProps> = ({ version, versions, us
           </Text>
         )}
         {version.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
-        <span style={{ flex: 1 }} />
-        {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-      </button>
+      </FoldRow>
       {expanded && (
         <>
           {version.payload_revoked && <Alert severity="warning" title={t('These injects will fail. Move them to another version.')} />}
@@ -121,7 +118,6 @@ interface Props {
 }
 
 const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMoved, notInstalled, focusMove = false, saved = false, installing, onInstall }) => {
-  const { t } = useFormatter();
   const theme = useTheme();
   const canMove = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
   const latest = versions?.find(version => version.payload_is_latest);
@@ -130,7 +126,6 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMove
   const olderUsages = totalUsageCount(olderVersions);
   // Right after a save: what it changed, the saved version against the one before it (newest first).
   const previous = latest && versions ? versions[versions.indexOf(latest) + 1] : undefined;
-  const [changesOpen, setChangesOpen] = useState(true);
 
   if (versions === null) {
     return <Skeleton className="h-24" />;
@@ -161,32 +156,7 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ versions, usages, onMove
             kept={kept}
             onToggle={canMove ? toggle : undefined}
           />
-          {saved && !kept && latest && previous && (
-            <>
-              <button
-                type="button"
-                aria-expanded={changesOpen}
-                onClick={() => setChangesOpen(!changesOpen)}
-                style={{
-                  ...fdsGroupRowStyle(theme),
-                  padding: 0,
-                  background: 'none',
-                  border: 0,
-                }}
-              >
-                <Text variant="content-base-bold">{t('What changed in v{version}', { version: latest.payload_version })}</Text>
-                <span style={{ flex: 1 }} />
-                {changesOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-              </button>
-              {changesOpen && (
-                <VersionChanges
-                  actionId={latest.payload_action_id}
-                  beforeVersion={previous.payload_version}
-                  afterVersion={latest.payload_version}
-                />
-              )}
-            </>
-          )}
+          {saved && !kept && latest && previous && <SavedVersionChanges saved={latest} previous={previous} />}
         </div>
       )}
       <div className={LIB_SURFACE_LAYER} style={fdsTableFrameStyle(theme)}>

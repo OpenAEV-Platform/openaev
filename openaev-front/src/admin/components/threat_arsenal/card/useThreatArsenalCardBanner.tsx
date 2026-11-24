@@ -15,7 +15,7 @@ const useThreatArsenalCardBanner = (
 ) => {
   const { t } = useFormatter();
   const counted = useCountLabel();
-  // Read on every render, before any condition: it reads the feature flags, a hook.
+  // Before any condition: isShownRevoked reads the feature flags through useHelper, a hook.
   const revoked = isShownRevoked(action);
   // The card itself opens the drawer on click: the banner action opens its Versions tab instead.
   const showVersions = (tab: OpenedTab) => (event: MouseEvent<HTMLButtonElement>) => {

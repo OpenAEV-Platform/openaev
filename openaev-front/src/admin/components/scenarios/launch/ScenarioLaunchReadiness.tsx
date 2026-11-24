@@ -1,34 +1,26 @@
 import { Button } from '@filigran/design-system';
 import { ErrorOutlineOutlined, WarningAmberOutlined } from '@mui/icons-material';
-import { type FunctionComponent, useEffect, useRef } from 'react';
+import { type FunctionComponent } from 'react';
 
 import useCountLabel from '../../../../utils/hooks/useCountLabel';
-import useLaunchCheck from './useLaunchCheck';
+import { type LaunchCheck } from './useLaunchCheck';
 
 interface Props {
-  scenarioId: string;
+  // The check the launch drawer shares: null while it loads.
+  launchCheck: LaunchCheck | null;
   // Opens the launch check, which lists each fix.
   onOpen: () => void;
-  // Whether the launch check is open: once it closes, what was fixed there is read again.
-  checkOpen?: boolean;
 }
 
 // The Hero body's control for what the launch check finds: it hides when the scenario can launch cleanly.
 // What blocks the launch keeps the alert tone; what only makes injects fail warns, as the launch starts.
-const ScenarioLaunchReadiness: FunctionComponent<Props> = ({ scenarioId, onOpen, checkOpen = false }) => {
+const ScenarioLaunchReadiness: FunctionComponent<Props> = ({ launchCheck, onOpen }) => {
   const counted = useCountLabel();
-  const { launchCheck, checkAgain } = useLaunchCheck(scenarioId);
-  const wasOpen = useRef(checkOpen);
-  useEffect(() => {
-    if (wasOpen.current && !checkOpen) checkAgain();
-    wasOpen.current = checkOpen;
-  }, [checkOpen]);
 
   const blocking = launchCheck?.blocking ?? 0;
   const failing = launchCheck?.failing ?? 0;
-  // Injects on a revoked version count as one check; when they are all there is, the button counts them.
+  // When the injects on a revoked version are all that fails, the button counts them.
   const failingInjects = launchCheck?.check.launch_check_revoked_injects.length ?? 0;
-  const onlyInjectsFail = failingInjects > 0 && failing === 1;
   if (blocking > 0) {
     return (
       <Button
@@ -52,7 +44,7 @@ const ScenarioLaunchReadiness: FunctionComponent<Props> = ({ scenarioId, onOpen,
         onClick={onOpen}
         data-testid="scenario-launch-readiness"
       >
-        {onlyInjectsFail
+        {launchCheck?.onlyRevokedInjectsFail
           ? counted(failingInjects, '1 inject will fail', '{count} injects will fail')
           : counted(failing, '1 to check before launch', '{count} to check before launch')}
       </Button>

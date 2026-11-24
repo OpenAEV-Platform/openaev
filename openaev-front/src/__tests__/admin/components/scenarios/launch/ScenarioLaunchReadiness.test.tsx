@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { type ScenarioLaunchCheckOutput } from '../../../../../utils/api-types';
+import { type HealthCheck, type ScenarioLaunchCheckOutput } from '../../../../../utils/api-types';
 
 const mocks = vi.hoisted(() => ({
   fetchScenarioLaunchCheck: vi.fn(),
@@ -17,6 +17,13 @@ vi.mock('../../../../../components/i18n', () => ({
 vi.mock('../../../../../actions/scenarios/scenario-actions', () => mocks);
 
 const { default: ScenarioLaunchReadiness } = await import('../../../../../admin/components/scenarios/launch/ScenarioLaunchReadiness');
+const { default: useLaunchCheck } = await import('../../../../../admin/components/scenarios/launch/useLaunchCheck');
+
+// The button as the header shows it: on the check the header loads.
+const Readiness = ({ onOpen = vi.fn() }: { onOpen?: () => void }) => {
+  const { launchCheck } = useLaunchCheck('scenario-1');
+  return <ScenarioLaunchReadiness launchCheck={launchCheck} onOpen={onOpen} />;
+};
 
 const NO_PROBLEM: ScenarioLaunchCheckOutput = {
   launch_check_injects: [],
@@ -24,12 +31,25 @@ const NO_PROBLEM: ScenarioLaunchCheckOutput = {
   launch_check_revoked_injects: [],
 };
 
-const checkFinds = (check: Partial<ScenarioLaunchCheckOutput>) => {
+const REVOKED_INJECTS: ScenarioLaunchCheckOutput['launch_check_revoked_injects'] = [
+  {
+    inject_id: 'dump',
+    inject_title: 'Credential dump',
+    inject_action_id: 'dump-action',
+  },
+  {
+    inject_id: 'scan',
+    inject_title: 'Port scan',
+    inject_action_id: 'dump-action',
+  },
+];
+
+const checkFinds = (check: Partial<ScenarioLaunchCheckOutput>, healthchecks: HealthCheck[] = []) => {
   mocks.fetchScenarioLaunchCheck.mockResolvedValue({
     ...NO_PROBLEM,
     ...check,
   });
-  mocks.searchScenarioHealthcheks.mockResolvedValue({ data: [] });
+  mocks.searchScenarioHealthcheks.mockResolvedValue({ data: healthchecks });
 };
 
 describe('ScenarioLaunchReadiness', () => {
@@ -49,7 +69,7 @@ describe('ScenarioLaunchReadiness', () => {
       }],
     });
     const onOpen = vi.fn();
-    render(<ScenarioLaunchReadiness scenarioId="scenario-1" onOpen={onOpen} />);
+    render(<Readiness onOpen={onOpen} />);
 
     // Act
     fireEvent.click(await screen.findByRole('button', { name: '1 to fix before launch' }));
@@ -60,26 +80,29 @@ describe('ScenarioLaunchReadiness', () => {
 
   it('given only injects on a revoked version should say how many will fail', async () => {
     // Arrange
-    checkFinds({
-      launch_check_revoked_injects: [
-        {
-          inject_id: 'dump',
-          inject_title: 'Credential dump',
-          inject_action_id: 'dump-action',
-        },
-        {
-          inject_id: 'scan',
-          inject_title: 'Port scan',
-          inject_action_id: 'dump-action',
-        },
-      ],
-    });
+    checkFinds({ launch_check_revoked_injects: REVOKED_INJECTS });
 
     // Act
-    render(<ScenarioLaunchReadiness scenarioId="scenario-1" onOpen={vi.fn()} />);
+    render(<Readiness />);
 
     // Assert
     expect(await screen.findByRole('button', { name: '2 injects will fail' })).toBeTruthy();
+  });
+
+  it('given revoked injects and another warning should count the checks instead', async () => {
+    // Arrange
+    checkFinds({ launch_check_revoked_injects: REVOKED_INJECTS }, [{
+      type: 'SCOPE_DEFINITION',
+      detail: 'INEFFECTIVE_TECHNICAL_TARGETS',
+      status: 'WARNING',
+      creation_date: '2026-11-24',
+    }]);
+
+    // Act
+    render(<Readiness />);
+
+    // Assert
+    expect(await screen.findByRole('button', { name: '2 to check before launch' })).toBeTruthy();
   });
 
   it('given nothing to fix should show nothing', async () => {
@@ -87,23 +110,10 @@ describe('ScenarioLaunchReadiness', () => {
     checkFinds({});
 
     // Act
-    render(<ScenarioLaunchReadiness scenarioId="scenario-1" onOpen={vi.fn()} />);
+    render(<Readiness />);
 
     // Assert
     await vi.waitFor(() => expect(mocks.fetchScenarioLaunchCheck).toHaveBeenCalledWith('scenario-1'));
     expect(screen.queryByTestId('scenario-launch-readiness')).toBeNull();
-  });
-
-  it('given the check closed should read it again', async () => {
-    // Arrange
-    checkFinds({});
-    const { rerender } = render(<ScenarioLaunchReadiness scenarioId="scenario-1" onOpen={vi.fn()} checkOpen />);
-    await vi.waitFor(() => expect(mocks.fetchScenarioLaunchCheck).toHaveBeenCalledTimes(1));
-
-    // Act
-    rerender(<ScenarioLaunchReadiness scenarioId="scenario-1" onOpen={vi.fn()} checkOpen={false} />);
-
-    // Assert
-    await vi.waitFor(() => expect(mocks.fetchScenarioLaunchCheck).toHaveBeenCalledTimes(2));
   });
 });

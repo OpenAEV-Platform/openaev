@@ -18,23 +18,32 @@ const OlderVersionsNote: FunctionComponent<Props> = ({ usageCount, versions, sav
   const { t } = useFormatter();
   const counted = useCountLabel();
   const named = versions.map(version => `v${version}`).join(', ');
-  const stillUse = usageCount === 1
-    ? t('1 inject still uses {versions}.', { versions: named })
-    : t('{count} injects still use {versions}.', {
-        count: String(usageCount),
-        versions: named,
-      });
   const keepLabel = versions.length === 1
-    ? t(usageCount === 1 ? 'Keep it on v{version}' : 'Keep them on v{version}', { version: versions[0] })
+    ? counted(usageCount, 'Keep it on v{version}', 'Keep them on v{version}', { version: versions[0] })
     : t('Keep them on their version');
-  const saved = savedVersion && !kept ? `${t('Saved as v{version}.', { version: savedVersion })} ` : '';
+  // One translation per note, never sentences glued together.
+  let text = savedVersion
+    ? counted(
+        usageCount,
+        'Saved as v{version}. 1 inject still uses {versions}. Move it below, or keep it where it is.',
+        'Saved as v{version}. {count} injects still use {versions}. Move them below, or keep them where they are.',
+        {
+          version: savedVersion,
+          versions: named,
+        },
+      )
+    : counted(
+        usageCount,
+        '1 inject still uses {versions}. Move it below, or keep it where it is.',
+        '{count} injects still use {versions}. Move them below, or keep them where they are.',
+        { versions: named },
+      );
+  if (kept) text = t('Kept on their version. The card\'s banner returns with the next version.');
 
   return (
     <VersionsTabNote
-      text={kept
-        ? t('Kept on their version. The card\'s banner returns with the next version.')
-        : `${saved}${stillUse} ${counted(usageCount, 'Move it below, or keep it where it is.', 'Move them below, or keep them where they are.')}`}
-      saved={!!saved}
+      text={text}
+      saved={!!savedVersion && !kept}
       actionLabel={kept ? t('Show the banner again') : keepLabel}
       priority={kept ? 'tertiary' : 'secondary'}
       onAction={onToggle}
