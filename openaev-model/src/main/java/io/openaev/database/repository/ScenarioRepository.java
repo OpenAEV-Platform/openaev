@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.raw.RawCatalogInstalledScenario;
 import io.openaev.database.raw.RawExerciseSimple;
+import io.openaev.database.raw.RawInstalledCatalogVersion;
 import io.openaev.database.raw.RawScenario;
 import io.openaev.database.raw.RawScenarioSimpleIndexing;
 import io.openaev.database.raw.RawScenarioWorkflowFields;
@@ -445,4 +446,11 @@ public interface ScenarioRepository
           + " WHERE s.tenant.id = :tenantId AND i.externalId IN :externalIds")
   List<RawCatalogInstalledScenario> findInstalledFromCatalog(
       @Param("tenantId") String tenantId, @Param("externalIds") Collection<String> externalIds);
+
+  @Query(
+      "SELECT i.repository AS repository, i.externalId AS externalId, s.catalogVersion AS version"
+          + " FROM Scenario s JOIN s.catalogIdentity i"
+          + " WHERE s.tenant.id = :tenantId AND i.repository = :repository")
+  List<RawInstalledCatalogVersion> findInstalledCatalogVersions(
+      @Param("tenantId") String tenantId, @Param("repository") String repository);
 }

@@ -12736,7 +12736,7 @@ export interface ScenarioVersionOutput {
   scenario_version_latest: boolean;
   /** @format date-time */
   scenario_version_published_at?: string;
-  scenario_version_status: "VERIFIED" | "DEPRECATED" | "REVOKED";
+  scenario_version_status: "VERIFIED" | "DEPRECATED" | "REVOKED" | "UNLISTED";
 }
 
 export interface ScenarioVersionsOutput {

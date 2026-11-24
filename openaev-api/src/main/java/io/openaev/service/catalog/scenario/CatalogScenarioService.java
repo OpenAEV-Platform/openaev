@@ -1,5 +1,6 @@
 package io.openaev.service.catalog.scenario;
 
+import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Scenario;
@@ -98,6 +99,14 @@ public class CatalogScenarioService {
                 installed -> CatalogOffer.key(installed.getRepository(), installed.getExternalId()),
                 RawCatalogInstalledScenario::getScenarioId,
                 (first, other) -> first));
+  }
+
+  /** The manifest key of each catalogue version a scenario of the tenant runs. */
+  @Transactional(readOnly = true)
+  public Set<String> installedVersionKeys(String tenantId, String repository) {
+    return scenarioService.installedCatalogVersions(tenantId, repository).stream()
+        .map(installed -> CatalogManifest.key(installed.getExternalId(), installed.getVersion()))
+        .collect(Collectors.toSet());
   }
 
   /** The key of every catalogue scenario the tenant ever installed: an identity is kept. */

@@ -207,6 +207,10 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   }
 
   private void publish(Map<String, byte[]> archives) throws Exception {
+    publish("2026.11.20", archives);
+  }
+
+  private void publish(String release, Map<String, byte[]> archives) throws Exception {
     List<Map<String, Object>> items = new ArrayList<>();
     Map<String, byte[]> files = new LinkedHashMap<>();
     archives.forEach(
@@ -229,7 +233,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
             syncRequest(
                     mapper.writeValueAsBytes(
                         manifest(
-                            "2026.11.20",
+                            release,
                             items,
                             List.of(
                                 payloadVersion(INSTALLED, "VERIFIED", RELEASED),
@@ -537,6 +541,31 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   @Nested
   @DisplayName("Updating")
   class Updating {
+
+    @Test
+    @DisplayName("keeps the installed version a release no longer lists, so it can still update")
+    void given_releaseWithoutTheInstalledVersion_should_keepItUnlisted() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      publish("2026.11.21", Map.of(NEWER, scenarioPackage(RELEASED.file(), newer())));
+
+      // Act
+      ResultActions versions =
+          committed(
+              get(
+                  TENANT_SCENARIO_URI + "/{scenarioId}/versions",
+                  DEFAULT_TENANT_UUID,
+                  scenario.getId()));
+
+      // Assert
+      versions
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.scenario_versions[*].scenario_version").value(contains(NEWER, INSTALLED)))
+          .andExpect(jsonPath("$.scenario_versions[1].scenario_version_status").value("UNLISTED"))
+          .andExpect(jsonPath("$.scenario_versions[1].scenario_version_current").value(true));
+      previewUpdate(scenario, NEWER).andExpect(status().isOk());
+    }
 
     @Test
     @DisplayName("shows nothing to change for a version with the same content")

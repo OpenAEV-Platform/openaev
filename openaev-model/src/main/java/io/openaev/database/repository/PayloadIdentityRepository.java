@@ -1,7 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.payload.PayloadIdentity;
-import io.openaev.database.raw.RawInstalledPayloadVersion;
+import io.openaev.database.raw.RawInstalledCatalogVersion;
 import io.openaev.database.raw.RawOlderVersionUsages;
 import jakarta.persistence.LockModeType;
 import java.util.Collection;
@@ -31,7 +31,7 @@ public interface PayloadIdentityRepository extends JpaRepository<PayloadIdentity
       "SELECT i.repository AS repository, i.externalId AS externalId, v.version AS version"
           + " FROM PayloadIdentity i JOIN i.latestVersion v"
           + " WHERE i.tenant.id = :tenantId AND i.repository IS NOT NULL")
-  List<RawInstalledPayloadVersion> findInstalledVersions(@Param("tenantId") String tenantId);
+  List<RawInstalledCatalogVersion> findInstalledVersions(@Param("tenantId") String tenantId);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT i FROM PayloadIdentity i WHERE i.id = :id")
