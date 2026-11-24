@@ -13,7 +13,6 @@ import io.openaev.engine.query.*;
 import io.openaev.rest.custom_dashboard.CustomDashboardTenantService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.settings.form.AssetFreshnessSettingsInput;
-import io.openaev.rest.settings.form.CoverageScenarioSettingsInput;
 import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
 import io.openaev.rest.settings.form.ThemeInput;
 import io.openaev.rest.settings.response.TenantSettingsOutput;
@@ -127,33 +126,6 @@ public class TenantSettingsApi extends RestBehavior {
       @PathVariable String tenantId,
       @Valid @RequestBody AssetFreshnessSettingsInput input) {
     return tenantSettingsService.updateAssetFreshnessSettings(tenantId, input);
-  }
-
-  // -- COVERAGE SCENARIOS --
-
-  @GetMapping("/coverage-scenarios")
-  @Transactional
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
-  @Operation(
-      summary = "Get the scheduling setting of coverage-built scenarios",
-      description =
-          "When on, a scenario built from an OpenCTI security coverage has only its read-only"
-              + " injects enabled and no schedule while an inject that is not read-only is"
-              + " present. Off by default.")
-  public CoverageScenarioSettingsInput coverageScenarioSettings(
-      TxCtx ctx, @PathVariable String tenantId) {
-    return tenantSettingsService.findCoverageScenarioSettings(tenantId);
-  }
-
-  @PutMapping("/coverage-scenarios")
-  @Transactional
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
-  @Operation(summary = "Update the scheduling setting of coverage-built scenarios")
-  public CoverageScenarioSettingsInput updateCoverageScenarioSettings(
-      TxCtx ctx,
-      @PathVariable String tenantId,
-      @Valid @RequestBody CoverageScenarioSettingsInput input) {
-    return tenantSettingsService.updateCoverageScenarioSettings(tenantId, input);
   }
 
   // -- HOME DASHBOARD --

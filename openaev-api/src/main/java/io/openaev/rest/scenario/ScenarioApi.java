@@ -34,7 +34,6 @@ import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
-import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.ExerciseResponseHydrator;
@@ -51,7 +50,6 @@ import io.openaev.service.catalog.scenario.targeting.TargetChoice;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.period.RecurrenceService;
-import io.openaev.service.scenario.ReachabilityAssertions;
 import io.openaev.service.scenario.ScenarioLaunchService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -656,10 +654,6 @@ public class ScenarioApi extends RestBehavior {
             || (input.getRecurrence() != null && !input.getRecurrence().isBlank());
     if (schedules) {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
-      String refusal = ReachabilityAssertions.refusal(scenario);
-      if (refusal != null) {
-        throw new BadRequestException(refusal);
-      }
       scenario.setScheduledBy(
           this.userRepository
               .findById(currentUser().getId())
@@ -680,23 +674,13 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
-  @Operation(
-      summary = "Declare or clear a reachability assertion",
-      description =
-          "A reachability assertion runs only read-only injects on its schedule. Declaring a"
-              + " scheduled scenario that holds an enabled inject which is not read-only is"
-              + " refused.")
+  @Operation(summary = "Declare or clear a reachability assertion")
   public ScenarioOutput updateScenarioReachabilityAssertion(
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioReachabilityAssertionInput input) {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     scenario.setReachabilityAssertion(input.isReachabilityAssertion());
-    boolean scheduled = hasText(scenario.getRecurrence()) || scenario.getRecurrenceStart() != null;
-    String refusal = ReachabilityAssertions.refusal(scenario);
-    if (scheduled && refusal != null) {
-      throw new BadRequestException(refusal);
-    }
     this.scenarioService.updateScenario(scenario);
     // A DTO read inside the transaction: the entity would serialise its lazy associations after
     // the commit (LazyAssociationAfterCommitArchTest).
