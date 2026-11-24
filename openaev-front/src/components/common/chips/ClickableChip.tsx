@@ -11,13 +11,13 @@ import { neutralChipSx, STANDARD_CHIP_EDGE, STANDARD_CHIP_FILL } from './standar
 
 const useStyles = makeStyles()(() => ({
   mode: {
-    'display': 'inline-block',
-    'height': '100%',
-    'border': STANDARD_CHIP_EDGE,
-    'borderRadius': 4,
-    'backgroundColor': STANDARD_CHIP_FILL,
-    'margin': '0 4px',
-    'padding': '0 4px',
+    display: 'inline-block',
+    height: '100%',
+    border: STANDARD_CHIP_EDGE,
+    borderRadius: 4,
+    backgroundColor: STANDARD_CHIP_FILL,
+    margin: '0 4px',
+    padding: '0 4px',
   },
   modeTooltip: { margin: '0 4px' },
   container: {
