@@ -86,6 +86,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Generate AI rules detection remediation by payload , EE not available")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void getDetectionRemediationRuleByPayloadWithoutLicenceEE() {
     // -- PREPARE -
     Command payload =
@@ -113,6 +114,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Generate AI rules detection remediation by payload for unknown security platform")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void getDetectionRemediationRuleByPayloadForUnknownSecurityPlatform() throws Exception {
     // -- PREPARE -
     Command payload =
@@ -142,6 +144,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Generate AI rules detection remediation by payload for a security platform without AI vendor")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void getDetectionRemediationRuleByPayloadForUnsupportedSecurityPlatform()
       throws Exception {
     // -- PREPARE -
@@ -174,6 +177,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Generate AI rules detection remediation by payload with bad structured response webservice")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void getDetectionRemediationRuleByPayloadWithBadDetectionRemediationAIResponse()
       throws Exception {
     // -- PREPARE -
@@ -204,6 +208,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Generate AI rules detection remediation by payload with retry until service unavailable")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void
       getDetectionRemediationRuleByPayloadWithRetryDetectionRemediationAIResponseUnavailable()
           throws Exception {
@@ -245,6 +250,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Generate AI rules detection remediation by payload with retry until bad gateway (platform issue)")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void
       getDetectionRemediationRuleByPayloadWithRetryDetectionRemediationAIResponseBadGateway()
           throws Exception {
@@ -287,6 +293,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Generate AI rules detection remediation by payload with retry until service available")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void getDetectionRemediationRuleByPayloadWithRetryDetectionRemediationAIResponse()
       throws Exception {
     // -- PREPARE -
@@ -363,6 +370,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Generate AI rules detection remediation  for CrowdStrike using a non‑persistent payload of type command without attack patterns and arguments")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void
       getDetectionRemediationRuleBasedOnPayloadCommandCrowdStrikeWithoutAttackPatternAndArguments()
           throws Exception {
@@ -424,6 +432,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Generate AI rules detection remediation  for CrowdStrike using a non‑persistent payload of type command")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void getDetectionRemediationRuleBasedOnPayloadCommandCrowdStrike() throws Exception {
     // -- PREPARE -
     List<AttackPattern> attackPatterns = saveAndGetAttackPatterns();
@@ -497,6 +506,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Generate AI rules detection remediation  for Splunk using a non‑persistent payload of type command")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void getDetectionRemediationRuleBasedOnPayloadCommandSplunk() throws Exception {
     // -- PREPARE -
     List<AttackPattern> attackPatterns = saveAndGetAttackPatterns();
@@ -550,6 +560,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Generate AI rules detection remediation  for CrowdStrike using a non‑persistent payload of type DnsResolution")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void getDetectionRemediationRuleBasedOnPayloadDnsResolutionCrowdStrike() throws Exception {
     // -- PREPARE -
     List<AttackPattern> attackPatterns = saveAndGetAttackPatterns();
@@ -617,6 +628,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Generate AI rules detection remediation  for Splunk using a non‑persistent payload of type DnsResolution")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void getDetectionRemediationRuleBasedOnPayloadDnsResolutionSplunk() throws Exception {
     // -- PREPARE -
     List<AttackPattern> attackPatterns = saveAndGetAttackPatterns();
@@ -836,6 +848,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Generate AI rules detection remediation  by inject id for unknown security platform")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   public void getDetectionRemediationRuleByInjectUnknownSecurityPlatform() throws Exception {
     // -- PREPARE -
     Inject inject = getInjectCommandWithPlatformsAndArchitectureAndAttackPatternAndArguments();

@@ -663,7 +663,9 @@ public class InjectExecutionStepTest extends IntegrationTest {
     otherInjector.linkContract(otherContractSaved);
     injectorRepository.save(otherInjector);
     entityManager.flush();
-    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(currentTenantId));
+    // The caller belongs to both tenants and names neither, so the request scope holds both.
+    tenantTx.setScopeOnCurrentTransaction(
+        TxCtx.forTenants(List.of(currentTenantId, otherTenant.getId())));
 
     doReturn(otherContractSaved)
         .when(injectorContractService)

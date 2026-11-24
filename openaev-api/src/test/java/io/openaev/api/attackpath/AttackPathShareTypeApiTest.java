@@ -161,6 +161,7 @@ class AttackPathShareTypeApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("day one: no shares -> shares counter is 0")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void dayOneNoShares() throws Exception {
     seedFinding("cve", "CVE-2026-1");
 
