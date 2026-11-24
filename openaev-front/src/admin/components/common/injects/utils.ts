@@ -114,6 +114,13 @@ export const getValidatingRule = (field: ContractElement, t: Translate) => {
       rule = z.array(z.string()).min(1, { message: t('Required') }).default([]);
       break;
 
+    case 'asset-group-reference':
+      // Cardinality "n" stores a list of asset group ids, cardinality "1" a single id.
+      rule = field.cardinality === 'n'
+        ? z.array(z.string()).min(1, { message: t('Required') }).default([])
+        : z.string().min(1, { message: t('Required') });
+      break;
+
     case 'select':
     case 'choice':
     case 'dependency-select':
