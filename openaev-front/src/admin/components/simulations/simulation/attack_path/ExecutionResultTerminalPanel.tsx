@@ -17,7 +17,7 @@ import type { AttackPathExecutionDetailDTO, AttackPathSecurityPlatformDTO, Injec
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
 import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
-import { getStatusColor } from '../../../../../utils/statusUtils';
+import { computeInjectExpectationLabel, getStatusColor } from '../../../../../utils/statusUtils';
 import { tint } from '../../../../../utils/tint';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import StatusPill from '../../../atomic_testings/atomic_testing/target_result/StatusPill';
@@ -433,15 +433,23 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
     // Colour the verdict from actual platform rows when we have them, from the run's own
     // expectation status otherwise.
     const succeeded = platformRows.some(p => (p.status ?? '').toUpperCase() === 'SUCCESS');
+    // A successful detection or logging takes its attack-path verdict colour, from the platform rows
+    // or, without them, from the run's own status ("Detected", "Logged").
+    const statusSucceeded = hasStatus
+      && expectationStatus.toUpperCase() === computeInjectExpectationLabel('SUCCESS', expectationType)?.toUpperCase();
+    let successColor = theme.palette.success.main;
+    if (expectationType === 'detection') {
+      successColor = theme.palette.designSystem.alert.warning.primary;
+    } else if (expectationType === 'logging') {
+      successColor = theme.palette.designSystem.alert.alert.primary;
+    }
     let iconColor = theme.palette.error.main;
     if (hasRows) {
-      if (succeeded && expectationType === 'detection') {
-        iconColor = theme.palette.designSystem.alert.warning.primary;
-      } else if (succeeded && expectationType === 'logging') {
-        iconColor = theme.palette.designSystem.alert.alert.primary;
-      } else if (succeeded) {
-        iconColor = theme.palette.success.main;
+      if (succeeded) {
+        iconColor = successColor;
       }
+    } else if (statusSucceeded) {
+      iconColor = successColor;
     } else if (hasStatus) {
       iconColor = getStatusColor(theme, expectationStatus);
     }

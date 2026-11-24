@@ -353,6 +353,7 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
         endpointKey: 'host-x',
         preventionStatus: 'FAILED',
         detectionStatus: 'DETECTED',
+        loggingStatus: 'Logged',
         securityPlatforms: [],
         command: 'nmap -p 445 host-x',
         terminalOutput: 'open',
@@ -369,10 +370,20 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     expect(await screen.findByText('Prevention')).toBeTruthy();
     // A non-admin cannot act on the licence dialog, so the chip must be informational only.
     expect(screen.getByTestId('ee-chip').getAttribute('data-clickable')).toBe('false');
-    expect(screen.getAllByText('Platform attribution requires Enterprise Edition').length).toBe(2);
+    expect(screen.getAllByText('Platform attribution requires Enterprise Edition').length).toBe(3);
     expect(screen.queryByText('Not Detected')).toBeNull();
     // The verdicts themselves still come from the run — the licence gates attribution, not results.
     expect(screen.getByText('DETECTED')).toBeTruthy();
+    // ...and keep their attack-path colours: orange for a detection, yellow for a log.
+    const theme = createTheme(ThemeDark());
+    const iconColor = (heading: string) => screen.getByText(heading).parentElement?.previousElementSibling as HTMLElement;
+    const cssColor = (color: string) => {
+      const probe = document.createElement('div');
+      probe.style.color = color;
+      return probe.style.color;
+    };
+    expect(iconColor('Detection').style.color).toBe(cssColor(theme.palette.designSystem.alert.warning.primary));
+    expect(iconColor('Logging').style.color).toBe(cssColor(theme.palette.designSystem.alert.alert.primary));
   });
 
   it('opens the injector panel listing its own executions, one click from the execution detail', async () => {
