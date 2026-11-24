@@ -82,11 +82,7 @@ const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
         const values = Object.fromEntries(
           AI_TARGET_INPUT_KEYS.map(key => [key, asset[key]]),
         ) as unknown as AiTargetInput;
-        // An AI target without markings comes back with null.
-        setAiTargetValues({
-          ...values,
-          asset_markings: values.asset_markings ?? [],
-        });
+        setAiTargetValues(values);
       });
     }
     if (!edition) {

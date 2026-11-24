@@ -10,7 +10,7 @@ import lombok.EqualsAndHashCode;
 @Data
 public class MarkedEndpointInput extends EndpointInput {
 
-  // Absent on an update: the markings stay as they are.
+  // Left out: a new asset gets none, an updated one keeps the markings it has.
   @JsonProperty("asset_markings")
   private Set<String> markingIds;
 }
