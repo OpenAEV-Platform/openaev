@@ -596,7 +596,7 @@
         "openaev-front/src/components/common/list/fragments/AssetTypeFragment.tsx",
         "openaev-front/src/components/common/list/fragments/EndpointArchFragment.tsx",
         "openaev-front/src/components/common/pagination/PaginationComponent.tsx",
-        "openaev-front/src/components/common/queryable/pagination/PaginationComponentV2.tsx",
+        "openaev-front/src/components/common/queryable/QueryableToolbar.tsx",
         "openaev-front/src/components/common/tag/Tag.tsx",
         "openaev-front/src/components/items/ItemTenants.tsx"
       ]
@@ -845,7 +845,7 @@
         "openaev-front/src/components/common/loader/LoaderDialog.tsx",
         "openaev-front/src/components/common/overview/Section.tsx",
         "openaev-front/src/components/common/pagination/PaginationComponent.tsx",
-        "openaev-front/src/components/common/queryable/pagination/PaginationComponentV2.tsx",
+        "openaev-front/src/components/common/queryable/QueryableToolbar.tsx",
         "openaev-front/src/public/components/challenges/ChallengesPlayer.tsx",
         "openaev-front/src/public/components/channels/ChannelMicroblogging.jsx",
         "openaev-front/src/public/components/channels/ChannelNewspaper.jsx",
