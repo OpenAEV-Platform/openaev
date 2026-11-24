@@ -52,6 +52,7 @@ public class XtmHubClient {
   private static final String XTMHUB_PLATFORM_TOKEN_HEADER = "XTM-Hub-Platform-Token";
   private static final String XTMHUB_PLATFORM_ID_HEADER = "XTM-Hub-Platform-Id";
   private static final String COMMERCIAL_MODEL_FIELD = "commercialModel";
+  private static final String ORGANIZATION_NAME_FIELD = "organizationName";
   private static final String CONSUME_NEWS_FEED_ITEMS_MUTATION =
       "mutation ConsumeProvisionedNewsFeedItems { consumeProvisionedNewsFeedItems {"
           + " news_feed_items { id title type tags metadata { key value } creation_date is_deleted }"
@@ -285,7 +286,7 @@ public class XtmHubClient {
     JsonObject body = new JsonObject();
     body.addProperty(
         "query",
-        "mutation refreshPlatformRegistrationConnectivityStatusSingleTenant($input: RefreshPlatformRegistrationConnectivityStatusSingleTenantInput!) { refreshPlatformRegistrationConnectivityStatusSingleTenant(input: $input) { status commercialModel } }");
+        "mutation refreshPlatformRegistrationConnectivityStatusSingleTenant($input: RefreshPlatformRegistrationConnectivityStatusSingleTenantInput!) { refreshPlatformRegistrationConnectivityStatusSingleTenant(input: $input) { status commercialModel organizationName } }");
     body.add("variables", variables);
 
     return new StringEntity(body.toString());
@@ -322,7 +323,7 @@ public class XtmHubClient {
     JsonObject body = new JsonObject();
     body.addProperty(
         "query",
-        "mutation refreshPlatformRegistrationConnectivityStatusAllTenants($input: RefreshPlatformRegistrationConnectivityStatusAllTenantsInput!) { refreshPlatformRegistrationConnectivityStatusAllTenants(input: $input) { statuses { tenantId status commercialModel } } }");
+        "mutation refreshPlatformRegistrationConnectivityStatusAllTenants($input: RefreshPlatformRegistrationConnectivityStatusAllTenantsInput!) { refreshPlatformRegistrationConnectivityStatusAllTenants(input: $input) { statuses { tenantId status commercialModel organizationName } } }");
     body.add("variables", variables);
 
     return new StringEntity(body.toString());
@@ -388,9 +389,19 @@ public class XtmHubClient {
     }
   }
 
+  private static String toOrganizationName(JsonObject refreshed) {
+    JsonElement value = refreshed.get(ORGANIZATION_NAME_FIELD);
+    if (value == null || !value.isJsonPrimitive() || value.getAsString().isBlank()) {
+      return null;
+    }
+    return value.getAsString();
+  }
+
   private XtmHubConnectivityResult toConnectivityResult(JsonObject refreshed) {
     return new XtmHubConnectivityResult(
-        toConnectivityStatus(refreshed.get("status").getAsString()), toCommercialModel(refreshed));
+        toConnectivityStatus(refreshed.get("status").getAsString()),
+        toCommercialModel(refreshed),
+        toOrganizationName(refreshed));
   }
 
   private XtmHubConnectivityResult parseResponseAsConnectivityResult(HubResponse response) {

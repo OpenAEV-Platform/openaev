@@ -1,4 +1,4 @@
-import { Typography } from '@mui/material';
+import { Text } from '@filigran/design-system';
 import type React from 'react';
 
 import type { LoggedHelper } from '../../../../../actions/helper';
@@ -17,6 +17,8 @@ const XtmHubRegisteredSection: React.FC = () => {
     ? fldt(registration.tenant_xtmhub_registration_date)
     : '-';
   const connectedBy = registration?.tenant_xtmhub_registration_user_name ?? '-';
+  // Empty until the platform registers, or refreshes its connectivity, with a hub that returns it.
+  const workspace = registration?.tenant_xtmhub_registration_organization_name;
 
   return (
     <>
@@ -33,14 +35,14 @@ const XtmHubRegisteredSection: React.FC = () => {
         <ExperienceDetailRow label={t('Connection date')}>
           <InfoChip label={connectionDate} tone="accent" />
         </ExperienceDetailRow>
-        <ExperienceDetailRow label={t('Connected by')} divider={false}>
-          <Typography
-            variant="body2"
-            sx={{ color: 'text.primary' }}
-          >
-            {connectedBy}
-          </Typography>
+        <ExperienceDetailRow label={t('Connected by')} divider={!!workspace}>
+          <Text variant="content-base">{connectedBy}</Text>
         </ExperienceDetailRow>
+        {workspace && (
+          <ExperienceDetailRow label={t('Workspace')} divider={false}>
+            <Text variant="content-base" data-testid="xtm-hub-workspace">{workspace}</Text>
+          </ExperienceDetailRow>
+        )}
       </div>
     </>
   );

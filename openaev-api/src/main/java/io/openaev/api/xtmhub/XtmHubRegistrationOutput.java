@@ -32,4 +32,7 @@ public class XtmHubRegistrationOutput {
 
   @JsonProperty("tenant_xtmhub_registration_commercial_model")
   private XtmHubCommercialModel commercialModel;
+
+  @JsonProperty("tenant_xtmhub_registration_organization_name")
+  private String organizationName;
 }

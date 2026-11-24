@@ -48,6 +48,7 @@ interface RenderOptions {
   ability?: AppAbility;
   reachable?: boolean;
   commercialModel?: XtmHubRegistrationOutput['tenant_xtmhub_registration_commercial_model'];
+  organizationName?: string;
 }
 
 const renderXtmHubSettings = ({
@@ -56,6 +57,7 @@ const renderXtmHubSettings = ({
   ability = ADMIN_ABILITY,
   reachable = true,
   commercialModel,
+  organizationName,
 }: RenderOptions = {}) => {
   vi.mocked(isDemoInstance).mockReturnValue(demo);
   const settings = {
@@ -68,6 +70,7 @@ const renderXtmHubSettings = ({
         tenant_xtmhub_registration_status: 'REGISTERED',
         tenant_xtmhub_registration_token: 'token',
         tenant_xtmhub_registration_commercial_model: commercialModel,
+        tenant_xtmhub_registration_organization_name: organizationName,
       } as XtmHubRegistrationOutput
     : null;
   const helper = {
@@ -181,6 +184,29 @@ describe('XtmHubSettings', () => {
 
       // Assert
       expect(screen.queryByTestId('xtm-hub-saas-metrics')).toBeNull();
+    });
+  });
+
+  describe('Workspace', () => {
+    it('shows the XTM Hub organization the platform is registered in', () => {
+      // Arrange
+      renderXtmHubSettings({
+        registered: true,
+        organizationName: 'Filigran Workspace',
+      });
+
+      // Assert
+      expect(screen.getByText('Workspace')).toBeDefined();
+      expect(screen.getByTestId('xtm-hub-workspace').textContent).toBe('Filigran Workspace');
+    });
+
+    it('is hidden when the hub has not returned the organization yet', () => {
+      // Arrange
+      renderXtmHubSettings({ registered: true });
+
+      // Assert
+      expect(screen.queryByText('Workspace')).toBeNull();
+      expect(screen.queryByTestId('xtm-hub-workspace')).toBeNull();
     });
   });
 });

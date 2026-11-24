@@ -20,6 +20,7 @@ public class XtmHubRegistrationMapper {
         .registrationUserName(entity.getRegistrationUserName())
         .lastConnectivityCheck(entity.getLastConnectivityCheck())
         .commercialModel(entity.getCommercialModel())
+        .organizationName(entity.getOrganizationName())
         .build();
   }
 }

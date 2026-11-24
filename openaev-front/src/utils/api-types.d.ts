@@ -15573,6 +15573,12 @@ export interface XtmHubContactUsInput {
 
 export interface XtmHubRegisterInput {
   /**
+   * The name of the XTM Hub organization the platform is registered in
+   * @minLength 0
+   * @maxLength 255
+   */
+  organization_name?: string;
+  /**
    * The registration token
    * @minLength 1
    */
@@ -15586,6 +15592,7 @@ export interface XtmHubRegistrationOutput {
   tenant_xtmhub_registration_id?: string;
   /** @format date-time */
   tenant_xtmhub_registration_last_connectivity_check?: string;
+  tenant_xtmhub_registration_organization_name?: string;
   tenant_xtmhub_registration_status?:
     | "REGISTERED"
     | "UNREGISTERED"

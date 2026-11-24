@@ -82,8 +82,8 @@ const XtmHubTab: React.FC<XtmHubTabProps> = ({ renderTrigger }) => {
     setProcessStep(ProcessSteps.CANCELED);
   };
 
-  const handleRegistration = (token: string) => {
-    dispatch(registerPlatform(token)).then(
+  const handleRegistration = (token: string, organizationName?: string) => {
+    dispatch(registerPlatform(token, organizationName)).then(
       () => {
         setIsDialogOpen(false);
         setShowConfirmation(false);
@@ -113,10 +113,11 @@ const XtmHubTab: React.FC<XtmHubTabProps> = ({ renderTrigger }) => {
   const handleTabMessage = useCallback(
     (event: MessageEvent) => {
       const eventData = event.data;
-      const { action, token } = eventData;
+      const { action, token, organizationName } = eventData;
       if (action === 'register') {
         setOperationType(OperationType.REGISTER);
-        handleRegistration(token);
+        // An older hub sends no organization name, and a newer one sends null when it has none.
+        handleRegistration(token, typeof organizationName === 'string' && organizationName ? organizationName : undefined);
       } else if (action === 'unregister') {
         setOperationType(OperationType.UNREGISTER);
         handleUnregistration();

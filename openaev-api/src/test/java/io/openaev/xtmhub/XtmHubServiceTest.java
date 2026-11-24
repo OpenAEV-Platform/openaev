@@ -1290,7 +1290,7 @@ class XtmHubServiceTest {
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       // When
-      xtmHubService.register(defaultTenantScope(), token);
+      xtmHubService.register(defaultTenantScope(), token, null);
 
       // Then
       ArgumentCaptor<TenantXtmHubRegistration> captor =
@@ -1314,7 +1314,7 @@ class XtmHubServiceTest {
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       // When
-      xtmHubService.register(defaultTenantScope(), token);
+      xtmHubService.register(defaultTenantScope(), token, null);
 
       // Then
       ArgumentCaptor<TenantXtmHubRegistration> captor =
@@ -1338,13 +1338,33 @@ class XtmHubServiceTest {
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       // When
-      xtmHubService.register(defaultTenantScope(), token);
+      xtmHubService.register(defaultTenantScope(), token, null);
 
       // Then
       ArgumentCaptor<TenantXtmHubRegistration> captor =
           ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
       verify(tenantXtmHubRegistrationRepository).save(captor.capture());
       assertThat(captor.getValue().getRegistrationUserName()).isEqualTo("blank@example.com");
+    }
+
+    @Test
+    @DisplayName("Should store the name of the XTM Hub organization the platform is registered in")
+    void given_organizationName_should_storeIt() {
+      // Arrange
+      User user = new User();
+      user.setId("user-123");
+      user.setEmail("john.doe@example.com");
+      when(userService.currentUser()).thenReturn(user);
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      // Act
+      xtmHubService.register(defaultTenantScope(), "valid-token", "Filigran Workspace");
+
+      // Assert
+      ArgumentCaptor<TenantXtmHubRegistration> captor =
+          ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
+      verify(tenantXtmHubRegistrationRepository).save(captor.capture());
+      assertThat(captor.getValue().getOrganizationName()).isEqualTo("Filigran Workspace");
     }
   }
 
@@ -2143,6 +2163,138 @@ class XtmHubServiceTest {
           .satisfies(query -> assertThat(query).contains("tenantId status commercialModel"));
       assertThat(saasReg.getCommercialModel()).isEqualTo(XtmHubCommercialModel.SAAS);
       assertThat(otherReg.getCommercialModel()).isEqualTo(XtmHubCommercialModel.OTHER);
+    }
+  }
+
+  @Nested
+  @DisplayName("organizationName")
+  class OrganizationName {
+
+    private void givenDefaultTenantRegistration(String storedOrganizationName) {
+      TenantXtmHubRegistration registration =
+          buildRegistration(Tenant.DEFAULT_TENANT_UUID, "valid-token", now.minusHours(1));
+      registration.setOrganizationName(storedOrganizationName);
+      when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
+          .thenReturn(Optional.of(registration));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+    }
+
+    /** Stubs MockServer with a single-tenant refresh answer carrying a raw organizationName. */
+    private void whenHubReturnsOrganizationName(String organizationNameJson) {
+      mockServer
+          .when(request().withMethod("POST").withPath(GRAPHQL_PATH))
+          .respond(
+              response()
+                  .withStatusCode(200)
+                  .withHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
+                  .withBody(
+                      "{\"data\":{\"refreshPlatformRegistrationConnectivityStatusSingleTenant\":{\"status\":\"active\",\"organizationName\":%s}}}"
+                          .formatted(organizationNameJson)));
+    }
+
+    private List<String> recordedRefreshQueries() {
+      return Arrays.stream(
+              mockServer.retrieveRecordedRequests(
+                  request().withMethod("POST").withPath(GRAPHQL_PATH)))
+          .map(
+              recorded ->
+                  JsonParser.parseString(recorded.getBodyAsString())
+                      .getAsJsonObject()
+                      .get("query")
+                      .getAsString())
+          .toList();
+    }
+
+    @Test
+    @DisplayName("Should store the organization name returned by the single-tenant refresh")
+    void given_hubReturnsOrganizationName_should_storeIt() {
+      // Arrange
+      givenDefaultTenantRegistration("Old Workspace");
+      whenHubReturnsOrganizationName("\"Filigran Workspace\"");
+
+      // Act
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity(defaultTenantScope());
+
+      // Assert
+      assertThat(recordedRefreshQueries())
+          .singleElement()
+          .satisfies(query -> assertThat(query).contains("organizationName"));
+      assertThat(result.getOrganizationName()).isEqualTo("Filigran Workspace");
+    }
+
+    @ParameterizedTest(name = "organizationName: {0}")
+    @ValueSource(strings = {"null", "\"\"", "\" \""})
+    @DisplayName("Should keep the stored organization name when the hub returns none")
+    void given_hubReturnsNoOrganizationName_should_keepStoredOne(String organizationNameJson) {
+      // Arrange
+      givenDefaultTenantRegistration("Filigran Workspace");
+      whenHubReturnsOrganizationName(organizationNameJson);
+
+      // Act
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity(defaultTenantScope());
+
+      // Assert
+      assertThat(result.getOrganizationName()).isEqualTo("Filigran Workspace");
+    }
+
+    @Test
+    @DisplayName("Should keep the stored organization name when the hub is unreachable")
+    void given_hubUnreachable_should_keepStoredOrganizationName() {
+      // Arrange
+      givenDefaultTenantRegistration("Filigran Workspace");
+      mockServer
+          .when(request().withMethod("POST").withPath(GRAPHQL_PATH))
+          .respond(response().withStatusCode(502));
+
+      // Act
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity(defaultTenantScope());
+
+      // Assert
+      assertThat(result.getOrganizationName()).isEqualTo("Filigran Workspace");
+      assertThat(result.getRegistrationStatus())
+          .isEqualTo(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+    }
+
+    @Test
+    @DisplayName("Should store the organization name of each tenant on the all-tenants refresh")
+    void given_allTenantsRefresh_should_storeEachOrganizationName() {
+      // Arrange
+      TenantXtmHubRegistration firstReg =
+          buildRegistration("tenant-first", "token-1", now.minusHours(1));
+      TenantXtmHubRegistration secondReg =
+          buildRegistration("tenant-second", "token-2", now.minusHours(1));
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
+          .thenReturn(List.of(firstReg, secondReg));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      mockServer
+          .when(request().withMethod("POST").withPath(GRAPHQL_PATH))
+          .respond(
+              response()
+                  .withStatusCode(200)
+                  .withHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
+                  .withBody(
+                      "{\"data\":{\"refreshPlatformRegistrationConnectivityStatusAllTenants\":{\"statuses\":["
+                          + "{\"tenantId\":\"tenant-first\",\"status\":\"active\",\"organizationName\":\"First Workspace\"},"
+                          + "{\"tenantId\":\"tenant-second\",\"status\":\"active\",\"organizationName\":\"Second Workspace\"}"
+                          + "]}}}"));
+
+      // Act
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Assert
+      assertThat(recordedRefreshQueries())
+          .singleElement()
+          .satisfies(
+              query ->
+                  assertThat(query).contains("tenantId status commercialModel organizationName"));
+      assertThat(firstReg.getOrganizationName()).isEqualTo("First Workspace");
+      assertThat(secondReg.getOrganizationName()).isEqualTo("Second Workspace");
     }
   }
 }

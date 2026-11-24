@@ -100,7 +100,7 @@ class XtmHubConnectivityFlagTest extends ProductionTablesIntegrationTest {
         .thenReturn(
             Map.of(
                 tenant.getId(),
-                new XtmHubConnectivityResult(XtmHubConnectivityStatus.ACTIVE, null)));
+                new XtmHubConnectivityResult(XtmHubConnectivityStatus.ACTIVE, null, null)));
 
     // Act: the scheduled run, with no request and no transaction around it
     xtmHubService.refreshConnectivityAllTenants();
