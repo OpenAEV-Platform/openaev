@@ -71,6 +71,8 @@ describe('XtmCounterpartsEmblem (single XTM One emblem, parity with opencti #201
     renderView(<XtmCounterpartsEmblemView sections={sections} />);
     const emblem = screen.getByTestId('xtm-emblem');
     expect(emblem.getAttribute('data-found')).toBe('1');
+    // The outline is the XTM One purple (Sam, 24 Nov 2026).
+    expect(emblem.style.borderColor).toBe('var(--color-filigran-ia-primary)');
     expect(emblem.getAttribute('aria-label')).toBe('Across the XTM Platform');
     fireEvent.click(emblem);
     const surface = screen.getByTestId('xtm-surface');
@@ -90,6 +92,8 @@ describe('XtmCounterpartsEmblem (single XTM One emblem, parity with opencti #201
     renderView(<XtmCounterpartsEmblemView sections={sections} />);
     const emblem = screen.getByTestId('xtm-emblem');
     expect(emblem.getAttribute('data-found')).toBe('0');
+    // Greyed glyph, the outline stays the XTM One purple.
+    expect(emblem.style.borderColor).toBe('var(--color-filigran-ia-primary)');
     expect(emblem.getAttribute('aria-label')).toBe('Not found across the XTM Platform');
   });
 
