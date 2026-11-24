@@ -24,10 +24,7 @@ import TagFieldController from '../../../components/fields/TagFieldController';
 import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
 import { type EndpointInput, type MarkedEndpointInput } from '../../../utils/api-types';
-import { useAbility } from '../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { formatMacAddress } from '../../../utils/String';
-import { isFeatureEnabled } from '../../../utils/utils';
 import {
   ARCH_OPTIONS,
   ASSET_EDITABLE_CATEGORIES,
@@ -35,13 +32,14 @@ import {
   type AssetCategoryDef,
   type AssetSubCategory,
   CLOUD_PROVIDERS,
-  CRITICALITY_OPTIONS,
+  criticalityItems,
   getCategoryDef,
   getCloudNativeTypeSuggestions,
   humanizeEnum,
   subcategoryBelongsTo,
 } from './asset-categories';
 import { withoutNullValues } from './asset-stream-values';
+import useAssetMarkingsPicker from './useAssetMarkingsPicker';
 
 type AssetFormValues = EndpointInput & { asset_markings?: string[] | null };
 
@@ -263,17 +261,12 @@ const AssetForm: FunctionComponent<Props> = ({
 
   const watchedHostname = methods.watch('asset_hostname');
 
-  const ability = useAbility();
-  const showMarkings = isFeatureEnabled('MARKING') && ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_ASSIGNMENT);
+  const { showMarkings, withMarkings } = useAssetMarkingsPicker();
 
-  // Without the picker, the markings are left out: the asset keeps the ones it has.
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    handleSubmit(({ asset_markings, ...endpointData }) => onSubmit({
-      ...endpointData,
-      ...(showMarkings ? { asset_markings: asset_markings ?? [] } : {}),
-    }))(e);
+    handleSubmit(({ asset_markings, ...endpointData }) => onSubmit(withMarkings(endpointData, asset_markings)))(e);
   };
 
   // HOST platform/arch/hostname are managed by the agent: only editable for agentless hosts.
@@ -293,10 +286,6 @@ const AssetForm: FunctionComponent<Props> = ({
   const subcategoryItems = def.subcategories.map(s => ({
     value: s,
     label: t(humanizeEnum(s)),
-  }));
-  const criticalityItems = CRITICALITY_OPTIONS.map(c => ({
-    value: c,
-    label: t(humanizeEnum(c)),
   }));
   const providerItems = CLOUD_PROVIDERS.map(p => ({
     value: p,
@@ -406,7 +395,7 @@ const AssetForm: FunctionComponent<Props> = ({
           <TextFieldController key={field.key} name={`asset_metadata.${field.key}`} label={t(field.label)} />
         ))}
 
-        <SelectFieldController name="asset_criticality" label={t('Criticality')} items={criticalityItems} />
+        <SelectFieldController name="asset_criticality" label={t('Criticality')} items={criticalityItems(t)} />
         <TagFieldController name="asset_tags" label={t('Tags')} />
         {showMarkings && (
           <MarkingFieldController name="asset_markings" label={t('Markings')} />

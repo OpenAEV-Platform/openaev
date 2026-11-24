@@ -11,12 +11,10 @@ import TagFieldController from '../../../../components/fields/TagFieldController
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import { type AiTargetInput } from '../../../../utils/api-types';
-import { useAbility } from '../../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../../utils/utils';
 import { zodImplement } from '../../../../utils/Zod';
-import { CRITICALITY_OPTIONS, humanizeEnum } from '../asset-categories';
+import { CRITICALITY_OPTIONS, criticalityItems } from '../asset-categories';
 import { withoutNullValues } from '../asset-stream-values';
+import useAssetMarkingsPicker from '../useAssetMarkingsPicker';
 
 interface Props {
   onSubmit: SubmitHandler<AiTargetInput>;
@@ -87,8 +85,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const ability = useAbility();
-  const showMarkings = isFeatureEnabled('MARKING') && ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_ASSIGNMENT);
+  const { showMarkings, withMarkings } = useAssetMarkingsPicker();
 
   const methods = useForm<AiTargetInput>({
     mode: 'onTouched',
@@ -102,7 +99,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         ai_target_system_prompt: z.string().optional().nullable(),
         ai_target_token: z.string().optional().nullable(),
         ai_target_configuration: z.record(z.string(), z.unknown()).optional(),
-        asset_criticality: z.enum(['VERY_HIGH', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']).optional(),
+        asset_criticality: z.enum(CRITICALITY_OPTIONS).optional(),
         asset_description: z.string().optional(),
         asset_tags: z.string().array().optional(),
         asset_external_reference: z.string().optional(),
@@ -119,11 +116,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
     formState: { isDirty, isSubmitting },
   } = methods;
 
-  // Without the picker, the markings are left out: the AI target keeps the ones it has.
-  const handleSubmitWithMarkings = handleSubmit(({ asset_markings, ...aiTargetData }) => onSubmit({
-    ...aiTargetData,
-    ...(showMarkings ? { asset_markings: asset_markings ?? [] } : {}),
-  }));
+  const handleSubmitWithMarkings = handleSubmit(({ asset_markings, ...aiTargetData }) => onSubmit(withMarkings(aiTargetData, asset_markings)));
 
   const providerItems = PROVIDERS.map(provider => ({
     value: provider,
@@ -132,10 +125,6 @@ const AiTargetForm: FunctionComponent<Props> = ({
   const modalityItems = MODALITIES.map(modality => ({
     value: modality,
     label: t(MODALITY_LABEL_KEYS[modality]),
-  }));
-  const criticalityItems = CRITICALITY_OPTIONS.map(criticality => ({
-    value: criticality,
-    label: t(humanizeEnum(criticality)),
   }));
 
   return (
@@ -153,7 +142,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         <TextFieldController required name="asset_name" label={t('Name')} />
         <SelectFieldController required name="ai_target_provider" label={t('Provider')} items={providerItems} />
         <SelectFieldController name="ai_target_modality" label={t('Modality')} items={modalityItems} />
-        <SelectFieldController name="asset_criticality" label={t('Criticality')} items={criticalityItems} />
+        <SelectFieldController name="asset_criticality" label={t('Criticality')} items={criticalityItems(t)} />
         <TextFieldController name="ai_target_endpoint" label={t('Endpoint URL')} placeholder="https://api.openai.com/v1" />
         <TextFieldController name="ai_target_model" label={t('Model')} placeholder="gpt-4o" />
         <TextFieldController name="ai_target_system_prompt" label={t('System prompt (optional)')} multiline rows={3} />

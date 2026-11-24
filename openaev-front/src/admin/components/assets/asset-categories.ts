@@ -58,13 +58,13 @@ const HOST_PLATFORMS: Platform[] = [
 const MOBILE_PLATFORMS: Platform[] = ['iOS', 'Android'];
 
 export const ARCH_OPTIONS = ['x86_64', 'arm64', 'Unknown'] as const;
-export const CRITICALITY_OPTIONS: AssetCriticality[] = [
+export const CRITICALITY_OPTIONS = [
   'VERY_HIGH',
   'HIGH',
   'MEDIUM',
   'LOW',
   'UNKNOWN',
-];
+] as const satisfies readonly AssetCriticality[];
 export const CLOUD_PROVIDERS: CloudProvider[] = [
   'AWS',
   'AZURE',
@@ -387,6 +387,11 @@ export const humanizeEnum = (value: string): string => {
     .map(word => (ACRONYMS.has(word) ? word : word.charAt(0) + word.slice(1).toLowerCase()))
     .join(' ');
 };
+
+export const criticalityItems = (t: (value: string) => string) => CRITICALITY_OPTIONS.map(criticality => ({
+  value: criticality,
+  label: t(humanizeEnum(criticality)),
+}));
 
 /** Common provider/service native types used to seed the free-text cloud native-type field. */
 export const CLOUD_NATIVE_TYPE_SUGGESTIONS: Record<string, string[]> = {
