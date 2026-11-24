@@ -40,8 +40,10 @@ flowchart LR
     INS --> DB[("PostgreSQL: rows filtered per tenant, fail-closed")]
 ```
 
-Isolation is activated table by table. The list of isolated tables lives in the
-`openaev.tenant.active-tables` property. A table that is not in the list is not rewritten.
+Isolation is controlled by the `openaev.tenant.active-tables` property. Production sets it to `*`:
+every tenant table, dual-scope ones included, is isolated, except the few tables that isolate
+themselves (listed with their reason in `TenantTables`). The property also accepts an explicit list
+of tables, and a table that is not in the list is not rewritten.
 
 ## How an HTTP request gets its scope
 
@@ -419,7 +421,8 @@ the end, never swallowed. Two semantics to keep in mind:
 
 ## Activating a table
 
-Isolation is rolled out table by table. A table starts on the legacy mechanism (a Hibernate
+Isolation rolled out table by table, and `*` is the terminal state: a new tenant table is
+isolated as soon as it exists. A table starts on the legacy mechanism (a Hibernate
 `@Filter` driven by a thread-local tenant) and moves to the inspector-based mechanism described on
 this page. Activating a table means, in one reviewed change:
 
@@ -427,15 +430,16 @@ this page. Activating a table means, in one reviewed change:
    primitive on the background side);
 2. new-row attribution is explicit where needed;
 3. the legacy `@Filter` is removed from the entity;
-4. the table name is appended to `openaev.tenant.active-tables`;
+4. the table is covered by `openaev.tenant.active-tables` (automatic under `*`, which only needs a
+   written reason for a table that must stay out);
 5. the build-time guards are extended for the new table.
 
 A step-by-step runbook for this procedure is maintained in the repository
 (`.claude/skills/activate-tenant-table/SKILL.md`), including the eligibility gates, the required
 tests and the go-live checklist.
 
-The list of currently isolated tables is the value of `openaev.tenant.active-tables` in
-`openaev-api/src/main/resources/application.properties`.
+The isolated tables are the ones `openaev.tenant.active-tables` resolves to in
+`openaev-api/src/main/resources/application.properties` (today `*`).
 
 Several architecture tests detect regressions over time:
 
@@ -529,4 +533,4 @@ or a `forEachTenant` iteration, not inside the transaction.
 | `io.openaev.config.TenantStatementInspector` | rewrites SQL, adds `can_access_tenant`, fail-closed on unknown shapes |
 | `io.openaev.config.TenantWriteScopeResolver` | resolves the single tenant a new row belongs to |
 | `io.openaev.aop.AccessControlAspect` | evaluates the `@AccessControl` decision in every tenant of the request scope |
-| `openaev.tenant.active-tables` (property) | the list of isolated tables |
+| `openaev.tenant.active-tables` (property) | the isolated tables (`*` or an explicit list) |

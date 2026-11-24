@@ -35,6 +35,8 @@ interface FormProps<T extends FieldValues> extends CommonProps {
   clearedValue?: string;
   /** How a picked date becomes the stored string; the default is its ISO form. */
   toStorage?: (value: Date) => string;
+  /** How the stored string becomes the date the picker shows; the reverse of `toStorage`. */
+  fromStorage?: (value: string) => Date;
   value?: never;
   onChange?: never;
   error?: never;
@@ -43,6 +45,7 @@ interface FormProps<T extends FieldValues> extends CommonProps {
 interface ControlledProps extends CommonProps {
   name?: never;
   clearedValue?: never;
+  fromStorage?: never;
   /** Omit it to leave the field uncontrolled, as a filter popover does. */
   value?: Date | null;
   onChange: (value: Date | null) => void;
@@ -109,7 +112,8 @@ const DateField = <T extends FieldValues = FieldValues>({
   };
 
   if (binding.name !== undefined) {
-    const { name, clearedValue, toStorage, control } = binding as FormProps<T>;
+    const { name, clearedValue, toStorage, fromStorage, control } = binding as FormProps<T>;
+    const toDate = fromStorage ?? ((value: string) => new Date(value));
     return (
       <Controller
         control={control ?? formContext?.control}
@@ -117,9 +121,9 @@ const DateField = <T extends FieldValues = FieldValues>({
         render={({ field, fieldState }) => (
           <DatePicker
             {...shared}
-            value={field.value ? new Date(field.value) : null}
+            value={field.value ? toDate(field.value) : null}
             onChange={(picked) => {
-              const date = withTime ? picked : keepTimeOf(picked, field.value ? new Date(field.value) : null);
+              const date = withTime ? picked : keepTimeOf(picked, field.value ? toDate(field.value) : null);
               field.onChange(date ? (toStorage ?? ((d: Date) => d.toISOString()))(date) : clearedValue);
             }}
             onBlur={() => {

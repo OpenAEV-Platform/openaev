@@ -984,6 +984,114 @@
             }
         },
         {
+            "title": "OpenAEV Scenarios",
+            "slug": "openaev_scenarios",
+            "description": "Follow the releases of the OpenAEV scenarios repository: each new release of the chosen channel is downloaded and checked against its manifest before it reaches the platform.",
+            "short_description": "Follow the OpenAEV scenarios releases",
+            "use_cases": [
+                "Scenario collection"
+            ],
+            "verified": false,
+            "last_verified_date": "",
+            "playbook_supported": false,
+            "max_confidence_level": 80,
+            "support_version": "",
+            "subscription_link": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/scenarios",
+            "manager_supported": true,
+            "container_version": "rolling",
+            "container_image": "openaev/collector-scenarios",
+            "container_type": "COLLECTOR",
+            "logo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAV4AAAFeCAYAAADNK3caAAAFb0lEQVR4nO3dwW0CQRAAQWORCGRDDBAeMUA2pIK/tuQHxqj3jq2KYF6tedzObY67y/0DgMzn6AEAZiO8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYhtRw9QO98Oo0fInfbX0SMA39h4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgNt11smct4cLXjJfV4B3ZeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0DMA4oJzPrwYgmPXuA3Nl6AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0DMWcgJrPk84qwnLXlvNl6AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQ84DiQT7kB17FxgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ALHprpOt+VfnwHuw8QLEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxDbHHeX++ghWLfz7TB6hNxpfx09Aitm4wWICS9ATHgBYsILEBNegJjwAsSEFyAmvAAx4QWICS9ATHgBYsILEBNegNh29ADMawkXvma8rMZ4Nl6AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQ84ACnjDrw4slPHp5BzZegJjwAsSEFyAmvAAx4QWICS9ATHgBYsILEBNegJjwAsSEFyAmvAAx4QWICS9AzFlIeMKazyPOetJySWy8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXIOYBBcP4kJ9Z2XgBYsILEBNegJjwAsSEFyAmvAAx4QWICS9ATHgBYsILEBNegJjwAsSEFyDmOhn/tuZfncMINl6AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFim+Puch89BPDT+XYYPULutL+OHiFj4wWICS9ATHgBYsILEBNegJjwAsSEFyAmvAAx4QWICS9ATHgBYsILEBNegNh29ADA6yzhwteMl9X+ysYLEBNegJjwAsSEFyAmvAAx4QWICS9ATHgBYsILEBNegJjwAsSEFyAmvAAx4QWICS9ATHgBYsILEBNegJjwAsSEFyAmvAAx4QWICS9ATHgBYsILEBNegJjwAsSEFyAmvAAx4QWICS9ATHgBYtvRAwCvc74dRo/AA2y8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQ2xx3l/voIQBmYuMFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQOwLAI0xYiukTKsAAAAASUVORK5CYII=",
+            "config_schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "config.schema.json",
+                "type": "object",
+                "properties": {
+                    "OPENAEV_URL": {
+                        "description": "The OpenAEV platform URL.",
+                        "format": "uri",
+                        "maxLength": 2083,
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "OPENAEV_TOKEN": {
+                        "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
+                    "COLLECTOR_ID": {
+                        "default": "openaev_scenarios",
+                        "description": "Collector unique identifier",
+                        "type": "string"
+                    },
+                    "COLLECTOR_NAME": {
+                        "default": "OpenAEV Scenarios",
+                        "description": "Collector display name",
+                        "type": "string"
+                    },
+                    "COLLECTOR_LOG_LEVEL": {
+                        "default": "info",
+                        "description": "Determines the verbosity of the logs.",
+                        "enum": [
+                            "debug",
+                            "info",
+                            "warn",
+                            "error"
+                        ],
+                        "type": "string"
+                    },
+                    "COLLECTOR_PERIOD": {
+                        "default": "PT1H",
+                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "SCENARIOS_REPOSITORY": {
+                        "default": "OpenAEV-Platform/scenarios",
+                        "description": "The GitHub repository whose releases are collected, as owner/name.",
+                        "type": "string"
+                    },
+                    "SCENARIOS_CHANNEL": {
+                        "default": "edge",
+                        "description": "The channel followed: edge gets every release, stable the recommended ones.",
+                        "enum": [
+                            "edge",
+                            "stable"
+                        ],
+                        "type": "string"
+                    },
+                    "SCENARIOS_GITHUB_API_URL": {
+                        "default": "https://api.github.com",
+                        "description": "The GitHub REST API the releases are read from, over HTTPS.",
+                        "format": "uri",
+                        "type": "string"
+                    },
+                    "SCENARIOS_GITHUB_TOKEN": {
+                        "description": "A fine-grained GitHub token, Contents: read on this repository only, needed while it is private.",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "SCENARIOS_DRY_RUN": {
+                        "default": true,
+                        "description": "Check each release and say what would be sent, sending nothing. Set to false to send it to the platform's catalogue, which needs a platform that receives catalogue releases.",
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "OPENAEV_URL",
+                    "OPENAEV_TOKEN"
+                ],
+                "additionalProperties": true
+            }
+        },
+        {
             "title": "Microsoft Sentinel",
             "slug": "openaev_microsoft_sentinel",
             "description": "Validate OpenAEV detection expectations against Microsoft Sentinel by collecting the incidents and alerts your cloud-native SIEM correlates in response to simulated attacks.",
