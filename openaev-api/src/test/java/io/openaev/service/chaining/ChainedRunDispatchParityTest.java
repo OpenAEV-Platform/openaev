@@ -798,7 +798,7 @@ class ChainedRunDispatchParityTest extends IntegrationTest {
 
       // -- ASSERT --
       assertThat(shownAssetIds).containsExactly(green.getId());
-      assertThat(templateAssetIds())
+      assertThat(storedAssetIds())
           .as("the RED asset is still on the template the GREEN editor saved")
           .containsExactlyInAnyOrder(green.getId(), red.getId());
       assertThat(saved.getData().get("inject_assets"))
@@ -825,7 +825,23 @@ class ChainedRunDispatchParityTest extends IntegrationTest {
       inRequestOf(greenLauncher, () -> updateTemplate("new title", List.of(green.getId())));
 
       // -- ASSERT --
-      assertThat(templateAssetIds()).containsExactly(green.getId());
+      assertThat(storedAssetIds()).containsExactly(green.getId());
+    }
+
+    /**
+     * The perimeter stored on the template, whatever its contract: the saved template carries the
+     * manual contract, which is not asset-centric, so {@code assetIdsOnStepTemplates} skips it.
+     */
+    private Set<String> storedAssetIds() {
+      return inTenant(
+          () -> {
+            Set<String> ids = new HashSet<>();
+            JsonParser.parseString(stepRepository.findById(stepTemplateId).orElseThrow().getData())
+                .getAsJsonObject()
+                .getAsJsonArray("inject_assets")
+                .forEach(asset -> ids.add(asset.getAsString()));
+            return ids;
+          });
     }
 
     private StepOutput updateTemplate(String title, List<String> assetIds) {
