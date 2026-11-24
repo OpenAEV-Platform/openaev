@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.PayloadDraftInput;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.BaseInjectExpectation;
@@ -22,6 +23,7 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PayloadFixture;
+import io.openaev.utils.fixtures.ThreatArsenalInputFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -71,6 +73,11 @@ class ThreatArsenalDraftHttpIsolationTest extends IntegrationTest {
   private static final String TENANT_DRAFTS =
       "/api/tenants/{tenantId}/threat_arsenals/{actionId}/drafts";
   private static final String TENANT_DRAFT = TENANT_DRAFTS + "/{draftId}";
+  private static final String TENANT_NEW_ACTION_DRAFTS =
+      "/api/tenants/{tenantId}/threat_arsenals/new_action_drafts";
+  private static final String TENANT_NEW_ACTION_DRAFT = TENANT_NEW_ACTION_DRAFTS + "/{draftId}";
+  private static final String TENANT_MY_DRAFTS =
+      "/api/tenants/{tenantId}/threat_arsenals/my_drafts";
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
@@ -83,6 +90,8 @@ class ThreatArsenalDraftHttpIsolationTest extends IntegrationTest {
   private String draftA;
   private String draftB;
   private String plantedDraftB;
+  private String newActionDraftA;
+  private String newActionDraftB;
 
   /** A seeded action: its contract id, payload id and payload identity id. */
   private record Seeded(String actionId, String payloadId, String identityId) {}
@@ -96,6 +105,8 @@ class ThreatArsenalDraftHttpIsolationTest extends IntegrationTest {
     draftA = seedDraft(tenantA, actionA, "echo draft of a");
     draftB = seedDraft(tenantB, actionB, "echo draft of b");
     plantedDraftB = seedDraft(tenantB, actionA, "echo planted by b");
+    newActionDraftA = seedNewActionDraft(tenantA, "New action of a");
+    newActionDraftB = seedNewActionDraft(tenantB, "New action of b");
     // Evict the seed from the session: the reads below must issue real, rewritten SELECTs.
     entityManager.clear();
   }
@@ -324,7 +335,112 @@ class ThreatArsenalDraftHttpIsolationTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("Drafts of new actions")
+  class NewActionDrafts {
+
+    @Test
+    @DisplayName("given A's path, should list A's new action draft and never B's")
+    void given_ownPath_should_listOnlyOwnNewActionDrafts() throws Exception {
+      // Act
+      String response =
+          mvc.perform(get(TENANT_NEW_ACTION_DRAFTS, tenantA))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat((List<String>) JsonPath.read(response, "$[*].draft_id"))
+          .contains(newActionDraftA)
+          .doesNotContain(newActionDraftB);
+      assertThat(response).doesNotContain("New action of b");
+    }
+
+    @Test
+    @DisplayName("given B's new action draft under A's path, should not save it")
+    void given_otherTenantNewActionDraft_should_notSave() throws Exception {
+      // Act
+      mvc.perform(
+              put(TENANT_NEW_ACTION_DRAFT, tenantA, newActionDraftB)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(draftContent("echo hijack")))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+
+      // Assert
+      assertThat(rawContent(newActionDraftB)).contains("New action of b").doesNotContain("hijack");
+    }
+
+    @Test
+    @DisplayName("given B's new action draft under A's path, should not discard it")
+    void given_otherTenantNewActionDraft_should_keepRow() throws Exception {
+      // Act
+      mvc.perform(delete(TENANT_NEW_ACTION_DRAFT, tenantA, newActionDraftB).with(csrf()))
+          .andExpect(status().isNotFound());
+
+      // Assert
+      assertThat(rawCount(newActionDraftB)).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("given B's new action draft under A's path, should not publish it")
+    void given_otherTenantNewActionDraft_should_notPublish() throws Exception {
+      // Act
+      mvc.perform(
+              post(TENANT_NEW_ACTION_DRAFT + "/publish", tenantA, newActionDraftB)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(createInput("Published by a " + UUID.randomUUID())))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+
+      // Assert
+      assertThat(rawCount(newActionDraftB)).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("given A's path, should attribute a new action draft to tenant A")
+    void given_ownPath_should_attributeNewActionDraftToPathTenant() throws Exception {
+      // Act
+      String response =
+          mvc.perform(
+                  post(TENANT_NEW_ACTION_DRAFTS, tenantA)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(draftContent("echo new action of a")))
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      String created = JsonPath.read(response, "$.draft_id");
+      assertThat(rawTenant(created)).isEqualTo(tenantA);
+    }
+
+    @Test
+    @DisplayName("given A's path, should list my drafts of tenant A only")
+    void given_ownPath_should_listOnlyOwnTenantMyDrafts() throws Exception {
+      // Act
+      String response =
+          mvc.perform(get(TENANT_MY_DRAFTS, tenantA))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat((List<String>) JsonPath.read(response, "$[*].draft_id"))
+          .contains(newActionDraftA)
+          .doesNotContain(newActionDraftB);
+    }
+  }
+
   // -- Inputs --
+
+  private static ThreatArsenalActionCreateInput createInput(String name) {
+    return ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(), name);
+  }
 
   private PayloadDraftInput draftContent(String command) {
     return new PayloadDraftInput(mapper.createObjectNode().put("action_content", command));
@@ -383,6 +499,19 @@ class ThreatArsenalDraftHttpIsolationTest extends IntegrationTest {
         action.identityId(),
         action.payloadId(),
         "{\"action_content\":\"" + command + "\"}");
+    return draftId;
+  }
+
+  // A draft of a new action: no payload yet, saved by the current user (so "my drafts" sees it).
+  private String seedNewActionDraft(String tenantId, String name) {
+    String draftId = UUID.randomUUID().toString();
+    jdbcUpdate(
+        "INSERT INTO payload_drafts (payload_draft_id, tenant_id, payload_draft_content,"
+            + " payload_draft_created_by) VALUES (?, ?, ?, ?)",
+        draftId,
+        tenantId,
+        "{\"action_name\":\"" + name + "\"}",
+        testUserHolder.get().getId());
     return draftId;
   }
 

@@ -22,4 +22,6 @@ public record PayloadVersionOutput(
     @JsonProperty("payload_usage_count") @NotNull Integer usageCount,
     @JsonProperty("payload_created_at") Instant createdAt,
     // Payload approval: null for a catalogue version not installed.
-    @JsonProperty("payload_approval_status") Payload.PAYLOAD_APPROVAL_STATUS approvalStatus) {}
+    @JsonProperty("payload_approval_status") Payload.PAYLOAD_APPROVAL_STATUS approvalStatus,
+    // Why a rejected version was rejected (its latest rejection); null otherwise.
+    @JsonProperty("payload_rejection_reason") String rejectionReason) {}

@@ -10099,12 +10099,15 @@ export interface PayloadDraftInput {
 }
 
 export interface PayloadDraftOutput {
+  draft_action_id?: string;
   draft_content: JsonNode;
   /** @format date-time */
   draft_created_at: string;
   /** @minLength 1 */
   draft_id: string;
+  draft_new_action?: boolean;
   draft_rework?: boolean;
+  draft_rework_reason?: string;
   draft_source_action_id?: string;
   draft_source_version?: string;
   /** @format date-time */
@@ -10532,6 +10535,7 @@ export interface PayloadVersionOutput {
   payload_is_latest?: boolean;
   /** @format date-time */
   payload_published_at?: string;
+  payload_rejection_reason?: string;
   payload_revoked?: boolean;
   payload_revoked_in_tenant?: boolean;
   payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";

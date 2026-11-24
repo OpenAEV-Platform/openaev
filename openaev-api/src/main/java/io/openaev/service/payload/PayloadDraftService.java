@@ -32,8 +32,28 @@ public class PayloadDraftService {
   public PayloadDraft findDraft(@NotNull final PayloadIdentity identity, final String draftId) {
     return payloadDraftRepository
         .findById(draftId)
-        .filter(draft -> draft.getIdentity().getId().equals(identity.getId()))
+        .filter(
+            draft ->
+                draft.getIdentity() != null && draft.getIdentity().getId().equals(identity.getId()))
         .orElseThrow(() -> new ElementNotFoundException("Draft not found: " + draftId));
+  }
+
+  /** The drafts of new actions (no version yet), last changed first. */
+  public List<PayloadDraft> findNewActionDrafts() {
+    return payloadDraftRepository.findByIdentityIsNullOrderByUpdatedAtDesc();
+  }
+
+  /** A draft of a new action; not found when it belongs to an existing payload. */
+  public PayloadDraft findNewActionDraft(final String draftId) {
+    return payloadDraftRepository
+        .findById(draftId)
+        .filter(draft -> draft.getIdentity() == null)
+        .orElseThrow(() -> new ElementNotFoundException("Draft not found: " + draftId));
+  }
+
+  /** The drafts a user started or saved last, of new actions and of existing payloads. */
+  public List<PayloadDraft> findUserDrafts(@NotNull final String userId) {
+    return payloadDraftRepository.findByUser(userId);
   }
 
   /** Whether a rejected version is already being fixed in a draft. */

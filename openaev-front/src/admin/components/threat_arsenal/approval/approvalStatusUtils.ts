@@ -7,6 +7,9 @@ export type ApprovalOrigin = NonNullable<PayloadApprovalOutput['approval_origin'
 
 export const APPROVAL_STATUSES: ApprovalStatus[] = ['PENDING', 'APPROVED', 'REJECTED', 'SUPERSEDED'];
 
+/** Payload drafts: a value of the Approval filter that is not a version status (actions with a draft). */
+export const DRAFT_APPROVAL_VALUE = 'DRAFT';
+
 // Same ladder as the other status chips: orange "medium" for what needs attention, green "low"
 // when it can be used, red "critical" when it is blocked.
 const STATUS_SEVERITIES: Record<ApprovalStatus, ChipSeverity> = {

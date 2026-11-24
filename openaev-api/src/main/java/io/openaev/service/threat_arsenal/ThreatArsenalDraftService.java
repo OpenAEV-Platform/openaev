@@ -5,9 +5,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.threat_arsenal.dto.PayloadDraftOutput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.PayloadApproval;
 import io.openaev.database.model.PayloadDraft;
 import io.openaev.database.model.User;
 import io.openaev.rest.exception.BadRequestException;
@@ -16,8 +19,11 @@ import io.openaev.service.UserService;
 import io.openaev.service.content.ContentHistoryService;
 import io.openaev.service.payload.PayloadDraftService;
 import io.openaev.service.payload.PayloadVersionService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
+import io.openaev.service.tenants.TenantService;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
@@ -27,7 +33,8 @@ import org.springframework.stereotype.Service;
  * starts from any version of the action; saving it changes no version number. Publishing it saves a
  * new version from the version it started from, numbered as any update and approved or pending as
  * any update. A draft of a rejected version fixes that version: publishing it sends the same
- * version, same number, for approval again.
+ * version, same number, for approval again. A draft of a new action belongs to no payload yet:
+ * publishing it creates the action and its first version.
  */
 @Service
 @RequiredArgsConstructor
@@ -38,6 +45,9 @@ public class ThreatArsenalDraftService {
   private final ThreatArsenalService threatArsenalService;
   private final ContentHistoryService contentHistoryService;
   private final UserService userService;
+  private final PayloadApprovalService payloadApprovalService;
+  private final PayloadVersionService payloadVersionService;
+  private final TenantService tenantService;
   private final ObjectMapper mapper;
 
   /** The drafts of the action (of all its versions), last changed first. */
@@ -110,6 +120,58 @@ public class ThreatArsenalDraftService {
     return result;
   }
 
+  // -- NEW ACTIONS --
+
+  /** The drafts of new actions of the tenant, last changed first. */
+  public List<PayloadDraftOutput> newActionDrafts() {
+    return payloadDraftService.findNewActionDrafts().stream().map(this::output).toList();
+  }
+
+  /** Saves the Create form as the draft of a new action: no action, no version yet. */
+  public PayloadDraftOutput createNewActionDraft(String tenantId, JsonNode content) {
+    PayloadDraft draft = new PayloadDraft();
+    draft.setTenant(tenantService.findById(tenantId));
+    User user = userService.currentUserOrNull();
+    draft.setCreatedBy(user);
+    write(draft, content, user);
+    return output(payloadDraftService.save(draft));
+  }
+
+  /** Saves the draft of a new action: still no version. */
+  public PayloadDraftOutput saveNewActionDraft(String draftId, JsonNode content) {
+    PayloadDraft draft = payloadDraftService.findNewActionDraft(draftId);
+    write(draft, content, userService.currentUserOrNull());
+    return output(payloadDraftService.save(draft));
+  }
+
+  /** Drops the draft of a new action. */
+  public void discardNewActionDraft(String draftId) {
+    payloadDraftService.delete(payloadDraftService.findNewActionDraft(draftId));
+  }
+
+  /**
+   * Publishes the draft of a new action: creates the action and its first version, approved at once
+   * for a holder of Approve content, pending otherwise. The draft is gone after.
+   */
+  public ThreatArsenalAction publishNewActionDraft(
+      TxCtx ctx, String draftId, ThreatArsenalActionCreateInput input) {
+    PayloadDraft draft = payloadDraftService.findNewActionDraft(draftId);
+    ThreatArsenalAction result = threatArsenalService.create(ctx, input);
+    payloadDraftService.delete(draft);
+    return result;
+  }
+
+  // -- MINE --
+
+  /** The drafts the current user started or saved last, of new actions and existing ones. */
+  public List<PayloadDraftOutput> userDrafts() {
+    User user = userService.currentUserOrNull();
+    if (user == null) {
+      return List.of();
+    }
+    return payloadDraftService.findUserDrafts(user.getId()).stream().map(this::output).toList();
+  }
+
   // The action's payload version, if it can have drafts: a local payload, not a catalogue version
   // (read-only) nor a customized one (changed through its overrides).
   private Payload editableVersion(String actionId) {
@@ -151,21 +213,53 @@ public class ThreatArsenalDraftService {
     } catch (JsonProcessingException e) {
       content = mapper.createObjectNode();
     }
-    String sourceActionId =
-        draft.getSource() == null
+    Payload source = unproxy(draft.getSource());
+    Payload rework = unproxy(draft.getRework());
+    String sourceActionId = source == null ? null : actionIdOf(source).orElse(null);
+    String reworkReason =
+        rework == null
             ? null
-            : injectorContractService
-                .findOptionalByPayload((Payload) Hibernate.unproxy(draft.getSource()))
-                .map(InjectorContract::getId)
+            : payloadApprovalService
+                .latest(rework.getId())
+                .filter(e -> e.getStatus() == Payload.PAYLOAD_APPROVAL_STATUS.REJECTED)
+                .map(PayloadApproval::getComment)
                 .orElse(null);
     return new PayloadDraftOutput(
         draft.getId(),
         sourceActionId,
         draft.getSourceVersion(),
-        draft.getRework() != null,
+        rework != null,
+        reworkReason,
+        actionToOpen(draft, rework, sourceActionId),
+        draft.getIdentity() == null,
         content,
         draft.getUpdatedByName(),
         draft.getCreatedAt(),
         draft.getUpdatedAt());
+  }
+
+  // The version it fixes, else the one it started from, else the payload's latest version.
+  private String actionToOpen(PayloadDraft draft, Payload rework, String sourceActionId) {
+    if (draft.getIdentity() == null) {
+      return null;
+    }
+    if (rework != null) {
+      return actionIdOf(rework).orElse(null);
+    }
+    if (sourceActionId != null) {
+      return sourceActionId;
+    }
+    return Optional.ofNullable(draft.getIdentity().getLatestPayloadId())
+        .map(payloadVersionService::findById)
+        .flatMap(this::actionIdOf)
+        .orElse(null);
+  }
+
+  private Optional<String> actionIdOf(Payload version) {
+    return injectorContractService.findOptionalByPayload(version).map(InjectorContract::getId);
+  }
+
+  private static Payload unproxy(Payload payload) {
+    return payload == null ? null : (Payload) Hibernate.unproxy(payload);
   }
 }

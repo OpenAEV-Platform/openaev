@@ -223,7 +223,8 @@ can update the Action sees its drafts and can change them.
 **Update** opens the edit drawer. The selector at its top chooses what you work on:
 
 - a **draft** of the Action, named after the version it started from (*Draft from v1.0*);
-- a **rejected version**, to fix it: its first save makes it a draft, and it keeps its number;
+- a **rejected version**, to fix it, with the reason it was rejected: its first save makes it a draft, and it keeps its
+  number;
 - **New draft from a version**: any published version, the latest one or an older one.
 
 At the bottom, **Save draft** keeps your changes in the draft, as often as you need. **Publish version** makes a new
@@ -231,12 +232,21 @@ version, usable at once; without *Approve content*, the button is **Send for app
 approver. A new version is numbered as usual, after the highest version, even when it starts from an older one. A
 rejected version you fixed keeps its number and waits for approval again. You can publish straight from a version,
 without saving a draft first. Switching to something else with unsaved changes asks whether to save them as a draft.
+Above the form, **What this draft changes** compares the saved draft with the version it started from, as approvers see
+a new version.
+
+A **new Action** can be saved as a draft too: **Save draft** in the Create form keeps it without creating the Action. It
+has no version and nothing can use it until you publish it, which creates version 1.0.0.
 
 The **Versions** tab lists the drafts above the versions, with who saved them last. Each version offers **Duplicate to
 draft** (**Fix in a draft** for a rejected version): the version stays as it is, and the draft starts with its content.
 The **History** tab records when a draft is started from a version, discarded, published as a new version (*v1.0 →
-v1.4*, *Published from a draft*), or when a rejected version is fixed and sent again. A card shows a *Draft* chip while
-the Action has a draft.
+v1.4*, *Published from a draft*), or when a rejected version is fixed and sent again; the Versions tab shows *from v1.0*
+on a version published from a draft. A card and a list row show a *Draft* chip while the Action has a draft.
+
+To find drafts, **My changes** lists the drafts you saved, new Actions included, in a *Drafts* group above the others,
+and the **Approval** filter of the Active tab has a *Draft* value that keeps the Actions with a draft (a custom view can
+keep it).
 
 ## Delete an Action
 

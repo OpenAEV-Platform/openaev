@@ -1,12 +1,14 @@
-import { SearchField, Text } from '@filigran/design-system';
+import { Chip, SearchField, Text } from '@filigran/design-system';
 import { AddOutlined, FactCheckOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type ReactElement, useMemo, useState } from 'react';
+import { type FunctionComponent, type ReactElement, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import { type UserHelper } from '../../../actions/helper';
+import { fetchMyDrafts } from '../../../actions/threat_arsenals/threatArsenal-draft-actions';
 import FdsAccordion from '../../../components/common/accordion/FdsAccordion';
+import Drawer from '../../../components/common/Drawer';
 import { buildStatusRows } from '../../../components/common/facets/ContractFacets';
 import { type FacetRow, type FacetSection, FacetSidebar } from '../../../components/common/facets/FacetFilters';
 import MarketplaceBrowser from '../../../components/common/marketplace/MarketplaceBrowser';
@@ -14,7 +16,7 @@ import MarketplaceGrid from '../../../components/common/marketplace/MarketplaceG
 import { useFormatter } from '../../../components/i18n';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
-import { type Domain, type ThreatArsenalAction } from '../../../utils/api-types';
+import { type Domain, type PayloadDraftOutput, type ThreatArsenalAction } from '../../../utils/api-types';
 import { tint } from '../../../utils/tint';
 import { DOMAIN_ICON_MAP } from '../common/domains/DomainsIcons';
 import { approvalStatusLabel, NEW_ACTION_HINT, NEW_VERSION_HINT } from './approval/approvalStatusUtils';
@@ -31,6 +33,7 @@ import {
 } from './approval/reviewViews';
 import { isFromCollector, type QueueItem, useApprovalQueue, useQueueDrawer } from './approval/useApprovalQueue';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
+import ThreatArsenalDraftEditor from './drafts/ThreatArsenalDraftEditor';
 import computeActionFlags from './threatArsenalActionFlags';
 import ThreatArsenalCard from './ThreatArsenalCard';
 import { actionDomains } from './threatArsenalDomainSections';
@@ -51,7 +54,7 @@ const PLATFORMS = ['Windows', 'Linux', 'MacOS'];
  * the version is decided.
  */
 const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
-  const { t, tPick } = useFormatter();
+  const { t, tPick, nsdt } = useFormatter();
   const theme = useTheme();
   const me = useHelper((helper: UserHelper) => helper.getMe())?.user_id as string | undefined;
   const [searchParams] = useSearchParams();
@@ -67,6 +70,22 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
   const allDomains: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
 
   const [filters, setFilters] = useState<ReviewFilters>(defaultFilters);
+
+  // Payload drafts (My changes): what I saved and did not publish yet, new actions included.
+  const [myDrafts, setMyDrafts] = useState<PayloadDraftOutput[]>([]);
+  const [editingDraft, setEditingDraft] = useState<PayloadDraftOutput | null>(null);
+  const loadDrafts = () => fetchMyDrafts()
+    .then((response: { data: PayloadDraftOutput[] }) => setMyDrafts(response.data))
+    .catch(() => setMyDrafts([]));
+  useEffect(() => {
+    if (mode === 'my-changes') loadDrafts();
+  }, [mode]);
+  const draftName = (draft: PayloadDraftOutput) => (draft.draft_content as { action_name?: string } | undefined)?.action_name || t('Untitled');
+  const draftKind = (draft: PayloadDraftOutput) => {
+    if (draft.draft_new_action) return t('New action');
+    if (draft.draft_rework) return t('v{version} · Rejected, being fixed', { version: draft.draft_source_version ?? '' });
+    return t('Draft from v{version}', { version: draft.draft_source_version ?? '' });
+  };
 
   const context: ReviewContext = {
     me,
@@ -85,6 +104,9 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
     [waiting.items, approved.items, mode, me],
   );
   const shown = all.filter(item => matches(item, filters, context, name(item)));
+  const shownDrafts = mode === 'my-changes'
+    ? myDrafts.filter(draft => !filters.search || draftName(draft).toLowerCase().includes(filters.search.toLowerCase()))
+    : [];
 
   const setSearch = (search: string) => setFilters({
     ...filters,
@@ -235,11 +257,58 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
     />
   );
 
+  const draftTile = (draft: PayloadDraftOutput, onClick: () => void) => (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        all: 'unset',
+        boxSizing: 'border-box',
+        cursor: 'pointer',
+        minHeight: 160,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: theme.spacing(1),
+        padding: theme.spacing(2),
+        borderRadius: theme.shape.borderRadius,
+        border: `1px solid ${tint(theme.palette.text.primary, 16)}`,
+      }}
+    >
+      <Text variant="content-base-bold">{draftName(draft)}</Text>
+      <div style={{
+        display: 'flex',
+        gap: 4,
+        flexWrap: 'wrap',
+      }}
+      >
+        <Chip label={t('Draft')} />
+        <Chip label={draftKind(draft)} />
+      </div>
+      <Text variant="content-compact" className="text-default-secondary">
+        {t('Saved {date}', { date: nsdt(draft.draft_updated_at) })}
+      </Text>
+    </button>
+  );
+  const draftCard = (draft: PayloadDraftOutput) => (draft.draft_new_action
+    ? (
+        <CreateThreatArsenalAction
+          key={draft.draft_id}
+          draft={draft}
+          onCreate={() => waiting.reload()}
+          onDraftsChange={loadDrafts}
+          renderTrigger={open => draftTile(draft, open)}
+        />
+      )
+    : <div key={draft.draft_id}>{draftTile(draft, () => setEditingDraft(draft))}</div>);
+
   // GitHub's "+ Add item" at the end of a group: a card-sized tile that opens the Create form.
   const addTile = (
     <CreateThreatArsenalAction
       key="add"
       onCreate={() => waiting.reload()}
+      onDraftsChange={loadDrafts}
       renderTrigger={open => (
         <button
           type="button"
@@ -330,8 +399,29 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
         sidebar={<FacetSidebar title={t('Filters')} sections={filterSections} />}
         toolbar={toolbar}
       >
+        {!loading && shownDrafts.length > 0 && (
+          <FdsAccordion
+            defaultExpanded
+            title={t('Drafts')}
+            meta={<Text variant="content-compact" className="text-default-secondary">{String(shownDrafts.length)}</Text>}
+          >
+            <Text
+              variant="content-compact"
+              className="text-default-secondary"
+              style={{
+                display: 'block',
+                marginBottom: 12,
+              }}
+            >
+              {t('Saved, not published: nothing uses them and nobody reviews them yet.')}
+            </Text>
+            <MarketplaceGrid loading={false} isEmpty={false} emptyState={null}>
+              {shownDrafts.map(draftCard)}
+            </MarketplaceGrid>
+          </FdsAccordion>
+        )}
         {loading || sections.length === 0
-          ? <MarketplaceGrid loading={loading} isEmpty={sections.length === 0} emptyState={emptyState}>{null}</MarketplaceGrid>
+          ? <MarketplaceGrid loading={loading} isEmpty={sections.length === 0 && shownDrafts.length === 0} emptyState={emptyState}>{null}</MarketplaceGrid>
           : sections.map(section => (
               // The DS accordion, as in the Versions and History tabs: the group and its count, open by default.
               <FdsAccordion
@@ -358,6 +448,25 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
             ))}
       </MarketplaceBrowser>
 
+      <Drawer open={editingDraft !== null} handleClose={() => setEditingDraft(null)} title={t('Edit draft')}>
+        {editingDraft?.draft_action_id
+          ? (
+              <ThreatArsenalDraftEditor
+                actionId={editingDraft.draft_action_id}
+                initialSelection={`draft:${editingDraft.draft_id}`}
+                onClose={() => {
+                  setEditingDraft(null);
+                  loadDrafts();
+                }}
+                onPublished={() => {
+                  setEditingDraft(null);
+                  loadDrafts();
+                  waiting.reload();
+                }}
+              />
+            )
+          : <></>}
+      </Drawer>
       {drawer.selected && (
         <ThreatArsenalInformationDrawer
           open
