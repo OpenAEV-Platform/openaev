@@ -132,7 +132,7 @@ const FindingListView = ({ loading, findings, queryableHelpers, hiddenFields = [
       field: 'finding_sources',
       label: 'Sources',
       isSortable: false,
-      value: (finding: AggregatedFindingOutput) => finding.finding_sources?.map(source => source.injector_type).join(','),
+      value: (finding: AggregatedFindingOutput) => <FindingSource sources={finding.finding_sources?.sort()} />
     },
     {
       field: 'finding_created_at',

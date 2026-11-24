@@ -8376,6 +8376,12 @@ export interface InjectorRegistration {
 
 export interface InjectorSimple {
   /**
+   * Injector id
+   * @minLength 1
+   * @example "49229430-b5b5-431f-ba5b-f36f599b0233"
+   */
+  injector_id: string;
+  /**
    * Injector name
    * @minLength 1
    * @example "Nuclei"
