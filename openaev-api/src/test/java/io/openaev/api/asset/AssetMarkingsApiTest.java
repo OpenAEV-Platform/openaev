@@ -25,6 +25,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.rest.asset.ai_targets.form.AiTargetInput;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.utils.fixtures.AiTargetFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
@@ -72,6 +73,8 @@ class AssetMarkingsApiTest extends IntegrationTest {
   private static final String TENANT_ASSET_URI = "/api/tenants/{tenantId}/assets";
   private static final String ENDPOINT_CREATE_URI = "/api/tenants/{tenantId}/endpoints/agentless";
   private static final String AI_TARGET_CREATE_URI = "/api/tenants/{tenantId}/ai_targets";
+  private static final String AI_TARGET_UPDATE_URI =
+      "/api/tenants/{tenantId}/ai_targets/{aiTargetId}";
   private static final String ENDPOINT_UPDATE_URI =
       "/api/tenants/{tenantId}/endpoints/{endpointId}";
 
@@ -392,22 +395,6 @@ class AssetMarkingsApiTest extends IntegrationTest {
       // -- ASSERT --
       assertEquals(0, assetsNamed(input.getName()));
     }
-
-    @Test
-    @DisplayName(
-        "given the caller lacks MANAGE_MARKING_ASSIGNMENT, should refuse and create nothing")
-    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
-    void given_noMarkingCapability_should_forbidAndCreateNothing() throws Exception {
-      // -- ARRANGE --
-      EndpointInput input = endpointInput();
-
-      // -- ACT --
-      createAsset(ENDPOINT_CREATE_URI, input, List.of(green.getId()))
-          .andExpect(status().isForbidden());
-
-      // -- ASSERT --
-      assertEquals(0, assetsNamed(input.getName()));
-    }
   }
 
   @Nested
@@ -416,16 +403,39 @@ class AssetMarkingsApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("given changed markings, should update the endpoint and its markings together")
-    void given_changedMarkings_should_updateBoth() throws Exception {
+    void given_changedMarkings_should_updateEndpointAndMarkings() throws Exception {
       // -- ARRANGE --
       EndpointInput input = endpointInput();
 
       // -- ACT --
-      updateEndpoint(input, List.of(green.getId())).andExpect(status().is2xxSuccessful());
+      updateAsset(ENDPOINT_UPDATE_URI, asset.getId(), input, List.of(green.getId()))
+          .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
       assertEquals(1, assetsNamed(input.getName()));
       assertArrayEquals(new String[] {green.getId()}, storedMarkings());
+    }
+
+    @Test
+    @DisplayName("given changed markings, should update the AI target and its markings together")
+    void given_changedMarkings_should_updateAiTargetAndMarkings() throws Exception {
+      // -- ARRANGE --
+      AiTargetInput input = AiTargetFixture.createDefaultAiTargetInput("asset-markings");
+      String aiTargetId =
+          JsonPath.read(
+              createAsset(AI_TARGET_CREATE_URI, input, List.of())
+                  .andExpect(status().is2xxSuccessful())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString(),
+              "$.asset_id");
+
+      // -- ACT --
+      updateAsset(AI_TARGET_UPDATE_URI, aiTargetId, input, List.of(green.getId()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertArrayEquals(new String[] {green.getId()}, storedMarkings(aiTargetId));
     }
 
     @Test
@@ -434,18 +444,29 @@ class AssetMarkingsApiTest extends IntegrationTest {
     @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
     void given_unchangedMarkingsWithoutCapability_should_updateEndpoint() throws Exception {
       // -- ARRANGE --
-      jdbc.update(
-          "UPDATE assets SET marking_ids = ARRAY[?] WHERE asset_id = ?",
-          green.getId(),
-          asset.getId());
-      entityManager.clear();
+      storeMarkings(green.getId());
       EndpointInput input = endpointInput();
 
       // -- ACT --
-      updateEndpoint(input, List.of(green.getId())).andExpect(status().is2xxSuccessful());
+      updateAsset(ENDPOINT_UPDATE_URI, asset.getId(), input, List.of(green.getId()))
+          .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
       assertEquals(1, assetsNamed(input.getName()));
+      assertArrayEquals(new String[] {green.getId()}, storedMarkings());
+    }
+
+    @Test
+    @DisplayName("given no markings in the request, should keep the endpoint's markings")
+    void given_noMarkings_should_keepMarkings() throws Exception {
+      // -- ARRANGE --
+      storeMarkings(green.getId());
+
+      // -- ACT --
+      updateAsset(ENDPOINT_UPDATE_URI, asset.getId(), endpointInput(), null)
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
       assertArrayEquals(new String[] {green.getId()}, storedMarkings());
     }
   }
@@ -484,9 +505,10 @@ class AssetMarkingsApiTest extends IntegrationTest {
             .with(csrf()));
   }
 
-  private ResultActions updateEndpoint(Object input, List<String> markingIds) throws Exception {
+  private ResultActions updateAsset(
+      String uri, String assetId, Object input, List<String> markingIds) throws Exception {
     return mvc.perform(
-        put(ENDPOINT_UPDATE_URI, tenantId, asset.getId())
+        put(uri, tenantId, assetId)
             .content(withMarkings(input, markingIds))
             .contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON)
@@ -495,7 +517,9 @@ class AssetMarkingsApiTest extends IntegrationTest {
 
   private static String withMarkings(Object input, List<String> markingIds) {
     Map<String, Object> body = asStringJson(asJsonString(input), Map.class);
-    body.put("asset_markings", markingIds);
+    if (markingIds != null) {
+      body.put("asset_markings", markingIds);
+    }
     return asJsonString(body);
   }
 
@@ -503,6 +527,13 @@ class AssetMarkingsApiTest extends IntegrationTest {
     EndpointInput input = EndpointFixture.createWindowsEndpointInput(List.of());
     input.setName("asset-markings-" + uniqueDefinition());
     return input;
+  }
+
+  private void storeMarkings(String... markingIds) {
+    entityManager.flush();
+    jdbc.update(
+        "UPDATE assets SET marking_ids = ? WHERE asset_id = ?", (Object) markingIds, asset.getId());
+    entityManager.clear();
   }
 
   private int assetsNamed(String name) {

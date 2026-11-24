@@ -100,7 +100,7 @@ public class AssetMarkingsService {
     if (markingIds == null || markingIds.equals(markingIds(asset))) {
       return;
     }
-    replaceMarkings(tenantId, asset, new LinkedHashSet<>(markingIds));
+    replaceMarkings(tenantId, asset, markingIds);
   }
 
   private void replaceMarkings(String tenantId, Asset asset, Set<String> markingIds) {
