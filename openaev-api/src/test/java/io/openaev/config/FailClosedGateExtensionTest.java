@@ -4,13 +4,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import io.openaev.config.FailClosedAccessRecorder.Violation;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
  * Unit test of the WS1 gate's decision logic (no Spring): a fail-closed read from a NEW production
@@ -472,6 +478,68 @@ class FailClosedGateExtensionTest {
 
       // Assert
       assertEquals(List.of(site), offending);
+    }
+  }
+
+  @Nested
+  @DisplayName("Tests that expect an empty scope")
+  class ExpectedEmptyScope {
+
+    @ExpectsEmptyScopeReads("a caller of no tenant reads nothing")
+    class AnnotatedOuter {
+      class NotAnnotatedInner {}
+    }
+
+    class NotAnnotatedOuter {
+      @ExpectsEmptyScopeReads("a read with no scope")
+      void annotatedMethod() {}
+
+      void plainMethod() {}
+    }
+
+    private ExtensionContext contextOf(AnnotatedElement element, ExtensionContext parent) {
+      ExtensionContext context = mock(ExtensionContext.class);
+      when(context.getElement()).thenReturn(Optional.ofNullable(element));
+      when(context.getParent()).thenReturn(Optional.ofNullable(parent));
+      return context;
+    }
+
+    private Method method(Class<?> type, String name) throws NoSuchMethodException {
+      return type.getDeclaredMethod(name);
+    }
+
+    @Test
+    @DisplayName("given_anAnnotatedMethod_should_beExpected")
+    void given_anAnnotatedMethod_should_beExpected() throws Exception {
+      // Arrange
+      ExtensionContext outer = contextOf(NotAnnotatedOuter.class, null);
+      ExtensionContext test = contextOf(method(NotAnnotatedOuter.class, "annotatedMethod"), outer);
+
+      // Act & Assert
+      assertTrue(FailClosedGateExtension.expectsEmptyScopeReads(test));
+    }
+
+    @Test
+    @DisplayName("given_aMethodOfAnAnnotatedClassNestedTwice_should_beExpected")
+    void given_aMethodOfAnAnnotatedClassNestedTwice_should_beExpected() throws Exception {
+      // Arrange
+      ExtensionContext outer = contextOf(AnnotatedOuter.class, null);
+      ExtensionContext inner = contextOf(AnnotatedOuter.NotAnnotatedInner.class, outer);
+      ExtensionContext test = contextOf(method(NotAnnotatedOuter.class, "plainMethod"), inner);
+
+      // Act & Assert
+      assertTrue(FailClosedGateExtension.expectsEmptyScopeReads(test));
+    }
+
+    @Test
+    @DisplayName("given_aMethodWithNoAnnotationAnywhere_should_notBeExpected")
+    void given_aMethodWithNoAnnotationAnywhere_should_notBeExpected() throws Exception {
+      // Arrange
+      ExtensionContext outer = contextOf(NotAnnotatedOuter.class, null);
+      ExtensionContext test = contextOf(method(NotAnnotatedOuter.class, "plainMethod"), outer);
+
+      // Act & Assert
+      assertFalse(FailClosedGateExtension.expectsEmptyScopeReads(test));
     }
   }
 }

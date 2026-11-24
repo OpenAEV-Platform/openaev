@@ -11,6 +11,25 @@
 #
 # Lines starting with # and blank lines are ignored.
 
+# BENIGN - groups and marking_definitions, the loads that run before a request scope exists. The
+# groups block and the markings block below give the reasoning for the other sites of the same
+# kind, and these four read the groups or the markings of the user the same way: with no scope the
+# platform groups of the user load and its tenant groups do not.
+# - findByTokenAndTenantId: the connector token filter, the sibling of findByToken. The principal it
+#   builds holds the id, the admin flag and the language only, and the capabilities are read later
+#   by the request's own user load, in its scope (OpenCTIJwtAuthenticationTest).
+# - UserApi.login and UserService.user: the password login before the tenant is chosen, and the
+#   by-id user read, as for roles above (UserLoadUnscopedMarkingsTest, UserLoadUnscopedGroupsTest).
+# - UserService.createAdminSession has no production caller: the tests open the admin session.
+# - PlatformGroupService.findById: the platform group endpoints run in the scope of their caller,
+#   empty for an operator of no tenant. The group output carries no marking, and the markings of a
+#   platform group are never written from this load (GroupPrivilegeCheckHiddenRolesTest).
+io.openaev.service.UserService.findByTokenAndTenantId tables=groups
+io.openaev.rest.user.UserApi.login tables=groups
+io.openaev.service.UserService.user tables=groups
+io.openaev.service.UserService.createAdminSession tables=marking_definitions
+io.openaev.service.platform.groups.PlatformGroupService.findById tables=marking_definitions
+
 # SCOPED-OK - SecurityCoverageJob reads the pending send jobs under TxCtx.allTenants() and loads,
 # bundles and consumes each one under TxCtx.forTenant of its simulation's tenant; a test that calls
 # these methods directly reads with no scope.

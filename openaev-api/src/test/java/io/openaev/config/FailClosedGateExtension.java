@@ -130,6 +130,9 @@ public class FailClosedGateExtension implements BeforeEachCallback, AfterEachCal
       return;
     }
     FailClosedAccessRecorder.stop();
+    if (expectsEmptyScopeReads(context)) {
+      return;
+    }
     List<String> offending = offendingSignatures(FailClosedAccessRecorder.violations());
     if (offending.isEmpty()) {
       return;
@@ -145,6 +148,24 @@ public class FailClosedGateExtension implements BeforeEachCallback, AfterEachCal
             + "\nScope the path (an HTTP TxCtx parameter, or the TenantScopedTransaction primitive "
             + "in background code). If it is intentional and safe, add the signature to "
             + "failclosed-baseline.txt with a reason.");
+  }
+
+  /**
+   * Whether the test, or a class around it, carries {@link ExpectsEmptyScopeReads}. Extracted so
+   * the lookup is unit-tested without the JUnit lifecycle.
+   */
+  static boolean expectsEmptyScopeReads(ExtensionContext context) {
+    for (ExtensionContext current = context;
+        current != null;
+        current = current.getParent().orElse(null)) {
+      if (current
+          .getElement()
+          .filter(e -> e.isAnnotationPresent(ExpectsEmptyScopeReads.class))
+          .isPresent()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
