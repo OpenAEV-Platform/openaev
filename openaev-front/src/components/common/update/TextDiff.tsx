@@ -25,6 +25,8 @@ const TextDiff = ({ text, other }: Props) => {
     <Text
       variant="content-code"
       style={{
+        // The app does not load IBM Plex Mono: without a fallback the browser shows a serif font.
+        fontFamily: 'var(--font-content-code), monospace',
         whiteSpace: 'pre-wrap',
         overflowWrap: 'anywhere',
       }}
