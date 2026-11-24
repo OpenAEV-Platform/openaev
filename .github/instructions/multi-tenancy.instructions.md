@@ -23,7 +23,7 @@ description: "Multi-tenancy conventions: tenant isolation, dual-scope, anti-patt
 
 ## V1 vs V2 Isolation — Two Mechanisms, Never Both
 
-| | v1 (legacy, most tables) | v2 (`openaev.tenant.active-tables`) |
+| | v1 (legacy, most tables) | v2 (`openaev.tenant.active-tables=*`) |
 |---|---|---|
 | Read isolation | `@Filter("tenantFilter")`, set via `TenantContext` thread-local | SQL rewritten by `TenantStatementInspector` + `can_access_tenant`, scoped per-transaction by a `TxCtx` argument |
 | Entrypoint requirement | None — filter is ambient | Every `@Transactional` entrypoint whose call graph reaches the table (directly, via another service, or via an association/join) **must** declare a `TxCtx` parameter |
@@ -31,10 +31,10 @@ description: "Multi-tenancy conventions: tenant isolation, dual-scope, anti-patt
 | Native query safety | Needs explicit `WHERE tenant_id` | Needs a FROM/JOIN shape the inspector already accepts (see `TenantStatementInspectorTest`); a shape it doesn't recognize fails closed (`TENANT_FILTERING_REFUSED`) |
 | Background writer | `TenantScopedTransaction` not required | Convert the job to `TenantScopedTransaction` (`openaev-model/…/context/TenantScopedTransaction.java`) so it runs inside a real per-tenant transaction |
 
-A table is either v1 or v2-active, never both: once a table is added to
-`active-tables`, its `@Filter("tenantFilter")` must be removed in the same
-commit — leaving it in place is not defense in depth, it silently duplicates
-(and can conflict with) the inspector's own predicate.
+A table is either v1 or v2-active, never both: production arms every tenant table with `*`, so a
+new tenant table is armed from the day it exists and carries no `@Filter("tenantFilter")`: leaving
+one in place is not defense in depth, it silently duplicates (and can conflict with) the
+inspector's own predicate. Only the self-isolated tables of `TenantTables` are left out.
 
 **Missing `TxCtx` fails silently, not loudly.** If a v2-active table is
 reached without a `TxCtx` in scope, the inspector fail-closes the read: no
@@ -49,7 +49,7 @@ table, walk the *entire* call graph up to every `@RestController` entrypoint
 (not just one hop) and add each one found — see `.claude/skills/activate-tenant-table/SKILL.md`.
 
 A bare `TxCtx` parameter is always safe to add ahead of a table's actual
-activation: it's inert until the table is in `active-tables`, and
+activation: it's inert until the table is armed (a new tenant table is armed by `*`), and
 `TxCtxArgumentResolver` defaults to the caller's full authorized tenant set
 when no `@RequireTenantSelector` is present, so it never over- or
 under-scopes an unrelated read.
@@ -59,7 +59,7 @@ under-scopes an unrelated read.
 1. Native `@Query` on a **v1** table **bypasses** Hibernate filter → always add `WHERE tenant_id = :tenantId`
 2. Native query on a **v2-active** table → the FROM/JOIN shape must already be accepted by `TenantStatementInspector` (see table above)
 3. Every entrypoint whose call graph reaches a **v2-active** table must declare a `TxCtx` parameter — its absence is a silent empty-result regression, not a build/runtime error
-4. `@Filter("tenantFilter")` and v2 activation (`active-tables`) are mutually exclusive per table — never both
+4. `@Filter("tenantFilter")` and v2 activation (`active-tables=*`) are mutually exclusive per table: never both
 5. Never return `tenant_id` in API responses → `@JsonIgnore` on tenant relation
 6. Unique constraints on tenant-scoped entities → composite `(field, tenant_id)`
 7. Off the request thread, **both** tenant scopes must be set — see below
@@ -144,6 +144,6 @@ stamped by the listener runs the write through `TenantScopedJobRunner`.
 | Background job setting only `TxCtx` that writes a table stamped by `TenantBaseListener` | Run the write through `TenantScopedJobRunner` (it sets the tenant the listener reads and restores the previous value); a new direct call to `TenantContext` fails `V1TenantConstructArchTest` |
 | Relying on the `TenantContext` default fallback | Pass the owning row's tenant explicitly |
 | Entrypoint reaching a v2-active table with no `TxCtx` param | Add `TxCtx ctx` and register it in `TenantScopedEntrypointsTxCtxArchTest` |
-| `@Filter("tenantFilter")` left in place after adding a table to `active-tables` | Remove it in the same commit — v1 and v2 never coexist |
+| `@Filter("tenantFilter")` on a new tenant table, which `*` arms from the day it exists | Leave it out: v1 and v2 never coexist |
 | New tenant-scoped endpoint also mapped on `/api/{entities}` | Map it on `TENANT_PREFIX + "/{entities}"` only |
 | `findAllById` / `getReferenceById` on ids named in a request body | `findAllByIdInTenant(ids, tenantId)` with the tenant of the entity written (rule 10) |
