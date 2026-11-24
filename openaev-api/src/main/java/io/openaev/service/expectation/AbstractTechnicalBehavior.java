@@ -434,8 +434,7 @@ public abstract class AbstractTechnicalBehavior
               .build());
     }
     Double score =
-        computeChildrenScore(
-            parent.isExpectationGroup(), parent.getExpectedScore(), knownChildren);
+        computeChildrenScore(parent.isExpectationGroup(), parent.getExpectedScore(), knownChildren);
     // A direct VULNERABLE verdict on the parent row comes from legacy data only (assessment
     // injectors such as Nuclei used to answer the asset / asset-group row itself): it must survive
     // the children rollup.

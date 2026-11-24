@@ -1300,7 +1300,8 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("A vulnerability inject that never executed expires to unknown, not Not vulnerable")
+    @DisplayName(
+        "A vulnerability inject that never executed expires to unknown, not Not vulnerable")
     void vulnerabilityExpectationWithoutExecutionExpiresToUnknown() {
       // Distributed to the agents but nothing executed (no trace back): silence proves nothing, so
       // no leaf and no parent may read "Not vulnerable" with the expected score.

@@ -307,6 +307,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.custom_domain.CustomDomainPublicLookupService;
 import io.openaev.service.expectation.ChallengeBehavior;
+import io.openaev.service.expectation.VulnerabilityBehavior;
 import io.openaev.service.finding.FindingRecordingService;
 import io.openaev.service.finding.FindingValueDisplayBackfill;
 import io.openaev.service.inject.BatchingInjectStatusService;
@@ -4863,7 +4864,12 @@ class TenantActiveTableAccessArchTest {
               // transaction of the inject's own tenant - the same transaction
               // execution_traces_repository_access_is_reviewed already trusts for
               // ExecutionExecutorService/ExecutorService's trace writes:
-              AgentUtils.class)
+              AgentUtils.class,
+              // isExecutionProven takes the method reference to tell a scanned leaf from one whose
+              // inject never executed. Reached only from expireLeaves, run by
+              // ExpectationsExpirationManagerJob inside TenantScopedTransaction#forEachTenant for
+              // the tenant being expired:
+              VulnerabilityBehavior.class)
           .should(callOrReferenceMethod(InjectStatus.class, "getTraces"))
           .because(
               "execution_traces is reached through InjectStatus's EAGER traces association WITHOUT"
