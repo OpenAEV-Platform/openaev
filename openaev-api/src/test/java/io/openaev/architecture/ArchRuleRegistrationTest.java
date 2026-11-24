@@ -108,11 +108,6 @@ class ArchRuleRegistrationTest {
               TenantBackgroundTransactionArchTest.class,
               "the runner wraps it in a frozen rule; the raw rule is what the fixtures test"),
           new Helper(
-              TenantBackgroundTransactionRules.class,
-              "noTenantFilterDisableOutsideBaseline",
-              TenantFilterDisableArchTest.class,
-              "parameterised by the baseline, so the runner checks it from a @Test"),
-          new Helper(
               WorkflowOwnerScopeCallerRules.class,
               "ONLY_LISTED_CLASSES_MOVE_THE_CURRENT_TRANSACTION",
               WorkflowOwnerScopeCallerArchTest.class,

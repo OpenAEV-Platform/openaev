@@ -422,17 +422,16 @@ the end, never swallowed. Two semantics to keep in mind:
 ## Activating a table
 
 Isolation rolled out table by table, and `*` is the terminal state: a new tenant table is
-isolated as soon as it exists. A table starts on the legacy mechanism (a Hibernate
-`@Filter` driven by a thread-local tenant) and moves to the inspector-based mechanism described on
-this page. Activating a table means, in one reviewed change:
+isolated as soon as it exists, by the inspector-based mechanism described on this page. A table
+outside the armed set (only the self-isolated ones) has no ambient read isolation. Adding a tenant
+table means, in one reviewed change:
 
 1. every code path that touches the table carries a scope (a `TxCtx` on the HTTP side, the
    primitive on the background side);
 2. new-row attribution is explicit where needed;
-3. the legacy `@Filter` is removed from the entity;
-4. the table is covered by `openaev.tenant.active-tables` (automatic under `*`, which only needs a
+3. the table is covered by `openaev.tenant.active-tables` (automatic under `*`, which only needs a
    written reason for a table that must stay out);
-5. the build-time guards are extended for the new table.
+4. the build-time guards are extended for the new table.
 
 A step-by-step runbook for this procedure is maintained in the repository
 (`.claude/skills/activate-tenant-table/SKILL.md`), including the eligibility gates, the required
