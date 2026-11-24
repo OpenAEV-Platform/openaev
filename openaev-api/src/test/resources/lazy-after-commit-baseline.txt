@@ -253,7 +253,7 @@ ExerciseApi.removeExerciseTeamPlayers -> Exercise.tags | ATTENUATED | fixed by t
 ExerciseApi.removeExerciseTeamPlayers -> Exercise.teams | ATTENUATED | measured: initialised inside the transaction whenever written
 ExerciseApi.removeExerciseTeamPlayers -> Exercise.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
 ExerciseApi.scenarioFromSimulation -> Scenario.documents | ATTENUATED | fixed by the response hydration of tags and documents
-ExerciseApi.scenarioFromSimulation -> Scenario.exercises | NOT ESTABLISHED | read after the commit, but no test row to lose
+ExerciseApi.scenarioFromSimulation -> Scenario.exercises | ATTENUATED | fixed by the response hydration of exercises
 ExerciseApi.scenarioFromSimulation -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
 ExerciseApi.scenarioFromSimulation -> Scenario.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
 ExerciseApi.scenarioFromSimulation -> Scenario.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
@@ -598,7 +598,7 @@ ReportingApi.updateReporting -> Reporting.schedules | NOT ESTABLISHED | read aft
 ReportingApi.updateReporting -> ReportingSchedule.recipientUsers | NOT ESTABLISHED | not written by any measured test response
 ReportingApi.updateReportingSchedule -> ReportingSchedule.recipientUsers | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.addScenarioTeamPlayers -> Scenario.documents | ATTENUATED | fixed by the response hydration of tags and documents
-ScenarioApi.addScenarioTeamPlayers -> Scenario.exercises | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioApi.addScenarioTeamPlayers -> Scenario.exercises | ATTENUATED | fixed by the response hydration of exercises
 ScenarioApi.addScenarioTeamPlayers -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.addScenarioTeamPlayers -> Scenario.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.addScenarioTeamPlayers -> Scenario.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
@@ -634,7 +634,7 @@ ScenarioApi.createScenario -> Scenario.teams | ATTENUATED | measured: initialise
 ScenarioApi.createScenario -> Scenario.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.createScenarioWithInjectorContracts -> ScenarioSimple.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.disableScenarioTeamPlayers -> Scenario.documents | ATTENUATED | fixed by the response hydration of tags and documents
-ScenarioApi.disableScenarioTeamPlayers -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.disableScenarioTeamPlayers -> Scenario.exercises | ATTENUATED | fixed by the response hydration of exercises
 ScenarioApi.disableScenarioTeamPlayers -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.disableScenarioTeamPlayers -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.disableScenarioTeamPlayers -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
@@ -657,7 +657,7 @@ ScenarioApi.duplicateScenario -> Scenario.tags | ATTENUATED | measured: initiali
 ScenarioApi.duplicateScenario -> Scenario.teams | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.duplicateScenario -> Scenario.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.enableScenarioTeamPlayers -> Scenario.documents | ATTENUATED | fixed by the response hydration of tags and documents
-ScenarioApi.enableScenarioTeamPlayers -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.enableScenarioTeamPlayers -> Scenario.exercises | ATTENUATED | fixed by the response hydration of exercises
 ScenarioApi.enableScenarioTeamPlayers -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.enableScenarioTeamPlayers -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.enableScenarioTeamPlayers -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
@@ -667,7 +667,7 @@ ScenarioApi.enableScenarioTeamPlayers -> Scenario.tags | ATTENUATED | fixed by t
 ScenarioApi.enableScenarioTeamPlayers -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.enableScenarioTeamPlayers -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.removeScenarioTeamPlayers -> Scenario.documents | ATTENUATED | fixed by the response hydration of tags and documents
-ScenarioApi.removeScenarioTeamPlayers -> Scenario.exercises | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioApi.removeScenarioTeamPlayers -> Scenario.exercises | ATTENUATED | fixed by the response hydration of exercises
 ScenarioApi.removeScenarioTeamPlayers -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.removeScenarioTeamPlayers -> Scenario.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.removeScenarioTeamPlayers -> Scenario.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
@@ -679,7 +679,7 @@ ScenarioApi.removeScenarioTeamPlayers -> Scenario.usersAllNumber() | ATTENUATED 
 ScenarioApi.scenarios -> ScenarioSimple.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.scenariosById -> ScenarioSimple.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.updateScenario -> Scenario.documents | ATTENUATED | fixed by the response hydration of tags and documents
-ScenarioApi.updateScenario -> Scenario.exercises | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioApi.updateScenario -> Scenario.exercises | ATTENUATED | fixed by the response hydration of exercises
 ScenarioApi.updateScenario -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.updateScenario -> Scenario.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.updateScenario -> Scenario.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
@@ -689,7 +689,7 @@ ScenarioApi.updateScenario -> Scenario.tags | ATTENUATED | measured: initialised
 ScenarioApi.updateScenario -> Scenario.teams | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.updateScenario -> Scenario.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.updateScenarioLessons -> Scenario.documents | ATTENUATED | fixed by the response hydration of tags and documents
-ScenarioApi.updateScenarioLessons -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioLessons -> Scenario.exercises | ATTENUATED | fixed by the response hydration of exercises
 ScenarioApi.updateScenarioLessons -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.updateScenarioLessons -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.updateScenarioLessons -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
@@ -699,7 +699,7 @@ ScenarioApi.updateScenarioLessons -> Scenario.tags | ATTENUATED | fixed by the r
 ScenarioApi.updateScenarioLessons -> Scenario.teams | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.updateScenarioLessons -> Scenario.usersAllNumber() | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.updateScenarioRecurrence -> Scenario.documents | ATTENUATED | fixed by the response hydration of tags and documents
-ScenarioApi.updateScenarioRecurrence -> Scenario.exercises | NOT ESTABLISHED | read after the commit, but no test row to lose
+ScenarioApi.updateScenarioRecurrence -> Scenario.exercises | ATTENUATED | fixed by the response hydration of exercises
 ScenarioApi.updateScenarioRecurrence -> Scenario.getCommunicationsNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.updateScenarioRecurrence -> Scenario.getInjectStatistics() | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.updateScenarioRecurrence -> Scenario.getKillChainPhases() | ATTENUATED | measured: initialised inside the transaction whenever written
@@ -709,7 +709,7 @@ ScenarioApi.updateScenarioRecurrence -> Scenario.tags | ATTENUATED | fixed by th
 ScenarioApi.updateScenarioRecurrence -> Scenario.teams | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.updateScenarioRecurrence -> Scenario.usersAllNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioApi.updateScenarioTags -> Scenario.documents | ATTENUATED | fixed by the response hydration of tags and documents
-ScenarioApi.updateScenarioTags -> Scenario.exercises | NOT ESTABLISHED | not written by any measured test response
+ScenarioApi.updateScenarioTags -> Scenario.exercises | ATTENUATED | fixed by the response hydration of exercises
 ScenarioApi.updateScenarioTags -> Scenario.getCommunicationsNumber() | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.updateScenarioTags -> Scenario.getInjectStatistics() | NOT ESTABLISHED | not written by any measured test response
 ScenarioApi.updateScenarioTags -> Scenario.getKillChainPhases() | NOT ESTABLISHED | not written by any measured test response
